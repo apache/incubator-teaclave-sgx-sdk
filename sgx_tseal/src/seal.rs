@@ -188,7 +188,7 @@ impl<T: Copy> SgxSealedData<T> {
     /// are provided: one is the data to be encrypted; the second is optional additional data 
     /// that will not be encrypted but will be part of the GCM MAC calculation which also covers the data to be encrypted.
     ///
-    /// # Descryption
+    /// # Description
     ///
     /// The seal_data function retrieves a key unique to the enclave and uses
     /// that key to encrypt the input data buffer. This function can be utilized to preserve secret 
