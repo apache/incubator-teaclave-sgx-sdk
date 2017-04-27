@@ -36,7 +36,7 @@
 //! 
 //! The library also provides APIs to help calculate the sealed data size, encrypt text length, and Message Authentication Code (MAC) text length.
 //! 
-//! # Descryption 
+//! # Description
 //!
 //! When an enclave is instantiated, it provides protections (confidentiality and
 //! integrity) to the data by keeping it within the boundary of the enclave. Enclave
