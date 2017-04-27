@@ -42,6 +42,11 @@ Install Intel SGX driver and SDK first. And refer to Dockerfile for detail.
 Make sure Intel SGX SDK is properly installed and service started on the host
 OS. Then `cd dockerfile` and run `docker build -t rust-sgx-docker` to build.
 
+# Documents
+
+Please use `cargo doc` to generate documents for each crate in this SDK. The
+auto generated documents are easy to read and search.
+
 # Sample Codes
 
 We provide five sample codes to help developers understand how to write Enclave
