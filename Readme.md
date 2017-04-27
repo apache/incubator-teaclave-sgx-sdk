@@ -44,8 +44,11 @@ OS. Then `cd dockerfile` and run `docker build -t rust-sgx-docker` to build.
 
 # Documents
 
-Please use `cargo doc` to generate documents for each crate in this SDK. The
-auto generated documents are easy to read and search.
+The online documents for SDK crates can be found
+[here](https://dingelish.github.io/).
+
+We recommend to use `cargo doc` to generate documents for each crate in this
+SDK by yourself.  The auto generated documents are easy to read and search.
 
 # Sample Codes
 
@@ -103,7 +106,7 @@ for details.
 
 # Authors
 
-Ran Duan, Long Li, Yu Ding, Lenx Wei, Tanghui Chen
+Ran Duan, Long Li, Shi Jia, Yu Ding, Lenx Wei, Tanghui Chen
 
 # Contacts
 
