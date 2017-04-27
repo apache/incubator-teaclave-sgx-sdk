@@ -1,0 +1,10 @@
+[package]
+name = "sgx_types"
+version = "0.1.0"
+authors = ["Baidu"]
+
+[features]
+default = []
+use_std = []
+
+[dependencies]

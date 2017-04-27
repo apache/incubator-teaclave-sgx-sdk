@@ -1,0 +1,16 @@
+[package]
+name = "enclave"
+version = "0.1.0"
+authors = ["Baidu"]
+
+[lib]
+name = "enclave"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+use_std = []
+
+[dependencies]
+sgx_types = { path = "../../../sgx_types" }
+sgx_tstdc = { path = "../../../sgx_tstdc" }

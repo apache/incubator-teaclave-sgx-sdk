@@ -1,0 +1,14 @@
+[package]
+name = "attestation"
+version = "0.1.0"
+authors = ["Baidu"]
+
+[features]
+default = []
+use_std = []
+
+[dependencies]
+sgx_types = { path = "../../../sgx_types" }
+sgx_tstdc = { path = "../../../sgx_tstdc" }
+sgx_tdh = { path = "../../../sgx_tdh" }
+sgx_trts = { path = "../../../sgx_trts" }

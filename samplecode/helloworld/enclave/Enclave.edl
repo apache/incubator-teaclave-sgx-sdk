@@ -1,0 +1,14 @@
+enclave {
+	
+    trusted {
+        /* define ECALLs here. */
+		
+        public sgx_status_t say_something([in, size=len] const uint8_t* some_string, size_t len);
+    };
+    
+    untrusted {
+        void ocall_print_string([in, size=len] const char *str, size_t len);
+    };
+
+ 
+};
