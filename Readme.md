@@ -108,6 +108,10 @@ for details.
 
 Ran Duan, Long Li, Shi Jia, Yu Ding, Lenx Wei, Tanghui Chen
 
+# Acknowledgement
+
+Thanks to [Prof. Jingqiang Lin](http://people.ucas.ac.cn/~0010268) for his contribution to this project.
+
 # Contacts
 
 Yu Ding, dingelish@gmail.com
