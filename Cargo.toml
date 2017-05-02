@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "sgx_types",
+    "sgx_tcrypto",
+    "sgx_trts",
+    "sgx_tse",
+    "sgx_tseal",
+    "sgx_tkey_exchange",
+    "sgx_tdh",
+    "sgx_tservice",
+]
