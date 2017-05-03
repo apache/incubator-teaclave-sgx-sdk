@@ -1,4 +1,4 @@
-#![crate_name = "enclave"]
+#![crate_name = "helloworldsampleenclave"]
 #![crate_type = "staticlib"]
 
 #![no_std]

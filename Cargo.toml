@@ -8,4 +8,12 @@ members = [
     "sgx_tkey_exchange",
     "sgx_tdh",
     "sgx_tservice",
+    "samplecode/crypto/enclave",
+    "samplecode/helloworld/enclave",
+    "samplecode/localattestation/enclave1",
+    "samplecode/localattestation/enclave2",
+    "samplecode/localattestation/enclave3",
+    "samplecode/sealeddata/enclave",
+    "samplecode/thread/enclave",
+
 ]

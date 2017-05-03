@@ -1,5 +1,5 @@
 [package]
-name = "enclave"
+name = "Thread sample enclave"
 version = "0.1.0"
 authors = ["Baidu"]
 
