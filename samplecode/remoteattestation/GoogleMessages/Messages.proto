@@ -1,0 +1,65 @@
+package Messages;
+
+message InitialMessage {
+	required uint32 type = 1;
+	optional uint32 size = 2;
+}
+
+message MessageMsg0 {
+	required uint32 type = 1;
+	required uint32 epid = 2;
+	optional uint32 status = 3;
+}
+
+message MessageMSG1 {
+	required uint32 type = 1;
+	repeated uint32 GaX = 2 [packed=true];
+	repeated uint32 GaY = 3 [packed=true];
+	repeated uint32 GID = 4 [packed=true];
+}
+
+message MessageMSG2 {
+	required uint32 type = 1;
+	optional uint32 size = 2;
+	repeated uint32 public_key_gx = 3 [packed=true];
+	repeated uint32 public_key_gy = 4 [packed=true];
+	optional uint32 quote_type = 5;
+	repeated uint32 spid = 6 [packed=true];
+	optional uint32 cmac_kdf_id = 7;
+	repeated uint32 signature_x = 8 [packed=true];
+	repeated uint32 signature_y = 9 [packed=true];
+	repeated uint32 smac = 10 [packed=true];
+	optional uint32 size_sigrl = 11;
+	repeated uint32 sigrl = 12 [packed=true];
+}
+
+message MessageMSG3 {
+	required uint32 type = 1;
+	optional uint32 size = 2;
+	repeated uint32 sgx_mac = 3 [packed=true];
+	repeated uint32 gax_msg3 = 4 [packed=true];
+	repeated uint32 gay_msg3 = 5 [packed=true];
+	repeated uint32 sec_property = 6 [packed=true];
+	repeated uint32 quote = 7 [packed=true];
+}
+
+message AttestationMessage {
+	required uint32 type = 1;
+	required uint32 size = 2;
+
+	optional uint32 epid_group_status = 3;
+	optional uint32 tcb_evaluation_status = 4;
+	optional uint32 pse_evaluation_status = 5;
+	repeated uint32 latest_equivalent_tcb_psvn = 6 [packed=true];
+	repeated uint32 latest_pse_isvsvn = 7 [packed=true];
+	repeated uint32 latest_psda_svn = 8 [packed=true];
+	repeated uint32 performance_rekey_gid = 9 [packed=true];
+	repeated uint32 ec_sign256_x = 10 [packed=true];
+	repeated uint32 ec_sign256_y = 11 [packed=true];
+	repeated uint32 mac_smk = 12 [packed=true];
+
+	optional uint32 result_size = 13;
+	repeated uint32 reserved = 14 [packed=true];
+	repeated uint32 payload_tag = 15 [packed=true];
+	repeated uint32 payload = 16 [packed=true];
+}

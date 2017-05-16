@@ -33,7 +33,7 @@ FROM ubuntu:16.04
 MAINTAINER Yu Ding
 
 RUN apt-get update
-RUN apt-get install -y build-essential ocaml automake autoconf libtool wget python libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev sudo kmod vim curl git-core
+RUN apt-get install -y build-essential ocaml automake autoconf libtool wget python libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev sudo kmod vim curl git-core libprotobuf-c0-dev libboost-thread-dev libboost-system-dev liblog4cpp5-dev libjsoncpp-dev
 
 RUN mkdir /root/sgx
 RUN wget -O /root/sgx/optimized_libs-1.8.100.37641.tar https://download.01.org/intel-sgx/linux-1.8/optimized_libs-1.8.100.37641.tar

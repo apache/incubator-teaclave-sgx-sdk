@@ -71,6 +71,11 @@ verify the sealed data.
 * `thread` sample is a sample ported from the original Intel SGX SDK, showing
 some basic usages of threading APIs. 
 
+* New! `remoteattestation` sample shows how to make remote attestation with
+Rust SGX SDK. The sample is forked from [linux-sgx-attestation](https://github.com/svartkanin/linux-sgx-remoteattestation)
+and credits to Blackrabbit (blackrabbit256@gmail.com). The enclave in Rust
+is shipped in this sample and Makefiles are modified accordingly.
+
 # Tips for writing enclaves in Rust
 
 ## Writing EDL
