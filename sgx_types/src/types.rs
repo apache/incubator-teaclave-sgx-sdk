@@ -27,6 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use error::*;
+use super::marker::ContiguousMemory;
 
 //
 // sgx_attributes.h
@@ -35,17 +36,17 @@ use error::*;
 
 pub type sgx_misc_select_t = ::uint32_t;
 
-// Enclave Flags Bit Masks 
-pub const SGX_FLAGS_INITTED: ::uint64_t         = 0x0000000000000001;    //If set, then the enclave is initialized 
+// Enclave Flags Bit Masks
+pub const SGX_FLAGS_INITTED: ::uint64_t         = 0x0000000000000001;    //If set, then the enclave is initialized
 pub const SGX_FLAGS_DEBUG: ::uint64_t           = 0x0000000000000002;    //If set, then the enclave is debug
 pub const SGX_FLAGS_MODE64BIT: ::uint64_t       = 0x0000000000000004;    //If set, then the enclave is 64 bit
 pub const SGX_FLAGS_PROVISION_KEY: ::uint64_t   = 0x0000000000000010;    //If set, then the enclave has access to provision key
-pub const SGX_FLAGS_LICENSE_KEY: ::uint64_t     = 0x0000000000000020;    //If set, then the enclave has access to License key
-pub const SGX_FLAGS_RESERVED: ::uint64_t        = (!(SGX_FLAGS_INITTED 
-                                                | SGX_FLAGS_DEBUG 
-                                                | SGX_FLAGS_MODE64BIT 
-                                                | SGX_FLAGS_PROVISION_KEY 
-                                                | SGX_FLAGS_LICENSE_KEY));
+pub const SGX_FLAGS_EINITTOKEN_KEY: ::uint64_t  = 0x0000000000000020;    //If set, then the enclave has access to EINITTOKEN key
+pub const SGX_FLAGS_RESERVED: ::uint64_t        = (!(SGX_FLAGS_INITTED
+                                                | SGX_FLAGS_DEBUG
+                                                | SGX_FLAGS_MODE64BIT
+                                                | SGX_FLAGS_PROVISION_KEY
+                                                | SGX_FLAGS_EINITTOKEN_KEY));
 
 // XSAVE Feature Request Mask
 pub const SGX_XFRM_LEGACY: ::uint64_t           = 0x0000000000000003;  //Legacy XFRM
@@ -59,12 +60,12 @@ impl_struct! {
     pub struct sgx_attributes_t {
         pub flags: ::uint64_t,
         pub xfrm: ::uint64_t,
-    }  
+    }
 
     pub struct sgx_misc_attribute_t {
         pub secs_attr: sgx_attributes_t,
         pub misc_select: sgx_misc_select_t,
-    } 
+    }
 }
 
 //
@@ -78,9 +79,9 @@ impl_struct! {
 
     #[repr(packed)]
     pub struct sgx_dh_msg1_t {
-        pub g_a: sgx_ec256_public_t, 
+        pub g_a: sgx_ec256_public_t,
         pub target: sgx_target_info_t,
-    } 
+    }
 }
 
 impl_copy_clone! {
@@ -114,7 +115,7 @@ impl_copy_clone! {
         pub mr_enclave: sgx_measurement_t,
         pub reserved_2: [::uint8_t; 32],
         pub mr_signer: sgx_measurement_t,
-        pub reserved_3: [::uint8_t; 96], 
+        pub reserved_3: [::uint8_t; 96],
         pub isv_prod_id: ::sgx_prod_id_t,
         pub isv_svn: ::sgx_isv_svn_t,
     }
@@ -133,6 +134,13 @@ impl_struct_default! {
     sgx_dh_session_t, 200;
 }
 
+impl_struct_ContiguousMemory! {
+    sgx_dh_msg2_t;
+    sgx_dh_msg3_body_t;
+    sgx_dh_msg3_t;
+    sgx_dh_session_enclave_identity_t;
+    sgx_dh_session_t;
+}
 
 impl_enum! {
 
@@ -225,6 +233,10 @@ impl_struct_default! {
     sgx_key_request_t, 512;
 }
 
+impl_struct_ContiguousMemory! {
+    sgx_key_request_t;
+}
+
 //
 // sgx_key_exchange.h
 //
@@ -275,6 +287,10 @@ impl_copy_clone! {
 
 impl_struct_default! {
     sgx_ra_msg3_t, 336;
+}
+
+impl_struct_ContiguousMemory! {
+    sgx_ra_msg3_t;
 }
 
 //
@@ -347,6 +363,11 @@ impl_struct_default! {
     sgx_platform_info_t, 101;
 }
 
+impl_struct_ContiguousMemory! {
+    sgx_quote_t;
+    sgx_platform_info_t;
+}
+
 //
 // sgx_report.h
 //
@@ -367,7 +388,7 @@ impl_struct! {
 pub type sgx_mac_t = [::uint8_t; SGX_MAC_SIZE];
 
 impl_copy_clone! {
-    
+
     pub struct sgx_report_data_t {
         pub d: [::uint8_t; SGX_REPORT_DATA_SIZE],
     }
@@ -375,6 +396,10 @@ impl_copy_clone! {
 
 impl_struct_default! {
     sgx_report_data_t, 64;
+}
+
+impl_struct_ContiguousMemory! {
+    sgx_report_data_t;
 }
 
 pub type sgx_prod_id_t = ::uint16_t;
@@ -420,6 +445,12 @@ impl_struct_default! {
     sgx_report_t, 432;
 }
 
+impl_struct_ContiguousMemory! {
+    sgx_target_info_t;
+    sgx_report_body_t;
+    sgx_report_t;
+}
+
 //
 // sgx_spinlock.h
 //
@@ -455,10 +486,23 @@ impl_copy_clone! {
     pub struct sgx_ps_sec_prop_desc_t {
         pub sgx_ps_sec_prop_desc: [::uint8_t; 256],
     }
+
+    pub struct sgx_ps_sec_prop_desc_ex_t {
+        pub ps_sec_prop_desc: sgx_ps_sec_prop_desc_t,
+        pub pse_mrsigner: sgx_measurement_t,
+        pub pse_prod_id: sgx_prod_id_t,
+        pub pse_isv_svn: sgx_isv_svn_t,
+    }
 }
 
 impl_struct_default! {
     sgx_ps_sec_prop_desc_t, 256;
+    sgx_ps_sec_prop_desc_ex_t, 292;
+}
+
+impl_struct_ContiguousMemory! {
+    sgx_ps_sec_prop_desc_t;
+    sgx_ps_sec_prop_desc_ex_t;
 }
 
 pub const SGX_MC_POLICY_SIGNER: ::uint16_t   = 0x01;
@@ -483,6 +527,11 @@ impl_struct! {
 
     pub struct sgx_ec256_dh_shared_t {
         pub s: [::uint8_t; SGX_ECP256_KEY_SIZE],
+    }
+
+    pub struct sgx_ec256_dh_shared512_t {
+        pub x: [::uint8_t; SGX_ECP256_KEY_SIZE],
+        pub y: [::uint8_t; SGX_ECP256_KEY_SIZE],
     }
 
     pub struct sgx_ec256_private_t {
@@ -557,11 +606,11 @@ cfg_if! {
     }
 }
 
-pub const THREAD_SELF_ADDR:         ::size_t = 0;
-pub const THREAD_LAST_SP_ADDR:      ::size_t = (SE_WORDSIZE * 1);
-pub const THREAD_STACK_BASE_ADDR:   ::size_t = (SE_WORDSIZE * 2);
-pub const THREAD_STACK_LIMIT_ADDR:  ::size_t = (SE_WORDSIZE * 3);
-pub const THREAD_STACK_SSA_GPR:     ::size_t = (SE_WORDSIZE * 4);
+//pub const THREAD_SELF_ADDR:         ::size_t = 0;
+//pub const THREAD_LAST_SP_ADDR:      ::size_t = (SE_WORDSIZE * 1);
+//pub const THREAD_STACK_BASE_ADDR:   ::size_t = (SE_WORDSIZE * 2);
+//pub const THREAD_STACK_LIMIT_ADDR:  ::size_t = (SE_WORDSIZE * 3);
+//pub const THREAD_STACK_SSA_GPR:     ::size_t = (SE_WORDSIZE * 4);
 
 pub struct sgx_thread_queue_t {
     pub m_first: sgx_thread_t,
@@ -649,7 +698,7 @@ pub const EXCEPTION_CONTINUE_SEARCH: ::uint32_t      = 0;
 pub const EXCEPTION_CONTINUE_EXECUTION: ::uint32_t   = 0xFFFFFFFF;
 
 impl_enum! {
-    
+
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq)]
     pub enum sgx_exception_vector_t {
@@ -665,7 +714,7 @@ impl_enum! {
 }
 
 impl_enum!{
-    
+
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq)]
     pub enum sgx_exception_type_t {

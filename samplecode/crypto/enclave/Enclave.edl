@@ -1,9 +1,9 @@
 enclave {
-	
+
     trusted {
         /* define ECALLs here. */
-		
-        public sgx_status_t calc_sha256([in, size=len] const uint8_t* input_str, 
+
+        public sgx_status_t calc_sha256([in, size=len] const uint8_t* input_str,
                                         size_t len,
                                         [out] uint8_t hash[32]);
 
@@ -27,10 +27,10 @@ enclave {
                                      [out] uint8_t cmac[16]);
 
     };
-    
+
     untrusted {
         void ocall_print_string([in, size=len] const char *str, size_t len);
     };
 
- 
+
 };

@@ -47,7 +47,7 @@
 # define __END_DECLS
 #endif
 
-#if defined(__STDC__) || defined(__cplusplus) 
+#if defined(__STDC__) || defined(__cplusplus)
 # define __CONCAT(x,y)  x ## y
 # define __STRING(x)    #x
 #else
@@ -65,7 +65,7 @@
 #endif
 
 /* Calling Convention: cdecl */
-#define _TLIBC_CDECL_      
+#define _TLIBC_CDECL_
 
 /* Thread Directive */
 #define _TLIBC_THREAD_     /* __thread */
@@ -83,7 +83,7 @@
 #endif
 
 /* Static analysis for printf format strings.
- * _MSC_PRINTF_FORMAT_: MSVC SAL annotation for specifying format strings. 
+ * _MSC_PRINTF_FORMAT_: MSVC SAL annotation for specifying format strings.
  * _GCC_PRINTF_FORMAT_(x, y): GCC declaring attribute for checking format strings.
  *   x - index of the format string. In C++ non-static method, index 1 is reseved for 'this'.
  *   y - index of first variadic agrument in '...'.

@@ -27,15 +27,15 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //! # Intel(R) Software Guard Extensions Sealing and Unsealing Functions
-//! 
+//!
 //! The library provides the following functions:
-//! 
+//!
 //! * Exposes APIs to create sealed data which is both confidentiality andintegrity protected.
 //! * Exposes an API to unseal sealed data inside the enclave.
 //! * Provides APIs to authenticate and verify the input data with AES-GMAC.
-//! 
+//!
 //! The library also provides APIs to help calculate the sealed data size, encrypt text length, and Message Authentication Code (MAC) text length.
-//! 
+//!
 //! # Description
 //!
 //! When an enclave is instantiated, it provides protections (confidentiality and
@@ -74,7 +74,7 @@
 //! hash function. GCM can also provide authentication assurance for additional
 //! data (of practically unlimited length per invocation) that is not encrypted. GCM
 //! can also provide authentication assurance for additional data (of practically
-//! unlimited length per invocation) that is not encrypted. If the GCM input contains 
+//! unlimited length per invocation) that is not encrypted. If the GCM input contains
 //! only data that is not to be encrypted, the resulting specialization of GCM,
 //! called GMAC (Galois Message Authentication Code), is simply an authentication
 //! mode for the input data. The mac_aadata API call restricts the input to
@@ -89,6 +89,7 @@
 
 #![allow(non_camel_case_types)]
 #![allow(unused_assignments)]
+#![allow(deprecated)]
 #[cfg(feature = "use_std")]
 #[macro_use]
 extern crate std as core;
@@ -105,10 +106,10 @@ extern crate sgx_trts;
 extern crate sgx_tcrypto;
 extern crate sgx_tse;
 
-pub mod seal;
+mod seal;
 pub use self::seal::*;
 
-pub mod aad;
+mod aad;
 pub use self::aad::*;
 
 mod internal;

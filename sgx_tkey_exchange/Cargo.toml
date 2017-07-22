@@ -1,6 +1,6 @@
 [package]
 name = "sgx_tkey_exchange"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Baidu"]
 
 [features]

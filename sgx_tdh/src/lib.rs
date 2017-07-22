@@ -27,18 +27,18 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //! # Diffie–Hellman (DH) Session Establishment Functions
-//! 
+//!
 //! These functions allow an ISV to establish secure session between two enclaves using the EC DH Key exchange protocol.
-//! 
+//!
 #![crate_name = "sgx_tdh"]
 #![crate_type = "rlib"]
 
 #![cfg_attr(not(feature = "use_std"), no_std)]
 
 #![cfg_attr(not(feature = "use_std"), feature(alloc, collections))]
-
 #![allow(non_camel_case_types)]
 #![allow(unused_assignments)]
+#![allow(deprecated)]
 
 #[cfg(feature = "use_std")]
 #[macro_use]
@@ -56,7 +56,7 @@ extern crate sgx_trts;
 extern crate sgx_tcrypto;
 extern crate sgx_tse;
 
-pub mod dh;
+mod dh;
 pub use self::dh::*;
 
 mod ecp;

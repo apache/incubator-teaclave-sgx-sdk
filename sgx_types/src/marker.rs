@@ -1,0 +1,78 @@
+
+macro_rules! impl_marker_for {
+    ($traitname:ident, $($ty:ty)*) => {
+        $(
+            impl $traitname for $ty { }
+        )*
+    }
+}
+
+macro_rules! impl_marker_for_array {
+    ($traitname:ident, $($N:expr)+) => {
+        $(
+            impl<T: $traitname> $traitname for [T; $N] { }
+        )+
+    }
+}
+
+macro_rules! impl_unsafe_marker_for {
+    ($traitname:ident, $($ty:ty)*) => {
+        $(
+            unsafe impl $traitname for $ty { }
+        )*
+    }
+}
+
+macro_rules! impl_unsafe_marker_for_array {
+    ($traitname:ident, $($N:expr)+) => {
+        $(
+            unsafe impl<T: $traitname> $traitname for [T; $N] { }
+        )+
+    }
+}
+
+/// Trait implemented for types that can be compared for equality using their bytewise representation
+/// A type can implement BytewiseEquality if all of its components implement BytewiseEquality.
+pub trait BytewiseEquality { }
+
+
+impl_marker_for!(BytewiseEquality,
+                 u8 i8 u16 i16 u32 i32 u64 i64 usize isize char bool);
+
+impl<T: BytewiseEquality> BytewiseEquality for [T] { }
+
+impl_marker_for_array! {BytewiseEquality,
+     0  1  2  3  4  5  6  7  8  9
+    10 11 12 13 14 15 16 17 18 19
+    20 21 22 23 24 25 26 27 28 29
+    30 31 32 33 34 35 36 37 38 39
+    40 41 42 43 44 45 46 47 48 49
+    50 51 52 53 54 55 56 57 58 59
+    60 61 62 63 64
+}
+
+
+pub unsafe trait ContiguousMemory { }
+
+impl_unsafe_marker_for!(ContiguousMemory,
+                 u8 i8 u16 i16 u32 i32 u64 i64 usize isize char bool);
+
+unsafe impl<T: ContiguousMemory> ContiguousMemory for [T] { }
+
+
+impl_unsafe_marker_for_array! {ContiguousMemory,
+     0  1  2  3  4  5  6  7  8  9
+    10 11 12 13 14 15 16 17 18 19
+    20 21 22 23 24 25 26 27 28 29
+    30 31 32 33 34 35 36 37 38 39
+    40 41 42 43 44 45 46 47 48 49
+    50 51 52 53 54 55 56 57 58 59
+    60 61 62 63 64
+}
+
+/*
+impl<T: ?Sized> !ContiguousMemory for * const T {}
+impl<T: ?Sized> !ContiguousMemory for * mut T {}
+impl<'a, T: 'a + ?Sized> !ContiguousMemory for &'a T {}
+impl<'a, T: 'a + ?Sized> !ContiguousMemory for &'a mut T {}
+*/

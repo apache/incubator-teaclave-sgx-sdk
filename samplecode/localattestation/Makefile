@@ -83,7 +83,7 @@ endif
 App_Cpp_Files := $(wildcard ./app/*.cpp)
 App_Include_Paths := -I ./app -I./include -I$(SGX_SDK)/include -I./attestation -I./Include
 App_Cpp_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread 
+App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
 else
@@ -136,7 +136,7 @@ all: $(Enclave_EDL_Files) $(App_Name) $(Signed_RustEnclave1_Name) $(Signed_RustE
 
 ######## EDL Objects ########
 
-$(Enclave_EDL_Files): $(SGX_EDGER8R) enclave1/Enclave1.edl enclave2/Enclave2.edl enclave3/Enclave3.edl 
+$(Enclave_EDL_Files): $(SGX_EDGER8R) enclave1/Enclave1.edl enclave2/Enclave2.edl enclave3/Enclave3.edl
 	$(SGX_EDGER8R) --use-prefix --trusted enclave1/Enclave1.edl --search-path $(SGX_SDK)/include --trusted-dir enclave1
 	$(SGX_EDGER8R) --use-prefix --untrusted enclave1/Enclave1.edl --search-path $(SGX_SDK)/include --untrusted-dir app
 
@@ -184,7 +184,7 @@ enclave1/Enclave1_t.o: enclave1/Enclave1_t.c
 $(RustEnclave1_Name): enclave1 compiler-rt enclave1/Enclave1_t.o
 	cp ./enclave1/target/release/libenclave1.a ./lib
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
-	@$(CXX) enclave1/Enclave1_t.o -o $@ $(RustEnclave_Link_Libs) -lenclave1 $(RustEnclave_Link_Flags) 
+	@$(CXX) enclave1/Enclave1_t.o -o $@ $(RustEnclave_Link_Libs) -lenclave1 $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
 $(Signed_RustEnclave1_Name): $(RustEnclave1_Name)
@@ -201,7 +201,7 @@ enclave2/Enclave2_t.o: enclave2/Enclave2_t.c
 $(RustEnclave2_Name): enclave2 compiler-rt enclave2/Enclave2_t.o
 	cp ./enclave2/target/release/libenclave2.a ./lib
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
-	@$(CXX) enclave2/Enclave2_t.o -o $@ $(RustEnclave_Link_Libs) -lenclave2 $(RustEnclave_Link_Flags) 
+	@$(CXX) enclave2/Enclave2_t.o -o $@ $(RustEnclave_Link_Libs) -lenclave2 $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
 $(Signed_RustEnclave2_Name): $(RustEnclave2_Name)
@@ -217,7 +217,7 @@ enclave3/Enclave3_t.o: enclave3/Enclave3_t.c
 $(RustEnclave3_Name): enclave3 compiler-rt enclave3/Enclave3_t.o
 	cp ./enclave3/target/release/libenclave3.a ./lib
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
-	@$(CXX) enclave3/Enclave3_t.o -o $@ $(RustEnclave_Link_Libs) -lenclave3 $(RustEnclave_Link_Flags) 
+	@$(CXX) enclave3/Enclave3_t.o -o $@ $(RustEnclave_Link_Libs) -lenclave3 $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
 $(Signed_RustEnclave3_Name): $(RustEnclave3_Name)
@@ -227,20 +227,23 @@ $(Signed_RustEnclave3_Name): $(RustEnclave3_Name)
 .PHONY: enclave1
 enclave1:
 	$(MAKE) -C ./enclave1/
-	
+
 .PHONY: enclave2
 enclave2:
 	$(MAKE) -C ./enclave2/
-	
+
 .PHONY: enclave3
 enclave3:
 	$(MAKE) -C ./enclave3/
-	
+
 .PHONY: compiler-rt
 compiler-rt:
 	$(MAKE) -C ../../compiler-rt/ 2> /dev/null
-	
+
 .PHONY: clean
 clean:
 	@rm -f $(App_Name) $(RustEnclave1_Name) $(Signed_RustEnclave1_Name) $(RustEnclave2_Name) $(Signed_RustEnclave2_Name) $(RustEnclave3_Name) $(Signed_RustEnclave3_Name) $(RustEnclave_C_Objects) $(App_Cpp_Objects) enclave1/*_t.* enclave2/*_t.* enclave3/*_t.* app/*_u.* lib/*.a
-	
+	@cd enclave1 && cargo clean && rm -f Cargo.lock
+	@cd enclave2 && cargo clean && rm -f Cargo.lock
+	@cd enclave3 && cargo clean && rm -f Cargo.lock
+	@cd attestation && cargo clean && rm -f Cargo.lock

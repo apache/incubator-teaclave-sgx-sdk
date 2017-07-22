@@ -27,11 +27,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //! # Diffie–Hellman (DH) Session Establishment Functions
-//! 
+//!
 //! These functions allow an ISV to establish secure session between two enclaves using the EC DH Key exchange protocol.
-//! 
+//!
 use sgx_types::*;
+use sgx_types::marker::ContiguousMemory;
 use sgx_trts::*;
+use sgx_trts::memeq::ConsttimeMemEq;
 use sgx_tcrypto::*;
 use sgx_tse::*;
 use core::mem;
@@ -63,17 +65,17 @@ pub struct SgxDhMsg3 {
 }
 
 impl SgxDhMsg3 {
-    /// 
+    ///
     /// Create a SgxDhMsg3 with default values.
-    /// 
+    ///
     pub fn new() -> Self {
         let dh_msg3 = SgxDhMsg3::default();
         dh_msg3
     }
 
-    /// 
+    ///
     /// Calculate the size of sgx_dh_msg3_t converted from SgxDhMsg3, really add the size of struct sgx_dh_msg3_t and msg3_body.additional_prop.
-    /// 
+    ///
     /// # Return value
     ///
     /// The size of sgx_dh_msg3_t needed.
@@ -87,21 +89,21 @@ impl SgxDhMsg3 {
         if additional_prop_len > (max as usize) - dh_msg3_size {
             return max;
         }
-     
+
         (dh_msg3_size + additional_prop_len) as u32
     }
 
     ///
     /// Convert SgxDhMsg3 to sgx_dh_msg3_t, this is an unsafe function.
-    /// 
+    ///
     /// # Parameters
-    /// 
+    ///
     /// **p**
-    /// 
+    ///
     /// The pointer of a sgx_dh_msg3_t buffer to save the buffer of SgxDhMsg3.
-    /// 
+    ///
     /// **len**
-    /// 
+    ///
     /// The size of the sgx_dh_msg3_t buffer.
     ///
     /// # Return value
@@ -139,34 +141,34 @@ impl SgxDhMsg3 {
 
         if additional_prop_len > 0 {
             let raw_msg3 = slice::from_raw_parts_mut(p as * mut u8, len as usize);
-            raw_msg3[dh_msg3_size..].copy_from_slice(&self.msg3_body.additional_prop); 
+            raw_msg3[dh_msg3_size..].copy_from_slice(&self.msg3_body.additional_prop);
         }
 
-        mem::forget(dh_msg3); 
+        mem::forget(dh_msg3);
         Some(p)
     }
 
-    /// 
+    ///
     /// Convert sgx_dh_msg3_t to SgxDhMsg3, this is an unsafe function.
-    /// 
+    ///
     /// # Parameters
-    /// 
+    ///
     /// **p**
-    /// 
+    ///
     /// The pointer of a sgx_dh_msg3_t buffer.
     ///
     /// **len**
-    /// 
+    ///
     /// The size of the sgx_dh_msg3_t buffer.
-    /// 
+    ///
     /// # Return value
-    /// 
+    ///
     /// **Some(SgxDhMsg3)**
     ///
     /// Indicates the conversion is successfully. The return value is SgxDhMsg3.
-    /// 
+    ///
     /// **None**
-    /// 
+    ///
     /// The parameters p and len are not available for the conversion.
     ///
     pub unsafe fn from_raw_dh_msg3_t(p: * mut sgx_dh_msg3_t, len: u32) -> Option<Self> {
@@ -177,7 +179,7 @@ impl SgxDhMsg3 {
         if rsgx_raw_is_within_enclave(p as * mut u8, len as usize) == false {
             return None;
         }
-        
+
         let raw_msg3 = Box::from_raw(p);
         let additional_prop_len = raw_msg3.msg3_body.additional_prop_length;
         let dh_msg3_size = mem::size_of::<sgx_dh_msg3_t>() as u32;
@@ -195,7 +197,7 @@ impl SgxDhMsg3 {
         if additional_prop_len > 0 {
             let mut additional_prop: Vec<u8> = vec![0_u8; additional_prop_len as usize];
             let ptr_additional_prop = p.offset(1) as * const u8;
-            ptr::copy_nonoverlapping(ptr_additional_prop, additional_prop.as_mut_ptr(), additional_prop_len as usize); 
+            ptr::copy_nonoverlapping(ptr_additional_prop, additional_prop.as_mut_ptr(), additional_prop_len as usize);
             dh_msg3.msg3_body.additional_prop = additional_prop.into_boxed_slice();
         }
 
@@ -219,7 +221,7 @@ enum SgxDhSessionState {
 pub struct SgxDhResponder {
     state: SgxDhSessionState,
     prv_key: sgx_ec256_private_t,
-    pub_key: sgx_ec256_public_t, 
+    pub_key: sgx_ec256_public_t,
     smk_aek: sgx_key_128bit_t,
     shared_key: sgx_ec256_dh_shared_t,
 }
@@ -236,28 +238,30 @@ impl Default for SgxDhResponder {
     }
 }
 
+unsafe impl ContiguousMemory for SgxDhResponder {}
+
 impl SgxDhResponder {
-    /// 
+    ///
     /// Initialize DH secure session responder.
-    /// 
+    ///
     /// Indicates role of responder  the caller plays in the secure session establishment.
-    /// 
+    ///
     /// The value of role of the responder of the session establishment must be `SGX_DH_SESSION_RESPONDER`.
     ///
     /// # Requirements
-    /// 
+    ///
     /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
-    ///  
+    ///
     pub fn init_session() -> Self {
         Self::default()
     }
     ///
-    /// Generates MSG1 for the responder of DH secure session establishment and records ECC key pair in session structure. 
+    /// Generates MSG1 for the responder of DH secure session establishment and records ECC key pair in session structure.
     ///
     /// # Requirements
-    /// 
+    ///
     /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
-    ///  
+    ///
     /// # Parameters
     ///
     /// **msg1**
@@ -266,25 +270,25 @@ impl SgxDhResponder {
     /// message, which is referenced by this parameter, must be within the enclave.
     /// The DH msg1 contains the responder’s public key and report based target
     /// info.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// **SGX_ERROR_INVALID_PARAMETER**
-    /// 
+    ///
     /// Any of the input parameters is incorrect.
-    /// 
+    ///
     /// **SGX_ERROR_INVALID_STATE**
-    /// 
+    ///
     /// The API is invoked in incorrect order or state.
-    /// 
+    ///
     /// **SGX_ERROR_OUT_OF_MEMORY**
-    /// 
+    ///
     /// The enclave is out of memory.
-    /// 
+    ///
     /// **SGX_ERROR_UNEXPECTED**
-    /// 
+    ///
     /// An unexpected error occurred.
-    /// 
+    ///
     pub fn gen_msg1(&mut self, msg1: &mut SgxDhMsg1) -> SgxError {
 
         if rsgx_data_is_within_enclave(self) == false {
@@ -310,78 +314,78 @@ impl SgxDhResponder {
             },
             _ => (),
         };
-        
+
         self.state = SgxDhSessionState::SGX_DH_SESSION_RESPONDER_WAIT_M2;
         Ok(())
     }
-    
-    /// 
+
+    ///
     /// The responder handles msg2 sent by initiator and then derives AEK, updates session information and generates msg3.
-    /// 
+    ///
     /// # Requirements
-    /// 
+    ///
     /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
-    ///  
+    ///
     /// # Parameters
     ///
     /// **msg2**
     ///
     /// Point to dh message 2 buffer generated by session initiator, and the buffer must be in enclave address space.
-    /// 
+    ///
     /// **msg3**
-    /// 
+    ///
     /// Point to dh message 3 buffer generated by session responder in this function, and the buffer must be in enclave address space.
-    /// 
+    ///
     /// **aek**
     ///
     /// A pointer that points to instance of sgx_key_128bit_t. The aek is derived as follows:
-    /// 
+    ///
     /// ```
     /// KDK := CMAC(key0, LittleEndian(gab x-coordinate))
     /// AEK = AES-CMAC(KDK, 0x01||"AEK"||0x00||0x80||0x00)
     /// ```
     /// The key0 used in the key extraction operation is 16 bytes of 0x00. The plain
     /// text used in the AES-CMAC calculation of the KDK is the Diffie-Hellman shared
-    /// secret elliptic curve field element in Little Endian format.The plain text used 
+    /// secret elliptic curve field element in Little Endian format.The plain text used
     /// in the AEK calculation includes:
-    /// 
+    ///
     /// * a counter (0x01)
-    /// 
+    ///
     /// * a label: the ASCII representation of the string 'AEK' in Little Endian format
-    /// 
+    ///
     /// * a bit length (0x80)
-    /// 
+    ///
     /// **initiator_identity**
     ///
-    /// A pointer that points to instance of sgx_dh_session_enclave_identity_t. 
+    /// A pointer that points to instance of sgx_dh_session_enclave_identity_t.
     /// Identity information of initiator includes isv svn, isv product id, the
     /// enclave attributes, MRSIGNER, and MRENCLAVE. The buffer must be in
     /// enclave address space. The caller should check the identity of the peer and
     /// decide whether to trust the peer and use the aek.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// **SGX_ERROR_INVALID_PARAMETER**
-    /// 
+    ///
     /// Any of the input parameters is incorrect.
-    /// 
+    ///
     /// **SGX_ERROR_INVALID_STATE**
-    /// 
+    ///
     /// The API is invoked in incorrect order or state.
-    /// 
+    ///
     /// **SGX_ERROR_KDF_MISMATCH**
-    /// 
+    ///
     /// Indicates the key derivation function does not match.
-    /// 
+    ///
     /// **SGX_ERROR_OUT_OF_MEMORY**
-    /// 
+    ///
     /// The enclave is out of memory.
-    /// 
+    ///
     /// **SGX_ERROR_UNEXPECTED**
-    /// 
+    ///
     /// An unexpected error occurred.
-    /// 
-    pub fn proc_msg2(&mut self, 
+    ///
+    pub fn proc_msg2(&mut self,
                      msg2: &SgxDhMsg2,
                      msg3: &mut SgxDhMsg3,
                      aek: &mut sgx_key_128bit_t,
@@ -412,7 +416,7 @@ impl SgxDhResponder {
             self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
-   
+
         let ecc_state = SgxEccHandle::new();
         try!(ecc_state.open().map_err(|ret| self.set_error(ret)));
         self.shared_key = try!(ecc_state.compute_shared_dhkey(&self.prv_key, &msg2.g_b).map_err(|ret| self.set_error(ret)));
@@ -440,7 +444,7 @@ impl SgxDhResponder {
     fn dh_generate_message1(&mut self, msg1: &mut SgxDhMsg1) -> SgxError {
 
         let target = sgx_target_info_t::default();
-        let report_data = sgx_report_data_t::default(); 
+        let report_data = sgx_report_data_t::default();
 
         let report = try!(rsgx_create_report(&target, &report_data));
 
@@ -452,13 +456,13 @@ impl SgxDhResponder {
         try!(ecc_state.open());
         let (prv_key, pub_key) = try!(ecc_state.create_key_pair());
 
-        self.prv_key = prv_key;                                                                    
+        self.prv_key = prv_key;
         self.pub_key = pub_key;
-        msg1.g_a = pub_key; 
+        msg1.g_a = pub_key;
 
         Ok(())
     }
-    
+
     fn dh_verify_message2(&self, msg2: &SgxDhMsg2) -> SgxError {
 
         let kdf_id = &msg2.report.body.report_data.d[SGX_SHA256_HASH_SIZE..SGX_SHA256_HASH_SIZE + 2];
@@ -469,7 +473,7 @@ impl SgxDhResponder {
         }
 
         let data_mac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &msg2.report));
-        if data_mac.eq(&msg2.cmac) == false {
+        if data_mac.consttime_memeq(&msg2.cmac) == false {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
 
@@ -484,7 +488,7 @@ impl SgxDhResponder {
         if msg_hash.eq(data_hash) == false {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
-        
+
         Ok(())
     }
 
@@ -507,20 +511,20 @@ impl SgxDhResponder {
         target.mr_enclave = msg2.report.body.mr_enclave;
         target.misc_select = msg2.report.body.misc_select;
         msg3.msg3_body.report = try!(rsgx_create_report(&target, &report_data));
-        
+
         let add_prop_len = msg3.msg3_body.additional_prop.len() as u32;
         let cmac_handle = SgxCmacHandle::new();
         try!(cmac_handle.init(&self.smk_aek));
         try!(cmac_handle.update_msg(&msg3.msg3_body.report));
         try!(cmac_handle.update_msg(&add_prop_len));
-        if add_prop_len > 0 { 
+        if add_prop_len > 0 {
             try!(cmac_handle.update_slice(&msg3.msg3_body.additional_prop));
         }
         msg3.cmac = try!(cmac_handle.get_hash());
-        
+
         Ok(())
     }
-    
+
     fn set_error(&mut self, sgx_ret: sgx_status_t) -> sgx_status_t {
 
         *self = Self::default();
@@ -530,7 +534,7 @@ impl SgxDhResponder {
             sgx_status_t::SGX_ERROR_KDF_MISMATCH => sgx_status_t::SGX_ERROR_KDF_MISMATCH,
             _ => sgx_status_t::SGX_ERROR_UNEXPECTED,
         };
-        ret   
+        ret
     }
 }
 
@@ -539,7 +543,7 @@ impl SgxDhResponder {
 pub struct SgxDhInitiator {
     state: SgxDhSessionState,
     smk_aek: sgx_key_128bit_t,
-    pub_key: sgx_ec256_public_t, 
+    pub_key: sgx_ec256_public_t,
     peer_pub_key: sgx_ec256_public_t,
     shared_key: sgx_ec256_dh_shared_t,
 }
@@ -556,54 +560,56 @@ impl Default for SgxDhInitiator {
     }
 }
 
+unsafe impl ContiguousMemory for SgxDhInitiator {}
+
 impl SgxDhInitiator {
-    /// 
+    ///
     /// Initialize DH secure session Initiator.
-    /// 
+    ///
     /// Indicates role of initiator the caller plays in the secure session establishment.
-    /// 
+    ///
     /// The value of role of the initiator of the session establishment must be `SGX_DH_SESSION_INITIATOR`.
-    /// 
+    ///
     /// # Requirements
-    /// 
+    ///
     /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
-    /// 
+    ///
     pub fn init_session() -> Self {
         Self::default()
     }
 
-    /// 
-    /// The initiator of DH secure session establishment handles msg1 sent by responder and then generates msg2, 
+    ///
+    /// The initiator of DH secure session establishment handles msg1 sent by responder and then generates msg2,
     /// and records initiator’s ECC key pair in DH session structure.
     ///
     /// # Requirements
-    /// 
+    ///
     /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
-    ///  
+    ///
     /// # Parameters
-    /// 
+    ///
     /// **msg1**
     ///
     /// Point to dh message 1 buffer generated by session responder, and the buffer must be in enclave address space.
-    /// 
+    ///
     /// **msg2**
-    /// 
+    ///
     /// Point to dh message 2 buffer, and the buffer must be in enclave address space.
-    /// 
+    ///
     /// # Errors
     ///
     /// **SGX_ERROR_INVALID_PARAMETER**
     ///
     /// Any of the input parameters is incorrect.
-    /// 
+    ///
     /// **SGX_ERROR_INVALID_STATE**
     ///
     /// The API is invoked in incorrect order or state.
-    /// 
+    ///
     /// **SGX_ERROR_OUT_OF_MEMORY**
-    /// 
+    ///
     /// The enclave is out of memory.
-    /// 
+    ///
     /// **SGX_ERROR_UNEXPECTED**
     ///
     /// An unexpected error occurred.
@@ -647,65 +653,65 @@ impl SgxDhInitiator {
     /// session information and gets responder’s identity information.
     ///
     /// # Requirements
-    /// 
+    ///
     /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
-    ///  
+    ///
     /// # Parameters
-    /// 
+    ///
     /// **msg3**
-    /// 
+    ///
     /// Point to dh message 3 buffer generated by session responder, and the buffer must be in enclave address space.
-    /// 
+    ///
     /// **aek**
-    /// 
+    ///
     /// A pointer that points to instance of sgx_key_128bit_t. The aek is derived as follows:
-    /// 
+    ///
     /// ```
     /// KDK:= CMAC(key0, LittleEndian(gab x-coordinate))
     /// AEK = AES-CMAC(KDK, 0x01||"AEK"||0x00||0x80||0x00)
     /// ```
-    /// 
+    ///
     /// The key0 used in the key extraction operation is 16 bytes of 0x00. The plain
     /// text used in the AES-CMAC calculation of the KDK is the Diffie-Hellman shared
     /// secret elliptic curve field element in Little Endian format.
     /// The plain text used in the AEK calculation includes:
-    /// 
+    ///
     /// * a counter (0x01)
-    /// 
+    ///
     /// * a label: the ASCII representation of the string 'AEK' in Little Endian format
-    /// 
+    ///
     /// * a bit length (0x80)
-    /// 
+    ///
     /// **responder_identity**
-    /// 
+    ///
     /// Identity information of responder including isv svn, isv product id, the enclave
-    /// attributes, MRSIGNER, and MRENCLAVE. The buffer must be in enclave address space. 
-    /// The caller should check the identity of the peer and decide whether to trust the 
+    /// attributes, MRSIGNER, and MRENCLAVE. The buffer must be in enclave address space.
+    /// The caller should check the identity of the peer and decide whether to trust the
     /// peer and use the aek or the msg3_body.additional_prop field of msg3.
-    /// 
+    ///
     /// # Errors
     ///
     /// **SGX_ERROR_INVALID_PARAMETER**
-    /// 
+    ///
     /// Any of the input parameters is incorrect.
-    /// 
+    ///
     /// **SGX_ERROR_INVALID_STATE**
-    /// 
+    ///
     /// The API is invoked in incorrect order or state.
-    /// 
+    ///
     /// **SGX_ERROR_OUT_OF_MEMORY**
-    /// 
+    ///
     /// The enclave is out of memory.
-    /// 
+    ///
     /// **SGX_ERROR_UNEXPECTED**
-    /// 
+    ///
     /// An unexpected error occurred.
-    /// 
-    pub fn proc_msg3(&mut self, 
-                     msg3: &SgxDhMsg3, 
+    ///
+    pub fn proc_msg3(&mut self,
+                     msg3: &SgxDhMsg3,
                      aek: &mut sgx_key_128bit_t,
                      responder_identity: &mut sgx_dh_session_enclave_identity_t) -> SgxError {
-        
+
         if rsgx_data_is_within_enclave(self) == false {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
@@ -733,7 +739,7 @@ impl SgxDhInitiator {
 
         try!(self.dh_verify_message3(msg3).map_err(|ret| self.set_error(ret)));
         * aek = try!(derive_key(&self.shared_key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret)));
-       
+
         *self = Self::default();
         self.state = SgxDhSessionState::SGX_DH_SESSION_ACTIVE;
 
@@ -763,7 +769,7 @@ impl SgxDhInitiator {
         let mut report_data = sgx_report_data_t::default();
         report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
         report_data.d[SGX_SHA256_HASH_SIZE..SGX_SHA256_HASH_SIZE + 2].copy_from_slice(&AES_CMAC_KDF_ID);
-        
+
         msg2.report = try!(rsgx_create_report(&msg1.target, &report_data));
         msg2.cmac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &msg2.report));
 
@@ -783,18 +789,18 @@ impl SgxDhInitiator {
         }
         let data_mac = try!(cmac_handle.get_hash());
 
-        if data_mac.eq(&msg3.cmac) == false {
+        if data_mac.consttime_memeq(&msg3.cmac) == false {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
 
         try!(rsgx_verify_report(&msg3.msg3_body.report));
-    
+
         let sha_handle = SgxShaHandle::new();
         try!(sha_handle.init());
         try!(sha_handle.update_msg(&self.pub_key));
         try!(sha_handle.update_msg(&self.peer_pub_key));
         let msg_hash = try!(sha_handle.get_hash());
-        
+
         let data_hash = &msg3.msg3_body.report.body.report_data.d[..SGX_SHA256_HASH_SIZE];
         if msg_hash.eq(data_hash) == false {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
@@ -811,6 +817,6 @@ impl SgxDhInitiator {
             sgx_status_t::SGX_ERROR_OUT_OF_MEMORY => sgx_status_t::SGX_ERROR_OUT_OF_MEMORY,
             _ => sgx_status_t::SGX_ERROR_UNEXPECTED,
         };
-        ret   
+        ret
     }
 }

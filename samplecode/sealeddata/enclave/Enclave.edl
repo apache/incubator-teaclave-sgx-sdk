@@ -28,22 +28,22 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
- 
+
 enclave {
-	
+
 	trusted {
         /* define ECALLs here. */
-		
+
         public sgx_status_t create_sealeddata([out, size=sealed_log_size]
             uint8_t* sealed_log, uint32_t sealed_log_size );
 
         public sgx_status_t verify_sealeddata([in, size=sealed_log_size]
             uint8_t* sealed_log, uint32_t sealed_log_size);
     };
-    
+
     untrusted {
         void ocall_print_string([in, size=len] const char *str, size_t len);
     };
 
- 
+
 };

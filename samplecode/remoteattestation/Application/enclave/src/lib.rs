@@ -34,10 +34,13 @@
 #![no_std]
 #![feature(collections)]
 
+#![allow(unused_variables)]
+
 #[macro_use]
 extern crate collections;
 
 extern crate sgx_types;
+extern crate sgx_trts;
 extern crate sgx_tdh;
 extern crate sgx_tcrypto;
 extern crate sgx_tservice;
@@ -87,7 +90,7 @@ fn enclave_init_ra(b_pse : i32,
 
     match rsgx_ra_init(&G_SP_PUB_KEY, b_pse) {
         Ok(p) => {
-            *p_context = p; 
+            *p_context = p;
             ret = sgx_status_t::SGX_SUCCESS;
         },
         Err(x) => {
@@ -177,7 +180,7 @@ fn verify_secret_data(context : sgx_ra_context_t,
 
     let ret:sgx_status_t;
     let sk_key:sgx_ec_key_128bit_t;
-    
+
     match rsgx_ra_get_keys(context, sgx_ra_key_type_t::SGX_RA_KEY_SK) {
         Ok(key) => sk_key = key,
         Err(x) => return x

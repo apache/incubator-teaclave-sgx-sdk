@@ -43,7 +43,7 @@ __BEGIN_DECLS
 void * _TLIBC_CDECL_ sbrk(intptr_t);
 
 /*
- * Deprecated Non-C99. 
+ * Deprecated Non-C99.
  */
 _TLIBC_DEPRECATED_FUNCTION_(int _TLIBC_CDECL_, execl, const char *, const char *, ...);
 _TLIBC_DEPRECATED_FUNCTION_(int _TLIBC_CDECL_, execlp, const char *, const char *, ...);

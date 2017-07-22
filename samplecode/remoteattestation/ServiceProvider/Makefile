@@ -48,7 +48,7 @@ endif
 App_Cpp_Files := isv_app/isv_app.cpp ../Util/LogBase.cpp ../Networking/NetworkManager.cpp \
 ../Networking/Session.cpp ../Networking/Client.cpp ../Networking/Server.cpp isv_app/VerificationManager.cpp ../Networking/NetworkManagerClient.cpp \
 ../GoogleMessages/Messages.pb.cpp ../Networking/AbstractNetworkOps.cpp ../Util/UtilityFunctions.cpp ../WebService/WebService.cpp \
-../Util/Base64.cpp 
+../Util/Base64.cpp
 
 App_Include_Paths := -Iservice_provider -I$(SGX_SDK)/include -Iheaders -I../Util -I../Networking -Iisv_app -I../GoogleMessages -I/usr/local/include -I../WebService
 
@@ -87,7 +87,7 @@ ServiceProvider_Cpp_Files := service_provider/ecp.cpp ../Util/LogBase.cpp \
 service_provider/ias_ra.cpp ../Util/UtilityFunctions.cpp ../WebService/WebService.cpp service_provider/ServiceProvider.cpp
 
 ServiceProvider_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/stlport -Isample_libcrypto
- 
+
 ServiceProvider_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes -I$(SGX_SDK)/include -Isample_libcrypto -I/usr/local/include -I../GoogleMessages -I../Util \
 -I../WebService -I../Networking
 

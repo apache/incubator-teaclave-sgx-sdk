@@ -32,6 +32,7 @@ pub use core::default::Default;
 pub use core::ptr;
 pub use core::mem::transmute;
 
+#[macro_export]
 macro_rules! cfg_if {
     ($(
         if #[cfg($($meta:meta),*)] { $($it:item)* }
@@ -46,6 +47,7 @@ macro_rules! cfg_if {
     }
 }
 
+#[macro_export]
 macro_rules! __cfg_if_items {
     (($($not:meta,)*) ; ) => {};
     (($($not:meta,)*) ; ( ($($m:meta),*) ($($it:item)*) ), $($rest:tt)*) => {
@@ -54,6 +56,7 @@ macro_rules! __cfg_if_items {
     }
 }
 
+#[macro_export]
 macro_rules! __cfg_if_apply {
     ($m:meta, $($it:item)*) => {
         $(#[$m] $it)*
@@ -63,7 +66,6 @@ macro_rules! __cfg_if_apply {
 macro_rules! __item {
     ($i:item) => ($i)
 }
-
 
 macro_rules! impl_copy_clone{
     ($($(#[$attr:meta])* pub struct $i:ident { $($field:tt)* })*) => ($(
@@ -79,7 +81,6 @@ macro_rules! impl_copy_clone{
     )*)
 }
 
-#[macro_export]
 macro_rules! impl_struct {
     ($($(#[$attr:meta])* pub struct $i:ident { $(pub $name:ident: $field:ty,)* })*) => ($(
         __item! {
@@ -96,61 +97,69 @@ macro_rules! impl_struct {
                 $i{$($name: Default::default(),)*}
             }
         }
+        unsafe impl ContiguousMemory for $i {}
     )*)
 }
 
 macro_rules! impl_struct_default {
-	($($t:ty, $size:expr;)*) => {$(
-		impl Default for $t {
-			fn default() -> $t {
-				unsafe{::macros::transmute([0u8; $size])}
-			}
-		}
-	)*}
+    ($($t:ty, $size:expr;)*) => {$(
+        impl Default for $t {
+            fn default() -> $t {
+                unsafe{::macros::transmute([0u8; $size])}
+            }
+        }
+    )*}
 }
 
 macro_rules! impl_struct_clone {
-	($($t:ty;)*) => {$(
-		impl Clone for $t {
-			fn clone(&self) -> $t {
-				unsafe{::macros::ptr::read(self)}
-			}
-		}
-	)*}
+    ($($t:ty;)*) => {$(
+        impl Clone for $t {
+            fn clone(&self) -> $t {
+                unsafe{::macros::ptr::read(self)}
+            }
+        }
+    )*}
+}
+
+macro_rules! impl_struct_ContiguousMemory {
+
+    ($($t:ty;)*) => {$(
+        unsafe impl ContiguousMemory for $t {}
+    )*}
 }
 
 #[macro_export]
 macro_rules! impl_enum {
-	(
+    (
         #[repr($repr:ident)]
         #[derive($($derive:meta),*)]
-		pub enum $name:ident {
+        pub enum $name:ident {
             $key:ident = $val:expr,
-			$($keys:ident = $vals:expr,)*
-		}
-	) => (
+            $($keys:ident = $vals:expr,)*
+        }
+    ) => (
         #[repr(C)]
         #[repr($repr)]
-		#[derive($($derive),*)]	
-		pub enum $name {
+        #[derive($($derive),*)]
+        pub enum $name {
             $key = $val,
-			$($keys = $vals,)*
-		}
+            $($keys = $vals,)*
+        }
 
         impl Default for $name {
-			fn default() -> $name {
-				 $name::$key
-			}
-		}
+            fn default() -> $name {
+                 $name::$key
+            }
+        }
 
-		impl $name {
-			pub fn from_repr(v: $repr) -> Option<Self> {
-				match v {
+        impl $name {
+            pub fn from_repr(v: $repr) -> Option<Self> {
+                match v {
                     $val => Some($name::$key),
-					$($vals => Some($name::$keys),)*
-					_ => None,
-				}
-			}
+                    $($vals => Some($name::$keys),)*
+                    _ => None,
+                }
+            }
 
             pub fn from_key(self) -> $repr {
                 match self {
@@ -158,6 +167,7 @@ macro_rules! impl_enum {
                     $($name::$keys => $vals,)*
                 }
             }
-		}
-	)
+        }
+    )
 }
+

@@ -70,7 +70,7 @@ ATTESTATION_STATUS session_request_ocall(sgx_enclave_id_t src_enclave_id, sgx_en
 			ret = Enclave3_session_request(dest_enclave_id, &status, src_enclave_id, dh_msg1, &session_ptr);
 			break;
 	}
-	if (ret == SGX_SUCCESS) 
+	if (ret == SGX_SUCCESS)
 	{
 		std::map<sgx_enclave_id_t, std::map<sgx_enclave_id_t, size_t> >::iterator it_ptr = g_session_ptr_map.find(dest_enclave_id);
 		if(it_ptr != g_session_ptr_map.end())
@@ -86,7 +86,7 @@ ATTESTATION_STATUS session_request_ocall(sgx_enclave_id_t src_enclave_id, sgx_en
 
 		return (ATTESTATION_STATUS)status;
 	}
-	else	
+	else
 	    return INVALID_SESSION;
 
 }
@@ -136,7 +136,7 @@ ATTESTATION_STATUS exchange_report_ocall(sgx_enclave_id_t src_enclave_id, sgx_en
 	}
 	if (ret == SGX_SUCCESS)
 		return (ATTESTATION_STATUS)status;
-	else	
+	else
 	    return INVALID_SESSION;
 
 }
@@ -185,9 +185,9 @@ ATTESTATION_STATUS end_session_ocall(sgx_enclave_id_t src_enclave_id, sgx_enclav
 			ret = Enclave3_end_session(dest_enclave_id, &status, src_enclave_id, (size_t*)session_ptr);
 			break;
 	}
-	if (ret == SGX_SUCCESS) 
+	if (ret == SGX_SUCCESS)
 		return (ATTESTATION_STATUS)status;
-	else	
+	else
 	    return INVALID_SESSION;
 
 }

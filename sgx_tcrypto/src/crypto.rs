@@ -30,6 +30,7 @@
 //! Cryptographic Functions
 //!
 use sgx_types::*;
+use sgx_types::marker::ContiguousMemory;
 use core::ops::{Drop, DerefMut};
 use core::ptr;
 use core::mem;
@@ -39,15 +40,15 @@ use core::cell::{Cell, RefCell};
 /// The rsgx_sha256_msg function performs a standard SHA256 hash over the input data buffer.
 ///
 /// # Description
-/// 
-/// The rsgx_sha256_msg function performs a standard SHA256 hash over the input data buffer. 
-/// Only a 256-bit version of the SHA hash is supported. (Other sizes, for example 512, are 
+///
+/// The rsgx_sha256_msg function performs a standard SHA256 hash over the input data buffer.
+/// Only a 256-bit version of the SHA hash is supported. (Other sizes, for example 512, are
 /// not supported in this minimal cryptography library).
 ///
 /// The function should be used if the complete input data stream is available.
 /// Otherwise, the Init, Update… Update, Final procedure should be used to compute
 /// a SHA256 bit hash over multiple input data sets.
-/// 
+///
 /// # Parameters
 ///
 /// **src**
@@ -76,8 +77,9 @@ use core::cell::{Cell, RefCell};
 ///
 /// The SHA256 hash calculation failed.
 ///
-pub fn rsgx_sha256_msg<T: Copy>(src: &T) -> SgxResult<sgx_sha256_hash_t> {
-    
+pub fn rsgx_sha256_msg<T>(src: &T) -> SgxResult<sgx_sha256_hash_t>
+    where T: Copy + ContiguousMemory {
+
     let size = mem::size_of::<T>();
     if size == 0 {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -97,9 +99,10 @@ pub fn rsgx_sha256_msg<T: Copy>(src: &T) -> SgxResult<sgx_sha256_hash_t> {
 ///
 /// The rsgx_sha256_slice function performs a standard SHA256 hash over the input data buffer.
 ///
-pub fn rsgx_sha256_slice<T: Copy>(src: &[T]) -> SgxResult<sgx_sha256_hash_t> {
-    
-    let size = mem::size_of::<T>() * src.len();
+pub fn rsgx_sha256_slice<T>(src: &[T]) -> SgxResult<sgx_sha256_hash_t>
+    where T: Copy + ContiguousMemory {
+
+    let size = mem::size_of_val(src);
     if size == 0 {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
@@ -117,12 +120,13 @@ pub fn rsgx_sha256_slice<T: Copy>(src: &[T]) -> SgxResult<sgx_sha256_hash_t> {
 
 fn rsgx_sha256_init(sha_handle: &mut sgx_sha_state_handle_t) -> sgx_status_t {
 
-    unsafe { 
-        sgx_sha256_init(sha_handle as * mut _ as * mut sgx_sha_state_handle_t) 
+    unsafe {
+        sgx_sha256_init(sha_handle as * mut _ as * mut sgx_sha_state_handle_t)
     }
 }
 
-fn rsgx_sha256_update_msg<T: Copy>(src: &T, sha_handle: sgx_sha_state_handle_t) -> sgx_status_t {
+fn rsgx_sha256_update_msg<T>(src: &T, sha_handle: sgx_sha_state_handle_t) -> sgx_status_t
+    where T: Copy + ContiguousMemory {
 
     let size = mem::size_of::<T>();
     if size == 0 {
@@ -132,14 +136,15 @@ fn rsgx_sha256_update_msg<T: Copy>(src: &T, sha_handle: sgx_sha_state_handle_t) 
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
-    unsafe { 
-        sgx_sha256_update(src as * const _ as * const u8, size as u32, sha_handle) 
+    unsafe {
+        sgx_sha256_update(src as * const _ as * const u8, size as u32, sha_handle)
     }
 }
 
-fn rsgx_sha256_update_slice<T: Copy>(src: &[T], sha_handle: sgx_sha_state_handle_t) -> sgx_status_t {
+fn rsgx_sha256_update_slice<T>(src: &[T], sha_handle: sgx_sha_state_handle_t) -> sgx_status_t
+    where T: Copy + ContiguousMemory {
 
-    let size = mem::size_of::<T>() * src.len();
+    let size = mem::size_of_val(src);
     if size == 0 {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
@@ -152,23 +157,23 @@ fn rsgx_sha256_update_slice<T: Copy>(src: &[T], sha_handle: sgx_sha_state_handle
 }
 
 fn rsgx_sha256_get_hash(sha_handle: sgx_sha_state_handle_t, hash: &mut sgx_sha256_hash_t) -> sgx_status_t {
-    
+
     unsafe { sgx_sha256_get_hash(sha_handle, hash as * mut sgx_sha256_hash_t) }
 }
 
 fn rsgx_sha256_close(sha_handle: sgx_sha_state_handle_t) -> sgx_status_t {
-     
+
      unsafe { sgx_sha256_close(sha_handle) }
 }
 
 ///
 /// SHA algorithm context state.
 ///
-/// This is a handle to the context state used by the cryptography library to perform an iterative SHA256 hash. 
+/// This is a handle to the context state used by the cryptography library to perform an iterative SHA256 hash.
 /// The algorithm stores the intermediate results of performing the hash calculation over data sets.
 ///
 pub struct SgxShaHandle {
-    handle: RefCell<sgx_sha_state_handle_t>, 
+    handle: RefCell<sgx_sha_state_handle_t>,
     initflag: Cell<bool>,
 }
 
@@ -179,24 +184,24 @@ impl SgxShaHandle {
     ///
     pub fn new() -> Self {
         SgxShaHandle{
-            handle: RefCell::new(ptr::null_mut() as sgx_sha_state_handle_t), 
+            handle: RefCell::new(ptr::null_mut() as sgx_sha_state_handle_t),
             initflag: Cell::new(false),
-            }
+        }
     }
 
     ///
     /// init returns an allocated and initialized SHA algorithm context state.
     ///
-    /// This should be part of the Init, Update … Update, Final process when the SHA hash is to be performed 
-    /// over multiple datasets. If a complete dataset is available, the recommend call is rsgx_sha256_msg to 
+    /// This should be part of the Init, Update … Update, Final process when the SHA hash is to be performed
+    /// over multiple datasets. If a complete dataset is available, the recommend call is rsgx_sha256_msg to
     /// perform the hash in a single call.
     ///
     /// # Description
     ///
-    /// Calling init is the first set in performing a SHA256 hash over multiple datasets. The caller does not 
-    /// allocate memory for the SHA256 state that this function returns. The state is specific to the implementation 
-    /// of the cryptography library; thus the allocation is performed by the library itself. If the hash over the 
-    /// desired datasets is completed or any error occurs during the hash calculation process, sgx_sha256_close should 
+    /// Calling init is the first set in performing a SHA256 hash over multiple datasets. The caller does not
+    /// allocate memory for the SHA256 state that this function returns. The state is specific to the implementation
+    /// of the cryptography library; thus the allocation is performed by the library itself. If the hash over the
+    /// desired datasets is completed or any error occurs during the hash calculation process, sgx_sha256_close should
     /// be called to free the state allocated by this algorithm.
     ///
     /// # Requirements
@@ -232,27 +237,27 @@ impl SgxShaHandle {
             _ => Err(ret),
         }
     }
-    
+
     ///
-    /// update_msg performs a SHA256 hash over the input dataset provided. 
+    /// update_msg performs a SHA256 hash over the input dataset provided.
     ///
-    /// This function supports an iterative calculation of the hash over multiple datasets where the 
+    /// This function supports an iterative calculation of the hash over multiple datasets where the
     /// sha_handle contains the intermediate results of the hash calculation over previous datasets.
     ///
     /// # Description
     ///
-    /// This function should be used as part of a SHA256 calculation over multiple datasets. 
-    /// If a SHA256 hash is needed over a single data set, function rsgx_sha256_msg should be used instead. 
-    /// Prior to calling this function on the first dataset, the init function must be called first to allocate 
-    /// and initialize the SHA256 state structure which will hold intermediate hash results over earlier datasets. 
-    /// The function get_hash should be used to obtain the hash after the final dataset has been processed 
+    /// This function should be used as part of a SHA256 calculation over multiple datasets.
+    /// If a SHA256 hash is needed over a single data set, function rsgx_sha256_msg should be used instead.
+    /// Prior to calling this function on the first dataset, the init function must be called first to allocate
+    /// and initialize the SHA256 state structure which will hold intermediate hash results over earlier datasets.
+    /// The function get_hash should be used to obtain the hash after the final dataset has been processed
     /// by this function.
     ///
     /// # Parameters
     ///
     /// **src**
     ///
-    /// A pointer to the input data stream to be hashed. 
+    /// A pointer to the input data stream to be hashed.
     ///
     /// # Requirements
     ///
@@ -272,7 +277,8 @@ impl SgxShaHandle {
     ///
     /// An internal cryptography library failure occurred while performing the SHA256 hash calculation.
     ///
-    pub fn update_msg<T: Copy>(&self, src: &T) -> SgxError {
+    pub fn update_msg<T>(&self, src: &T) -> SgxError
+        where T: Copy + ContiguousMemory {
 
         if self.initflag.get() == false {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
@@ -286,9 +292,10 @@ impl SgxShaHandle {
     }
 
     ///
-    /// update_slice performs a SHA256 hash over the input dataset provided. 
+    /// update_slice performs a SHA256 hash over the input dataset provided.
     ///
-    pub fn update_slice<T: Copy>(&self, src: &[T]) -> SgxError {
+    pub fn update_slice<T>(&self, src: &[T]) -> SgxError
+        where T: Copy + ContiguousMemory {
 
         if self.initflag.get() == false {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
@@ -306,7 +313,7 @@ impl SgxShaHandle {
     ///
     /// # Description
     ///
-    /// This function returns the hash after performing the SHA256 calculation over one or more datasets 
+    /// This function returns the hash after performing the SHA256 calculation over one or more datasets
     /// using the update function.
     ///
     /// # Requirements
@@ -338,7 +345,7 @@ impl SgxShaHandle {
         }
 
         let mut hash = sgx_sha256_hash_t::default();
-        let ret = rsgx_sha256_get_hash(*self.handle.borrow(), &mut hash); 
+        let ret = rsgx_sha256_get_hash(*self.handle.borrow(), &mut hash);
         match ret {
             sgx_status_t::SGX_SUCCESS => Ok(hash),
             _ => Err(ret),
@@ -350,7 +357,7 @@ impl SgxShaHandle {
     ///
     /// # Description
     ///
-    /// Calling close is the last step after performing a SHA256 hash over multiple datasets. 
+    /// Calling close is the last step after performing a SHA256 hash over multiple datasets.
     /// The caller uses this function to deallocate memory used to store the SHA256 calculation state.
     ///
     /// # Requirements
@@ -377,7 +384,7 @@ impl SgxShaHandle {
                 rsgx_sha256_close(handle)
             }
         };
-         
+
         match ret {
             sgx_status_t::SGX_SUCCESS => {
                 self.initflag.set(false);
@@ -407,11 +414,11 @@ impl Drop for SgxShaHandle {
 
 ///
 /// rsgx_rijndael128GCM_encrypt performs a Rijndael AES-GCM encryption operation.
-/// 
+///
 /// Only a 128bit key size is supported by this Intel(R) SGX SDK cryptography library.
 ///
 /// # Description
-/// 
+///
 /// The Galois/Counter Mode (GCM) is a mode of operation of the AES algorithm.
 /// GCM [NIST SP 800-38D] uses a variation of the counter mode of operation for
 /// encryption. GCM assures authenticity of the confidential data (of up to about
@@ -428,7 +435,7 @@ impl Drop for SgxShaHandle {
 /// within the enclave. The AAD buffer could be allocated within or outside
 /// enclave memory. The use of AAD data buffer could be information identifying
 /// the encrypted data since it will remain in clear text.
-/// 
+///
 /// # Parameters
 ///
 /// **key**
@@ -441,12 +448,12 @@ impl Drop for SgxShaHandle {
 ///
 /// **iv**
 ///
-/// A pointer to the initialization vector to be used in the AES-GCM calculation. NIST AES-GCM recommended 
+/// A pointer to the initialization vector to be used in the AES-GCM calculation. NIST AES-GCM recommended
 /// IV size is 96 bits (12 bytes).
 ///
 /// **aad**
 ///
-/// A pointer to an optional additional authentication data buffer which is used in the GCM MAC calculation. 
+/// A pointer to an optional additional authentication data buffer which is used in the GCM MAC calculation.
 /// The data in this buffer will not be encrypted. The field is optional and content could be empty.
 ///
 /// **dst**
@@ -455,7 +462,7 @@ impl Drop for SgxShaHandle {
 ///
 /// **mac**
 ///
-/// This is the output GCM MAC performed over the input data buffer (data to be encrypted) as well as 
+/// This is the output GCM MAC performed over the input data buffer (data to be encrypted) as well as
 /// the additional authentication data (this is optional data). The calling code should allocate this buffer.
 ///
 /// # Requirements
@@ -484,7 +491,7 @@ pub fn rsgx_rijndael128GCM_encrypt(key: &sgx_aes_gcm_128bit_key_t,
                                    aad: &[u8],
                                    dst: &mut [u8],
                                    mac: &mut sgx_aes_gcm_128bit_tag_t) -> SgxError {
-    
+
     let src_len = src.len();
     if src_len > u32::max_value() as usize {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -535,12 +542,12 @@ pub fn rsgx_rijndael128GCM_encrypt(key: &sgx_aes_gcm_128bit_key_t,
 }
 
 ///
-/// rsgx_rijndael128GCM_decrypt performs a Rijndael AES-GCM decryption operation. 
-/// 
+/// rsgx_rijndael128GCM_decrypt performs a Rijndael AES-GCM decryption operation.
+///
 /// Only a 128bit key size is supported by this Intel(R) SGX SDK cryptography library.
 ///
 /// # Description
-/// 
+///
 /// The Galois/Counter Mode (GCM) is a mode of operation of the AES algorithm.
 /// GCM [NIST SP 800-38D] uses a variation of the counter mode of operation for
 /// encryption. GCM assures authenticity of the confidential data (of up to about
@@ -568,18 +575,18 @@ pub fn rsgx_rijndael128GCM_encrypt(key: &sgx_aes_gcm_128bit_key_t,
 ///
 /// **iv**
 ///
-/// A pointer to the initialization vector to be used in the AES-GCM calculation. NIST AES-GCM recommended 
+/// A pointer to the initialization vector to be used in the AES-GCM calculation. NIST AES-GCM recommended
 /// IV size is 96 bits (12 bytes).
 ///
 /// **aad**
 ///
-/// A pointer to an optional additional authentication data buffer which is provided for the GCM MAC calculation 
+/// A pointer to an optional additional authentication data buffer which is provided for the GCM MAC calculation
 /// when encrypting. The data in this buffer was not encrypted. The field is optional and content could be empty.
 ///
 /// **mac**
 ///
-/// This is the GCM MAC that was performed over the input data buffer (data to be encrypted) as well as 
-/// the additional authentication data (this is optional data) during the encryption process (call to 
+/// This is the GCM MAC that was performed over the input data buffer (data to be encrypted) as well as
+/// the additional authentication data (this is optional data) during the encryption process (call to
 /// rsgx_rijndael128GCM_encrypt).
 ///
 /// **dst**
@@ -670,8 +677,8 @@ pub fn rsgx_rijndael128GCM_decrypt(key: &sgx_aes_gcm_128bit_key_t,
 /// The rsgx_rijndael128_cmac_msg function performs a standard 128bit CMAC hash over the input data buffer.
 ///
 /// # Description
-/// 
-/// The rsgx_rijndael128_cmac_msg function performs a standard CMAC hash over the input data buffer. 
+///
+/// The rsgx_rijndael128_cmac_msg function performs a standard CMAC hash over the input data buffer.
 /// Only a 128-bit version of the CMAC hash is supported.
 ///
 /// The function should be used if the complete input data stream is available.
@@ -710,8 +717,9 @@ pub fn rsgx_rijndael128GCM_decrypt(key: &sgx_aes_gcm_128bit_key_t,
 ///
 /// An internal cryptography library failure occurred.
 ///
-pub fn rsgx_rijndael128_cmac_msg<T: Copy>(key: &sgx_cmac_128bit_key_t, src: &T) -> SgxResult<sgx_cmac_128bit_tag_t> {
-    
+pub fn rsgx_rijndael128_cmac_msg<T>(key: &sgx_cmac_128bit_key_t, src: &T) -> SgxResult<sgx_cmac_128bit_tag_t>
+    where T: Copy + ContiguousMemory {
+
     let size = mem::size_of::<T>();
     if size == 0 {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -722,9 +730,9 @@ pub fn rsgx_rijndael128_cmac_msg<T: Copy>(key: &sgx_cmac_128bit_key_t, src: &T) 
 
     let mut mac = sgx_cmac_128bit_tag_t::default();
     let ret = unsafe {
-        sgx_rijndael128_cmac_msg(key as * const sgx_cmac_128bit_key_t, 
-                                 src as * const _ as * const u8, 
-                                 size as u32, 
+        sgx_rijndael128_cmac_msg(key as * const sgx_cmac_128bit_key_t,
+                                 src as * const _ as * const u8,
+                                 size as u32,
                                  &mut mac as * mut sgx_cmac_128bit_tag_t)
     };
     match ret {
@@ -736,9 +744,10 @@ pub fn rsgx_rijndael128_cmac_msg<T: Copy>(key: &sgx_cmac_128bit_key_t, src: &T) 
 ///
 /// The rsgx_rijndael128_cmac_slice function performs a standard 128bit CMAC hash over the input data buffer.
 ///
-pub fn rsgx_rijndael128_cmac_slice<T: Copy>(key: &sgx_cmac_128bit_key_t, src: &[T]) -> SgxResult<sgx_cmac_128bit_tag_t> {
-    
-    let size = mem::size_of::<T>() * src.len();
+pub fn rsgx_rijndael128_cmac_slice<T>(key: &sgx_cmac_128bit_key_t, src: &[T]) -> SgxResult<sgx_cmac_128bit_tag_t>
+    where T: Copy + ContiguousMemory {
+
+    let size = mem::size_of_val(src);
     if size == 0 {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
@@ -748,11 +757,11 @@ pub fn rsgx_rijndael128_cmac_slice<T: Copy>(key: &sgx_cmac_128bit_key_t, src: &[
 
     let mut mac = sgx_cmac_128bit_tag_t::default();
     let ret = unsafe {
-        sgx_rijndael128_cmac_msg(key as * const sgx_cmac_128bit_key_t, 
+        sgx_rijndael128_cmac_msg(key as * const sgx_cmac_128bit_key_t,
                                  src.as_ptr() as * const u8,
-                                 size as u32, 
+                                 size as u32,
                                  &mut mac as * mut sgx_cmac_128bit_tag_t)
-    }; 
+    };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(mac),
         _ => Err(ret),
@@ -760,14 +769,15 @@ pub fn rsgx_rijndael128_cmac_slice<T: Copy>(key: &sgx_cmac_128bit_key_t, src: &[
 }
 
 fn rsgx_cmac128_init(key: &sgx_cmac_128bit_key_t, cmac_handle: &mut sgx_cmac_state_handle_t) -> sgx_status_t {
-    
+
     unsafe {
-        sgx_cmac128_init(key as * const sgx_cmac_128bit_key_t, 
+        sgx_cmac128_init(key as * const sgx_cmac_128bit_key_t,
                          cmac_handle as * mut _ as * mut sgx_cmac_state_handle_t)
     }
 }
 
-fn rsgx_cmac128_update_msg<T: Copy>(src: &T, cmac_handle: sgx_cmac_state_handle_t) -> sgx_status_t {
+fn rsgx_cmac128_update_msg<T>(src: &T, cmac_handle: sgx_cmac_state_handle_t) -> sgx_status_t
+    where T: Copy + ContiguousMemory {
 
     let size = mem::size_of::<T>();
     if size == 0 {
@@ -781,9 +791,10 @@ fn rsgx_cmac128_update_msg<T: Copy>(src: &T, cmac_handle: sgx_cmac_state_handle_
     }
 }
 
-fn rsgx_cmac128_update_slice<T: Copy>(src: &[T], cmac_handle: sgx_cmac_state_handle_t) -> sgx_status_t {
+fn rsgx_cmac128_update_slice<T>(src: &[T], cmac_handle: sgx_cmac_state_handle_t) -> sgx_status_t
+    where T: Copy + ContiguousMemory {
 
-    let size = mem::size_of::<T>() * src.len();
+    let size = mem::size_of_val(src);
     if size == 0 {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
@@ -796,24 +807,24 @@ fn rsgx_cmac128_update_slice<T: Copy>(src: &[T], cmac_handle: sgx_cmac_state_han
 }
 
 fn rsgx_cmac128_final(cmac_handle: sgx_cmac_state_handle_t, hash: &mut sgx_cmac_128bit_tag_t) -> sgx_status_t {
-    
+
     unsafe { sgx_cmac128_final(cmac_handle, hash as * mut sgx_cmac_128bit_tag_t) }
 }
 
 fn rsgx_cmac128_close(cmac_handle: sgx_cmac_state_handle_t) -> sgx_status_t {
-    
+
     unsafe { sgx_cmac128_close(cmac_handle) }
 }
 
 ///
 /// CMAC algorithm context state.
 ///
-/// This is a handle to the context state used by the cryptography library to perform an 
-/// iterative CMAC 128-bit hash. The algorithm stores the intermediate results of performing 
+/// This is a handle to the context state used by the cryptography library to perform an
+/// iterative CMAC 128-bit hash. The algorithm stores the intermediate results of performing
 /// the hash calculation over data sets.
 ///
 pub struct SgxCmacHandle {
-    handle: RefCell<sgx_cmac_state_handle_t>, 
+    handle: RefCell<sgx_cmac_state_handle_t>,
     initflag: Cell<bool>,
 }
 
@@ -824,31 +835,31 @@ impl SgxCmacHandle {
     ///
     pub fn new() -> Self {
         SgxCmacHandle{
-            handle: RefCell::new(ptr::null_mut() as sgx_cmac_state_handle_t), 
+            handle: RefCell::new(ptr::null_mut() as sgx_cmac_state_handle_t),
             initflag: Cell::new(false),
             }
     }
 
     ///
-    /// init returns an allocated and initialized CMAC algorithm context state. 
+    /// init returns an allocated and initialized CMAC algorithm context state.
     ///
-    /// This should be part of the Init, Update … Update, Final process when the CMAC hash is to be 
-    /// performed over multiple datasets. If a complete dataset is available, the recommended call 
+    /// This should be part of the Init, Update … Update, Final process when the CMAC hash is to be
+    /// performed over multiple datasets. If a complete dataset is available, the recommended call
     /// is rsgx_rijndael128_cmac_msg to perform the hash in a single call.
     ///
     /// # Description
     ///
-    /// Calling init is the first set in performing a CMAC 128-bit hash over multiple datasets. 
-    /// The caller does not allocate memory for the CMAC state that this function returns. 
-    /// The state is specific to the implementation of the cryptography library and thus the 
-    /// allocation is performed by the library itself. If the hash over the desired datasets is 
+    /// Calling init is the first set in performing a CMAC 128-bit hash over multiple datasets.
+    /// The caller does not allocate memory for the CMAC state that this function returns.
+    /// The state is specific to the implementation of the cryptography library and thus the
+    /// allocation is performed by the library itself. If the hash over the desired datasets is
     /// completed or any error occurs during the hash calculation process, sgx_cmac128_close should
     /// be called to free the state allocated by this algorithm.
     ///
     /// # Parameters
     ///
     /// **key**
-    /// 
+    ///
     /// A pointer to key to be used in the CMAC hash operation. The size must be 128 bits.
     ///
     /// # Requirements
@@ -870,7 +881,7 @@ impl SgxCmacHandle {
     /// An internal cryptography library failure occurred.
     ///
     pub fn init(&self, key: &sgx_cmac_128bit_key_t) -> SgxError {
-        
+
         if self.initflag.get() == true {
             return Ok(());
         }
@@ -886,9 +897,9 @@ impl SgxCmacHandle {
     }
 
     ///
-    /// update_msg performs a CMAC 128-bit hash over the input dataset provided. 
+    /// update_msg performs a CMAC 128-bit hash over the input dataset provided.
     ///
-    /// This function supports an iterative calculation of the hash over multiple datasets where the 
+    /// This function supports an iterative calculation of the hash over multiple datasets where the
     /// cmac_handle contains the intermediate results of the hash calculation over previous datasets.
     ///
     /// # Description
@@ -896,15 +907,15 @@ impl SgxCmacHandle {
     /// This function should be used as part of a CMAC 128-bit hash calculation over
     /// multiple datasets. If a CMAC hash is needed over a single data set, function
     /// rsgx_rijndael128_cmac128_msg should be used instead. Prior to calling
-    /// this function on the first dataset, the init function must be called first to 
-    /// allocate and initialize the CMAC state structure which will hold intermediate 
-    /// hash results over earlier datasets. The function get_hash should be used 
+    /// this function on the first dataset, the init function must be called first to
+    /// allocate and initialize the CMAC state structure which will hold intermediate
+    /// hash results over earlier datasets. The function get_hash should be used
     /// to obtain the hash after the final dataset has been processed by this function.
     ///
     /// # Parameters
     ///
     /// **src**
-    /// 
+    ///
     /// A pointer to the input data stream to be hashed.
     ///
     /// # Requirements
@@ -929,8 +940,9 @@ impl SgxCmacHandle {
     ///
     /// An internal cryptography library failure occurred while performing the CMAC hash calculation.
     ///
-    pub fn update_msg<T: Copy>(&self, src: &T) -> SgxError {
-        
+    pub fn update_msg<T>(&self, src: &T) -> SgxError
+        where T: Copy + ContiguousMemory {
+
         if self.initflag.get() == false {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
@@ -943,10 +955,11 @@ impl SgxCmacHandle {
     }
 
     ///
-    /// update_slice performs a CMAC 128-bit hash over the input dataset provided. 
+    /// update_slice performs a CMAC 128-bit hash over the input dataset provided.
     ///
-    pub fn update_slice<T: Copy>(&self, src: &[T]) -> SgxError {
-        
+    pub fn update_slice<T>(&self, src: &[T]) -> SgxError
+        where T: Copy + ContiguousMemory {
+
         if self.initflag.get() == false {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
@@ -1007,7 +1020,7 @@ impl SgxCmacHandle {
     ///
     /// # Description
     ///
-    /// Calling close is the last step after performing a CMAC hash over multiple datasets. 
+    /// Calling close is the last step after performing a CMAC hash over multiple datasets.
     /// The caller uses this function to deallocate memory used for storing the CMAC algorithm context state.
     ///
     /// # Requirements
@@ -1034,7 +1047,7 @@ impl SgxCmacHandle {
                 rsgx_cmac128_close(handle)
             }
         };
-         
+
         match ret {
             sgx_status_t::SGX_SUCCESS => {
                 self.initflag.set(false);
@@ -1066,11 +1079,11 @@ pub type sgx_aes_ctr_128bit_ctr_t = [uint8_t; SGX_AESCTR_CTR_SIZE];
 
 ///
 /// rsgx_aes_ctr_encrypt performs a Rijndael AES-CTR encryption operation.
-/// 
+///
 /// Only a 128bit key size is supported by this Intel(R) SGX SDK cryptography library.
 ///
 /// # Description
-/// 
+///
 /// This function encrypts the input data stream of a variable length according to
 /// the CTR mode as specified in [NIST SP 800-38A]. The counter can be thought
 /// of as an IV which increments on successive encryption or decryption calls. For
@@ -1081,7 +1094,7 @@ pub type sgx_aes_ctr_128bit_ctr_t = [uint8_t; SGX_AESCTR_CTR_SIZE];
 ///
 /// It is recommended that the source, destination and counter data buffers are
 /// allocated within the enclave.
-/// 
+///
 /// # Parameters
 ///
 /// **key**
@@ -1122,12 +1135,12 @@ pub type sgx_aes_ctr_128bit_ctr_t = [uint8_t; SGX_AESCTR_CTR_SIZE];
 ///
 /// An internal cryptography library failure occurred.
 ///
-pub fn rsgx_aes_ctr_encrypt(key: &sgx_aes_ctr_128bit_key_t, 
-                            src: &[u8], 
-                            ctr: &sgx_aes_ctr_128bit_ctr_t, 
+pub fn rsgx_aes_ctr_encrypt(key: &sgx_aes_ctr_128bit_key_t,
+                            src: &[u8],
+                            ctr: &sgx_aes_ctr_128bit_ctr_t,
                             ctr_inc_bits: u32,
                             dst: &mut [u8]) -> SgxError {
-    
+
     let src_len = src.len();
     if src_len > u32::max_value() as usize {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -1143,7 +1156,7 @@ pub fn rsgx_aes_ctr_encrypt(key: &sgx_aes_ctr_128bit_key_t,
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
 
-    let ret = unsafe {        
+    let ret = unsafe {
         sgx_aes_ctr_encrypt(key as * const sgx_aes_ctr_128bit_key_t,
                             src.as_ptr(),
                             src_len as u32,
@@ -1159,11 +1172,11 @@ pub fn rsgx_aes_ctr_encrypt(key: &sgx_aes_ctr_128bit_key_t,
 
 ///
 /// rsgx_aes_ctr_decrypt performs a Rijndael AES-CTR decryption operation.
-/// 
+///
 /// Only a 128bit key size is supported by this Intel(R) SGX SDK cryptography library.
 ///
 /// # Description
-/// 
+///
 /// This function decrypts the input data stream of a variable length according to
 /// the CTR mode as specified in [NIST SP 800-38A]. The counter can be thought
 /// of as an IV which increments on successive encryption or decryption calls. For
@@ -1174,7 +1187,7 @@ pub fn rsgx_aes_ctr_encrypt(key: &sgx_aes_ctr_128bit_key_t,
 ///
 /// It is recommended that the source, destination and counter data buffers are
 /// allocated within the enclave.
-/// 
+///
 /// # Parameters
 ///
 /// **key**
@@ -1236,7 +1249,7 @@ pub fn rsgx_aes_ctr_decrypt(key: &sgx_aes_ctr_128bit_key_t,
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
 
-    let ret = unsafe {     
+    let ret = unsafe {
         sgx_aes_ctr_decrypt(key as * const sgx_aes_ctr_128bit_key_t,
                             src.as_ptr(),
                             src.len() as u32,
@@ -1251,7 +1264,7 @@ pub fn rsgx_aes_ctr_decrypt(key: &sgx_aes_ctr_128bit_key_t,
 }
 
 fn rsgx_ecc256_open_context(ecc_handle: &mut sgx_ecc_state_handle_t) -> sgx_status_t {
-    
+
     unsafe { sgx_ecc256_open_context(ecc_handle as * mut _ as * mut sgx_ecc_state_handle_t) }
 }
 
@@ -1260,8 +1273,8 @@ fn rsgx_ecc256_close_context(ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t
     unsafe { sgx_ecc256_close_context(ecc_handle) }
 }
 
-fn rsgx_ecc256_create_key_pair(private: &mut sgx_ec256_private_t, 
-                               public: &mut sgx_ec256_public_t, 
+fn rsgx_ecc256_create_key_pair(private: &mut sgx_ec256_private_t,
+                               public: &mut sgx_ec256_public_t,
                                ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t {
     unsafe {
         sgx_ecc256_create_key_pair(private as * mut sgx_ec256_private_t,
@@ -1287,11 +1300,25 @@ fn rsgx_ecc256_compute_shared_dhkey(private_b: &sgx_ec256_private_t,
     }
 }
 
-fn rsgx_ecdsa_sign_msg<T: Copy>(data: &T, 
-                                private: &sgx_ec256_private_t, 
-                                signature: &mut sgx_ec256_signature_t, 
-                                ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t {
-    
+fn rsgx_ecc256_compute_shared_dhkey512(private_b: &sgx_ec256_private_t,
+                                       public_ga: &sgx_ec256_public_t,
+                                       shared_key: &mut sgx_ec256_dh_shared512_t,
+                                       ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t {
+
+    unsafe {
+        sgx_ecc256_compute_shared_dhkey512(private_b as * const _ as * mut sgx_ec256_private_t,
+                                           public_ga as * const _ as * mut sgx_ec256_public_t,
+                                           shared_key as * mut sgx_ec256_dh_shared512_t,
+                                           ecc_handle)
+    }
+}
+
+fn rsgx_ecdsa_sign_msg<T>(data: &T,
+                          private: &sgx_ec256_private_t,
+                          signature: &mut sgx_ec256_signature_t,
+                          ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t
+    where T: Copy + ContiguousMemory {
+
     let size = mem::size_of::<T>();
     if size == 0 {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
@@ -1301,20 +1328,21 @@ fn rsgx_ecdsa_sign_msg<T: Copy>(data: &T,
     }
 
     unsafe {
-        sgx_ecdsa_sign(data as * const _  as * const u8, 
-                       size as u32, 
+        sgx_ecdsa_sign(data as * const _  as * const u8,
+                       size as u32,
                        private as * const _ as * mut sgx_ec256_private_t,
                        signature as * mut sgx_ec256_signature_t,
                        ecc_handle)
     }
 }
 
-fn rsgx_ecdsa_sign_slice<T: Copy>(data: &[T], 
-                                  private: &sgx_ec256_private_t, 
-                                  signature: &mut sgx_ec256_signature_t, 
-                                  ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t {
-    
-    let size = mem::size_of::<T>() * data.len();
+fn rsgx_ecdsa_sign_slice<T>(data: &[T],
+                            private: &sgx_ec256_private_t,
+                            signature: &mut sgx_ec256_signature_t,
+                            ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t
+    where T: Copy + ContiguousMemory {
+
+    let size = mem::size_of_val(data);
     if size == 0 {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
@@ -1323,19 +1351,20 @@ fn rsgx_ecdsa_sign_slice<T: Copy>(data: &[T],
     }
 
     unsafe {
-        sgx_ecdsa_sign(data.as_ptr() as * const _  as * const u8, 
-                       size as u32, 
+        sgx_ecdsa_sign(data.as_ptr() as * const _  as * const u8,
+                       size as u32,
                        private as * const _ as * mut sgx_ec256_private_t,
                        signature as * mut sgx_ec256_signature_t,
                        ecc_handle)
     }
 }
 
-fn rsgx_ecdsa_verify_msg<T: Copy>(data: &T, 
-                                  public: &sgx_ec256_public_t, 
-                                  signature: &sgx_ec256_signature_t, 
-                                  result: &mut sgx_generic_ecresult_t, 
-                                  ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t {
+fn rsgx_ecdsa_verify_msg<T>(data: &T,
+                            public: &sgx_ec256_public_t,
+                            signature: &sgx_ec256_signature_t,
+                            result: &mut sgx_generic_ecresult_t,
+                            ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t
+    where T: Copy + ContiguousMemory {
 
     let size = mem::size_of::<T>();
     if size == 0 {
@@ -1365,13 +1394,14 @@ fn rsgx_ecdsa_verify_msg<T: Copy>(data: &T,
     }
 }
 
-fn rsgx_ecdsa_verify_slice<T: Copy>(data: &[T], 
-                                    public: &sgx_ec256_public_t, 
-                                    signature: &sgx_ec256_signature_t, 
-                                    result: &mut sgx_generic_ecresult_t, 
-                                    ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t {
+fn rsgx_ecdsa_verify_slice<T>(data: &[T],
+                              public: &sgx_ec256_public_t,
+                              signature: &sgx_ec256_signature_t,
+                              result: &mut sgx_generic_ecresult_t,
+                              ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t
+    where T: Copy + ContiguousMemory {
 
-    let size = mem::size_of::<T>() * data.len();
+    let size = mem::size_of_val(data);
     if size == 0 {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
@@ -1402,12 +1432,12 @@ fn rsgx_ecdsa_verify_slice<T: Copy>(data: &[T],
 ///
 /// ECC GF(p) context state.
 ///
-/// This is a handle to the ECC GF(p) context state allocated and initialized used to perform 
-/// elliptic curve cryptosystem standard functions. The algorithm stores the intermediate results 
+/// This is a handle to the ECC GF(p) context state allocated and initialized used to perform
+/// elliptic curve cryptosystem standard functions. The algorithm stores the intermediate results
 /// of calculations performed using this context.
 ///
 pub struct SgxEccHandle{
-    handle: RefCell<sgx_ecc_state_handle_t>, 
+    handle: RefCell<sgx_ecc_state_handle_t>,
     initflag: Cell<bool>,
 }
 
@@ -1418,16 +1448,16 @@ impl SgxEccHandle {
     ///
     pub fn new() -> Self {
         SgxEccHandle{
-            handle: RefCell::new(ptr::null_mut() as sgx_ecc_state_handle_t), 
+            handle: RefCell::new(ptr::null_mut() as sgx_ecc_state_handle_t),
             initflag: Cell::new(false),
             }
     }
 
     ///
-    /// open returns an allocated and initialized context for the elliptic curve cryptosystem 
+    /// open returns an allocated and initialized context for the elliptic curve cryptosystem
     /// over a prime finite field, GF(p).
     ///
-    /// This context must be created prior to calling create_key_pair or compute_shared_dhkey. 
+    /// This context must be created prior to calling create_key_pair or compute_shared_dhkey.
     /// When the calling code has completed its set of ECC operations, close should be called to
     /// cleanup and deallocate the ECC context.
     ///
@@ -1480,7 +1510,7 @@ impl SgxEccHandle {
     /// The ECC context state was not initialized properly due to an internal cryptography library failure.
     ///
     pub fn open(&self) -> SgxError {
-        
+
         if self.initflag.get() == true {
             return Ok(());
         }
@@ -1496,8 +1526,8 @@ impl SgxEccHandle {
     }
 
     ///
-    /// create_key_pair generates a private/public key pair on the ECC curve for the given 
-    /// cryptographic system. 
+    /// create_key_pair generates a private/public key pair on the ECC curve for the given
+    /// cryptographic system.
     ///
     /// open must be called to allocate and initialize the ECC context prior to making this call.
     ///
@@ -1523,7 +1553,7 @@ impl SgxEccHandle {
     ///
     /// **sgx_ec256_private_t**
     ///
-    /// The private key which is a number that lies in the range of [1, n-1] where n is the order 
+    /// The private key which is a number that lies in the range of [1, n-1] where n is the order
     /// of the elliptic curve base point.
     ///
     /// **sgx_ec256_public_t**
@@ -1551,7 +1581,7 @@ impl SgxEccHandle {
     /// The key creation process failed due to an internal cryptography library failure.
     ///
     pub fn create_key_pair(&self) -> SgxResult<(sgx_ec256_private_t, sgx_ec256_public_t)> {
-        
+
         if self.initflag.get() == false {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
@@ -1567,7 +1597,7 @@ impl SgxEccHandle {
     }
 
     ///
-    /// check_point checks whether the input point is a valid point on the ECC curve for the given cryptographic system. 
+    /// check_point checks whether the input point is a valid point on the ECC curve for the given cryptographic system.
     ///
     /// open context must be called to allocate and initialize the ECC context prior to making this call.
     ///
@@ -1636,12 +1666,12 @@ impl SgxEccHandle {
     }
 
     ///
-    /// compute_shared_dhkey generates a secret key shared between two participants of the cryptosystem. 
+    /// compute_shared_dhkey generates a secret key shared between two participants of the cryptosystem.
     ///
     /// # Description
     ///
     /// This function computes the Diffie-Hellman shared key based on the enclave’s
-    /// own (local) private key and remote enclave’s public Ga Key. 
+    /// own (local) private key and remote enclave’s public Ga Key.
     ///
     /// The function computes a secret number sharedKey, which is a secret key
     /// shared between two participants of the cryptosystem.
@@ -1667,7 +1697,7 @@ impl SgxEccHandle {
     /// privKeyB: pubKeyB = privKeyB * G, where G is a base point of the elliptic curve.
     ///
     /// 4. Bob passes the public key to Alice.
-    /// 
+    ///
     /// 5. Alice gets Bob's public key and calculates the secret point shareKeyA. When
     /// calculating, she uses her own private key and Bob's public key and applies the
     /// following formula:
@@ -1726,7 +1756,7 @@ impl SgxEccHandle {
     /// The key creation process failed due to an internal cryptography library failure.
     ///
     pub fn compute_shared_dhkey(&self, private_b: &sgx_ec256_private_t, public_ga: &sgx_ec256_public_t) -> SgxResult<sgx_ec256_dh_shared_t> {
-        
+
         if self.initflag.get() == false {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
@@ -1739,8 +1769,22 @@ impl SgxEccHandle {
         }
     }
 
+    pub fn compute_shared_dhkey512(&self, private_b: &sgx_ec256_private_t, public_ga: &sgx_ec256_public_t) -> SgxResult<sgx_ec256_dh_shared512_t> {
+
+        if self.initflag.get() == false {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+
+        let mut shared_key = sgx_ec256_dh_shared512_t::default();
+        let ret = rsgx_ecc256_compute_shared_dhkey512(private_b, public_ga, &mut shared_key, *self.handle.borrow());
+        match ret {
+            sgx_status_t::SGX_SUCCESS => Ok(shared_key),
+            _ => Err(ret),
+        }
+    }
+
     ///
-    /// ecdsa_sign_msg computes a digital signature with a given private key over an input dataset. 
+    /// ecdsa_sign_msg computes a digital signature with a given private key over an input dataset.
     ///
     /// # Description
     ///
@@ -1799,8 +1843,9 @@ impl SgxEccHandle {
     ///
     /// The signature generation process failed due to an internal cryptography library failure.
     ///
-    pub fn ecdsa_sign_msg<T: Copy>(&self, data: &T, private: &sgx_ec256_private_t) -> SgxResult<sgx_ec256_signature_t> {
-        
+    pub fn ecdsa_sign_msg<T>(&self, data: &T, private: &sgx_ec256_private_t) -> SgxResult<sgx_ec256_signature_t>
+        where T: Copy + ContiguousMemory {
+
         if self.initflag.get() == false {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
@@ -1814,10 +1859,11 @@ impl SgxEccHandle {
     }
 
     ///
-    /// ecdsa_sign_slice computes a digital signature with a given private key over an input dataset. 
+    /// ecdsa_sign_slice computes a digital signature with a given private key over an input dataset.
     ///
-    pub fn ecdsa_sign_slice<T: Copy>(&self, data: &[T], private: &sgx_ec256_private_t) -> SgxResult<sgx_ec256_signature_t> {
-        
+    pub fn ecdsa_sign_slice<T>(&self, data: &[T], private: &sgx_ec256_private_t) -> SgxResult<sgx_ec256_signature_t>
+        where T: Copy + ContiguousMemory {
+
         if self.initflag.get() == false {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
@@ -1831,7 +1877,7 @@ impl SgxEccHandle {
     }
 
     ///
-    /// ecdsa_verify_msg verifies the input digital signature with a given public key over an input dataset. 
+    /// ecdsa_verify_msg verifies the input digital signature with a given public key over an input dataset.
     ///
     /// # Description
     ///
@@ -1890,12 +1936,16 @@ impl SgxEccHandle {
     ///
     /// The verification process failed due to an internal cryptography library failure.
     ///
-    pub fn ecdsa_verify_msg<T: Copy>(&self, data: &T, public: &sgx_ec256_public_t, signature: &sgx_ec256_signature_t) -> SgxResult<bool> {
-        
+    pub fn ecdsa_verify_msg<T>(&self,
+                               data: &T,
+                               public: &sgx_ec256_public_t,
+                               signature: &sgx_ec256_signature_t) -> SgxResult<bool>
+        where T: Copy + ContiguousMemory {
+
         if self.initflag.get() == false {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
-        
+
         let mut result = sgx_generic_ecresult_t::default();
         let ret = rsgx_ecdsa_verify_msg(data, public, signature, &mut result, *self.handle.borrow());
         match ret {
@@ -1910,14 +1960,18 @@ impl SgxEccHandle {
     }
 
     ///
-    /// ecdsa_verify_slice verifies the input digital signature with a given public key over an input dataset. 
+    /// ecdsa_verify_slice verifies the input digital signature with a given public key over an input dataset.
     ///
-    pub fn ecdsa_verify_slice<T: Copy>(&self, data: &[T], public: &sgx_ec256_public_t, signature: &sgx_ec256_signature_t) -> SgxResult<bool> {
-        
+    pub fn ecdsa_verify_slice<T>(&self,
+                                 data: &[T],
+                                 public: &sgx_ec256_public_t,
+                                 signature: &sgx_ec256_signature_t) -> SgxResult<bool>
+        where T: Copy + ContiguousMemory {
+
         if self.initflag.get() == false {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
-        
+
         let mut result = sgx_generic_ecresult_t::default();
         let ret = rsgx_ecdsa_verify_slice(data, public, signature, &mut result, *self.handle.borrow());
         match ret {
@@ -1930,13 +1984,13 @@ impl SgxEccHandle {
             _ => Err(ret),
         }
     }
-     
+
     ///
     /// close cleans up and deallocates the ECC 256 GF(p) state that was allocated in function open.
     ///
     /// # Description
     ///
-    /// close is used by calling code to deallocate memory used for storing the ECC 256 GF(p) state used 
+    /// close is used by calling code to deallocate memory used for storing the ECC 256 GF(p) state used
     /// in ECC cryptographic calculations.
     ///
     /// # Requirements
@@ -1963,7 +2017,7 @@ impl SgxEccHandle {
                 rsgx_ecc256_close_context(handle)
             }
         };
-         
+
         match ret {
             sgx_status_t::SGX_SUCCESS => {
                 self.initflag.set(false);

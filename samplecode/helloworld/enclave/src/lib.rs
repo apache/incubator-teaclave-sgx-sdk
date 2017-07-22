@@ -8,6 +8,7 @@
 extern crate collections;
 
 extern crate sgx_types;
+extern crate sgx_trts;
 
 use sgx_types::*;
 use collections::string::String;

@@ -30,12 +30,11 @@
 #![crate_type = "rlib"]
 
 #![cfg_attr(not(feature = "use_std"), no_std)]
-#![cfg_attr(not(feature = "use_std"), feature(lang_items, const_fn))]
 
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(improper_ctypes)]
-#![allow(unused_variables)]
+#![allow(unused_macros)]
 
 #[cfg(feature = "use_std")]
 extern crate std as core;
@@ -81,14 +80,13 @@ pub type uintptr_t = usize;
 pub type ssize_t = isize;
 
 
-pub mod types;
+mod types;
 pub use self::types::*;
 
-pub mod error;
+mod error;
 pub use self::error::*;
 
-pub mod function;
+mod function;
 pub use self::function::*;
 
-pub mod oom;
-pub use self::oom::*;
+pub mod marker;

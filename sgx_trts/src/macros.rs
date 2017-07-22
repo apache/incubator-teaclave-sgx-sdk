@@ -26,47 +26,29 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#[cfg(not(feature = "use_std"))]
-use core::sync::atomic::{AtomicPtr, Ordering};
-#[cfg(not(feature = "use_std"))]
-use core::{mem, fmt};
-use super::function;
+//! Global constructor support
+#[macro_export]
+macro_rules! init_global_object {
+    ($var_name:ident, $func_name:ident = $func:block) => {
 
-#[cfg(not(feature = "use_std"))]
-static PANIC_HANDLER: AtomicPtr<()> = AtomicPtr::new(default_panic_handler as * mut ());
+        cfg_if! {
+            if #[cfg(target_os = "linux")] {
+                #[link_section = ".init_array"]
+                #[no_mangle]
+                pub static $var_name: fn() = $func_name;
+            } else if #[cfg(target_os = "windows")]  {
+                #[no_mangle]
+                pub static $var_name: fn() = $func_name;
+            } else if #[cfg(target_os = "macos")]  {
+                #[no_mangle]
+                pub static $var_name: fn() = $func_name;
+            } else {
 
-#[cfg(not(feature = "use_std"))]
-fn default_panic_handler(msg: fmt::Arguments) {
-
+            }
+        }
+        #[no_mangle]
+        pub fn $func_name() {
+            {$func};
+        }
+    }
 }
-
-#[cfg(not(feature = "use_std"))]
-pub fn set_panic_handler(handler: fn(fmt::Arguments)) {
-    PANIC_HANDLER.store(handler as * mut (), Ordering::SeqCst);
-}
-
-pub fn rsgx_abort() -> ! {
-    unsafe { function::abort() }
-}
-
-#[cfg(not(feature = "use_std"))]
-#[lang = "panic_fmt"] 
-#[no_mangle]
-pub extern fn rust_begin_panic(msg: fmt::Arguments, file: &'static str, line: u32) -> ! { 
-
-    let value = PANIC_HANDLER.load(Ordering::SeqCst);
-    let handler: fn(fmt::Arguments) = unsafe { mem::transmute(value) };
-    handler(msg);
-
-    rsgx_abort()
-}
-
-#[cfg(not(feature = "use_std"))]
-#[lang = "eh_personality"]
-#[no_mangle]
-pub extern fn rust_eh_personality() {}
-
-#[cfg(not(feature = "use_std"))]
-#[lang = "eh_unwind_resume"]
-#[no_mangle]
-pub extern fn rust_eh_unwind_resume() {}

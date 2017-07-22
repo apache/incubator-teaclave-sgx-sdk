@@ -32,7 +32,7 @@
 /**
 * File: sample_libcrypto.h
 * Description:
-*  Interface for generic crypto library APIs. 
+*  Interface for generic crypto library APIs.
 *  Do NOT use this library in your actual product.
 *  The purpose of this sample library is to aid the debugging of a
 *  remote attestation service.
@@ -102,7 +102,7 @@ typedef uint8_t sample_aes_ctr_128bit_key_t[SAMPLE_AESCTR_KEY_SIZE];
 #ifdef __cplusplus
     #define EXTERN_C extern "C"
 #else
-    #define EXTERN_C 
+    #define EXTERN_C
 #endif
 
     #define SAMPLE_LIBCRYPTO_API EXTERN_C
@@ -176,24 +176,24 @@ SAMPLE_LIBCRYPTO_API sample_status_t sample_ecc256_compute_shared_dhkey(sample_e
                                              sample_ecc_state_handle_t ecc_handle);
 
 
-/* Computes signature for data based on private key 
+/* Computes signature for data based on private key
 *
 * A message digest is a fixed size number derived from the original message with
 * an applied hash function over the binary code of the message. (SHA256 in this case)
-* The signer's private key and the message digest are used to create a signature. 
+* The signer's private key and the message digest are used to create a signature.
 *
 * A digital signature over a message consists of a pair of large numbers, 256-bits each,
-* which the given function computes. 
+* which the given function computes.
 *
 * The scheme used for computing a digital signature is of the ECDSA scheme,
-* an elliptic curve of the DSA scheme. 
+* an elliptic curve of the DSA scheme.
 *
 * The keys can be generated and set up by the function: sgx_ecc256_create_key_pair.
 *
-* The elliptic curve domain parameters must be created by function: 
+* The elliptic curve domain parameters must be created by function:
 *     sample_ecc256_open_context
 *
-* Return: If context, private key, signature or data pointer is NULL, 
+* Return: If context, private key, signature or data pointer is NULL,
 *                       SAMPLE_ERROR_INVALID_PARAMETER is returned.
 *         If the signature creation process fails then SAMPLE_ERROR_UNEXPECTED is returned.
 *
@@ -204,10 +204,10 @@ SAMPLE_LIBCRYPTO_API sample_status_t sample_ecc256_compute_shared_dhkey(sample_e
 *           uint8_t *p_data - Pointer to the data to be signed
 *           uint32_t data_size - Size of the data to be signed
 *   Output: ec256_signature_t *p_signature - Pointer to the signature - LITTLE ENDIAN */
-SAMPLE_LIBCRYPTO_API sample_status_t sample_ecdsa_sign(const uint8_t *p_data, 
-                                        uint32_t data_size,  
-                                        sample_ec256_private_t *p_private, 
-                                        sample_ec256_signature_t *p_signature, 
+SAMPLE_LIBCRYPTO_API sample_status_t sample_ecdsa_sign(const uint8_t *p_data,
+                                        uint32_t data_size,
+                                        sample_ec256_private_t *p_private,
+                                        sample_ec256_signature_t *p_signature,
                                         sample_ecc_state_handle_t ecc_handle);
 
 /* Allocates and initializes sha256 state

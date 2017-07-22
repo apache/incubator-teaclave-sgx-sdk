@@ -36,21 +36,16 @@ RUN apt-get update
 RUN apt-get install -y build-essential ocaml automake autoconf libtool wget python libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev sudo kmod vim curl git-core libprotobuf-c0-dev libboost-thread-dev libboost-system-dev liblog4cpp5-dev libjsoncpp-dev
 
 RUN mkdir /root/sgx
-RUN wget -O /root/sgx/optimized_libs-1.8.100.37641.tar https://download.01.org/intel-sgx/linux-1.8/optimized_libs-1.8.100.37641.tar
-RUN wget -O /root/sgx/prebuilt-ae-1.8.100.37641.tar  https://download.01.org/intel-sgx/linux-1.8/prebuilt-ae-1.8.100.37641.tar
-RUN wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_1.8.100.37689.bin https://download.01.org/intel-sgx/linux-1.8/sgx_linux_ubuntu16.04.1_x64_psw_1.8.100.37689.bin
-RUN wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_1.8.100.37689.bin https://download.01.org/intel-sgx/linux-1.8/sgx_linux_ubuntu16.04.1_x64_sdk_1.8.100.37689.bin
+RUN wget -O /root/sgx/optimized_libs-1.9.100.39124.tar https://download.01.org/intel-sgx/linux-1.9/optimized_libs-1.9.100.39124.tar
+RUN wget -O /root/sgx/prebuilt-ae-1.9.100.39124.tar  https://download.01.org/intel-sgx/linux-1.9/prebuilt-ae-1.9.100.39124.tar
+RUN wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_1.9.100.39124.bin https://download.01.org/intel-sgx/linux-1.9/sgx_linux_ubuntu16.04.1_x64_psw_1.9.100.39124.bin
+RUN wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_1.9.100.39124.bin https://download.01.org/intel-sgx/linux-1.9/sgx_linux_ubuntu16.04.1_x64_sdk_1.9.100.39124.bin
 
-RUN chmod a+x /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_1.8.100.37689.bin
-RUN /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_1.8.100.37689.bin
-RUN chmod a+x /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_1.8.100.37689.bin
-RUN echo -e 'no\n/opt' | /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_1.8.100.37689.bin
+RUN chmod a+x /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_1.9.100.39124.bin
+RUN /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_1.9.100.39124.bin
+RUN chmod a+x /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_1.9.100.39124.bin
+RUN echo -e 'no\n/opt' | /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_1.9.100.39124.bin
 RUN echo 'source /opt/sgxsdk/environment' >> /root/.bashrc
-
-RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init
-RUN chmod +x /root/rustup-init
-RUN echo '1' | /root/rustup-init  --default-toolchain nightly
-RUN echo 'source /root/.cargo/env' >> /root/.bashrc
 
 RUN git clone https://github.com/01org/linux-sgx.git /root/linux-sgx
 ADD patch /root/
@@ -58,3 +53,6 @@ RUN cd /root/linux-sgx && git apply ../patch
 RUN /root/linux-sgx/download_prebuilt.sh
 RUN cd /root/linux-sgx && make
 RUN cp /root/linux-sgx/build/linux/libsgx_tstdc.a /opt/sgxsdk/lib64/libsgx_tstdc.a
+
+RUN wget https://static.rust-lang.org/rustup.sh
+RUN sh rustup.sh --channel=nightly --date=2017-07-06

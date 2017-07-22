@@ -70,7 +70,7 @@ void ocall_print_string(const char *str, size_t len)
     	printf("malloc failed\n");
     	return;
     }
-    
+
     memcpy(string, str, len);
     char * ptr = string + len;
     * ptr = 0;
@@ -127,7 +127,7 @@ int _tmain(int argc, _TCHAR* argv[])
     {
         printf("\nLoad Enclave Failure");
     }
-    
+
     do
     {
         Enclave1_test_enclave_init(e1_enclave_id);
@@ -292,7 +292,7 @@ int _tmain(int argc, _TCHAR* argv[])
         }
 
 #pragma warning (push)
-#pragma warning (disable : 4127)    
+#pragma warning (disable : 4127)
     }while(0);
 #pragma warning (pop)
 

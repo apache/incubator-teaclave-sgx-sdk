@@ -1,17 +1,23 @@
 # Rust SGX SDK
-This Rust SGX SDK helps developers write Intel SGX enclaves in Rust programming language. 
+This Rust SGX SDK helps developers write Intel SGX enclaves in Rust programming language.
+
+## v0.2.0 Release
+We are proud to have our v0.2.0 Rust SGX SDK released. It is now providing more threading functions, thread local storages, exception handling routines and supports unwind mechanism, as well as support of **LARGE ENCLAVE MEMORY** with the help of Intel SGX v1.9 (**31.75 GB enclave memory tested**). Please refer to [release notes](https://github.com/baidu/rust-sgx-sdk/blob/master/release_notes.md) for further details. And we are working on a white paper for technical details about this project.
+
+**Attention** Rust has recently merged a patch [(rustc: Implement the #[global_allocator] attribute)](https://github.com/rust-lang/rust/commit/695dee063bcd40f154bb27b7beafcb3d4dd775ac#diff-28f2fd684ad47d385427678d96d2dcd4) which significantly changes the behavior of liballoc. Thus `set_oom_handler` is no longer available since nightly-2017-07-07. Due to its instability, v0.2.0 Rust SGX SDK keeps using the old liballoc instead of new liballoc_system. As a result, nightly version rustc after 2017-07-06 will not successfully compile `sgx_trts`.
 
 ## Requirement
 Ubuntu 16.04
 
-[Intel SGX SDK 1.8 for Linux](https://01.org/zh/intel-softwareguard-extensions) installed
+[Intel SGX SDK 1.9 for Linux](https://01.org/zh/intel-softwareguard-extensions) installed
 
 Docker (Recommended)
+
 
 ## Configuration
 
 ### Using docker (Recommended)
-First, make sure Intel SGX Driver 1.8 is installed and functions well. `/dev/isgx` should be appeared.
+First, make sure Intel SGX Driver 1.9 is installed and functions well. `/dev/isgx` should be appeared.
 
 Second, pull the docker image
 
@@ -35,7 +41,7 @@ Finally, check if the sample code works
 
 ### Native without docker (Not recommended)
 
-Install Intel SGX driver and SDK first. And refer to Dockerfile for detail. 
+Install Intel SGX driver and SDK first. And refer to Dockerfile for detail.
 
 ## Build the docker image by yourself
 
@@ -66,15 +72,18 @@ circumstances.
 shows how to do local attestation in Rust programming language.
 
 * `sealeddata` sample shows how to seal secret data in an enclave and how to
-verify the sealed data. 
+verify the sealed data.
 
 * `thread` sample is a sample ported from the original Intel SGX SDK, showing
-some basic usages of threading APIs. 
+some basic usages of threading APIs.
 
 * New! `remoteattestation` sample shows how to make remote attestation with
 Rust SGX SDK. The sample is forked from [linux-sgx-attestation](https://github.com/svartkanin/linux-sgx-remoteattestation)
 and credits to Blackrabbit (blackrabbit256@gmail.com). The enclave in Rust
 is shipped in this sample and Makefiles are modified accordingly.
+
+* New! `hugemem` sample shows how to use huge mem in SGX enclave. In this
+sample, we allocate reserve 31.75GB heap space and allocate 31.625GB buffers!
 
 # Tips for writing enclaves in Rust
 

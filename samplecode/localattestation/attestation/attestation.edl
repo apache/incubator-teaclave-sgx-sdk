@@ -28,14 +28,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
- 
+
 enclave  {
     include "sgx_eid.h"
     include "sgx_dh.h"
     trusted{
         public uint32_t session_request(sgx_enclave_id_t src_enclave_id, [out] sgx_dh_msg1_t *dh_msg1, [out] size_t* session_ptr);
         public uint32_t exchange_report(sgx_enclave_id_t src_enclave_id, [in] sgx_dh_msg2_t *dh_msg2, [out] sgx_dh_msg3_t *dh_msg3, [user_check]size_t* session_ptr);
-        public uint32_t end_session(sgx_enclave_id_t src_enclave_id, [user_check]size_t* session_ptr);        
+        public uint32_t end_session(sgx_enclave_id_t src_enclave_id, [user_check]size_t* session_ptr);
     };
 
     untrusted{

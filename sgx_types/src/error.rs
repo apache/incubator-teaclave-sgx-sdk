@@ -85,6 +85,18 @@ impl_enum! {
         SGX_ERROR_MC_USED_UP                = 0x0000400e,   /* Monotonic counters are used out */
         SGX_ERROR_MC_OVER_QUOTA             = 0x0000400f,   /* Monotonic counters exceeds quota limitation */
         SGX_ERROR_KDF_MISMATCH              = 0x00004011,   /* Key derivation function doesn't match during key exchange */
+        SGX_ERROR_UNRECOGNIZED_PLATFORM     = 0x00004012,   /* EPID Provisioning failed due to platform not recognized by backend server*/
+
+        /* SGX errors are only used in the file API when there is no appropriate EXXX (EINVAL, EIO etc.) error code */
+        SGX_ERROR_FILE_BAD_STATUS               = 0x00007001,	/* The file is in bad status, run sgx_clearerr to try and fix it */
+        SGX_ERROR_FILE_NO_KEY_ID                = 0x00007002,	/* The Key ID field is all zeros, can't re-generate the encryption key */
+        SGX_ERROR_FILE_NAME_MISMATCH            = 0x00007003,	/* The current file name is different then the original file name (not allowed, substitution attack) */
+        SGX_ERROR_FILE_NOT_SGX_FILE             = 0x00007004,   /* The file is not an SGX file */
+        SGX_ERROR_FILE_CANT_OPEN_RECOVERY_FILE  = 0x00007005,	/* A recovery file can't be opened, so flush operation can't continue (only used when no EXXX is returned)  */
+        SGX_ERROR_FILE_CANT_WRITE_RECOVERY_FILE = 0x00007006,   /* A recovery file can't be written, so flush operation can't continue (only used when no EXXX is returned)  */
+        SGX_ERROR_FILE_RECOVERY_NEEDED          = 0x00007007,	/* When openeing the file, recovery is needed, but the recovery process failed */
+        SGX_ERROR_FILE_FLUSH_FAILED             = 0x00007008,	/* fflush operation (to disk) failed (only used when no EXXX is returned) */
+        SGX_ERROR_FILE_CLOSE_FAILED             = 0x00007009,	/* fclose operation (to disk) failed (only used when no EXXX is returned) */
     }
 }
 

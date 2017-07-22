@@ -28,31 +28,27 @@
 
 //! Trust Platform Service Functions
 //!
-//! The sgx_tservice library provides the following functions that allow an ISV 
+//! The sgx_tservice library provides the following functions that allow an ISV
 //! to use platform services and get platform services security property.
-//!
-//! This API is only available in simulation mode.
 //!
 use sgx_types::*;
 use core::cell::Cell;
 
 ///
-/// rsgx_create_pse_session creates a session with the PSE. 
-///
-/// This API is only available in simulation mode.
+/// rsgx_create_pse_session creates a session with the PSE.
 ///
 /// # Description
 ///
 /// An Intel(R) SGX enclave first calls rsgx_create_pse_session() in the process to request platform service.
 ///
-/// It's suggested that the caller should wait (typically several seconds to tens of seconds) and retry 
+/// It's suggested that the caller should wait (typically several seconds to tens of seconds) and retry
 /// this API if SGX_ERROR_BUSY is returned.
 ///
 /// # Requirements
 ///
 /// Header: sgx_tae_service.edl
 ///
-/// Library: libsgx_tservice_sim.a (simulation)
+/// Library: libsgx_tservice.a
 ///
 /// # Errors
 ///
@@ -100,8 +96,6 @@ pub fn rsgx_create_pse_session() -> SgxError {
 ///
 /// rsgx_close_pse_session closes a session created by rsgx_create_pse_ session.
 ///
-/// This API is only available in simulation mode.
-///
 /// # Description
 ///
 /// An Intel(R) SGX enclave calls rsgx_close_pse_session() when there is no need to request platform service.
@@ -110,7 +104,7 @@ pub fn rsgx_create_pse_session() -> SgxError {
 ///
 /// Header: sgx_tae_service.edl
 ///
-/// Library: libsgx_tservice_sim.a (simulation)
+/// Library: libsgx_tservice.a
 ///
 /// # Errors
 ///
@@ -138,26 +132,24 @@ pub fn rsgx_close_pse_session() -> SgxError {
 ///
 /// rsgx_get_ps_sec_prop gets a data structure describing the security property of the platform service.
 ///
-/// This API is only available in simulation mode.
-///
 /// # Description
 ///
 /// Gets a data structure that describes the security property of the platform service.
 ///
-/// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave 
+/// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave
 /// before calling this API.
 ///
 /// # Parameters
 ///
 /// **security_property**
 ///
-/// A pointer to the buffer that receives the security property descriptor of the platform service. 
+/// A pointer to the buffer that receives the security property descriptor of the platform service.
 ///
 /// # Requirements
 ///
 /// Header: sgx_tae_service.edl
 ///
-/// Library: libsgx_tservice_sim.a (simulation)
+/// Library: libsgx_tservice.a
 ///
 /// # Errors
 ///
@@ -179,26 +171,65 @@ pub fn rsgx_get_ps_sec_prop(security_property: &mut sgx_ps_sec_prop_desc_t) -> S
 }
 
 ///
-/// rsgx_get_trusted_time gets trusted time from the AE service.
-///
-/// This API is only available in simulation mode.
+/// rsgx_get_ps_sec_prop_ex gets a data structure describing the security property of the platform service.
 ///
 /// # Description
 ///
-/// current_time contains time in seconds and time_source_nonce contains nonce associate with the time. 
-/// The caller should compare time_ source_nonce against the value returned from the previous call of 
-/// this API if it needs to calculate the time passed between two readings of the Trusted Timer. If the 
-/// time_source_nonce of the two readings do not match, the difference between the two readings does not 
+/// Gets a data structure that describes the security property of the platform service.
+///
+/// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave
+/// before calling this API.
+///
+/// # Parameters
+///
+/// **security_property**
+///
+/// A pointer to the buffer that receives the security property descriptor of the platform service.
+///
+/// # Requirements
+///
+/// Header: sgx_tae_service.edl
+///
+/// Library: libsgx_tservice.a
+///
+/// # Errors
+///
+/// **SGX_ERROR_INVALID_PARAMETER**
+///
+/// Any of the pointers is invalid.
+///
+/// **SGX_ERROR_AE_SESSION_INVALID**
+///
+/// Session is not created or has been closed by architectural enclave service.
+///
+pub fn rsgx_get_ps_sec_prop_ex(security_property: &mut sgx_ps_sec_prop_desc_ex_t) -> SgxError {
+
+    let ret = unsafe { sgx_get_ps_sec_prop_ex(security_property as * mut sgx_ps_sec_prop_desc_ex_t) };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(()),
+        _ => Err(ret),
+    }
+}
+
+///
+/// rsgx_get_trusted_time gets trusted time from the AE service.
+///
+/// # Description
+///
+/// current_time contains time in seconds and time_source_nonce contains nonce associate with the time.
+/// The caller should compare time_ source_nonce against the value returned from the previous call of
+/// this API if it needs to calculate the time passed between two readings of the Trusted Timer. If the
+/// time_source_nonce of the two readings do not match, the difference between the two readings does not
 /// necessarily reflect time passed.
 ///
-/// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave 
+/// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave
 /// before calling this API.
 ///
 /// # Parameters
 ///
 /// **current_time**
 ///
-/// Trusted Time Stamp in seconds relative to a reference point. The reference point does not change as long as 
+/// Trusted Time Stamp in seconds relative to a reference point. The reference point does not change as long as
 /// the time_source_nonce has not changed.
 ///
 /// **time_source_nonce**
@@ -209,7 +240,7 @@ pub fn rsgx_get_ps_sec_prop(security_property: &mut sgx_ps_sec_prop_desc_t) -> S
 ///
 /// Header: sgx_tae_service.edl
 ///
-/// Library: libsgx_tservice_sim.a (simulation)
+/// Library: libsgx_tservice.a
 ///
 /// # Errors
 ///
@@ -245,7 +276,7 @@ pub fn rsgx_get_ps_sec_prop(security_property: &mut sgx_ps_sec_prop_desc_t) -> S
 ///
 /// Indicates an unexpected error occurs.
 ///
-pub fn rsgx_get_trusted_time(current_time: &mut sgx_time_t, 
+pub fn rsgx_get_trusted_time(current_time: &mut sgx_time_t,
                              time_source_nonce: &mut sgx_time_source_nonce_t) -> SgxError {
 
     let ret = unsafe { sgx_get_trusted_time(current_time as * mut sgx_time_t, time_source_nonce as * mut sgx_time_source_nonce_t) };
@@ -263,7 +294,7 @@ fn rsgx_create_monotonic_counter_ex(owner_policy: u16,
     unsafe {
         sgx_create_monotonic_counter_ex(owner_policy,
                                         owner_attribute_mask as * const sgx_attributes_t,
-                                        counter_uuid as * mut sgx_mc_uuid_t,                                                  
+                                        counter_uuid as * mut sgx_mc_uuid_t,
                                         counter_value as * mut u32)
     }
 }
@@ -290,7 +321,7 @@ fn rsgx_increment_monotonic_counter(counter_uuid: &sgx_mc_uuid_t, counter_value:
 }
 
 fn rsgx_read_monotonic_counter(counter_uuid: &sgx_mc_uuid_t, counter_value: &mut u32) -> sgx_status_t {
-    
+
     unsafe {
         sgx_read_monotonic_counter(counter_uuid as * const sgx_mc_uuid_t, counter_value as * mut u32)
     }
@@ -307,25 +338,23 @@ impl SgxMonotonicCounter {
     ///
     /// creates a monotonic counter with default owner policy and default user attribute mask.
     ///
-    /// This API is only available in simulation mode.
-    ///
     /// # Description
     ///
-    /// Call new to create a monotonic counter with the default owner policy 0x1, which means enclaves 
+    /// Call new to create a monotonic counter with the default owner policy 0x1, which means enclaves
     /// with same signing key can access the monotonic counter and default owner_attribute_mask 0xFFFFFFFFFFFFFFCB.
     ///
-    /// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave 
+    /// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave
     /// before calling this API.
     ///
-    /// Creating a monotonic counter (MC) involves writing to the non-volatile memory available in the platform. 
-    /// Repeated write operations could cause the memory to wear out during the normal lifecycle of the platform. 
-    /// Intel(R) SGX prevents this by limiting the rate at which MC operations can be performed. If you exceed 
+    /// Creating a monotonic counter (MC) involves writing to the non-volatile memory available in the platform.
+    /// Repeated write operations could cause the memory to wear out during the normal lifecycle of the platform.
+    /// Intel(R) SGX prevents this by limiting the rate at which MC operations can be performed. If you exceed
     /// the limit, the MC operation may return SGX_ERROR_BUSY for several minutes.
     ///
-    /// Intel(R) SGX limits the number of MCs an enclave can create. To avoid exhausting the available quota, 
-    /// an SGX application should record the MC UUID that rsgx_create_monotonic_counter returns and destroy a MC 
-    /// when it is not needed any more. If an enclave reaches its quota and previously created MC UUIDs have not 
-    /// been recorded, you may restore the MC service after uninstalling the SGX PSW and installing it again. 
+    /// Intel(R) SGX limits the number of MCs an enclave can create. To avoid exhausting the available quota,
+    /// an SGX application should record the MC UUID that rsgx_create_monotonic_counter returns and destroy a MC
+    /// when it is not needed any more. If an enclave reaches its quota and previously created MC UUIDs have not
+    /// been recorded, you may restore the MC service after uninstalling the SGX PSW and installing it again.
     /// This procedure deletes all MCs created by any enclave in that system.
     ///
     /// # Parameters
@@ -338,7 +367,7 @@ impl SgxMonotonicCounter {
     ///
     /// Header: sgx_tae_service.edl
     ///
-    /// Library: libsgx_tservice_sim.a (simulation)
+    /// Library: libsgx_tservice.a
     ///
     /// # Return value
     ///
@@ -391,7 +420,7 @@ impl SgxMonotonicCounter {
     /// Indicates an unexpected error occurs.
     ///
     pub fn new(counter_value: &mut u32) -> SgxResult<Self> {
-         
+
         let mut counter_uuid = sgx_mc_uuid_t::default();
         let ret = rsgx_create_monotonic_counter(&mut counter_uuid, counter_value);
 
@@ -404,24 +433,22 @@ impl SgxMonotonicCounter {
     ///
     /// creates a monotonic counter.
     ///
-    /// This API is only available in simulation mode.
-    ///
     /// # Description
     ///
     /// Call new_ex to create a monotonic counter with the given owner_policy and owner_attribute_mask.
     ///
-    /// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave 
+    /// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave
     /// before calling this API.
     ///
-    /// Creating a monotonic counter (MC) involves writing to the non-volatile memory available in the platform. 
-    /// Repeated write operations could cause the memory to wear out during the normal lifecycle of the platform. 
-    /// Intel(R) SGX prevents this by limiting the rate at which MC operations can be performed. If you exceed 
+    /// Creating a monotonic counter (MC) involves writing to the non-volatile memory available in the platform.
+    /// Repeated write operations could cause the memory to wear out during the normal lifecycle of the platform.
+    /// Intel(R) SGX prevents this by limiting the rate at which MC operations can be performed. If you exceed
     /// the limit, the MC operation may return SGX_ERROR_BUSY for several minutes.
     ///
-    /// Intel(R) SGX limits the number of MCs an enclave can create. To avoid exhausting the available quota, 
-    /// an SGX application should record the MC UUID that rsgx_create_monotonic_counter_ex returns and destroy a MC 
-    /// when it is not needed any more. If an enclave reaches its quota and previously created MC UUIDs have not 
-    /// been recorded, you may restore the MC service after uninstalling the SGX PSW and installing it again. 
+    /// Intel(R) SGX limits the number of MCs an enclave can create. To avoid exhausting the available quota,
+    /// an SGX application should record the MC UUID that rsgx_create_monotonic_counter_ex returns and destroy a MC
+    /// when it is not needed any more. If an enclave reaches its quota and previously created MC UUIDs have not
+    /// been recorded, you may restore the MC service after uninstalling the SGX PSW and installing it again.
     /// This procedure deletes all MCs created by any enclave in that system.
     ///
     /// # Parameters
@@ -442,12 +469,12 @@ impl SgxMonotonicCounter {
     /// **counter_value**
     ///
     /// A pointer to the buffer that receives the monotonic counter value.
-    /// 
+    ///
     /// # Requirements
     ///
     /// Header: sgx_tae_service.edl
     ///
-    /// Library: libsgx_tservice_sim.a (simulation)
+    /// Library: libsgx_tservice.a
     ///
     /// # Return value
     ///
@@ -512,29 +539,27 @@ impl SgxMonotonicCounter {
 
     ///
     /// destroys a monotonic counter created by new or new_ex.
-    /// 
-    /// This API is only available in simulation mode.
     ///
     /// # Description
     ///
     /// Calling destory after a monotonic counter is not needed anymore.
     ///
-    /// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave 
+    /// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave
     /// before calling this API.
     ///
     /// destory fails if the calling enclave does not match the owner policy and the attributes specified in the
     /// call that created the monotonic counter.
     ///
-    /// Destroying a Monotonic Counter (MC) involves writing to the non-volatile memory available in the platform. 
-    /// Repeated write operations could cause the memory to wear out during the normal lifecycle of the platform. 
-    /// Intel(R) SGX prevents this by limiting the rate at which MC operations can be performed. If you exceed the 
+    /// Destroying a Monotonic Counter (MC) involves writing to the non-volatile memory available in the platform.
+    /// Repeated write operations could cause the memory to wear out during the normal lifecycle of the platform.
+    /// Intel(R) SGX prevents this by limiting the rate at which MC operations can be performed. If you exceed the
     /// limit, the MC operation may return SGX_ERROR_BUSY for several minutes.
     ///
     /// # Requirements
     ///
     /// Header: sgx_tae_service.edl
     ///
-    /// Library: libsgx_tservice_sim.a (simulation)
+    /// Library: libsgx_tservice.a
     ///
     /// # Errors
     ///
@@ -555,7 +580,7 @@ impl SgxMonotonicCounter {
     /// The enclave doesn't have the access right to specified Monotonic Counter.
     ///
     /// **SGX_ERROR_AE_SESSION_INVALID**
-    /// 
+    ///
     /// Session is not created or has been closed by architectural enclave service.
     ///
     /// **SGX_ERROR_SERVICE_UNAVAILABLE**
@@ -565,21 +590,21 @@ impl SgxMonotonicCounter {
     /// **SGX_ERROR_SERVICE_TIMEOUT**
     ///
     /// A request to the AE service timed out.
-    /// 
+    ///
     /// **SGX_ERROR_NETWORK_FAILURE**
-    /// 
+    ///
     /// Network connecting or proxy setting issue was encountered.
-    /// 
+    ///
     /// **SGX_ERROR_OUT_OF_MEMORY**
-    /// 
+    ///
     /// Not enough memory is available to complete this operation.
-    /// 
+    ///
     /// **SGX_ERROR_OUT_OF_EPC**
-    /// 
+    ///
     /// There is not enough EPC memory to load one of the Architecture Enclaves needed to complete this operation.
-    /// 
+    ///
     /// **SGX_ERROR_UNEXPECTED**
-    /// 
+    ///
     /// Indicates an unexpected error occurs.
     ///
     pub fn destory(&self) -> SgxError {
@@ -599,29 +624,27 @@ impl SgxMonotonicCounter {
 
     ///
     /// increments a monotonic counter value by 1.
-    /// 
-    /// This API is only available in simulation mode.
     ///
     /// # Description
     ///
     /// Call increment to increase a monotonic counter value by 1.
     ///
-    /// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave 
+    /// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave
     /// before calling this API.
     ///
-    /// increment fails if the calling enclave does not match the owner policy and the attributes specified in the 
+    /// increment fails if the calling enclave does not match the owner policy and the attributes specified in the
     /// call that created the monotonic counter.
     ///
-    /// Incrementing a monotonic counter (MC) involves writing to the non-volatile memory available in the platform. 
-    /// Repeated write operations could cause the memory to wear out during the normal lifecycle of the platform. 
-    /// Intel(R) SGX prevents this by limiting the rate at which MC operations can be performed. If you exceed the limit, 
+    /// Incrementing a monotonic counter (MC) involves writing to the non-volatile memory available in the platform.
+    /// Repeated write operations could cause the memory to wear out during the normal lifecycle of the platform.
+    /// Intel(R) SGX prevents this by limiting the rate at which MC operations can be performed. If you exceed the limit,
     /// the MC operation may return SGX_ERROR_BUSY for several minutes.
     ///
     /// # Requirements
     ///
     /// Header: sgx_tae_service.edl
     ///
-    /// Library: libsgx_tservice_sim.a (simulation)
+    /// Library: libsgx_tservice.a
     ///
     /// # Errors
     ///
@@ -642,7 +665,7 @@ impl SgxMonotonicCounter {
     /// The enclave doesn't have the access right to specified Monotonic Counter.
     ///
     /// **SGX_ERROR_AE_SESSION_INVALID**
-    /// 
+    ///
     /// Session is not created or has been closed by architectural enclave service.
     ///
     /// **SGX_ERROR_SERVICE_UNAVAILABLE**
@@ -652,21 +675,21 @@ impl SgxMonotonicCounter {
     /// **SGX_ERROR_SERVICE_TIMEOUT**
     ///
     /// A request to the AE service timed out.
-    /// 
+    ///
     /// **SGX_ERROR_NETWORK_FAILURE**
-    /// 
+    ///
     /// Network connecting or proxy setting issue was encountered.
-    /// 
+    ///
     /// **SGX_ERROR_OUT_OF_MEMORY**
-    /// 
+    ///
     /// Not enough memory is available to complete this operation.
-    /// 
+    ///
     /// **SGX_ERROR_OUT_OF_EPC**
-    /// 
+    ///
     /// There is not enough EPC memory to load one of the Architecture Enclaves needed to complete this operation.
-    /// 
+    ///
     /// **SGX_ERROR_UNEXPECTED**
-    /// 
+    ///
     /// Indicates an unexpected error occurs.
     ///
     pub fn increment(&self) -> SgxResult<u32> {
@@ -685,24 +708,22 @@ impl SgxMonotonicCounter {
 
     ///
     /// returns the value of a monotonic counter.
-    /// 
-    /// This API is only available in simulation mode.
     ///
     /// # Description
     ///
     /// Call read to read the value of a monotonic counter.
     ///
-    /// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave 
+    /// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave
     /// before calling this API.
     ///
-    /// read fails if the calling enclave does not match the owner policy and the attributes specified in the 
+    /// read fails if the calling enclave does not match the owner policy and the attributes specified in the
     /// call that created the monotonic counter.
     ///
     /// # Requirements
     ///
     /// Header: sgx_tae_service.edl
     ///
-    /// Library: libsgx_tservice_sim.a (simulation)
+    /// Library: libsgx_tservice.a
     ///
     /// # Return value
     ///
@@ -719,7 +740,7 @@ impl SgxMonotonicCounter {
     /// The Monotonic Counter does not exist or has been invalidated.
     ///
     /// **SGX_ERROR_AE_SESSION_INVALID**
-    /// 
+    ///
     /// Session is not created or has been closed by architectural enclave service.
     ///
     /// **SGX_ERROR_SERVICE_UNAVAILABLE**
@@ -729,23 +750,23 @@ impl SgxMonotonicCounter {
     /// **SGX_ERROR_SERVICE_TIMEOUT**
     ///
     /// A request to the AE service timed out.
-    /// 
+    ///
     /// **SGX_ERROR_NETWORK_FAILURE**
-    /// 
+    ///
     /// Network connecting or proxy setting issue was encountered.
-    /// 
+    ///
     /// **SGX_ERROR_OUT_OF_MEMORY**
-    /// 
+    ///
     /// Not enough memory is available to complete this operation.
-    /// 
+    ///
     /// **SGX_ERROR_OUT_OF_EPC**
-    /// 
+    ///
     /// There is not enough EPC memory to load one of the Architecture Enclaves needed to complete this operation.
-    /// 
+    ///
     /// **SGX_ERROR_UNEXPECTED**
-    /// 
+    ///
     /// Indicates an unexpected error occurs.
-    /// 
+    ///
     pub fn read(&self) -> SgxResult<u32> {
 
         if self.initflag.get() == false {

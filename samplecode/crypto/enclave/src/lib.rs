@@ -8,6 +8,7 @@
 extern crate collections;
 
 extern crate sgx_types;
+extern crate sgx_trts;
 extern crate sgx_tcrypto;
 
 use sgx_types::*;
@@ -268,7 +269,7 @@ pub extern "C" fn aes_gcm_128_encrypt(key: &[u8;16],
 /// # Errors
 ///
 /// **SGX_ERROR_INVALID_PARAMETER** Indicates the parameter is invalid.
-/// 
+///
 /// **SGX_ERROR_UNEXPECTED** means that decryption failed.
 ///
 /// # Requirements

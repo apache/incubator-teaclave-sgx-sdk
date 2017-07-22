@@ -48,14 +48,14 @@ extern {
     //
     pub fn sgx_thread_mutex_init(mutex: * mut sgx_thread_mutex_t, unused: * const sgx_thread_mutexattr_t) -> ::int32_t;
     pub fn sgx_thread_mutex_destroy(mutex: * mut sgx_thread_mutex_t) -> ::int32_t;
-    
+
     pub fn sgx_thread_mutex_lock(mutex: * mut sgx_thread_mutex_t) -> ::int32_t;
     pub fn sgx_thread_mutex_trylock(mutex: * mut sgx_thread_mutex_t) -> ::int32_t;
     pub fn sgx_thread_mutex_unlock(mutex: * mut sgx_thread_mutex_t) -> ::int32_t;
-    
+
     pub fn sgx_thread_cond_init(cond: * mut sgx_thread_cond_t, unused: * const sgx_thread_condattr_t) -> ::int32_t;
     pub fn sgx_thread_cond_destroy(cond: * mut sgx_thread_cond_t) -> ::int32_t;
-    
+
     pub fn sgx_thread_cond_wait(cond: * mut sgx_thread_cond_t, mutex: * mut sgx_thread_mutex_t) -> ::int32_t;
     pub fn sgx_thread_cond_signal(cond: * mut sgx_thread_cond_t) -> ::int32_t;
     pub fn sgx_thread_cond_broadcast(cond: * mut sgx_thread_cond_t) -> ::int32_t;
@@ -73,13 +73,13 @@ extern {
     //
     pub fn sgx_dh_init_session(role: sgx_dh_session_role_t, session: * mut sgx_dh_session_t) -> sgx_status_t;
 
-    pub fn sgx_dh_responder_gen_msg1(msg1: * mut sgx_dh_msg1_t, 
+    pub fn sgx_dh_responder_gen_msg1(msg1: * mut sgx_dh_msg1_t,
                                      dh_session: * mut sgx_dh_session_t) -> sgx_status_t;
 
-    pub fn sgx_dh_initiator_proc_msg1(msg1: * const sgx_dh_msg1_t, 
-                                      msg2: * mut sgx_dh_msg2_t, 
+    pub fn sgx_dh_initiator_proc_msg1(msg1: * const sgx_dh_msg1_t,
+                                      msg2: * mut sgx_dh_msg2_t,
                                       dh_session: * mut sgx_dh_session_t) -> sgx_status_t;
-    
+
     pub fn sgx_dh_responder_proc_msg2(msg2: * const sgx_dh_msg2_t,
                                       msg3: * mut sgx_dh_msg3_t,
                                       dh_session: * mut sgx_dh_session_t,
@@ -97,6 +97,8 @@ extern {
     pub fn sgx_create_pse_session() -> sgx_status_t;
     pub fn sgx_close_pse_session() -> sgx_status_t;
     pub fn sgx_get_ps_sec_prop(security_property: * mut sgx_ps_sec_prop_desc_t) -> sgx_status_t;
+    /* intel sgx sdk 1.8 */
+    pub fn sgx_get_ps_sec_prop_ex(security_property: * mut sgx_ps_sec_prop_desc_ex_t) -> sgx_status_t;
     pub fn sgx_get_trusted_time(current_time: * mut sgx_time_t, time_source_nonce: * mut sgx_time_source_nonce_t) -> sgx_status_t;
 
     pub fn sgx_create_monotonic_counter_ex(owner_policy: ::uint16_t,
@@ -109,7 +111,7 @@ extern {
     pub fn sgx_increment_monotonic_counter(counter_uuid: * const sgx_mc_uuid_t, counter_value: * mut ::uint32_t) -> sgx_status_t;
     pub fn sgx_read_monotonic_counter(counter_uuid: * const sgx_mc_uuid_t, counter_value: * mut ::uint32_t) -> sgx_status_t;
 
-    
+
     //
     // sgx_tseal.h
     //
@@ -153,16 +155,16 @@ extern {
                              sealed_data_size: ::uint32_t,
                              p_sealed_data: * mut sgx_sealed_data_t) -> sgx_status_t;
 
-    pub fn sgx_unmac_aadata(p_sealed_data: * const sgx_sealed_data_t, 
-                            p_additional_MACtext: * mut ::uint8_t, 
+    pub fn sgx_unmac_aadata(p_sealed_data: * const sgx_sealed_data_t,
+                            p_additional_MACtext: * mut ::uint8_t,
                             p_additional_MACtext_length: * mut ::uint32_t) -> sgx_status_t;
 
 
     //
     // sgx_utils.h
     //
-    pub fn sgx_create_report(target_info : * const sgx_target_info_t, 
-                             report_data: * const sgx_report_data_t, 
+    pub fn sgx_create_report(target_info : * const sgx_target_info_t,
+                             report_data: * const sgx_report_data_t,
                              report: * mut sgx_report_t) -> sgx_status_t;
 
     pub fn sgx_verify_report(report: * const sgx_report_t) -> sgx_status_t;
@@ -181,7 +183,7 @@ extern {
     pub fn sgx_sha256_update(p_src: * const ::uint8_t, src_len: ::uint32_t, sha_handle: sgx_sha_state_handle_t) -> sgx_status_t;
     pub fn sgx_sha256_get_hash(sha_handle: sgx_sha_state_handle_t, p_hash: * mut sgx_sha256_hash_t) -> sgx_status_t;
     pub fn sgx_sha256_close(sha_handle: sgx_sha_state_handle_t) -> sgx_status_t;
-    
+
     pub fn sgx_rijndael128GCM_encrypt(p_key: * const sgx_aes_gcm_128bit_key_t,
                                       p_src: * const ::uint8_t,
                                       src_len: ::uint32_t,
@@ -207,7 +209,7 @@ extern {
     pub fn sgx_cmac128_update(p_src: * const ::uint8_t, src_len: ::uint32_t, cmac_handle: sgx_cmac_state_handle_t) -> sgx_status_t;
     pub fn sgx_cmac128_final(cmac_handle: sgx_cmac_state_handle_t, p_hash: * mut sgx_cmac_128bit_tag_t) -> sgx_status_t;
     pub fn sgx_cmac128_close(cmac_handle: sgx_cmac_state_handle_t) -> sgx_status_t;
-    
+
     pub fn sgx_aes_ctr_encrypt(p_key: * const sgx_aes_ctr_128bit_key_t,
                                p_src: * const ::uint8_t,
                                src_len: ::uint32_t,
@@ -232,6 +234,11 @@ extern {
                                            p_public_ga: * mut sgx_ec256_public_t,
                                            p_shared_key: * mut sgx_ec256_dh_shared_t,
                                            ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
+    /* intel sgx sdk 1.8 */
+    pub fn sgx_ecc256_compute_shared_dhkey512(p_private_b: * mut sgx_ec256_private_t,
+                                              p_public_ga: * mut sgx_ec256_public_t,
+                                              p_shared_key: * mut sgx_ec256_dh_shared512_t,
+                                              ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
 
     pub fn sgx_ecdsa_sign(p_data: * const ::uint8_t,
                           data_size: ::uint32_t,
@@ -239,11 +246,11 @@ extern {
                           p_signature: * mut sgx_ec256_signature_t,
                           ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
 
-    pub fn sgx_ecdsa_verify(p_data: * const ::uint8_t, 
-                            data_size: :: uint32_t, 
-                            p_public: * const sgx_ec256_public_t, 
+    pub fn sgx_ecdsa_verify(p_data: * const ::uint8_t,
+                            data_size: :: uint32_t,
+                            p_public: * const sgx_ec256_public_t,
                             p_signature: * mut sgx_ec256_signature_t,
-                            p_result: * mut ::uint8_t, 
+                            p_result: * mut ::uint8_t,
                             ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
 }
 
@@ -284,9 +291,9 @@ extern {
     //
     // sgx_trts_exception.h
     //
-    pub fn sgx_register_exception_handler(is_first_handler: ::uint32_t, 
+    pub fn sgx_register_exception_handler(is_first_handler: ::uint32_t,
                                           exception_handler: sgx_exception_handler_t) -> * const ::c_void;
-                                          
+
     pub fn sgx_unregister_exception_handler(handler: * const ::c_void) -> ::uint32_t;
 
     //
@@ -294,7 +301,7 @@ extern {
     //
     pub fn sgx_ocalloc(size: ::size_t) -> * mut ::c_void;
     pub fn sgx_sgx_ocfree();
- 
+
     //
     // trts_pic.S
     //
@@ -330,9 +337,9 @@ extern {
     pub fn sgx_get_whitelist_size(p_whitelist_size: * mut ::uint32_t) -> sgx_status_t;
     pub fn sgx_get_whitelist(p_whitelist: * mut ::uint8_t, whitelist_size: ::uint32_t) -> sgx_status_t;
     pub fn sgx_get_extended_epid_group_id(p_extended_epid_group_id: * mut ::uint32_t) -> sgx_status_t;
-    
-    pub fn sgx_report_attestation_status(p_platform_info: * const sgx_platform_info_t, 
-                                         attestation_status: i32, 
+
+    pub fn sgx_report_attestation_status(p_platform_info: * const sgx_platform_info_t,
+                                         attestation_status: i32,
                                          p_update_info: * mut sgx_update_info_bit_t) -> sgx_status_t;
 }
 

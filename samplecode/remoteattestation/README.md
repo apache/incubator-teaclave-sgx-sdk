@@ -9,20 +9,20 @@ btw. Dependencies include `libjsoncpp-dev` which is missing from below.
 #Linux SGX remote attestation (Original Readme below)
 Example of a remote attestation with Intel's SGX including the communication with IAS.
 
-The code requires the installation of Intel SGX [here](https://github.com/01org/linux-sgx) and 
+The code requires the installation of Intel SGX [here](https://github.com/01org/linux-sgx) and
 the SGX driver [here](https://github.com/01org/linux-sgx-driver). Furthermore, also a developer account
 for the usage of IAS has be registered [Deverloper account](https://software.intel.com/en-us/sgx).
 After the registration with a certificate (can be self-signed for development purposes), Intel will
-respond with a SPID which is needed to communicate with IAS. 
+respond with a SPID which is needed to communicate with IAS.
 
 The code consists of two separate programs, the ServiceProvider and the Application.
-The message exchange over the network is performed using Google Protocol Buffers. 
+The message exchange over the network is performed using Google Protocol Buffers.
 
 ## Installation
 
 Before running the code, some settings have to be set in the ```GeneralSettings.h``` file:
-* The application port and IP 
-* A server certificate and private key are required for the SSL communication between the SP and the Application (which can be self-signed)<br /> 
+* The application port and IP
+* A server certificate and private key are required for the SSL communication between the SP and the Application (which can be self-signed)<br />
 e.g. ```openssl req -x509 -nodes -newkey rsa:4096 -keyout server.key -out sever.crt -days 365```
 * The SPID provided by Intel when registering for the developer account
 * The certificate sent to Intel when registering for the developer account

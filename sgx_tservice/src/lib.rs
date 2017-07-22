@@ -28,8 +28,8 @@
 
 //! # Trust Service Library
 //!
-//! The Intel(R) Software Guard Extensions SDK provides a trusted library named 
-//! sgx_tservice for secure data manipulation and protection. The sgx_tservice library 
+//! The Intel(R) Software Guard Extensions SDK provides a trusted library named
+//! sgx_tservice for secure data manipulation and protection. The sgx_tservice library
 //! provides the following modules:
 //!
 //! **Trust Platform Service Functions**
@@ -46,6 +46,6 @@ extern crate std as core;
 
 extern crate sgx_types;
 
-pub mod tae;
+mod tae;
 pub use self::tae::*;
 

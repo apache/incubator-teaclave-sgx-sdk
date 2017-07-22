@@ -37,6 +37,7 @@ use alloc::boxed::Box;
 use core::sync::atomic::{AtomicPtr, Ordering};
 
 extern crate sgx_types;
+extern crate sgx_trts;
 extern crate sgx_tstdc;
 
 use sgx_types::*;
@@ -83,7 +84,7 @@ pub extern "C" fn ecall_uninitialize() {
     let ptr = GLOBAL_COND_BUFFER.swap(0 as * mut (), Ordering::SeqCst) as * mut (SgxMutex<CondBuffer>, SgxCond, SgxCond);
     if ptr.is_null() {
        return;
-    } 
+    }
     let _ = unsafe { Box::from_raw(ptr) };
 }
 
@@ -93,7 +94,7 @@ fn get_ref_cond_buffer() -> Option<&'static (SgxMutex<CondBuffer>, SgxCond, SgxC
     if ptr.is_null() {
         None
     } else {
-        Some(unsafe { &* ptr })  
+        Some(unsafe { &* ptr })
     }
 }
 
@@ -104,13 +105,13 @@ pub extern "C" fn ecall_producer() {
     let &(ref mutex, ref more, ref less) = get_ref_cond_buffer().unwrap();
 
     for _ in 0..max_index {
-            
+
         let mut guard = mutex.lock().unwrap();
 
         while guard.occupied >= BUFFER_SIZE as i32 {
             guard = less.wait(guard).unwrap();
         }
-            
+
         let index = guard.nextin;
         guard.buf[index] = guard.nextin;
         guard.nextin += 1;
@@ -128,7 +129,7 @@ pub extern "C" fn ecall_consumer() {
     let &(ref mutex, ref more, ref less) = get_ref_cond_buffer().unwrap();
 
     for _ in 0..max_index {
-            
+
         let mut guard = mutex.lock().unwrap();
 
         while guard.occupied <= 0 {

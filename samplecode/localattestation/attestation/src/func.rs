@@ -38,19 +38,19 @@ use types::*;
 use err::*;
 
 extern {
-    pub fn session_request_ocall(ret: *mut u32, 
-                                 src_enclave_id: sgx_enclave_id_t, 
-                                 dest_enclave_id: sgx_enclave_id_t, 
+    pub fn session_request_ocall(ret: *mut u32,
+                                 src_enclave_id: sgx_enclave_id_t,
+                                 dest_enclave_id: sgx_enclave_id_t,
                                  dh_msg1: *mut sgx_dh_msg1_t) -> sgx_status_t;
 
-    pub fn exchange_report_ocall(ret: *mut u32, 
-                                 src_enclave_id: sgx_enclave_id_t, 
-                                 dest_enclave_id: sgx_enclave_id_t, 
-                                 dh_msg2: *mut sgx_dh_msg2_t, 
+    pub fn exchange_report_ocall(ret: *mut u32,
+                                 src_enclave_id: sgx_enclave_id_t,
+                                 dest_enclave_id: sgx_enclave_id_t,
+                                 dh_msg2: *mut sgx_dh_msg2_t,
                                  dh_msg3: *mut sgx_dh_msg3_t) -> sgx_status_t;
 
-    pub fn end_session_ocall(ret: *mut u32, 
-                             src_enclave_id:sgx_enclave_id_t, 
+    pub fn end_session_ocall(ret: *mut u32,
+                             src_enclave_id:sgx_enclave_id_t,
                              dest_enclave_id:sgx_enclave_id_t) -> sgx_status_t;
 
     pub fn ocall_print_string(str: *const c_uchar, len: size_t);
@@ -83,7 +83,7 @@ pub fn create_session(src_enclave_id: sgx_enclave_id_t, dest_enclave_id: sgx_enc
     let mut ret = 0;
 
     let mut initiator: SgxDhInitiator = SgxDhInitiator::init_session();
-    
+
     let status = unsafe { session_request_ocall(&mut ret, src_enclave_id, dest_enclave_id, &mut dh_msg1) };
     if status != sgx_status_t::SGX_SUCCESS {
         return ATTESTATION_STATUS::ATTESTATION_SE_ERROR;
@@ -140,7 +140,7 @@ pub fn close_session(src_enclave_id: sgx_enclave_id_t, dest_enclave_id: sgx_encl
 }
 
 fn session_request_safe(src_enclave_id: sgx_enclave_id_t, dh_msg1: &mut sgx_dh_msg1_t, session_ptr: &mut usize) -> ATTESTATION_STATUS {
-    
+
     let mut responder = SgxDhResponder::init_session();
 
     let status = responder.gen_msg1(dh_msg1);
@@ -163,7 +163,7 @@ fn session_request_safe(src_enclave_id: sgx_enclave_id_t, dh_msg1: &mut sgx_dh_m
 pub extern "C" fn session_request(src_enclave_id: sgx_enclave_id_t, dh_msg1: *mut sgx_dh_msg1_t, session_ptr: *mut usize) -> ATTESTATION_STATUS {
     unsafe {
         session_request_safe(src_enclave_id, &mut *dh_msg1, &mut *session_ptr)
-    }    
+    }
 }
 
 #[allow(unused_variables)]
@@ -204,7 +204,7 @@ fn exchange_report_safe(src_enclave_id: sgx_enclave_id_t, dh_msg2: &mut sgx_dh_m
 pub extern "C" fn exchange_report(src_enclave_id: sgx_enclave_id_t, dh_msg2: *mut sgx_dh_msg2_t , dh_msg3: *mut sgx_dh_msg3_t, session_ptr: *mut usize) -> ATTESTATION_STATUS {
     unsafe {
         exchange_report_safe(src_enclave_id, &mut *dh_msg2, &mut *dh_msg3, &mut *(session_ptr as *mut DhSessionInfo))
-    }  
+    }
 }
 
 //Respond to the request from the Source Enclave to close the session
@@ -215,7 +215,7 @@ pub extern "C" fn end_session(src_enclave_id: sgx_enclave_id_t, session_ptr: *mu
     return ATTESTATION_STATUS::SUCCESS;
 }
 
-#[allow(dead_code)] 
+#[allow(dead_code)]
 fn output(outstr: &str) {
     unsafe {
         ocall_print_string(outstr.as_ptr() as *const c_uchar, outstr.len() as size_t);

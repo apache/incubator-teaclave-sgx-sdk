@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_types::*;
-use sgx_tdh::dh::*;
+use sgx_tdh::*;
 
 use core::default::Default;
 

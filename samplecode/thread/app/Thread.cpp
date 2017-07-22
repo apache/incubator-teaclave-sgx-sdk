@@ -86,7 +86,7 @@ void ecall_thread_functions(void)
     thread consumer2(data_consumer);
     thread consumer3(data_consumer);
     thread consumer4(data_consumer);
-    
+
     consumer1.join();
     consumer2.join();
     consumer3.join();

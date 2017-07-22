@@ -87,7 +87,7 @@ errno_t _TLIBC_CDECL_ memset_s(void *s, size_t smax, int c, size_t n);
 _TLIBC_DEPRECATED_FUNCTION_(char * _TLIBC_CDECL_, strcat, char *, const char *);
 _TLIBC_DEPRECATED_FUNCTION_(char * _TLIBC_CDECL_, strcpy, char *, const char *);
 
-/* 
+/*
  * Common used non-C99 functions.
  */
 char * _TLIBC_CDECL_ strndup(const char *, size_t);

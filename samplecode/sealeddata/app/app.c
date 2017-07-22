@@ -143,7 +143,7 @@ void print_error_message(sgx_status_t ret)
             break;
         }
     }
-    
+
     if (idx == ttl)
         printf("Error: Unexpected error occurred.\n");
 }
@@ -159,14 +159,14 @@ int initialize_enclave(void)
     sgx_launch_token_t token = {0};
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     int updated = 0;
-    
-    /* Step 1: try to retrieve the launch token saved by last transaction 
+
+    /* Step 1: try to retrieve the launch token saved by last transaction
      *         if there is no token, then create a new one.
      */
     /* try to get the token saved in $HOME */
     const char *home_dir = getpwuid(getuid())->pw_dir;
-    
-    if (home_dir != NULL && 
+
+    if (home_dir != NULL &&
         (strlen(home_dir)+strlen("/")+sizeof(TOKEN_FILENAME)+1) <= MAX_PATH) {
         /* compose the token path */
         strncpy(token_path, home_dir, strlen(home_dir));
@@ -226,7 +226,7 @@ int SGX_CDECL main(int argc, char *argv[])
 	uint32_t sealed_log_size = 1024;
 	uint8_t sealed_log[1024] = {0};
     sgx_sealed_data_t * sealed_data = 0;
-	
+
     (void)(argc);
     (void)(argv);
 
@@ -234,9 +234,9 @@ int SGX_CDECL main(int argc, char *argv[])
     if(initialize_enclave() < 0){
         printf("Enter a character before exit ...\n");
         getchar();
-        return -1; 
+        return -1;
     }
- 	
+
  	sgx_ret = create_sealeddata(global_eid, &enclave_ret, sealed_log, sealed_log_size);
  	if(sgx_ret != SGX_SUCCESS) {
         print_error_message(sgx_ret);
@@ -268,7 +268,7 @@ int SGX_CDECL main(int argc, char *argv[])
 
     /* Destroy the enclave */
     sgx_destroy_enclave(global_eid);
-    
+
     printf("Enter a character before exit ...\n");
     getchar();
     return 0;
@@ -281,7 +281,7 @@ void ocall_print_string(const char *str, size_t len)
     	printf("malloc failed\n");
     	return;
     }
-    
+
     memcpy(string, str, len);
     char * ptr = string + len;
     * ptr = 0;

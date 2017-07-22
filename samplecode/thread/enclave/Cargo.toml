@@ -13,4 +13,5 @@ use_std = []
 
 [dependencies]
 sgx_types = { path = "../../../sgx_types" }
+sgx_trts = { path = "../../../sgx_trts" }
 sgx_tstdc = { path = "../../../sgx_tstdc" }

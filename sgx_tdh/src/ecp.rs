@@ -35,7 +35,7 @@ pub const EC_SMK_LABEL: [u8; EC_LABEL_LENGTH] = [0x53, 0x4D, 0x4B];
 pub const EC_AEK_LABEL: [u8; EC_LABEL_LENGTH] = [0x41, 0x45, 0x4B];
 pub const EC_DERIVATION_BUFFER_SIZE: usize = 7;
 
-pub fn derive_key(shared_key: &sgx_ec256_dh_shared_t, 
+pub fn derive_key(shared_key: &sgx_ec256_dh_shared_t,
                   label: &[u8; EC_LABEL_LENGTH]) -> SgxResult<sgx_ec_key_128bit_t> {
 
     let cmac_key = sgx_cmac_128bit_key_t::default();
@@ -62,5 +62,5 @@ fn set_error(sgx_ret: sgx_status_t) -> sgx_status_t {
         sgx_status_t::SGX_ERROR_OUT_OF_MEMORY => sgx_status_t::SGX_ERROR_OUT_OF_MEMORY,
         _ => sgx_status_t::SGX_ERROR_UNEXPECTED,
     };
-    ret   
+    ret
 }

@@ -40,6 +40,7 @@ extern crate sgx_tseal;
 extern crate sgx_trts;
 
 use sgx_types::*;
+use sgx_types::marker::ContiguousMemory;
 use sgx_tseal::*;
 use sgx_trts::*;
 
@@ -48,6 +49,8 @@ struct RandData {
     key: u32,
     rand: [u8; 16],
 }
+
+unsafe impl ContiguousMemory for RandData {}
 
 extern {
     fn ocall_print_string(str: * const c_uchar, len: size_t);
@@ -61,7 +64,7 @@ pub extern "C" fn create_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) 
     let error = rsgx_read_rand(&mut data.rand);
     if error.is_err() {
         return error.unwrap_err();
-    } 
+    }
 
     let aad: [u8; 0] = [0_u8; 0];
     let result = SgxSealedData::<RandData>::seal_data(&aad, &data);
@@ -69,17 +72,17 @@ pub extern "C" fn create_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) 
         Ok(x) => x,
         Err(ret) => {
             return ret;
-        }, 
+        },
     };
 
     let opt = to_sealed_log(&sealed_data, sealed_log, sealed_log_size);
     if opt.is_none() {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
-    
+
     let outstring = format!("{:?}", data);
     output(&outstring);
-    
+
     sgx_status_t::SGX_SUCCESS
 }
 
@@ -93,13 +96,13 @@ pub extern "C" fn verify_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) 
             return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
         },
     };
-    
+
     let result = sealed_data.unseal_data();
     let unsealed_data = match result {
         Ok(x) => x,
         Err(ret) => {
             return ret;
-        }, 
+        },
     };
 
     let data = unsealed_data.get_decrypt_txt();
@@ -115,12 +118,12 @@ fn output(outstr: &str) {
     }
 }
 
-fn to_sealed_log<T>(sealed_data: &SgxSealedData<T>, sealed_log: * mut u8, sealed_log_size: u32) -> Option<* mut sgx_sealed_data_t> {
+fn to_sealed_log<T: Copy + ContiguousMemory>(sealed_data: &SgxSealedData<T>, sealed_log: * mut u8, sealed_log_size: u32) -> Option<* mut sgx_sealed_data_t> {
     unsafe {
         sealed_data.to_raw_sealed_data_t(sealed_log as * mut sgx_sealed_data_t, sealed_log_size)
     }
 }
-fn from_sealed_log<T: Copy>(sealed_log: * mut u8, sealed_log_size: u32) -> Option<SgxSealedData<T>> {
+fn from_sealed_log<'a, T: Copy + ContiguousMemory>(sealed_log: * mut u8, sealed_log_size: u32) -> Option<SgxSealedData<'a, T>> {
     unsafe {
         SgxSealedData::<T>::from_raw_sealed_data_t(sealed_log as * mut sgx_sealed_data_t, sealed_log_size)
     }

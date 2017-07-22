@@ -47,13 +47,13 @@
 #define	_BSD_JBSLOT_T_	long
 #endif
 
-#define _JBLEN 8 
+#define _JBLEN 8
 
 typedef _BSD_JBSLOT_T_ jmp_buf[_JBLEN] _JB_ATTRIBUTES;
 
 #include <sys/cdefs.h>
 #define __returns_twice __attribute__((__returns_twice__))
-#define __dead 
+#define __dead
 
 __BEGIN_DECLS
 int	_setjmp(jmp_buf) __returns_twice;

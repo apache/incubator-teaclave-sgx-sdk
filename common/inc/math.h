@@ -5,7 +5,7 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
@@ -126,14 +126,14 @@ double _TLIBC_CDECL_ acosh(double);
 double _TLIBC_CDECL_ asinh(double);
 double _TLIBC_CDECL_ atanh(double);
 
-double _TLIBC_CDECL_ exp2(double);  
+double _TLIBC_CDECL_ exp2(double);
 double _TLIBC_CDECL_ expm1(double);
 int    _TLIBC_CDECL_ ilogb(double);
 double _TLIBC_CDECL_ log1p(double);
 double _TLIBC_CDECL_ log2(double);
 double _TLIBC_CDECL_ logb(double);
 double _TLIBC_CDECL_ scalbn(double, int);
-double _TLIBC_CDECL_ scalbln(double, long int); 
+double _TLIBC_CDECL_ scalbln(double, long int);
 
 double _TLIBC_CDECL_ cbrt(double);
 double _TLIBC_CDECL_ hypot(double, double);
@@ -145,23 +145,23 @@ double _TLIBC_CDECL_ tgamma(double);
 
 double _TLIBC_CDECL_ nearbyint(double);
 double _TLIBC_CDECL_ rint(double);
-long int _TLIBC_CDECL_ lrint(double); 
-long long int _TLIBC_CDECL_ llrint(double); 
-double _TLIBC_CDECL_ round(double);  
-long int _TLIBC_CDECL_ lround(double); 
+long int _TLIBC_CDECL_ lrint(double);
+long long int _TLIBC_CDECL_ llrint(double);
+double _TLIBC_CDECL_ round(double);
+long int _TLIBC_CDECL_ lround(double);
 long long int _TLIBC_CDECL_ llround(double);
 double _TLIBC_CDECL_ trunc(double);
 
 double _TLIBC_CDECL_ remainder(double, double);
-double _TLIBC_CDECL_ remquo(double, double, int *); 
+double _TLIBC_CDECL_ remquo(double, double, int *);
 
 double _TLIBC_CDECL_ copysign(double, double);
 double _TLIBC_CDECL_ nan(const char *);
 double _TLIBC_CDECL_ nextafter(double, double);
 
-double _TLIBC_CDECL_ fdim(double, double); 
-double _TLIBC_CDECL_ fmax(double, double); 
-double _TLIBC_CDECL_ fmin(double, double); 
+double _TLIBC_CDECL_ fdim(double, double);
+double _TLIBC_CDECL_ fmax(double, double);
+double _TLIBC_CDECL_ fmin(double, double);
 
 double _TLIBC_CDECL_ fma(double, double, double);
 
@@ -185,8 +185,8 @@ float _TLIBC_CDECL_ sinhf(float);
 float _TLIBC_CDECL_ tanhf(float);
 
 float _TLIBC_CDECL_ expf(float);
-float _TLIBC_CDECL_ exp2f(float); 
-float _TLIBC_CDECL_ expm1f(float); 
+float _TLIBC_CDECL_ exp2f(float);
+float _TLIBC_CDECL_ expm1f(float);
 float _TLIBC_CDECL_ frexpf(float, int *);
 int   _TLIBC_CDECL_ ilogbf(float);
 float _TLIBC_CDECL_ ldexpf(float, int);
@@ -215,9 +215,9 @@ float _TLIBC_CDECL_ floorf(float);
 float _TLIBC_CDECL_ nearbyintf(float);
 
 float _TLIBC_CDECL_ rintf(float);
-long int _TLIBC_CDECL_ lrintf(float); 
-long long int _TLIBC_CDECL_ llrintf(float); 
-float _TLIBC_CDECL_ roundf(float); 
+long int _TLIBC_CDECL_ lrintf(float);
+long long int _TLIBC_CDECL_ llrintf(float);
+float _TLIBC_CDECL_ roundf(float);
 long int _TLIBC_CDECL_ lroundf(float);
 long long int _TLIBC_CDECL_ llroundf(float);
 float _TLIBC_CDECL_ truncf(float);
@@ -311,9 +311,9 @@ long double _TLIBC_CDECL_ fmal(long double, long double, long double);
 
 /* nexttoward():
 *      The implementation in Intel math library is incompatible with MSVC.
-*      Because sizeof(long double) is 8bytes with MSVC, 
-*      but the expected long double size is 10bytes. 
-*      And by default, MSVC doesn't provide nexttoward(). 
+*      Because sizeof(long double) is 8bytes with MSVC,
+*      but the expected long double size is 10bytes.
+*      And by default, MSVC doesn't provide nexttoward().
 *      So we only provide Linux version here.
 */
 double _TLIBC_CDECL_ nexttoward(double, long double);
@@ -344,7 +344,7 @@ int _TLIBC_CDECL_ __isnanl(long double);
 int _TLIBC_CDECL_ __isnormall(long double);
 int _TLIBC_CDECL_ __signbitl(long double);
 
-/* 
+/*
  * Non-C99 functions.
  */
 double _TLIBC_CDECL_ drem(double, double);
@@ -407,12 +407,12 @@ int         _TLIBC_CDECL_ finitel(long double);
 int         _TLIBC_CDECL_ isinfl(long double);
 int         _TLIBC_CDECL_ isnanl(long double);
 
-/* 
+/*
  * TODO: From Intel Decimal Floating-Point Math Library
  * signbitd32/signbitd64/signbitd128, finited32/finited64/finited128
  * isinfd32/isinfd64/isinfd128, isnand32/isnand64/isnand128
  */
-#if defined(__cplusplus) 
+#if defined(__cplusplus)
 /* Clang does not support decimal floating point types.
  *
  * c.f.:

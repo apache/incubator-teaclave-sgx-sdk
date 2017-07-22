@@ -70,7 +70,7 @@
 #ifdef __x86_64__
 #define PRIdMAX         "ld"    /* intmax_t */
 #else
-#if defined(__i386__) 
+#if defined(__i386__)
 #define PRIdMAX         "lld"   /* intmax_t */
 #else
 #define PRIdMAX         "jd"    /* intmax_t */
@@ -115,7 +115,7 @@
 #ifdef __x86_64__
 #define PRIiMAX         "li"    /* intmax_t */
 #else
-#if defined(__i386__) 
+#if defined(__i386__)
 #define PRIiMAX         "lli"   /* intmax_t */
 #else
 #define PRIiMAX         "ji"    /* intmax_t */
@@ -161,7 +161,7 @@
 #ifdef __x86_64__
 #define PRIoMAX         "lo"    /* intmax_t */
 #else
-#if defined(__i386__) 
+#if defined(__i386__)
 #define PRIoMAX         "llo"   /* intmax_t */
 #else
 #define PRIoMAX         "jo"    /* intmax_t */
@@ -209,7 +209,7 @@
 #ifdef __x86_64__
 #define PRIuMAX         "lu"    /* uintmax_t */
 #else
-#if defined(__i386__) 
+#if defined(__i386__)
 #define PRIuMAX         "llu"   /* uintmax_t */
 #else
 #define PRIuMAX         "ju"    /* uintmax_t */
@@ -254,7 +254,7 @@
 #ifdef __x86_64__
 #define PRIxMAX         "lx"    /* uintmax_t */
 #else
-#if defined(__i386__) 
+#if defined(__i386__)
 #define PRIxMAX         "llx"   /* uintmax_t */
 #else
 #define PRIxMAX         "jx"    /* uintmax_t */
@@ -300,7 +300,7 @@
 #ifdef __x86_64__
 #define PRIXMAX         "lX"    /* uintmax_t */
 #else
-#if defined(__i386__) 
+#if defined(__i386__)
 #define PRIXMAX         "llX"   /* uintmax_t */
 #else
 #define PRIXMAX         "jX"    /* uintmax_t */

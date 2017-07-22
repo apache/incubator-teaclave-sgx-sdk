@@ -66,7 +66,7 @@ typedef long int            __int_fast32_t;
 typedef unsigned long int   __uint_fast32_t;
 typedef long int            __int_fast64_t;
 typedef unsigned long int   __uint_fast64_t;
-#else 
+#else
 /* Android x86, and Linux x86 */
 typedef __int32_t           __int_fast16_t;
 typedef __uint32_t          __uint_fast16_t;

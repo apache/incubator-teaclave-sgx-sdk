@@ -28,8 +28,8 @@
 
 //! # Trusted Key Exchange Library
 //!
-//! The library allow an ISV to exchange secrets between its server and its enclaves. They are used in 
-//! concert with untrusted Key Exchange functions. 
+//! The library allow an ISV to exchange secrets between its server and its enclaves. They are used in
+//! concert with untrusted Key Exchange functions.
 //!
 #![crate_name = "sgx_tkey_exchange"]
 #![crate_type = "rlib"]
@@ -44,7 +44,7 @@ use sgx_types::*;
 ///
 /// # Description
 ///
-/// This is the first API user should call for a key exchange process. The context returned from this 
+/// This is the first API user should call for a key exchange process. The context returned from this
 /// function is used as a handle for other APIs in the key exchange library.
 ///
 /// # Parameters
@@ -55,8 +55,8 @@ use sgx_types::*;
 ///
 /// **b_pse**
 ///
-/// If true, platform service information is needed in message 3. The caller should make sure a PSE session 
-/// has been established using rsgx_create_pse_session before attempting to establish a remote attestation 
+/// If true, platform service information is needed in message 3. The caller should make sure a PSE session
+/// has been established using rsgx_create_pse_session before attempting to establish a remote attestation
 /// and key exchange session involving platform service information.
 ///
 /// # Requirements
@@ -67,7 +67,7 @@ use sgx_types::*;
 ///
 /// # Return value
 ///
-/// The output context for the subsequent remote attestation and key exchange process, to be used in 
+/// The output context for the subsequent remote attestation and key exchange process, to be used in
 /// sgx_ra_get_msg1 and sgx_ra_proc_msg2.
 ///
 /// # Errors
@@ -88,12 +88,12 @@ use sgx_types::*;
 ///
 /// Indicates that an unexpected error occurred.
 ///
-pub fn rsgx_ra_init(p_pub_key: &sgx_ec256_public_t, b_pse: i32) -> SgxResult<sgx_ra_context_t> {    
-    
+pub fn rsgx_ra_init(p_pub_key: &sgx_ec256_public_t, b_pse: i32) -> SgxResult<sgx_ra_context_t> {
+
     let mut context: sgx_ra_context_t = 0;
     let ret = unsafe {
-        sgx_ra_init(p_pub_key as * const sgx_ec256_public_t, 
-                    b_pse, 
+        sgx_ra_init(p_pub_key as * const sgx_ec256_public_t,
+                    b_pse,
                     &mut context as * mut sgx_ra_context_t)
     };
     match ret {
@@ -103,12 +103,12 @@ pub fn rsgx_ra_init(p_pub_key: &sgx_ec256_public_t, b_pse: i32) -> SgxResult<sgx
 }
 
 ///
-/// The rsgx_ra_init_ex function creates a context for the remote attestation and key exchange process 
+/// The rsgx_ra_init_ex function creates a context for the remote attestation and key exchange process
 /// while it allows the use of a custom defined Key Derivation Function (KDF).
 ///
 /// # Description
 ///
-/// This is the first API user should call for a key exchange process. The context returned from this 
+/// This is the first API user should call for a key exchange process. The context returned from this
 /// function is used as a handle for other APIs in the key exchange library.
 ///
 /// # Parameters
@@ -119,14 +119,14 @@ pub fn rsgx_ra_init(p_pub_key: &sgx_ec256_public_t, b_pse: i32) -> SgxResult<sgx
 ///
 /// **b_pse**
 ///
-/// If true, platform service information is needed in message 3. The caller should make sure a PSE session 
-/// has been established using rsgx_create_pse_session before attempting to establish a remote attestation 
+/// If true, platform service information is needed in message 3. The caller should make sure a PSE session
+/// has been established using rsgx_create_pse_session before attempting to establish a remote attestation
 /// and key exchange session involving platform service information.
 ///
 /// **derive_key_cb**
 ///
-/// This a pointer to a call back routine matching the funtion prototype of sgx_ra_derive_secret_keys_t. 
-/// This function takes the Diffie-Hellman shared secret as input to allow the ISV enclave to generate 
+/// This a pointer to a call back routine matching the funtion prototype of sgx_ra_derive_secret_keys_t.
+/// This function takes the Diffie-Hellman shared secret as input to allow the ISV enclave to generate
 /// their own derived shared keys (SMK, SK, MK and VK).
 ///
 /// # Requirements
@@ -137,7 +137,7 @@ pub fn rsgx_ra_init(p_pub_key: &sgx_ec256_public_t, b_pse: i32) -> SgxResult<sgx
 ///
 /// # Return value
 ///
-/// The output context for the subsequent remote attestation and key exchange process, to be used in 
+/// The output context for the subsequent remote attestation and key exchange process, to be used in
 /// sgx_ra_get_msg1 and sgx_ra_proc_msg2.
 ///
 /// # Errors
@@ -160,7 +160,7 @@ pub fn rsgx_ra_init(p_pub_key: &sgx_ec256_public_t, b_pse: i32) -> SgxResult<sgx
 ///
 pub fn rsgx_ra_init_ex(p_pub_key: &sgx_ec256_public_t,
                        b_pse: i32,
-                       derive_key_cb: sgx_ra_derive_secret_keys_t) -> SgxResult<sgx_ra_context_t> {  
+                       derive_key_cb: sgx_ra_derive_secret_keys_t) -> SgxResult<sgx_ra_context_t> {
 
     let mut context: sgx_ra_context_t = 0;
     let ret = unsafe {
@@ -172,18 +172,18 @@ pub fn rsgx_ra_init_ex(p_pub_key: &sgx_ec256_public_t,
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(context),
         _ => Err(ret),
-    }  
+    }
 }
 
 ///
-/// The sgx_ra_get_keys function is used to get the negotiated keys of a remote attestation and key exchange session. 
+/// The sgx_ra_get_keys function is used to get the negotiated keys of a remote attestation and key exchange session.
 ///
-/// This function should only be called after the service provider accepts the remote attestation and key exchange 
+/// This function should only be called after the service provider accepts the remote attestation and key exchange
 /// protocol message 3 produced by sgx_ra_proc_msg2.
 ///
 /// # Description
 ///
-/// After a successful key exchange process, this API can be used in the enclave to get specific key associated 
+/// After a successful key exchange process, this API can be used in the enclave to get specific key associated
 /// with this remote attestation and key exchange session.
 ///
 /// # Parameters
@@ -214,7 +214,7 @@ pub fn rsgx_ra_init_ex(p_pub_key: &sgx_ec256_public_t,
 ///
 /// **SGX_ERROR_INVALID_STATE**
 ///
-/// Indicates this API is invoked in incorrect order, it can be called only after a success session has been established. 
+/// Indicates this API is invoked in incorrect order, it can be called only after a success session has been established.
 /// In other words, sgx_ra_proc_msg2 should have been called and no error returned.
 ///
 pub fn rsgx_ra_get_keys(context: sgx_ra_context_t, keytype: sgx_ra_key_type_t) -> SgxResult<sgx_ra_key_128_t> {
@@ -232,12 +232,12 @@ pub fn rsgx_ra_get_keys(context: sgx_ra_context_t, keytype: sgx_ra_key_type_t) -
 ///
 /// rsgx_ra_close release context created by rsgx_ra_init or rsgx_ra_init_ex.
 ///
-/// Call the rsgx_ra_close function to release the remote attestation and key exchange context after 
+/// Call the rsgx_ra_close function to release the remote attestation and key exchange context after
 /// the process is done and the context isn’t needed anymore.
 ///
 /// # Description
 ///
-/// At the end of a key exchange process, the caller needs to use this API in an enclave to clear and 
+/// At the end of a key exchange process, the caller needs to use this API in an enclave to clear and
 /// free memory associated with this remote attestation session.
 ///
 /// # Parameters

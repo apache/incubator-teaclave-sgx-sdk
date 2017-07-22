@@ -28,9 +28,12 @@
 
 //!
 //! The library is named sgx_tstdc, provides the following functions:
-//! 
+//!
 //! * Mutex
 //! * Condition
+//! * Rwlock
+//! * Once call
+//! * thread
 //! * Query CPUID inside Enclave
 //! * Spin lock
 //!
@@ -38,9 +41,14 @@
 #![crate_type = "rlib"]
 
 #![cfg_attr(not(feature = "use_std"), no_std)]
-#![cfg_attr(not(feature = "use_std"), feature(alloc, optin_builtin_traits))]
+#![feature(optin_builtin_traits)]
+#![feature(const_fn)]
+#![feature(dropck_eyepatch)]
+#![feature(generic_param_attrs)]
+#![cfg_attr(not(feature = "use_std"), feature(alloc))]
 
 #![allow(non_camel_case_types)]
+#![allow(deprecated)]
 
 #[cfg(feature = "use_std")]
 extern crate std as core;
@@ -49,225 +57,35 @@ extern crate std as core;
 extern crate alloc;
 
 extern crate sgx_types;
-use sgx_types::*;
 
-pub mod mutex;
-pub use self::mutex::*;
+#[macro_use]
+extern crate sgx_trts;
 
-pub mod cond;
-pub use self::cond::*;
+mod cpuid;
+pub use cpuid::*;
 
-///
-/// The rsgx_cpuid function performs the equivalent of a cpuid() function call or
-/// intrinisic which executes the CPUID instruction to query the host processor for
-/// the information about supported features.
-///
-/// **Note**
-///
-/// This function performs an OCALL to execute the CPUID instruction.
-///
-/// # Description
-///
-/// This function provides the equivalent of the cpuid() function or intrinsic. The
-/// function executes the CPUID instruction for the given leaf (input). The CPUID
-/// instruction provides processor feature and type information that is returned in
-/// cpuinfo, an array of 4 integers to specify the values of EAX, EBX, ECX and EDX
-/// registers. rsgx_cpuid performs an OCALL by invoking oc_cpuidex to get the
-/// info from untrusted side because the CPUID instruction is an illegal instruction
-/// in the enclave domain.
-///
-/// **Note**
-///
-/// As the CPUID instruction is executed by an OCALL, the results should not
-/// be trusted. Code should verify the results and perform a threat evaluation
-/// to determine the impact on trusted code if the results were
-/// spoofed.
-///
-/// The implementation of this function performs an OCALL and therefore,
-/// this function will not have the same serializing or fencing behavior of
-/// executing a CPUID instruction in an untrusted domain code flow.
-///
-/// # Parameters
-///
-/// **leaf**
-///
-/// The leaf specified for retrieved CPU info.
-///
-/// # Requirements
-///
-/// Library: libsgx_tstdc.a
-///
-/// # Return value
-///
-/// The information returned in an array of four integers.
-///
-/// # Errors
-///
-/// **SGX_ERROR_INVALID_PARAMETER**
-///
-/// Indicates the parameter is invalid.
-///
-pub fn rsgx_cpuid(leaf: i32) -> SgxResult<sgx_cpuinfo_t> {
-    
-    let cpuinfo = [0_i32; 4];
-    let ret = unsafe { sgx_cpuid(cpuinfo, leaf) };
-    match ret {
-        sgx_status_t::SGX_SUCCESS => Ok(cpuinfo),
-        _ => Err(ret),
-    }
-}
+mod mutex;
+pub use self::mutex::{SgxMutex, SgxMutexGuard};
 
-///
-/// The rsgx_cpuidex function performs the equivalent of a cpuid_ex() function call or
-/// intrinisic which executes the CPUID instruction to query the host processor for
-/// the information about supported features.
-///
-/// **Note**
-///
-/// This function performs an OCALL to execute the CPUID instruction.
-///
-/// # Description
-///
-/// This function provides the equivalent of the cpuid_ex() function or intrinsic. The
-/// function executes the CPUID instruction for the given leaf (input). The CPUID
-/// instruction provides processor feature and type information that is returned in
-/// cpuinfo, an array of 4 integers to specify the values of EAX, EBX, ECX and EDX
-/// registers. rsgx_cpuidex performs an OCALL by invoking oc_cpuidex to get the
-/// info from untrusted side because the CPUID instruction is an illegal instruction
-/// in the enclave domain.
-///
-/// **Note**
-///
-/// As the CPUID instruction is executed by an OCALL, the results should not
-/// be trusted. Code should verify the results and perform a threat evaluation
-/// to determine the impact on trusted code if the results were
-/// spoofed.
-///
-/// The implementation of this function performs an OCALL and therefore,
-/// this function will not have the same serializing or fencing behavior of
-/// executing a CPUID instruction in an untrusted domain code flow.
-///
-/// # Parameters
-///
-/// **leaf**
-///
-/// The leaf specified for retrieved CPU info.
-///
-/// **subleaf**
-///
-/// The sub-leaf specified for retrieved CPU info.
-///
-/// # Requirements
-///
-/// Library: libsgx_tstdc.a
-///
-/// # Return value
-///
-/// The information returned in an array of four integers.
-///
-/// # Errors
-///
-/// **SGX_ERROR_INVALID_PARAMETER**
-///
-/// Indicates the parameter is invalid.
-///
-pub fn rsgx_cpuidex(leaf: i32, subleaf: i32) -> SgxResult<sgx_cpuinfo_t> {
+mod condvar;
+pub use self::condvar::{SgxCond};
 
-    let cpuinfo = [0_i32; 4];
-    let ret = unsafe { sgx_cpuidex(cpuinfo, leaf, subleaf) };
-    match ret {
-        sgx_status_t::SGX_SUCCESS => Ok(cpuinfo),
-        _ => Err(ret),
-    }
-}
+mod spinlock;
+pub use self::spinlock::{SgxSpinlock, SgxSpinlockGuard};
 
-/// 
-/// The rsgx_spin_lock function acquires a spin lock within the enclave.
-///
-/// # Description
-///
-/// rsgx_spin_lock modifies the value of the spin lock by using compiler atomic
-/// operations. If the lock is not available to be acquired, the thread will always
-/// wait on the lock until it can be acquired successfully.
-///
-/// # Parameters
-///
-/// **lock**
-///
-/// The trusted spin lock object to be acquired.
-///
-/// # Requirements
-///
-/// Library: libsgx_tstdc.a
-///
-pub fn rsgx_spin_lock(lock: &mut sgx_spinlock_t) {
+#[allow(unused_must_use)]
+mod rwlock;
+pub use self::rwlock::{SgxRwLock, SgxRwLockReadGuard, SgxRwLockWriteGuard};
 
-    unsafe { sgx_spin_lock(lock as * mut sgx_spinlock_t); }
-}
+pub mod thread;
+pub use self::thread::{SgxThread, rsgx_thread_self, rsgx_thread_equal};
 
-/// 
-/// The rsgx_spin_unlock function releases a spin lock within the enclave.
-///
-/// # Description
-///
-/// rsgx_spin_unlock resets the value of the spin lock, regardless of its current
-/// state. This function simply assigns a value of zero to the lock, which indicates
-/// the lock is released.
-///
-/// # Parameters
-///
-/// **lock**
-///
-/// The trusted spin lock object to be released.
-///
-/// # Requirements
-///
-/// Library: libsgx_tstdc.a
-///
-pub fn rsgx_spin_unlock(lock: &mut sgx_spinlock_t) {
+pub mod thread_info;
+pub mod once;
 
-    unsafe { sgx_spin_unlock(lock as * mut sgx_spinlock_t); }
-}
+mod poison;
+pub use poison::{PoisonError, TryLockError, TryLockResult, LockResult};
 
-///
-/// The rsgx_thread_self function returns the unique thread identification.
-///
-/// # Description
-///
-/// The function is a simple wrap of get_thread_data() provided in the tRTS,
-/// which provides a trusted thread unique identifier.
-///
-/// # Requirements
-///
-/// Library: libsgx_tstdc.a
-///
-/// # Return value
-///
-/// The return value cannot be NULL and is always valid as long as it is invoked by a thread inside the enclave.
-///
-pub fn rsgx_thread_self() -> sgx_thread_t {
-    
-    unsafe { sgx_thread_self() }
-}
 
-///
-/// The rsgx_thread_equal function compares two thread identifiers.
-///
-/// # Description
-///
-/// The function compares two thread identifiers provided by sgx_thread_
-/// self to determine if the IDs refer to the same trusted thread.
-///
-/// # Requirements
-///
-/// Library: libsgx_tstdc.a
-///
-/// # Return value
-///
-/// **true**
-///
-/// The two thread IDs are equal.
-///
-pub fn rsgx_thread_equal(a: sgx_thread_t, b: sgx_thread_t) -> bool {
-    a == b
-}
+
+

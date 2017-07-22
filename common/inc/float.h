@@ -43,7 +43,7 @@
 #define FLT_ROUNDS      1        /* addition rounding: near */
 #define DECIMAL_DIG     21       /* max precision in decimal digits */
 
-// NOTE: FLT_EVAL_METHOD is -1 under FREEBSD x86. 
+// NOTE: FLT_EVAL_METHOD is -1 under FREEBSD x86.
 #ifdef __i386__
 #define FLT_EVAL_METHOD 2        /* long double */
 #else

@@ -113,7 +113,7 @@ void print_error_message(sgx_status_t ret)
             break;
         }
     }
-    
+
     if (idx == ttl)
         printf("Error: Unexpected error occurred.\n");
 }
@@ -129,14 +129,14 @@ int initialize_enclave(void)
     sgx_launch_token_t token = {0};
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     int updated = 0;
-    
-    /* Step 1: try to retrieve the launch token saved by last transaction 
+
+    /* Step 1: try to retrieve the launch token saved by last transaction
      *         if there is no token, then create a new one.
      */
     /* try to get the token saved in $HOME */
     const char *home_dir = getpwuid(getuid())->pw_dir;
-    
-    if (home_dir != NULL && 
+
+    if (home_dir != NULL &&
         (strlen(home_dir)+strlen("/")+sizeof(TOKEN_FILENAME)+1) <= MAX_PATH) {
         /* compose the token path */
         strncpy(token_path, home_dir, strlen(home_dir));
@@ -196,7 +196,7 @@ int SGX_CDECL main(int argc, char *argv[])
     uint32_t sealed_log_size = 1024;
     uint8_t sealed_log[1024] = {0};
     sgx_sealed_data_t * sealed_data = 0;
-    
+
     (void)(argc);
     (void)(argv);
 
@@ -204,13 +204,13 @@ int SGX_CDECL main(int argc, char *argv[])
     if(initialize_enclave() < 0){
         printf("Enter a character before exit ...\n");
         getchar();
-        return -1; 
+        return -1;
     }
 
     // SHA-256 test case comes from
     // https://tools.ietf.org/html/rfc4634
     // TEST1
-    
+
     const char* str = "abc";
     size_t len = strlen(str);
     uint8_t * output_hash = (uint8_t *) malloc (32 + 1);
@@ -219,9 +219,9 @@ int SGX_CDECL main(int argc, char *argv[])
     printf("[+] Expected SHA256 hash: %s\n",
            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
 
-    sgx_ret = calc_sha256(global_eid, 
-                         &enclave_ret, 
-                         (const uint8_t *) str, 
+    sgx_ret = calc_sha256(global_eid,
+                         &enclave_ret,
+                         (const uint8_t *) str,
                          len,
                          output_hash);
 
@@ -259,7 +259,7 @@ int SGX_CDECL main(int argc, char *argv[])
     printf("[+] aes-gcm-128 expected ciphertext: %s\n",
            "0388dace60b6a392f328c2b971b2fe78");
     sgx_ret = aes_gcm_128_encrypt(global_eid,
-                                  &enclave_ret,                      
+                                  &enclave_ret,
                                   aes_gcm_key,
                                   aes_gcm_plaintext,
                                   16,
@@ -293,7 +293,7 @@ int SGX_CDECL main(int argc, char *argv[])
 
     printf("[+] Starting aes-gcm-128 decrypt calculation\n");
     printf("[+] aes-gcm-128 expected plaintext: %s", aes_gcm_plaintext);
-    
+
     uint8_t aes_gcm_decrypted_text[16] = {0};
     sgx_ret = aes_gcm_128_decrypt(global_eid,
                                   &enclave_ret,
@@ -371,7 +371,7 @@ int SGX_CDECL main(int argc, char *argv[])
 
     /* Destroy the enclave */
     sgx_destroy_enclave(global_eid);
-    
+
     return 0;
 }
 
@@ -382,7 +382,7 @@ void ocall_print_string(const char *str, size_t len)
         printf("malloc failed\n");
         return;
     }
-    
+
     memcpy(string, str, len);
     char * ptr = string + len;
     * ptr = 0;
