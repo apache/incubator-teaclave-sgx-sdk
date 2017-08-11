@@ -612,11 +612,13 @@ cfg_if! {
 //pub const THREAD_STACK_LIMIT_ADDR:  ::size_t = (SE_WORDSIZE * 3);
 //pub const THREAD_STACK_SSA_GPR:     ::size_t = (SE_WORDSIZE * 4);
 
+#[repr(C)]
 pub struct sgx_thread_queue_t {
     pub m_first: sgx_thread_t,
     pub m_last: sgx_thread_t,
 }
 
+#[repr(C)]
 pub struct sgx_thread_mutex_t {
     pub m_refcount: ::size_t,
     pub m_control: ::uint32_t,
@@ -665,6 +667,7 @@ impl_struct! {
     }
 }
 
+#[repr(C)]
 pub struct sgx_thread_cond_t {
     pub m_lock: ::uint32_t,
     pub m_queue: sgx_thread_queue_t,
