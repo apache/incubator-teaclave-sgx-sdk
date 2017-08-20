@@ -122,6 +122,8 @@ for details.
 
 Ran Duan, Long Li, Shi Jia, Yu Ding, Lenx Wei, Tanghui Chen
 
+![Baidu X-Lab Logo](/logo.png)
+
 # Acknowledgement
 
 Thanks to [Prof. Jingqiang Lin](http://people.ucas.ac.cn/~0010268) for his contribution to this project.
