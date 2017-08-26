@@ -1,5 +1,4 @@
 # Rust SGX SDK
-![Baidu X-Lab Logo](/logo.png)
 
 This Rust SGX SDK helps developers write Intel SGX enclaves in Rust programming language.
 
@@ -123,6 +122,8 @@ for details.
 # Authors
 
 Ran Duan, Long Li, Shi Jia, Yu Ding, Lenx Wei, Tanghui Chen
+
+![Baidu X-Lab Logo](/logo_25.png)
 
 # Acknowledgement
 
