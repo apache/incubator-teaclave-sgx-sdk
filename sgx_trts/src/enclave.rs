@@ -26,17 +26,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-//! Get metadata
+//! Get the metadata of the current enclave.
+//!
+//! This mod has clear interface and is easy to understand. Currently we don't
+//! have time for its documents.
 
 use sgx_types::*;
 
-#[link(name = "sgx_tservice")]
-extern {
-    static g_global_data: global_data_t;
-}
-
 #[link(name = "sgx_trts")]
 extern {
+    static g_global_data: global_data_t;
     pub fn get_thread_data() -> * const c_void;
     pub fn get_enclave_base() -> * const c_void;
     pub fn get_heap_base() -> * const c_void;

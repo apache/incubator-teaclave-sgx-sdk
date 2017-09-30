@@ -31,6 +31,7 @@ pub use core::marker::Copy;
 pub use core::default::Default;
 pub use core::ptr;
 pub use core::mem::transmute;
+pub use marker::ContiguousMemory;
 
 #[macro_export]
 macro_rules! cfg_if {

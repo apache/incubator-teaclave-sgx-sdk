@@ -28,8 +28,7 @@
 
 use sgx_types::*;
 use sgx_tdh::*;
-
-use core::default::Default;
+use std::default::Default;
 
 pub const DH_KEY_SIZE: i32  = 20;
 pub const NONCE_SIZE : i32  = 16;

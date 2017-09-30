@@ -30,22 +30,13 @@
 #![crate_type = "staticlib"]
 
 #![no_std]
-#![feature(const_fn, alloc)]
+#![feature(const_atomic_ptr_new)]
 
-extern crate alloc;
-use alloc::boxed::Box;
-use core::sync::atomic::{AtomicPtr, Ordering};
+extern crate sgx_tstd as std;
 
-extern crate sgx_types;
-extern crate sgx_trts;
-extern crate sgx_tstdc;
-
-use sgx_types::*;
-use sgx_tstdc::*;
-
-extern {
-    fn ocall_print_string(str: *const c_uchar, len: size_t);
-}
+use std::sync::{SgxMutex, SgxCondvar};
+use std::sync::atomic::{AtomicPtr, Ordering};
+use std::boxed::Box;
 
 const BUFFER_SIZE: usize      = 50;
 const LOOPS_PER_THREAD: usize = 500;
@@ -73,7 +64,7 @@ static GLOBAL_COND_BUFFER: AtomicPtr<()> = AtomicPtr::new(0 as * mut ());
 #[no_mangle]
 pub extern "C" fn ecall_initialize() {
 
-    let lock = Box::new((SgxMutex::<CondBuffer>::new(CondBuffer::default()), SgxCond::new(), SgxCond::new()));
+    let lock = Box::new((SgxMutex::<CondBuffer>::new(CondBuffer::default()), SgxCondvar::new(), SgxCondvar::new()));
     let ptr = Box::into_raw(lock);
     GLOBAL_COND_BUFFER.store(ptr as *mut (), Ordering::SeqCst);
 }
@@ -81,16 +72,16 @@ pub extern "C" fn ecall_initialize() {
 #[no_mangle]
 pub extern "C" fn ecall_uninitialize() {
 
-    let ptr = GLOBAL_COND_BUFFER.swap(0 as * mut (), Ordering::SeqCst) as * mut (SgxMutex<CondBuffer>, SgxCond, SgxCond);
+    let ptr = GLOBAL_COND_BUFFER.swap(0 as * mut (), Ordering::SeqCst) as * mut (SgxMutex<CondBuffer>, SgxCondvar, SgxCondvar);
     if ptr.is_null() {
        return;
     }
     let _ = unsafe { Box::from_raw(ptr) };
 }
 
-fn get_ref_cond_buffer() -> Option<&'static (SgxMutex<CondBuffer>, SgxCond, SgxCond)>
+fn get_ref_cond_buffer() -> Option<&'static (SgxMutex<CondBuffer>, SgxCondvar, SgxCondvar)>
 {
-    let ptr = GLOBAL_COND_BUFFER.load(Ordering::SeqCst) as * mut (SgxMutex<CondBuffer>, SgxCond, SgxCond);
+    let ptr = GLOBAL_COND_BUFFER.load(Ordering::SeqCst) as * mut (SgxMutex<CondBuffer>, SgxCondvar, SgxCondvar);
     if ptr.is_null() {
         None
     } else {
@@ -143,12 +134,5 @@ pub extern "C" fn ecall_consumer() {
         guard.occupied -= 1;
 
         let _ = less.signal();
-    }
-}
-
-#[allow(dead_code)]
-fn output(outstr: &str) {
-    unsafe {
-        ocall_print_string(outstr.as_ptr() as *const c_uchar, outstr.len() as size_t);
     }
 }

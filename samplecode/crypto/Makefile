@@ -1,19 +1,18 @@
-#
-# Copyright (C) 2011-2016 Intel Corporation. All rights reserved.
+# Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
 # are met:
 #
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in
-#     the documentation and/or other materials provided with the
-#     distribution.
-#   * Neither the name of Intel Corporation nor the names of its
-#     contributors may be used to endorse or promote products derived
-#     from this software without specific prior written permission.
+#  * Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#  * Neither the name of Baidu, Inc., nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -26,7 +25,6 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 #
 
 ######## SGX SDK Settings ########
@@ -83,15 +81,18 @@ else
 	Urts_Library_Name := sgx_urts
 endif
 
-App_C_Files := $(wildcard ./app/*.c)
+App_C_Files := $(filter-out ./app/Enclave_u.c, $(wildcard ./app/*.c))
 App_Include_Paths := -I ./app -I./include -I$(SGX_SDK)/include
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread
+App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -L$(CUSTOM_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
 else
 	App_Link_Flags += -lsgx_uae_service
 endif
+
+App_Link_Flags += -lsgx_ustdio
+App_Link_Flags += -lsgx_ubacktrace
 
 App_C_Objects := $(App_C_Files:.c=.o)
 
@@ -108,6 +109,7 @@ else
 endif
 Crypto_Library_Name := sgx_tcrypto
 KeyExchange_Library_Name := sgx_tkey_exchange
+ProtectedFs_Library_Name := sgx_tprotected_fs
 
 RustEnclave_C_Files := $(wildcard ./enclave/*.c)
 RustEnclave_C_Objects := $(RustEnclave_C_Files:.c=.o)
@@ -117,7 +119,7 @@ RustEnclave_Link_Libs := -L$(CUSTOM_LIBRARY_PATH) -lcompiler-rt-patch -lenclave
 RustEnclave_Compile_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(RustEnclave_Include_Paths)
 RustEnclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group -lsgx_tstdc -lsgx_tstdcxx -l$(Crypto_Library_Name) -l$(KeyExchange_Library_Name) -l$(Service_Library_Name) $(RustEnclave_Link_Libs) -Wl,--end-group \
+	-Wl,--start-group -lsgx_tstdc -lsgx_tstdcxx -l$(Crypto_Library_Name) $(RustEnclave_Link_Libs) -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 \
@@ -148,8 +150,10 @@ app/%.o: app/%.c
 	@$(CXX) $(App_C_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(App_Name): app/Enclave_u.o $(App_C_Objects)
-	@$(CXX) $^ -o $@ $(App_Link_Flags)
+$(App_Name): app/Enclave_u.o $(App_C_Objects) sgx_ustdio sgx_ubacktrace
+	cp ../../sgx_ustdio/libsgx_ustdio.a ./lib
+	cp ../../sgx_ubacktrace/libsgx_ubacktrace.a ./lib
+	$(CXX) app/Enclave_u.o $(App_C_Objects) -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
 ######## Enclave Objects ########
@@ -159,7 +163,7 @@ enclave/Enclave_t.o: enclave/Enclave_t.c
 	@echo "CC   <=  $<"
 
 $(RustEnclave_Name): enclave compiler-rt enclave/Enclave_t.o
-	cp ./enclave/target/release/libCryptosampleenclave.a ./lib/libenclave.a
+	cp ./enclave/target/release/libcryptosampleenclave.a ./lib/libenclave.a
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
 	@$(CXX) enclave/Enclave_t.o -o $@ $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
@@ -175,6 +179,14 @@ enclave:
 .PHONY: compiler-rt
 compiler-rt:
 	$(MAKE) -C ../../compiler-rt/ 2> /dev/null
+
+.PHONY: sgx_ustdio
+sgx_ustdio:
+	$(MAKE) -C ../../sgx_ustdio/ 2> /dev/null
+
+.PHONY: sgx_ubacktrace
+sgx_ubacktrace:
+	$(MAKE) -C ../../sgx_ubacktrace/ 2> /dev/null
 
 .PHONY: clean
 clean:

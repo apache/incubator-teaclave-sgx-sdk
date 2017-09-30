@@ -51,7 +51,13 @@ impl_marker_for_array! {BytewiseEquality,
     60 61 62 63 64
 }
 
-
+/// Trait for demonstrating one structure locates in contiguous memory.
+///
+/// This is required for SGX related operations, e.g. crypto related
+/// computations. Many of these APIs require the input data locates in
+/// a contiguous area of memory inside the enclave. Developer needs to
+/// implement this trait as a marker for the data structure he/she wants
+/// to feed into SGX apis.
 pub unsafe trait ContiguousMemory { }
 
 impl_unsafe_marker_for!(ContiguousMemory,

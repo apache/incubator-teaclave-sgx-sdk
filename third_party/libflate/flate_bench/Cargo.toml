@@ -1,0 +1,10 @@
+[package]
+name = "flate_bench"
+version = "0.1.0"
+authors = ["Takeru Ohta <phjgt308@gmail.com>"]
+
+[dependencies]
+clap = "*"
+flate2 = "*"
+inflate = "*"
+libflate = {path = "../"}

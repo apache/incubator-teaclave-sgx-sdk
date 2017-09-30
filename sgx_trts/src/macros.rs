@@ -27,8 +27,15 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //! Global constructor support
+
+/// global_ctors_object is the base macro of implementing constructors.
+///
+/// global_ctors_object registers functions to the `.init_array` section
+/// of the generated enclave binary. On the first ecall of enclave's execution,
+/// SGX would execute these registered functions and thus initialize data
+/// structures.
 #[macro_export]
-macro_rules! init_global_object {
+macro_rules! global_ctors_object {
     ($var_name:ident, $func_name:ident = $func:block) => {
 
         cfg_if! {

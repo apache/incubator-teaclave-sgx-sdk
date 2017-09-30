@@ -1,0 +1,20 @@
+[package]
+name = "yansi"
+version = "0.3.3"
+authors = ["Sergio Benitez <sb@sergio.bz>"]
+repository = "https://github.com/SergioBenitez/yansi"
+documentation = "https://docs.rs/yansi"
+description = "A dead simple ANSI terminal color painting library."
+keywords = ["ansi", "terminal", "color", "format", "paint"]
+readme = "README.md"
+license = "MIT/Apache-2.0"
+categories = ["command-line-interface"]
+
+[features]
+nightly = []
+
+[dependencies]
+sgx_tstd = { path = "../../sgx_tstd" }
+
+[package.metadata.docs.rs]
+all-features = true

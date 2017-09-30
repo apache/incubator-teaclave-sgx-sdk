@@ -54,5 +54,16 @@ RUN /root/linux-sgx/download_prebuilt.sh
 RUN cd /root/linux-sgx && make
 RUN cp /root/linux-sgx/build/linux/libsgx_tstdc.a /opt/sgxsdk/lib64/libsgx_tstdc.a
 
-RUN wget https://static.rust-lang.org/rustup.sh
-RUN sh rustup.sh --channel=nightly --date=2017-07-06
+RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init
+RUN chmod +x /root/rustup-init
+RUN echo '1' | /root/rustup-init --default-toolchain nightly-2017-09-29
+RUN echo 'source /root/.cargo/env' >> /root/.bashrc
+
+# A hack of linking Rust's libc (https://github.com/rust-lang/libc) in no_std environment.
+RUN rm /root/.rustup/toolchains/nightly-2017-09-29-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib/liblibc-058430ec2dd28527.rlib
+
+# Remove useless .h file in intel sgx sdk, which always cause linking problem.
+RUN ar d /opt/sgxsdk/lib64/libsgx_uprotected_fs.a sgx_tprotected_fs_u.h
+RUN ar d /opt/sgxsdk/lib64/libsgx_tprotected_fs.a sgx_tprotected_fs_t.h
+
+WORKDIR /root

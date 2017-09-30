@@ -26,7 +26,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-//! consttime memcmp
+//! Comparing buffer contents in constant time.
+//!
+//! This crate provides constant time memory comparison functions. These functions
+//! are useful in cyptographic functions, defending against timing based side
+//! channel attacks
 
 use sgx_types::marker::{BytewiseEquality};
 use core::mem;

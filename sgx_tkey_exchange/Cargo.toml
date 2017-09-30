@@ -1,11 +1,10 @@
 [package]
 name = "sgx_tkey_exchange"
-version = "0.2.0"
+version = "0.9.0"
 authors = ["Baidu"]
 
 [features]
 default = []
-use_std = []
 
 [dependencies]
 sgx_types = { path = "../sgx_types" }

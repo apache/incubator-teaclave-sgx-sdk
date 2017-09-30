@@ -28,19 +28,16 @@
 
 //! # Cryptography Library
 //!
-//! The Intel(R) Software Guard Extensions SDK includes a trusted cryptography library named sgx_tcrypto.
+//! The Intel(R) Software Guard Extensions SDK includes a trusted cryptography library named sgx_tcrypto. 
 //! It includes the cryptographic functions used by other trusted libraries included in the SDK
 //!
 #![crate_name = "sgx_tcrypto"]
 #![crate_type = "rlib"]
 
-#![cfg_attr(not(feature = "use_std"), no_std)]
+#![no_std]
 
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
-
-#[cfg(feature = "use_std")]
-extern crate std as core;
 
 extern crate sgx_types;
 

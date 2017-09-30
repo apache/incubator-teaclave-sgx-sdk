@@ -26,13 +26,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use alloc::boxed::Box;
-
-use core::mem;
-use core::sync::atomic::{AtomicPtr, Ordering};
+//use core::mem;
+//use core::sync::atomic::{AtomicPtr, Ordering};
 
 use sgx_types::*;
-use sgx_tdh::*;
+use sgx_tdh::{SgxDhMsg1, SgxDhMsg2, SgxDhMsg3, SgxDhInitiator, SgxDhResponder};
+use std::boxed::Box;
+use std::sync::atomic::{AtomicPtr, Ordering};
+use std::mem;
 
 use types::*;
 use err::*;
@@ -52,8 +53,6 @@ extern {
     pub fn end_session_ocall(ret: *mut u32,
                              src_enclave_id:sgx_enclave_id_t,
                              dest_enclave_id:sgx_enclave_id_t) -> sgx_status_t;
-
-    pub fn ocall_print_string(str: *const c_uchar, len: size_t);
 }
 
 static CALLBACK_FN: AtomicPtr<()> = AtomicPtr::new(0 as * mut ());
@@ -213,11 +212,4 @@ pub extern "C" fn exchange_report(src_enclave_id: sgx_enclave_id_t, dh_msg2: *mu
 pub extern "C" fn end_session(src_enclave_id: sgx_enclave_id_t, session_ptr: *mut usize) -> ATTESTATION_STATUS {
     let _ = unsafe { Box::from_raw(session_ptr as *mut DhSessionInfo) };
     return ATTESTATION_STATUS::SUCCESS;
-}
-
-#[allow(dead_code)]
-fn output(outstr: &str) {
-    unsafe {
-        ocall_print_string(outstr.as_ptr() as *const c_uchar, outstr.len() as size_t);
-    }
 }

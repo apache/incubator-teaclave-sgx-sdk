@@ -61,6 +61,7 @@ pub type uint32_t = u32;
 pub type uint64_t = u64;
 
 pub type c_schar = i8;
+pub type c_char = i8;
 pub type c_uchar = u8;
 pub type c_short = i16;
 pub type c_ushort = u16;
@@ -79,6 +80,9 @@ pub type intptr_t = isize;
 pub type uintptr_t = usize;
 pub type ssize_t = isize;
 
+pub type c_long = i64;
+pub type c_ulong = u64;
+pub type time_t = i64;
 
 mod types;
 pub use self::types::*;

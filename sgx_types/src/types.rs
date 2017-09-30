@@ -27,12 +27,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use error::*;
-use super::marker::ContiguousMemory;
+use marker::ContiguousMemory;
 
 //
 // sgx_attributes.h
 //
-
 
 pub type sgx_misc_select_t = ::uint32_t;
 
@@ -522,6 +521,9 @@ pub const SGX_AESGCM_MAC_SIZE: ::size_t        = 16;
 pub const SGX_CMAC_KEY_SIZE: ::size_t          = 16;
 pub const SGX_CMAC_MAC_SIZE: ::size_t          = 16;
 pub const SGX_AESCTR_KEY_SIZE: ::size_t        = 16;
+pub const SGX_RSA3072_KEY_SIZE: ::size_t       = 384;
+pub const SGX_RSA3072_PRI_EXP_SIZE: ::size_t   = 384;
+pub const SGX_RSA3072_PUB_EXP_SIZE: ::size_t   = 4;
 
 impl_struct! {
 
@@ -548,6 +550,37 @@ impl_struct! {
         pub y: [::uint32_t; SGX_NISTP_ECP256_KEY_SIZE],
     }
 }
+
+impl_copy_clone! {
+
+    pub struct sgx_rsa3072_public_key_t {
+        pub modulus: [::uint8_t; SGX_RSA3072_KEY_SIZE],
+        pub exponent: [::uint8_t; SGX_RSA3072_PUB_EXP_SIZE],
+    }
+
+    pub struct sgx_rsa3072_private_key_t {
+        pub modulus: [::uint8_t; SGX_RSA3072_KEY_SIZE],
+        pub exponent: [::uint8_t; SGX_RSA3072_PRI_EXP_SIZE],
+    }
+
+    pub struct sgx_rsa3072_signature_t {
+        pub signature: [::uint8_t; SGX_RSA3072_KEY_SIZE],
+    }
+}
+
+impl_struct_default! {
+    sgx_rsa3072_public_key_t, 388;
+    sgx_rsa3072_private_key_t, 768;
+    sgx_rsa3072_signature_t, 384;
+}
+
+impl_struct_ContiguousMemory! {
+    sgx_rsa3072_public_key_t;
+    sgx_rsa3072_private_key_t;
+    sgx_rsa3072_signature_t;
+}
+
+//pub type sgx_rsa3072_signature_t    = [::uint8_t; SGX_RSA3072_KEY_SIZE];
 
 pub type sgx_sha_state_handle_t     = * mut ::c_void;
 pub type sgx_cmac_state_handle_t    = * mut ::c_void;
@@ -588,6 +621,15 @@ impl_enum! {
         SGX_EC_POINT_IS_NOT_EQUAL   = 0x00000010,   /* compared points are different  */
 
         SGX_EC_INVALID_SIGNATURE    = 0x00000011,   /* invalid signature */
+    }
+}
+
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq)]
+    pub enum sgx_rsa_result_t {
+        SGX_RSA_VALID               = 0,   /* validation pass successfully */
+        SGX_RSA_INVALID_SIGNATURE   = 1,   /* invalid signature */
     }
 }
 
@@ -881,3 +923,19 @@ pub type sgx_cpuinfo_t = [::int32_t; 4];
 //        pub const SGX_DEBUG_FLAG: ::int32_t   = 0;
 //    }
 //}
+
+
+//
+// sgx_tprotected_fs.h
+//
+
+pub type SGX_FILE = * mut ::c_void;
+
+pub const EOF: i32 = -1;
+
+pub const SEEK_SET: i32 = 0;
+pub const SEEK_CUR: i32 = 1;
+pub const SEEK_END: i32 = 2;
+
+pub const FILENAME_MAX: u32  = 260;
+pub const FOPEN_MAX: u32     = 20;

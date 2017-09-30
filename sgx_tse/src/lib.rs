@@ -33,7 +33,7 @@
 #![crate_name = "sgx_tse"]
 #![crate_type = "rlib"]
 
-#![cfg_attr(not(feature = "use_std"), no_std)]
+#![no_std]
 
 extern crate sgx_types;
 use sgx_types::*;

@@ -1,0 +1,12 @@
+[package]
+name = "sgx_serialize_derive"
+version = "0.9.0"
+authors = ["Baidu"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "0.3.8"
+syn = "0.11"
+sgx_serialize_derive_internals = { path = "../sgx_serialize_derive_internals"}

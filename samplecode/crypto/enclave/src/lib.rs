@@ -1,40 +1,46 @@
-#![crate_name = "Cryptosampleenclave"]
+// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//
+//  * Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+//  * Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in
+//    the documentation and/or other materials provided with the
+//    distribution.
+//  * Neither the name of Baidu, Inc., nor the names of its
+//    contributors may be used to endorse or promote products derived
+//    from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+#![crate_name = "cryptosampleenclave"]
 #![crate_type = "staticlib"]
 
 #![no_std]
-#![feature(collections)]
-
-#[macro_use]
-extern crate collections;
 
 extern crate sgx_types;
-extern crate sgx_trts;
 extern crate sgx_tcrypto;
+#[macro_use]
+extern crate sgx_tstd as std;
 
 use sgx_types::*;
 use sgx_tcrypto::*;
-use collections::vec::Vec;
-use collections::slice;
-use core::ptr;
-
-/// The Ocall declared in Enclave.edl and implemented in app.c
-///
-/// # Parameters
-///
-/// **str**
-///
-/// A pointer to the string to be printed
-///
-/// **len**
-///
-/// An unsigned int indicates the length of str
-///
-/// # Return value
-///
-/// None
-extern "C" {
-    fn ocall_print_string(str: *const c_uchar, len: size_t);
-}
+use std::vec::Vec;
+use std::slice;
+use std::ptr;
 
 /// A Ecall function takes a string and output its SHA256 digest.
 ///
@@ -67,35 +73,20 @@ extern "C" {
 /// Indicates the parameter is invalid
 #[no_mangle]
 pub extern "C" fn calc_sha256(input_str: *const u8,
-                              some_len: u32,
+                              some_len: usize,
                               hash: &mut [u8;32]) -> sgx_status_t {
-    let rust_raw_string = "calc_sha256 invoked!";
 
-    unsafe {
-        ocall_print_string(rust_raw_string.as_ptr() as *const c_uchar,
-                           rust_raw_string.len() as size_t);
-    }
+    println!("calc_sha256 invoked!");
 
     // First, build a slice for input_str
-    let input_slice;
-
-    unsafe {
-        input_slice = slice::from_raw_parts(input_str, some_len as usize);
-    }
+    let input_slice = unsafe { slice::from_raw_parts(input_str, some_len) };
 
     // slice::from_raw_parts does not guarantee the length, we need a check
-    if input_slice.len() != some_len as usize {
+    if input_slice.len() != some_len {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
-    let debug_str = format!("Input string len = {}, input len = {}",
-                            input_slice.len(),
-                            some_len);
-
-    unsafe {
-        ocall_print_string(debug_str.as_ptr() as *const c_uchar,
-                           debug_str.len() as size_t);
-    }
+    println!("Input string len = {}, input len = {}", input_slice.len(), some_len);
 
     // Second, convert the vector to a slice and calculate its SHA256
     let result = rsgx_sha256_slice(&input_slice);
@@ -155,26 +146,21 @@ pub extern "C" fn calc_sha256(input_str: *const u8,
 #[no_mangle]
 pub extern "C" fn aes_gcm_128_encrypt(key: &[u8;16],
                                       plaintext: *const u8,
-                                      text_len: u32,
+                                      text_len: usize,
                                       iv: &[u8;12],
                                       ciphertext: *mut u8,
                                       mac: &mut [u8;16]) -> sgx_status_t {
 
-    let rust_raw_string = "aes_gcm_128_encrypt invoked!";
-
-    unsafe {
-        ocall_print_string(rust_raw_string.as_ptr() as *const c_uchar,
-                           rust_raw_string.len() as size_t);
-    }
+    println!("aes_gcm_128_encrypt invoked!");
 
     // First, we need slices for input
-    let plaintext_slice;
+    let plaintext_slice = unsafe { slice::from_raw_parts(plaintext, text_len) };
 
     // Here we need to initiate the ciphertext buffer, though nothing in it.
     // Thus show the length of ciphertext buffer is equal to plaintext buffer.
     // If not, the length of ciphertext_vec will be 0, which leads to argument
     // illegal.
-    let mut ciphertext_vec: Vec<u8> = vec![0; text_len as usize];
+    let mut ciphertext_vec: Vec<u8> = vec![0; text_len];
 
     // Second, for data with known length, we use array with fixed length.
     // Here we cannot use slice::from_raw_parts because it provides &[u8]
@@ -182,24 +168,15 @@ pub extern "C" fn aes_gcm_128_encrypt(key: &[u8;16],
     let aad_array: [u8; 0] = [0; 0];
     let mut mac_array: [u8; SGX_AESGCM_MAC_SIZE] = [0; SGX_AESGCM_MAC_SIZE];
 
-    unsafe {
-        plaintext_slice = slice::from_raw_parts(plaintext, text_len as usize);
-    }
-
     // Always check the length after slice::from_raw_parts
-    if plaintext_slice.len() != text_len as usize {
+    if plaintext_slice.len() != text_len {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
-    let mut ciphertext_slice = &mut ciphertext_vec[..];
-    let rust_raw_string = format!("aes_gcm_128_encrypt parameter prepared! {}, {}",
-                                  plaintext_slice.len(),
-                                  ciphertext_slice.len());
-
-    unsafe {
-        ocall_print_string(rust_raw_string.as_ptr() as *const c_uchar,
-                           rust_raw_string.len() as size_t);
-    }
+    let ciphertext_slice = &mut ciphertext_vec[..];
+    println!("aes_gcm_128_encrypt parameter prepared! {}, {}",
+              plaintext_slice.len(),
+              ciphertext_slice.len());
 
     // After everything has been set, call API
     let result = rsgx_rijndael128GCM_encrypt(key,
@@ -208,13 +185,7 @@ pub extern "C" fn aes_gcm_128_encrypt(key: &[u8;16],
                                              &aad_array,
                                              ciphertext_slice,
                                              &mut mac_array);
-
-    let rust_raw_string = "rsgx calling returned!";
-
-    unsafe {
-        ocall_print_string(rust_raw_string.as_ptr() as *const c_uchar,
-                           rust_raw_string.len() as size_t);
-    }
+    println!("rsgx calling returned!");
 
     // Match the result and copy result back to normal world.
     match result {
@@ -225,7 +196,7 @@ pub extern "C" fn aes_gcm_128_encrypt(key: &[u8;16],
             unsafe{
                 ptr::copy_nonoverlapping(ciphertext_slice.as_ptr(),
                                          ciphertext,
-                                         text_len as usize);
+                                         text_len);
             }
             *mac = mac_array;
         }
@@ -279,43 +250,29 @@ pub extern "C" fn aes_gcm_128_encrypt(key: &[u8;16],
 #[no_mangle]
 pub extern "C" fn aes_gcm_128_decrypt(key: &[u8;16],
                                       ciphertext: *const u8,
-                                      text_len: u32,
+                                      text_len: usize,
                                       iv: &[u8;12],
                                       mac: &[u8;16],
                                       plaintext: *mut u8) -> sgx_status_t {
 
-    let rust_raw_string = "aes_gcm_128_decrypt invoked!";
-
-    unsafe {
-        ocall_print_string(rust_raw_string.as_ptr() as *const c_uchar,
-                           rust_raw_string.len() as size_t);
-    }
+    println!("aes_gcm_128_decrypt invoked!");
 
     // First, for data with unknown length, we use vector as builder.
-    let ciphertext_slice;
-    let mut plaintext_vec: Vec<u8> = vec![0; text_len as usize];
+    let ciphertext_slice = unsafe { slice::from_raw_parts(ciphertext, text_len) };
+    let mut plaintext_vec: Vec<u8> = vec![0; text_len];
 
     // Second, for data with known length, we use array with fixed length.
     let aad_array: [u8; 0] = [0; 0];
 
-    unsafe {
-        ciphertext_slice = slice::from_raw_parts(ciphertext, text_len as usize);
-    }
-
-    if ciphertext_slice.len() != text_len as usize {
+    if ciphertext_slice.len() != text_len {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
-    let mut plaintext_slice = &mut plaintext_vec[..];
-    let rust_raw_string = format!("aes_gcm_128_decrypt parameter prepared! {},{}",
-                                  ciphertext_slice.len(),
-                                  plaintext_slice.len());
-
-    unsafe {
-        ocall_print_string(rust_raw_string.as_ptr() as *const c_uchar,
-                           rust_raw_string.len() as size_t);
-    }
-
+    let plaintext_slice = &mut plaintext_vec[..];
+    println!("aes_gcm_128_decrypt parameter prepared! {}, {}",
+              ciphertext_slice.len(),
+              plaintext_slice.len());
+    
     // After everything has been set, call API
     let result = rsgx_rijndael128GCM_decrypt(key,
                                              &ciphertext_slice,
@@ -324,12 +281,8 @@ pub extern "C" fn aes_gcm_128_decrypt(key: &[u8;16],
                                              mac,
                                              plaintext_slice);
 
-    let rust_raw_string = "rsgx calling returned!";
+    println!("rsgx calling returned!");
 
-    unsafe {
-        ocall_print_string(rust_raw_string.as_ptr() as *const c_uchar,
-                           rust_raw_string.len() as size_t);
-    }
     // Match the result and copy result back to normal world.
     match result {
         Err(x) => {
@@ -339,7 +292,7 @@ pub extern "C" fn aes_gcm_128_decrypt(key: &[u8;16],
             unsafe {
                 ptr::copy_nonoverlapping(plaintext_slice.as_ptr(),
                                          plaintext,
-                                         text_len as usize);
+                                         text_len);
             }
         }
     }
@@ -380,16 +333,13 @@ pub extern "C" fn aes_gcm_128_decrypt(key: &[u8;16],
 /// The caller should allocate the output cmac buffer.
 #[no_mangle]
 pub extern "C" fn aes_cmac(text: *const u8,
-                           text_len: u32,
+                           text_len: usize,
                            key: &[u8;16],
                            cmac: &mut [u8;16]) -> sgx_status_t {
-    let text_slice;
 
-    unsafe {
-        text_slice = slice::from_raw_parts(text, text_len as usize);
-    }
+    let text_slice = unsafe { slice::from_raw_parts(text, text_len) };
 
-    if text_slice.len() != text_len as usize {
+    if text_slice.len() != text_len {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 

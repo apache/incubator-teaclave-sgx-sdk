@@ -37,14 +37,14 @@ use core::mem;
 ///
 /// The rsgx_read_rand function is provided to replace the standard pseudo-random sequence generation functions
 /// inside the enclave, since these standard functions are not supported in the enclave, such as rand, srand, etc.
-/// For HW mode, the function generates a real-random sequence; while for simulation mode, the function generates
+/// For HW mode, the function generates a real-random sequence; while in simulation mode, the function generates
 /// a pseudo-random sequence.
 ///
 /// # Parameters
 ///
 /// **rand**
 ///
-/// A pointer to the buffer that receives the random number. The rand buffer can be either within or outside the enclave,
+/// A pointer to the buffer that stores the generated random number. The rand buffer can be either within or outside the enclave,
 /// but it is not allowed to be across the enclave boundary or wrapped around.
 ///
 /// # Requirements

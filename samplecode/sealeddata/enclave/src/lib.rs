@@ -30,19 +30,17 @@
 #![crate_type = "staticlib"]
 
 #![no_std]
-#![feature(collections)]
-
-#[macro_use]
-extern crate collections;
 
 extern crate sgx_types;
 extern crate sgx_tseal;
-extern crate sgx_trts;
+#[macro_use]
+extern crate sgx_tstd;
+extern crate sgx_rand;
 
-use sgx_types::*;
+use sgx_types::{sgx_status_t, sgx_sealed_data_t};
 use sgx_types::marker::ContiguousMemory;
-use sgx_tseal::*;
-use sgx_trts::*;
+use sgx_tseal::{SgxSealedData};
+use sgx_rand::{Rng, StdRng};
 
 #[derive(Copy, Clone, Default, Debug)]
 struct RandData {
@@ -52,37 +50,32 @@ struct RandData {
 
 unsafe impl ContiguousMemory for RandData {}
 
-extern {
-    fn ocall_print_string(str: * const c_uchar, len: size_t);
-}
-
 #[no_mangle]
 pub extern "C" fn create_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) -> sgx_status_t {
 
     let mut data = RandData::default();
     data.key = 0x1234;
-    let error = rsgx_read_rand(&mut data.rand);
-    if error.is_err() {
-        return error.unwrap_err();
-    }
 
+    let mut rand = match StdRng::new() {
+        Ok(rng) => rng,
+        Err(_) => { return sgx_status_t::SGX_ERROR_UNEXPECTED; },
+    };
+    rand.fill_bytes(&mut data.rand);
+    
     let aad: [u8; 0] = [0_u8; 0];
     let result = SgxSealedData::<RandData>::seal_data(&aad, &data);
     let sealed_data = match result {
         Ok(x) => x,
-        Err(ret) => {
-            return ret;
-        },
+        Err(ret) => { return ret; }, 
     };
 
     let opt = to_sealed_log(&sealed_data, sealed_log, sealed_log_size);
     if opt.is_none() {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
-
-    let outstring = format!("{:?}", data);
-    output(&outstring);
-
+    
+    println!("{:?}", data);
+    
     sgx_status_t::SGX_SUCCESS
 }
 
@@ -96,26 +89,20 @@ pub extern "C" fn verify_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) 
             return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
         },
     };
-
+    
     let result = sealed_data.unseal_data();
     let unsealed_data = match result {
         Ok(x) => x,
         Err(ret) => {
             return ret;
-        },
+        }, 
     };
 
     let data = unsealed_data.get_decrypt_txt();
-    let outstring = format!("{:?}", data);
-    output(&outstring);
+
+    println!("{:?}", data);
 
     sgx_status_t::SGX_SUCCESS
-}
-
-fn output(outstr: &str) {
-    unsafe {
-        ocall_print_string(outstr.as_ptr() as *const c_uchar, outstr.len() as size_t);
-    }
 }
 
 fn to_sealed_log<T: Copy + ContiguousMemory>(sealed_data: &SgxSealedData<T>, sealed_log: * mut u8, sealed_log_size: u32) -> Option<* mut sgx_sealed_data_t> {

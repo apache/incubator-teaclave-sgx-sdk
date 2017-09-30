@@ -37,12 +37,8 @@
 #![crate_name = "sgx_tservice"]
 #![crate_type = "rlib"]
 
-#![cfg_attr(not(feature = "use_std"), no_std)]
-
+#![no_std]
 #![allow(non_camel_case_types)]
-
-#[cfg(feature = "use_std")]
-extern crate std as core;
 
 extern crate sgx_types;
 

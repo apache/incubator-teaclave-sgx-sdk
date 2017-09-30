@@ -63,6 +63,8 @@ else
 	SGX_COMMON_CFLAGS += -O2
 endif
 
+SGX_COMMON_CFLAGS += -L./lib
+
 ######## CUSTOM Settings ########
 
 CUSTOM_LIBRARY_PATH := ./lib
@@ -83,13 +85,15 @@ endif
 App_Cpp_Files := $(wildcard ./app/*.cpp)
 App_Include_Paths := -I ./app -I./include -I$(SGX_SDK)/include -I./attestation -I./Include
 App_Cpp_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread
+App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -L$(CUSTOM_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
 else
 	App_Link_Flags += -lsgx_uae_service
 endif
 
+App_Link_Flags += -lsgx_ustdio
+App_Link_Flags += -lsgx_ubacktrace
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 
 App_Name := bin/app
@@ -105,17 +109,17 @@ else
 endif
 Crypto_Library_Name := sgx_tcrypto
 KeyExchange_Library_Name := sgx_tkey_exchange
+ProtectedFs_Library_Name := sgx_tprotected_fs
 
 RustEnclave_C_Files := $(wildcard ./enclave1/*.c ./enclave2/*.c ./enclave3/*.c ./attestation/*.c)
 RustEnclave_C_Objects := $(RustEnclave_C_Files:.c=.o)
 RustEnclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/stlport -I$(SGX_SDK)/include/epid
 
-
 RustEnclave_Link_Libs := -L$(CUSTOM_LIBRARY_PATH) -lcompiler-rt-patch
 RustEnclave_Compile_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(RustEnclave_Include_Paths)
 RustEnclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group -lsgx_tstdc -lsgx_tstdcxx -l$(Crypto_Library_Name) -l$(KeyExchange_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
+	-Wl,--start-group -lsgx_tstdc -lsgx_tstdcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) $(RustEnclave_Link_Libs) -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 \
@@ -169,8 +173,10 @@ app/Enclave3_u.o: app/Enclave3_u.c
 app/UntrustedEnclaveMessageExchange.o: app/UntrustedEnclaveMessageExchange.cpp
 	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
 
-$(App_Name): app/Enclave1_u.o app/Enclave2_u.o app/Enclave3_u.o $(App_Cpp_Objects) app/UntrustedEnclaveMessageExchange.o
-	@$(CXX) $^ -o $@ $(App_Link_Flags)
+$(App_Name): $(App_Cpp_Objects) app/Enclave1_u.o app/Enclave2_u.o app/Enclave3_u.o app/UntrustedEnclaveMessageExchange.o sgx_ustdio sgx_ubacktrace
+	cp ../../sgx_ustdio/libsgx_ustdio.a ./lib
+	cp ../../sgx_ubacktrace/libsgx_ubacktrace.a ./lib
+	@$(CXX)  $(App_Cpp_Objects) app/Enclave1_u.o app/Enclave2_u.o app/Enclave3_u.o -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
 ######## Enclave Objects ########
@@ -184,7 +190,7 @@ enclave1/Enclave1_t.o: enclave1/Enclave1_t.c
 $(RustEnclave1_Name): enclave1 compiler-rt enclave1/Enclave1_t.o
 	cp ./enclave1/target/release/libenclave1.a ./lib
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
-	@$(CXX) enclave1/Enclave1_t.o -o $@ $(RustEnclave_Link_Libs) -lenclave1 $(RustEnclave_Link_Flags)
+	@$(CXX) enclave1/Enclave1_t.o -o $@ -lenclave1 $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
 $(Signed_RustEnclave1_Name): $(RustEnclave1_Name)
@@ -201,7 +207,7 @@ enclave2/Enclave2_t.o: enclave2/Enclave2_t.c
 $(RustEnclave2_Name): enclave2 compiler-rt enclave2/Enclave2_t.o
 	cp ./enclave2/target/release/libenclave2.a ./lib
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
-	@$(CXX) enclave2/Enclave2_t.o -o $@ $(RustEnclave_Link_Libs) -lenclave2 $(RustEnclave_Link_Flags)
+	@$(CXX) enclave2/Enclave2_t.o -o $@ -lenclave2 $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
 $(Signed_RustEnclave2_Name): $(RustEnclave2_Name)
@@ -217,7 +223,7 @@ enclave3/Enclave3_t.o: enclave3/Enclave3_t.c
 $(RustEnclave3_Name): enclave3 compiler-rt enclave3/Enclave3_t.o
 	cp ./enclave3/target/release/libenclave3.a ./lib
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
-	@$(CXX) enclave3/Enclave3_t.o -o $@ $(RustEnclave_Link_Libs) -lenclave3 $(RustEnclave_Link_Flags)
+	@$(CXX) enclave3/Enclave3_t.o -o $@ -lenclave3 $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
 $(Signed_RustEnclave3_Name): $(RustEnclave3_Name)
@@ -239,6 +245,14 @@ enclave3:
 .PHONY: compiler-rt
 compiler-rt:
 	$(MAKE) -C ../../compiler-rt/ 2> /dev/null
+
+.PHONY: sgx_ustdio
+sgx_ustdio:
+	$(MAKE) -C ../../sgx_ustdio/ 2> /dev/null
+
+.PHONY: sgx_ubacktrace
+sgx_ubacktrace:
+	$(MAKE) -C ../../sgx_ubacktrace/ 2> /dev/null
 
 .PHONY: clean
 clean:

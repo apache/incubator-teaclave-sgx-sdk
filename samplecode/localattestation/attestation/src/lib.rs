@@ -30,16 +30,14 @@
 #![crate_type = "rlib"]
 
 #![no_std]
-#![feature(const_fn, alloc)]
+#![feature(const_atomic_ptr_new)]
 #![allow(improper_ctypes)]
 #![allow(non_camel_case_types)]
-
-extern crate alloc;
 
 #[macro_use]
 extern crate sgx_types;
 extern crate sgx_tdh;
-extern crate sgx_trts;
+extern crate sgx_tstd as std;
 
 pub mod err;
 pub use self::err::*;
