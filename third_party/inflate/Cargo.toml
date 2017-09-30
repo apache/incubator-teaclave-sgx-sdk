@@ -1,0 +1,16 @@
+[package]
+name = "inflate"
+version = "0.2.0"
+license = "MIT"
+description = "DEFLATE decoding"
+authors = ["nwin <nwin@users.noreply.github.com>"]
+repository = "https://github.com/PistonDevelopers/inflate.git"
+keywords = ["deflate", "decompression", "compression", "piston"]
+
+[features]
+default = []
+unstable = []
+use_std = []
+
+[dependencies]
+sgx_tstd = { path = "../../sgx_tstd" }

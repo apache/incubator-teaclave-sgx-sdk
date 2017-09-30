@@ -81,25 +81,18 @@
 //! non-confidential data to provide data origin authentication only. The single
 //! output of this function is the authentication tag.
 //!
+
 #![crate_name = "sgx_tseal"]
 #![crate_type = "rlib"]
 
-#![cfg_attr(not(feature = "use_std"), no_std)]
-#![cfg_attr(not(feature = "use_std"), feature(alloc, collections))]
+#![no_std]
+#![feature(alloc)]
 
 #![allow(non_camel_case_types)]
 #![allow(unused_assignments)]
-#![allow(deprecated)]
-#[cfg(feature = "use_std")]
-#[macro_use]
-extern crate std as core;
 
-#[cfg(not(feature = "use_std"))]
+#[macro_use]
 extern crate alloc;
-
-#[cfg(not(feature = "use_std"))]
-#[macro_use]
-extern crate collections;
 
 extern crate sgx_types;
 extern crate sgx_trts;
@@ -107,9 +100,9 @@ extern crate sgx_tcrypto;
 extern crate sgx_tse;
 
 mod seal;
-pub use self::seal::*;
+pub use self::seal::{SgxSealedData, SgxUnsealedData};
 
 mod aad;
-pub use self::aad::*;
+pub use self::aad::{SgxMacAadata};
 
 mod internal;

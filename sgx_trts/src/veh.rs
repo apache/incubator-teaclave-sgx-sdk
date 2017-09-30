@@ -31,7 +31,7 @@ use sgx_types::*;
 pub type exception_handle = * const c_void;
 
 ///
-/// rsgx_register_exception_handler register an exception handler.
+/// rsgx_register_exception_handler registers an exception handler.
 ///
 /// rsgx_register_exception_handler allows developers to register an exception handler, and specify whether to prepend
 /// (when is_first_handler is equal to 1) or append the handler to the handler chain.
@@ -48,7 +48,7 @@ pub type exception_handle = * const c_void;
 ///
 /// After calling rsgx_register_exception_handler to prepend an exception handler, a subsequent call to this function may
 /// add another exception handler at the beginning of the handler chain. Therefore the order in which exception handlers
-/// are called does not only depend on the value of the is_first_handler parameter, but more importantly depends on the order
+/// are called does not only depend on the value of the is_first_handler parameter. It depends on the order
 /// in which exception handlers are registered.
 ///
 /// # Parameters

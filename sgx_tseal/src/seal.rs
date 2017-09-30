@@ -40,11 +40,10 @@
 //!
 use sgx_types::*;
 use sgx_types::marker::ContiguousMemory;
-use core::slice;
+use internal::*;
 use core::mem;
 use core::marker::PhantomData;
-use super::internal::*;
-#[cfg(not(feature = "use_std"))]
+use alloc::slice;
 use alloc::boxed::Box;
 
 /// The structure about the unsealed data.
@@ -695,7 +694,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
 
         self.inner.unseal_data().map(|x| {
             let ptr = (x.decrypt).as_ptr() as * mut T;
-            let mut slice = unsafe{slice::from_raw_parts_mut(ptr, encrypt_len/size)};
+            let slice = unsafe{slice::from_raw_parts_mut(ptr, encrypt_len/size)};
             SgxUnsealedData {
                 payload_size: x.payload_size,
                 decrypt: unsafe{Box::from_raw(slice as * mut [T])},

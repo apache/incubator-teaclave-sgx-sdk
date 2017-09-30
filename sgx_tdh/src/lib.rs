@@ -33,23 +33,14 @@
 #![crate_name = "sgx_tdh"]
 #![crate_type = "rlib"]
 
-#![cfg_attr(not(feature = "use_std"), no_std)]
+#![no_std]
+#![feature(alloc)]
 
-#![cfg_attr(not(feature = "use_std"), feature(alloc, collections))]
 #![allow(non_camel_case_types)]
 #![allow(unused_assignments)]
-#![allow(deprecated)]
 
-#[cfg(feature = "use_std")]
 #[macro_use]
-extern crate std as core;
-
-#[cfg(not(feature = "use_std"))]
 extern crate alloc;
-
-#[cfg(not(feature = "use_std"))]
-#[macro_use]
-extern crate collections;
 
 extern crate sgx_types;
 extern crate sgx_trts;

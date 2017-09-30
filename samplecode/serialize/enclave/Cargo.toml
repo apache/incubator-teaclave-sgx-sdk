@@ -1,0 +1,13 @@
+[package]
+name = "Serialize sample enclave"
+version = "0.9.0"
+authors = ["Baidu"]
+
+[lib]
+name = "enclave"
+crate-type = ["staticlib"]
+
+[dependencies]
+sgx_tstd = { path = "../../../sgx_tstd" }
+sgx_serialize = { path = "../../../sgx_serialize" }
+sgx_serialize_derive = { path = "../../../sgx_serialize_derive"}

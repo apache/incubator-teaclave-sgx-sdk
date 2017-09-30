@@ -1,0 +1,7 @@
+[package]
+name = "sgx_serialize_derive_internals"
+version = "0.9.0"
+authors = ["Baidu"]
+
+[dependencies]
+syn = "0.11"

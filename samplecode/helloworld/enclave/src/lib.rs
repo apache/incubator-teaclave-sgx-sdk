@@ -1,37 +1,44 @@
+// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//
+//  * Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+//  * Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in
+//    the documentation and/or other materials provided with the
+//    distribution.
+//  * Neither the name of Baidu, Inc., nor the names of its
+//    contributors may be used to endorse or promote products derived
+//    from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 #![crate_name = "helloworldsampleenclave"]
 #![crate_type = "staticlib"]
 
 #![no_std]
-#![feature(collections)]
-
-#[macro_use]
-extern crate collections;
 
 extern crate sgx_types;
-extern crate sgx_trts;
-
+#[macro_use]
+extern crate sgx_tstd as std;
 use sgx_types::*;
-use collections::string::String;
-use collections::vec::Vec;
-
-/// The Ocall declared in Enclave.edl and implemented in app.c
-///
-/// # Parameters
-///
-/// **str**
-///
-/// A pointer to the string to be printed
-///
-/// **len**
-///
-/// An unsigned int indicates the length of str
-///
-/// # Return value
-///
-/// None
-extern "C" {
-    fn ocall_print_string(str: *const c_uchar, len: size_t);
-}
+use std::string::String;
+use std::vec::Vec;
+use std::slice;
+use std::io::{self, Write};
 
 /// A function simply invokes ocall print to print the incoming string
 ///
@@ -49,10 +56,10 @@ extern "C" {
 ///
 /// Always returns SGX_SUCCESS
 #[no_mangle]
-pub extern "C" fn say_something(some_string: *const u8, some_len: u32) -> sgx_status_t {
-    unsafe {
-        ocall_print_string(some_string as *const c_uchar, some_len as size_t);
-    }
+pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_status_t {
+    
+    let str_slice = unsafe { slice::from_raw_parts(some_string, some_len) };
+    let _ = io::stdout().write(str_slice);
 
     // A sample &'static string
     let rust_raw_string = "This is a ";
@@ -74,10 +81,7 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: u32) -> sgx_st
                                                .as_str();
 
     // Ocall to normal world for output
-    unsafe {
-        ocall_print_string(hello_string.as_ptr() as *const c_uchar,
-                           hello_string.len() as size_t);
-    }
+    println!("{}", &hello_string);
 
     sgx_status_t::SGX_SUCCESS
 }

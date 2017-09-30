@@ -1,0 +1,11 @@
+[package]
+name = "sgx_alloc"
+version = "0.9.0"
+authors = ["Baidu"]
+
+[features]
+default = []
+
+[dependencies]
+sgx_types = { path = "../sgx_types" }
+sgx_trts = { path = "../sgx_trts" }

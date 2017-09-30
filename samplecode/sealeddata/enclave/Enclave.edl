@@ -30,7 +30,10 @@
  */
 
 enclave {
-
+    from "../../edl/sgx_stdio.edl" import *;
+    from "../../edl/sgx_backtrace.edl" import *;
+    from "sgx_tstdc.edl" import *;
+    
 	trusted {
         /* define ECALLs here. */
 
@@ -42,7 +45,7 @@ enclave {
     };
 
     untrusted {
-        void ocall_print_string([in, size=len] const char *str, size_t len);
+
     };
 
 

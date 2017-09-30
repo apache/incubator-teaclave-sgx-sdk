@@ -32,10 +32,8 @@ use sgx_tcrypto::*;
 use sgx_tse::*;
 use core::mem;
 use core::ptr;
-#[cfg(not(feature = "use_std"))]
 use alloc::boxed::Box;
-#[cfg(not(feature = "use_std"))]
-use collections::vec::Vec;
+use alloc::vec::Vec;
 
 //const SGX_MISCSEL_EXINFO: uint32_t     = 0x00000001;
 //const TSEAL_DEFAULT_MISCMASK: uint32_t = (!SGX_MISCSEL_EXINFO);

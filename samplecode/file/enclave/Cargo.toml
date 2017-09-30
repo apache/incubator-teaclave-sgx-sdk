@@ -1,0 +1,18 @@
+[package]
+name = "File sample enclave"
+version = "0.9.0"
+authors = ["Baidu"]
+
+[lib]
+name = "enclave"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[dependencies]
+sgx_tstd = { path = "../../../sgx_tstd" }
+sgx_rand = { path = "../../../sgx_rand" }
+sgx_rand_derive = { path = "../../../sgx_rand_derive" }
+sgx_serialize = { path = "../../../sgx_serialize" }
+sgx_serialize_derive = { path = "../../../sgx_serialize_derive"}

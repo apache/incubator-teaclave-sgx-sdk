@@ -1,3 +1,32 @@
+# Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+#  * Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#  * Neither the name of Baidu, Inc., nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
 ######## SGX SDK Settings ########
 SGX_SDK ?= /opt/intel/sgxsdk
 SGX_MODE = HW
@@ -38,6 +67,8 @@ ifeq ($(SUPPLIED_KEY_DERIVATION), 1)
         SGX_COMMON_CFLAGS += -DSUPPLIED_KEY_DERIVATION
 endif
 
+SGX_COMMON_CFLAGS += -L./lib
+
 ######## App Settings ########
 
 ifneq ($(SGX_MODE), HW)
@@ -69,7 +100,7 @@ else
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11 -DEnableServer
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread -Wl,-rpath=$(CURDIR)/../sample_libcrypto -Wl,-rpath=$(CURDIR) -llog4cpp -lboost_system -lssl -lcrypto -lboost_thread -lprotobuf -L /usr/local/lib -ljsoncpp
+App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread -Wl,-rpath=$(CURDIR)/../sample_libcrypto -Wl,-rpath=$(CURDIR) -llog4cpp -lboost_system -lssl -lcrypto -lboost_thread -lprotobuf -L /usr/local/lib -ljsoncpp -lsgx_ustdio -lsgx_ubacktrace
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
@@ -91,6 +122,8 @@ else
 	Service_Library_Name := sgx_tservice
 endif
 Crypto_Library_Name := sgx_tcrypto
+KeyExchange_Library_Name := sgx_tkey_exchange
+ProtectedFs_Library_Name := sgx_tprotected_fs
 
 #Enclave_Cpp_Files := isv_enclave/isv_enclave.cpp
 Enclave_Cpp_Files :=
@@ -108,7 +141,7 @@ Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++
 # Otherwise, you may get some undesirable errors.
 Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group -lsgx_tstdc -lsgx_tstdcxx -lsgx_tkey_exchange -l$(Crypto_Library_Name) -l$(Service_Library_Name) -L./lib -lcompiler-rt-patch -lraenclave -Wl,--end-group \
+	-Wl,--start-group -lsgx_tstdc -lsgx_tstdcxx -l$(KeyExchange_Library_Name) -l$(Crypto_Library_Name) -l$(Service_Library_Name) -L./lib -lcompiler-rt-patch -lraenclave -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 \
@@ -181,10 +214,11 @@ isv_app/%.o: isv_app/%.cpp
 	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(App_Name): isv_app/enclave_u.o $(App_Cpp_Objects)
-	@$(CXX) $^ -o $@ $(App_Link_Flags)
+$(App_Name): isv_app/enclave_u.o $(App_Cpp_Objects) sgx_ustdio sgx_ubacktrace
+	cp ../../../sgx_ustdio/libsgx_ustdio.a ./lib
+	cp ../../sgx_ubacktrace/libsgx_ubacktrace.a ./lib
+	@$(CXX) isv_app/enclave_u.o $(App_Cpp_Objects) -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
-
 
 ######## Enclave Objects ########
 
@@ -218,8 +252,15 @@ compiler-rt:
 raenclave:
 	$(MAKE) -C ./enclave/
 
-.PHONY: clean
+.PHONY: sgx_ustdio
+sgx_ustdio:
+	$(MAKE) -C ../../../sgx_ustdio/ 2> /dev/null
 
+.PHONY: sgx_ubacktrace
+sgx_ubacktrace:
+	$(MAKE) -C ../../sgx_ubacktrace/ 2> /dev/null
+	
+.PHONY: clean
 clean:
 	$(MAKE) -C ./enclave clean
 	rm -f $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) isv_app/enclave_u.* $(Enclave_Cpp_Objects) enclave/enclave_t.* libservice_provider.* $(ServiceProvider_Cpp_Objects) lib/*.a

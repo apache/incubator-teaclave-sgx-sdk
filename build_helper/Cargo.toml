@@ -1,0 +1,11 @@
+[package]
+name = "build_helper"
+version = "0.9.0"
+authors = ["baidu"]
+
+[lib]
+name = "build_helper"
+path = "lib.rs"
+
+[dependencies]
+filetime = "0.1"

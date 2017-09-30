@@ -1,6 +1,10 @@
 # Rust SGX SDK
+Rust SGX SDK helps developers write Intel SGX applications in Rust programming language.
 
-This Rust SGX SDK helps developers write Intel SGX enclaves in Rust programming language.
+## v0.9.0 Release
+Almost there! Rust SGX SDK v0.9.0 is coming up as a beta version of the future v1.0.0, with the most desired `sgx::tstd` as well as many new features! Also we added support for programming SGX untrusted part in Rust using `sgx::urts`. Now it's easy to port Rust crates to the SGX trust execution environment and write the whole SGX application in Rust! Please refer to [release_notes](https://github.com/baidu/rust-sgx-sdk/blob/master/release_notes.md) for further details.
+
+Good news! Our poster 'Rust SGX SDK: Towards Memory Safety in Intel SGX Enclave' [[pdf]](https://github.com/baidu/rust-sgx-sdk/blob/master/documents/ccsp17.pdf) has been accepted by CCS'17. Please kindly cite our poster if you like Rust SGX SDK!
 
 ## v0.2.0 Release
 We are proud to have our v0.2.0 Rust SGX SDK released. It is now providing more threading functions, thread local storages, exception handling routines and supports unwind mechanism, as well as support of **LARGE ENCLAVE MEMORY** with the help of Intel SGX v1.9 (**31.75 GB enclave memory tested**). Please refer to [release notes](https://github.com/baidu/rust-sgx-sdk/blob/master/release_notes.md) for further details. And we are working on a white paper for technical details about this project.
@@ -78,13 +82,31 @@ verify the sealed data.
 * `thread` sample is a sample ported from the original Intel SGX SDK, showing
 some basic usages of threading APIs.
 
-* New! `remoteattestation` sample shows how to make remote attestation with
+* `remoteattestation` sample shows how to make remote attestation with
 Rust SGX SDK. The sample is forked from [linux-sgx-attestation](https://github.com/svartkanin/linux-sgx-remoteattestation)
 and credits to Blackrabbit (blackrabbit256@gmail.com). The enclave in Rust
 is shipped in this sample and Makefiles are modified accordingly.
 
-* New! `hugemem` sample shows how to use huge mem in SGX enclave. In this
+* `hugemem` sample shows how to use huge mem in SGX enclave. In this
 sample, we allocate reserve 31.75GB heap space and allocate 31.625GB buffers!
+
+* New! `file` sample shows how to read/write files in SGX enclave.
+
+* New! `hello-rust` is the helloworld sample writtin in pure Rust.
+
+* New! `backtrace` is a sample showing how to enabling backtrace mechanism inside the enclave.
+
+* New! `unit-test` shows the way of writing unit tests and conduct unit testing.
+
+* New! `zlib-lazy-static-sample` shows how to use ported third party crates inside enclave.
+
+# Samples of ported third-party libraries
+
+We provide six sample crates which are ported to SGX environment.
+* `inflate` a simple implementation of inflate algorithm.
+* `libflate` a more complex implementation of inflate algorithm, and its dependents `adler32-rs` and `byteorder`.
+* `lazy-static.rs` a widely used crate for initializing static data structures.
+* `yansi` printing colorful characters on terminal.
 
 # Tips for writing enclaves in Rust
 

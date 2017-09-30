@@ -31,11 +31,10 @@
 //!
 use sgx_types::*;
 use sgx_types::marker::ContiguousMemory;
-use core::slice;
+use internal::*;
 use core::mem;
 use core::marker::PhantomData;
-use super::internal::*;
-#[cfg(not(feature = "use_std"))]
+use alloc::slice;
 use alloc::boxed::Box;
 
 /// The structure about sealed data, for authenticate and verify.
@@ -375,7 +374,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
          self.inner.unmac_aadata().map(|x| {
             let ptr = (x.additional).as_ptr() as * mut T;
             unsafe {
-                let mut slice = slice::from_raw_parts_mut(ptr, aad_len/size);
+                let slice = slice::from_raw_parts_mut(ptr, aad_len/size);
                 Box::from_raw(slice as * mut [T])
             }
         })

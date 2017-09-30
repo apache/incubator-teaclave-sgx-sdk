@@ -36,14 +36,12 @@ use sgx_trts::*;
 use sgx_trts::memeq::ConsttimeMemEq;
 use sgx_tcrypto::*;
 use sgx_tse::*;
+use ecp::*;
 use core::mem;
 use core::ptr;
-use core::slice;
-use super::ecp::*;
-#[cfg(not(feature = "use_std"))]
+use alloc::slice;
+use alloc::vec::Vec;
 use alloc::boxed::Box;
-#[cfg(not(feature = "use_std"))]
-use collections::vec::Vec;
 
 const AES_CMAC_KDF_ID: [u8; 2] = [1, 0];
 

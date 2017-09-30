@@ -32,7 +32,6 @@
 #![no_std]
 
 extern crate sgx_types;
-extern crate sgx_tdh;
 use sgx_types::*;
 
 extern crate attestation;

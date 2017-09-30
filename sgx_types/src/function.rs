@@ -29,7 +29,7 @@
 use error::*;
 use types::*;
 
-#[link(name = "sgx_tstdc")]
+//#[link(name = "sgx_tstdc")]
 extern {
     //
     // sgx_cpuid.h
@@ -40,8 +40,8 @@ extern {
     //
     // sgx_spinlock.h
     //
-    pub fn sgx_spin_lock(lock: * const sgx_spinlock_t) -> ::uint32_t;
-    pub fn sgx_spin_unlock(lock: * const sgx_spinlock_t) -> ::uint32_t;
+    pub fn sgx_spin_lock(lock: * mut sgx_spinlock_t) -> ::uint32_t;
+    pub fn sgx_spin_unlock(lock: * mut sgx_spinlock_t) -> ::uint32_t;
 
     //
     // sgx_thread.h
@@ -65,7 +65,7 @@ extern {
 }
 
 
-#[link(name = "sgx_tservice")]
+//#[link(name = "sgx_tservice")]
 extern {
 
     //
@@ -172,7 +172,7 @@ extern {
 }
 
 
-#[link(name = "sgx_tcrypto")]
+//#[link(name = "sgx_tcrypto")]
 extern {
 
     //
@@ -252,11 +252,23 @@ extern {
                             p_signature: * mut sgx_ec256_signature_t,
                             p_result: * mut ::uint8_t,
                             ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
+
+    /* intel sgx sdk 1.9 */
+    pub fn sgx_rsa3072_sign(p_data: * const ::uint8_t,
+                            data_size: ::uint32_t,
+                            p_private: * const sgx_rsa3072_private_key_t,
+                            p_signature: * mut sgx_rsa3072_signature_t) -> sgx_status_t;
+
+    pub fn sgx_rsa3072_verify(p_data: * const ::uint8_t,
+                              data_size: ::uint32_t,
+                              p_public: * const sgx_rsa3072_public_key_t,
+                              p_signature: * const sgx_rsa3072_signature_t,
+                              p_result: * mut sgx_rsa_result_t) -> sgx_status_t;
 }
 
 
 
-#[link(name = "sgx_tkey_exchange")]
+//#[link(name = "sgx_tkey_exchange")]
 extern {
 
     //
@@ -277,7 +289,7 @@ extern {
 }
 
 
-#[link(name = "sgx_trts")]
+//#[link(name = "sgx_trts")]
 extern {
 
     //
@@ -301,26 +313,19 @@ extern {
     //
     pub fn sgx_ocalloc(size: ::size_t) -> * mut ::c_void;
     pub fn sgx_sgx_ocfree();
-
-    //
-    // trts_pic.S
-    //
-    pub fn abort() -> !;
-
-    pub fn get_thread_data() -> * const ::c_void;
-    pub fn get_enclave_base() -> * const ::c_void;
-    pub fn get_heap_base() -> * const ::c_void;
-    pub fn get_heap_size() -> ::size_t;
 }
 
 
-#[link(name = "sgx_uae_service")]
+//#[link(name = "sgx_uae_service")]
 extern {
 
     //
     // sgx_uae_service.h
     //
     pub fn sgx_init_quote(p_target_info: * mut sgx_target_info_t, p_gid: * mut sgx_epid_group_id_t) -> sgx_status_t;
+    
+    /* intel sgx sdk 1.9 */
+    pub fn sgx_calc_quote_size(p_sig_rl: * const ::uint8_t, sig_rl_size: ::uint32_t, p_quote_size: * mut ::uint32_t) -> sgx_status_t;
     pub fn sgx_get_quote_size(p_sig_rl: * const ::uint8_t, p_quote_size: * mut ::uint32_t) -> sgx_status_t;
 
     pub fn sgx_get_quote(p_report: * const sgx_report_t,
@@ -344,7 +349,7 @@ extern {
 }
 
 
-#[link(name = "sgx_ukey_exchange")]
+//#[link(name = "sgx_ukey_exchange")]
 extern {
 
     //
@@ -367,18 +372,64 @@ extern {
 }
 
 
-#[link(name = "sgx_urts")]
+//#[link(name = "sgx_urts")]
 extern {
 
     //
     // sgx_urts.h
     //
-    pub fn sgx_create_enclave(file_name: * const ::c_schar,
+    pub fn sgx_create_enclave(file_name: * const ::c_char,
                               debug: ::int32_t,
                               launch_token: * mut sgx_launch_token_t,
                               launch_token_updated: * mut ::int32_t,
                               enclave_id: * mut sgx_enclave_id_t,
                               misc_attr: * mut sgx_misc_attribute_t) -> sgx_status_t;
 
-    pub fn sgx_destroy_enclave(enclave_id: sgx_enclave_id_t);
+    pub fn sgx_destroy_enclave(enclave_id: sgx_enclave_id_t) -> sgx_status_t;
+}
+
+/* intel sgx sdk 1.9 */
+//#[link(name = "sgx_tprotected_fs")]
+extern {
+
+    //
+    // sgx_tprotected_fs.h
+    //
+    pub fn sgx_fopen(filename: * const ::c_char, 
+                     mode: * const ::c_char, 
+                     key: * const sgx_key_128bit_t) -> SGX_FILE;
+
+    pub fn sgx_fopen_auto_key(filename: * const ::c_char, mode: * const ::c_char) -> SGX_FILE;
+
+    pub fn sgx_fwrite(ptr: * const ::c_void, 
+                      size: ::size_t, 
+                      count: ::size_t, 
+                      stream: SGX_FILE) -> ::size_t;
+
+    pub fn sgx_fread(ptr: * mut ::c_void,
+                     size: ::size_t,
+                     count: ::size_t,
+                     stream: SGX_FILE) -> ::size_t;
+
+    pub fn sgx_ftell(stream: SGX_FILE) -> ::int64_t;
+
+    pub fn sgx_fseek(stream: SGX_FILE, offset: ::int64_t, origin: ::c_int) -> ::int32_t;
+
+    pub fn sgx_fflush(stream: SGX_FILE) -> ::int32_t;
+
+    pub fn sgx_ferror(stream: SGX_FILE) -> ::int32_t;
+
+    pub fn sgx_feof(stream: SGX_FILE) -> ::int32_t;
+
+    pub fn sgx_clearerr(stream: SGX_FILE);
+
+    pub fn sgx_fclose(stream: SGX_FILE) -> ::int32_t;
+
+    pub fn sgx_remove(filename: * const ::c_char) -> ::int32_t;
+
+    pub fn sgx_fexport_auto_key(filename: * const ::c_char, key: * mut sgx_key_128bit_t) -> ::int32_t;
+
+    pub fn sgx_fimport_auto_key(filename: * const ::c_char, key: * const sgx_key_128bit_t) -> ::int32_t;
+
+    pub fn sgx_fclear_cache(stream: SGX_FILE) -> ::int32_t;
 }

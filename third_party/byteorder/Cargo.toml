@@ -1,0 +1,32 @@
+[package]
+name = "byteorder"
+# NB: When modifying, also modify html_root_url in lib.rs
+version = "1.1.0"  #:version
+authors = ["Andrew Gallant <jamslam@gmail.com>"]
+description = "Library for reading/writing numbers in big-endian and little-endian."
+documentation = "https://docs.rs/byteorder"
+homepage = "https://github.com/BurntSushi/byteorder"
+repository = "https://github.com/BurntSushi/byteorder"
+readme = "README.md"
+categories = ["encoding", "parsing"]
+keywords = ["byte", "endian", "big-endian", "little-endian", "binary"]
+license = "Unlicense/MIT"
+
+[lib]
+name = "byteorder"
+bench = false
+
+[dependencies]
+sgx_tstd = { path = "../../sgx_tstd" }
+
+[features]
+default = []
+use_std = []
+std = []
+i128 = []
+
+[profile.bench]
+opt-level = 3
+
+[badges]
+travis-ci = { repository = "BurntSushi/byteorder" }

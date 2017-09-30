@@ -28,7 +28,7 @@
 
 //! # Trusted Runtime System
 //!
-//! The Intel(R) SGX trusted runtime system (tRTS) is a key component of the Intel(R) Software Guard Extensions SDK.
+//! The Intel(R) SGX trusted runtime system (tRTS) is a key component of the Intel(R) Software Guard Extensions SDK. 
 //! It provides the enclave entry point logic as well as other functions to be used by enclave developers.
 //!
 //! **Intel(R) Software Guard Extensions Helper Functions**
@@ -36,8 +36,8 @@
 //! **CustomExceptionHandling**
 //!
 //! # Intel(R) Software Guard Extensions Helper Functions
-//!
-//! The tRTS provides the helper functions for you to determine whether a given address is within or outside
+//! 
+//! The tRTS provides the helper functions for you to determine whether a given address is within or outside 
 //! enclave memory.
 //!
 //! The tRTS provides a wrapper to the RDRAND instruction to generate a true random number from hardware.
@@ -45,17 +45,17 @@
 //!
 //! # CustomExceptionHandling
 //!
-//! The Intel(R) Software Guard Extensions SDK provides an API to allow you to register functions, or exception handlers,
-//! to handle a limited set of hardware exceptions. When one of the enclave supported hardware exceptions occurs within
-//! the enclave, the registered exception handlers will be called in a specific order until an exception handler reports
-//! that it has handled the exception. For example, issuing a CPUID instruction inside an Enclave will result in a #UD fault
-//! (Invalid Opcode Exception). ISV enclave code can call rsgx_register_exception_handler to register a function of type
-//! sgx_exception_handler_t to respond to this exception. To check a list of enclave supported exceptions, see Intel(R)
+//! The Intel(R) Software Guard Extensions SDK provides an API to allow you to register functions, or exception handlers, 
+//! to handle a limited set of hardware exceptions. When one of the enclave supported hardware exceptions occurs within 
+//! the enclave, the registered exception handlers will be called in a specific order until an exception handler reports 
+//! that it has handled the exception. For example, issuing a CPUID instruction inside an Enclave will result in a #UD fault 
+//! (Invalid Opcode Exception). ISV enclave code can call rsgx_register_exception_handler to register a function of type 
+//! sgx_exception_handler_t to respond to this exception. To check a list of enclave supported exceptions, see Intel(R) 
 //! Software Guard Extensions Programming Reference.
-//!
+//! 
 //! **Note**
 //!
-//! Custom exception handling is only supported in HW mode. Although the exception handlers can be registered in simulation mode,
+//! Custom exception handling is only supported in HW mode. Although the exception handlers can be registered in simulation mode, 
 //! the exceptions cannot be caught and handled within the enclave.
 //!
 //! **Note**
@@ -64,7 +64,7 @@
 //!
 //! **Note**
 //!
-//! Custom exception handing only saves general purpose registers in sgx_ exception_info_t. You should be careful when touching
+//! Custom exception handing only saves general purpose registers in sgx_ exception_info_t. You should be careful when touching 
 //! other registers in the exception handlers.
 //!
 //! **Note**
@@ -75,37 +75,15 @@
 #![crate_name = "sgx_trts"]
 #![crate_type = "rlib"]
 
-#![cfg_attr(not(feature = "use_std"), no_std)]
-#![cfg_attr(not(feature = "use_std"), needs_panic_runtime)]
-#![feature(const_fn)]
-#![feature(allow_internal_unstable)]
-#![feature(core_intrinsics)]
+#![no_std]
+
 #![feature(alloc)]
-#![feature(oom)]
-#![cfg_attr(not(feature = "use_std"), feature(collections))]
-#![cfg_attr(not(feature = "use_std"), feature(unique, shared))]
-#![cfg_attr(not(feature = "use_std"), feature(integer_atomics))]
-#![cfg_attr(not(feature = "use_std"), feature(cfg_target_has_atomic))]
-#![cfg_attr(not(feature = "use_std"), feature(optin_builtin_traits))]
-#![cfg_attr(not(feature = "use_std"), feature(unboxed_closures))]
-#![cfg_attr(not(feature = "use_std"), feature(fn_traits))]
-#![cfg_attr(not(feature = "use_std"), feature(raw))]
-#![cfg_attr(not(feature = "use_std"), feature(lang_items))]
-#![cfg_attr(not(feature = "use_std"), feature(needs_panic_runtime))]
-#![cfg_attr(not(feature = "use_std"), feature(untagged_unions))]
-#![cfg_attr(not(feature = "use_std"), feature(unwind_attributes))]
-
+#![feature(allocator_api)]
+#![feature(fused)]
+#![feature(const_atomic_ptr_new)]
 #![allow(non_camel_case_types)]
-#![allow(deprecated)]
-
-#[cfg(feature = "use_std")]
-extern crate std as core;
 
 extern crate alloc;
-#[cfg(not(feature = "use_std"))]
-extern crate collections;
-
-#[macro_use]
 extern crate sgx_types;
 
 mod veh;
@@ -115,27 +93,14 @@ mod trts;
 pub use self::trts::*;
 
 pub mod enclave;
-
 pub mod memeq;
-
-#[macro_use]
-pub mod local;
-pub use self::local::{LocalKey, LocalKeyState};
-
-#[cfg(not(feature = "use_std"))]
-pub mod panicking;
-
-#[cfg(not(feature = "use_std"))]
-pub mod panic;
 
 #[macro_use]
 mod macros;
 
 pub mod oom;
-
-init_global_object! {
-    INIT_OOM, init_oom_handler = {
-        alloc::oom::set_oom_handler(oom::rsgx_oom);
-    }
-}
-
+pub mod error;
+pub mod libc;
+pub mod memchr;
+pub mod ascii;
+pub mod c_str;
