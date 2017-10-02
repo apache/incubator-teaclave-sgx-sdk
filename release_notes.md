@@ -65,7 +65,7 @@ use std::vec::Vec;
 
 One can use `sgx_tstd` in the namespace of `std` and write Rust program as usual.
 
-But `sgx_tstd` has its own limitations. We add replace some Rust struct with SGX struct (e.g. `Mutex` now is `SgxMutex`). We rename some of these structs because the implementation of `SgxMutex` is vastly different from Rust's `Mutex`. And we want developers to be clear which mutex they are using.
+But `sgx_tstd` has its own limitations. We replace some Rust struct with SGX struct (e.g. `Mutex` now is `SgxMutex`). We rename some of these structs because the implementation of `SgxMutex` is vastly different from Rust's `Mutex`. And we want developers to be clear which mutex they are using.
 
 Please refer to 'Difference between `sgx_tstd` and Rust `std`' for the detail of `sgx_tstd`.
 
