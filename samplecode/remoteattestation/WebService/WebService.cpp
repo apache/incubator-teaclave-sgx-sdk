@@ -240,7 +240,7 @@ bool WebService::verifyQuote(uint8_t *quote, uint8_t *pseManifest, uint8_t *nonc
     this->sendToIAS(url, IAS::report, payload, headers, &ias_response_container, &response_header);
 
 
-    if (response_header.response_status == 201) {
+    if (response_header.response_status == 200) {
         Log("Quote attestation successful, new report has been created");
 
         string response(ias_response_container.p_response);
