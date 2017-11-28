@@ -305,8 +305,9 @@ impl SgxEnclave {
     }
 
     pub fn destroy(self) {
-        self.exit();
-        let _ = rsgx_destroy_enclave(self.id);
+        // destroy takes ownership over self, so it
+        // will be dropped (and the enclave destroyed)
+        // before this function returns.
     }
 
     pub fn geteid(&self) -> sgx_enclave_id_t {
@@ -340,5 +341,12 @@ impl SgxEnclave {
                                             self.path.as_path().as_os_str().len());
             }
         }
+    }
+}
+
+impl Drop for SgxEnclave {
+    fn drop(&mut self) {
+        self.exit();
+        let _ = rsgx_destroy_enclave(self.id);
     }
 }
