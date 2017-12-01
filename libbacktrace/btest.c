@@ -88,7 +88,7 @@ struct sdata {
 
 struct symdata {
     const char* name;
-    uintptr_t val; 
+    uintptr_t val;
     uintptr_t size;
     int failed;
 };

@@ -41,10 +41,10 @@ RUN mkdir /root/sgx
 WORKDIR /root/sgx
 
 # Download essential files
-RUN wget -O /root/sgx/optimized_libs-1.9.100.39124.tar https://download.01.org/intel-sgx/linux-1.9/optimized_libs-1.9.100.39124.tar
-RUN wget -O /root/sgx/prebuilt-ae-1.9.100.39124.tar  https://download.01.org/intel-sgx/linux-1.9/prebuilt-ae-1.9.100.39124.tar
-RUN wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_1.9.100.39124.bin https://download.01.org/intel-sgx/linux-1.9/sgx_linux_ubuntu16.04.1_x64_psw_1.9.100.39124.bin
-RUN wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_1.9.100.39124.bin https://download.01.org/intel-sgx/linux-1.9/sgx_linux_ubuntu16.04.1_x64_sdk_1.9.100.39124.bin
+#RUN wget -O /root/sgx/optimized_libs-2.0.100.40950.tar https://download.01.org/intel-sgx/linux-1.9/optimized_libs-2.0.100.40950.tar
+#RUN wget -O /root/sgx/prebuilt-ae-2.0.100.40950.tar  https://download.01.org/intel-sgx/linux-1.9/prebuilt-ae-2.0.100.40950.tar
+RUN wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin https://download.01.org/intel-sgx/linux-2.0/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin
+RUN wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin https://download.01.org/intel-sgx/linux-2.0/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin
 
 # Setup protobuf v3.4.1
 RUN wget -O /root/sgx/v3.4.1.tar.gz https://github.com/google/protobuf/archive/v3.4.1.tar.gz
@@ -60,22 +60,22 @@ WORKDIR /root/sgx
 #RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/boost.conf && ldconfig
 #WORKDIR /root/sgx
 
-RUN chmod a+x /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_1.9.100.39124.bin
-RUN /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_1.9.100.39124.bin
-RUN chmod a+x /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_1.9.100.39124.bin
-RUN echo -e 'no\n/opt' | /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_1.9.100.39124.bin
+RUN chmod a+x /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin
+RUN /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin
+RUN chmod a+x /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin
+RUN echo -e 'no\n/opt' | /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin
 RUN echo 'source /opt/sgxsdk/environment' >> /root/.bashrc
 
-RUN wget -O /root/sgx/sgx_1.9.tar.gz https://github.com/01org/linux-sgx/archive/sgx_1.9.tar.gz
-RUN tar xzf sgx_1.9.tar.gz
+RUN wget -O /root/sgx/sgx_2.0.tar.gz https://github.com/01org/linux-sgx/archive/sgx_2.0.tar.gz
+RUN tar xzf sgx_2.0.tar.gz
 ADD all.patch /root/sgx
 RUN patch -t -p0 < all.patch
-WORKDIR linux-sgx-sgx_1.9
-RUN /root/sgx/linux-sgx-sgx_1.9/download_prebuilt.sh
+WORKDIR linux-sgx-sgx_2.0
+RUN /root/sgx/linux-sgx-sgx_2.0/download_prebuilt.sh
 RUN make -j8
-RUN cp /root/sgx/linux-sgx-sgx_1.9/build/linux/libsgx_tstdc.a /opt/sgxsdk/lib64/libsgx_tstdc.a
-RUN cp /root/sgx/linux-sgx-sgx_1.9/build/linux/aesm_service /opt/intel/sgxpsw/aesm/aesm_service
-RUN cp /root/sgx/linux-sgx-sgx_1.9/build/linux/libsgx_uae_service.so /usr/lib/libsgx_uae_service.so
+RUN cp /root/sgx/linux-sgx-sgx_2.0/build/linux/libsgx_tstdc.a /opt/sgxsdk/lib64/libsgx_tstdc.a
+RUN cp /root/sgx/linux-sgx-sgx_2.0/build/linux/aesm_service /opt/intel/sgxpsw/aesm/aesm_service
+RUN cp /root/sgx/linux-sgx-sgx_2.0/build/linux/libsgx_uae_service.so /usr/lib/libsgx_uae_service.so
 RUN apt-get autoclean && apt-get autoremove && rm -rf /var/cache/apt/archives/*
 #RUN git clone https://github.com/01org/linux-sgx.git /root/linux-sgx
 #ADD patch /root/
@@ -86,14 +86,14 @@ RUN apt-get autoclean && apt-get autoremove && rm -rf /var/cache/apt/archives/*
 
 RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init
 RUN chmod +x /root/rustup-init
-RUN echo '1' | /root/rustup-init --default-toolchain nightly-2017-09-29
+RUN echo '1' | /root/rustup-init --default-toolchain nightly-2017-11-29
 RUN echo 'source /root/.cargo/env' >> /root/.bashrc
 
 # Remove useless .h file in intel sgx sdk, which always cause linking problem.
-RUN ar d /opt/sgxsdk/lib64/libsgx_uprotected_fs.a sgx_tprotected_fs_u.h
-RUN ar d /opt/sgxsdk/lib64/libsgx_tprotected_fs.a sgx_tprotected_fs_t.h
+# RUN ar d /opt/sgxsdk/lib64/libsgx_uprotected_fs.a sgx_tprotected_fs_u.h
+# RUN ar d /opt/sgxsdk/lib64/libsgx_tprotected_fs.a sgx_tprotected_fs_t.h
 
 ## A hack of linking Rust's libc (https://github.com/rust-lang/libc) in no_std environment.
-RUN rm /root/.rustup/toolchains/nightly-2017-09-29-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib/liblibc-058430ec2dd28527.rlib
+RUN rm /root/.rustup/toolchains/nightly-2017-11-29-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib/liblibc-7f54f8f6cd32e0c8.rlib
 
 WORKDIR /root

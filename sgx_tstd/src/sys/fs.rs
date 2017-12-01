@@ -61,7 +61,7 @@ impl OpenOptions {
     pub fn append(&mut self, append: bool) { self.append = append; }
     pub fn update(&mut self, update: bool) { self.update = update; }
     pub fn binary(&mut self, binary: bool) { self.binary = binary; }
-    
+
     fn get_access_mode(&self) -> io::Result<String> {
 
         let mut mode = match (self.read, self.write, self.append) {
@@ -72,10 +72,10 @@ impl OpenOptions {
         };
         if self.update == true {
             mode += "+";
-        } 
+        }
         if self.binary == true {
             mode += "b";
-        } 
+        }
         Ok(mode)
     }
 }

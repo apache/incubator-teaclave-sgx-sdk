@@ -189,7 +189,7 @@ sgx_ustdio:
 .PHONY: sgx_ubacktrace
 sgx_ubacktrace:
 	$(MAKE) -C ../../sgx_ubacktrace/ 2> /dev/null
-	
+
 .PHONY: clean
 clean:
 	@rm -f $(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) $(RustEnclave_C_Objects) $(App_Cpp_Objects) enclave/*_t.* app/*_u.* lib/*.a

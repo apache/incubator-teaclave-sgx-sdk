@@ -147,6 +147,8 @@ pub struct AssertUnwindSafe<T>(
 // * Unique, an owning pointer, lifts an implementation
 // * Types like Mutex/RwLock which are explicilty poisoned are unwind safe
 // * Our custom AssertUnwindSafe wrapper is indeed unwind safe
+#[allow(unknown_lints)]
+#[allow(auto_impl)]
 impl UnwindSafe for .. {}
 impl<'a, T: ?Sized> !UnwindSafe for &'a mut T {}
 impl<'a, T: RefUnwindSafe + ?Sized> UnwindSafe for &'a T {}
@@ -166,6 +168,8 @@ impl<T: RefUnwindSafe + ?Sized> UnwindSafe for Arc<T> {}
 // basically just saying that this is a marker trait and `UnsafeCell` is the
 // only thing which doesn't implement it (which then transitively applies to
 // everything else).
+#[allow(unknown_lints)]
+#[allow(auto_impl)]
 impl RefUnwindSafe for .. {}
 impl<T: ?Sized> !RefUnwindSafe for UnsafeCell<T> {}
 impl<T> RefUnwindSafe for AssertUnwindSafe<T> {}

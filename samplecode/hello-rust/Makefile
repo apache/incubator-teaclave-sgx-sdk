@@ -146,7 +146,7 @@ enclave/Enclave_t.o: $(Enclave_EDL_Files)
 	@$(CC) $(RustEnclave_Compile_Flags) -c enclave/Enclave_t.c -o $@
 	@echo "CC   <=  $<"
 
-$(RustEnclave_Name): enclave compiler-rt enclave/Enclave_t.o 
+$(RustEnclave_Name): enclave compiler-rt enclave/Enclave_t.o
 	cp ./enclave/target/release/libhelloworldsampleenclave.a ./lib/libenclave.a
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
 	@$(CXX) enclave/Enclave_t.o -o $@ $(RustEnclave_Link_Flags)
@@ -159,7 +159,7 @@ $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 .PHONY: enclave
 enclave:
 	$(MAKE) -C ./enclave/
-	
+
 .PHONY: compiler-rt
 compiler-rt:
 	$(MAKE) -C ../../compiler-rt/ 2> /dev/null
@@ -169,4 +169,4 @@ clean:
 	@rm -f $(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) enclave/*_t.* app/*_u.* lib/*.a
 	@cd enclave && cargo clean && rm -f Cargo.lock
 	@cd app && cargo clean && rm -f Cargo.lock
-	
+

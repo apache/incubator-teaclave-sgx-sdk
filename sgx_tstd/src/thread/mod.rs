@@ -32,6 +32,8 @@ use sgx_types::*;
 use panicking;
 use sys_common::thread_info;
 use sync::{SgxMutex, SgxCondvar};
+use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::Ordering::SeqCst;
 use alloc::arc::Arc;
 
 #[macro_use] mod local;
@@ -55,7 +57,7 @@ pub use self::local::{LocalKey, LocalKeyState, LocalKeyInner, AccessError};
 /// The return value cannot be NULL and is always valid as long as it is invoked by a thread inside the enclave.
 ///
 pub fn rsgx_thread_self() -> sgx_thread_t {
-    
+
     unsafe { sgx_thread_self() }
 }
 
@@ -101,6 +103,11 @@ pub fn panicking() -> bool {
     panicking::panicking()
 }
 
+// constants for park/unpark
+const EMPTY: usize = 0;
+const PARKED: usize = 1;
+const NOTIFIED: usize = 2;
+
 /// Blocks unless or until the current thread's token is made available.
 ///
 /// A call to `park` does not guarantee that the thread will remain parked
@@ -120,7 +127,8 @@ pub fn panicking() -> bool {
 /// * The [`thread::park`][`park`] function blocks the current thread unless or
 ///   until the token is available for its thread handle, at which point it
 ///   atomically consumes the token. It may also return *spuriously*, without
-///   consuming the token. 
+///   consuming the token. [`thread::park_timeout`] does the same, but allows
+///   specifying a maximum time to block the thread for.
 ///
 /// * The [`unpark`] method on a [`Thread`] atomically makes the token available
 ///   if it wasn't already.
@@ -142,13 +150,28 @@ pub fn panicking() -> bool {
 /// * It can be implemented very efficiently on many platforms.
 ///
 pub fn park() {
-
     let thread = current();
-    let mut guard = thread.inner.lock.lock().unwrap();
-    while !*guard {
-        guard = thread.inner.cvar.wait(guard).unwrap();
+
+    // If we were previously notified then we consume this notification and
+    // return quickly.
+    if thread.inner.state.compare_exchange(NOTIFIED, EMPTY, SeqCst, SeqCst).is_ok() {
+        return
     }
-    *guard = false;
+
+    // Otherwise we need to coordinate going to sleep
+    let mut m = thread.inner.lock.lock().unwrap();
+    match thread.inner.state.compare_exchange(EMPTY, PARKED, SeqCst, SeqCst) {
+        Ok(_) => {}
+        Err(NOTIFIED) => return, // notified after we locked
+        Err(_) => panic!("inconsistent park state"),
+    }
+    loop {
+        m = thread.inner.cvar.wait(m).unwrap();
+        match thread.inner.state.compare_exchange(NOTIFIED, EMPTY, SeqCst, SeqCst) {
+            Ok(_) => return, // got a notification
+            Err(_) => {} // spurious wakeup, go back to sleep
+        }
+    }
 }
 
 /// A unique identifier for a running thread.
@@ -173,7 +196,10 @@ impl SgxThreadId {
 /// The internal representation of a `Thread` handle
 struct Inner {
     id: SgxThreadId,
-    lock: SgxMutex<bool>,
+
+    // state for thread park/unpark
+    state: AtomicUsize,
+    lock: SgxMutex<()>,
     cvar: SgxCondvar,
 }
 
@@ -187,11 +213,12 @@ pub struct SgxThread {
 impl SgxThread {
 
     /// Used only internally to construct a thread object without spawning
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         SgxThread {
             inner: Arc::new(Inner {
                 id: SgxThreadId::new(),
-                lock: SgxMutex::new(false),
+                state: AtomicUsize::new(EMPTY),
+                lock: SgxMutex::new(()),
                 cvar: SgxCondvar::new(),
             })
         }
@@ -201,16 +228,30 @@ impl SgxThread {
     pub fn id(&self) -> SgxThreadId {
         self.inner.id
     }
-    
+
     /// Atomically makes the handle's token available if it is not already.
     ///
     /// Every thread is equipped with some basic low-level blocking support, via
-    /// the [`park`][park] function and the `unpark()` method. 
+    /// the [`park`][park] function and the `unpark()` method. These can be
+    /// used as a more CPU-efficient implementation of a spinlock.
+    ///
     pub fn unpark(&self) {
-        let mut guard = self.inner.lock.lock().unwrap();
-        if !*guard {
-            *guard = true;
-            let _ = self.inner.cvar.signal();
+        loop {
+            match self.inner.state.compare_exchange(EMPTY, NOTIFIED, SeqCst, SeqCst) {
+                Ok(_) => return, // no one was waiting
+                Err(NOTIFIED) => return, // already unparked
+                Err(PARKED) => {} // gotta go wake someone up
+                _ => panic!("inconsistent state in unpark"),
+            }
+
+            // Coordinate wakeup through the mutex and a condvar notification
+            let _lock = self.inner.lock.lock().unwrap();
+            match self.inner.state.compare_exchange(PARKED, NOTIFIED, SeqCst, SeqCst) {
+                Ok(_) => return self.inner.cvar.signal(),
+                Err(NOTIFIED) => return, // a different thread unparked
+                Err(EMPTY) => {} // parked thread went away, try again
+                _ => panic!("inconsistent state in unpark"),
+            }
         }
     }
 }

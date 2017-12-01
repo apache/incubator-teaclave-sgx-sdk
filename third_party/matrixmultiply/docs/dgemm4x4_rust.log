@@ -1,0 +1,5 @@
+name                        4x4-dgemm.log ns/iter  8x4-dgemm.log ns/iter    diff ns/iter   diff %
+mat_mul_f64::m016           1,254                  1,103                            -151  -12.04%
+mat_mul_f64::m064           47,573                 38,887                         -8,686  -18.26%
+mat_mul_f64::m127           344,298                288,225                       -56,073  -16.29%
+nonative_mat_mul_f64::m127  473,111                549,677                        76,566   16.18%

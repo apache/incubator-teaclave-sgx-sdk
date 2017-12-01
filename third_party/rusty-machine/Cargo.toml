@@ -1,0 +1,22 @@
+[package]
+name = "rusty-machine"
+version = "0.5.4"
+authors = ["AtheMathmo"]
+
+description = "A machine learning library."
+repository = "https://github.com/AtheMathmo/rusty-machine"
+documentation = "https://AtheMathmo.github.io/rusty-machine/"
+keywords = ["machine","learning","stats","data","machine-learning"]
+categories = ["science"]
+readme = "README.md"
+license = "MIT"
+
+[features]
+stats = []
+datasets = []
+
+[dependencies]
+num = { path = "../num" , default-features = false }
+sgx_rand = { path = "../../sgx_rand"}
+sgx_tstd = { path = "../../sgx_tstd"}
+rulinalg = { path = "../rulinalg" }

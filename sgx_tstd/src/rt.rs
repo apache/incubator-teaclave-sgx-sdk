@@ -30,7 +30,7 @@
 
 use sgx_types::*;
 use enclave;
-use core::slice;
+use alloc::slice;
 use core::str;
 // Reexport some of our utilities which are expected by other crates.
 pub use panicking::{begin_panic, begin_panic_fmt, update_panic_count};
@@ -42,7 +42,7 @@ use sys_common::cleanup;
 
 #[no_mangle]
 pub extern "C" fn t_global_exit_ecall() {
-    
+
     #[cfg(feature = "global_exit")]
     cleanup()
 }
@@ -51,7 +51,7 @@ pub extern "C" fn t_global_exit_ecall() {
 pub extern "C" fn t_global_init_ecall(id: u64, path: * const u8, len: usize) {
 
     enclave::set_enclave_id(id as sgx_enclave_id_t);
-    let s = unsafe { 
+    let s = unsafe {
         let str_slice = slice::from_raw_parts(path, len);
         str::from_utf8_unchecked(str_slice)
     };

@@ -35,7 +35,7 @@ use sgx_types::*;
 
 #[link(name = "sgx_tstdc")]
 extern {
-    
+
     //pub fn memchr(s: * const c_void, c: c_int, n: size_t) -> *mut c_void;
     //pub fn memrchr(cx: *const c_void, c: c_int, n: size_t) -> *mut c_void;
     pub fn strlen(s: * const c_char) -> size_t;
@@ -62,9 +62,9 @@ pub unsafe fn memchr(s: * const u8, c: u8, n: usize) -> * const u8 {
 }
 
 pub unsafe fn memrchr(s: * const u8, c: u8, n: usize) -> * const u8 {
- 
+
     if n == 0 {return 0 as * const u8}
-    
+
     let mut ret = 0 as * const u8;
     let mut p: * const u8 = (s as usize + (n - 1)) as * const u8;
     for _ in 0..n {

@@ -1,0 +1,17 @@
+[package]
+name = "Machinelearningenclave"
+version = "0.9.1"
+authors = ["Baidu"]
+
+[lib]
+name = "machinelearningenclave"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[dependencies]
+sgx_types = { path = "../../../sgx_types" }
+sgx_tstd = { path = "../../../sgx_tstd" }
+sgx_rand = { path = "../../../sgx_rand" }
+rusty-machine = { path = "../../../third_party/rusty-machine" }

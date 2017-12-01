@@ -31,6 +31,8 @@ use core::any::TypeId;
 use core::cell;
 use core::mem::transmute;
 use core::num;
+use core::convert;
+use core::array;
 use core::fmt::{self, Debug, Display};
 use alloc::str;
 use alloc::string::{self, String};
@@ -153,6 +155,12 @@ impl Error for num::TryFromIntError {
     }
 }
 
+impl Error for array::TryFromSliceError {
+    fn description(&self) -> &str {
+        self.__description()
+    }
+}
+
 impl Error for num::ParseFloatError {
     fn description(&self) -> &str {
         self.__description()
@@ -220,6 +228,13 @@ impl Error for char::CharTryFromError {
 impl Error for char::ParseCharError {
     fn description(&self) -> &str {
         self.__description()
+    }
+}
+
+impl Error for convert::Infallible {
+    fn description(&self) -> &str {
+        match *self {
+        }
     }
 }
 

@@ -33,5 +33,5 @@ Rust_Enclave_Files := $(wildcard src/*.rs)
 
 all: $(Rust_Enclave_Name)
 
-$(Rust_Enclave_Name): $(Rust_Enclave_Files)  
+$(Rust_Enclave_Name): $(Rust_Enclave_Files)
 	cargo build --release

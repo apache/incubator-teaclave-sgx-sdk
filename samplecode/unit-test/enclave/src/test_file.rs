@@ -31,7 +31,7 @@ use std::fs::{self, SgxFile};
 use std::io::{Read, Write};
 
 pub fn test_file() {
-    
+
     let mut write_data: [u8; 16] = [0; 16];
     let mut read_data: [u8; 16] = [0; 16];
     let write_size;

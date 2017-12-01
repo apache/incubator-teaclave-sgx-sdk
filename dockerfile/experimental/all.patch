@@ -1,9 +1,9 @@
-diff -ur linux-sgx-sgx_1.9-orig/buildenv.mk linux-sgx-sgx_1.9/buildenv.mk
---- linux-sgx-sgx_1.9-orig/buildenv.mk	2017-09-26 11:18:44.117249066 -0700
-+++ linux-sgx-sgx_1.9/buildenv.mk	2017-09-26 11:22:00.870339246 -0700
+diff -ur linux-sgx-sgx_2.0-orig/buildenv.mk linux-sgx-sgx_2.0/buildenv.mk
+--- linux-sgx-sgx_2.0-orig/buildenv.mk	2017-09-26 11:18:44.117249066 -0700
++++ linux-sgx-sgx_2.0/buildenv.mk	2017-09-26 11:22:00.870339246 -0700
 @@ -88,7 +88,7 @@
  COMMON_FLAGS += -ffunction-sections -fdata-sections
- 
+
  # turn on compiler warnings as much as possible
 -COMMON_FLAGS += -Wall -Wextra -Winit-self -Wpointer-arith -Wreturn-type \
 +COMMON_FLAGS += -Wextra -Winit-self -Wpointer-arith -Wreturn-type \
@@ -13,7 +13,7 @@ diff -ur linux-sgx-sgx_1.9-orig/buildenv.mk linux-sgx-sgx_1.9/buildenv.mk
 @@ -102,6 +102,10 @@
  # for static_assert()
  CXXFLAGS += -std=c++0x
- 
+
 +# for protobuf v3
 +CFLAGS += -DPROTOBUF_INLINE_NOT_IN_HEADERS=0
 +CXXFLAGS += -DPROTOBUF_INLINE_NOT_IN_HEADERS=0
@@ -21,15 +21,15 @@ diff -ur linux-sgx-sgx_1.9-orig/buildenv.mk linux-sgx-sgx_1.9/buildenv.mk
  .DEFAULT_GOAL := all
  # this turns off the RCS / SCCS implicit rules of GNU Make
  % : RCS/%,v
-diff -ur linux-sgx-sgx_1.9-orig/sdk/tlibc/Makefile linux-sgx-sgx_1.9/sdk/tlibc/Makefile
---- linux-sgx-sgx_1.9-orig/sdk/tlibc/Makefile	2017-09-26 11:18:44.165250295 -0700
-+++ linux-sgx-sgx_1.9/sdk/tlibc/Makefile	2017-09-26 11:19:20.634187863 -0700
+diff -ur linux-sgx-sgx_2.0-orig/sdk/tlibc/Makefile linux-sgx-sgx_2.0/sdk/tlibc/Makefile
+--- linux-sgx-sgx_2.0-orig/sdk/tlibc/Makefile	2017-09-26 11:18:44.165250295 -0700
++++ linux-sgx-sgx_2.0/sdk/tlibc/Makefile	2017-09-26 11:19:20.634187863 -0700
 @@ -33,7 +33,7 @@
- 
+
  CFLAGS   += $(ENCLAVE_CFLAGS)
  ASFLAGS  := $(CFLAGS)
 -CFLAGS   += -std=c99
 +CFLAGS   += -std=c99 -D USE_MALLOC_DEPRECATED
  CXXFLAGS += $(ENCLAVE_CXXFLAGS) -fno-exceptions -fno-rtti
- 
+
  CPPFLAGS += -I.                          \

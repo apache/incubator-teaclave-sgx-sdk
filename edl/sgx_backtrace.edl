@@ -28,17 +28,17 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
- 
+
 enclave {
 	trusted {
         /* define ECALLs here. */
     };
 
-    untrusted { 
+    untrusted {
         int u_backtrace_open_ocall([out]int *error, [in, string]const char *pathname, int flags);
     	int u_backtrace_close_ocall([out]int *error, int fd);
     	int u_backtrace_fcntl_ocall([out]int *error, int fd, int cmd, int arg);
-    	
+
     	void * u_backtrace_mmap_ocall([out]int *error, [user_check]void *start, size_t length, int prot, int flags, int fd, int64_t offset);
     	int u_backtrace_munmap_ocall([out]int *error, [user_check]void *start, size_t length);
     };

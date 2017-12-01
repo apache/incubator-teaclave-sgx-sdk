@@ -1,0 +1,9 @@
+target/
+Cargo.lock
+*~
+*.swp
+*.swo
+.vscode
+*.rs.bk
+.DS_Store
+.project

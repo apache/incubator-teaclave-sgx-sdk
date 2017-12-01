@@ -36,12 +36,12 @@ pub extern "C" fn u_stdin_ocall(buf: * mut libc::c_void, nbytes: libc::size_t) -
 
 #[no_mangle]
 pub extern "C" fn u_stdout_ocall(buf: * const libc::c_void, nbytes: libc::size_t) -> libc::size_t {
-   
+
     unsafe { libc::write(libc::STDOUT_FILENO, buf, nbytes) as libc::size_t }
 }
 
 #[no_mangle]
 pub extern "C" fn u_stderr_ocall(buf: * const libc::c_void, nbytes: libc::size_t) -> libc::size_t {
-   
+
     unsafe { libc::write(libc::STDERR_FILENO, buf, nbytes) as libc::size_t }
 }

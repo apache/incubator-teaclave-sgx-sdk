@@ -27,60 +27,35 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use core::mem;
+use alloc::slice;
 
-pub use self::imp::SgxRng;
-
-fn next_u32(fill_buf: &mut FnMut(&mut [u8])) -> u32 {
-    let mut buf: [u8; 4] = [0; 4];
-    fill_buf(&mut buf);
-    unsafe { mem::transmute::<[u8; 4], u32>(buf) }
-}
-
-fn next_u64(fill_buf: &mut FnMut(&mut [u8])) -> u64 {
-    let mut buf: [u8; 8] = [0; 8];
-    fill_buf(&mut buf);
-    unsafe { mem::transmute::<[u8; 8], u64>(buf) }
+pub fn hashmap_random_keys() -> (u64, u64) {
+    let mut v = (0, 0);
+    unsafe {
+        let view = slice::from_raw_parts_mut(&mut v as *mut _ as *mut u8,
+                                             mem::size_of_val(&v));
+        imp::fill_bytes(view);
+    }
+    return v
 }
 
 mod imp {
-
-    use sgx_types::*;
-    use sgx_trts::rsgx_read_rand;
-
-    use super::{next_u32, next_u64};
-    use io;
-    use core_rand::Rng;
+    use sgx_types::SgxError;
+    use sgx_trts;
 
     fn getrandom(buf: &mut [u8]) -> SgxError {
-        rsgx_read_rand(buf)
+        sgx_trts::rsgx_read_rand(buf)
     }
 
     fn getrandom_fill_bytes(v: &mut [u8]) {
         getrandom(v).expect("unexpected getrandom error");
     }
 
-    #[allow(dead_code)] 
+    #[allow(dead_code)]
     fn is_getrandom_available() -> bool { true }
 
-    pub struct SgxRng;
-   
-    impl SgxRng {
-        /// Create a new `SgxRng`.
-        pub fn new() -> io::Result<SgxRng> {
-            Ok(SgxRng)
-        }
-    }
-
-    impl Rng for SgxRng {
-        fn next_u32(&mut self) -> u32 {
-            next_u32(&mut getrandom_fill_bytes)
-        }
-        fn next_u64(&mut self) -> u64 {
-            next_u64(&mut getrandom_fill_bytes)
-        }
-        fn fill_bytes(&mut self, v: &mut [u8]) {
-            getrandom_fill_bytes(v)
-        }
+    pub fn fill_bytes(v: &mut [u8]) {
+        getrandom_fill_bytes(v)
     }
 }
 

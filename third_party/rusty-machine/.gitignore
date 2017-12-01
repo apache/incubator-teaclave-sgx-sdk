@@ -1,0 +1,7 @@
+# compiled code
+target/
+Cargo.lock
+*~
+*.swp
+*.swo
+.vscode

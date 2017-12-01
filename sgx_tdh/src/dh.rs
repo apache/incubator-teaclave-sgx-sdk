@@ -470,12 +470,12 @@ impl SgxDhResponder {
             return Err(sgx_status_t::SGX_ERROR_KDF_MISMATCH);
         }
 
-        let data_mac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &msg2.report));
+        let data_mac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, unsafe {&msg2.report}));
         if data_mac.consttime_memeq(&msg2.cmac) == false {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
 
-        try!(rsgx_verify_report(&msg2.report));
+        try!(rsgx_verify_report(unsafe {&msg2.report}));
 
         let sha_handle = SgxShaHandle::new();
         try!(sha_handle.init());
@@ -768,8 +768,8 @@ impl SgxDhInitiator {
         report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
         report_data.d[SGX_SHA256_HASH_SIZE..SGX_SHA256_HASH_SIZE + 2].copy_from_slice(&AES_CMAC_KDF_ID);
 
-        msg2.report = try!(rsgx_create_report(&msg1.target, &report_data));
-        msg2.cmac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &msg2.report));
+        msg2.report = try!(rsgx_create_report(unsafe {&msg1.target}, &report_data));
+        msg2.cmac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, unsafe{&msg2.report}));
 
         Ok(())
     }

@@ -39,7 +39,7 @@ int u_backtrace_open_ocall(int * error, const char * pathname, int flags)
     int ret = open(pathname, flags);
     if (ret < 0) {
         err = errno;
-    } 
+    }
     if (error != NULL) {
         * error = err;
     }
@@ -52,7 +52,7 @@ int u_backtrace_close_ocall(int * error, int fd)
     int ret = close(fd);
     if (ret < 0) {
         err = errno;
-    } 
+    }
     if (error != NULL) {
         * error = err;
     }
@@ -65,7 +65,7 @@ int u_backtrace_fcntl_ocall(int * error, int fd, int cmd, int arg)
     int ret = fcntl(fd, cmd, arg);
     if (ret < 0) {
         err = errno;
-    } 
+    }
     if (error != NULL) {
         * error = err;
     }
@@ -91,7 +91,7 @@ int u_backtrace_munmap_ocall(int * error, void * start, size_t length)
     int ret = munmap(start, length);
     if (ret < 0) {
         err = errno;
-    } 
+    }
     if (error != NULL) {
         * error = err;
     }

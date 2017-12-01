@@ -38,7 +38,8 @@ test_cases=(backtrace \
             serialize \
             thread \
             unit-test \
-            zlib-lazy-static-sample)
+            zlib-lazy-static-sample \
+            machine-learning)
 
 for i in ${test_cases[@]}
 do

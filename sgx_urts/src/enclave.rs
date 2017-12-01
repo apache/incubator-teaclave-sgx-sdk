@@ -51,7 +51,7 @@ use std::os::unix::ffi::OsStrExt;
 /// urts_sim.a exposes an identical interface which can only load a simulation
 /// enclave. Running in simulation mode does not require Intel(R) SGX hardware/
 /// driver. However, it does not provide hardware protection.
-/// 
+///
 /// The randomization of the load address of the enclave is dependent on the
 /// operating system. The address of the heap and stack is not randomized and is
 /// at a constant offset from the enclave base address. A compromised loader or
@@ -76,7 +76,7 @@ use std::os::unix::ffi::OsStrExt;
 /// inside an enclave created in debug mode is accessible by the debugger or
 /// other software outside of the enclave and thus is not under the same memory
 /// access protections as an enclave created in non-debug mode.
-/// 
+///
 /// Enclaves should only be created in debug mode for debug purposes. A helper
 /// macro SGX_DEBUG_FLAG is provided to create an enclave in debug mode. In
 /// release builds, the value of SGX_DEBUG_FLAG is 0. In debug and pre-release
@@ -209,14 +209,14 @@ pub fn rsgx_create_enclave(file_name: &CStr,
                            launch_token: &mut sgx_launch_token_t,
                            launch_token_updated: &mut i32,
                            misc_attr: &mut sgx_misc_attribute_t) -> SgxResult<sgx_enclave_id_t> {
-    
+
     let mut enclave_id: sgx_enclave_id_t = 0;
     let ret = unsafe {
-        sgx_create_enclave(file_name.as_ptr() as * const c_schar, 
-                           debug as int32_t, 
-                           launch_token as * mut sgx_launch_token_t, 
-                           launch_token_updated as * mut int32_t, 
-                           &mut enclave_id as * mut sgx_enclave_id_t, 
+        sgx_create_enclave(file_name.as_ptr() as * const c_schar,
+                           debug as int32_t,
+                           launch_token as * mut sgx_launch_token_t,
+                           launch_token_updated as * mut int32_t,
+                           &mut enclave_id as * mut sgx_enclave_id_t,
                            misc_attr as * mut sgx_misc_attribute_t)
     };
     match ret {
@@ -232,9 +232,9 @@ pub fn rsgx_create_enclave(file_name: &CStr,
 ///
 /// The rsgx_destroy_enclave function destroys an enclave and releases its
 /// associated resources and invalidates the enclave ID or handle.
-/// 
+///
 /// The function will block until no other threads are executing inside the enclave.
-/// 
+///
 /// It is highly recommended that the sgx_destroy_enclave function be
 /// called after the application has finished using the enclave to avoid possible
 /// deadlocks.
@@ -290,14 +290,14 @@ impl SgxEnclave {
                                     .as_ref())
                                     .map_err(|_| sgx_status_t::SGX_ERROR_INVALID_ENCLAVE)?;
 
-        let enclave = rsgx_create_enclave(path.as_c_str(), 
-                                         debug, 
-                                         launch_token, 
-                                         launch_token_updated, 
+        let enclave = rsgx_create_enclave(path.as_c_str(),
+                                         debug,
+                                         launch_token,
+                                         launch_token_updated,
                                          misc_attr)
                         .map(|eid| SgxEnclave {
-                                    id: eid, 
-                                    debug: debug, 
+                                    id: eid,
+                                    debug: debug,
                                     path: file_name.as_ref().to_owned()})?;
 
         enclave.init();
@@ -324,9 +324,9 @@ impl SgxEnclave {
             unsafe {
                 let _ = t_global_exit_ecall(self.id);
             }
-        } 
+        }
     }
-    
+
     fn init(&self) {
 
         #[cfg(feature = "global_init")]

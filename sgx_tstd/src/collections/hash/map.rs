@@ -29,8 +29,6 @@
 use self::Entry::*;
 use self::VacantEntryState::*;
 
-use rand::{self, Rng};
-
 use core::cell::Cell;
 use core::borrow::Borrow;
 use core::cmp::max;
@@ -41,6 +39,7 @@ use core::iter::{FromIterator, FusedIterator};
 use core::mem::{self, replace};
 use core::ops::{Deref, Index, InPlace, Place, Placer};
 use core::ptr;
+use sys;
 
 use super::table::{self, Bucket, EmptyBucket, FullBucket, FullBucketMut, RawTable, SafeHash};
 use super::table::BucketState::{Empty, Full};
@@ -750,6 +749,7 @@ impl<K, V, S> HashMap<K, V, S>
     /// [`Eq`]: ../../std/cmp/trait.Eq.html
     /// [`Hash`]: ../../std/hash/trait.Hash.html
     ///
+    #[inline]
     pub fn get<Q: ?Sized>(&self, k: &Q) -> Option<&V>
         where K: Borrow<Q>,
               Q: Hash + Eq
@@ -1454,7 +1454,7 @@ impl<'a, K, V> InPlace<V> for EntryPlace<'a, K, V> {
 }
 
 impl<'a, K, V> Entry<'a, K, V> {
-    
+
     /// Ensures a value is in the entry by inserting the default if empty, and returns
     /// a mutable reference to the value in the entry.
     ///
@@ -1465,7 +1465,7 @@ impl<'a, K, V> Entry<'a, K, V> {
         }
     }
 
-    
+
     /// Ensures a value is in the entry by inserting the result of the default function if empty,
     /// and returns a mutable reference to the value in the entry.
     ///
@@ -1482,6 +1482,21 @@ impl<'a, K, V> Entry<'a, K, V> {
         match *self {
             Occupied(ref entry) => entry.key(),
             Vacant(ref entry) => entry.key(),
+        }
+    }
+
+    /// Provides in-place mutable access to an occupied entry before any
+    /// potential inserts into the map.
+    ///
+    pub fn and_modify<F>(self, mut f: F) -> Self
+        where F: FnMut(&mut V)
+    {
+        match self {
+            Occupied(mut entry) => {
+                f(entry.get_mut());
+                Occupied(entry)
+            },
+            Vacant(entry) => Vacant(entry),
         }
     }
 }
@@ -1552,14 +1567,23 @@ impl<'a, K, V> OccupiedEntry<'a, K, V> {
         self.key.take()
     }
 
-    /// Replaces the entry, returning the old key and value.
-    pub fn replace(mut self, value: V) -> (K, V) {
+    /// Replaces the entry, returning the old key and value. The new key in the hash map will be
+    /// the key used to create this entry.
+    ///
+    pub fn replace_entry(mut self, value: V) -> (K, V) {
         let (old_key, old_value) = self.elem.read_mut();
 
         let old_key = mem::replace(old_key, self.key.unwrap());
         let old_value = mem::replace(old_value, value);
 
         (old_key, old_value)
+    }
+
+    /// Replaces the key in the hash map with the key used to create this entry.
+    ///
+    pub fn replace_key(mut self) -> K {
+        let (old_key, _) = self.elem.read_mut();
+        mem::replace(old_key, self.key.unwrap())
     }
 }
 
@@ -1696,9 +1720,7 @@ impl RandomState {
         // increment one of the seeds on every RandomState creation, giving
         // every corresponding HashMap a different iteration order.
         thread_local!(static KEYS: Cell<(u64, u64)> = {
-            let r = rand::SgxRng::new();
-            let mut r = r.expect("failed to create an OS RNG");
-            Cell::new((r.gen(), r.gen()))
+            Cell::new(sys::hashmap_random_keys())
         });
 
         KEYS.with(|keys| {
@@ -1783,6 +1805,7 @@ impl<K, S, Q: ?Sized> super::Recover<Q> for HashMap<K, (), S>
 {
     type Key = K;
 
+    #[inline]
     fn get(&self, key: &Q) -> Option<&K> {
         self.search(key).into_occupied_bucket().map(|bucket| bucket.into_refs().0)
     }
@@ -1795,6 +1818,7 @@ impl<K, S, Q: ?Sized> super::Recover<Q> for HashMap<K, (), S>
         self.search_mut(key).into_occupied_bucket().map(|bucket| pop_internal(bucket).0)
     }
 
+    #[inline]
     fn replace(&mut self, key: K) -> Option<K> {
         self.reserve(1);
 

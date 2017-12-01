@@ -29,10 +29,9 @@
 /// Common code for printing the backtrace in the same way across the different
 /// supported platforms.
 
-use libc::{self, c_int, c_void};
+use sgx_types;
 use io::prelude::*;
 use io;
-//use path::{self, Path};
 use sync::SgxThreadMutex;
 use core::str;
 use core::sync::atomic::{self, Ordering};
@@ -57,9 +56,9 @@ pub const HEX_WIDTH: usize = 10;
 #[derive(Debug, Copy, Clone)]
 pub struct Frame {
     /// Exact address of the call that failed.
-    pub exact_position: *const c_void,
+    pub exact_position: *const u8,
     /// Address of the enclosing function.
-    pub symbol_addr: *const c_void,
+    pub symbol_addr: *const u8,
 }
 
 /// Max number of frames to print.
@@ -87,12 +86,12 @@ fn _print(w: &mut Write, format: PrintFormat) -> io::Result<()> {
                         .unwrap_err()
                         .raw_os_error()
                         .unwrap_or(0);
-        if error == libc::ENOENT {
+        if error == sgx_types::ENOENT {
             writeln!(w, "note: Call enclave::set_enclave_path to set the path of enclave file for backtrace.");
         }
         return state;
     }
-    
+
     let mut frames = [Frame {
         exact_position: ptr::null(),
         symbol_addr: ptr::null(),
@@ -250,8 +249,10 @@ fn output(w: &mut Write, idx: usize, frame: Frame,
 ///
 /// See also `output`.
 #[allow(dead_code)]
-fn output_fileline(w: &mut Write, file: &[u8], line: c_int,
-                       format: PrintFormat) -> io::Result<()> {
+fn output_fileline(w: &mut Write,
+                   file: &[u8],
+                   line: u32,
+                   format: PrintFormat) -> io::Result<()> {
     // prior line: "  ##: {:2$} - func"
     w.write_all(b"")?;
     match format {

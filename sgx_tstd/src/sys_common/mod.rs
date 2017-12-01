@@ -97,7 +97,7 @@ pub fn cleanup() {
 
     static SPIN_LOCK: SgxThreadSpinlock = SgxThreadSpinlock::new();
     static mut IS_CLEAUP: bool = false;
-    
+
     unsafe {
         SPIN_LOCK.lock();
         if IS_CLEAUP == false {
@@ -105,7 +105,7 @@ pub fn cleanup() {
             IS_CLEAUP = true;
         }
         SPIN_LOCK.unlock();
-    }  
+    }
 }
 
 // Computes (value*numer)/denom without overflow, as long as both

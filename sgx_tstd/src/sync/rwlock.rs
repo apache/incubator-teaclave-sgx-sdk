@@ -38,7 +38,6 @@ use core::mem;
 use core::ptr;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
-use core::marker;
 use alloc::boxed::Box;
 
 struct RwLockInfo {
@@ -56,7 +55,7 @@ impl RwLockInfo {
     const fn new() -> Self {
         RwLockInfo{
             readers_num: 0,
-            writers_num: 0, 
+            writers_num: 0,
             busy: 0,
             writer_thread: SGX_THREAD_T_NULL,
             cond: SgxThreadCondvar::new(),
@@ -77,7 +76,7 @@ impl RwLockInfo {
                 self.busy += 1;
                 ret = Ok(());
             }
-        } 
+        }
         self.spinlock.unlock();
         ret
     }
@@ -93,7 +92,7 @@ impl RwLockInfo {
                 self.busy -= 1;
                 ret = Ok(());
             }
-        } 
+        }
         self.spinlock.unlock();
         ret
     }
@@ -128,7 +127,7 @@ impl SgxThreadRwLock {
         rwlockinfo.mutex.lock();
         {
             if rwlockinfo.writer_thread == thread::rsgx_thread_self() {
-                
+
                 rwlockinfo.mutex.unlock();
                 rwlockinfo.deref_busy();
                 return Err(EDEADLK);
@@ -150,7 +149,7 @@ impl SgxThreadRwLock {
         rwlockinfo.mutex.unlock();
 
         rwlockinfo.deref_busy();
-        
+
         Ok(())
     }
 
@@ -169,7 +168,7 @@ impl SgxThreadRwLock {
             let mut ret = Ok(());
             if rwlockinfo.writer_thread == thread::rsgx_thread_self() {
                 ret = Err(EDEADLK);
-            } 
+            }
             else if rwlockinfo.readers_num == u32::max_value() {
                 ret = Err(EAGAIN);
             }
@@ -185,13 +184,13 @@ impl SgxThreadRwLock {
                     return Err(e);
                 }
             }
-            
+
             rwlockinfo.readers_num += 1;
         }
         rwlockinfo.mutex.unlock();
 
         rwlockinfo.deref_busy();
-        
+
         Ok(())
     }
 
@@ -206,7 +205,7 @@ impl SgxThreadRwLock {
         rwlockinfo.mutex.lock();
         {
             if rwlockinfo.writer_thread == thread::rsgx_thread_self() {
-                
+
                 rwlockinfo.mutex.unlock();
                 rwlockinfo.deref_busy();
                 return Err(EDEADLK);
@@ -234,7 +233,7 @@ impl SgxThreadRwLock {
         rwlockinfo.mutex.unlock();
 
         rwlockinfo.deref_busy();
-        
+
         Ok(())
     }
 
@@ -253,7 +252,7 @@ impl SgxThreadRwLock {
             let mut ret = Ok(());
             if rwlockinfo.writer_thread == thread::rsgx_thread_self() {
                 ret = Err(EDEADLK);
-            } 
+            }
             else if rwlockinfo.writers_num == u32::max_value() {
                 ret = Err(EAGAIN);
             }
@@ -277,7 +276,7 @@ impl SgxThreadRwLock {
         rwlockinfo.mutex.unlock();
 
         rwlockinfo.deref_busy();
-        
+
         Ok(())
     }
 
@@ -375,7 +374,7 @@ pub struct SgxRwLock<T: ?Sized> {
     data: UnsafeCell<T>,
 }
 
-unsafe impl<T: ?Sized + Send + Sync> Send for SgxRwLock<T> {}
+unsafe impl<T: ?Sized + Send> Send for SgxRwLock<T> {}
 unsafe impl<T: ?Sized + Send + Sync> Sync for SgxRwLock<T> {}
 
 impl<T: ?Sized> UnwindSafe for SgxRwLock<T> {}
@@ -416,7 +415,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// # Panics
     ///
     /// This function might panic when called if the lock is already held by the current thread.
-    pub fn read(&self) -> LockResult<SgxRwLockReadGuard<T>> { 
+    pub fn read(&self) -> LockResult<SgxRwLockReadGuard<T>> {
         unsafe {
             let ret = self.inner.read();
             match ret {
@@ -472,7 +471,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// # Panics
     ///
     /// This function might panic when called if the lock is already held by the current thread.
-    pub fn write(&self) -> LockResult<SgxRwLockWriteGuard<T>> { 
+    pub fn write(&self) -> LockResult<SgxRwLockWriteGuard<T>> {
         unsafe {
             let ret = self.inner.write();
             match ret {
@@ -529,7 +528,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// error will only be returned if the lock would have otherwise been
     /// acquired.
     pub fn into_inner(self) -> LockResult<T> where T: Sized {
-        
+
         unsafe {
             let (inner, poison, data) = {
                 let SgxRwLock { ref inner, ref poison, ref data } = self;
@@ -556,7 +555,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// error will only be returned if the lock would have otherwise been
     /// acquired.
     pub fn get_mut(&mut self) -> LockResult<&mut T> {
-        
+
         let data = unsafe { &mut *self.data.get() };
         poison::map_result(self.poison.borrow(), |_| data)
     }
@@ -565,7 +564,7 @@ impl<T: ?Sized> SgxRwLock<T> {
 unsafe impl<#[may_dangle] T: ?Sized> Drop for SgxRwLock<T> {
     fn drop(&mut self) {
         // IMPORTANT: This code needs to be kept in sync with `SgxRwLock::into_inner`.
-        unsafe { 
+        unsafe {
             let _ = self.inner.destroy();
         }
     }
@@ -574,11 +573,18 @@ unsafe impl<#[may_dangle] T: ?Sized> Drop for SgxRwLock<T> {
 impl<T: ?Sized + fmt::Debug> fmt::Debug for SgxRwLock<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.try_read() {
-            Ok(guard) => write!(f, "RwLock {{ data: {:?} }}", &*guard),
+            Ok(guard) => f.debug_struct("RwLock").field("data", &&*guard).finish(),
             Err(TryLockError::Poisoned(err)) => {
-                write!(f, "RwLock {{ data: Poisoned({:?}) }}", &**err.get_ref())
+                f.debug_struct("RwLock").field("data", &&**err.get_ref()).finish()
             },
-            Err(TryLockError::WouldBlock) => write!(f, "RwLock {{ <locked> }}")
+            Err(TryLockError::WouldBlock) => {
+                struct LockedPlaceholder;
+                impl fmt::Debug for LockedPlaceholder {
+                    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { f.write_str("<locked>") }
+                }
+
+                f.debug_struct("RwLock").field("data", &LockedPlaceholder).finish()
+            }
         }
     }
 }
@@ -599,7 +605,8 @@ pub struct SgxRwLockReadGuard<'a, T: ?Sized + 'a> {
     __lock: &'a SgxRwLock<T>,
 }
 
-impl<'a, T: ?Sized> !marker::Send for SgxRwLockReadGuard<'a, T> {}
+impl<'a, T: ?Sized> !Send for SgxRwLockReadGuard<'a, T> {}
+unsafe impl<'a, T: ?Sized + Sync> Sync for SgxRwLockReadGuard<'a, T> {}
 
 /// RAII structure used to release the exclusive write access of a lock when
 /// dropped.
@@ -611,7 +618,8 @@ pub struct SgxRwLockWriteGuard<'a, T: ?Sized + 'a> {
     __poison: poison::Guard,
 }
 
-impl<'a, T: ?Sized> !marker::Send for SgxRwLockWriteGuard<'a, T> {}
+impl<'a, T: ?Sized> !Send for SgxRwLockWriteGuard<'a, T> {}
+unsafe impl<'a, T: ?Sized + Sync> Sync for SgxRwLockWriteGuard<'a, T> {}
 
 impl<'rwlock, T: ?Sized> SgxRwLockReadGuard<'rwlock, T> {
     unsafe fn new(lock: &'rwlock SgxRwLock<T>)

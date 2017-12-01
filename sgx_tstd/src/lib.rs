@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //! # The Rust SGX SDK Standard Library
-//! 
+//!
 //! The Rust SGX standard library (previously named as `sgx_tstdc`) is
 //! the foundation of portable Rust SGX SDK, a
 //! set of minimal and battle-tested shared abstractions for the Rust SGX
@@ -57,13 +57,26 @@
 #![feature(allocator_internals)]
 #![feature(allow_internal_unstable)]
 #![feature(align_offset)]
+#![feature(array_error_internals)]
 #![feature(box_syntax)]
 #![feature(cfg_target_has_atomic)]
 #![feature(char_error_internals)]
 #![feature(collections_range)]
 #![feature(compiler_builtins_lib)]
 #![feature(const_fn)]
+#![feature(const_max_value)]
+#![feature(const_atomic_bool_new)]
+#![feature(const_atomic_isize_new)]
+#![feature(const_atomic_usize_new)]
+#![feature(const_atomic_u64_new)]
+#![feature(const_atomic_ptr_new)]
+#![feature(const_unsafe_cell_new)]
+#![feature(const_cell_new)]
+#![feature(const_once_new)]
+#![feature(const_ptr_null)]
+#![feature(const_ptr_null_mut)]
 #![feature(core_intrinsics)]
+#![feature(fixed_size_array)]
 #![feature(dropck_eyepatch)]
 #![feature(fn_traits)]
 #![feature(fnbox)]
@@ -83,6 +96,7 @@
 #![feature(prelude_import)]
 #![feature(rand)]
 #![feature(raw)]
+#![feature(rustc_attrs)]
 #![feature(shared)]
 #![feature(sip_hash_13)]
 #![feature(slice_concat_ext)]
@@ -98,17 +112,6 @@
 #![feature(slice_patterns)]
 #![feature(panic_unwind)]
 #![feature(libc)]
-#![feature(const_max_value)]
-#![feature(const_atomic_bool_new)]
-#![feature(const_atomic_isize_new)]
-#![feature(const_atomic_usize_new)]
-#![feature(const_atomic_u64_new)]
-#![feature(const_atomic_ptr_new)]
-#![feature(const_unsafe_cell_new)]
-#![feature(const_cell_new)]
-#![feature(const_once_new)]
-#![feature(const_ptr_null)]
-#![feature(const_ptr_null_mut)]
 
 #![default_lib_allocator]
 
@@ -126,8 +129,6 @@ use prelude::v1::*;
 #[macro_reexport(assert, assert_eq, assert_ne, debug_assert, debug_assert_eq,
                  debug_assert_ne, unreachable, unimplemented, write, writeln, try)]
 extern crate core as __core;
-
-#[allow(deprecated)]extern crate rand as core_rand;
 
 #[allow(unused_imports)]
 #[macro_use]
@@ -224,7 +225,6 @@ mod sys;
 
 // Private support modules
 mod panicking;
-mod rand;
 mod cpuid;
 mod memchr;
 
@@ -237,13 +237,6 @@ pub mod backtrace;
 
 pub use cpuid::*;
 pub use self::thread::{rsgx_thread_self, rsgx_thread_equal};
-
-pub mod __rand {
-    pub use rand::{thread_rng, ThreadRng, Rng};
-}
-
-
-
 
 
 

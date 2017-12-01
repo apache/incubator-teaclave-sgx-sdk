@@ -27,7 +27,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 COMMON_CFLAGS += -O2
-CFLAGS := $(COMMON_CFLAGS) -fPIC -Wno-attributes 
+CFLAGS := $(COMMON_CFLAGS) -fPIC -Wno-attributes
 
 SRCS := $(wildcard *.c)
 OBJS := $(sort $(SRCS:.c=.o))

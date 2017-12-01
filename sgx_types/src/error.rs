@@ -87,7 +87,7 @@ impl_enum! {
         SGX_ERROR_MC_OVER_QUOTA             = 0x0000400f,   /* Monotonic counters exceeds quota limitation */
         SGX_ERROR_KDF_MISMATCH              = 0x00004011,   /* Key derivation function doesn't match during key exchange */
         SGX_ERROR_UNRECOGNIZED_PLATFORM     = 0x00004012,   /* EPID Provisioning failed due to platform not recognized by backend server*/
-    
+
         /* SGX errors are only used in the file API when there is no appropriate EXXX (EINVAL, EIO etc.) error code */
         SGX_ERROR_FILE_BAD_STATUS               = 0x00007001,	/* The file is in bad status, run sgx_clearerr to try and fix it */
         SGX_ERROR_FILE_NO_KEY_ID                = 0x00007002,	/* The Key ID field is all zeros, can't re-generate the encryption key */

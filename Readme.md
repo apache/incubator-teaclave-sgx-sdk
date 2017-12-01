@@ -1,6 +1,10 @@
 # Rust SGX SDK
 Rust SGX SDK helps developers write Intel SGX applications in Rust programming language.
 
+## v0.9.1 Release
+This version supports the recently released [Intel SGX SDK 2.0](https://download.01.org/intel-sgx/linux-2.0/), and provides the most popular machine learning library [rusty-machine](https://github.com/AtheMathmo/rusty-machine/) in Intel SGX! Please refer to [release_notes](https://github.com/baidu/rust-sgx-sdk/blob/master/release_notes.md) for further details.
+
+
 ## v0.9.0 Release
 Almost there! Rust SGX SDK v0.9.0 is coming up as a beta version of the future v1.0.0, with the most desired `sgx::tstd` as well as many new features! Also we added support for programming SGX untrusted part in Rust using `sgx::urts`. Now it's easy to port Rust crates to the SGX trust execution environment and write the whole SGX application in Rust! Please refer to [release_notes](https://github.com/baidu/rust-sgx-sdk/blob/master/release_notes.md) for further details.
 
@@ -90,15 +94,17 @@ is shipped in this sample and Makefiles are modified accordingly.
 * `hugemem` sample shows how to use huge mem in SGX enclave. In this
 sample, we allocate reserve 31.75GB heap space and allocate 31.625GB buffers!
 
-* New! `file` sample shows how to read/write files in SGX enclave.
+* `file` sample shows how to read/write files in SGX enclave.
 
-* New! `hello-rust` is the helloworld sample writtin in pure Rust.
+* `hello-rust` is the helloworld sample writtin in pure Rust.
 
-* New! `backtrace` is a sample showing how to enabling backtrace mechanism inside the enclave.
+* `backtrace` is a sample showing how to enabling backtrace mechanism inside the enclave.
 
-* New! `unit-test` shows the way of writing unit tests and conduct unit testing.
+* `unit-test` shows the way of writing unit tests and conduct unit testing.
 
-* New! `zlib-lazy-static-sample` shows how to use ported third party crates inside enclave.
+* `zlib-lazy-static-sample` shows how to use ported third party crates inside enclave.
+
+* New! `machine-learning` shows how to use [rusty-machine](https://github.com/AtheMathmo/rusty-machine) for machine learning inside Intel SGX enclave.
 
 # Samples of ported third-party libraries
 

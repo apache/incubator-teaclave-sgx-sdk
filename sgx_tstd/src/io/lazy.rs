@@ -51,7 +51,7 @@ impl<T: Send + Sync + 'static> Lazy<T> {
         }
     }
 
-    pub fn get(&'static self) -> Option<Arc<T>> {  
+    pub fn get(&'static self) -> Option<Arc<T>> {
         unsafe {
             let r = self.lock.lock();
             if r.is_err() {
@@ -137,13 +137,13 @@ impl<T: Send + Sync + 'static> LazyStatic<T> {
         }
     }
 
-    pub fn get(&'static self) -> Option<Arc<T>> {  
+    pub fn get(&'static self) -> Option<Arc<T>> {
         unsafe {
             let r = self.lock.lock();
             if r.is_err() {
                 return None;
             }
-   
+
             let ret = match *self.opt.get() {
                 Some(ref arc) => Some(arc.clone()),
                 None => Some(self.init()),

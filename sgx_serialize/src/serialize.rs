@@ -1015,7 +1015,7 @@ pub struct DeSerializeHelper<'a, T:'a + ?Sized> {
 }
 
 impl<'a, T: 'a + ?Sized + DeSerializable> DeSerializeHelper<'a, T> {
-    /// Create a new instance of DeSerializeHelper, parameter data must be a variable of 
+    /// Create a new instance of DeSerializeHelper, parameter data must be a variable of
     /// `Vec<u8>` which return by SerializeHelper::encode.
     ///
     /// ```

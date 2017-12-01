@@ -88,7 +88,7 @@ impl SgxFile {
 
     pub fn is_eof(&self) -> bool {
         self.inner.is_eof()
-    } 
+    }
 
     pub fn clearerr(&self) {
         self.inner.clearerr()
@@ -260,7 +260,7 @@ pub fn import_auto_key<P: AsRef<Path>>(path: P, key: &sgx_key_128bit_t) -> io::R
     fs_imp::import_auto_key(path.as_ref(), key)
 }
 
-/// Copies the contents of one file to another. 
+/// Copies the contents of one file to another.
 /// This function will **overwrite** the contents of `to`.
 ///
 /// Note that if `from` and `to` both point to the same file, then the file

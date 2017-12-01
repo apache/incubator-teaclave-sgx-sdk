@@ -27,14 +27,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //!
-//! The Intel(R) Software Guard Extensions SDK already supports mutex and conditional 
-//! variable synchronization mechanisms by means of the following APIand data types 
-//! defined in the Types and Enumerations section. Some functions included in the 
+//! The Intel(R) Software Guard Extensions SDK already supports mutex and conditional
+//! variable synchronization mechanisms by means of the following APIand data types
+//! defined in the Types and Enumerations section. Some functions included in the
 //! trusted Thread Synchronization library may make calls outside the enclave (OCALLs).
 //! If you use any of the APIs below, you must first import the needed OCALL functions
 //! from sgx_tstdc.edl. Otherwise, you will get a linker error when the enclave is
-//! being built; see Calling Functions outside the Enclave for additional details. 
-//! The table below illustrates the primitives that the Intel(R) SGX Thread 
+//! being built; see Calling Functions outside the Enclave for additional details.
+//! The table below illustrates the primitives that the Intel(R) SGX Thread
 //! Synchronization library supports, as well as the OCALLs that each API function needs.
 //!
 

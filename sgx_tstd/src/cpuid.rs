@@ -79,7 +79,7 @@ use sgx_types::*;
 /// Indicates the parameter is invalid.
 ///
 pub fn rsgx_cpuid(leaf: i32) -> SgxResult<sgx_cpuinfo_t> {
-    
+
     let cpuinfo = [0_i32; 4];
     let ret = unsafe { sgx_cpuid(cpuinfo, leaf) };
     match ret {

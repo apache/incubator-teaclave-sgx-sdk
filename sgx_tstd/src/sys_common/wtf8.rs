@@ -42,8 +42,8 @@ use core::hash::{Hash, Hasher};
 use core::iter::FromIterator;
 use core::mem;
 use core::ops;
-use core::slice;
 use core::str;
+use alloc::slice;
 use sys_common::AsInner;
 
 const UTF8_REPLACEMENT_CHARACTER: &'static str = "\u{FFFD}";

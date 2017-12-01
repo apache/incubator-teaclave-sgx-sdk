@@ -37,13 +37,13 @@ use core::ptr;
 pub fn foreach_symbol_fileline<F>(frame: Frame,
                                   mut f: F,
                                   _: &BacktraceContext) -> io::Result<bool>
-where F: FnMut(&[u8], libc::c_int) -> io::Result<()>
+where F: FnMut(&[u8], u32) -> io::Result<()>
 {
     // pcinfo may return an arbitrary number of file:line pairs,
     // in the order of stack trace (i.e. inlined calls first).
     // in order to avoid allocation, we stack-allocate a fixed size of entries.
     const FILELINE_SIZE: usize = 32;
-    let mut fileline_buf = [(ptr::null(), -1); FILELINE_SIZE];
+    let mut fileline_buf = [(ptr::null(), !0); FILELINE_SIZE];
     let ret;
     let fileline_count = {
         let state = unsafe { try!(__init_state()) };
@@ -154,7 +154,7 @@ extern {
 // helper callbacks
 ////////////////////////////////////////////////////////////////////////
 
-type FileLine = (*const libc::c_char, libc::c_int);
+type FileLine = (*const libc::c_char, u32);
 
 extern fn error_cb(_data: *mut libc::c_void, _msg: *const libc::c_char,
                    _errnum: libc::c_int) {
@@ -181,7 +181,7 @@ extern fn pcinfo_cb(data: *mut libc::c_void,
         // if the buffer is not full, add file:line to the buffer
         // and adjust the buffer for next possible calls to pcinfo_cb.
         if !buffer.is_empty() {
-            buffer[0] = (filename, lineno);
+            buffer[0] = (filename, lineno as u32);
             unsafe { ptr::write(slot, &mut buffer[1..]); }
         }
     }
@@ -234,7 +234,7 @@ unsafe fn __init_state() -> io::Result<*mut backtrace_state> {
     }
 
     STATE = backtrace_create_state(filename, 0, error_cb, ptr::null_mut());
-    
+
     if STATE.is_null() {
         return Err(io::Error::from_raw_os_error(libc::ENOMEM));
     }

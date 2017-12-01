@@ -28,7 +28,6 @@
 
 use sys::os_str::{Buf, Slice};
 use sys_common::{AsInner, IntoInner, FromInner};
-use core::mem;
 use core::ops;
 use core::cmp;
 use core::hash::{Hash, Hasher};
@@ -131,7 +130,8 @@ impl OsString {
     /// Converts this `OsString` into a boxed `OsStr`.
     ///
     pub fn into_boxed_os_str(self) -> Box<OsStr> {
-        unsafe { mem::transmute(self.inner.into_box()) }
+        let rw = Box::into_raw(self.inner.into_box()) as *mut OsStr;
+        unsafe { Box::from_raw(rw) }
     }
 }
 
@@ -243,7 +243,7 @@ impl OsStr {
     }
 
     fn from_inner(inner: &Slice) -> &OsStr {
-        unsafe { mem::transmute(inner) }
+        unsafe { &*(inner as *const Slice as *const OsStr) }
     }
 
     /// Yields a [`&str`] slice if the `OsStr` is valid Unicode.
@@ -289,20 +289,21 @@ impl OsStr {
 
     /// Converts a `Box<OsStr>` into an `OsString` without copying or allocating.
     pub fn into_os_string(self: Box<OsStr>) -> OsString {
-        let inner: Box<Slice> = unsafe { mem::transmute(self) };
-        OsString { inner: Buf::from_box(inner) }
+        let boxed = unsafe { Box::from_raw(Box::into_raw(self) as *mut Slice) };
+        OsString { inner: Buf::from_box(boxed) }
     }
 
     /// Gets the underlying byte representation.
     ///
     fn bytes(&self) -> &[u8] {
-        unsafe { mem::transmute(&self.inner) }
+        unsafe { &*(&self.inner as *const _ as *const [u8]) }
     }
 }
 
 impl<'a> From<&'a OsStr> for Box<OsStr> {
     fn from(s: &'a OsStr) -> Box<OsStr> {
-        unsafe { mem::transmute(s.inner.into_box()) }
+        let rw = Box::into_raw(s.inner.into_box()) as *mut OsStr;
+        unsafe { Box::from_raw(rw) }
     }
 }
 
@@ -320,7 +321,8 @@ impl From<OsString> for Box<OsStr> {
 
 impl Default for Box<OsStr> {
     fn default() -> Box<OsStr> {
-        unsafe { mem::transmute(Slice::empty_box()) }
+        let rw = Box::into_raw(Slice::empty_box()) as *mut OsStr;
+        unsafe { Box::from_raw(rw) }
     }
 }
 

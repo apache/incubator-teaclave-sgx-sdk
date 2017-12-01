@@ -29,6 +29,8 @@
 use sgx_types::*;
 use io::{self, ErrorKind};
 
+pub use self::rand::hashmap_random_keys;
+
 pub mod fs;
 pub mod os_str;
 pub mod path;
@@ -39,6 +41,8 @@ pub mod os;
 pub mod stdio;
 #[cfg(feature = "backtrace")]
 pub mod backtrace;
+pub mod memchr;
+pub mod cmath;
 
 pub fn decode_error_kind(errno: i32) -> ErrorKind {
 

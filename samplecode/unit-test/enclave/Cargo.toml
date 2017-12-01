@@ -1,6 +1,6 @@
 [package]
 name = "Unittestsampleenclave"
-version = "0.9.0"
+version = "0.9.1"
 authors = ["Baidu"]
 
 [lib]

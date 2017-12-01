@@ -221,6 +221,14 @@ impl<'a> Read for &'a [u8] {
         *self = b;
         Ok(())
     }
+
+    #[inline]
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
+        buf.extend_from_slice(*self);
+        let len = self.len();
+        *self = &self[len..];
+        Ok(len)
+    }
 }
 
 impl<'a> BufRead for &'a [u8] {

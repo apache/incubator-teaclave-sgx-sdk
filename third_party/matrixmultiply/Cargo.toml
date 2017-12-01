@@ -1,0 +1,32 @@
+[package]
+name = "matrixmultiply"
+version = "0.1.14"
+authors = ["bluss"]
+
+license = "MIT/Apache-2.0"
+
+repository = "https://github.com/bluss/matrixmultiply/"
+documentation = "https://docs.rs/matrixmultiply/0.1/"
+
+description = "General matrix multiplication of f32 and f64 matrices in Rust. Supports matrices with general strides. Uses a microkernel strategy, so that the implementation is easy to parallelize and optimize. `RUSTFLAGS=\"-C target-cpu=native\"` is your friend here."
+
+keywords = ["matrix", "sgemm", "dgemm"]
+
+build = "build.rs"
+
+[lib]
+bench = false
+
+[[bench]]
+name = "benchmarks"
+harness = false
+
+[dependencies]
+sgx_tstd = { path = "../../sgx_tstd" }
+rawpointer = "0.1"
+
+[dev-dependencies]
+bencher = "0.1.2"
+
+[package.metadata.release]
+no-dev-version = true

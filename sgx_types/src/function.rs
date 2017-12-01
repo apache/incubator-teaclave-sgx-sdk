@@ -323,7 +323,7 @@ extern {
     // sgx_uae_service.h
     //
     pub fn sgx_init_quote(p_target_info: * mut sgx_target_info_t, p_gid: * mut sgx_epid_group_id_t) -> sgx_status_t;
-    
+
     /* intel sgx sdk 1.9 */
     pub fn sgx_calc_quote_size(p_sig_rl: * const ::uint8_t, sig_rl_size: ::uint32_t, p_quote_size: * mut ::uint32_t) -> sgx_status_t;
     pub fn sgx_get_quote_size(p_sig_rl: * const ::uint8_t, p_quote_size: * mut ::uint32_t) -> sgx_status_t;
@@ -395,15 +395,15 @@ extern {
     //
     // sgx_tprotected_fs.h
     //
-    pub fn sgx_fopen(filename: * const ::c_char, 
-                     mode: * const ::c_char, 
+    pub fn sgx_fopen(filename: * const ::c_char,
+                     mode: * const ::c_char,
                      key: * const sgx_key_128bit_t) -> SGX_FILE;
 
     pub fn sgx_fopen_auto_key(filename: * const ::c_char, mode: * const ::c_char) -> SGX_FILE;
 
-    pub fn sgx_fwrite(ptr: * const ::c_void, 
-                      size: ::size_t, 
-                      count: ::size_t, 
+    pub fn sgx_fwrite(ptr: * const ::c_void,
+                      size: ::size_t,
+                      count: ::size_t,
                       stream: SGX_FILE) -> ::size_t;
 
     pub fn sgx_fread(ptr: * mut ::c_void,

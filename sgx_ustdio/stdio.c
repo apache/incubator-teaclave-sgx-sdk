@@ -31,7 +31,7 @@
 #include <errno.h>
 #include <sys/types.h>
 
-    
+
 size_t u_stdin_ocall(void * buf, size_t nbytes) {
 
     ssize_t ret = read(STDIN_FILENO, buf, nbytes);

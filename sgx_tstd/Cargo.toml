@@ -1,6 +1,6 @@
 [package]
 name = "sgx_tstd"
-version = "0.9.0"
+version = "0.9.1"
 authors = ["Baidu"]
 build = "build.rs"
 
@@ -12,7 +12,6 @@ stdio = []
 
 [build-dependencies]
 build_helper = { path = "../build_helper" }
-gcc = "0.3.54"
 
 [dependencies]
 sgx_types = { path = "../sgx_types" }

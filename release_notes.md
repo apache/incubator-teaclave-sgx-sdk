@@ -1,6 +1,14 @@
+# Rust SGX SDK v0.9.1 Release Notes
+
+**Support Intel SGX SDK 2.0 for Linux** Intel released Intel SGX SDK 2.0 for Linux recently and we upgraded Rust SGX SDK to support it.
+
+**Support latest Rust nightly build (nightly-2017-11-29-x86_64-unknown-linux-gnu)** We upgraded `sgx_tstd` to support the latest Rust nightly release. On Nov 9th, `librand` had been removed from `libstd` in this [commit](https://github.com/rust-lang/rust/commit/6bc8f164b09b9994e6a2d4c4ca60d7d36c09d3fe) and we did the same change on `sgx_tstd` as well as some other minor changes.
+
+**Provide rusty-machine in Intel SGX** We ported the most popular machine learning library [rusty-machine](https://github.com/AtheMathmo/rusty-machine) to Intel SGX, along with its examples. Please refer to the machine learning code samples for more details.
+
 # Rust SGX SDK v0.9.0 Release Notes
 
-Almost there! Rust SGX SDK v0.9.0 is coming up as a beta version of the future v1.0.0, with the most desired `sgx::tstd` as well as many new features!
+Almost there! Rust SGX SDK v0.9.0 is coming up as a beta version of the future v1.0.0, with the most desired `sgx_tstd` as well as many new features!
 
 **Support Crate porting.** Porting existing Rust crates into the SGX world becomes **possible**. We have successfully ported several crates from Crates.io with little modifications. Please refer to the section 'Porting Rust Crates' for step-by-step instructions.
 
@@ -36,7 +44,7 @@ In `samplecode` directory, we provide the following new code samples:
 * `unit-test` shows the way of writing unit tests and conduct unit testing.
 * `zlib-lazy-static-sample` shows how to use ported third party crates inside enclave.
 
-In `third_party` directory, we provide six crates ported from untrusted world. 
+In `third_party` directory, we provide six crates ported from untrusted world.
 
 * `inflate` a simple implementation of inflate algorithm.
 * `libflate` a more complex implementation of inflate algorithm. It dependents on `adler32-rs` and `byteorder`.
@@ -88,7 +96,7 @@ Please look into `third_party` directory for porting samples.
 
 ## Experimental new docker image
 
-The latest Intel SGX SDK for linux v1.9 only supports protobuf v2. Protobuf v2 has a lot of known bugs and is out-of-date. We provide an experimental dev environment with the latest protobuf v3.4.1 and a patched Intel SGX SDK v1.9. 
+The latest Intel SGX SDK for linux v1.9 only supports protobuf v2. Protobuf v2 has a lot of known bugs and is out-of-date. We provide an experimental dev environment with the latest protobuf v3.4.1 and a patched Intel SGX SDK v1.9.
 
 The docker image is on the docker hub now. Please use the following command to download it.
 
@@ -121,7 +129,7 @@ New mods in `sgx_tstd` : `enclave`, `backtrace`, `cpuid` and `sync::spinlock`.
 
 New macros : `global_ctors_object` and `cfg_if`.
 
-New SGX structures (corresponding to Rust's std) : 
+New SGX structures (corresponding to Rust's std) :
 
 | Exist Structs | Rust Sgx Structs |
 |---|---|

@@ -41,7 +41,6 @@
 //! normalization described in the documentation for the [`components`] method.
 //!
 
-use ascii::*;
 use error::Error;
 use ffi::{OsStr, OsString};
 use sys::path::{is_sep_byte, is_verbatim_sep, MAIN_SEP_STR, parse_prefix};
@@ -50,7 +49,6 @@ use core::cmp;
 use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::iter::{self, FusedIterator};
-use core::mem;
 use core::ops::{self, Deref};
 
 
@@ -213,10 +211,10 @@ fn iter_after<A, I, J>(mut iter: I, mut prefix: J) -> Option<I>
 
 // See note at the top of this module to understand why these are used:
 fn os_str_as_u8_slice(s: &OsStr) -> &[u8] {
-    unsafe { mem::transmute(s) }
+    unsafe { &*(s as *const OsStr as *const [u8]) }
 }
 unsafe fn u8_slice_as_os_str(s: &[u8]) -> &OsStr {
-    mem::transmute(s)
+    &*(s as *const [u8] as *const OsStr)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -365,10 +363,10 @@ pub enum Component<'a> {
     /// It represents a separator that designates that a path starts from root.
     RootDir,
 
-    /// A reference to the current directory, i.e. `.`. 
+    /// A reference to the current directory, i.e. `.`.
     CurDir,
 
-    /// A reference to the parent directory, i.e. `..`. 
+    /// A reference to the parent directory, i.e. `..`.
     ParentDir,
 
     /// A normal component, e.g. `a` and `b` in `a/b`.
@@ -972,14 +970,16 @@ impl PathBuf {
     /// [`Box`]: ../../std/boxed/struct.Box.html
     /// [`Path`]: struct.Path.html
     pub fn into_boxed_path(self) -> Box<Path> {
-        unsafe { mem::transmute(self.inner.into_boxed_os_str()) }
+        let rw = Box::into_raw(self.inner.into_boxed_os_str()) as *mut Path;
+        unsafe { Box::from_raw(rw) }
     }
 }
 
 impl<'a> From<&'a Path> for Box<Path> {
     fn from(path: &'a Path) -> Box<Path> {
         let boxed: Box<OsStr> = path.inner.into();
-        unsafe { mem::transmute(boxed) }
+        let rw = Box::into_raw(boxed) as *mut Path;
+        unsafe { Box::from_raw(rw) }
     }
 }
 
@@ -1166,7 +1166,7 @@ impl Path {
     /// This is a cost-free conversion.
     ///
     pub fn new<S: AsRef<OsStr> + ?Sized>(s: &S) -> &Path {
-        unsafe { mem::transmute(s.as_ref()) }
+        unsafe { &*(s.as_ref() as *const OsStr as *const Path) }
     }
 
     /// Yields the underlying [`OsStr`] slice.
@@ -1222,7 +1222,7 @@ impl Path {
     /// Return `false` if the `Path` is relative, i.e. not absolute.
     ///
     /// See [`is_absolute`]'s documentation for more details.
-    /// 
+    ///
     pub fn is_relative(&self) -> bool {
         !self.is_absolute()
     }
@@ -1468,7 +1468,8 @@ impl Path {
     /// [`Box`]: ../../std/boxed/struct.Box.html
     /// [`PathBuf`]: struct.PathBuf.html
     pub fn into_path_buf(self: Box<Path>) -> PathBuf {
-        let inner: Box<OsStr> = unsafe { mem::transmute(self) };
+        let rw = Box::into_raw(self) as *mut OsStr;
+        let inner = unsafe { Box::from_raw(rw) };
         PathBuf { inner: OsString::from(inner) }
     }
 }

@@ -30,8 +30,8 @@ use std::io::Error;
 use libc::{self, c_char, c_int, c_void, size_t, off_t};
 
 #[no_mangle]
-pub extern "C" fn u_backtrace_open_ocall(error: * mut c_int, 
-                                       pathname: * const c_char, 
+pub extern "C" fn u_backtrace_open_ocall(error: * mut c_int,
+                                       pathname: * const c_char,
                                        flags: c_int) -> c_int {
     unsafe {
         let mut errno = 0;
@@ -48,7 +48,7 @@ pub extern "C" fn u_backtrace_open_ocall(error: * mut c_int,
 
 #[no_mangle]
 pub extern "C" fn u_backtrace_close_ocall(error: * mut c_int, fd: c_int) -> c_int {
-    
+
     unsafe {
         let mut errno = 0;
         let ret = libc::close(fd);
@@ -63,9 +63,9 @@ pub extern "C" fn u_backtrace_close_ocall(error: * mut c_int, fd: c_int) -> c_in
 }
 
 #[no_mangle]
-pub extern "C" fn u_backtrace_fcntl_ocall(error: * mut c_int, 
-                                        fd: c_int, 
-                                        cmd: c_int, 
+pub extern "C" fn u_backtrace_fcntl_ocall(error: * mut c_int,
+                                        fd: c_int,
+                                        cmd: c_int,
                                         arg: c_int) -> c_int {
     unsafe {
         let mut errno = 0;
@@ -81,7 +81,7 @@ pub extern "C" fn u_backtrace_fcntl_ocall(error: * mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_backtrace_mmap_ocall(error: * mut c_int, 
+pub extern "C" fn u_backtrace_mmap_ocall(error: * mut c_int,
                                        start: * mut c_void,
                                        length: size_t,
                                        prot: c_int,

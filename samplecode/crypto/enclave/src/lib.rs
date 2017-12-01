@@ -272,7 +272,7 @@ pub extern "C" fn aes_gcm_128_decrypt(key: &[u8;16],
     println!("aes_gcm_128_decrypt parameter prepared! {}, {}",
               ciphertext_slice.len(),
               plaintext_slice.len());
-    
+
     // After everything has been set, call API
     let result = rsgx_rijndael128GCM_decrypt(key,
                                              &ciphertext_slice,

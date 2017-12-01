@@ -88,6 +88,12 @@ impl<R: Read> BufReader<R> {
     ///
     pub fn get_mut(&mut self) -> &mut R { &mut self.inner }
 
+    /// Returns `true` if there are no bytes in the internal buffer.
+    ///
+    pub fn is_empty(&self) -> bool {
+        self.pos == self.cap
+    }
+
     /// Unwraps this `BufReader`, returning the underlying reader.
     ///
     /// Note that any leftover data in the internal buffer is lost.

@@ -31,48 +31,13 @@
 use core::num;
 use core::intrinsics;
 use core::num::FpCategory;
+use sys::cmath;
 
 pub use core::f32::{RADIX, MANTISSA_DIGITS, DIGITS, EPSILON};
 pub use core::f32::{MIN_EXP, MAX_EXP, MIN_10_EXP};
 pub use core::f32::{MAX_10_EXP, NAN, INFINITY, NEG_INFINITY};
 pub use core::f32::{MIN, MIN_POSITIVE, MAX};
 pub use core::f32::consts;
-
-#[allow(dead_code)]
-mod cmath {
-    use sgx_types::{c_float, c_int};
-    #[link(name = "sgx_tstdc")]
-    extern {
-        pub fn cbrtf(n: c_float) -> c_float;
-        pub fn erff(n: c_float) -> c_float;
-        pub fn erfcf(n: c_float) -> c_float;
-        pub fn expm1f(n: c_float) -> c_float;
-        pub fn fdimf(a: c_float, b: c_float) -> c_float;
-        pub fn fmodf(a: c_float, b: c_float) -> c_float;
-        pub fn ilogbf(n: c_float) -> c_int;
-        pub fn logbf(n: c_float) -> c_float;
-        pub fn log1pf(n: c_float) -> c_float;
-        pub fn modff(n: c_float, iptr: &mut c_float) -> c_float;
-        pub fn nextafterf(x: c_float, y: c_float) -> c_float;
-        pub fn tgammaf(n: c_float) -> c_float;
-        pub fn lgammaf_r(n: c_float, sign: &mut c_int) -> c_float;
-        pub fn hypotf(x: c_float, y: c_float) -> c_float;
-    }
-
-    // See the comments in the `floor` function for why MSVC is special
-    // here.
-    #[link(name = "sgx_tstdc")]
-    extern {
-        pub fn acosf(n: c_float) -> c_float;
-        pub fn asinf(n: c_float) -> c_float;
-        pub fn atan2f(a: c_float, b: c_float) -> c_float;
-        pub fn atanf(n: c_float) -> c_float;
-        pub fn coshf(n: c_float) -> c_float;
-        pub fn sinhf(n: c_float) -> c_float;
-        pub fn tanf(n: c_float) -> c_float;
-        pub fn tanhf(n: c_float) -> c_float;
-    }
-}
 
 #[lang = "f32"]
 impl f32 {
@@ -582,7 +547,7 @@ impl f32 {
     /// ```
     ///
     /// If one of the arguments is NaN, then the other argument is returned.
-    
+
     #[inline]
     pub fn max(self, other: f32) -> f32 {
         num::Float::max(self, other)

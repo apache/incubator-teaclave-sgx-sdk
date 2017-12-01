@@ -259,7 +259,7 @@ sgx_ustdio:
 .PHONY: sgx_ubacktrace
 sgx_ubacktrace:
 	$(MAKE) -C ../../sgx_ubacktrace/ 2> /dev/null
-	
+
 .PHONY: clean
 clean:
 	$(MAKE) -C ./enclave clean

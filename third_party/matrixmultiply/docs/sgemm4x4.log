@@ -1,0 +1,12 @@
+
+test mat_mul_f32::m004             ... bench:         153 ns/iter (+/- 2)
+test mat_mul_f32::m007             ... bench:         280 ns/iter (+/- 7)
+test mat_mul_f32::m008             ... bench:         305 ns/iter (+/- 4)
+test mat_mul_f32::m012             ... bench:         598 ns/iter (+/- 18)
+test mat_mul_f32::m016             ... bench:       1,044 ns/iter (+/- 131)
+test mat_mul_f32::m032             ... bench:       5,037 ns/iter (+/- 76)
+test mat_mul_f32::m064             ... bench:      30,305 ns/iter (+/- 1,550)
+
+test mat_mul_f32::m127             ... bench:     208,380 ns/iter (+/- 3,311)
+test nonative_mat_mul_f32::m127             ... bench:     291,936 ns/iter (+/- 10,408)
+test mat_mul_f32::mix128x10000x128 ... bench:  16,291,680 ns/iter (+/- 1,350,524)

@@ -28,7 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
- 
+
 enclave {
 	trusted {
         /* define ECALLs here. */
@@ -36,7 +36,7 @@ enclave {
         public void t_global_exit_ecall();
     };
 
-    untrusted { 
+    untrusted {
 
     };
 };
