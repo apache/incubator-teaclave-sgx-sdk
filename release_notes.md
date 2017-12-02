@@ -4,7 +4,7 @@
 
 **Support latest Rust nightly build (nightly-2017-11-29-x86_64-unknown-linux-gnu)** We upgraded `sgx_tstd` to support the latest Rust nightly release. On Nov 9th, `librand` had been removed from `libstd` in this [commit](https://github.com/rust-lang/rust/commit/6bc8f164b09b9994e6a2d4c4ca60d7d36c09d3fe) and we did the same change on `sgx_tstd` as well as some other minor changes.
 
-**Provide rusty-machine in Intel SGX** We ported the most popular machine learning library [rusty-machine](https://github.com/AtheMathmo/rusty-machine) to Intel SGX, along with its examples. Please refer to the machine learning code samples for more details.
+**Provide rusty-machine in Intel SGX** We ported the most popular machine learning library [rusty-machine](https://github.com/AtheMathmo/rusty-machine) to Intel SGX, along with its examples. Please refer to the [Rust SGX version rusty-machine](https://github.com/baidu/rust-sgx-sdk/tree/master/third_party/rusty-machine) and the machine learning code samples for more details.
 
 # Rust SGX SDK v0.9.0 Release Notes
 
