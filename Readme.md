@@ -152,7 +152,7 @@ for details.
 Ran Duan, Long Li, Shi Jia, Yu Ding, Lenx Wei, Tanghui Chen
 
 ![Baidu X-Lab Logo]
-(/logo_25.png)
+(https://raw.githubusercontent.com/baidu/rust-sgx-sdk/master/logo_25.png)
 
 # Acknowledgement
 
