@@ -151,7 +151,8 @@ for details.
 
 Ran Duan, Long Li, Shi Jia, Yu Ding, Lenx Wei, Tanghui Chen
 
-![Baidu X-Lab Logo](/logo_25.png)
+![Baidu X-Lab Logo]
+(/logo_25.png)
 
 # Acknowledgement
 
