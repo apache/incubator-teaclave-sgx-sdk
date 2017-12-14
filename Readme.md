@@ -1,6 +1,9 @@
 # Rust SGX SDK
 Rust SGX SDK helps developers write Intel SGX applications in Rust programming language.
 
+## Run Rust SGX applications in Mesalock Linux
+MesaLock Linux is a general purpose Linux distribution which aims to provide a safe and secure user space environment. Now we can run Rust SGX applications in Mesalock Linux within a few steps. Please refer to the [turtorial](documents/sgx_in_mesalock_linux.md) for details.
+
 ## v0.9.1 Release
 This version supports the recently released [Intel SGX SDK 2.0](https://download.01.org/intel-sgx/linux-2.0/), and provides the most popular machine learning library [rusty-machine](https://github.com/AtheMathmo/rusty-machine/) in Intel SGX! Please refer to [release_notes](https://github.com/baidu/rust-sgx-sdk/blob/master/release_notes.md) for further details.
 
