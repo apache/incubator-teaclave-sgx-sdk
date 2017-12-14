@@ -38,8 +38,6 @@ The whole solution contains two steps:
 1. Build Rust SGX applications in dev environment, such as Rust SGX docker container.
 2. Run Rust SGX application in Mesalock Linux docker container.
 
-For now, both the Rust SGX docker container and Mesalock Linux docker container are derived from `ubuntu:16.04`. So there should be no compatibility issues.
-
 Step 1 is trivial.
 
 For step 2, the Intel AESM service is required. Technically, Intel AESM service listens at a domain socket `/var/run/aesmd/aesm.socket` and provide service via this domain socket. To interact with CPU, Intel AESM service needs to access `/dev/isgx`.
