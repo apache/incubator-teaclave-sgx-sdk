@@ -70,5 +70,5 @@ RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rust
     echo 'source /root/.cargo/env' >> /root/.bashrc && \
     /root/.cargo/bin/rustup component add rust-src && \
     apt-get autoclean && apt-get autoremove && rm -rf /var/cache/apt/archives/*
-
+RUN /root/.cargo/bin/cargo install xargo
 WORKDIR /root
