@@ -44,8 +44,7 @@ test_cases=(backtrace \
 
 for i in ${test_cases[@]}
 do
-	cd ${i} && make && cd bin && echo -e '\n' | ./app && cd ../ && make clean && \
-	   XARGO_SGX=1 make && cd bin && echo -e '\n' | ./app && cd ../ && make clean && cd ..
+	cd ${i} && make && cd bin && echo -e '\n' | ./app && cd ../ && make clean
 done
 
 echo "Done!"
