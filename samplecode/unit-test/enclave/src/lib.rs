@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -29,9 +29,11 @@
 #![crate_name = "unittestsampleenclave"]
 #![crate_type = "staticlib"]
 
-#![no_std]
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 extern crate sgx_types;
+#[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
 extern crate sgx_tcrypto;
@@ -45,6 +47,8 @@ extern crate sgx_serialize;
 pub use sgx_serialize::*;
 #[macro_use]
 extern crate sgx_serialize_derive;
+
+pub use sgx_serialize::*;
 
 use sgx_types::*;
 use sgx_tunittest::*;
@@ -74,6 +78,9 @@ use test_serialize::*;
 
 mod test_file;
 use test_file::*;
+
+mod test_time;
+use test_time::*;
 
 #[no_mangle]
 pub extern "C"
@@ -123,8 +130,12 @@ fn test_main_entrance() -> sgx_status_t {
                      test_serialize_base,
                      test_serialize_struct,
                      test_serialize_enum,
-                     // std::foo
-                     test_file
+                     // std::sgxfs
+                     test_sgxfs,
+                     // std::fs
+                     test_fs,
+                     // std::time
+                     test_std_time
                      );
     sgx_status_t::SGX_SUCCESS
 }

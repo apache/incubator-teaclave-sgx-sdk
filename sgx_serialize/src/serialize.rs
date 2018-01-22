@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -1015,7 +1015,7 @@ pub struct DeSerializeHelper<'a, T:'a + ?Sized> {
 }
 
 impl<'a, T: 'a + ?Sized + DeSerializable> DeSerializeHelper<'a, T> {
-    /// Create a new instance of DeSerializeHelper, parameter data must be a variable of
+    /// Create a new instance of DeSerializeHelper, parameter data must be a variable of 
     /// `Vec<u8>` which return by SerializeHelper::encode.
     ///
     /// ```

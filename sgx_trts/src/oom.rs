@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -41,7 +41,7 @@ fn default_oom_handler(err: AllocErr) -> ! {
 }
 
 pub fn rsgx_oom(err: AllocErr) -> ! {
-
+    
     let value = SGX_OOM_HANDLER.load(Ordering::SeqCst);
     let handler: fn(AllocErr) -> ! = unsafe { mem::transmute(value) };
     handler(err);
@@ -52,6 +52,6 @@ pub fn rsgx_oom(err: AllocErr) -> ! {
 /// To avoid recursive OOM failures, it is critical that the OOM handler does
 /// not allocate any memory itself.
 pub fn set_panic_handler(handler: fn(AllocErr) -> !) {
-
+    
     SGX_OOM_HANDLER.store(handler as * mut (), Ordering::SeqCst);
 }

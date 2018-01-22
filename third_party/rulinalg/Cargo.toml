@@ -14,12 +14,14 @@ license = "MIT"
 [features]
 io = ["csv", "rustc-serialize"]
 
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }
+
 [dependencies]
 num = {path = "../num", default-features = false }
 rustc-serialize = { path = "../rustc-serialize", optional = true }
 csv = { path = "../rust-csv", optional = true}
 matrixmultiply = { path = "../matrixmultiply" }
-sgx_tstd = { path = "../../sgx_tstd" }
 
 [dev-dependencies]
 rand = "0.3"

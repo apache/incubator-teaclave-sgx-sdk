@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -49,8 +49,6 @@
 //!     println!("{:?}", sgx_rand::random::<MyStruct>());
 //! }
 //! ```
-#![crate_name = "sgx_rand_derive"]
-#![crate_type = "rlib"]
 
 extern crate proc_macro;
 #[macro_use]
@@ -97,12 +95,11 @@ fn impl_rand_derive(ast: &syn::MacroInput) -> quote::Tokens {
             }
 
             let len = body.len();
-            let mut variants = body
+            let mut arms = body
                 .iter()
-                .enumerate()
-                .map(|(index, variant)| {
+                .map(|variant| {
                     let ident = &variant.ident;
-                    let arm = match variant.data {
+                    match variant.data {
                         syn::VariantData::Struct(ref body) => {
                             let fields = body
                                 .iter()
@@ -119,13 +116,24 @@ fn impl_rand_derive(ast: &syn::MacroInput) -> quote::Tokens {
                             quote! { #name::#ident (#(#fields),*) }
                         },
                         syn::VariantData::Unit => quote! { #name::#ident }
-                    };
+                    }
+                });
 
-                    quote! { #index => #arm }
-                })
-                .collect::<Vec<_>>();
-            variants.push(quote! { _ => unreachable!() });
-            quote! { match __rng.gen_range(0, #len) { #(#variants,)* } }
+            match len {
+                1 => quote! { #(#arms)* },
+                2 => {
+                    let (a, b) = (arms.next(), arms.next());
+                    quote! { if __rng.gen() { #a } else { #b } }
+                },
+                _ => {
+                    let mut variants = arms
+                        .enumerate()
+                        .map(|(index, arm)| quote! { #index => #arm })
+                        .collect::<Vec<_>>();
+                    variants.push(quote! { _ => unreachable!() });
+                    quote! { match __rng.gen_range(0, #len) { #(#variants,)* } }
+                },
+            }
         }
     };
 

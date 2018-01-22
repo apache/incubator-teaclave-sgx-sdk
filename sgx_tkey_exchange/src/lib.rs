@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -31,8 +31,6 @@
 //! The library allow an ISV to exchange secrets between its server and its enclaves. They are used in
 //! concert with untrusted Key Exchange functions.
 //!
-#![crate_name = "sgx_tkey_exchange"]
-#![crate_type = "rlib"]
 
 #![no_std]
 

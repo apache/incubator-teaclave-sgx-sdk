@@ -450,11 +450,11 @@ read_uint32(struct dwarf_buf* buf) {
     if (buf->is_bigendian) {
         return (((uint32_t) p[0] << 24) | ((uint32_t) p[1] << 16)
                 | ((uint32_t) p[2] << 8) | (uint32_t) p[3]);
-    }
+    }  
     else {
         return (((uint32_t) p[3] << 24) | ((uint32_t) p[2] << 16)
                 | ((uint32_t) p[1] << 8) | (uint32_t) p[0]);
-    }
+    }     
 }
 
 /* Read a uint64 from BUF and advance 8 bytes.  */
@@ -478,7 +478,7 @@ read_uint64(struct dwarf_buf* buf) {
                 | ((uint64_t) p[5] << 40) | ((uint64_t) p[4] << 32)
                 | ((uint64_t) p[3] << 24) | ((uint64_t) p[2] << 16)
                 | ((uint64_t) p[1] << 8) | (uint64_t) p[0]);
-    }
+    }       
 }
 
 /* Read an offset from BUF and advance the appropriate number of
@@ -2903,7 +2903,7 @@ dwarf_lookup_pc(struct backtrace_state* state, struct dwarf_data* ddata,
         } else {
             backtrace_atomic_store_size_t(&u->lines_count, count);
             backtrace_atomic_store_pointer(&u->function_addrs, function_addrs);
-            backtrace_atomic_store_size_t(&u->function_addrs_count,
+            backtrace_atomic_store_size_t(&u->function_addrs_count, 
                                             function_addrs_count);
             backtrace_atomic_store_pointer(&u->lines, lines);
         }

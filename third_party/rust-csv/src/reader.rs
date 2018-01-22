@@ -1,4 +1,4 @@
-use std::fs::SgxFile;
+use std::fs::File;
 use std::boxed::*;
 use std::io::{self, BufRead, Seek};
 use std::marker::PhantomData;
@@ -105,8 +105,8 @@ impl ReaderBuilder {
     ///     Ok(())
     /// }
     /// ```
-    pub fn from_path<P: AsRef<Path>>(&self, path: P) -> Result<Reader<SgxFile>> {
-        Ok(Reader::new(self, SgxFile::open(path)?))
+    pub fn from_path<P: AsRef<Path>>(&self, path: P) -> Result<Reader<File>> {
+        Ok(Reader::new(self, File::open(path)?))
     }
 
     /// Build a CSV parser from this configuration that reads data from `rdr`.
@@ -737,7 +737,7 @@ struct Headers {
     string_record: result::Result<StringRecord, Utf8Error>,
 }
 
-impl Reader<Reader<SgxFile>> {
+impl Reader<Reader<File>> {
     /// Create a new CSV parser with a default configuration for the given
     /// file path.
     ///
@@ -761,7 +761,7 @@ impl Reader<Reader<SgxFile>> {
     ///     Ok(())
     /// }
     /// ```
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Reader<SgxFile>> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Reader<File>> {
         ReaderBuilder::new().from_path(path)
     }
 }

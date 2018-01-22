@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -828,6 +828,29 @@ impl<K, V, S> HashMap<K, V, S>
         self.search_mut(k).into_occupied_bucket().map(|bucket| pop_internal(bucket).1)
     }
 
+    /// Removes a key from the map, returning the stored key and value if the
+    /// key was previously in the map.
+    ///
+    /// The key may be any borrowed form of the map's key type, but
+    /// [`Hash`] and [`Eq`] on the borrowed form *must* match those for
+    /// the key type.
+    ///
+    pub fn remove_entry<Q: ?Sized>(&mut self, k: &Q) -> Option<(K, V)>
+        where K: Borrow<Q>,
+              Q: Hash + Eq
+    {
+        if self.table.size() == 0 {
+            return None;
+        }
+
+        self.search_mut(k)
+            .into_occupied_bucket()
+            .map(|bucket| {
+                let (k, v, _) = pop_internal(bucket);
+                (k, v)
+            })
+    }
+
     /// Retains only the elements specified by the predicate.
     ///
     /// In other words, remove all pairs `(k, v)` such that `f(&k,&mut v)` returns `false`.
@@ -1454,7 +1477,7 @@ impl<'a, K, V> InPlace<V> for EntryPlace<'a, K, V> {
 }
 
 impl<'a, K, V> Entry<'a, K, V> {
-
+    
     /// Ensures a value is in the entry by inserting the default if empty, and returns
     /// a mutable reference to the value in the entry.
     ///
@@ -1465,7 +1488,7 @@ impl<'a, K, V> Entry<'a, K, V> {
         }
     }
 
-
+    
     /// Ensures a value is in the entry by inserting the result of the default function if empty,
     /// and returns a mutable reference to the value in the entry.
     ///

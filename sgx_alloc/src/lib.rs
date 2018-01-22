@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -31,8 +31,6 @@
 //! This crate equals to the `liballoc_system` crate in Rust.
 //! It connects Rust memory allocation to Intel SGX's sgx_tstd library.
 //! It is essential, because we depends on Intel SGX's SDK.
-#![crate_name = "sgx_alloc"]
-#![crate_type = "rlib"]
 
 #![no_std]
 
@@ -40,7 +38,6 @@
 #![feature(allocator_api)]
 #![feature(alloc)]
 
-extern crate sgx_types;
 extern crate sgx_trts;
 
 extern crate alloc;
@@ -123,8 +120,7 @@ unsafe impl Alloc for System {
 
 mod platform {
 
-    use sgx_types::c_void;
-    use sgx_trts::libc;
+    use sgx_trts::libc::{self, c_void};
     use core::cmp;
     use core::ptr;
 
@@ -135,7 +131,7 @@ mod platform {
     unsafe impl<'a> Alloc for &'a System {
         #[inline]
         unsafe fn alloc(&mut self, layout: Layout) -> Result<*mut u8, AllocErr> {
-            let ptr = if layout.align() <= MIN_ALIGN {
+            let ptr = if layout.align() <= MIN_ALIGN && layout.align() <= layout.size() {
                 libc::malloc(layout.size()) as *mut u8
             } else {
                 aligned_malloc(&layout)
@@ -151,7 +147,7 @@ mod platform {
         unsafe fn alloc_zeroed(&mut self, layout: Layout)
             -> Result<*mut u8, AllocErr>
         {
-            if layout.align() <= MIN_ALIGN {
+            if layout.align() <= MIN_ALIGN && layout.align() <= layout.size() {
                 let ptr = libc::calloc(layout.size(), 1) as *mut u8;
                 if !ptr.is_null() {
                     Ok(ptr)
@@ -183,7 +179,7 @@ mod platform {
                 })
             }
 
-            if new_layout.align() <= MIN_ALIGN {
+            if new_layout.align() <= MIN_ALIGN  && new_layout.align() <= new_layout.size() {
                 let ptr = libc::realloc(ptr as *mut c_void, new_layout.size());
                 if !ptr.is_null() {
                     Ok(ptr as *mut u8)

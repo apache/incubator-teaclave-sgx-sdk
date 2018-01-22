@@ -1,0 +1,18 @@
+[package]
+name = "serde_test_suite"
+version = "0.0.0"
+authors = ["Erick Tryzelaar <erick.tryzelaar@gmail.com>", "David Tolnay <dtolnay@gmail.com>"]
+publish = false
+
+[features]
+unstable = ["serde/unstable", "compiletest_rs"]
+
+[dev-dependencies]
+fnv = "1.0"
+rustc-serialize = "0.3.16"
+serde = { path = "../serde", features = ["rc"] }
+serde_derive = { path = "../serde_derive" }
+serde_test = { path = "../serde_test" }
+
+[dependencies]
+compiletest_rs = { version = "0.2", optional = true }

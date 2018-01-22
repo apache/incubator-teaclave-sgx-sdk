@@ -93,10 +93,12 @@ The `Deref` implementation uses a hidden static variable that is guarded by a at
 #![cfg_attr(feature="nightly", feature(const_fn, allow_internal_unstable, core_intrinsics))]
 
 #![doc(html_root_url = "https://docs.rs/lazy_static/0.2.8")]
-#![no_std]
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![feature(const_fn)]
 #![feature(allow_internal_unstable)]
 
+#[cfg(not(target_env = "sgx"))]
 extern crate sgx_tstd as std;
 
 //#[cfg(not(feature="nightly"))]
@@ -115,7 +117,7 @@ extern crate sgx_tstd as std;
 pub mod lazy;
 
 #[doc(hidden)]
-pub use core::ops::Deref as __Deref;
+pub use std::ops::Deref as __Deref;
 
 #[macro_export]
 #[cfg_attr(feature="nightly", allow_internal_unstable)]

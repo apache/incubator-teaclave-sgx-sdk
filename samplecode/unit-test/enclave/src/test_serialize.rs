@@ -10,7 +10,7 @@ fn test_serialize_internal<T: Serializable + DeSerializable>(target: &T) -> Opti
     helper.decode()
 }
 
-pub fn test_serialize_struct() {
+pub fn test_serialize_struct() { 
     #[derive(Serializable, DeSerializable, PartialEq, Debug)]
     struct TestSturct {
         a1: u32,
@@ -19,7 +19,7 @@ pub fn test_serialize_struct() {
     let a = TestSturct {a1: 2017u32, a2: 829u32};
     let c = test_serialize_internal::<TestSturct>(&a).unwrap();
     assert_eq!(a, c);
-
+    
     #[derive(Serializable, DeSerializable, PartialEq, Debug)]
     struct TestStructUnit;
     let a = TestStructUnit;
@@ -33,7 +33,7 @@ pub fn test_serialize_struct() {
     assert_eq!(a, c);
 
     #[derive(Serializable, DeSerializable, PartialEq, Debug)]
-    struct TestStructTuple(i32, i32);
+    struct TestStructTuple(i32, i32); 
     let a = TestStructTuple(2017i32, 928i32);
     let c = test_serialize_internal::<TestStructTuple>(&a).unwrap();
     assert_eq!(a, c);

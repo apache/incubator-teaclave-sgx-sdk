@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,12 +28,9 @@
 
 //! # Intel Protected File System Library
 //!
-//! Intel Protected File System Library provides protected files API for Intel SGX enclaves.
-//! With this API, the files are encrypted and saved on the untrusted disk during a write operation,
+//! Intel Protected File System Library provides protected files API for Intel SGX enclaves. 
+//! With this API, the files are encrypted and saved on the untrusted disk during a write operation, 
 //! and they are verified for confidentiality and integrity during a read operation.
-
-#![crate_name = "sgx_tprotected_fs"]
-#![crate_type = "rlib"]
 
 #![no_std]
 

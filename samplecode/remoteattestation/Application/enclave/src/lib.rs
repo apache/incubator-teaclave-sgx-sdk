@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -29,11 +29,14 @@
 #![crate_name = "raenclave"]
 #![crate_type = "staticlib"]
 
-#![no_std]
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 #![allow(unused_variables)]
 
 extern crate sgx_types;
+extern crate sgx_trts;
+#[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
 extern crate sgx_tdh;
@@ -42,6 +45,7 @@ extern crate sgx_tservice;
 extern crate sgx_tkey_exchange;
 
 use sgx_types::*;
+use sgx_trts::memeq::ConsttimeMemEq;
 use sgx_tcrypto::*;
 use sgx_tservice::*;
 use sgx_tkey_exchange::*;
@@ -149,16 +153,8 @@ fn verify_att_result_mac(context : sgx_ra_context_t,
         Err(x) => return x
     }
 
-    let mut diff:u8 = 0;
-
-    // consttime_memequal
-    for i in 0..SGX_CMAC_MAC_SIZE {
-        diff |= mac_slice[i] ^ mac_result[i];
-    }
-
-    if diff != 0 {
-        ret = sgx_status_t::SGX_ERROR_MAC_MISMATCH;
-        return ret;
+    if mac_slice.consttime_memeq(&mac_result) == false {
+        return sgx_status_t::SGX_ERROR_MAC_MISMATCH;
     }
 
     sgx_status_t::SGX_SUCCESS
@@ -181,30 +177,19 @@ fn verify_secret_data(context : sgx_ra_context_t,
         Err(x) => return x
     }
 
-    let secret_slice;
-//    let gcm_mac_slice;
-
-    unsafe {
-        secret_slice = slice::from_raw_parts(p_secret, sec_size as usize);
-//        gcm_mac_slice = slice::from_raw_parts(gcm_mac, SGX_AESGCM_MAC_SIZE);
-    }
+    let secret_slice = unsafe {
+        slice::from_raw_parts(p_secret, sec_size as usize)
+    };
 
     if secret_slice.len() != sec_size as usize {
-//       gcm_mac_slice.len() != SGX_AESGCM_MAC_SIZE {
         ret = sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
         return ret;
     }
 
     let mut decrypted_vec: Vec<u8> = vec![0; sec_size as usize];
-    let mut decrypted_slice = &mut decrypted_vec[..];
+    let decrypted_slice = &mut decrypted_vec[..];
     let iv = [0;12];
     let aad:[u8;0] = [0;0];
-
-//    let debug_str = fmt!("{}", aad.len());
-//
-//    unsafe {
-//        ocall_print_string(debug_str as *const c_uchar, debug_str.len() as size_t);
-//    }
 
     let ret = rsgx_rijndael128GCM_decrypt(&sk_key,
                                           &secret_slice,
@@ -225,6 +210,5 @@ fn verify_secret_data(context : sgx_ra_context_t,
         Err(_) => {
             return sgx_status_t::SGX_ERROR_UNEXPECTED;
         }
-
     }
 }

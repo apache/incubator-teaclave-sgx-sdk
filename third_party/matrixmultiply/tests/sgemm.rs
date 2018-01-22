@@ -119,7 +119,7 @@ fn test_mul_with_id<F>(m: usize, n: usize, small: bool)
     where F: Gemm + Float
 {
     let (m, k, n) = (m, n, n);
-    let mut a = vec![F::zero(); m * k];
+    let mut a = vec![F::zero(); m * k]; 
     let mut b = vec![F::zero(); k * n];
     let mut c = vec![F::zero(); m * n];
     println!("test matrix with id input M={}, N={}", m, n);
@@ -163,11 +163,11 @@ fn test_mul_with_id<F>(m: usize, n: usize, small: bool)
 
 /// multiply a K x K id matrix with an K x N matrix
 #[cfg(test)]
-fn test_mul_id_with<F>(k: usize, n: usize, small: bool)
+fn test_mul_id_with<F>(k: usize, n: usize, small: bool) 
     where F: Gemm + Float
 {
     let (m, k, n) = (k, k, n);
-    let mut a = vec![F::zero(); m * k];
+    let mut a = vec![F::zero(); m * k]; 
     let mut b = vec![F::zero(); k * n];
     let mut c = vec![F::zero(); m * n];
 
@@ -213,7 +213,7 @@ fn test_scale<F>(m: usize, k: usize, n: usize, small: bool)
     where F: Gemm + Float
 {
     let (m, k, n) = (m, k, n);
-    let mut a = vec![F::zero(); m * k];
+    let mut a = vec![F::zero(); m * k]; 
     let mut b = vec![F::zero(); k * n];
     let mut c1 = vec![F::one(); m * n];
     let mut c2 = vec![F::nan(); m * n];
@@ -237,7 +237,7 @@ fn test_scale<F>(m: usize, k: usize, n: usize, small: bool)
             c1.as_mut_ptr(), n as isize, 1,
         );
 
-        // A B
+        // A B 
         F::gemm(
             m, k, n,
             F::one(),

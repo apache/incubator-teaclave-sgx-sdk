@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -114,7 +114,7 @@ pub use panicking::{set_panic_handler, PanicInfo, Location};
 /// wrapper struct in this module can be used to force this trait to be
 /// implemented for any closed over variables passed to the `catch_unwind` function
 /// (more on this below).
-pub trait UnwindSafe {}
+pub auto trait UnwindSafe {}
 
 /// A marker trait representing types where a shared reference is considered
 /// unwind safe.
@@ -124,7 +124,7 @@ pub trait UnwindSafe {}
 ///
 /// This is a "helper marker trait" used to provide impl blocks for the
 /// `UnwindSafe` trait, for more information see that documentation.
-pub trait RefUnwindSafe {}
+pub auto trait RefUnwindSafe {}
 
 /// A simple wrapper around a type to assert that it is unwind safe.
 ///
@@ -147,9 +147,7 @@ pub struct AssertUnwindSafe<T>(
 // * Unique, an owning pointer, lifts an implementation
 // * Types like Mutex/RwLock which are explicilty poisoned are unwind safe
 // * Our custom AssertUnwindSafe wrapper is indeed unwind safe
-#[allow(unknown_lints)]
-#[allow(auto_impl)]
-impl UnwindSafe for .. {}
+
 impl<'a, T: ?Sized> !UnwindSafe for &'a mut T {}
 impl<'a, T: RefUnwindSafe + ?Sized> UnwindSafe for &'a T {}
 impl<T: RefUnwindSafe + ?Sized> UnwindSafe for *const T {}
@@ -165,12 +163,10 @@ impl<T: RefUnwindSafe + ?Sized> UnwindSafe for Rc<T> {}
 impl<T: RefUnwindSafe + ?Sized> UnwindSafe for Arc<T> {}
 
 // Pretty simple implementations for the `RefUnwindSafe` marker trait,
-// basically just saying that this is a marker trait and `UnsafeCell` is the
+// basically just saying that `UnsafeCell` is the
 // only thing which doesn't implement it (which then transitively applies to
 // everything else).
-#[allow(unknown_lints)]
-#[allow(auto_impl)]
-impl RefUnwindSafe for .. {}
+
 impl<T: ?Sized> !RefUnwindSafe for UnsafeCell<T> {}
 impl<T> RefUnwindSafe for AssertUnwindSafe<T> {}
 

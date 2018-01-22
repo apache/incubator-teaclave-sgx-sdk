@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,6 +26,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/// A type representing an owned, C-compatible, nul-terminated string with no nul bytes in the
+/// middle.
+///
+/// This type serves the purpose of being able to safely generate a
+/// C-compatible string from a Rust byte slice or vector. An instance of this
+/// type is a static guarantee that the underlying bytes contain no interior 0
+/// bytes ("nul characters") and that the final byte is 0 ("nul terminator").
+///
 use sgx_types::c_char;
 use libc;
 use memchr;
@@ -37,12 +45,15 @@ use core::ops;
 use core::cmp::Ordering;
 use core::mem;
 use core::ptr;
+use core::fmt::{self, Write};
 use alloc::boxed::Box;
 use alloc::borrow::{Cow, Borrow, ToOwned};
 use alloc::vec::Vec;
 use alloc::string::String;
 use alloc::slice;
-use core::fmt::{self, Write};
+use alloc::rc::Rc;
+use alloc::arc::Arc;
+
 use alloc::str::{self, Utf8Error};
 
 /// A type representing an owned C-compatible string
@@ -154,8 +165,8 @@ impl CString {
     /// to undefined behavior or allocator corruption.
     pub unsafe fn from_raw(ptr: *mut c_char) -> CString {
         let len = libc::strlen(ptr) + 1; // Including the NUL byte
-        let slice = slice::from_raw_parts(ptr, len as usize);
-        CString { inner: mem::transmute(slice) }
+        let slice = slice::from_raw_parts_mut(ptr, len as usize);
+        CString { inner: Box::from_raw(slice as *mut [c_char] as *mut [u8]) }
     }
 
     /// Transfers ownership of the string to a C caller.
@@ -219,7 +230,7 @@ impl CString {
 
     /// Converts this `CString` into a boxed `CStr`.
     pub fn into_boxed_c_str(self) -> Box<CStr> {
-        unsafe { mem::transmute(self.into_inner()) }
+        unsafe { Box::from_raw(Box::into_raw(self.into_inner()) as *mut CStr) }
     }
 
     // Bypass "move out of struct which implements `Drop` trait" restriction.
@@ -297,7 +308,7 @@ impl Borrow<CStr> for CString {
 impl<'a> From<&'a CStr> for Box<CStr> {
     fn from(s: &'a CStr) -> Box<CStr> {
         let boxed: Box<[u8]> = Box::from(s.to_bytes_with_nul());
-        unsafe { mem::transmute(boxed) }
+        unsafe { Box::from_raw(Box::into_raw(boxed) as *mut CStr) }
     }
 }
 
@@ -315,10 +326,42 @@ impl From<CString> for Box<CStr> {
     }
 }
 
+impl From<CString> for Arc<CStr> {
+    #[inline]
+    fn from(s: CString) -> Arc<CStr> {
+        let arc: Arc<[u8]> = Arc::from(s.into_inner());
+        unsafe { Arc::from_raw(Arc::into_raw(arc) as *const CStr) }
+    }
+}
+
+impl<'a> From<&'a CStr> for Arc<CStr> {
+    #[inline]
+    fn from(s: &CStr) -> Arc<CStr> {
+        let arc: Arc<[u8]> = Arc::from(s.to_bytes_with_nul());
+        unsafe { Arc::from_raw(Arc::into_raw(arc) as *const CStr) }
+    }
+}
+
+impl From<CString> for Rc<CStr> {
+    #[inline]
+    fn from(s: CString) -> Rc<CStr> {
+        let rc: Rc<[u8]> = Rc::from(s.into_inner());
+        unsafe { Rc::from_raw(Rc::into_raw(rc) as *const CStr) }
+    }
+}
+
+impl<'a> From<&'a CStr> for Rc<CStr> {
+    #[inline]
+    fn from(s: &CStr) -> Rc<CStr> {
+        let rc: Rc<[u8]> = Rc::from(s.to_bytes_with_nul());
+        unsafe { Rc::from_raw(Rc::into_raw(rc) as *const CStr) }
+    }
+}
+
 impl Default for Box<CStr> {
     fn default() -> Box<CStr> {
         let boxed: Box<[u8]> = Box::from([0]);
-        unsafe { mem::transmute(boxed) }
+        unsafe { Box::from_raw(Box::into_raw(boxed) as *mut CStr) }
     }
 }
 
@@ -414,7 +457,7 @@ impl CStr {
     }
 
     pub unsafe fn from_bytes_with_nul_unchecked(bytes: &[u8]) -> &CStr {
-        mem::transmute(bytes)
+        &*(bytes as *const [u8] as *const CStr)
     }
 
     pub fn as_ptr(&self) -> *const c_char {
@@ -427,7 +470,7 @@ impl CStr {
     }
 
     pub fn to_bytes_with_nul(&self) -> &[u8] {
-        unsafe { mem::transmute(&self.inner) }
+        unsafe { &*(&self.inner as *const [c_char] as *const [u8]) }
     }
 
     pub fn to_str(&self) -> Result<&str, str::Utf8Error> {
@@ -443,9 +486,9 @@ impl CStr {
     }
 
     pub fn into_c_string(self: Box<CStr>) -> CString {
-        unsafe { mem::transmute(self) }
+        let raw = Box::into_raw(self) as *mut [u8];
+        CString { inner: unsafe { Box::from_raw(raw) } }
     }
-
 }
 
 impl PartialEq for CStr {

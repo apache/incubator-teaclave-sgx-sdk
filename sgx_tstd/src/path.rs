@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
 
 //! Cross-platform path manipulation.
 //!
-//! This module provides two types, [`PathBuf`] and [`Path`][`Path`] (akin to [`String`]
+//! This module provides two types, [`PathBuf`] and [`Path`] `Path` (akin to [`String`]
 //! and [`str`]), for working with paths abstractly. These types are thin wrappers
 //! around [`OsString`] and [`OsStr`] respectively, meaning that they work directly
 //! on strings according to the local platform's path syntax.
@@ -42,9 +42,13 @@
 //!
 
 use error::Error;
+use fs;
+use io;
 use ffi::{OsStr, OsString};
 use sys::path::{is_sep_byte, is_verbatim_sep, MAIN_SEP_STR, parse_prefix};
 use alloc::borrow::{Borrow, Cow};
+use alloc::rc::Rc;
+use alloc::arc::Arc;
 use core::cmp;
 use core::fmt;
 use core::hash::{Hash, Hasher};
@@ -363,10 +367,10 @@ pub enum Component<'a> {
     /// It represents a separator that designates that a path starts from root.
     RootDir,
 
-    /// A reference to the current directory, i.e. `.`.
+    /// A reference to the current directory, i.e. `.`. 
     CurDir,
 
-    /// A reference to the parent directory, i.e. `..`.
+    /// A reference to the parent directory, i.e. `..`. 
     ParentDir,
 
     /// A normal component, e.g. `a` and `b` in `a/b`.
@@ -393,6 +397,12 @@ impl<'a> Component<'a> {
 impl<'a> AsRef<OsStr> for Component<'a> {
     fn as_ref(&self) -> &OsStr {
         self.as_os_str()
+    }
+}
+
+impl<'a> AsRef<Path> for Component<'a> {
+    fn as_ref(&self) -> &Path {
+        self.as_os_str().as_ref()
     }
 }
 
@@ -1075,6 +1085,38 @@ impl<'a> From<PathBuf> for Cow<'a, Path> {
     }
 }
 
+impl From<PathBuf> for Arc<Path> {
+    #[inline]
+    fn from(s: PathBuf) -> Arc<Path> {
+        let arc: Arc<OsStr> = Arc::from(s.into_os_string());
+        unsafe { Arc::from_raw(Arc::into_raw(arc) as *const Path) }
+    }
+}
+
+impl<'a> From<&'a Path> for Arc<Path> {
+    #[inline]
+    fn from(s: &Path) -> Arc<Path> {
+        let arc: Arc<OsStr> = Arc::from(s.as_os_str());
+        unsafe { Arc::from_raw(Arc::into_raw(arc) as *const Path) }
+    }
+}
+
+impl From<PathBuf> for Rc<Path> {
+    #[inline]
+    fn from(s: PathBuf) -> Rc<Path> {
+        let rc: Rc<OsStr> = Rc::from(s.into_os_string());
+        unsafe { Rc::from_raw(Rc::into_raw(rc) as *const Path) }
+    }
+}
+
+impl<'a> From<&'a Path> for Rc<Path> {
+    #[inline]
+    fn from(s: &Path) -> Rc<Path> {
+        let rc: Rc<OsStr> = Rc::from(s.as_os_str());
+        unsafe { Rc::from_raw(Rc::into_raw(rc) as *const Path) }
+    }
+}
+
 impl ToOwned for Path {
     type Owned = PathBuf;
     fn to_owned(&self) -> PathBuf {
@@ -1201,6 +1243,7 @@ impl Path {
     ///
     /// [`PathBuf`]: struct.PathBuf.html
     ///
+    #[rustc_conversion_suggestion]
     pub fn to_path_buf(&self) -> PathBuf {
         PathBuf::from(self.inner.to_os_string())
     }
@@ -1222,7 +1265,7 @@ impl Path {
     /// Return `false` if the `Path` is relative, i.e. not absolute.
     ///
     /// See [`is_absolute`]'s documentation for more details.
-    ///
+    /// 
     pub fn is_relative(&self) -> bool {
         !self.is_absolute()
     }
@@ -1460,6 +1503,86 @@ impl Path {
     ///
     pub fn display(&self) -> Display {
         Display { path: self }
+    }
+
+    /// Queries the file system to get information about a file, directory, etc.
+    ///
+    /// This function will traverse symbolic links to query information about the
+    /// destination file.
+    ///
+    /// This is an alias to [`fs::metadata`].
+    ///
+    /// [`fs::metadata`]: ../fs/fn.metadata.html
+    ///
+    pub fn metadata(&self) -> io::Result<fs::Metadata> {
+        fs::metadata(self)
+    }
+
+    /// Queries the metadata about a file without following symlinks.
+    ///
+    /// This is an alias to [`fs::symlink_metadata`].
+    ///
+    /// [`fs::symlink_metadata`]: ../fs/fn.symlink_metadata.html
+    ///
+    pub fn symlink_metadata(&self) -> io::Result<fs::Metadata> {
+        fs::symlink_metadata(self)
+    }
+
+    /// Returns the canonical form of the path with all intermediate components
+    /// normalized and symbolic links resolved.
+    ///
+    /// This is an alias to [`fs::canonicalize`].
+    ///
+    /// [`fs::canonicalize`]: ../fs/fn.canonicalize.html
+    ///
+    pub fn canonicalize(&self) -> io::Result<PathBuf> {
+        fs::canonicalize(self)
+    }
+
+    /// Reads a symbolic link, returning the file that the link points to.
+    ///
+    /// This is an alias to [`fs::read_link`].
+    ///
+    /// [`fs::read_link`]: ../fs/fn.read_link.html
+    ///
+    pub fn read_link(&self) -> io::Result<PathBuf> {
+        fs::read_link(self)
+    }
+
+    /// Returns whether the path points at an existing entity.
+    ///
+    /// This function will traverse symbolic links to query information about the
+    /// destination file. In case of broken symbolic links this will return `false`.
+    ///
+    /// If you cannot access the directory containing the file, e.g. because of a
+    /// permission error, this will return `false`.
+    ///
+    pub fn exists(&self) -> bool {
+        fs::metadata(self).is_ok()
+    }
+
+    /// Returns whether the path exists on disk and is pointing at a regular file.
+    ///
+    /// This function will traverse symbolic links to query information about the
+    /// destination file. In case of broken symbolic links this will return `false`.
+    ///
+    /// If you cannot access the directory containing the file, e.g. because of a
+    /// permission error, this will return `false`.
+    ///
+    pub fn is_file(&self) -> bool {
+        fs::metadata(self).map(|m| m.is_file()).unwrap_or(false)
+    }
+
+    /// Returns whether the path exists on disk and is pointing at a directory.
+    ///
+    /// This function will traverse symbolic links to query information about the
+    /// destination file. In case of broken symbolic links this will return `false`.
+    ///
+    /// If you cannot access the directory containing the file, e.g. because of a
+    /// permission error, this will return `false`.
+    ///
+    pub fn is_dir(&self) -> bool {
+        fs::metadata(self).map(|m| m.is_dir()).unwrap_or(false)
     }
 
     /// Converts a [`Box<Path>`][`Box`] into a [`PathBuf`] without copying or

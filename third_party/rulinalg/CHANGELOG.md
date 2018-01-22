@@ -283,7 +283,7 @@ over `Matrix`/`MatrixSlice`/`MatrixSliceMut`.
 ### Breaking Changes
 
 - Refactor `BaseSlice` trait as `BaseMatrix`. Implement this trait for `Matrix` too.
-- Much of the `Matrix` functionality is now implemented behind the `BaseMatrix` trait.
+- Much of the `Matrix` functionality is now implemented behind the `BaseMatrix` trait. 
 It will need to be `use`d to access this functionality.
 
 ### Features

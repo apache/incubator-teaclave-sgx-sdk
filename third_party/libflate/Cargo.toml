@@ -10,10 +10,12 @@ keywords = ["deflate", "gzip", "zlib"]
 categories = ["compression"]
 license = "MIT"
 
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }
+
 [dependencies]
 adler32 = { path = "../adler32-rs" }
 byteorder = { path = "../byteorder" }
-sgx_tstd = { path = "../../sgx_tstd" }
 
 [features]
 default = []

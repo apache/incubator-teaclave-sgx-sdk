@@ -1,12 +1,15 @@
 [package]
 name = "sgx_tstd"
-version = "0.9.1"
+version = "0.9.5"
 authors = ["Baidu"]
 build = "build.rs"
 
+[lib]
+name = "sgx_tstd"
+crate-type = ["rlib"]
+
 [features]
 default = ["backtrace"]
-global_exit = []
 backtrace = ["stdio"]
 stdio = []
 
@@ -18,3 +21,4 @@ sgx_types = { path = "../sgx_types" }
 sgx_trts = { path = "../sgx_trts" }
 sgx_alloc = { path = "../sgx_alloc" }
 sgx_tprotected_fs = { path = "../sgx_tprotected_fs" }
+unwind = { path = "../libunwind" }

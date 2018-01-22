@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,7 +26,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-//! Global constructor support
+//! Global constructor/destructor support
 
 /// global_ctors_object is the base macro of implementing constructors.
 ///
@@ -41,6 +41,32 @@ macro_rules! global_ctors_object {
         cfg_if! {
             if #[cfg(target_os = "linux")] {
                 #[link_section = ".init_array"]
+                #[no_mangle]
+                pub static $var_name: fn() = $func_name;
+            } else if #[cfg(target_os = "windows")]  {
+                #[no_mangle]
+                pub static $var_name: fn() = $func_name;
+            } else if #[cfg(target_os = "macos")]  {
+                #[no_mangle]
+                pub static $var_name: fn() = $func_name;
+            } else {
+
+            }
+        }
+        #[no_mangle]
+        pub fn $func_name() {
+            {$func};
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! global_dtors_object {
+    ($var_name:ident, $func_name:ident = $func:block) => {
+
+        cfg_if! {
+            if #[cfg(target_os = "linux")] {
+                #[link_section = ".fini_array"]
                 #[no_mangle]
                 pub static $var_name: fn() = $func_name;
             } else if #[cfg(target_os = "windows")]  {

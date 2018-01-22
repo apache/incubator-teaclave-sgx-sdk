@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -34,8 +34,6 @@
 //!
 //! **Trust Platform Service Functions**
 //!
-#![crate_name = "sgx_tservice"]
-#![crate_type = "rlib"]
 
 #![no_std]
 #![allow(non_camel_case_types)]

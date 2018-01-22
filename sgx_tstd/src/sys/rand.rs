@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -41,17 +41,17 @@ pub fn hashmap_random_keys() -> (u64, u64) {
 
 mod imp {
     use sgx_types::SgxError;
-    use sgx_trts;
+    use sgx_trts::trts;
 
     fn getrandom(buf: &mut [u8]) -> SgxError {
-        sgx_trts::rsgx_read_rand(buf)
+        trts::rsgx_read_rand(buf)
     }
 
     fn getrandom_fill_bytes(v: &mut [u8]) {
         getrandom(v).expect("unexpected getrandom error");
     }
 
-    #[allow(dead_code)]
+    #[allow(dead_code)] 
     fn is_getrandom_available() -> bool { true }
 
     pub fn fill_bytes(v: &mut [u8]) {

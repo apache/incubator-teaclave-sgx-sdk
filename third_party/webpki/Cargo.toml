@@ -1,0 +1,89 @@
+# Copyright 2015 Brian Smith.
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+[package]
+authors = ["Brian Smith <brian@briansmith.org>"]
+categories = ["cryptography", "no-std"]
+description = "Web PKI X.509 Certificate Verification."
+documentation = "https://briansmith.org/rustdoc/webpki/"
+license-file = "LICENSE"
+name = "webpki"
+readme = "README.md"
+repository = "https://github.com/briansmith/webpki"
+version = "0.18.0"
+
+include = [
+    "Cargo.toml",
+
+    "LICENSE",
+    "README.md",
+
+    "src/",
+    "src/calendar.rs",
+    "src/cert.rs",
+    "src/der.rs",
+    "src/name.rs",
+    "src/signed_data.rs",
+    "src/time.rs",
+    "src/trust_anchor_util.rs",
+    "src/verify_cert.rs",
+    "src/webpki.rs",
+
+    "src/data/**/*",
+
+    "tests/dns_name_tests.rs",
+    "tests/integration.rs",
+    "tests/misc/serial_neg.der",
+    "tests/misc/serial_zero.der",
+    "tests/netflix/ca.der",
+    "tests/netflix/ee.der",
+    "tests/netflix/inter.der",
+
+    "third-party/chromium/**/*",
+]
+
+[lib]
+name = "webpki"
+path = "src/webpki.rs"
+
+[features]
+default = ["std", "trust_anchor_util"]
+trust_anchor_util = ["std"]
+std = []
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }
+
+[dependencies]
+ring = { path = "../ring" }
+untrusted = "0.6"
+
+[dev-dependencies]
+base64 = { path = "../rust-base64" }
+
+[profile.bench]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1

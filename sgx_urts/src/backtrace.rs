@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -30,90 +30,80 @@ use std::io::Error;
 use libc::{self, c_char, c_int, c_void, size_t, off_t};
 
 #[no_mangle]
-pub extern "C" fn u_backtrace_open_ocall(error: * mut c_int,
-                                       pathname: * const c_char,
-                                       flags: c_int) -> c_int {
-    unsafe {
-        let mut errno = 0;
-        let ret = libc::open(pathname, flags);
-        if ret < 0 {
-            errno = Error::last_os_error().raw_os_error().unwrap_or(0);
-        }
-        if !error.is_null() {
-            *error = errno;
-        }
-        ret
+pub extern "C" fn u_backtrace_open_ocall(error: * mut c_int, 
+                                         pathname: * const c_char,
+                                         flags: c_int) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::open(pathname, flags) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
 }
 
 #[no_mangle]
 pub extern "C" fn u_backtrace_close_ocall(error: * mut c_int, fd: c_int) -> c_int {
 
-    unsafe {
-        let mut errno = 0;
-        let ret = libc::close(fd);
-        if ret < 0 {
-            errno = Error::last_os_error().raw_os_error().unwrap_or(0);
-        }
-        if !error.is_null() {
-            *error = errno;
-        }
-        ret
+    let mut errno = 0;
+    let ret = unsafe { libc::close(fd) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_backtrace_fcntl_ocall(error: * mut c_int,
-                                        fd: c_int,
-                                        cmd: c_int,
-                                        arg: c_int) -> c_int {
-    unsafe {
-        let mut errno = 0;
-        let ret = libc::fcntl(fd, cmd, arg);
-        if ret < 0 {
-            errno = Error::last_os_error().raw_os_error().unwrap_or(0);
-        }
-        if !error.is_null() {
-            *error = errno;
-        }
-        ret
+pub extern "C" fn u_backtrace_fcntl_ocall(error: * mut c_int, 
+                                          fd: c_int,
+                                          cmd: c_int,
+                                          arg: c_int) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::fcntl(fd, cmd, arg) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
 }
 
 #[no_mangle]
 pub extern "C" fn u_backtrace_mmap_ocall(error: * mut c_int,
-                                       start: * mut c_void,
-                                       length: size_t,
-                                       prot: c_int,
-                                       flags: c_int,
-                                       fd: c_int,
-                                       offset: off_t) -> * mut c_void {
-    unsafe {
-        let mut errno = 0;
-        let ret = libc::mmap(start, length, prot, flags, fd, offset);
-        if ret as isize == -1 {
-            errno = Error::last_os_error().raw_os_error().unwrap_or(0);
-        }
-        if !error.is_null() {
-            *error = errno;
-        }
-        ret
+                                         start: * mut c_void,
+                                         length: size_t,
+                                         prot: c_int,
+                                         flags: c_int,
+                                         fd: c_int,
+                                         offset: off_t) -> * mut c_void {
+    let mut errno = 0;
+    let ret = unsafe { libc::mmap(start, length, prot, flags, fd, offset) };
+    if ret as isize == -1 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
 }
 
 #[no_mangle]
 pub extern "C" fn u_backtrace_munmap_ocall(error: * mut c_int,
-                                         start: * mut c_void,
-                                         length: size_t) -> c_int {
-    unsafe {
-        let mut errno = 0;
-        let ret = libc::munmap(start, length);
-        if ret < 0 {
-            errno = Error::last_os_error().raw_os_error().unwrap_or(0);
-        }
-        if !error.is_null() {
-            *error = errno;
-        }
-        ret
+                                           start: * mut c_void,
+                                           length: size_t) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::munmap(start, length) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
 }

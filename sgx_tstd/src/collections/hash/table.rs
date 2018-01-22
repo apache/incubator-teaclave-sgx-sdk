@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -140,9 +140,6 @@ pub struct RawTable<K, V> {
     // inform rustc that in fact instances of K and V are reachable from here.
     marker: marker::PhantomData<(K, V)>,
 }
-
-unsafe impl<K: Send, V: Send> Send for RawTable<K, V> {}
-unsafe impl<K: Sync, V: Sync> Sync for RawTable<K, V> {}
 
 // An unsafe view of a RawTable bucket
 // Valid indexes are within [0..table_capacity)

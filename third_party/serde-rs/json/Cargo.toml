@@ -1,0 +1,42 @@
+[package]
+name = "serde_json"
+version = "1.0.5" # remember to update html_root_url
+authors = ["Erick Tryzelaar <erick.tryzelaar@gmail.com>", "David Tolnay <dtolnay@gmail.com>"]
+license = "MIT/Apache-2.0"
+description = "A JSON serialization file format"
+repository = "https://github.com/serde-rs/json"
+documentation = "http://docs.serde.rs/serde_json/"
+keywords = ["json", "serde", "serialization"]
+categories = ["encoding"]
+readme = "README.md"
+include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+
+[badges]
+travis-ci = { repository = "serde-rs/json" }
+appveyor = { repository = "serde-rs/json" }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../../sgx_tstd" }
+
+[dependencies]
+serde = { version = "1.0", path = "../serde/serde" }
+num-traits = { version = "0.1.32", path = "../../num/traits" }
+linked-hash-map = { version = "0.5", path = "../../linked-hash-map", optional = true }
+itoa = { version = "0.3", path = "../../itoa" }
+dtoa = { version = "0.4", path = "../../dtoa" }
+
+[dev-dependencies]
+compiletest_rs = "0.2"
+serde_bytes = "0.10"
+serde_derive = "1.0"
+
+
+### FEATURES #################################################################
+
+[features]
+default = []
+
+# Use LinkedHashMap rather than BTreeMap as the map type of serde_json::Value.
+# This allows data to be read into a Value and written back to a JSON string
+# while preserving the order of map keys in the input.
+preserve_order = ["linked-hash-map"]

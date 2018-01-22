@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -190,13 +190,25 @@ pub fn rsgx_raw_is_outside_enclave(addr: * const u8, size: usize) -> bool {
     if ret == 0 { false } else { true }
 }
 
+pub type exit_function_t = extern "C" fn();
+
 #[link(name = "sgx_trts")]
 extern {
-    //
-    // trts_pic.S
-    //
     pub fn abort() -> !;
+    pub fn atexit(fun: exit_function_t) -> c_int;
 }
+
 pub fn rsgx_abort() -> ! {
     unsafe { abort() }
 }
+
+pub fn rsgx_atexit(fun: exit_function_t) -> bool {
+
+    let ret = unsafe { atexit(fun) };
+    if ret < 0 {
+        false
+    } else {
+        true
+    }
+}
+

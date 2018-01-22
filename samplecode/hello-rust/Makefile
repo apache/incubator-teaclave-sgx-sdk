@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+# Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -121,8 +121,8 @@ all: $(App_Name) $(Signed_RustEnclave_Name)
 ######## EDL Objects ########
 
 $(Enclave_EDL_Files): $(SGX_EDGER8R) enclave/Enclave.edl
-	$(SGX_EDGER8R) --trusted enclave/Enclave.edl --search-path $(SGX_SDK)/include --trusted-dir enclave
-	$(SGX_EDGER8R) --untrusted enclave/Enclave.edl --search-path $(SGX_SDK)/include --untrusted-dir app
+	$(SGX_EDGER8R) --trusted enclave/Enclave.edl --search-path $(SGX_SDK)/include --search-path ../../edl --trusted-dir enclave
+	$(SGX_EDGER8R) --untrusted enclave/Enclave.edl --search-path $(SGX_SDK)/include --search-path ../../edl --untrusted-dir app
 	@echo "GEN  =>  $(Enclave_EDL_Files)"
 
 ######## App Objects ########
@@ -136,7 +136,7 @@ $(App_Enclave_u_Object): app/Enclave_u.o
 	cp $(App_Enclave_u_Object) ./lib
 
 $(App_Name): $(App_Enclave_u_Object)
-	@cd app && cargo build $(App_Rust_Flags)
+	@cd app && SGX_SDK=$(SGX_SDK) cargo build $(App_Rust_Flags)
 	@echo "Cargo  =>  $@"
 	cp $(App_Rust_Path)/app ./bin
 
@@ -146,8 +146,7 @@ enclave/Enclave_t.o: $(Enclave_EDL_Files)
 	@$(CC) $(RustEnclave_Compile_Flags) -c enclave/Enclave_t.c -o $@
 	@echo "CC   <=  $<"
 
-$(RustEnclave_Name): enclave compiler-rt enclave/Enclave_t.o
-	cp ./enclave/target/release/libhelloworldsampleenclave.a ./lib/libenclave.a
+$(RustEnclave_Name): enclave compiler-rt enclave/Enclave_t.o 
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
 	@$(CXX) enclave/Enclave_t.o -o $@ $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
@@ -159,7 +158,7 @@ $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 .PHONY: enclave
 enclave:
 	$(MAKE) -C ./enclave/
-
+	
 .PHONY: compiler-rt
 compiler-rt:
 	$(MAKE) -C ../../compiler-rt/ 2> /dev/null
@@ -169,4 +168,4 @@ clean:
 	@rm -f $(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) enclave/*_t.* app/*_u.* lib/*.a
 	@cd enclave && cargo clean && rm -f Cargo.lock
 	@cd app && cargo clean && rm -f Cargo.lock
-
+	

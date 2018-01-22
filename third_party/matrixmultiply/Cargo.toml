@@ -21,8 +21,10 @@ bench = false
 name = "benchmarks"
 harness = false
 
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }
+
 [dependencies]
-sgx_tstd = { path = "../../sgx_tstd" }
 rawpointer = "0.1"
 
 [dev-dependencies]

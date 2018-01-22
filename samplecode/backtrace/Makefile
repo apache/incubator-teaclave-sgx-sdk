@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+# Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -91,8 +91,7 @@ else
 	App_Link_Flags += -lsgx_uae_service
 endif
 
-App_Link_Flags += -lsgx_ustdio
-App_Link_Flags += -lsgx_ubacktrace
+App_Link_Flags += -lsgx_ustdc
 
 App_C_Objects := $(App_C_Files:.c=.o)
 
@@ -136,8 +135,8 @@ all: $(Enclave_EDL_Files) $(App_Name) $(Signed_RustEnclave_Name)
 ######## EDL Objects ########
 
 $(Enclave_EDL_Files): $(SGX_EDGER8R) enclave/Enclave.edl
-	$(SGX_EDGER8R) --trusted enclave/Enclave.edl --search-path $(SGX_SDK)/include --trusted-dir enclave
-	$(SGX_EDGER8R) --untrusted enclave/Enclave.edl --search-path $(SGX_SDK)/include --untrusted-dir app
+	$(SGX_EDGER8R) --trusted enclave/Enclave.edl --search-path $(SGX_SDK)/include --search-path ../../edl --trusted-dir enclave
+	$(SGX_EDGER8R) --untrusted enclave/Enclave.edl --search-path $(SGX_SDK)/include --search-path ../../edl --untrusted-dir app
 	@echo "GEN  =>  $(Enclave_EDL_Files)"
 
 ######## App Objects ########
@@ -150,9 +149,8 @@ app/%.o: app/%.c
 	@$(CXX) $(App_C_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(App_Name): app/Enclave_u.o $(App_C_Objects) sgx_ustdio sgx_ubacktrace
-	cp ../../sgx_ustdio/libsgx_ustdio.a ./lib
-	cp ../../sgx_ubacktrace/libsgx_ubacktrace.a ./lib
+$(App_Name): app/Enclave_u.o $(App_C_Objects) sgx_ustdc
+	cp ../../sgx_ustdc/libsgx_ustdc.a ./lib
 	@$(CXX) app/Enclave_u.o $(App_C_Objects) -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
@@ -163,7 +161,6 @@ enclave/Enclave_t.o: enclave/Enclave_t.c
 	@echo "CC   <=  $<"
 
 $(RustEnclave_Name): enclave compiler-rt enclave/Enclave_t.o
-	cp ./enclave/target/debug/libbacktracesampleenclave.a ./lib/libenclave.a
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
 	@$(CXX) enclave/Enclave_t.o -o $@ $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
@@ -180,13 +177,9 @@ enclave:
 compiler-rt:
 	$(MAKE) -C ../../compiler-rt/ 2> /dev/null
 
-.PHONY: sgx_ustdio
-sgx_ustdio:
-	$(MAKE) -C ../../sgx_ustdio/ 2> /dev/null
-
-.PHONY: sgx_ubacktrace
-sgx_ubacktrace:
-	$(MAKE) -C ../../sgx_ubacktrace/ 2> /dev/null
+.PHONY: sgx_ustdc
+sgx_ustdc:
+	$(MAKE) -C ../../sgx_ustdc/ 2> /dev/null
 
 .PHONY: clean
 clean:

@@ -1,4 +1,4 @@
-use std::fs::SgxFile;
+use std::fs::File;
 use std::io;
 use std::path::Path;
 use std::result;
@@ -96,8 +96,8 @@ impl WriterBuilder {
     ///     Ok(())
     /// }
     /// ```
-    pub fn from_path<P: AsRef<Path>>(&self, path: P) -> Result<Writer<SgxFile>> {
-        Ok(Writer::new(self, SgxFile::create(path)?))
+    pub fn from_path<P: AsRef<Path>>(&self, path: P) -> Result<Writer<File>> {
+        Ok(Writer::new(self, File::create(path)?))
     }
 
     /// Build a CSV writer from this configuration that writes data to `wtr`.
@@ -603,7 +603,7 @@ impl<W: io::Write> Drop for Writer<W> {
     }
 }
 
-impl Writer<SgxFile> {
+impl Writer<File> {
     /// Build a CSV writer with a default configuration that writes data to the
     /// given file path. The file is truncated if it already exists.
     ///
@@ -627,7 +627,7 @@ impl Writer<SgxFile> {
     ///     Ok(())
     /// }
     /// ```
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Writer<SgxFile>> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Writer<File>> {
         WriterBuilder::new().from_path(path)
     }
 }

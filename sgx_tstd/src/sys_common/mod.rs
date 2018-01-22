@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,17 +26,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#[cfg(feature = "global_exit")]
 pub mod at_exit_imp;
 #[cfg(feature = "backtrace")]
 pub mod backtrace;
+#[cfg(feature = "backtrace")]
+pub mod gnu;
 pub mod io;
 pub mod memchr;
 pub mod poison;
 pub mod thread_info;
 pub mod wtf8;
-#[cfg(feature = "backtrace")]
-pub mod gnu;
+pub mod net;
+pub mod bytestring;
 
 /// A trait for viewing representations from std types
 #[doc(hidden)]
@@ -72,7 +73,6 @@ pub trait FromInner<Inner> {
 /// closure will be run once the main thread exits. Returns `Err` to indicate
 /// that the closure could not be registered, meaning that it is not scheduled
 /// to be run.
-#[cfg(feature = "global_exit")]
 pub fn at_exit<F: FnOnce() + Send + 'static>(f: F) -> Result<(), ()> {
     if at_exit_imp::push(Box::new(f)) {Ok(())} else {Err(())}
 }
@@ -90,14 +90,12 @@ pub fn at_exit<F: FnOnce() + Send + 'static>(f: F) -> Result<(), ()> {
 //}
 
 /// One-time runtime cleanup.
-#[cfg(feature = "global_exit")]
 pub fn cleanup() {
-
     use sync::SgxThreadSpinlock;
 
     static SPIN_LOCK: SgxThreadSpinlock = SgxThreadSpinlock::new();
     static mut IS_CLEAUP: bool = false;
-
+    
     unsafe {
         SPIN_LOCK.lock();
         if IS_CLEAUP == false {
@@ -105,7 +103,7 @@ pub fn cleanup() {
             IS_CLEAUP = true;
         }
         SPIN_LOCK.unlock();
-    }
+    }  
 }
 
 // Computes (value*numer)/denom without overflow, as long as both

@@ -235,7 +235,7 @@ All structs are now imported at the `linalg` level, i.e. `linalg::matrix::Matrix
 ### Minor Changes
 
 - Some optimizations to `variance` computation for `Matrix`.
-- Some code cleanup - thanks to [clippy](https://github.com/Manishearth/rust-clippy).
+- Some code cleanup - thanks to [clippy](https://github.com/Manishearth/rust-clippy). 
 
 ## 0.3.1
 

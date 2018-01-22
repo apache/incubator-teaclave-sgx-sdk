@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -25,6 +25,12 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+//! This module provides constants which are specific to the implementation
+//! of the `f64` floating point data type.
+//!
+//! Mathematically significant numbers are provided in the `consts` sub-module.
+//!
 
 #![allow(missing_docs)]
 
@@ -114,7 +120,7 @@ impl f64 {
     /// // Values between `0` and `min` are Subnormal.
     /// assert!(!lower_than_min.is_normal());
     /// ```
-    /// [subnormal]: https://en.wikipedia.org/wiki/Denormal_number
+    /// [subnormal]: https://en.wikipedia.org/wiki/Denormal_number 
     #[inline]
     pub fn is_normal(self) -> bool { num::Float::is_normal(self) }
 
@@ -406,18 +412,17 @@ impl f64 {
 
     /// Returns the logarithm of the number with respect to an arbitrary base.
     ///
+    /// The result may not be correctly rounded owing to implementation details;
+    /// `self.log2()` can produce more accurate results for base 2, and
+    /// `self.log10()` can produce more accurate results for base 10.
+    ///
     /// ```
-    /// let ten = 10.0_f64;
-    /// let two = 2.0_f64;
+    /// let five = 5.0_f64;
     ///
-    /// // log10(10) - 1 == 0
-    /// let abs_difference_10 = (ten.log(10.0) - 1.0).abs();
+    /// // log5(5) - 1 == 0
+    /// let abs_difference = (five.log(5.0) - 1.0).abs();
     ///
-    /// // log2(2) - 1 == 0
-    /// let abs_difference_2 = (two.log(2.0) - 1.0).abs();
-    ///
-    /// assert!(abs_difference_10 < 1e-10);
-    /// assert!(abs_difference_2 < 1e-10);
+    /// assert!(abs_difference < 1e-10);
     /// ```
     #[inline]
     pub fn log(self, base: f64) -> f64 { self.ln() / base.ln() }
@@ -491,7 +496,7 @@ impl f64 {
     /// assert_eq!(x.max(y), y);
     /// ```
     ///
-    /// If one of the arguments is NaN, then the other argument is returned.
+    /// If one of the arguments is NaN, then the other argument is returned.  
     #[inline]
     pub fn max(self, other: f64) -> f64 {
         num::Float::max(self, other)
@@ -891,10 +896,13 @@ impl f64 {
 
     /// Raw transmutation to `u64`.
     ///
-    /// Converts the `f64` into its raw memory representation,
-    /// similar to the `transmute` function.
+    /// This is currently identical to `transmute::<f64, u64>(self)` on all platforms.
     ///
-    /// Note that this function is distinct from casting.
+    /// See `from_bits` for some discussion of the portability of this operation
+    /// (there are almost no issues).
+    ///
+    /// Note that this function is distinct from `as` casting, which attempts to
+    /// preserve the *numeric* value, and not the bitwise value.
     ///
     #[inline]
     pub fn to_bits(self) -> u64 {
@@ -903,32 +911,37 @@ impl f64 {
 
     /// Raw transmutation from `u64`.
     ///
-    /// Converts the given `u64` containing the float's raw memory
-    /// representation into the `f64` type, similar to the
-    /// `transmute` function.
+    /// This is currently identical to `transmute::<u64, f64>(v)` on all platforms.
+    /// It turns out this is incredibly portable, for two reasons:
     ///
-    /// There is only one difference to a bare `transmute`:
-    /// Due to the implications onto Rust's safety promises being
-    /// uncertain, if the representation of a signaling NaN "sNaN" float
-    /// is passed to the function, the implementation is allowed to
-    /// return a quiet NaN instead.
+    /// * Floats and Ints have the same endianess on all supported platforms.
+    /// * IEEE-754 very precisely specifies the bit layout of floats.
     ///
-    /// Note that this function is distinct from casting.
+    /// However there is one caveat: prior to the 2008 version of IEEE-754, how
+    /// to interpret the NaN signaling bit wasn't actually specified. Most platforms
+    /// (notably x86 and ARM) picked the interpretation that was ultimately
+    /// standardized in 2008, but some didn't (notably MIPS). As a result, all
+    /// signaling NaNs on MIPS are quiet NaNs on x86, and vice-versa.
+    ///
+    /// Rather than trying to preserve signaling-ness cross-platform, this
+    /// implementation favours preserving the exact bits. This means that
+    /// any payloads encoded in NaNs will be preserved even if the result of
+    /// this method is sent over the network from an x86 machine to a MIPS one.
+    ///
+    /// If the results of this method are only manipulated by the same
+    /// architecture that produced them, then there is no portability concern.
+    ///
+    /// If the input isn't NaN, then there is no portability concern.
+    ///
+    /// If you don't care about signalingness (very likely), then there is no
+    /// portability concern.
+    ///
+    /// Note that this function is distinct from `as` casting, which attempts to
+    /// preserve the *numeric* value, and not the bitwise value.
     ///
     #[inline]
-    pub fn from_bits(mut v: u64) -> Self {
-        const EXP_MASK: u64   = 0x7FF0000000000000;
-        const FRACT_MASK: u64 = 0x000FFFFFFFFFFFFF;
-        if v & EXP_MASK == EXP_MASK && v & FRACT_MASK != 0 {
-            // While IEEE 754-2008 specifies encodings for quiet NaNs
-            // and signaling ones, certain MIPS and PA-RISC
-            // CPUs treat signaling NaNs differently.
-            // Therefore to be safe, we pass a known quiet NaN
-            // if v is any kind of NaN.
-            // The check above only assumes IEEE 754-1985 to be
-            // valid.
-            v = unsafe { ::mem::transmute(NAN) };
-        }
+    pub fn from_bits(v: u64) -> Self {
+        // It turns out the safety issues with sNaN were overblown! Hooray!
         unsafe { ::mem::transmute(v) }
     }
 }

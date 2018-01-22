@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -61,9 +61,14 @@ pub type Result<T> = result::Result<T, Error>;
 /// [`ErrorKind`].
 ///
 /// [`ErrorKind`]: enum.ErrorKind.html
-#[derive(Debug)]
 pub struct Error {
     repr: Repr,
+}
+
+impl fmt::Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.repr, f)
+    }
 }
 
 enum Repr {
@@ -345,10 +350,12 @@ impl Error {
 impl fmt::Debug for Repr {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Repr::Os(ref code) =>
-                fmt.debug_struct("Os").field("code", code)
-                   .field("message", &sys::os::error_string(*code)).finish(),
-            Repr::Custom(ref c) => fmt.debug_tuple("Custom").field(c).finish(),
+            Repr::Os(code) =>
+                fmt.debug_struct("Os")
+                    .field("code", &code)
+                    .field("kind", &sys::decode_error_kind(code))
+                    .field("message", &sys::os::error_string(code)).finish(),
+            Repr::Custom(ref c) => fmt::Debug::fmt(&c, fmt),
             Repr::Simple(kind) => fmt.debug_tuple("Kind").field(&kind).finish(),
             Repr::SgxStatus(status) => fmt.debug_tuple("Sgx").field(&status).finish(),
         }
@@ -396,5 +403,5 @@ fn _assert_error_is_sync_send() {
 impl error::Error for sgx_status_t {
     fn description(&self) -> &str {
         self.__description()
-    }
+    } 
 }

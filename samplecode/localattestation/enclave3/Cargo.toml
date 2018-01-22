@@ -1,6 +1,6 @@
 [package]
 name = "enclave3"
-version = "0.9.1"
+version = "0.9.5"
 authors = ["Baidu"]
 
 [lib]
@@ -10,6 +10,8 @@ crate-type = ["staticlib"]
 [features]
 default = []
 
-[dependencies]
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../../../sgx_types" }
+
+[dependencies]
 attestation = {path = "../attestation/"}

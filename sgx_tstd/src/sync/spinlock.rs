@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,7 +26,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use sgx_types::*;
+use sgx_types::{self, sgx_spinlock_t};
 use core::marker;
 use core::cell::UnsafeCell;
 
@@ -34,7 +34,7 @@ unsafe fn raw_lock(lock: &mut sgx_spinlock_t) -> * mut sgx_spinlock_t {
     lock as * mut _
 }
 
-///
+/// 
 /// The rsgx_spin_lock function acquires a spin lock within the enclave.
 ///
 /// # Description
@@ -55,10 +55,10 @@ unsafe fn raw_lock(lock: &mut sgx_spinlock_t) -> * mut sgx_spinlock_t {
 ///
 unsafe fn rsgx_spin_lock(lock: &mut sgx_spinlock_t) {
 
-    sgx_spin_lock(raw_lock(lock));
+    sgx_types::sgx_spin_lock(raw_lock(lock));
 }
 
-///
+/// 
 /// The rsgx_spin_unlock function releases a spin lock within the enclave.
 ///
 /// # Description
@@ -79,7 +79,7 @@ unsafe fn rsgx_spin_lock(lock: &mut sgx_spinlock_t) {
 ///
 unsafe fn rsgx_spin_unlock(lock: &mut sgx_spinlock_t) {
 
-    sgx_spin_unlock(raw_lock(lock));
+    sgx_types::sgx_spin_unlock(raw_lock(lock));
 }
 
 pub struct SgxThreadSpinlock {
@@ -92,7 +92,7 @@ unsafe impl Sync for SgxThreadSpinlock {}
 impl SgxThreadSpinlock {
 
     pub const fn new() -> Self {
-        SgxThreadSpinlock{ lock: UnsafeCell::new(SGX_SPINLOCK_INITIALIZER) }
+        SgxThreadSpinlock{ lock: UnsafeCell::new(sgx_types::SGX_SPINLOCK_INITIALIZER) }
     }
 
     pub unsafe fn lock(&self) {
@@ -113,17 +113,17 @@ unsafe impl Send for SgxSpinlock {}
 unsafe impl Sync for SgxSpinlock {}
 
 impl SgxSpinlock {
-
+    
     pub fn new() -> Self {
         SgxSpinlock{inner: SgxThreadSpinlock::new()}
     }
 
     pub fn lock(&self) -> SgxSpinlockGuard {
-        unsafe {
-            self.inner.lock();
+        unsafe { 
+            self.inner.lock(); 
             SgxSpinlockGuard::new(self)
         }
-
+        
     }
 }
 

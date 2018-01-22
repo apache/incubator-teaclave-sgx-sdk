@@ -303,12 +303,12 @@ impl<M: Optimizable<Inputs = Matrix<f64>, Targets = Matrix<f64>>> OptimAlgorithm
     }
 }
 
-/// RMSProp
+/// RMSProp 
 ///
 /// The RMSProp algorithm (Hinton et al. 2012).
 #[derive(Debug, Clone, Copy)]
 pub struct RMSProp {
-    /// The base step size of gradient descent steps
+    /// The base step size of gradient descent steps 
     learning_rate: f64,
     /// Rate at which running total of average square gradients decays
     decay_rate: f64,
@@ -395,7 +395,7 @@ impl<M> OptimAlgorithm<M> for RMSProp
                 let grad_squared = grad.clone().apply(&|x| x*x);
                 // Update cached average of squared gradients
                 rmsprop_cache = &rmsprop_cache*self.decay_rate + &grad_squared*(1.0 - self.decay_rate);
-                // RMSProp update rule
+                // RMSProp update rule 
                 utils::in_place_vec_bin_op(grad.mut_data(), rmsprop_cache.data(), |x, &y| {
                     *x = *x * self.learning_rate / (y + self.epsilon).sqrt();
                 });

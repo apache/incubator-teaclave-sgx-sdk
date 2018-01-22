@@ -1,13 +1,13 @@
 [package]
 name = "attestation"
-version = "0.9.1"
+version = "0.9.5"
 authors = ["Baidu"]
 
 [features]
 default = []
 use_std = []
 
-[dependencies]
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../../../sgx_types" }
 sgx_tstd = { path = "../../../sgx_tstd" }
 sgx_tdh = { path = "../../../sgx_tdh" }

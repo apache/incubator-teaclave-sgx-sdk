@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+# Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -92,8 +92,8 @@ else
 	App_Link_Flags += -lsgx_uae_service
 endif
 
-App_Link_Flags += -lsgx_ustdio
-App_Link_Flags += -lsgx_ubacktrace
+App_Link_Flags += -lsgx_ustdc
+
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 
 App_Name := bin/app
@@ -141,14 +141,14 @@ all: $(Enclave_EDL_Files) $(App_Name) $(Signed_RustEnclave1_Name) $(Signed_RustE
 ######## EDL Objects ########
 
 $(Enclave_EDL_Files): $(SGX_EDGER8R) enclave1/Enclave1.edl enclave2/Enclave2.edl enclave3/Enclave3.edl
-	$(SGX_EDGER8R) --use-prefix --trusted enclave1/Enclave1.edl --search-path $(SGX_SDK)/include --trusted-dir enclave1
-	$(SGX_EDGER8R) --use-prefix --untrusted enclave1/Enclave1.edl --search-path $(SGX_SDK)/include --untrusted-dir app
+	$(SGX_EDGER8R) --use-prefix --trusted enclave1/Enclave1.edl --search-path $(SGX_SDK)/include --search-path ../../edl --trusted-dir enclave1
+	$(SGX_EDGER8R) --use-prefix --untrusted enclave1/Enclave1.edl --search-path $(SGX_SDK)/include --search-path ../../edl --untrusted-dir app
 
-	$(SGX_EDGER8R) --use-prefix --trusted enclave2/Enclave2.edl --search-path $(SGX_SDK)/include --trusted-dir enclave2
-	$(SGX_EDGER8R) --use-prefix --untrusted enclave2/Enclave2.edl --search-path $(SGX_SDK)/include --untrusted-dir app
+	$(SGX_EDGER8R) --use-prefix --trusted enclave2/Enclave2.edl --search-path $(SGX_SDK)/include --search-path ../../edl --trusted-dir enclave2
+	$(SGX_EDGER8R) --use-prefix --untrusted enclave2/Enclave2.edl --search-path $(SGX_SDK)/include --search-path ../../edl --untrusted-dir app
 
-	$(SGX_EDGER8R) --use-prefix --trusted enclave3/Enclave3.edl --search-path $(SGX_SDK)/include --trusted-dir enclave3
-	$(SGX_EDGER8R) --use-prefix --untrusted enclave3/Enclave3.edl --search-path $(SGX_SDK)/include --untrusted-dir app
+	$(SGX_EDGER8R) --use-prefix --trusted enclave3/Enclave3.edl --search-path $(SGX_SDK)/include --search-path ../../edl --trusted-dir enclave3
+	$(SGX_EDGER8R) --use-prefix --untrusted enclave3/Enclave3.edl --search-path $(SGX_SDK)/include --search-path ../../edl --untrusted-dir app
 
 	@echo "GEN  =>  $(Enclave_EDL_Files)"
 
@@ -173,9 +173,8 @@ app/Enclave3_u.o: app/Enclave3_u.c
 app/UntrustedEnclaveMessageExchange.o: app/UntrustedEnclaveMessageExchange.cpp
 	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
 
-$(App_Name): $(App_Cpp_Objects) app/Enclave1_u.o app/Enclave2_u.o app/Enclave3_u.o app/UntrustedEnclaveMessageExchange.o sgx_ustdio sgx_ubacktrace
-	cp ../../sgx_ustdio/libsgx_ustdio.a ./lib
-	cp ../../sgx_ubacktrace/libsgx_ubacktrace.a ./lib
+$(App_Name): $(App_Cpp_Objects) app/Enclave1_u.o app/Enclave2_u.o app/Enclave3_u.o app/UntrustedEnclaveMessageExchange.o sgx_ustdc
+	cp ../../sgx_ustdc/libsgx_ustdc.a ./lib
 	@$(CXX)  $(App_Cpp_Objects) app/Enclave1_u.o app/Enclave2_u.o app/Enclave3_u.o -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
@@ -188,7 +187,6 @@ enclave1/Enclave1_t.o: enclave1/Enclave1_t.c
 	@echo "CC   <=  $<"
 
 $(RustEnclave1_Name): enclave1 compiler-rt enclave1/Enclave1_t.o
-	cp ./enclave1/target/release/libenclave1.a ./lib
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
 	@$(CXX) enclave1/Enclave1_t.o -o $@ -lenclave1 $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
@@ -205,7 +203,6 @@ enclave2/Enclave2_t.o: enclave2/Enclave2_t.c
 	@echo "CC   <=  $<"
 
 $(RustEnclave2_Name): enclave2 compiler-rt enclave2/Enclave2_t.o
-	cp ./enclave2/target/release/libenclave2.a ./lib
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
 	@$(CXX) enclave2/Enclave2_t.o -o $@ -lenclave2 $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
@@ -221,7 +218,6 @@ enclave3/Enclave3_t.o: enclave3/Enclave3_t.c
 	@echo "CC   <=  $<"
 
 $(RustEnclave3_Name): enclave3 compiler-rt enclave3/Enclave3_t.o
-	cp ./enclave3/target/release/libenclave3.a ./lib
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
 	@$(CXX) enclave3/Enclave3_t.o -o $@ -lenclave3 $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
@@ -246,13 +242,9 @@ enclave3:
 compiler-rt:
 	$(MAKE) -C ../../compiler-rt/ 2> /dev/null
 
-.PHONY: sgx_ustdio
-sgx_ustdio:
-	$(MAKE) -C ../../sgx_ustdio/ 2> /dev/null
-
-.PHONY: sgx_ubacktrace
-sgx_ubacktrace:
-	$(MAKE) -C ../../sgx_ubacktrace/ 2> /dev/null
+.PHONY: sgx_ustdc
+sgx_ustdc:
+	$(MAKE) -C ../../sgx_ustdc/ 2> /dev/null
 
 .PHONY: clean
 clean:

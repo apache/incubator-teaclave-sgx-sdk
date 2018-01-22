@@ -1,4 +1,32 @@
-use sgx_types::*;
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//
+//  * Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+//  * Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in
+//    the documentation and/or other materials provided with the
+//    distribution.
+//  * Neither the name of Baidu, Inc., nor the names of its
+//    contributors may be used to endorse or promote products derived
+//    from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+use sgx_types::{self, SysError, sgx_thread_mutex_t};
 use sync::mutex::*;
 use panic::{UnwindSafe, RefUnwindSafe};
 use sys_common::poison::{self, TryLockError, TryLockResult, LockResult};
@@ -17,12 +45,12 @@ unsafe impl Send for SgxReentrantThreadMutex {}
 unsafe impl Sync for SgxReentrantThreadMutex {}
 
 impl SgxReentrantThreadMutex {
-
+    
     ///
     /// The function initializes a trusted mutex object within the enclave.
     ///
     /// # Description
-    ///
+    /// 
     /// When a thread creates a mutex within an enclave, sgx_thread_mutex_
     /// init simply initializes the various fields of the mutex object to indicate that
     /// the mutex is available. rsgx_thread_mutex_init creates a non-recursive
@@ -32,9 +60,9 @@ impl SgxReentrantThreadMutex {
     /// trusted mutex, it is recommended statically initializing the mutex with the
     /// macro SGX_THREAD_MUTEX_INITIALIZER, SGX_THREAD_NON_RECURSIVE_MUTEX_INITIALIZER ,
     /// of, or SGX_THREAD_RECURSIVE_MUTEX_INITIALIZER instead.
-    ///
+    /// 
     /// # Requirements
-    ///
+    /// 
     /// Library: libsgx_tstdc.a
     ///
     /// # Return value
@@ -42,14 +70,14 @@ impl SgxReentrantThreadMutex {
     /// The trusted mutex object to be initialized.
     ///
     pub const fn new() -> Self {
-        SgxReentrantThreadMutex{ lock: UnsafeCell::new(SGX_THREAD_RECURSIVE_MUTEX_INITIALIZER) }
+        SgxReentrantThreadMutex{ lock: UnsafeCell::new(sgx_types::SGX_THREAD_RECURSIVE_MUTEX_INITIALIZER) }
     }
-
+    
     ///
     /// The function locks a trusted mutex object within an enclave.
     ///
     /// # Description
-    ///
+    /// 
     /// To acquire a mutex, a thread first needs to acquire the corresponding spin
     /// lock. After the spin lock is acquired, the thread checks whether the mutex is
     /// available. If the queue is empty or the thread is at the head of the queue the
@@ -69,27 +97,27 @@ impl SgxReentrantThreadMutex {
     /// A thread should not exit an enclave returning from a root ECALL after acquiring
     /// the ownership of a mutex. Do not split the critical section protected by a
     /// mutex across root ECALLs.
-    ///
+    /// 
     /// # Requirements
-    ///
+    /// 
     /// Library: libsgx_tstdc.a
     ///
     /// # Errors
     ///
     /// **EINVAL**
-    ///
+    /// 
     /// The trusted mutex object is invalid.
-    ///
+    /// 
     #[inline]
     pub unsafe fn lock(&self) -> SysError {
         rsgx_thread_mutex_lock(&mut *self.lock.get())
     }
-
+    
     ///
     /// The function tries to lock a trusted mutex object within an enclave.
     ///
     /// # Description
-    ///
+    /// 
     /// A thread may check the status of the mutex, which implies acquiring the spin
     /// lock and verifying that the mutex is available and that the queue is empty or
     /// the thread is at the head of the queue. When this happens, the thread
@@ -102,19 +130,19 @@ impl SgxReentrantThreadMutex {
     /// A thread should not exit an enclave returning from a root ECALL after acquiring
     /// the ownership of a mutex. Do not split the critical section protected by a
     /// mutex across root ECALLs.
-    ///
+    /// 
     /// # Requirements
-    ///
+    /// 
     /// Library: libsgx_tstdc.a
     ///
     /// # Errors
     ///
     /// **EINVAL**
-    ///
+    /// 
     /// The trusted mutex object is invalid.
-    ///
+    /// 
     /// **EBUSY**
-    ///
+    /// 
     /// The mutex is locked by another thread or has pending threads to acquire the mutex
     ///
     #[inline]
@@ -126,26 +154,26 @@ impl SgxReentrantThreadMutex {
     /// The function unlocks a trusted mutex object within an enclave.
     ///
     /// # Description
-    ///
+    /// 
     /// Before a thread releases a mutex, it has to verify it is the owner of the mutex. If
     /// that is the case, the thread decreases the refcount by 1 and then may either
     /// continue normal execution or wakeup the first thread in the queue. Note that
     /// to ensure the state of the mutex remains consistent, the thread that is
     /// awakened by the thread releasing the mutex will then try to acquire the
     /// mutex almost as in the initial call to the rsgx_thread_mutex_lock routine.
-    ///
+    /// 
     /// # Requirements
-    ///
+    /// 
     /// Library: libsgx_tstdc.a
     ///
     /// # Errors
     ///
     /// **EINVAL**
-    ///
+    /// 
     /// The trusted mutex object is invalid or it is not locked by any thread.
-    ///
+    /// 
     /// **EPERM**
-    ///
+    /// 
     /// The mutex is locked by another thread.
     ///
     #[inline]
@@ -157,11 +185,11 @@ impl SgxReentrantThreadMutex {
     /// The function destroys a trusted mutex object within an enclave.
     ///
     /// # Description
-    ///
+    /// 
     /// rsgx_thread_mutex_destroy resets the mutex, which brings it to its initial
     /// status. In this process, certain fields are checked to prevent releasing a mutex
     /// that is still owned by a thread or on which threads are still waiting.
-    ///
+    /// 
     /// **Note**
     ///
     /// Locking or unlocking a mutex after it has been destroyed results in undefined
@@ -169,17 +197,17 @@ impl SgxReentrantThreadMutex {
     /// used again.
     ///
     /// # Requirements
-    ///
+    /// 
     /// Library: libsgx_tstdc.a
     ///
     /// # Errors
     ///
     /// **EINVAL**
-    ///
+    /// 
     /// The trusted mutex object is invalid.
-    ///
+    /// 
     /// **EBUSY**
-    ///
+    /// 
     /// The mutex is locked by another thread or has pending threads to acquire the mutex.
     ///
     #[inline]

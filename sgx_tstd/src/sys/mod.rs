@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,12 +26,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use sgx_types::*;
+use sgx_trts::libc;
 use io::{self, ErrorKind};
 
 pub use self::rand::hashmap_random_keys;
 
+pub mod fd;
 pub mod fs;
+pub mod sgxfs;
+pub mod net;
 pub mod os_str;
 pub mod path;
 pub mod ext;
@@ -41,30 +44,32 @@ pub mod os;
 pub mod stdio;
 #[cfg(feature = "backtrace")]
 pub mod backtrace;
+pub mod time;
 pub mod memchr;
 pub mod cmath;
+pub mod env;
 
 pub fn decode_error_kind(errno: i32) -> ErrorKind {
 
-    match errno as c_int {
-        ECONNREFUSED => ErrorKind::ConnectionRefused,
-        ECONNRESET => ErrorKind::ConnectionReset,
-        EPERM | EACCES => ErrorKind::PermissionDenied,
-        EPIPE => ErrorKind::BrokenPipe,
-        ENOTCONN => ErrorKind::NotConnected,
-        ECONNABORTED => ErrorKind::ConnectionAborted,
-        EADDRNOTAVAIL => ErrorKind::AddrNotAvailable,
-        EADDRINUSE => ErrorKind::AddrInUse,
-        ENOENT => ErrorKind::NotFound,
-        EINTR => ErrorKind::Interrupted,
-        EINVAL => ErrorKind::InvalidInput,
-        ETIMEDOUT => ErrorKind::TimedOut,
-        EEXIST => ErrorKind::AlreadyExists,
+    match errno as libc::c_int {
+        libc::ECONNREFUSED => ErrorKind::ConnectionRefused,
+        libc::ECONNRESET => ErrorKind::ConnectionReset,
+        libc::EPERM | libc::EACCES => ErrorKind::PermissionDenied,
+        libc::EPIPE => ErrorKind::BrokenPipe,
+        libc::ENOTCONN => ErrorKind::NotConnected,
+        libc::ECONNABORTED => ErrorKind::ConnectionAborted,
+        libc::EADDRNOTAVAIL => ErrorKind::AddrNotAvailable,
+        libc::EADDRINUSE => ErrorKind::AddrInUse,
+        libc::ENOENT => ErrorKind::NotFound,
+        libc::EINTR => ErrorKind::Interrupted,
+        libc::EINVAL => ErrorKind::InvalidInput,
+        libc::ETIMEDOUT => ErrorKind::TimedOut,
+        libc::EEXIST => ErrorKind::AlreadyExists,
 
         // These two constants can have the same value on some systems,
         // but different values on others, so we can't use a match
         // clause
-        x if x == EAGAIN || x == EWOULDBLOCK =>
+        x if x == libc::EAGAIN || x == libc::EWOULDBLOCK =>
             ErrorKind::WouldBlock,
 
         _ => ErrorKind::Other,
@@ -85,7 +90,6 @@ macro_rules! impl_is_minus_one {
 
 impl_is_minus_one! { i8 i16 i32 i64 isize }
 
-#[allow(dead_code)]
 pub fn cvt<T: IsMinusOne>(t: T) -> io::Result<T> {
     if t.is_minus_one() {
         Err(io::Error::last_os_error())
@@ -94,7 +98,6 @@ pub fn cvt<T: IsMinusOne>(t: T) -> io::Result<T> {
     }
 }
 
-#[allow(dead_code)]
 pub fn cvt_r<T, F>(mut f: F) -> io::Result<T>
     where T: IsMinusOne,
           F: FnMut() -> T

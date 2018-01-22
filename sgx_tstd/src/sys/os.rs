@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -29,13 +29,23 @@
 use sgx_trts::error as trts_error;
 use os::unix::prelude::*;
 use error::Error as StdError;
-use ffi::{CStr, OsString, OsStr};
+use ffi::{CString, CStr, OsString, OsStr};
 use path::PathBuf;
+use sync::SgxThreadMutex;
+use sys::cvt;
+use memchr;
+use io;
+use core::marker::PhantomData;
 use core::fmt;
 use core::iter;
+use core::ptr;
 use alloc::slice;
 use alloc::string::String;
 use alloc::str;
+use alloc::vec::{self, Vec};
+
+const TMPBUF_SZ: usize = 128;
+static ENV_LOCK: SgxThreadMutex = SgxThreadMutex::new();
 
 pub fn errno() -> i32 {
     trts_error::errno()
@@ -44,8 +54,6 @@ pub fn errno() -> i32 {
 pub fn set_errno(e: i32) {
     trts_error::set_errno(e)
 }
-
-const TMPBUF_SZ: usize = 128;
 
 pub fn error_string(error: i32) -> String {
 
@@ -112,4 +120,188 @@ impl fmt::Display for JoinPathsError {
 
 impl StdError for JoinPathsError {
     fn description(&self) -> &str { "failed to join paths" }
+}
+
+pub struct Env {
+    iter: vec::IntoIter<(OsString, OsString)>,
+    _dont_send_or_sync_me: PhantomData<*mut ()>,
+}
+
+impl Iterator for Env {
+    type Item = (OsString, OsString);
+    fn next(&mut self) -> Option<(OsString, OsString)> { self.iter.next() }
+    fn size_hint(&self) -> (usize, Option<usize>) { self.iter.size_hint() }
+}
+
+pub unsafe fn environ() -> *const *const libc::c_char {
+    libc::environ()
+}
+
+/// Returns a vector of (variable, value) byte-vector pairs for all the
+/// environment variables of the current process.
+pub fn env() -> Env {
+    unsafe {
+        ENV_LOCK.lock();
+        let mut environ = environ();
+        if environ == ptr::null() {
+            ENV_LOCK.unlock();
+            panic!("os::env() failure getting env string from OS: {}",
+                   io::Error::last_os_error());
+        }
+        let mut result = Vec::new();
+        while *environ != ptr::null() {
+            if let Some(key_value) = parse(CStr::from_ptr(*environ).to_bytes()) {
+                result.push(key_value);
+            }
+            environ = environ.offset(1);
+        }
+        let ret = Env {
+            iter: result.into_iter(),
+            _dont_send_or_sync_me: PhantomData,
+        };
+        ENV_LOCK.unlock();
+        return ret
+    }
+
+    fn parse(input: &[u8]) -> Option<(OsString, OsString)> {
+        // Strategy (copied from glibc): Variable name and value are separated
+        // by an ASCII equals sign '='. Since a variable name must not be
+        // empty, allow variable names starting with an equals sign. Skip all
+        // malformed lines.
+        if input.is_empty() {
+            return None;
+        }
+        let pos = memchr::memchr(b'=', &input[1..]).map(|p| p + 1);
+        pos.map(|p| (
+            OsStringExt::from_vec(input[..p].to_vec()),
+            OsStringExt::from_vec(input[p+1..].to_vec()),
+        ))
+    }
+}
+
+pub fn getenv(k: &OsStr) -> io::Result<Option<OsString>> {
+    // environment variables with a nul byte can't be set, so their value is
+    // always None as well
+    let k = CString::new(k.as_bytes())?;
+    unsafe {
+        ENV_LOCK.lock();
+        let s = libc::getenv(k.as_ptr()) as *const libc::c_char;
+        let ret = if s.is_null() {
+            None
+        } else {
+            Some(OsStringExt::from_vec(CStr::from_ptr(s).to_bytes().to_vec()))
+        };
+        ENV_LOCK.unlock();
+        return Ok(ret)
+    }
+}
+
+pub fn setenv(k: &OsStr, v: &OsStr) -> io::Result<()> {
+    let k = CString::new(k.as_bytes())?;
+    let v = CString::new(v.as_bytes())?;
+
+    unsafe {
+        ENV_LOCK.lock();
+        let ret = cvt(libc::setenv(k.as_ptr(), v.as_ptr(), 1)).map(|_| ());
+        ENV_LOCK.unlock();
+        return ret
+    }
+}
+
+pub fn unsetenv(n: &OsStr) -> io::Result<()> {
+    let nbuf = CString::new(n.as_bytes())?;
+
+    unsafe {
+        ENV_LOCK.lock();
+        let ret = cvt(libc::unsetenv(nbuf.as_ptr())).map(|_| ());
+        ENV_LOCK.unlock();
+        return ret
+    }
+}
+
+mod libc {
+    use sgx_types::sgx_status_t;
+    use io;
+    use core::ptr;
+    pub use sgx_trts::libc::*;
+
+    extern "C" {
+
+        pub fn u_env_environ_ocall(result: * mut * const * const c_char) -> sgx_status_t;
+
+        pub fn u_env_getenv_ocall(result: * mut * const c_char,
+                                  name: * const c_char) -> sgx_status_t;
+
+        pub fn u_env_setenv_ocall(result: * mut c_int,
+                                  error: * mut c_int,
+                                  name: * const c_char,
+                                  value: * const c_char,
+                                  overwrite: c_int) -> sgx_status_t;
+
+        pub fn u_env_unsetenv_ocall(result: * mut c_int,
+                                    error: * mut c_int,
+                                    name: * const c_char) -> sgx_status_t;
+    }
+
+    pub unsafe fn environ() -> * const * const c_char {
+
+        let mut result: * const * const c_char = ptr::null();
+        let status = u_env_environ_ocall(&mut result as * mut * const * const c_char);
+
+        if status != sgx_status_t::SGX_SUCCESS {
+            result = ptr::null();
+        }
+        result
+    }
+
+    pub unsafe fn getenv(name: * const c_char) -> * const c_char {
+
+        let mut result: * const c_char = ptr::null();
+        let status = u_env_getenv_ocall(&mut result as * mut * const c_char, name);
+
+        if status != sgx_status_t::SGX_SUCCESS {
+            result = ptr::null();
+        }
+        result
+    }
+
+    pub unsafe fn setenv(name: * const c_char, value: * const c_char, overwrite: c_int) -> c_int {
+
+        let mut result: c_int = 0;
+        let mut error: c_int = 0;
+        let status = u_env_setenv_ocall(&mut result as * mut c_int,
+                                        &mut error as * mut c_int,
+                                        name,
+                                        value,
+                                        overwrite);
+
+        if status == sgx_status_t::SGX_SUCCESS {
+            if result == -1 {
+                io::set_errno(error);
+            }
+        } else {
+            io::set_errno(ESGX);
+            result = -1;
+        }
+        result
+    }
+
+    pub unsafe fn unsetenv(name: * const c_char) -> c_int {
+
+        let mut result: c_int = 0;
+        let mut error: c_int = 0;
+        let status = u_env_unsetenv_ocall(&mut result as * mut c_int,
+                                         &mut error as * mut c_int,
+                                         name);
+
+        if status == sgx_status_t::SGX_SUCCESS {
+            if result == -1 {
+                io::set_errno(error);
+            }
+        } else {
+            io::set_errno(ESGX);
+            result = -1;
+        }
+        result
+    }
 }

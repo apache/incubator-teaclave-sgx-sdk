@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+# Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -34,4 +34,10 @@ Rust_Enclave_Files := $(wildcard src/*.rs)
 all: $(Rust_Enclave_Name)
 
 $(Rust_Enclave_Name): $(Rust_Enclave_Files)
+ifeq ($(XARGO_SGX), 1)
+	xargo build --target x86_64-unknown-linux-sgx --release
+	cp ./target/x86_64-unknown-linux-sgx/release/libunittestsampleenclave.a ../lib/libenclave.a
+else
 	cargo build --release
+	cp ./target/release/libunittestsampleenclave.a ../lib/libenclave.a
+endif

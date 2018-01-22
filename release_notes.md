@@ -1,3 +1,64 @@
+# Rust SGX SDK v0.9.5 Release Notes
+**Support latest Rust nightly build (nightly-2018-01-19-x86_64-unknown-linux-gnu)**
+
+**Xargo support** Rust SGX SDK v0.9.5 provides `xargo` support with a target `x86_64-unknown-linux-sgx`. To compile a crate using `xargo`, add a corresponding json config and make appropirate changes to the source code, then compile it with `xargo build -target x86_64-unknown-linux-sgx --release`. Porting is easier! Please refer to the ported [third-party libraries](third_party/) for more details.
+
+**Network access support** We port part of `std::net` to `sgx_tstd::net`. Now `sgx_tstd::net` supports most of socket functions by using 12 ocalls (defined in `edl/sgx_net.edl`).
+
+**Rustls, webpki and ring for TLS support** We port the most famous TLS implementation [rustls](https://github.com/ctz/rustls), along with its dependnecy [webpki](https://github.com/briansmith/webpki) and crypto library [ring](https://github.com/briansmith/ring) into Rust-SGX world. And we provide a pair of TLS client/server application code samples. Please reference to tls sample codes for detail.
+
+**File system access (sgx_tstd::fs and sgx_tstd::sgxfs) support** We port part of `std::fs` to `sgx_tstd::fs` for normal linux files. Also, we provide `sgx_tstd::sgxfs` to support Intel's `protected_fs`, an encrypted file access mechanism.
+
+**Time (sgx_tstd::time and sgx::tservice::SgxTime) support** We port `std::time` to `sgx_tstd::time` and it provides untrusted local time. We implement `sgx::tservice::SgxTime` for the Intel ME based trusted timestamp. To use `SgxTime`, the [iClsclient library](https://software.intel.com/en-us/sgx-sdk/download) and [Dynamic Application Loader (DAL) Host Interface (aka JHI)](https://github.com/intel/dynamic-application-loader-host-interface) are required. Please reference to [sgxtime usage](documents/sgxtime.md) for detail.
+
+**Environment variable operation (sgx_tstd::env) support** We port part of `std::env` to `sgx_tstd::env` to support setting/getting environment variables.
+
+## New third-party libraries
+
+All of the third-party libraries could be compiled by `make` or `XARGO=1 make`. In this release, we have the following new libraries ported.
+
+1. bincode
+2. dtoa
+3. heapsize
+4. itoa
+5. linked-hash-map
+6. log
+7. ring
+8. rust-base64
+9. rust-serialize
+10. rustls
+11. safemem
+12. sct
+13. serde-rs
+14. webpki
+
+
+## About xargo's sysroot
+
+`xargo` would generate a *sysroot*, including all basic libraries. In the past, everytime a Rust-SGX project is compiled via `make`, the basic Rust-SGX runtime would be compiled. Now, if we use `xargo` to compile (`XARGO=1 make`), only the **first time** xargo builds the sysroot and saves them in Rust's directory and the basic Rust-SGX libraries would be re-used later.
+
+The current sysroot includes:
+1. libcompiler_builtins
+2. libcore
+3. liblibc
+4. libpanic_abort
+5. libpanic_unwind
+6. libsgx_alloc
+7. libsgx_rand
+8. libsgx_serialize
+9. libsgx_tcrypto
+10. libsgx_tdh
+11. libsgx_tkey_exchange
+12. libsgx_tprotected_fs
+13. libsgx_trts
+14. libsgx_tse
+15. libsgx_tseal
+16. libsgx_tservice
+17. libsgx_tunittest
+18. libstd
+19. libstd_unicode
+20. libunwind
+
 # Rust SGX SDK v0.9.1 Release Notes
 
 **Support Intel SGX SDK 2.0 for Linux** Intel released Intel SGX SDK 2.0 for Linux recently and we upgraded Rust SGX SDK to support it.

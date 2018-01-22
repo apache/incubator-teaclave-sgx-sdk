@@ -1,6 +1,6 @@
 [package]
 name = "Zlibsampleenclave"
-version = "0.9.1"
+version = "0.9.5"
 authors = ["Baidu"]
 
 [lib]
@@ -10,9 +10,11 @@ crate-type = ["staticlib"]
 [features]
 default = []
 
-[dependencies]
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../../../sgx_types" }
 sgx_tstd = { path = "../../../sgx_tstd" }
+
+[dependencies]
 inflate = { path = "../../../third_party/inflate" }
 libflate = { path = "../../../third_party/libflate" }
 lazy_static = { path = "../../../third_party/lazy-static.rs" }

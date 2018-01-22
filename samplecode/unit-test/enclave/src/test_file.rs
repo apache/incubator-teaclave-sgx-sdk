@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -27,11 +27,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_rand::{Rng, StdRng};
-use std::fs::{self, SgxFile};
+use std::sgxfs::{self, SgxFile};
+use std::fs::File;
+use std::fs::remove_file;
 use std::io::{Read, Write};
+use std::string::*;
 
-pub fn test_file() {
-
+pub fn test_sgxfs() {
+    
     let mut write_data: [u8; 16] = [0; 16];
     let mut read_data: [u8; 16] = [0; 16];
     let write_size;
@@ -59,7 +62,7 @@ pub fn test_file() {
         read_size = result.unwrap();
     }
 
-    let result = fs::remove("sgx_file");
+    let result = sgxfs::remove("sgx_file");
     assert_eq!(result.is_ok(), true);
 
     assert_eq!(write_data, read_data);
@@ -90,5 +93,26 @@ pub fn test_file() {
         assert_eq!(opt.is_err(), true);
         let opt = SgxFile::create("..");
         assert_eq!(opt.is_err(), true);
+    }
+}
+
+pub fn test_fs () {
+    {
+        let f = File::create("foo.txt");
+        assert!(f.is_ok());
+
+        let result = f.unwrap().write_all(b"Hello, world!");
+        assert!(result.is_ok());
+
+        let f = File::open("foo.txt");
+        assert!(f.is_ok());
+
+        let mut s = String::new();
+        let result = f.unwrap().read_to_string(&mut s);
+        assert!(result.is_ok());
+        assert_eq!(s, "Hello, world!");
+
+        let f = remove_file("foo.txt");
+        assert!(f.is_ok());
     }
 }

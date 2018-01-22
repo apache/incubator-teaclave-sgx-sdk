@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Baidu, Inc. All Rights Reserved.
+ * Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,15 +28,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-
+ 
 enclave {
 
     from "sgx_tkey_exchange.edl" import *;
 
     include "sgx_key_exchange.h"
     include "sgx_trts.h"
-    from "../../../../edl/sgx_stdio.edl" import *;
-    from "../../../../edl/sgx_backtrace.edl" import *;
+    from "sgx_stdio.edl" import *;
+    from "sgx_backtrace.edl" import *;
 
     trusted {
         public sgx_status_t enclave_init_ra(int b_pse, [out] sgx_ra_context_t *p_context);

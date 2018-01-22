@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //! # The Rust SGX SDK Standard Library
-//!
+//! 
 //! The Rust SGX standard library (previously named as `sgx_tstdc`) is
 //! the foundation of portable Rust SGX SDK, a
 //! set of minimal and battle-tested shared abstractions for the Rust SGX
@@ -41,9 +41,6 @@
 //! standard library can be accessed in [`use`] statements through the path
 //! `std`, as in [`use std::env`], or in expressions through the absolute path
 //! `::std`, as in [`::std::env::args`].
-
-#![crate_name = "sgx_tstd"]
-#![crate_type = "rlib"]
 
 #![no_std]
 #![needs_panic_runtime]
@@ -64,17 +61,6 @@
 #![feature(collections_range)]
 #![feature(compiler_builtins_lib)]
 #![feature(const_fn)]
-#![feature(const_max_value)]
-#![feature(const_atomic_bool_new)]
-#![feature(const_atomic_isize_new)]
-#![feature(const_atomic_usize_new)]
-#![feature(const_atomic_u64_new)]
-#![feature(const_atomic_ptr_new)]
-#![feature(const_unsafe_cell_new)]
-#![feature(const_cell_new)]
-#![feature(const_once_new)]
-#![feature(const_ptr_null)]
-#![feature(const_ptr_null_mut)]
 #![feature(core_intrinsics)]
 #![feature(fixed_size_array)]
 #![feature(dropck_eyepatch)]
@@ -135,7 +121,7 @@ extern crate core as __core;
 #[macro_reexport(vec, format)]
 extern crate alloc;
 extern crate std_unicode;
-#[cfg(feature = "backtrace")]
+#[cfg(all(target_env = "sgx", feature = "backtrace"))]
 extern crate libc;
 
 // We always need an unwinder currently for backtraces
@@ -146,9 +132,11 @@ extern crate unwind;
 extern crate compiler_builtins;
 
 extern crate sgx_alloc;
+#[macro_use]
 #[macro_reexport(cfg_if, __cfg_if_items, __cfg_if_apply)]
 extern crate sgx_types;
-#[macro_reexport(global_ctors_object)]
+#[macro_use]
+#[macro_reexport(global_ctors_object, global_dtors_object)]
 extern crate sgx_trts;
 extern crate sgx_tprotected_fs;
 
@@ -209,13 +197,16 @@ pub mod collections;
 pub mod env;
 pub mod error;
 pub mod ffi;
+pub mod sgxfs;
 pub mod fs;
 pub mod io;
+pub mod net;
 pub mod num;
 pub mod os;
 pub mod panic;
 pub mod path;
 pub mod sync;
+pub mod time;
 pub mod heap;
 pub mod enclave;
 

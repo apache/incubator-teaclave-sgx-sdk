@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,33 +28,31 @@
 
 //! Runtime services
 
-use sgx_types::*;
+use sgx_types::sgx_enclave_id_t;
 use enclave;
 use alloc::slice;
 use core::str;
 // Reexport some of our utilities which are expected by other crates.
 pub use panicking::{begin_panic, begin_panic_fmt, update_panic_count};
-#[cfg(feature = "global_exit")]
 pub use sys_common::at_exit;
-
-#[cfg(feature = "global_exit")]
 use sys_common::cleanup;
 
 #[no_mangle]
 pub extern "C" fn t_global_exit_ecall() {
-
-    #[cfg(feature = "global_exit")]
-    cleanup()
 }
 
 #[no_mangle]
 pub extern "C" fn t_global_init_ecall(id: u64, path: * const u8, len: usize) {
 
     enclave::set_enclave_id(id as sgx_enclave_id_t);
-    let s = unsafe {
+    let s = unsafe { 
         let str_slice = slice::from_raw_parts(path, len);
         str::from_utf8_unchecked(str_slice)
     };
     enclave::set_enclave_path(s);
+}
+
+global_dtors_object! {
+    GLOBAL_DTORS, global_exit = { cleanup(); }
 }
 

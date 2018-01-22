@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -29,11 +29,8 @@
 //!
 //! The library is named sgx_serialize_derive_internals.
 //!
-//! It‘s helpful for parsing the structure and fields of struct and enum.
+//! It's helpful for parsing the structure and fields of struct and enum.
 //!
-
-#![crate_name = "sgx_serialize_derive_internals"]
-#![crate_type = "rlib"]
 
 extern crate syn;
 

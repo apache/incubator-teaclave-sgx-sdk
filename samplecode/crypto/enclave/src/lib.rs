@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -29,10 +29,12 @@
 #![crate_name = "cryptosampleenclave"]
 #![crate_type = "staticlib"]
 
-#![no_std]
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 extern crate sgx_types;
 extern crate sgx_tcrypto;
+#[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
 
@@ -272,7 +274,7 @@ pub extern "C" fn aes_gcm_128_decrypt(key: &[u8;16],
     println!("aes_gcm_128_decrypt parameter prepared! {}, {}",
               ciphertext_slice.len(),
               plaintext_slice.len());
-
+    
     // After everything has been set, call API
     let result = rsgx_rijndael128GCM_decrypt(key,
                                              &ciphertext_slice,

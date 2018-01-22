@@ -87,7 +87,7 @@ pub trait BaseMatrix<T>: Sized {
     /// ```
     /// # #[macro_use] extern crate rulinalg; fn main() {
     /// use rulinalg::matrix::{Matrix, BaseMatrix};
-    ///
+    /// 
     /// let mat = matrix![0, 1;
     ///                   3, 4;
     ///                   6, 7];

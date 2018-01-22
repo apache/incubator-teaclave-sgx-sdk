@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -32,7 +32,7 @@
 //!
 use sgx_types::*;
 use sgx_types::marker::ContiguousMemory;
-use sgx_trts::*;
+use sgx_trts::trts::*;
 use sgx_trts::memeq::ConsttimeMemEq;
 use sgx_tcrypto::*;
 use sgx_tse::*;
@@ -132,7 +132,7 @@ impl SgxDhMsg3 {
             return None;
         }
 
-        let mut dh_msg3 = Box::from_raw(p);
+        let dh_msg3 = &mut *p;
         dh_msg3.cmac = self.cmac;
         dh_msg3.msg3_body.report = self.msg3_body.report;
         dh_msg3.msg3_body.additional_prop_length = additional_prop_len as u32;
@@ -141,8 +141,6 @@ impl SgxDhMsg3 {
             let raw_msg3 = slice::from_raw_parts_mut(p as * mut u8, len as usize);
             raw_msg3[dh_msg3_size..].copy_from_slice(&self.msg3_body.additional_prop);
         }
-
-        mem::forget(dh_msg3);
         Some(p)
     }
 
@@ -178,7 +176,7 @@ impl SgxDhMsg3 {
             return None;
         }
 
-        let raw_msg3 = Box::from_raw(p);
+        let raw_msg3 = &*p;
         let additional_prop_len = raw_msg3.msg3_body.additional_prop_length;
         let dh_msg3_size = mem::size_of::<sgx_dh_msg3_t>() as u32;
         if additional_prop_len > u32::max_value() - dh_msg3_size {
@@ -198,8 +196,6 @@ impl SgxDhMsg3 {
             ptr::copy_nonoverlapping(ptr_additional_prop, additional_prop.as_mut_ptr(), additional_prop_len as usize);
             dh_msg3.msg3_body.additional_prop = additional_prop.into_boxed_slice();
         }
-
-        mem::forget(raw_msg3);
         Some(dh_msg3)
     }
 }
@@ -470,12 +466,13 @@ impl SgxDhResponder {
             return Err(sgx_status_t::SGX_ERROR_KDF_MISMATCH);
         }
 
-        let data_mac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, unsafe {&msg2.report}));
+        let report = msg2.report;
+        let data_mac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &report));
         if data_mac.consttime_memeq(&msg2.cmac) == false {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
 
-        try!(rsgx_verify_report(unsafe {&msg2.report}));
+        try!(rsgx_verify_report(&report));
 
         let sha_handle = SgxShaHandle::new();
         try!(sha_handle.init());
@@ -768,8 +765,10 @@ impl SgxDhInitiator {
         report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
         report_data.d[SGX_SHA256_HASH_SIZE..SGX_SHA256_HASH_SIZE + 2].copy_from_slice(&AES_CMAC_KDF_ID);
 
-        msg2.report = try!(rsgx_create_report(unsafe {&msg1.target}, &report_data));
-        msg2.cmac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, unsafe{&msg2.report}));
+        let target = msg1.target;
+        msg2.report = try!(rsgx_create_report(&target, &report_data));
+        let report = msg2.report;
+        msg2.cmac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &report));
 
         Ok(())
     }

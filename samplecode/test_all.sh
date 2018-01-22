@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+# Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -30,20 +30,22 @@
 
 test_cases=(backtrace \
             crypto \
+            file \
             hello-rust \
             helloworld \
 #            hugemem \
             localattestation \
+            machine-learning \
             sealeddata \
             serialize \
             thread \
             unit-test \
-            zlib-lazy-static-sample \
-            machine-learning)
+            zlib-lazy-static-sample)
 
 for i in ${test_cases[@]}
 do
-	cd ${i} && make && cd bin && echo -e '\n' | ./app && cd ../ && make clean && cd ..
+	cd ${i} && make && cd bin && echo -e '\n' | ./app && cd ../ && make clean && \
+	   XARGO=1 make && cd bin && echo -e '\n' | ./app && cd ../ && make clean && cd ..
 done
 
 echo "Done!"

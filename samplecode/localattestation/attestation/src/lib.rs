@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -29,7 +29,8 @@
 #![crate_name = "attestation"]
 #![crate_type = "rlib"]
 
-#![no_std]
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![feature(const_atomic_ptr_new)]
 #![allow(improper_ctypes)]
 #![allow(non_camel_case_types)]
@@ -37,6 +38,7 @@
 #[macro_use]
 extern crate sgx_types;
 extern crate sgx_tdh;
+#[cfg(not(target_env = "sgx"))]
 extern crate sgx_tstd as std;
 
 pub mod err;

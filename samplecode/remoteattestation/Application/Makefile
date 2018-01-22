@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+# Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -100,7 +100,7 @@ else
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11 -DEnableServer
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread -Wl,-rpath=$(CURDIR)/../sample_libcrypto -Wl,-rpath=$(CURDIR) -llog4cpp -lboost_system -lssl -lcrypto -lboost_thread -lprotobuf -L /usr/local/lib -ljsoncpp -lsgx_ustdio -lsgx_ubacktrace
+App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread -Wl,-rpath=$(CURDIR)/../sample_libcrypto -Wl,-rpath=$(CURDIR) -llog4cpp -lboost_system -lssl -lcrypto -lboost_thread -lprotobuf -L /usr/local/lib -ljsoncpp -lsgx_ustdc
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
@@ -187,7 +187,7 @@ endif
 ######## App Objects ########
 
 isv_app/enclave_u.c: $(SGX_EDGER8R) enclave/enclave.edl
-	@cd isv_app && $(SGX_EDGER8R) --untrusted ../enclave/enclave.edl --search-path ../enclave --search-path $(SGX_SDK)/include
+	@cd isv_app && $(SGX_EDGER8R) --untrusted ../enclave/enclave.edl --search-path ../../../../edl --search-path $(SGX_SDK)/include
 	@echo "GEN  =>  $@"
 
 isv_app/enclave_u.o: isv_app/enclave_u.c
@@ -214,16 +214,15 @@ isv_app/%.o: isv_app/%.cpp
 	@$(CXX) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(App_Name): isv_app/enclave_u.o $(App_Cpp_Objects) sgx_ustdio sgx_ubacktrace
-	cp ../../../sgx_ustdio/libsgx_ustdio.a ./lib
-	cp ../../sgx_ubacktrace/libsgx_ubacktrace.a ./lib
+$(App_Name): isv_app/enclave_u.o $(App_Cpp_Objects) sgx_ustdc
+	cp ../../../sgx_ustdc/libsgx_ustdc.a ./lib
 	@$(CXX) isv_app/enclave_u.o $(App_Cpp_Objects) -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
 ######## Enclave Objects ########
 
 enclave/enclave_t.c: $(SGX_EDGER8R) enclave/enclave.edl
-	cd enclave && $(SGX_EDGER8R) --trusted ../enclave/enclave.edl --search-path ../enclave --search-path $(SGX_SDK)/include
+	cd enclave && $(SGX_EDGER8R) --trusted ../enclave/enclave.edl --search-path ../../../../edl --search-path $(SGX_SDK)/include
 	@echo "GEN  =>  $@"
 
 enclave/enclave_t.o: enclave/enclave_t.c
@@ -235,7 +234,6 @@ enclave/%.o: enclave/%.cpp enclave/enclave_t.c
 	@echo "CXX  <=  $<"
 
 $(Enclave_Name): raenclave enclave/enclave_t.o compiler-rt $(Enclave_Cpp_Objects)
-	cp enclave/target/release/libraenclave.a ./lib/libraenclave.a
 	cp ../../../compiler-rt/libcompiler-rt-patch.a ./lib/
 	$(CXX) enclave/enclave_t.o -o $@ $(Enclave_Link_Flags)
 	@echo "LINK =>  $@"
@@ -252,14 +250,10 @@ compiler-rt:
 raenclave:
 	$(MAKE) -C ./enclave/
 
-.PHONY: sgx_ustdio
-sgx_ustdio:
-	$(MAKE) -C ../../../sgx_ustdio/ 2> /dev/null
-
-.PHONY: sgx_ubacktrace
-sgx_ubacktrace:
-	$(MAKE) -C ../../sgx_ubacktrace/ 2> /dev/null
-
+.PHONY: sgx_ustdc
+sgx_ustdc:
+	$(MAKE) -C ../../../sgx_ustdc/ 2> /dev/null
+	
 .PHONY: clean
 clean:
 	$(MAKE) -C ./enclave clean

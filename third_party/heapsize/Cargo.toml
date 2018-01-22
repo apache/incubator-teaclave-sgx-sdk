@@ -1,0 +1,22 @@
+[package]
+name = "heapsize"
+version = "0.4.2"
+authors = [ "The Servo Project Developers" ]
+description = "Infrastructure for measuring the total runtime size of an object on the heap"
+license = "MIT/Apache-2.0"
+repository = "https://github.com/servo/heapsize"
+build = "build.rs"
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path = "../../sgx_tstd" }
+sgx_trts = { path = "../../sgx_trts" }
+sgx_types = { path = "../../sgx_types" }
+
+# [target.'cfg(windows)'.dependencies]
+# kernel32-sys = "0.2.1"
+
+[features]
+unstable = []
+
+# https://github.com/servo/heapsize/issues/74
+flexible-tests = []

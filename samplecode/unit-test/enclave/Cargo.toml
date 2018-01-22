@@ -1,6 +1,6 @@
 [package]
 name = "Unittestsampleenclave"
-version = "0.9.1"
+version = "0.9.5"
 authors = ["Baidu"]
 
 [lib]
@@ -10,7 +10,7 @@ crate-type = ["staticlib"]
 [features]
 default = []
 
-[dependencies]
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../../../sgx_types" }
 sgx_tstd = { path = "../../../sgx_tstd" }
 sgx_tcrypto = { path = "../../../sgx_tcrypto" }
@@ -19,4 +19,6 @@ sgx_trts = { path = "../../../sgx_trts" }
 sgx_rand = { path = "../../../sgx_rand" }
 sgx_tseal = { path = "../../../sgx_tseal" }
 sgx_serialize = { path = "../../../sgx_serialize" }
+
+[dependencies]
 sgx_serialize_derive = { path = "../../../sgx_serialize_derive" }

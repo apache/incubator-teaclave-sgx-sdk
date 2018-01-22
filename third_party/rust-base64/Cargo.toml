@@ -1,0 +1,25 @@
+[package]
+name = "base64"
+version = "0.7.0"
+authors = ["Alice Maz <alice@alicemaz.com>", "Marshall Pierce <marshall@mpierce.org>"]
+description = "encodes and decodes base64 as bytes or utf8"
+repository = "https://github.com/alicemaz/rust-base64"
+documentation = "https://github.com/alicemaz/rust-base64/blob/master/README.md"
+readme = "README.md"
+keywords = ["base64", "utf8", "encode", "decode"]
+categories = ["encoding"]
+license = "MIT/Apache-2.0"
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }
+
+[dependencies]
+byteorder = { version = "1.1.0", path = "../byteorder" }
+safemem = { version = "0.2.0", path = "../safemem" }
+
+[dev-dependencies]
+rand = "0.3.15"
+
+[profile.bench]
+# Useful for better disassembly when using `perf record` and `perf annotate`
+debug = true

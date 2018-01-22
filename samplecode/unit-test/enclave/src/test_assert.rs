@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -39,6 +39,7 @@ pub fn foo_should() {
     should_panic!(v[0]);
 }
 
+#[allow(unreachable_code)]
 pub fn foo_assert() {
     assert!(true);
     assert_eq!(1, 1);

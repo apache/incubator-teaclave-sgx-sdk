@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -235,10 +235,12 @@ extern {
                                            p_shared_key: * mut sgx_ec256_dh_shared_t,
                                            ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
     /* intel sgx sdk 1.8 */
+    /* delete (intel sgx sdk 2.0)
     pub fn sgx_ecc256_compute_shared_dhkey512(p_private_b: * mut sgx_ec256_private_t,
                                               p_public_ga: * mut sgx_ec256_public_t,
                                               p_shared_key: * mut sgx_ec256_dh_shared512_t,
                                               ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
+    */
 
     pub fn sgx_ecdsa_sign(p_data: * const ::uint8_t,
                           data_size: ::uint32_t,
@@ -254,9 +256,17 @@ extern {
                             ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
 
     /* intel sgx sdk 1.9 */
+    /*
     pub fn sgx_rsa3072_sign(p_data: * const ::uint8_t,
                             data_size: ::uint32_t,
                             p_private: * const sgx_rsa3072_private_key_t,
+                            p_signature: * mut sgx_rsa3072_signature_t) -> sgx_status_t;
+    */
+
+    /* intel sgx sdk 2.0 */
+    pub fn sgx_rsa3072_sign(p_data: * const ::uint8_t,
+                            data_size: ::uint32_t,
+                            p_key: * const sgx_rsa3072_key_t,
                             p_signature: * mut sgx_rsa3072_signature_t) -> sgx_status_t;
 
     pub fn sgx_rsa3072_verify(p_data: * const ::uint8_t,
@@ -323,7 +333,7 @@ extern {
     // sgx_uae_service.h
     //
     pub fn sgx_init_quote(p_target_info: * mut sgx_target_info_t, p_gid: * mut sgx_epid_group_id_t) -> sgx_status_t;
-
+    
     /* intel sgx sdk 1.9 */
     pub fn sgx_calc_quote_size(p_sig_rl: * const ::uint8_t, sig_rl_size: ::uint32_t, p_quote_size: * mut ::uint32_t) -> sgx_status_t;
     pub fn sgx_get_quote_size(p_sig_rl: * const ::uint8_t, p_quote_size: * mut ::uint32_t) -> sgx_status_t;
@@ -395,15 +405,15 @@ extern {
     //
     // sgx_tprotected_fs.h
     //
-    pub fn sgx_fopen(filename: * const ::c_char,
-                     mode: * const ::c_char,
+    pub fn sgx_fopen(filename: * const ::c_char, 
+                     mode: * const ::c_char, 
                      key: * const sgx_key_128bit_t) -> SGX_FILE;
 
     pub fn sgx_fopen_auto_key(filename: * const ::c_char, mode: * const ::c_char) -> SGX_FILE;
 
-    pub fn sgx_fwrite(ptr: * const ::c_void,
-                      size: ::size_t,
-                      count: ::size_t,
+    pub fn sgx_fwrite(ptr: * const ::c_void, 
+                      size: ::size_t, 
+                      count: ::size_t, 
                       stream: SGX_FILE) -> ::size_t;
 
     pub fn sgx_fread(ptr: * mut ::c_void,
@@ -432,4 +442,13 @@ extern {
     pub fn sgx_fimport_auto_key(filename: * const ::c_char, key: * const sgx_key_128bit_t) -> ::int32_t;
 
     pub fn sgx_fclear_cache(stream: SGX_FILE) -> ::int32_t;
+}
+
+/* intel sgx sdk 2.0 */
+//#[link(name = "sgx_capable")]
+extern {
+
+    pub fn sgx_is_capable(sgx_capable: * mut ::int32_t) -> sgx_status_t;
+    pub fn sgx_cap_enable_device(sgx_device_status: * mut sgx_device_status_t) -> sgx_status_t;
+    pub fn sgx_cap_get_status(sgx_device_status: * mut sgx_device_status_t) -> sgx_status_t;
 }

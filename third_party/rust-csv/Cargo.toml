@@ -18,10 +18,12 @@ appveyor = { repository = "BurntSushi/rust-csv" }
 [lib]
 bench = false
 
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }
+
 [dependencies]
 csv-core = { path = "csv-core", version = "0.1.3" }
 serde = { path = "../serde-rs/serde/serde" }
-sgx_tstd = { path = "../../sgx_tstd" }
 
 [dev-dependencies]
 serde_derive = "1"

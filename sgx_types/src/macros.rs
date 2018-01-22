@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -64,6 +64,7 @@ macro_rules! __cfg_if_apply {
     }
 }
 
+#[macro_export]
 macro_rules! __item {
     ($i:item) => ($i)
 }
@@ -82,6 +83,22 @@ macro_rules! impl_copy_clone{
     )*)
 }
 
+#[macro_export]
+macro_rules! s {
+    ($($(#[$attr:meta])* pub struct $i:ident { $($field:tt)* })*) => ($(
+        __item! {
+            #[repr(C)]
+            $(#[$attr])*
+            pub struct $i { $($field)* }
+        }
+        impl Copy for $i {}
+        impl Clone for $i {
+            fn clone(&self) -> $i { *self }
+        }
+    )*)
+}
+
+#[macro_export]
 macro_rules! impl_struct {
     ($($(#[$attr:meta])* pub struct $i:ident { $(pub $name:ident: $field:ty,)* })*) => ($(
         __item! {
@@ -98,7 +115,7 @@ macro_rules! impl_struct {
                 $i{$($name: Default::default(),)*}
             }
         }
-        unsafe impl ContiguousMemory for $i {}
+        unsafe impl $crate::marker::ContiguousMemory for $i {}
     )*)
 }
 
@@ -139,7 +156,6 @@ macro_rules! impl_enum {
             $($keys:ident = $vals:expr,)*
         }
     ) => (
-        #[repr(C)]
         #[repr($repr)]
         #[derive($($derive),*)]
         pub enum $name {

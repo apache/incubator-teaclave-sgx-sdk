@@ -18,7 +18,7 @@ macro_rules! mat_mul {
             $(
             pub fn $name(bench: &mut Bencher)
             {
-                let a = vec![0.; $m * $n];
+                let a = vec![0.; $m * $n]; 
                 let b = vec![0.; $n * $k];
                 let mut c = vec![0.; $m * $k];
                 bench.iter(|| {
@@ -115,7 +115,7 @@ macro_rules! ref_mat_mul {
             $(
             pub fn $name(bench: &mut Bencher)
             {
-                let a = vec![0. as $ty; $m * $n];
+                let a = vec![0. as $ty; $m * $n]; 
                 let b = vec![0.; $n * $k];
                 let mut c = vec![0.; $m * $k];
                 bench.iter(|| {

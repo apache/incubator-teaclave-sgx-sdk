@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -44,6 +44,8 @@ use core::mem;
 use core::ops;
 use core::str;
 use alloc::slice;
+use alloc::rc::Rc;
+use alloc::arc::Arc;
 use sys_common::AsInner;
 
 const UTF8_REPLACEMENT_CHARACTER: &'static str = "\u{FFFD}";
@@ -139,6 +141,12 @@ impl ops::Deref for Wtf8Buf {
     }
 }
 
+impl ops::DerefMut for Wtf8Buf {
+    fn deref_mut(&mut self) -> &mut Wtf8 {
+        self.as_mut_slice()
+    }
+}
+
 /// Format the string with double quotes,
 /// and surrogates as `\u` followed by four hexadecimal digits.
 /// Example: `"a\u{D800}"` for a string with code points [U+0061, U+D800]
@@ -224,6 +232,11 @@ impl Wtf8Buf {
     #[inline]
     pub fn as_slice(&self) -> &Wtf8 {
         unsafe { Wtf8::from_bytes_unchecked(&self.bytes) }
+    }
+
+    #[inline]
+    pub fn as_mut_slice(&mut self) -> &mut Wtf8 {
+        unsafe { Wtf8::from_mut_bytes_unchecked(&mut self.bytes) }
     }
 
     /// Reserves capacity for at least `additional` more bytes to be inserted
@@ -492,6 +505,15 @@ impl Wtf8 {
         mem::transmute(value)
     }
 
+    /// Creates a mutable WTF-8 slice from a mutable WTF-8 byte slice.
+    ///
+    /// Since the byte slice is not checked for valid WTF-8, this functions is
+    /// marked unsafe.
+    #[inline]
+    unsafe fn from_mut_bytes_unchecked(value: &mut [u8]) -> &mut Wtf8 {
+        mem::transmute(value)
+    }
+
     /// Returns the length, in WTF-8 bytes.
     #[inline]
     pub fn len(&self) -> usize {
@@ -584,10 +606,7 @@ impl Wtf8 {
     fn next_surrogate(&self, mut pos: usize) -> Option<(usize, u16)> {
         let mut iter = self.bytes[pos..].iter();
         loop {
-            let b = match iter.next() {
-                None => return None,
-                Some(&b) => b,
-            };
+            let b = *iter.next()?;
             if b < 0x80 {
                 pos += 1;
             } else if b < 0xE0 {
@@ -648,6 +667,18 @@ impl Wtf8 {
     pub fn empty_box() -> Box<Wtf8> {
         let boxed: Box<[u8]> = Default::default();
         unsafe { mem::transmute(boxed) }
+    }
+
+    #[inline]
+    pub fn into_arc(&self) -> Arc<Wtf8> {
+        let arc: Arc<[u8]> = Arc::from(&self.bytes);
+        unsafe { Arc::from_raw(Arc::into_raw(arc) as *const Wtf8) }
+    }
+
+    #[inline]
+    pub fn into_rc(&self) -> Rc<Wtf8> {
+        let rc: Rc<[u8]> = Rc::from(&self.bytes);
+        unsafe { Rc::from_raw(Rc::into_raw(rc) as *const Wtf8) }
     }
 }
 

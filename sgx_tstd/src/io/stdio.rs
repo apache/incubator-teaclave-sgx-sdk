@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -462,7 +462,7 @@ impl<'a> fmt::Debug for StderrLock<'a> {
 fn print_to<T>(args: fmt::Arguments,
                global_s: fn() -> T,
                label: &str) where T: Write {
-
+    
     let result = global_s().write_fmt(args);
     if let Err(e) = result {
         panic!("failed printing to {}: {}", label, e);
@@ -474,6 +474,6 @@ pub fn _print(args: fmt::Arguments) {
 }
 
 pub fn _eprint(args: fmt::Arguments) {
-
+   
     print_to(args, stderr, "stderr");
 }

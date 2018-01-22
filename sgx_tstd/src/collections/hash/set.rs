@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -664,13 +664,9 @@ impl<'a, T, S> Iterator for Intersection<'a, T, S>
 
     fn next(&mut self) -> Option<&'a T> {
         loop {
-            match self.iter.next() {
-                None => return None,
-                Some(elt) => {
-                    if self.other.contains(elt) {
-                        return Some(elt);
-                    }
-                }
+            let elt = self.iter.next()?;
+            if self.other.contains(elt) {
+                return Some(elt);
             }
         }
     }
@@ -710,13 +706,9 @@ impl<'a, T, S> Iterator for Difference<'a, T, S>
 
     fn next(&mut self) -> Option<&'a T> {
         loop {
-            match self.iter.next() {
-                None => return None,
-                Some(elt) => {
-                    if !self.other.contains(elt) {
-                        return Some(elt);
-                    }
-                }
+            let elt = self.iter.next()?;
+            if !self.other.contains(elt) {
+                return Some(elt);
             }
         }
     }

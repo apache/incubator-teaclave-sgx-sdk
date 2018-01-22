@@ -1,16 +1,16 @@
 [package]
-name = "Seal data sample enclave"
-version = "0.9.1"
+name = "Sealdatasampleenclave"
+version = "0.9.5"
 authors = ["Baidu"]
 
 [lib]
-name = "enclave"
+name = "sealdatasampleenclave"
 crate-type = ["staticlib"]
 
 [features]
 default = []
 
-[dependencies]
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../../../sgx_types" }
 sgx_tseal = { path = "../../../sgx_tseal" }
 sgx_tstd = { path = "../../../sgx_tstd" }

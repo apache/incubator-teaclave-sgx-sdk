@@ -8,8 +8,8 @@ repository = "https://github.com/remram44/adler32-rs"
 keywords = ["adler32", "hash", "rolling"]
 license = "BSD-3-Clause"
 
-[dependencies]
-sgx_tstd = { path =  "../../sgx_tstd"}
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }
 
 [features]
 default = []

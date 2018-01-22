@@ -1,0 +1,20 @@
+[package]
+name = "tlsclient"
+version = "0.9.5"
+authors = ["Baidu"]
+
+[lib]
+name = "tlsclient"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types = { path = "../../../../sgx_types" }
+sgx_trts = { path = "../../../../sgx_trts" }
+sgx_tstd = { path = "../../../../sgx_tstd" }
+
+[dependencies]
+rustls = { path = "../../../../third_party/rustls" }
+webpki = { path = "../../../../third_party/webpki" }

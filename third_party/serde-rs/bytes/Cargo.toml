@@ -1,0 +1,29 @@
+[package]
+name = "serde_bytes"
+version = "0.10.2" # remember to update html_root_url
+authors = ["David Tolnay <dtolnay@gmail.com>"]
+license = "MIT/Apache-2.0"
+description = "Optimized handling of `&[u8]` and `Vec<u8>` for Serde"
+homepage = "https://serde.rs"
+repository = "https://github.com/serde-rs/bytes"
+documentation = "https://docs.serde.rs/serde_bytes/"
+keywords = ["serde", "serialization", "no_std"]
+categories = ["encoding"]
+readme = "README.md"
+include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+
+[features]
+default = ["std"]
+std = ["serde/std"]
+alloc = ["serde/alloc"]
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../../sgx_tstd" }
+
+[dependencies]
+serde = { version = "1.0", default-features = false, path = "../serde/serde" }
+
+[dev-dependencies]
+bincode = { version = "0.9.2", path = "../../bincode" }
+serde_derive = { version = "1.0", path = "../serde/serde_derive" }
+serde_test = { version = "1.0", path = "../serde/serde_test" }

@@ -1,0 +1,30 @@
+[package]
+name = "std"
+version = "0.0.0"
+authors = ["Baidu"]
+build = "build.rs"
+
+[lib]
+name = "std"
+path = "../../sgx_tstd/src/lib.rs"
+crate-type = ["rlib"]
+
+[features]
+default = ["backtrace"]
+backtrace = ["stdio"]
+stdio = []
+
+[build-dependencies]
+build_helper = { path = "../../build_helper" }
+
+[dependencies]
+sgx_types = { path = "../../sgx_types" }
+sgx_trts = { path = "../../sgx_trts" }
+sgx_alloc = { path = "../../sgx_alloc" }
+sgx_tprotected_fs = { path = "../../sgx_tprotected_fs" }
+sgx_tcrypto = { path = "../../sgx_tcrypto" }
+sgx_tse = { path = "../../sgx_tse" }
+sgx_tseal = { path = "../../sgx_tseal" }
+sgx_tservice = { path = "../../sgx_tservice" }
+sgx_tkey_exchange = { path = "../../sgx_tkey_exchange" }
+sgx_tdh = { path = "../../sgx_tdh" }

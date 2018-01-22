@@ -310,7 +310,7 @@ unsafe fn pack<T>(kc: usize, mc: usize, mr: usize, pack: *mut T,
 }
 
 /// Call the GEMM kernel with a "masked" output C.
-///
+/// 
 /// Simply redirect the MR by NR kernel output to the passed
 /// in `mask_buf`, and copy the non masked region to the real
 /// C.

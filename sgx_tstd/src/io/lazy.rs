@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -27,7 +27,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sync::SgxThreadMutex;
-#[cfg(feature = "global_exit")]
 use sys_common;
 use alloc::arc::Arc;
 use core::cell::{Cell, UnsafeCell};
@@ -51,7 +50,7 @@ impl<T: Send + Sync + 'static> Lazy<T> {
         }
     }
 
-    pub fn get(&'static self) -> Option<Arc<T>> {
+    pub fn get(&'static self) -> Option<Arc<T>> {  
         unsafe {
             let r = self.lock.lock();
             if r.is_err() {
@@ -69,7 +68,7 @@ impl<T: Send + Sync + 'static> Lazy<T> {
             return ret
         }
     }
-
+    /*
     #[cfg(not(feature = "global_exit"))]
     pub unsafe fn destroy(&'static self) {
 
@@ -91,8 +90,8 @@ impl<T: Send + Sync + 'static> Lazy<T> {
         self.ptr.set(Box::into_raw(Box::new(ret.clone())));
         ret
     }
+    */
 
-    #[cfg(feature = "global_exit")]
     unsafe fn init(&'static self) -> Arc<T> {
         // If we successfully register an at exit handler, then we cache the
         // `Arc` allocation in our own internal box (it will get deallocated by
@@ -137,13 +136,13 @@ impl<T: Send + Sync + 'static> LazyStatic<T> {
         }
     }
 
-    pub fn get(&'static self) -> Option<Arc<T>> {
+    pub fn get(&'static self) -> Option<Arc<T>> {  
         unsafe {
             let r = self.lock.lock();
             if r.is_err() {
                 return None;
             }
-
+   
             let ret = match *self.opt.get() {
                 Some(ref arc) => Some(arc.clone()),
                 None => Some(self.init()),

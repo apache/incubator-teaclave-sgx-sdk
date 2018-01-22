@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -240,7 +240,7 @@ bool WebService::verifyQuote(uint8_t *quote, uint8_t *pseManifest, uint8_t *nonc
     this->sendToIAS(url, IAS::report, payload, headers, &ias_response_container, &response_header);
 
 
-    if (response_header.response_status == 200) {
+    if (response_header.response_status == 201) {
         Log("Quote attestation successful, new report has been created");
 
         string response(ias_response_container.p_response);

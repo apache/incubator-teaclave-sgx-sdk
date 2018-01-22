@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Baidu, Inc. All Rights Reserved.
+ * Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,15 +30,12 @@
  */
 
 enclave {
-    from "../../edl/sgx_tstd.edl" import *;
-    from "../../edl/sgx_stdio.edl" import *;
-    from "../../edl/sgx_backtrace.edl" import *;
+    from "sgx_tstd.edl" import *;
+    from "sgx_stdio.edl" import *;
+    from "sgx_backtrace.edl" import *;
     from "sgx_tstdc.edl" import *;
     trusted {
         /* define ECALLs here. */
-        public sgx_status_t k_means_main();
-        public sgx_status_t naive_bayes_dogs_main();
-        public sgx_status_t and_gate_main();
-        public sgx_status_t svm_sign_learner_main();
+        public sgx_status_t sample_main();
     };
 };

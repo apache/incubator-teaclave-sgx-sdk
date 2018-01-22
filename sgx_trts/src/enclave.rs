@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -48,8 +48,6 @@ struct global_data_t {
     heap_offset: usize,
     heap_size: usize,
     thread_policy: u32,
-    reserved: u32,
-    td_template: thread_data_t,
 }
 
 #[repr(C)]
@@ -61,13 +59,14 @@ struct thread_data_t {
     first_ssa_gpr: usize,
     stack_guard: usize,
     reserved: usize,
-    ssa_frame_size: usize,
+    xsave_size: usize,
     last_error: usize,
     m_next: usize,
     tls_addr: usize,
     tls_array: usize,
     exception_flag: usize,
     cxx_thread_info: [usize; 6],
+    stack_commit_addr: usize,
 }
 
 #[derive(Copy, Clone)]
@@ -171,7 +170,7 @@ pub struct SgxThreadData {
     stack_limit_addr: usize,
     first_ssa_gpr: usize,
     stack_guard: usize,
-    ssa_frame_size: usize,
+    xsave_size: usize,
     last_error: usize,
     tls_addr: usize,
     tls_array: usize,
@@ -200,7 +199,7 @@ impl SgxThreadData {
             stack_limit_addr: td.stack_limit_addr,
             first_ssa_gpr: td.first_ssa_gpr,
             stack_guard: td.stack_guard,
-            ssa_frame_size: td.ssa_frame_size,
+            xsave_size: td.xsave_size,
             last_error: td.last_error,
             tls_addr: td.tls_addr,
             tls_array: td.tls_array,

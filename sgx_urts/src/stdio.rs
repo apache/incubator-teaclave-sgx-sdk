@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,22 +26,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use libc;
+use libc::{self, size_t, c_void};
 
 #[no_mangle]
-pub extern "C" fn u_stdin_ocall(buf: * mut libc::c_void, nbytes: libc::size_t) -> libc::size_t {
+pub extern "C" fn u_stdin_ocall(buf: * mut c_void, nbytes: size_t) -> size_t {
 
-    unsafe { libc::read(libc::STDIN_FILENO, buf, nbytes) as libc::size_t }
+    unsafe { libc::read(libc::STDIN_FILENO, buf, nbytes) as size_t }
 }
 
 #[no_mangle]
-pub extern "C" fn u_stdout_ocall(buf: * const libc::c_void, nbytes: libc::size_t) -> libc::size_t {
-
-    unsafe { libc::write(libc::STDOUT_FILENO, buf, nbytes) as libc::size_t }
+pub extern "C" fn u_stdout_ocall(buf: * const c_void, nbytes: size_t) -> size_t {
+   
+    unsafe { libc::write(libc::STDOUT_FILENO, buf, nbytes) as size_t }
 }
 
 #[no_mangle]
-pub extern "C" fn u_stderr_ocall(buf: * const libc::c_void, nbytes: libc::size_t) -> libc::size_t {
-
-    unsafe { libc::write(libc::STDERR_FILENO, buf, nbytes) as libc::size_t }
+pub extern "C" fn u_stderr_ocall(buf: * const c_void, nbytes: size_t) -> size_t {
+   
+    unsafe { libc::write(libc::STDERR_FILENO, buf, nbytes) as size_t }
 }

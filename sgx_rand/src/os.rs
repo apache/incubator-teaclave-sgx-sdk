@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -32,7 +32,7 @@
 use std::{io, mem, fmt};
 use Rng;
 
-/// A random number generator
+/// A random number generator 
 pub struct SgxRng(imp::SgxRng);
 
 impl SgxRng {
@@ -69,7 +69,7 @@ fn next_u64(fill_buf: &mut FnMut(&mut [u8])) -> u64 {
 mod imp {
 
     use sgx_types::*;
-    use sgx_trts::rsgx_read_rand;
+    use sgx_trts::trts::rsgx_read_rand;
     use std::io;
 
     use super::{next_u32, next_u64};
@@ -83,7 +83,7 @@ mod imp {
         getrandom(v).expect("unexpected getrandom error");
     }
 
-    #[allow(dead_code)]
+    #[allow(dead_code)] 
     fn is_getrandom_available() -> bool { true }
 
     pub struct SgxRng;

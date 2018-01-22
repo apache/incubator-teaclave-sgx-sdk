@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -33,6 +33,8 @@
 //!
 use sgx_types::*;
 use core::cell::Cell;
+use core::cmp::Ordering;
+use core::fmt;
 
 ///
 /// rsgx_create_pse_session creates a session with the PSE.
@@ -139,17 +141,15 @@ pub fn rsgx_close_pse_session() -> SgxError {
 /// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave
 /// before calling this API.
 ///
-/// # Parameters
-///
-/// **security_property**
-///
-/// A pointer to the buffer that receives the security property descriptor of the platform service.
-///
 /// # Requirements
 ///
 /// Header: sgx_tae_service.edl
 ///
 /// Library: libsgx_tservice.a
+///
+/// # Return value
+///
+/// The security property descriptor of the platform service
 ///
 /// # Errors
 ///
@@ -161,11 +161,12 @@ pub fn rsgx_close_pse_session() -> SgxError {
 ///
 /// Session is not created or has been closed by architectural enclave service.
 ///
-pub fn rsgx_get_ps_sec_prop(security_property: &mut sgx_ps_sec_prop_desc_t) -> SgxError {
+pub fn rsgx_get_ps_sec_prop() -> SgxResult<sgx_ps_sec_prop_desc_t> {
 
-    let ret = unsafe { sgx_get_ps_sec_prop(security_property as * mut sgx_ps_sec_prop_desc_t) };
+    let mut security_property: sgx_ps_sec_prop_desc_t = Default::default();
+    let ret = unsafe { sgx_get_ps_sec_prop(&mut security_property as * mut sgx_ps_sec_prop_desc_t) };
     match ret {
-        sgx_status_t::SGX_SUCCESS => Ok(()),
+        sgx_status_t::SGX_SUCCESS => Ok(security_property),
         _ => Err(ret),
     }
 }
@@ -180,17 +181,15 @@ pub fn rsgx_get_ps_sec_prop(security_property: &mut sgx_ps_sec_prop_desc_t) -> S
 /// The caller should call rsgx_create_pse_session to establish a session with the platform service enclave
 /// before calling this API.
 ///
-/// # Parameters
-///
-/// **security_property**
-///
-/// A pointer to the buffer that receives the security property descriptor of the platform service.
-///
 /// # Requirements
 ///
 /// Header: sgx_tae_service.edl
 ///
 /// Library: libsgx_tservice.a
+///
+/// # Return value
+///
+/// The security property descriptor of the platform service
 ///
 /// # Errors
 ///
@@ -202,11 +201,13 @@ pub fn rsgx_get_ps_sec_prop(security_property: &mut sgx_ps_sec_prop_desc_t) -> S
 ///
 /// Session is not created or has been closed by architectural enclave service.
 ///
-pub fn rsgx_get_ps_sec_prop_ex(security_property: &mut sgx_ps_sec_prop_desc_ex_t) -> SgxError {
+pub fn rsgx_get_ps_sec_prop_ex() -> SgxResult<sgx_ps_sec_prop_desc_ex_t> {
 
-    let ret = unsafe { sgx_get_ps_sec_prop_ex(security_property as * mut sgx_ps_sec_prop_desc_ex_t) };
+    let mut security_property: sgx_ps_sec_prop_desc_ex_t = Default::default();
+
+    let ret = unsafe { sgx_get_ps_sec_prop_ex(&mut security_property as * mut sgx_ps_sec_prop_desc_ex_t) };
     match ret {
-        sgx_status_t::SGX_SUCCESS => Ok(()),
+        sgx_status_t::SGX_SUCCESS => Ok(security_property),
         _ => Err(ret),
     }
 }
@@ -217,7 +218,7 @@ pub fn rsgx_get_ps_sec_prop_ex(security_property: &mut sgx_ps_sec_prop_desc_ex_t
 /// # Description
 ///
 /// current_time contains time in seconds and time_source_nonce contains nonce associate with the time.
-/// The caller should compare time_ source_nonce against the value returned from the previous call of
+/// The caller should compare time_source_nonce against the value returned from the previous call of
 /// this API if it needs to calculate the time passed between two readings of the Trusted Timer. If the
 /// time_source_nonce of the two readings do not match, the difference between the two readings does not
 /// necessarily reflect time passed.
@@ -276,14 +277,122 @@ pub fn rsgx_get_ps_sec_prop_ex(security_property: &mut sgx_ps_sec_prop_desc_ex_t
 ///
 /// Indicates an unexpected error occurs.
 ///
-pub fn rsgx_get_trusted_time(current_time: &mut sgx_time_t,
-                             time_source_nonce: &mut sgx_time_source_nonce_t) -> SgxError {
+fn rsgx_get_trusted_time(current_time: &mut sgx_time_t,
+                         time_source_nonce: &mut sgx_time_source_nonce_t) -> sgx_status_t {
 
-    let ret = unsafe { sgx_get_trusted_time(current_time as * mut sgx_time_t, time_source_nonce as * mut sgx_time_source_nonce_t) };
-    match ret {
-        sgx_status_t::SGX_SUCCESS => Ok(()),
-        _ => Err(ret),
+    unsafe { 
+        sgx_get_trusted_time(current_time as * mut sgx_time_t, time_source_nonce as * mut sgx_time_source_nonce_t) 
     }
+}
+
+/// timestamp contains time in seconds and source_nonce contains nonce associate with the time.
+#[derive(Copy, Clone, Debug, Default)]
+pub struct SgxTime {
+    timestamp: sgx_time_t,
+    source_nonce: sgx_time_source_nonce_t,
+}
+
+pub type Duration = sgx_time_t;
+
+pub enum SgxTimeError {
+    TimeStamp(Duration),
+    TimeSourceChanged,
+    SgxStatus(sgx_status_t),
+}
+
+impl SgxTimeError {
+    pub fn __description(&self) -> &str {
+        match *self {
+           SgxTimeError::TimeStamp(_) => "other time was not earlier than self",
+           SgxTimeError::TimeSourceChanged => "time source is changed",
+           SgxTimeError::SgxStatus(ref status) => status.__description(),
+        }
+    }
+}
+
+impl fmt::Display for SgxTimeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+           SgxTimeError::TimeStamp(_) => write!(f, "second time provided was later than self"),
+           SgxTimeError::TimeSourceChanged => write!(f, "time source does not match"),
+           SgxTimeError::SgxStatus(status) => status.fmt(f),
+        }
+    }
+}
+
+impl PartialEq for SgxTime {
+    fn eq(&self, other: &SgxTime) -> bool {
+        self.timestamp == other.timestamp && self.source_nonce == other.source_nonce
+    }
+}
+
+impl Eq for SgxTime {}
+
+impl PartialOrd for SgxTime {
+
+    fn partial_cmp(&self, other: &SgxTime) -> Option<Ordering> {
+        
+        if self.source_nonce == other.source_nonce {
+            Some(self.timestamp.cmp(&other.timestamp))
+        } else {
+            None
+        }
+    }
+}
+
+impl SgxTime {
+
+    pub fn now() -> Result<SgxTime, SgxTimeError> {
+
+        let mut timestamp: sgx_time_t = 0;
+        let mut source_nonce: sgx_time_source_nonce_t = Default::default();
+
+        let ret = rsgx_get_trusted_time(&mut timestamp, &mut source_nonce);
+        match ret {
+            sgx_status_t::SGX_SUCCESS => Ok(SgxTime{ 
+                                            timestamp: timestamp, 
+                                            source_nonce: source_nonce 
+                                         }),
+            _ => Err(SgxTimeError::SgxStatus(ret)),
+        }
+    }
+
+    pub fn duration_since(&self, earlier: &SgxTime) -> Result<Duration, SgxTimeError> {
+
+        if self.source_nonce == earlier.source_nonce {
+
+            if self.timestamp >= earlier.timestamp {
+                Ok(self.timestamp - earlier.timestamp)
+            } else {
+                Err(SgxTimeError::TimeStamp(earlier.timestamp - self.timestamp))
+            }
+        } else {
+            Err(SgxTimeError::TimeSourceChanged)
+        }
+    }
+
+    pub fn elapsed(&self) -> Result<Duration, SgxTimeError> {
+
+        SgxTime::now().and_then(|t| t.duration_since(self))
+    }
+
+    pub fn add_duration(&self, other: Duration) -> Option<SgxTime> {
+
+        self.timestamp.checked_add(other).map(|secs|
+            SgxTime{ timestamp: secs, source_nonce: self.source_nonce }
+        )
+    }
+
+    pub fn sub_duration(&self, other: Duration) -> Option<SgxTime> {
+
+        self.timestamp.checked_sub(other).map(|secs|
+            SgxTime{ timestamp: secs, source_nonce: self.source_nonce }
+        )
+    }
+
+    pub fn get_secs(&self) -> sgx_time_t { self.timestamp }
+
+    pub fn get_source_nonce(&self) -> sgx_time_source_nonce_t { self.source_nonce }
 }
 
 fn rsgx_create_monotonic_counter_ex(owner_policy: u16,
@@ -425,9 +534,12 @@ impl SgxMonotonicCounter {
         let ret = rsgx_create_monotonic_counter(&mut counter_uuid, counter_value);
 
         match ret {
-            sgx_status_t::SGX_SUCCESS => Ok(SgxMonotonicCounter{counter_uuid: counter_uuid, initflag: Cell::new(true)}),
+            sgx_status_t::SGX_SUCCESS => Ok(SgxMonotonicCounter{
+                                            counter_uuid: counter_uuid, 
+                                            initflag: Cell::new(true),
+                                         }),
             _ => Err(ret),
-         }
+        }
     }
 
     ///
@@ -532,7 +644,10 @@ impl SgxMonotonicCounter {
         let ret = rsgx_create_monotonic_counter_ex(owner_policy, owner_attribute_mask, &mut counter_uuid, counter_value);
 
         match ret {
-            sgx_status_t::SGX_SUCCESS => Ok(SgxMonotonicCounter{counter_uuid: counter_uuid, initflag: Cell::new(true)}),
+            sgx_status_t::SGX_SUCCESS => Ok(SgxMonotonicCounter{
+                                            counter_uuid: counter_uuid, 
+                                            initflag: Cell::new(true),
+                                         }),
             _ => Err(ret),
         }
     }

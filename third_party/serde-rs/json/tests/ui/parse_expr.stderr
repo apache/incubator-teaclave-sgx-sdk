@@ -1,0 +1,10 @@
+error: unexpected end of macro invocation
+  --> $DIR/parse_expr.rs:13:5
+   |
+13 |     json!({ "a" : ~ });
+   |     ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in a macro outside of the current crate
+
+error: aborting due to previous error
+

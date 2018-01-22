@@ -13,7 +13,7 @@ repository = "https://github.com/rust-lang-nursery/lazy-static.rs"
 keywords = ["macro", "lazy", "static"]
 categories = [ "no-std", "rust-patterns" ]
 
-[dependencies]
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_tstd = { path = "../../sgx_tstd" }
 
 [features]

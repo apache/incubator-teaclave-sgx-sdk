@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,18 +26,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#![crate_name = "sgx_types"]
-#![crate_type = "rlib"]
-
-#![cfg_attr(not(feature = "use_std"), no_std)]
+#![no_std]
 
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(improper_ctypes)]
 #![allow(unused_macros)]
-
-#[cfg(feature = "use_std")]
-extern crate std as core;
 
 #[macro_use]
 mod macros;
@@ -73,16 +67,20 @@ pub type c_longlong = i64;
 pub type c_ulonglong = u64;
 pub type intmax_t = i64;
 pub type uintmax_t = u64;
+#[cfg(target_pointer_width = "32")]
+pub type c_long = i32;
+#[cfg(target_pointer_width = "32")]
+pub type c_ulong = u32;
+#[cfg(target_pointer_width = "64")]
+pub type c_long = i64;
+#[cfg(target_pointer_width = "64")]
+pub type c_ulong = u64;
 
 pub type size_t = usize;
 pub type ptrdiff_t = isize;
 pub type intptr_t = isize;
 pub type uintptr_t = usize;
 pub type ssize_t = isize;
-
-pub type c_long = i64;
-pub type c_ulong = u64;
-pub type time_t = i64;
 
 mod types;
 pub use self::types::*;

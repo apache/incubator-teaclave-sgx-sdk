@@ -14,8 +14,10 @@
        html_root_url = "https://rust-num.github.io/num/",
        html_playground_url = "http://play.integer32.com/")]
 
-#![no_std]
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
+#[cfg(not(target_env = "sgx"))]
 extern crate sgx_tstd as std;
 
 use std::ops::{Add, Sub, Mul, Div, Rem};

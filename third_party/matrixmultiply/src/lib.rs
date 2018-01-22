@@ -5,19 +5,19 @@
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
-//!
+//! 
 //! General matrix multiplication for f32, f64 matrices.
-//!
+//! 
 //! Allows arbitrary row, column strided matrices.
-//!
+//! 
 //! Uses the same microkernel algorithm as [BLIS][bl], but in a much simpler
 //! and less featureful implementation.
 //! See their [multithreading][mt] page for a very good diagram over how
 //! the algorithm partitions the matrix (*Note:* this crate does not implement
 //! multithreading).
-//!
+//! 
 //! [bl]: https://github.com/flame/blis
-//!
+//! 
 //! [mt]: https://github.com/flame/blis/wiki/Multithreading
 //!
 //! ## Matrix Representation
@@ -49,8 +49,10 @@
 //! may not alias each other.
 
 #![doc(html_root_url = "https://docs.rs/matrixmultiply/0.1/")]
-#![no_std]
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
+#[cfg(not(target_env = "sgx"))]
 extern crate sgx_tstd as std;
 
 extern crate rawpointer;

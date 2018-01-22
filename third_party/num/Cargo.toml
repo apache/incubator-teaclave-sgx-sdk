@@ -20,7 +20,7 @@ path = "./integer"
 
 [dependencies.num-iter]
 optional = false
-path = "iter"
+path = "./iter"
 
 [dependencies.num-traits]
 path = "./traits"

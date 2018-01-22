@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,7 +26,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use libc;
+use sgx_trts::libc;
 use ffi::CStr;
 use io;
 use sys::backtrace::BacktraceContext;
@@ -86,7 +86,7 @@ pub fn resolve_symname<F>(frame: Frame,
         if state.is_null() {
             None
         } else {
-            let mut data = ptr::null();
+            let mut data: *const libc::c_char = ptr::null();
             let data_addr = &mut data as *mut *const libc::c_char;
             let ret = unsafe {
                 backtrace_syminfo(state,
@@ -234,7 +234,7 @@ unsafe fn __init_state() -> io::Result<*mut backtrace_state> {
     }
 
     STATE = backtrace_create_state(filename, 0, error_cb, ptr::null_mut());
-
+    
     if STATE.is_null() {
         return Err(io::Error::from_raw_os_error(libc::ENOMEM));
     }

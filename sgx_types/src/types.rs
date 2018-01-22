@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -531,10 +531,12 @@ impl_struct! {
         pub s: [::uint8_t; SGX_ECP256_KEY_SIZE],
     }
 
+    /* delete (intel sgx sdk 2.0)
     pub struct sgx_ec256_dh_shared512_t {
         pub x: [::uint8_t; SGX_ECP256_KEY_SIZE],
         pub y: [::uint8_t; SGX_ECP256_KEY_SIZE],
     }
+    */
 
     pub struct sgx_ec256_private_t {
         pub r: [::uint8_t; SGX_ECP256_KEY_SIZE],
@@ -558,10 +560,20 @@ impl_copy_clone! {
         pub exponent: [::uint8_t; SGX_RSA3072_PUB_EXP_SIZE],
     }
 
+    /* intel sgx sdk 2.0 */
+    pub struct sgx_rsa3072_key_t {
+        pub modulus: [::uint8_t; SGX_RSA3072_KEY_SIZE],
+        pub d: [::uint8_t; SGX_RSA3072_PRI_EXP_SIZE],
+        pub e: [::uint8_t; SGX_RSA3072_PUB_EXP_SIZE],
+    }
+
+    /* intel sgx sdk 1.9 */
+    /*
     pub struct sgx_rsa3072_private_key_t {
         pub modulus: [::uint8_t; SGX_RSA3072_KEY_SIZE],
         pub exponent: [::uint8_t; SGX_RSA3072_PRI_EXP_SIZE],
     }
+    */
 
     pub struct sgx_rsa3072_signature_t {
         pub signature: [::uint8_t; SGX_RSA3072_KEY_SIZE],
@@ -570,13 +582,13 @@ impl_copy_clone! {
 
 impl_struct_default! {
     sgx_rsa3072_public_key_t, 388;
-    sgx_rsa3072_private_key_t, 768;
+    sgx_rsa3072_key_t, 772;
     sgx_rsa3072_signature_t, 384;
 }
 
 impl_struct_ContiguousMemory! {
     sgx_rsa3072_public_key_t;
-    sgx_rsa3072_private_key_t;
+    sgx_rsa3072_key_t;
     sgx_rsa3072_signature_t;
 }
 
@@ -930,12 +942,25 @@ pub type sgx_cpuinfo_t = [::int32_t; 4];
 //
 
 pub type SGX_FILE = * mut ::c_void;
+pub const FILENAME_MAX: ::c_uint = 260; //define in sgx_tprotected_fs.h
+pub const FOPEN_MAX: ::c_uint = 20;     //define in sgx_tprotected_fs.h
 
-pub const EOF: i32 = -1;
+//
+// sgx_capable.h
+//
+/* intel sgx sdk 2.0 */
+impl_enum! {
 
-pub const SEEK_SET: i32 = 0;
-pub const SEEK_CUR: i32 = 1;
-pub const SEEK_END: i32 = 2;
-
-pub const FILENAME_MAX: u32  = 260;
-pub const FOPEN_MAX: u32     = 20;
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq)]
+    pub enum sgx_device_status_t {
+        SGX_ENABLED                     = 0,
+        SGX_DISABLED_REBOOT_REQUIRED    = 1,  /* A reboot is required to finish enabling SGX */
+        SGX_DISABLED_LEGACY_OS          = 2,  /* SGX is disabled and a Software Control Interface is not available to enable it */
+        SGX_DISABLED                    = 3,  /* SGX is not enabled on this platform. More details are unavailable */
+        SGX_DISABLED_SCI_AVAILABLE      = 4,  /* SGX is disabled, but a Software Control Interface is available to enable it */
+        SGX_DISABLED_MANUAL_ENABLE      = 5, /* SGX is disabled, but can be enabled manually in the BIOS setup */
+        SGX_DISABLED_HYPERV_ENABLED     = 6, /* Detected an unsupported version of Windows* 10 with Hyper-V enabled */
+        SGX_DISABLED_UNSUPPORTED_CPU    = 7, /* SGX is not supported by this CPU */
+    }
+}

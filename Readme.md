@@ -1,8 +1,11 @@
 # Rust SGX SDK
-Rust SGX SDK helps developers write Intel SGX applications in Rust programming language.
+Rust SGX SDK helps developers write Intel SGX applications in Rust programming language. [[Paper pdf]](documents/ccsp17.pdf)
+
+## v0.9.5 Release
+This is a **milestone version**, and may be the last version before 1.0.0. It provides supports of network access, TLS connection, trusted/untrusted file system access, trusted/untrusted time, and environment variable operations. Most important, it supports `xargo`! Now `x86_64-unknown-linux-sgx` is the new platform target. All of the code samples and third-party libraries could be built by `xargo` via `XARGO=1 make` (cargo also supported by `make`). What's more, we provide a pair of TLS client/server [sample](samplecode/tls) as a complete stack of secure! Please refer to [release_notes](release_notes.md) for further details.
 
 ## Run Rust SGX applications in Mesalock Linux
-[MesaLock Linux](https://github.com/mesalock-linux/mesalock-distro) is a general purpose Linux distribution which aims to provide a safe and secure user space environment. Now we can run Rust SGX applications in Mesalock Linux within a few steps. Please refer to the [turtorial](documents/sgx_in_mesalock_linux.md) for details.
+[MesaLock Linux](https://github.com/mesalock-linux/mesalock-distro) is a general purpose Linux distribution which aims to provide a safe and secure user space environment. Now we can run Rust SGX applications in Mesalock Linux within a few steps. Please refer to the [tutorial](documents/sgx_in_mesalock_linux.md) for details.
 
 ## v0.9.1 Release
 This version supports the recently released [Intel SGX SDK 2.0](https://download.01.org/intel-sgx/linux-2.0/), and provides the most popular machine learning library [rusty-machine](https://github.com/AtheMathmo/rusty-machine/) in Intel SGX! Please refer to [release_notes](https://github.com/baidu/rust-sgx-sdk/blob/master/release_notes.md) for further details.
@@ -19,17 +22,20 @@ We are proud to have our v0.2.0 Rust SGX SDK released. It is now providing more 
 **Attention** Rust has recently merged a patch [(rustc: Implement the #[global_allocator] attribute)](https://github.com/rust-lang/rust/commit/695dee063bcd40f154bb27b7beafcb3d4dd775ac#diff-28f2fd684ad47d385427678d96d2dcd4) which significantly changes the behavior of liballoc. Thus `set_oom_handler` is no longer available since nightly-2017-07-07. Due to its instability, v0.2.0 Rust SGX SDK keeps using the old liballoc instead of new liballoc_system. As a result, nightly version rustc after 2017-07-06 will not successfully compile `sgx_trts`.
 
 ## Requirement
+
 Ubuntu 16.04
 
-[Intel SGX SDK 1.9 for Linux](https://01.org/zh/intel-softwareguard-extensions) installed
+[Intel SGX SDK 2.0 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
 
 Docker (Recommended)
 
 
 ## Configuration
 
-### Using docker (Recommended)
-First, make sure Intel SGX Driver 1.9 is installed and functions well. `/dev/isgx` should be appeared.
+The docker image now supports Intel ME. If you need it, please refer to the sgxtime [readme](documents/sgxtime.md) for instructions.
+
+### Using docker (Recommended) without ME support
+First, make sure Intel SGX Driver 2.0 is installed and functions well. `/dev/isgx` should be appeared.
 
 Second, pull the docker image
 
@@ -107,15 +113,13 @@ sample, we allocate reserve 31.75GB heap space and allocate 31.625GB buffers!
 
 * `zlib-lazy-static-sample` shows how to use ported third party crates inside enclave.
 
-* New! `machine-learning` shows how to use [rusty-machine](https://github.com/AtheMathmo/rusty-machine) for machine learning inside Intel SGX enclave.
+* `machine-learning` shows how to use [rusty-machine](https://github.com/AtheMathmo/rusty-machine) for machine learning inside Intel SGX enclave.
+* New! `tls` contains a pair of TLS client/server runs perfectly in SGX enclave!
+* New! `sgxtime` shows how to acquire trusted timestamp via Intel ME. Please refer to this [instruction](documents/sgxtime.md) for detail.
 
 # Samples of ported third-party libraries
 
-We provide six sample crates which are ported to SGX environment.
-* `inflate` a simple implementation of inflate algorithm.
-* `libflate` a more complex implementation of inflate algorithm, and its dependents `adler32-rs` and `byteorder`.
-* `lazy-static.rs` a widely used crate for initializing static data structures.
-* `yansi` printing colorful characters on terminal.
+As of v0.9.5, we provide 25 ported third-party libraries. All of them could be compiled using xargo (`XARGO=1` make) or cargo (`make`).
 
 # Tips for writing enclaves in Rust
 

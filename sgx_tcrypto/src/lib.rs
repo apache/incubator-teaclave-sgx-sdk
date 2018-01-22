@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,11 +28,9 @@
 
 //! # Cryptography Library
 //!
-//! The Intel(R) Software Guard Extensions SDK includes a trusted cryptography library named sgx_tcrypto.
+//! The Intel(R) Software Guard Extensions SDK includes a trusted cryptography library named sgx_tcrypto. 
 //! It includes the cryptographic functions used by other trusted libraries included in the SDK
 //!
-#![crate_name = "sgx_tcrypto"]
-#![crate_type = "rlib"]
 
 #![no_std]
 

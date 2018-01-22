@@ -1,0 +1,62 @@
+[package]
+name = "rustls"
+version = "0.11.0"
+authors = ["Joseph Birr-Pixton <jpixton@gmail.com>"]
+license = "Apache-2.0/ISC/MIT"
+readme = "README.md"
+description = "Rustls is a modern TLS library written in Rust."
+homepage = "https://github.com/ctz/rustls"
+repository = "https://github.com/ctz/rustls"
+categories = ["network-programming", "cryptography"]
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }
+
+[dependencies]
+untrusted = "0.6"
+base64 = { path = "../rust-base64" }
+log = { path = "../log" , optional = true }
+ring = { path = "../ring" , version="0.12.1", features = ["rsa_signing"] }
+webpki = { path = "../webpki" }
+sct = { path = "../sct" }
+
+[features]
+default = ["logging"]
+logging = ["log"]
+dangerous_configuration = []
+
+[dev-dependencies]
+log = { path = "../log" }
+env_logger = "0.4.2"
+mio = "0.6"
+docopt = "0.8"
+serde = "1.0"
+serde_derive = "1.0"
+webpki-roots = { git = "https://github.com/briansmith/webpki-roots", branch = "webpki-github" }
+ct-logs = "0.2"
+regex = "0.2"
+
+[[example]]
+name = "bogo_shim"
+path = "examples/internal/bogo_shim.rs"
+required-features = ["dangerous_configuration"]
+
+[[example]]
+name = "trytls_shim"
+path = "examples/internal/trytls_shim.rs"
+
+[[example]]
+name = "bench"
+path = "examples/internal/bench.rs"
+
+[[example]]
+name = "tlsclient"
+path = "examples/tlsclient.rs"
+
+[[example]]
+name = "tlsserver"
+path = "examples/tlsserver.rs"
+
+[[example]]
+name = "simpleclient"
+path = "examples/simpleclient.rs"

@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
 //! Implementation of various bits and pieces of the `panic!` macro and
 //! associated runtime pieces.
 
-use sgx_trts::rsgx_abort;
+use sgx_trts::trts::rsgx_abort;
 use thread;
 use core::mem;
 use core::fmt;
@@ -67,7 +67,7 @@ fn default_panic_handler(msg: &str, file: &str, line: u32, col: u32) {
         }
     };
 
-    let mut err = Stderr::new().ok();
+    let mut err = Stderr::new().ok();   
     let write = |err: &mut ::io::Write| {
         let _ = writeln!(err, "thread panicked at '{}', {}:{}:{}",
                         msg, file, line, col);
@@ -140,7 +140,7 @@ pub struct PanicInfo<'a> {
 }
 
 impl<'a> PanicInfo<'a> {
-
+    
     /// Returns the payload associated with the panic.
     ///
     /// This will commonly, but not always, be a `&'static str` or [`String`].
@@ -172,7 +172,7 @@ pub struct Location<'a> {
 }
 
 impl<'a> Location<'a> {
-
+    
     /// Returns the name of the source file from which the panic originated.
     ///
     pub fn file(&self) -> &str {
@@ -370,7 +370,7 @@ fn rust_panic_with_hook(msg: Box<Any + Send>,
 
         panic_handler(&info);
     }
-
+    
 
     if panics > 1 {
         // If a thread panics while it's already unwinding then we

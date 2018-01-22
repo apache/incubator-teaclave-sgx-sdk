@@ -1,6 +1,6 @@
 [package]
 name = "RAenclave"
-version = "0.9.1"
+version = "0.9.5"
 authors = ["Baidu"]
 
 [lib]
@@ -10,8 +10,9 @@ crate-type = ["staticlib"]
 [features]
 default = []
 
-[dependencies]
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../../../../sgx_types" }
+sgx_trts = { path = "../../../../sgx_trts" }
 sgx_tstd = { path = "../../../../sgx_tstd" }
 sgx_tdh = { path = "../../../../sgx_tdh" }
 sgx_tcrypto = { path = "../../../../sgx_tcrypto" }

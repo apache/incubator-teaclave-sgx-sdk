@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,11 +26,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#![crate_name = "enclave"]
+#![crate_name = "filesampleenclave"]
 #![crate_type = "staticlib"]
 
-#![no_std]
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
+#[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
 extern crate sgx_rand;
@@ -40,7 +42,7 @@ extern crate sgx_serialize;
 #[macro_use]
 extern crate sgx_serialize_derive;
 
-use std::fs::SgxFile;
+use std::sgxfs::SgxFile;
 use std::io::{Read, Write};
 
 use sgx_serialize::{SerializeHelper, DeSerializeHelper};
@@ -61,7 +63,7 @@ pub extern "C" fn write_file() -> i32 {
         Some(d) => d,
         None => {
             println!("encode data failed.");
-            return 1;
+            return 1; 
         },
     };
 
@@ -69,7 +71,7 @@ pub extern "C" fn write_file() -> i32 {
         Ok(f) => f,
         Err(_) => {
             println!("SgxFile::create failed.");
-            return 2;
+            return 2; 
         },
     };
 
@@ -77,7 +79,7 @@ pub extern "C" fn write_file() -> i32 {
         Ok(len) => len,
         Err(_) => {
             println!("SgxFile::write failed.");
-            return 3;
+            return 3; 
         },
     };
 
@@ -94,7 +96,7 @@ pub extern "C" fn read_file() -> i32 {
         Ok(f) => f,
         Err(_) => {
             println!("SgxFile::open failed.");
-            return 1;
+            return 1; 
         },
     };
 
@@ -102,7 +104,7 @@ pub extern "C" fn read_file() -> i32 {
         Ok(len) => len,
         Err(_) => {
             println!("SgxFile::read failed.");
-            return 2;
+            return 2; 
         },
     };
 
@@ -111,7 +113,7 @@ pub extern "C" fn read_file() -> i32 {
         Some(d) => d,
         None => {
             println!("decode data failed.");
-            return 3;
+            return 3; 
         },
     };
 

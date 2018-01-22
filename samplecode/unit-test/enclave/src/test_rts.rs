@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -27,12 +27,16 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_types::*;
-use sgx_trts::*;
 use std::vec::Vec;
 use std::string::String;
 
+use sgx_trts::trts::*;
+use sgx_trts::veh::*;
 use sgx_trts::ascii::AsciiExt;
 use sgx_trts::c_str::*;
+use sgx_trts::error;
+use sgx_trts::memchr;
+use sgx_trts::libc;
 
 global_ctors_object! {
     VARNAME, func_name = {()}

@@ -1,6 +1,6 @@
 # BSD License
 #
-# Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+# Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -32,40 +32,43 @@
 FROM ubuntu:16.04
 MAINTAINER Yu Ding
 
-RUN apt-get update
-RUN apt-get install -y build-essential ocaml automake autoconf libtool wget python libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev sudo kmod vim curl git-core libprotobuf-c0-dev libboost-thread-dev libboost-system-dev liblog4cpp5-dev libjsoncpp-dev
+RUN apt-get update && apt-get install -y build-essential ocaml automake autoconf libtool wget python libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev sudo kmod vim curl git-core libprotobuf-c0-dev libboost-thread-dev libboost-system-dev liblog4cpp5-dev libjsoncpp-dev alien uuid-dev libxml2-dev cmake pkg-config
 
-RUN mkdir /root/sgx
-#RUN wget -O /root/sgx/optimized_libs-1.9.100.39124.tar https://download.01.org/intel-sgx/linux-1.9/optimized_libs-1.9.100.39124.tar
-#RUN wget -O /root/sgx/prebuilt-ae-1.9.100.39124.tar  https://download.01.org/intel-sgx/linux-1.9/prebuilt-ae-1.9.100.39124.tar
-RUN wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin https://download.01.org/intel-sgx/linux-2.0/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin
-RUN wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin https://download.01.org/intel-sgx/linux-2.0/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin
 
-RUN chmod a+x /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin
-RUN /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin
-RUN chmod a+x /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin
-RUN echo -e 'no\n/opt' | /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin
-RUN echo 'source /opt/sgxsdk/environment' >> /root/.bashrc
+# Uncomment the following lines for setup iCls
+# Make sure you have put the installer file in this directory with filename iclsClient-1.45.449.12-1.x86_64.rpm
+#RUN mkdir /root/icls
+#ADD iclsClient-1.45.449.12-1.x86_64.rpm /root/icls/
+#RUN cd /root/icls && alien --scripts iclsClient-1.45.449.12-1.x86_64.rpm && dpkg -i iclsclient_1.45.449.12-2_amd64.deb && ldconfig
 
-RUN git clone https://github.com/01org/linux-sgx.git /root/linux-sgx
+RUN mkdir /root/sgx && \
+    wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin https://download.01.org/intel-sgx/linux-2.0/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin && \
+    wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin https://download.01.org/intel-sgx/linux-2.0/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin && \
+    cd /tmp && \
+    git clone https://github.com/01org/dynamic-application-loader-host-interface.git jhi && \
+    cd jhi && mkdir build && cd build && cmake .. && make && make install && \
+    cd /root/sgx && \
+    chmod +x /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin && \
+    /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin && \
+    chmod +x /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin && \
+    echo -e 'no\n/opt' | /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin && \
+    echo 'source /opt/sgxsdk/environment' >> /root/.bashrc && \
+    systemctl enable jhi
+
 ADD patch /root/
-RUN cd /root/linux-sgx && git apply ../patch
-RUN /root/linux-sgx/download_prebuilt.sh
-RUN cd /root/linux-sgx && make
-RUN cp /root/linux-sgx/build/linux/libsgx_tstdc.a /opt/sgxsdk/lib64/libsgx_tstdc.a
 
-RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init
-RUN chmod +x /root/rustup-init
-RUN echo '1' | /root/rustup-init --default-toolchain nightly-2017-11-29
-RUN echo 'source /root/.cargo/env' >> /root/.bashrc
+RUN wget -O /root/sgx_2.0.tar.gz https://github.com/01org/linux-sgx/archive/sgx_2.0.tar.gz && \
+    cd /root && tar xzf sgx_2.0.tar.gz && \
+    cd /root/linux-sgx-sgx_2.0 && git apply ../patch && \
+    /root/linux-sgx-sgx_2.0/download_prebuilt.sh && \
+    cd /root/linux-sgx-sgx_2.0 && make && \
+    cp /root/linux-sgx-sgx_2.0/build/linux/libsgx_tstdc.a /opt/sgxsdk/lib64/libsgx_tstdc.a
 
-# A hack of linking Rust's libc (https://github.com/rust-lang/libc) in no_std environment.
-RUN rm /root/.rustup/toolchains/nightly-2017-11-29-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib/liblibc-7f54f8f6cd32e0c8.rlib
-
-# Remove useless .h file in intel sgx sdk, which always cause linking problem.
-# Needed no more. Intel has merged the corresponding patch.
-# https://github.com/01org/linux-sgx/pull/173
-# RUN ar d /opt/sgxsdk/lib64/libsgx_uprotected_fs.a sgx_tprotected_fs_u.h
-# RUN ar d /opt/sgxsdk/lib64/libsgx_tprotected_fs.a sgx_tprotected_fs_t.h
+RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init && \
+    chmod +x /root/rustup-init && \
+    echo '1' | /root/rustup-init --default-toolchain nightly-2018-01-19 && \
+    echo 'source /root/.cargo/env' >> /root/.bashrc && \
+    /root/.cargo/bin/rustup component add rust-src && \
+    apt-get autoclean && apt-get autoremove && rm -rf /var/cache/apt/archives/*
 
 WORKDIR /root

@@ -1,7 +1,11 @@
 [package]
 name = "sgx_tservice"
-version = "0.9.1"
+version = "0.9.5"
 authors = ["Baidu"]
+
+[lib]
+name = "sgx_tservice"
+crate-type = ["rlib"]
 
 [features]
 default = []

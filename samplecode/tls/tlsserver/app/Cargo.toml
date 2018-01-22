@@ -1,0 +1,10 @@
+[package]
+name = "app"
+version = "0.9.5"
+authors = ["duanran01 <duanran01@baidu.com>"]
+build = "build.rs"
+
+[dependencies]
+sgx_types = { path = "../../../../sgx_types" }
+sgx_urts = { path = "../../../../sgx_urts" }
+mio = "0.6"

@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_types::*;
-use sgx_trts::*;
+use sgx_trts::trts::*;
 use sgx_tcrypto::*;
 use sgx_tse::*;
 use core::mem;
@@ -194,12 +194,11 @@ impl SgxInternalSealedData {
             ptr::copy_nonoverlapping(self.payload_data.additional.as_ptr(), ptr_additional, additional_len as usize);
         }
 
-        let mut raw_sealed_data = Box::from_raw(p);
+        let raw_sealed_data = &mut *p;
         raw_sealed_data.key_request = self.key_request;
         raw_sealed_data.plain_text_offset = encrypt_len;
         raw_sealed_data.aes_data.payload_size = self.payload_data.payload_size;
         raw_sealed_data.aes_data.payload_tag = self.payload_data.payload_tag;
-        mem::forget(raw_sealed_data);
 
         Some(p)
     }
@@ -218,7 +217,7 @@ impl SgxInternalSealedData {
             return None;
         }
 
-        let raw_sealed_data = Box::from_raw(p);
+        let raw_sealed_data = &*p;
         if raw_sealed_data.plain_text_offset > raw_sealed_data.aes_data.payload_size {
             return None;
         }
@@ -265,8 +264,6 @@ impl SgxInternalSealedData {
         sealed_data.payload_data.payload_tag = raw_sealed_data.aes_data.payload_tag;
         sealed_data.payload_data.additional = additional.into_boxed_slice();
         sealed_data.payload_data.encrypt = encrypt.into_boxed_slice();
-
-        mem::forget(raw_sealed_data);
 
         Some(sealed_data)
     }

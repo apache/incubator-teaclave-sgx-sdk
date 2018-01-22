@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -115,7 +115,7 @@ pub mod gnu {
     use io::{self, Error, ErrorKind};
     use os::unix::ffi::OsStrExt;
     use core::mem;
-    use libc::c_char;
+    use sgx_trts::libc::c_char;
 
     pub fn get_enclave_filename() -> io::Result<Vec<c_char>> {
 

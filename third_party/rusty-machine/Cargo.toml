@@ -15,8 +15,10 @@ license = "MIT"
 stats = []
 datasets = []
 
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }
+sgx_rand = { path = "../../sgx_rand"}
+
 [dependencies]
 num = { path = "../num" , default-features = false }
-sgx_rand = { path = "../../sgx_rand"}
-sgx_tstd = { path = "../../sgx_tstd"}
 rulinalg = { path = "../rulinalg" }

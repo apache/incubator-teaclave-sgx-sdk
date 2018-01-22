@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -68,5 +68,43 @@ pub enum c_void {
 impl fmt::Debug for c_void {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.pad("c_void")
+    }
+}
+
+pub type dev_t = u64;
+pub type mode_t = u32;
+pub use self::arch::{off_t, ino_t, nlink_t, blksize_t, blkcnt_t, stat, time_t};
+
+mod arch {
+    use os::raw::{c_long, c_int};
+
+    pub type blkcnt_t = u64;
+    pub type blksize_t = u64;
+    pub type ino_t = u64;
+    pub type nlink_t = u64;
+    pub type off_t = u64;
+    pub type time_t = i64;
+
+    #[repr(C)]
+    #[derive(Clone)]
+    pub struct stat {
+        pub st_dev: u64,
+        pub st_ino: u64,
+        pub st_nlink: u64,
+        pub st_mode: u32,
+        pub st_uid: u32,
+        pub st_gid: u32,
+        pub __pad0: c_int,
+        pub st_rdev: u64,
+        pub st_size: i64,
+        pub st_blksize: i64,
+        pub st_blocks: i64,
+        pub st_atime: i64,
+        pub st_atime_nsec: c_long,
+        pub st_mtime: i64,
+        pub st_mtime_nsec: c_long,
+        pub st_ctime: i64,
+        pub st_ctime_nsec: c_long,
+        pub __unused: [c_long; 3],
     }
 }

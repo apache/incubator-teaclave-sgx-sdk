@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
 
 //! Native threads.
 
-use sgx_types::*;
+use sgx_types::{sgx_thread_t, sgx_thread_self};
 use panicking;
 use sys_common::thread_info;
 use sync::{SgxMutex, SgxCondvar};
@@ -57,7 +57,7 @@ pub use self::local::{LocalKey, LocalKeyState, LocalKeyInner, AccessError};
 /// The return value cannot be NULL and is always valid as long as it is invoked by a thread inside the enclave.
 ///
 pub fn rsgx_thread_self() -> sgx_thread_t {
-
+    
     unsafe { sgx_thread_self() }
 }
 
@@ -228,7 +228,7 @@ impl SgxThread {
     pub fn id(&self) -> SgxThreadId {
         self.inner.id
     }
-
+    
     /// Atomically makes the handle's token available if it is not already.
     ///
     /// Every thread is equipped with some basic low-level blocking support, via

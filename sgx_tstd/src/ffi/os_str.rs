@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -35,6 +35,8 @@ use core::fmt;
 use alloc::borrow::{Borrow, Cow, ToOwned};
 use alloc::string::String;
 use alloc::boxed::Box;
+use alloc::rc::Rc;
+use alloc::arc::Arc;
 
 
 /// A type that can represent owned, mutable platform-native strings, but is
@@ -316,6 +318,38 @@ impl From<Box<OsStr>> for OsString {
 impl From<OsString> for Box<OsStr> {
     fn from(s: OsString) -> Box<OsStr> {
         s.into_boxed_os_str()
+    }
+}
+
+impl From<OsString> for Arc<OsStr> {
+    #[inline]
+    fn from(s: OsString) -> Arc<OsStr> {
+        let arc = s.inner.into_arc();
+        unsafe { Arc::from_raw(Arc::into_raw(arc) as *const OsStr) }
+    }
+}
+
+impl<'a> From<&'a OsStr> for Arc<OsStr> {
+    #[inline]
+    fn from(s: &OsStr) -> Arc<OsStr> {
+        let arc = s.inner.into_arc();
+        unsafe { Arc::from_raw(Arc::into_raw(arc) as *const OsStr) }
+    }
+}
+
+impl From<OsString> for Rc<OsStr> {
+    #[inline]
+    fn from(s: OsString) -> Rc<OsStr> {
+        let rc = s.inner.into_rc();
+        unsafe { Rc::from_raw(Rc::into_raw(rc) as *const OsStr) }
+    }
+}
+
+impl<'a> From<&'a OsStr> for Rc<OsStr> {
+    #[inline]
+    fn from(s: &OsStr) -> Rc<OsStr> {
+        let rc = s.inner.into_rc();
+        unsafe { Rc::from_raw(Rc::into_raw(rc) as *const OsStr) }
     }
 }
 
