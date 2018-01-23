@@ -54,7 +54,7 @@ Then build the code sample
 
 ```
 root@913e6a00c8d8:~# cd sgx/samplecode/sgxtime/
-root@913e6a00c8d8:~/sgx/samplecode/sgxtime# XARGO=1 make
+root@913e6a00c8d8:~/sgx/samplecode/sgxtime# XARGO_SGX=1 make
 make -C ./enclave/
 make[1]: Entering directory '/root/sgx/samplecode/sgxtime/enclave'
 cargo build --release

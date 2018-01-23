@@ -15,7 +15,7 @@
 
 ## New third-party libraries
 
-All of the third-party libraries could be compiled by `make` or `XARGO=1 make`. In this release, we have the following new libraries ported.
+All of the third-party libraries could be compiled by `make` or `XARGO_SGX=1 make`. In this release, we have the following new libraries ported.
 
 1. bincode
 2. dtoa
@@ -35,7 +35,7 @@ All of the third-party libraries could be compiled by `make` or `XARGO=1 make`. 
 
 ## About xargo's sysroot
 
-`xargo` would generate a *sysroot*, including all basic libraries. In the past, everytime a Rust-SGX project is compiled via `make`, the basic Rust-SGX runtime would be compiled. Now, if we use `xargo` to compile (`XARGO=1 make`), only the **first time** xargo builds the sysroot and saves them in Rust's directory and the basic Rust-SGX libraries would be re-used later.
+`xargo` would generate a *sysroot*, including all basic libraries. In the past, everytime a Rust-SGX project is compiled via `make`, the basic Rust-SGX runtime would be compiled. Now, if we use `xargo` to compile (`XARGO_SGX=1 make`), only the **first time** xargo builds the sysroot and saves them in Rust's directory and the basic Rust-SGX libraries would be re-used later.
 
 The current sysroot includes:
 1. libcompiler_builtins

@@ -2,7 +2,7 @@
 Rust SGX SDK helps developers write Intel SGX applications in Rust programming language. [[Paper pdf]](documents/ccsp17.pdf)
 
 ## v0.9.5 Release
-This is a **milestone version**, and may be the last version before 1.0.0. It provides supports of network access, TLS connection, trusted/untrusted file system access, trusted/untrusted time, and environment variable operations. Most important, it supports `xargo`! Now `x86_64-unknown-linux-sgx` is the new platform target. All of the code samples and third-party libraries could be built by `xargo` via `XARGO=1 make` (cargo also supported by `make`). What's more, we provide a pair of TLS client/server [sample](samplecode/tls) as a complete stack of secure! Please refer to [release_notes](release_notes.md) for further details.
+This is a **milestone version**, and may be the last version before 1.0.0. It provides supports of network access, TLS connection, trusted/untrusted file system access, trusted/untrusted time, and environment variable operations. Most important, it supports `xargo`! Now `x86_64-unknown-linux-sgx` is the new platform target. All of the code samples and third-party libraries could be built by `xargo` via `XARGO_SGX=1 make` (cargo also supported by `make`). What's more, we provide a pair of TLS client/server [sample](samplecode/tls) as a complete stack of secure! Please refer to [release_notes](release_notes.md) for further details.
 
 ## Run Rust SGX applications in Mesalock Linux
 [MesaLock Linux](https://github.com/mesalock-linux/mesalock-distro) is a general purpose Linux distribution which aims to provide a safe and secure user space environment. Now we can run Rust SGX applications in Mesalock Linux within a few steps. Please refer to the [tutorial](documents/sgx_in_mesalock_linux.md) for details.
@@ -119,7 +119,7 @@ sample, we allocate reserve 31.75GB heap space and allocate 31.625GB buffers!
 
 # Samples of ported third-party libraries
 
-As of v0.9.5, we provide 25 ported third-party libraries. All of them could be compiled using xargo (`XARGO=1` make) or cargo (`make`).
+As of v0.9.5, we provide 25 ported third-party libraries. All of them could be compiled using xargo (`XARGO_SGX=1` make) or cargo (`make`).
 
 # Tips for writing enclaves in Rust
 
