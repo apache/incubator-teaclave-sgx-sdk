@@ -14,4 +14,4 @@ sgx_tstd = { path =  "../../sgx_tstd" }
 
 [dependencies]
 ring = { version = "0.12", path = "../ring" }
-untrusted = "0.6"
+untrusted = { path = "../untrusted" }

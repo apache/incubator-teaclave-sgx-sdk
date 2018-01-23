@@ -1,0 +1,29 @@
+[package]
+authors = ["Brian Smith <brian@briansmith.org>"]
+description = "Safe, fast, zero-panic, zero-crashing, zero-allocation parsing of untrusted inputs in Rust."
+documentation = "https://briansmith.org/rustdoc/untrusted/"
+license = "ISC"
+name = "untrusted"
+readme = "README.md"
+repository = "https://github.com/briansmith/untrusted"
+version = "0.6.1"
+
+[lib]
+name = "untrusted"
+path = "src/untrusted.rs"
+
+[profile.bench]
+opt-level = 3
+debug = true
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+
+[profile.release]
+opt-level = 3
+debug = true
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1

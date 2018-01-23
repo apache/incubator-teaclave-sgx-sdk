@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 # Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -28,24 +28,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-test_cases=(backtrace \
-            crypto \
-            file \
-            hello-rust \
-            helloworld \
-#            hugemem \
-            localattestation \
-            machine-learning \
-            sealeddata \
-            serialize \
-            thread \
-            unit-test \
-            zlib-lazy-static-sample)
+test_cases=`ls`
 
 for i in ${test_cases[@]}
 do
-	cd ${i} && XARGO_SGX=1 make && cd bin && echo -e '\n' | ./app && cd ../ && make clean && cd .. &&
-	cd ${i} && make && cd bin && echo -e '\n' | ./app && cd ../ && make clean && cd ..
+	cd ${i} && xargo build --target x86_64-unknown-linux-sgx --release && git clean -fxd && cd ..
 done
 
 echo "Done!"

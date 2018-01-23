@@ -19,7 +19,7 @@ appveyor = { repository = "BurntSushi/rust-csv" }
 bench = false
 
 [dependencies]
-memchr = { version = "1", default-features = false }
+memchr = { path = "../rust-memchr", default-features = false }
 
 [dev-dependencies]
 arrayvec = { version = "0.3", default-features = false }
