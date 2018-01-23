@@ -1,7 +1,7 @@
 use core::fmt;
 use core::str;
 
-use memchr::memchr;
+use sgx_trts::memchr::memchr;
 
 use {QuoteStyle, Terminator};
 

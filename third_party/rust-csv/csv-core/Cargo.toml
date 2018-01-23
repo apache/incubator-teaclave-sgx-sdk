@@ -18,8 +18,11 @@ appveyor = { repository = "BurntSushi/rust-csv" }
 [lib]
 bench = false
 
-[dependencies]
-memchr = { path = "../rust-memchr", default-features = false }
+#[dependencies]
+#memchr = { version = "1", default-features = false }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_trts = { path =  "../../../sgx_trts" }
 
 [dev-dependencies]
 arrayvec = { version = "0.3", default-features = false }
