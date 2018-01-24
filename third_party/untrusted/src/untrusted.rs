@@ -141,7 +141,7 @@ impl<'a> Input<'a> {
     /// Returns an iterator over the input.
     #[inline]
     pub fn iter(&self) -> <&[u8] as IntoIterator>::IntoIter {
-        self.value.iter()
+        self.value.into_iter()
     }
 
     /// Returns the length of the `Input`.
@@ -207,11 +207,11 @@ impl <'a, 'b> PartialEq<&'b [u8]> for Input<'a> {
 /// Calls `read` with the given input as a `Reader`, ensuring that `read`
 /// consumed the entire input. When `input` is `None`, `read` will be
 /// called with `None`.
-pub fn read_all_optional<F, R, E>(input: Option<Input>,
-                                  incomplete_read: E, read: F)
-                                  -> Result<R, E>
-                                  where F: FnOnce(Option<&mut Reader>)
-                                                  -> Result<R, E> {
+pub fn read_all_optional<'a, F, R, E>(input: Option<Input<'a>>,
+                                      incomplete_read: E, read: F)
+                                      -> Result<R, E>
+                                      where F: FnOnce(Option<&mut Reader>)
+                                                      -> Result<R, E> {
     match input {
         Some(input) => {
             let mut input = Reader::new(input);
@@ -283,7 +283,7 @@ impl<'a> Reader<'a> {
     /// byte is equal to `b`, and false otherwise.
     pub fn peek(&self, b: u8) -> bool {
         match self.input.get(self.i) {
-            Some(actual_b) => b == *actual_b,
+            Some(actual_b) => return b == *actual_b,
             None => false
         }
     }
@@ -367,7 +367,7 @@ mod no_panic {
         }
 
         #[inline]
-        pub fn iter(&self) -> <&'a [u8] as IntoIterator>::IntoIter {
+        pub fn into_iter(&self) -> <&'a [u8] as IntoIterator>::IntoIter {
             self.bytes.into_iter()
         }
 
@@ -435,16 +435,5 @@ mod tests {
         let slice = b"foo";
         let input = Input::from(slice);
         assert_eq!(input.as_slice_less_safe(), slice);
-    }
-
-    #[test]
-    fn test_input_as_iterator() {
-        let slice = b"foo";
-        let input = Input::from(slice);
-        let mut iter = input.iter();
-        assert_eq!(Some(&b'f'), iter.next());
-        assert_eq!(Some(&b'o'), iter.next());
-        assert_eq!(Some(&b'o'), iter.next());
-        assert_eq!(None, iter.next());
     }
 }

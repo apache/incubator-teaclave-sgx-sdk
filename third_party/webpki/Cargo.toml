@@ -67,7 +67,7 @@ sgx_tstd = { path =  "../../sgx_tstd" }
 
 [dependencies]
 ring = { path = "../ring" }
-untrusted = { path = "../untrusted" }
+untrusted = { version = "0.6", path = "../untrusted" }
 
 [dev-dependencies]
 base64 = { path = "../rust-base64" }

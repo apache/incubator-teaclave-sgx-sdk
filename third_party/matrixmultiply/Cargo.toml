@@ -25,7 +25,7 @@ harness = false
 sgx_tstd = { path =  "../../sgx_tstd" }
 
 [dependencies]
-rawpointer = { path = "../rawpointer" }
+rawpointer = { version = "0.1", path = "../rawpointer" }
 
 [dev-dependencies]
 bencher = "0.1.2"

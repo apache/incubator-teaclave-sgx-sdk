@@ -13,7 +13,7 @@ categories = ["network-programming", "cryptography"]
 sgx_tstd = { path =  "../../sgx_tstd" }
 
 [dependencies]
-untrusted = { path = "../untrusted" }
+untrusted = { version = "0.6", path = "../untrusted" }
 base64 = { path = "../rust-base64" }
 log = { path = "../log" , optional = true }
 ring = { path = "../ring" , version="0.12.1", features = ["rsa_signing"] }
