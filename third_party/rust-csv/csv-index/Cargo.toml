@@ -18,6 +18,9 @@ appveyor = { repository = "BurntSushi/rust-csv" }
 [lib]
 bench = false
 
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../../sgx_tstd" }
+
 [dependencies]
 byteorder = { path = "../../byteorder", version = "1" }
 csv = { path = "..", version = "1.0.0-beta.5" }
