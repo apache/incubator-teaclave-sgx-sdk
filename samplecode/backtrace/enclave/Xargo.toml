@@ -10,6 +10,7 @@ stage = 1
 
 [dependencies.std]
 path = "../../../xargo/sgx_tstd"
+features = ["backtrace"]
 stage = 2
 
 [dependencies.sgx_rand]

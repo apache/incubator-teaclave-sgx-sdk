@@ -1,3 +1,10 @@
+# Rust SGX SDK v0.9.6 Release Notes
+**Support latest Rust nightly build (nightly-2018-02-05-x86_64-unknown-linux-gnu)**
+
+**Security enhancement** Added three features for `sgx_tstd`: `untrusted_fs` `untrusted_time` `untrusted_net` to control the insecure ocall interface. By default, io-related features in `fs/time/net` are **DISABLED**. To enable them, please add feature declarations such as `features = ["untrusted_fs"]` for sgx_tstd in `Cargo.toml`. All sample codes and third party libraries are updated accordingly. Note that data from unstrusted `fs/time` are **UNTRUSTED**and thus use them **AT YOUR OWN RISK**. Data from `net` are well-known as untrusted and need validation instinctively. We strongly recommend our TLS termination for network access, instead of using `net` directly.
+
+**Refined sgxtime and support sgxcounter** Moved the trusted time service to `sgx_tservice::sgxtime` and implemented the monotonic counter in `sgx_tservice::sgxcounter`.
+
 # Rust SGX SDK v0.9.5 Release Notes
 **Support latest Rust nightly build (nightly-2018-01-19-x86_64-unknown-linux-gnu)**
 

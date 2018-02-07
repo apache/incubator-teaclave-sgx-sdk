@@ -28,7 +28,7 @@
 
 //! Cross-platform path manipulation.
 //!
-//! This module provides two types, [`PathBuf`] and [`Path`] `Path` (akin to [`String`]
+//! This module provides two types, [`PathBuf`] and [`Path`]`Path` (akin to [`String`]
 //! and [`str`]), for working with paths abstractly. These types are thin wrappers
 //! around [`OsString`] and [`OsStr`] respectively, meaning that they work directly
 //! on strings according to the local platform's path syntax.
@@ -42,6 +42,7 @@
 //!
 
 use error::Error;
+#[cfg(feature = "untrusted_fs")]
 use fs;
 use io;
 use ffi::{OsStr, OsString};
@@ -1514,6 +1515,7 @@ impl Path {
     ///
     /// [`fs::metadata`]: ../fs/fn.metadata.html
     ///
+    #[cfg(feature = "untrusted_fs")]
     pub fn metadata(&self) -> io::Result<fs::Metadata> {
         fs::metadata(self)
     }
@@ -1524,6 +1526,7 @@ impl Path {
     ///
     /// [`fs::symlink_metadata`]: ../fs/fn.symlink_metadata.html
     ///
+    #[cfg(feature = "untrusted_fs")]
     pub fn symlink_metadata(&self) -> io::Result<fs::Metadata> {
         fs::symlink_metadata(self)
     }
@@ -1535,6 +1538,7 @@ impl Path {
     ///
     /// [`fs::canonicalize`]: ../fs/fn.canonicalize.html
     ///
+    #[cfg(feature = "untrusted_fs")]
     pub fn canonicalize(&self) -> io::Result<PathBuf> {
         fs::canonicalize(self)
     }
@@ -1545,6 +1549,7 @@ impl Path {
     ///
     /// [`fs::read_link`]: ../fs/fn.read_link.html
     ///
+    #[cfg(feature = "untrusted_fs")]
     pub fn read_link(&self) -> io::Result<PathBuf> {
         fs::read_link(self)
     }
@@ -1557,6 +1562,7 @@ impl Path {
     /// If you cannot access the directory containing the file, e.g. because of a
     /// permission error, this will return `false`.
     ///
+    #[cfg(feature = "untrusted_fs")]
     pub fn exists(&self) -> bool {
         fs::metadata(self).is_ok()
     }
@@ -1569,6 +1575,7 @@ impl Path {
     /// If you cannot access the directory containing the file, e.g. because of a
     /// permission error, this will return `false`.
     ///
+    #[cfg(feature = "untrusted_fs")]
     pub fn is_file(&self) -> bool {
         fs::metadata(self).map(|m| m.is_file()).unwrap_or(false)
     }
@@ -1581,6 +1588,7 @@ impl Path {
     /// If you cannot access the directory containing the file, e.g. because of a
     /// permission error, this will return `false`.
     ///
+    #[cfg(feature = "untrusted_fs")]
     pub fn is_dir(&self) -> bool {
         fs::metadata(self).map(|m| m.is_dir()).unwrap_or(false)
     }

@@ -92,6 +92,7 @@ pub struct SystemTimeError(Duration);
 impl Instant {
     /// Returns an instant corresponding to "now".
     ///
+    #[cfg(feature = "untrusted_time")]
     pub fn now() -> Instant {
         Instant(time::Instant::now())
     }
@@ -114,6 +115,7 @@ impl Instant {
     /// instant, which is something that can happen if an `Instant` is
     /// produced synthetically.
     ///
+    #[cfg(feature = "untrusted_time")]
     pub fn elapsed(&self) -> Duration {
         Instant::now() - *self
     }
@@ -164,6 +166,7 @@ impl fmt::Debug for Instant {
 impl SystemTime {
     /// Returns the system time corresponding to "now".
     ///
+    #[cfg(feature = "untrusted_time")]
     pub fn now() -> SystemTime {
         SystemTime(time::SystemTime::now())
     }
@@ -196,6 +199,7 @@ impl SystemTime {
     /// Returns an [`Err`] if `self` is later than the current system time, and
     /// the error contains how far from the current system time `self` is.
     ///
+    #[cfg(feature = "untrusted_time")]
     pub fn elapsed(&self) -> Result<Duration, SystemTimeError> {
         SystemTime::now().duration_since(*self)
     }

@@ -76,7 +76,7 @@ RUN wget -O /root/sgx_2.0.tar.gz https://github.com/01org/linux-sgx/archive/sgx_
 
 RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init && \
     chmod +x /root/rustup-init && \
-    echo '1' | /root/rustup-init --default-toolchain nightly-2018-01-19 && \
+    echo '1' | /root/rustup-init --default-toolchain nightly-2018-02-05 && \
     echo 'source /root/.cargo/env' >> /root/.bashrc && \
     /root/.cargo/bin/rustup component add rust-src && \
     apt-get autoclean && apt-get autoremove && rm -rf /var/cache/apt/archives/*

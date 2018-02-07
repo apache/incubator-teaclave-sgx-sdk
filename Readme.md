@@ -1,6 +1,9 @@
 # Rust SGX SDK
 Rust SGX SDK helps developers write Intel SGX applications in Rust programming language. [[Paper pdf]](documents/ccsp17.pdf)
 
+## v0.9.6 Release
+This version provides security enhancement for untrusted IO and additional support for monotonic counter. Untrusted IO operations in `sgx_tstd::fs` `sgx_tstd::net` and `sgx_tstd::time` are **DISABLED by default** to reduce the untrusted surface, and can be enabled by features. Trusted time support is moved to `sgx_tservice::sgxtime` and monotonic counter is provided by `sgx_tservice::sgxcounter`. Please refer to [release_notes](release_notes.md) for further details.
+
 ## v0.9.5 Release
 This is a **milestone version**, and may be the last version before 1.0.0. It provides supports of network access, TLS connection, trusted/untrusted file system access, trusted/untrusted time, and environment variable operations. Most important, it supports `xargo`! Now `x86_64-unknown-linux-sgx` is the new platform target. All of the code samples and third-party libraries could be built by `xargo` via `XARGO_SGX=1 make` (cargo also supported by `make`). What's more, we provide a pair of TLS client/server [sample](samplecode/tls) as a complete stack of secure! Please refer to [release_notes](release_notes.md) for further details.
 

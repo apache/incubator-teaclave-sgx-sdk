@@ -63,7 +63,7 @@ trust_anchor_util = ["std"]
 std = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_tstd = { path =  "../../sgx_tstd" }
+sgx_tstd = { path =  "../../sgx_tstd", features = ["untrusted_time"] }
 
 [dependencies]
 ring = { path = "../ring" }

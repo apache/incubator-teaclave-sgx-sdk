@@ -32,8 +32,10 @@ use io::{self, ErrorKind};
 pub use self::rand::hashmap_random_keys;
 
 pub mod fd;
+#[cfg(feature = "untrusted_fs")]
 pub mod fs;
 pub mod sgxfs;
+#[cfg(feature = "untrusted_net")]
 pub mod net;
 pub mod os_str;
 pub mod path;

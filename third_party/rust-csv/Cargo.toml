@@ -19,7 +19,7 @@ appveyor = { repository = "BurntSushi/rust-csv" }
 bench = false
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_tstd = { path =  "../../sgx_tstd" }
+sgx_tstd = { path =  "../../sgx_tstd", features = ["untrusted_fs"] }
 
 [dependencies]
 csv-core = { path = "csv-core", version = "0.1.3" }

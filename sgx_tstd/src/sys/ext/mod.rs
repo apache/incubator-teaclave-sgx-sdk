@@ -28,7 +28,9 @@
 
 pub mod io;
 pub mod ffi;
+#[cfg(feature = "untrusted_fs")]
 pub mod fs;
+#[cfg(feature = "untrusted_net")]
 pub mod net;
 
 /// A prelude for conveniently writing platform-specific code.
@@ -37,6 +39,8 @@ pub mod net;
 pub mod prelude {
     pub use super::io::{RawFd, AsRawFd, FromRawFd, IntoRawFd};
     pub use super::ffi::{OsStrExt, OsStringExt};
+    #[cfg(feature = "untrusted_fs")]
     pub use super::fs::{PermissionsExt, OpenOptionsExt, MetadataExt, FileTypeExt};
+    #[cfg(feature = "untrusted_fs")]
     pub use super::fs::FileExt;
 }

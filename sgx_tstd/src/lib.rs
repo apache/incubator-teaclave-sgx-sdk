@@ -47,6 +47,8 @@
 #![allow(non_camel_case_types)]
 #![allow(unused_must_use)]
 #![allow(unused_features)]
+#![allow(unused_imports)]
+#![allow(dead_code)]
 
 #![feature(alloc)]
 #![feature(global_allocator)]
@@ -80,10 +82,10 @@
 #![feature(optin_builtin_traits)]
 #![feature(placement_new_protocol)]
 #![feature(prelude_import)]
+#![feature(ptr_internals)]
 #![feature(rand)]
 #![feature(raw)]
 #![feature(rustc_attrs)]
-#![feature(shared)]
 #![feature(sip_hash_13)]
 #![feature(slice_concat_ext)]
 #![feature(str_internals)]
@@ -92,7 +94,6 @@
 #![feature(try_from)]
 #![feature(unboxed_closures)]
 #![feature(unicode)]
-#![feature(unique)]
 #![feature(untagged_unions)]
 #![feature(unwind_attributes)]
 #![feature(slice_patterns)]
@@ -198,6 +199,7 @@ pub mod env;
 pub mod error;
 pub mod ffi;
 pub mod sgxfs;
+#[cfg(feature = "untrusted_fs")]
 pub mod fs;
 pub mod io;
 pub mod net;

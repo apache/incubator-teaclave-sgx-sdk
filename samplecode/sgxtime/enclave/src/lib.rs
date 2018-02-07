@@ -40,10 +40,6 @@ extern crate sgx_tservice;
 
 use sgx_types::*;
 use sgx_tservice::*;
-//use std::string::String;
-//use std::vec::Vec;
-//use std::io::{self, Write};
-//use std::slice;
 
 #[no_mangle]
 pub extern "C" fn sgx_time_sample() -> sgx_status_t {
@@ -52,7 +48,7 @@ pub extern "C" fn sgx_time_sample() -> sgx_status_t {
         Ok(_) => println!("Create PSE session done"),
         _ => println!("Cannot create PSE session"),
     }
-    let ttime = SgxTime::now();
+    let ttime = sgxtime::SgxTime::now();
     //println!("timestamp: {}", ttime.timestamp);
     match ttime {
         Ok(st) => println!("Ok with {:?}", st),

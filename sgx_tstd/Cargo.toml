@@ -1,6 +1,6 @@
 [package]
 name = "sgx_tstd"
-version = "0.9.5"
+version = "0.9.6"
 authors = ["Baidu"]
 build = "build.rs"
 
@@ -9,9 +9,12 @@ name = "sgx_tstd"
 crate-type = ["rlib"]
 
 [features]
-default = ["backtrace"]
+default = ["stdio"]
 backtrace = ["stdio"]
 stdio = []
+untrusted_fs = []
+untrusted_net = []
+untrusted_time = []
 
 [build-dependencies]
 build_helper = { path = "../build_helper" }

@@ -26,6 +26,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+//! Collection types.
+//!
+//! Rust's standard collection library provides efficient implementations of the
+//! most common general purpose programming data structures. By using the
+//! standard implementations, it should be possible for two libraries to
+//! communicate without significant data conversion.
+//!
+
 pub use alloc::Bound;
 pub use alloc::{BinaryHeap, BTreeMap, BTreeSet};
 pub use alloc::{LinkedList, VecDeque};

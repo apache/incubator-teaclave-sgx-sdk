@@ -40,6 +40,9 @@
 
 extern crate sgx_types;
 
+pub mod sgxtime;
+pub mod sgxcounter;
+
 mod tae;
 pub use self::tae::*;
 

@@ -1,6 +1,6 @@
 [package]
 name = "Unittestsampleenclave"
-version = "0.9.5"
+version = "0.9.6"
 authors = ["Baidu"]
 
 [lib]
@@ -12,7 +12,7 @@ default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../../../sgx_types" }
-sgx_tstd = { path = "../../../sgx_tstd" }
+sgx_tstd = { path = "../../../sgx_tstd", features = ["untrusted_fs", "untrusted_time"] }
 sgx_tcrypto = { path = "../../../sgx_tcrypto" }
 sgx_tunittest = { path = "../../../sgx_tunittest" }
 sgx_trts = { path = "../../../sgx_trts" }

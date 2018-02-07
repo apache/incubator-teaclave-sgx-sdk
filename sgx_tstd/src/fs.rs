@@ -100,12 +100,12 @@ pub struct Permissions(fs_imp::FilePermissions);
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FileType(fs_imp::FileType);
 
-/// How large a buffer to pre-allocate before reading the entire file at `path`.
-fn initial_buffer_size<P: AsRef<Path>>(path: P) -> usize {
+/// How large a buffer to pre-allocate before reading the entire file.
+fn initial_buffer_size(file: &File) -> usize {
     // Allocate one extra byte so the buffer doesn't need to grow before the
     // final `read` call at the end of the file.  Don't worry about `usize`
     // overflow because reading will fail regardless in that case.
-    metadata(path).map(|m| m.len() as usize + 1).unwrap_or(0)
+    file.metadata().map(|m| m.len() as usize + 1).unwrap_or(0)
 }
 
 /// Read the entire contents of a file into a bytes vector.
@@ -129,8 +129,9 @@ fn initial_buffer_size<P: AsRef<Path>>(path: P) -> usize {
 /// [`ErrorKind::Interrupted`]: ../../std/io/enum.ErrorKind.html#variant.Interrupted
 ///
 pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
-    let mut bytes = Vec::with_capacity(initial_buffer_size(&path));
-    File::open(path)?.read_to_end(&mut bytes)?;
+    let mut file = File::open(path)?;
+    let mut bytes = Vec::with_capacity(initial_buffer_size(&file));
+    file.read_to_end(&mut bytes)?;
     Ok(bytes)
 }
 
@@ -156,8 +157,9 @@ pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
 /// [`ErrorKind::Interrupted`]: ../../std/io/enum.ErrorKind.html#variant.Interrupted
 ///
 pub fn read_string<P: AsRef<Path>>(path: P) -> io::Result<String> {
-    let mut string = String::with_capacity(initial_buffer_size(&path));
-    File::open(path)?.read_to_string(&mut string)?;
+    let mut file = File::open(path)?;
+    let mut string = String::with_capacity(initial_buffer_size(&file));
+    file.read_to_string(&mut string)?;
     Ok(string)
 }
 

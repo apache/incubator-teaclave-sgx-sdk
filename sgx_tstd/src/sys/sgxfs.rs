@@ -299,6 +299,7 @@ impl FromInner<SgxFileStream> for SgxFile {
     }
 }
 
+#[cfg(feature = "untrusted_fs")]
 pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
     use sgxfs::SgxFile;
     use fs;

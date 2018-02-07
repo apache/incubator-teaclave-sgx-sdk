@@ -10,9 +10,12 @@ path = "../../sgx_tstd/src/lib.rs"
 crate-type = ["rlib"]
 
 [features]
-default = ["backtrace"]
+default = ["stdio"]
 backtrace = ["stdio"]
 stdio = []
+untrusted_fs = []
+untrusted_net = []
+untrusted_time = []
 
 [build-dependencies]
 build_helper = { path = "../../build_helper" }
