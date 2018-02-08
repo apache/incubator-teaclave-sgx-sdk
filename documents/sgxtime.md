@@ -25,7 +25,7 @@ To run sgxtime in this docker image, first launch it using the following command
 
 ```bash
 $ docker run -ti -v /path/to/sdk:/root/sgx \
-             --device /dev/isgx simp \
+             --device /dev/isgx \
              --device /dev/mei0 \
              rust-sgx-docker    # This name is identified during docker build
 root@913e6a00c8d8:~#
