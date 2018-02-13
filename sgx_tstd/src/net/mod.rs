@@ -38,18 +38,18 @@ use io::{self, Error, ErrorKind};
 
 pub use self::ip::{IpAddr, Ipv4Addr, Ipv6Addr, Ipv6MulticastScope};
 pub use self::addr::{SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
-#[cfg(feature = "untrusted_net")]
+#[cfg(feature = "net")]
 pub use self::tcp::TcpStream;
-#[cfg(feature = "untrusted_net")]
+#[cfg(feature = "net")]
 pub use self::udp::UdpSocket;
 pub use self::parser::AddrParseError;
 
 mod ip;
 mod addr;
 mod parser;
-#[cfg(feature = "untrusted_net")]
+#[cfg(feature = "net")]
 mod tcp;
-#[cfg(feature = "untrusted_net")]
+#[cfg(feature = "net")]
 mod udp;
 
 /// Possible values which can be passed to the [`shutdown`] method of

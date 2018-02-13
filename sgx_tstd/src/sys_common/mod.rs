@@ -36,7 +36,7 @@ pub mod memchr;
 pub mod poison;
 pub mod thread_info;
 pub mod wtf8;
-#[cfg(feature = "untrusted_net")]
+#[cfg(feature = "net")]
 pub mod net;
 pub mod bytestring;
 

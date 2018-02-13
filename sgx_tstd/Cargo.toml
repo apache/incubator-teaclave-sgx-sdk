@@ -1,6 +1,6 @@
 [package]
 name = "sgx_tstd"
-version = "0.9.6"
+version = "0.9.7"
 authors = ["Baidu"]
 build = "build.rs"
 
@@ -12,8 +12,8 @@ crate-type = ["rlib"]
 default = ["stdio"]
 backtrace = ["stdio"]
 stdio = []
+net = []
 untrusted_fs = []
-untrusted_net = []
 untrusted_time = []
 
 [build-dependencies]

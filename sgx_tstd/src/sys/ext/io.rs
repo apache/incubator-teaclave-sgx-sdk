@@ -31,6 +31,8 @@
 use sgx_trts::libc;
 #[cfg(feature = "untrusted_fs")]
 use fs;
+#[cfg(not(feature = "untrusted_fs"))]
+use untrusted::fs;
 use os::raw;
 use sys;
 use io;
@@ -83,21 +85,18 @@ pub trait IntoRawFd {
     fn into_raw_fd(self) -> RawFd;
 }
 
-#[cfg(feature = "untrusted_fs")]
 impl AsRawFd for fs::File {
     fn as_raw_fd(&self) -> RawFd {
         self.as_inner().fd().raw()
     }
 }
 
-#[cfg(feature = "untrusted_fs")]
 impl FromRawFd for fs::File {
     unsafe fn from_raw_fd(fd: RawFd) -> fs::File {
         fs::File::from_inner(sys::fs::File::from_inner(fd))
     }
 }
 
-#[cfg(feature = "untrusted_fs")]
 impl IntoRawFd for fs::File {
     fn into_raw_fd(self) -> RawFd {
         self.into_inner().into_fd().into_raw()

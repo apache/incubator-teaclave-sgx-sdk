@@ -6,6 +6,7 @@ use untrusted;
 use sct;
 use std;
 use std::sync::Arc;
+use std::untrusted::time::SystemTimeEx;
 
 use key::Certificate;
 use msgs::handshake::DigitallySignedStruct;

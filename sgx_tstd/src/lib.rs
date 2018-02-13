@@ -211,6 +211,7 @@ pub mod sync;
 pub mod time;
 pub mod heap;
 pub mod enclave;
+pub mod untrusted;
 
 // Platform-abstraction modules
 mod sys_common;
@@ -220,6 +221,8 @@ mod sys;
 mod panicking;
 mod cpuid;
 mod memchr;
+#[cfg(not(feature = "untrusted_fs"))]
+mod fs;
 
 // The runtime entry point and a few unstable public functions used by the
 // compiler

@@ -10,7 +10,7 @@ repository = "https://github.com/ctz/rustls"
 categories = ["network-programming", "cryptography"]
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_tstd = { path =  "../../sgx_tstd", features = ["untrusted_time"] }
+sgx_tstd = { path =  "../../sgx_tstd" }
 
 [dependencies]
 untrusted = { version = "0.6", path = "../untrusted" }

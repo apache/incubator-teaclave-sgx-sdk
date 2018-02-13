@@ -28,8 +28,8 @@
 
 use sgx_rand::{Rng, StdRng};
 use std::sgxfs::{self, SgxFile};
-use std::fs::File;
-use std::fs::remove_file;
+use std::untrusted::fs::File;
+use std::untrusted::fs::remove_file;
 use std::io::{Read, Write};
 use std::string::*;
 
@@ -105,6 +105,28 @@ pub fn test_fs () {
         assert!(result.is_ok());
 
         let f = File::open("foo.txt");
+        assert!(f.is_ok());
+
+        let mut s = String::new();
+        let result = f.unwrap().read_to_string(&mut s);
+        assert!(result.is_ok());
+        assert_eq!(s, "Hello, world!");
+
+        let f = remove_file("foo.txt");
+        assert!(f.is_ok());
+    }
+}
+
+pub fn test_fs_untrusted_fs_feature_enabled() {
+    {
+        use std::fs;
+        let f = fs::File::create("foo.txt");
+        assert!(f.is_ok());
+
+        let result = f.unwrap().write_all(b"Hello, world!");
+        assert!(result.is_ok());
+
+        let f = fs::File::open("foo.txt");
         assert!(f.is_ok());
 
         let mut s = String::new();

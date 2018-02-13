@@ -9,6 +9,7 @@ use rand;
 use std::mem;
 use std::sync::{SgxMutex, Arc};
 use std::time;
+use std::untrusted::time::SystemTimeEx;
 use ring::aead;
 
 /// The timebase for expiring and rolling tickets and ticketing

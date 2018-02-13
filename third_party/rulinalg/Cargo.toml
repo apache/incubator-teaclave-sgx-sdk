@@ -15,7 +15,7 @@ license = "MIT"
 io = ["csv", "rustc-serialize"]
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_tstd = { path =  "../../sgx_tstd", features = ["untrusted_fs"] }
+sgx_tstd = { path =  "../../sgx_tstd" }
 
 [dependencies]
 num = {path = "../num", default-features = false }

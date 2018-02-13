@@ -134,6 +134,8 @@ fn test_main_entrance() -> sgx_status_t {
                      test_sgxfs,
                      // std::fs
                      test_fs,
+                     // std::fs untrusted mode
+                     test_fs_untrusted_fs_feature_enabled,
                      // std::time
                      test_std_time
                      );

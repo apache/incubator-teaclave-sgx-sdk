@@ -28,7 +28,10 @@
 
 use sgx_trts::libc;
 
+#[cfg(feature = "untrusted_fs")]
 use fs::Metadata;
+#[cfg(not(feature = "untrusted_fs"))]
+use untrusted::fs::Metadata;
 use sys_common::AsInner;
 
 use os::raw;

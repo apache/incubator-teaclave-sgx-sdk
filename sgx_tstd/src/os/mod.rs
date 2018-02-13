@@ -28,5 +28,4 @@
 
 pub use sys::ext as unix;
 pub mod raw;
-#[cfg(feature = "untrusted_fs")]
 pub mod fs;

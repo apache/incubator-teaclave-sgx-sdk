@@ -320,7 +320,6 @@ pub fn import_auto_key<P: AsRef<Path>>(path: P, key: &sgx_key_128bit_t) -> io::R
 ///
 /// On success, the total number of bytes copied is returned.
 ///
-#[cfg(feature = "untrusted_fs")]
 pub fn copy<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> io::Result<u64> {
     fs_imp::copy(from.as_ref(), to.as_ref())
 }

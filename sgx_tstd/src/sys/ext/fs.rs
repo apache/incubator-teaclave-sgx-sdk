@@ -27,7 +27,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_trts::libc;
+#[cfg(feature = "untrusted_fs")]
 use fs::{self, Permissions, OpenOptions};
+#[cfg(not(feature = "untrusted_fs"))]
+use untrusted::fs::{self, Permissions, OpenOptions};
 use io;
 use path::Path;
 use sys;

@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::untrusted::fs::File;
 use std::io;
 use std::path::Path;
 use std::result;

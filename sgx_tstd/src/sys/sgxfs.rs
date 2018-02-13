@@ -299,10 +299,17 @@ impl FromInner<SgxFileStream> for SgxFile {
     }
 }
 
-#[cfg(feature = "untrusted_fs")]
 pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
+
     use sgxfs::SgxFile;
-    use fs;
+    cfg_if! {
+        if #[cfg(feature = "untrusted_fs")] {
+            use fs;
+        } else {
+            use untrusted::fs;
+            use untrusted::path::PathEx;
+        }
+    }
 
     let metadata = from.metadata()?;
     if !metadata.is_file() {

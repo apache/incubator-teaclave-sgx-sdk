@@ -1,6 +1,6 @@
 [package]
 name = "tlsclient"
-version = "0.9.6"
+version = "0.9.7"
 authors = ["Baidu"]
 
 [lib]
@@ -13,7 +13,7 @@ default = []
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../../../../sgx_types" }
 sgx_trts = { path = "../../../../sgx_trts" }
-sgx_tstd = { path = "../../../../sgx_tstd", features = ["untrusted_fs", "untrusted_net", "untrusted_time"] }
+sgx_tstd = { path = "../../../../sgx_tstd", features = ["net"] }
 
 [dependencies]
 rustls = { path = "../../../../third_party/rustls" }

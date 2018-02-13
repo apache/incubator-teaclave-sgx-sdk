@@ -40,7 +40,7 @@ extern crate sgx_tstd as std;
 
 use sgx_types::*;
 
-use std::fs;
+use std::untrusted::fs;
 use std::io::BufReader;
 
 use std::ffi::CStr;

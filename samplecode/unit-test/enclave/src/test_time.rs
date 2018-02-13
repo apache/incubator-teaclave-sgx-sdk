@@ -1,6 +1,6 @@
 use std::time::*;
 use std::panic;
-//use std::thread::sleep;
+use std::untrusted::time::{InstantEx, SystemTimeEx};
 
 pub fn test_std_time() {
     macro_rules! assert_almost_eq {
