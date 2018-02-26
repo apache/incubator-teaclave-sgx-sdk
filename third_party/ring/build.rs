@@ -20,7 +20,6 @@
 
 #![forbid(
     anonymous_parameters,
-    fat_ptr_transmutes,
     legacy_directory_ownership,
     missing_copy_implementations,
     missing_debug_implementations,
@@ -34,7 +33,7 @@
     unused_qualifications,
     unused_results,
     variant_size_differences,
-    warnings,
+//    warnings,
 )]
 
 extern crate cc;

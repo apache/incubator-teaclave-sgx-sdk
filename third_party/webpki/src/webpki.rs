@@ -36,7 +36,6 @@
 #![forbid(
     anonymous_parameters,
     box_pointers,
-    fat_ptr_transmutes,
     missing_copy_implementations,
     missing_docs,
     trivial_casts,
