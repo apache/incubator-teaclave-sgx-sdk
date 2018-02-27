@@ -39,21 +39,21 @@ RUN apt-get update && apt-get install -y build-essential ocaml automake autoconf
 # Make sure you have put the installer file in this directory with filename iclsClient-1.45.449.12-1.x86_64.rpm
 #RUN mkdir /root/icls
 #ADD iclsClient-1.45.449.12-1.x86_64.rpm /root/icls/
-#RUN cd /root/icls && alien --scripts iclsClient-1.45.449.12-1.x86_64.rpm && dpkg -i iclsclient_1.45.449.12-2_amd64.deb && ldconfig
+#RUN cd /root/icls && alien --scripts iclsClient-1.45.449.12-1.x86_64.rpm && dpkg -i iclsclient_1.45.449.12-2_amd64.deb && ldconfig && \
+#    cd /tmp && \
+#    git clone https://github.com/01org/dynamic-application-loader-host-interface.git jhi && \
+#    cd jhi && mkdir build && cd build && cmake .. && make && make install && \
+#    systemctl enable jhi
 
 RUN mkdir /root/sgx && \
     wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin https://download.01.org/intel-sgx/linux-2.0/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin && \
     wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin https://download.01.org/intel-sgx/linux-2.0/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin && \
-    cd /tmp && \
-    git clone https://github.com/01org/dynamic-application-loader-host-interface.git jhi && \
-    cd jhi && mkdir build && cd build && cmake .. && make && make install && \
     cd /root/sgx && \
     chmod +x /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin && \
     /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin && \
     chmod +x /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin && \
     echo -e 'no\n/opt' | /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin && \
-    echo 'source /opt/sgxsdk/environment' >> /root/.bashrc && \
-    systemctl enable jhi
+    echo 'source /opt/sgxsdk/environment' >> /root/.bashrc
 
 ADD patch /root/
 
