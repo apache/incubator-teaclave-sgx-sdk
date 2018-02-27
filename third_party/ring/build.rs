@@ -33,7 +33,7 @@
     unused_qualifications,
     unused_results,
     variant_size_differences,
-//    warnings,
+    warnings,
 )]
 
 extern crate cc;
@@ -285,14 +285,14 @@ fn main() {
 fn ring_build_rs_main() {
     use std::env;
 
-    let mut cfg = rayon::Configuration::new();
+    let mut cfg = rayon::ThreadPoolBuilder::new();
     if let Ok(amt) = std::env::var("NUM_JOBS") {
         if let Ok(amt) = amt.parse() {
             cfg = cfg.num_threads(amt);
         }
     }
     #[allow(box_pointers)]
-    rayon::initialize(cfg).unwrap();
+    cfg.build_global().unwrap();
 
     for (key, value) in env::vars() {
         println!("{}: {}", key, value);
