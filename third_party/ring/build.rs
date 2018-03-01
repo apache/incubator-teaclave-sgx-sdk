@@ -285,14 +285,14 @@ fn main() {
 fn ring_build_rs_main() {
     use std::env;
 
-    let mut cfg = rayon::ThreadPoolBuilder::new();
     if let Ok(amt) = std::env::var("NUM_JOBS") {
         if let Ok(amt) = amt.parse() {
-            cfg = cfg.num_threads(amt);
+            rayon::ThreadPoolBuilder::new()
+                .num_threads(amt)
+                .build_global()
+                .unwrap()
         }
     }
-    #[allow(box_pointers)]
-    cfg.build_global().unwrap();
 
     for (key, value) in env::vars() {
         println!("{}: {}", key, value);
