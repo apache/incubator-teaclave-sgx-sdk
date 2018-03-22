@@ -7,7 +7,7 @@
 
 **New API `rsgx_is_enclave_crashed`** We provide `sgx_trts::rsgx_is_enclave_crashed` corresponding to a new feature of Intel SGX SDK 2.1.2.
 
-**New branch rust-stable** We provide a new branch to support stable channel of Rust in a new branch 'rust-stable'. It contains modified libraries and a customized xargo. The customized cargo allows Rust stable to compile sysroot by demonstrating `RUSTC_BOOTSTRAP` as a env var. We provide a new docker image `baiduxlab/sgx-rust-stable` as long as its [dockerfile](dockerfile/rust-stable).
+**New branch rust-stable** We provide a new branch to support stable channel of Rust (stable-2018-03-01) in a new branch 'rust-stable'. It contains modified libraries and a customized xargo. The customized cargo allows Rust stable to compile sysroot by demonstrating `RUSTC_BOOTSTRAP` as a env var. We provide a new docker image `baiduxlab/sgx-rust-stable` as long as its [dockerfile](dockerfile/rust-stable).
 
 # Rust SGX SDK v0.9.7 Release Notes
 **Provide `sgx_tstd::untrusted` namespace** v0.9.7 provides `sgx_tstd::untrusted::{fs,path,time}` which are related to ocall functions. They are always enabled no matter `untrusted_fs` or `untrusted_time` feature is enabled or not. The major concern of providing such a namespace is that we want the developer to know they are invoking ocall related functions that brings **untrusted data** into the **trusted** execution engine. For the best security practice, explicitly importing from `sgx_tstd::untrusted` is better than enabling feature in `Cargo.toml`. We stress that `untrusted_fs` and `untrusted_time` features are designed to be **contingency plans** and should only be enabled when porting a very complex Rust crate to a Rust-SGX enclave.
