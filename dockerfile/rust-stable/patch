@@ -1,0 +1,13 @@
+diff --git a/sdk/tlibc/Makefile b/sdk/tlibc/Makefile
+index 9aee436..acc73cf 100644
+--- a/sdk/tlibc/Makefile
++++ b/sdk/tlibc/Makefile
+@@ -33,7 +33,7 @@ include ../../buildenv.mk
+
+ CFLAGS   += $(ENCLAVE_CFLAGS)
+ ASFLAGS  := $(CFLAGS)
+-CFLAGS   += -std=c99
++CFLAGS   += -std=c99 -D USE_MALLOC_DEPRECATED
+ CXXFLAGS += $(ENCLAVE_CXXFLAGS) -fno-exceptions -fno-rtti
+
+ CPPFLAGS += -I.                          \
