@@ -90,7 +90,7 @@ impl_enum! {
         SGX_ERROR_UNRECOGNIZED_PLATFORM     = 0x00004012,   /* EPID Provisioning failed due to platform not recognized by backend server*/
 
         SGX_ERROR_NO_PRIVILEGE              = 0x00005002,   /* Not enough privilege to perform the operation */
-    
+
         /* SGX errors are only used in the file API when there is no appropriate EXXX (EINVAL, EIO etc.) error code */
         SGX_ERROR_FILE_BAD_STATUS               = 0x00007001,	/* The file is in bad status, run sgx_clearerr to try and fix it */
         SGX_ERROR_FILE_NO_KEY_ID                = 0x00007002,	/* The Key ID field is all zeros, can't re-generate the encryption key */

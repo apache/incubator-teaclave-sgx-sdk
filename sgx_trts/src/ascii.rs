@@ -51,7 +51,7 @@ use alloc::string::String;
 /// Extension methods for ASCII-subset only operations.
 ///
 /// Be aware that operations on seemingly non-ASCII characters can sometimes
-/// have unexpected results. 
+/// have unexpected results.
 ///
 pub trait AsciiExt {
     /// Container type for copied ASCII characters.
@@ -225,9 +225,9 @@ pub trait AsciiExt {
     fn is_ascii_punctuation(&self) -> bool { unimplemented!(); }
 
     /// Checks if the value is an ASCII graphic character:
-    /// U+0021 '@' ... U+007E '~'.
+    /// U+0021 '!' ... U+007E '~'.
     /// For strings, true if all characters in the string are
-    /// ASCII punctuation.
+    /// ASCII graphic characters.
     ///
     /// # Note
     ///

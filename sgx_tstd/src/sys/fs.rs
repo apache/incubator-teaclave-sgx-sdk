@@ -306,7 +306,7 @@ impl FromInner<c_int> for File {
 }
 
 impl fmt::Debug for File {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {  
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fn get_path(fd: c_int) -> Option<PathBuf> {
             let mut p = PathBuf::from("/proc/self/fd");
             p.push(&fd.to_string());
@@ -468,7 +468,7 @@ mod libc {
                                  path: * const c_char,
                                  oflag: c_int,
                                  mode: c_int) -> sgx_status_t;
-        
+
         pub fn u_fs_fstat64_ocall(result: * mut c_int,
                                   error: * mut c_int,
                                   fd: c_int,

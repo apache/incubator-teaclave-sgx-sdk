@@ -190,6 +190,12 @@ pub fn rsgx_raw_is_outside_enclave(addr: * const u8, size: usize) -> bool {
     if ret == 0 { false } else { true }
 }
 
+pub fn rsgx_is_enclave_crashed() -> bool {
+
+    let ret = unsafe { sgx_is_enclave_crashed() };
+    if ret == 0 { false } else { true }
+}
+
 pub type exit_function_t = extern "C" fn();
 
 #[link(name = "sgx_trts")]
@@ -212,3 +218,17 @@ pub fn rsgx_atexit(fun: exit_function_t) -> bool {
     }
 }
 
+#[inline(always)]
+pub fn rsgx_lfence() {
+    unsafe { asm!{"lfence"}; }
+}
+
+#[inline(always)]
+pub fn rsgx_sfence() {
+    unsafe { asm!{"sfence"}; }
+}
+
+#[inline(always)]
+pub fn rsgx_mfence() {
+    unsafe { asm!{"mfence"}; }
+}

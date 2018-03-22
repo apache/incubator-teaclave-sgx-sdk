@@ -2052,16 +2052,16 @@ impl Drop for SgxEccHandle {
 /// The rsgx_rsa3072_sign_msg computes a digital signature for a given dataset based on RSA 3072 private key.
 ///
 /// # Description
-/// 
+///
 /// This function computes a digital signature over the input dataset based on the RSA 3072 private key.
 ///
-/// A message digest is a fixed size number derived from the original message with an applied hash function 
+/// A message digest is a fixed size number derived from the original message with an applied hash function
 /// over the binary code of the message. (SHA256 in this case)
 ///
 /// The signer's private key and the message digest are used to create a signature.
 ///
 /// The scheme used for computing a digital signature is of the RSASSA-PKCS1-v1_5 scheme.
-/// 
+///
 /// # Parameters
 ///
 /// **data**
@@ -2096,7 +2096,7 @@ impl Drop for SgxEccHandle {
 ///
 pub fn rsgx_rsa3072_sign_msg<T>(data: &T, key: &sgx_rsa3072_key_t) -> SgxResult<sgx_rsa3072_signature_t>
     where T: Copy + ContiguousMemory {
-    
+
     let size = mem::size_of::<T>();
     if size == 0 {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -2107,8 +2107,8 @@ pub fn rsgx_rsa3072_sign_msg<T>(data: &T, key: &sgx_rsa3072_key_t) -> SgxResult<
 
     let mut sign = sgx_rsa3072_signature_t::default();
     let ret = unsafe {
-        sgx_rsa3072_sign(data as * const _ as * const u8, 
-                         size as u32, 
+        sgx_rsa3072_sign(data as * const _ as * const u8,
+                         size as u32,
                          key as * const sgx_rsa3072_key_t,
                          &mut sign as * mut sgx_rsa3072_signature_t)
     };
@@ -2123,7 +2123,7 @@ pub fn rsgx_rsa3072_sign_msg<T>(data: &T, key: &sgx_rsa3072_key_t) -> SgxResult<
 ///
 pub fn rsgx_rsa3072_sign_slice<T>(data: &[T], key: &sgx_rsa3072_key_t) -> SgxResult<sgx_rsa3072_signature_t>
     where T: Copy + ContiguousMemory {
-    
+
     let size = mem::size_of_val(data);
     if size == 0 {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -2134,8 +2134,8 @@ pub fn rsgx_rsa3072_sign_slice<T>(data: &[T], key: &sgx_rsa3072_key_t) -> SgxRes
 
     let mut sign = sgx_rsa3072_signature_t::default();
     let ret = unsafe {
-        sgx_rsa3072_sign(data.as_ptr() as * const _ as * const u8, 
-                         size as u32, 
+        sgx_rsa3072_sign(data.as_ptr() as * const _ as * const u8,
+                         size as u32,
                          key as * const sgx_rsa3072_key_t,
                          &mut sign as * mut sgx_rsa3072_signature_t)
     };
@@ -2149,12 +2149,12 @@ pub fn rsgx_rsa3072_sign_slice<T>(data: &[T], key: &sgx_rsa3072_key_t) -> SgxRes
 /// rsgx_rsa3072_verify_msg verifies the input digital signature for the given data- set based on the RSA 3072 public key.
 ///
 /// # Description
-/// 
+///
 /// This function verifies the signature for the given data set based on the input RSA 3072 public key.
 ///
-/// A digital signature over a message is a buffer of 384-bytes, which could be created by function: rsgx_rsa3072_sign. 
+/// A digital signature over a message is a buffer of 384-bytes, which could be created by function: rsgx_rsa3072_sign.
 /// The scheme used for computing a digital signature is of the RSASSA-PKCS1-v1_5 scheme.
-/// 
+///
 /// # Parameters
 ///
 /// **data**
@@ -2197,8 +2197,8 @@ pub fn rsgx_rsa3072_sign_slice<T>(data: &[T], key: &sgx_rsa3072_key_t) -> SgxRes
 ///
 /// The verification process failed due to an internal cryptography library failure.
 ///
-pub fn rsgx_rsa3072_verify_msg<T>(data: &T, 
-                                  public: &sgx_rsa3072_public_key_t, 
+pub fn rsgx_rsa3072_verify_msg<T>(data: &T,
+                                  public: &sgx_rsa3072_public_key_t,
                                   signature: &sgx_rsa3072_signature_t) -> SgxResult<bool>
     where T: Copy + ContiguousMemory {
 
@@ -2233,8 +2233,8 @@ pub fn rsgx_rsa3072_verify_msg<T>(data: &T,
 ///
 /// rsgx_rsa3072_verify_slice verifies the input digital signature for the given data- set based on the RSA 3072 public key.
 ///
-pub fn rsgx_rsa3072_verify_slice<T>(data: &[T], 
-                                    public: &sgx_rsa3072_public_key_t, 
+pub fn rsgx_rsa3072_verify_slice<T>(data: &[T],
+                                    public: &sgx_rsa3072_public_key_t,
                                     signature: &sgx_rsa3072_signature_t) -> SgxResult<bool>
     where T: Copy + ContiguousMemory {
 

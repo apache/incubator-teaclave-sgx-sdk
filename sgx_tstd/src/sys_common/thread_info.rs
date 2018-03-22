@@ -57,3 +57,10 @@ impl SgxThreadInfo {
 pub fn current_thread() -> Option<SgxThread> {
     SgxThreadInfo::with(|info| info.thread.clone())
 }
+
+pub fn set(thread: SgxThread) {
+    THREAD_INFO.with(|c| assert!(c.borrow().is_none()));
+    THREAD_INFO.with(move |c| *c.borrow_mut() = Some(SgxThreadInfo{
+        thread,
+    }));
+}

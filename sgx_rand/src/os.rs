@@ -32,7 +32,7 @@
 use std::{io, mem, fmt};
 use Rng;
 
-/// A random number generator 
+/// A random number generator
 pub struct SgxRng(imp::SgxRng);
 
 impl SgxRng {
@@ -83,7 +83,7 @@ mod imp {
         getrandom(v).expect("unexpected getrandom error");
     }
 
-    #[allow(dead_code)] 
+    #[allow(dead_code)]
     fn is_getrandom_available() -> bool { true }
 
     pub struct SgxRng;

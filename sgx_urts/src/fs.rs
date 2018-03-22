@@ -35,7 +35,7 @@ pub extern "C" fn u_fs_open64_ocall(error: * mut c_int,
                                     path: * const c_char,
                                     oflag: c_int,
                                     mode: c_int) -> c_int {
-    
+
     let mut errno = 0;
     let ret = unsafe { libc::open64(path, oflag, mode) };
     if ret < 0 {
@@ -128,7 +128,7 @@ pub extern "C" fn u_fs_close_ocall(error: * mut c_int, fd: c_int) -> c_int {
 }
 
 #[no_mangle]
-pub extern "C" fn u_fs_fcntl_arg0_ocall(error: * mut c_int, 
+pub extern "C" fn u_fs_fcntl_arg0_ocall(error: * mut c_int,
                                         fd: c_int,
                                         cmd: c_int) -> c_int {
     let mut errno = 0;
@@ -143,7 +143,7 @@ pub extern "C" fn u_fs_fcntl_arg0_ocall(error: * mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_fs_fcntl_arg1_ocall(error: * mut c_int, 
+pub extern "C" fn u_fs_fcntl_arg1_ocall(error: * mut c_int,
                                         fd: c_int,
                                         cmd: c_int,
                                         arg: c_int) -> c_int {
@@ -193,7 +193,7 @@ pub extern "C" fn u_fs_ioctl_arg1_ocall(error: * mut c_int,
 pub extern "C" fn u_fs_fstat64_ocall(error: * mut c_int,
                                      fd: c_int,
                                      buf: * mut stat64) -> c_int {
-    
+
     let mut errno = 0;
     let ret = unsafe { libc::fstat64(fd, buf) };
     if ret < 0 {
@@ -207,7 +207,7 @@ pub extern "C" fn u_fs_fstat64_ocall(error: * mut c_int,
 
 #[no_mangle]
 pub extern "C" fn u_fs_fsync_ocall(error: * mut c_int, fd: c_int) -> c_int {
-    
+
     let mut errno = 0;
     let ret = unsafe { libc::fsync(fd) };
     if ret < 0 {
@@ -221,7 +221,7 @@ pub extern "C" fn u_fs_fsync_ocall(error: * mut c_int, fd: c_int) -> c_int {
 
 #[no_mangle]
 pub extern "C" fn u_fs_fdatasync_ocall(error: * mut c_int, fd: c_int) -> c_int {
-    
+
     let mut errno = 0;
     let ret = unsafe { libc::fdatasync(fd) };
     if ret < 0 {

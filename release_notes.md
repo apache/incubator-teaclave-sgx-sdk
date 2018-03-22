@@ -1,7 +1,16 @@
-# Rust SGX SDK v0.9.7 Release Notes
-**Provide `sgx_tstd::untrusted` namespace** v0.9.7 provides `sgx_tstd::untrusted::{fs,path,time}` which related to ocall functions. They are always enabled no matter `untrusted_fs` or `untrusted_time` feature is enabled or not. The major concern of providing such a namespace is that we want the developer to know they are invoking ocall related functions which brings **untrusted data** into the trusted execution engine. For the best security practice, explicitly importing from `sgx_tstd::untrusted` is better than enabling feature in `Cargo.toml`. We stress that `untrusted_fs` and `untrusted_time` features are designed to be **contingency plans** and should only be enabled when porting an very complex Rust crate to Rust-SGX enclaves.
+# Rust SGX SDK v0.9.8 Release Notes
+**Support Intel SGX SDK v2.1.2**
 
-**Rename feature `untrusted_net` to `net`** `net` is well-known as untrusted and we think `net` is a better choice and similar to current features: `backtrace` and `stdio`.
+**Support Rust nightly 2018-03-16**
+
+**Provide APIs against spectre attack** We provide `sgx_trts::{rsgx_lfence,rsgx_sfence,rsgx_mfence}` to help developers stop speculative execution on demand. We urge SGX developers to look at Intel's latest development [guide](https://software.intel.com/sites/default/files/managed/e1/ec/SGX_SDK_Developer_Guidance-CVE-2017-5753.pdf) and another [guide](https://software.intel.com/sites/default/files/managed/e1/ec/180309_SGX_SDK_Developer_Guidance_Edger8r.pdf). To defend against spectre, developers **must** rewrite their enclaves according to the guidance from Intel. We show how to rewrite SGX enclave to defend against spectre in TLS client/server and local attestation code samples.
+
+**New API `rsgx_is_enclave_crashed`** We provide `sgx_trts::rsgx_is_enclave_crashed` corresponding to a new feature of Intel SGX SDK 2.1.2.
+
+# Rust SGX SDK v0.9.7 Release Notes
+**Provide `sgx_tstd::untrusted` namespace** v0.9.7 provides `sgx_tstd::untrusted::{fs,path,time}` which are related to ocall functions. They are always enabled no matter `untrusted_fs` or `untrusted_time` feature is enabled or not. The major concern of providing such a namespace is that we want the developer to know they are invoking ocall related functions that brings **untrusted data** into the **trusted** execution engine. For the best security practice, explicitly importing from `sgx_tstd::untrusted` is better than enabling feature in `Cargo.toml`. We stress that `untrusted_fs` and `untrusted_time` features are designed to be **contingency plans** and should only be enabled when porting a very complex Rust crate to a Rust-SGX enclave.
+
+**Rename feature `untrusted_net` to `net`** `net` is well-known as untrusted and we believe `net` is a better choice and similar to other features: such as `backtrace` and `stdio`.
 
 # Rust SGX SDK v0.9.6 Release Notes
 **Support latest Rust nightly build (nightly-2018-02-05-x86_64-unknown-linux-gnu)**

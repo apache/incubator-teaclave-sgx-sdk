@@ -389,7 +389,7 @@ impl SgxInternalSealedData {
 
     pub fn mac_aadata(additional_text: &[u8]) -> SgxResult<Self> {
 
-        let attribute_mask = sgx_attributes_t{flags: SGX_FLAGS_RESERVED | SGX_FLAGS_INITTED | SGX_FLAGS_DEBUG, xfrm: 0};
+        let attribute_mask = sgx_attributes_t{flags: TSEAL_DEFAULT_FLAGSMASK, xfrm: 0};
 
         Self::mac_aadata_ex(SGX_KEYPOLICY_MRSIGNER,
                             attribute_mask,
@@ -542,6 +542,14 @@ impl SgxInternalSealedData {
                 sgx_status_t::SGX_ERROR_MAC_MISMATCH
             }
         }));
+
+        //
+        // code that calls sgx_unseal_data commonly does some sanity checks
+        // related to plain_text_offset.  We add fence here since we don't
+        // know what crypto code does and if plain_text_offset-related
+        // checks mispredict the crypto code could operate on unintended data
+        //
+        rsgx_lfence();
 
         let payload_iv = [0_u8; SGX_SEAL_IV_SIZE];
         let mut unsealed_data: SgxInternalUnsealedData = SgxInternalUnsealedData::default();

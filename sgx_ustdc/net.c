@@ -99,12 +99,12 @@ ssize_t u_net_sendto_ocall(int * error,
     return ret;
 }
 
-int u_net_getsockopt_ocall(int * error, 
-                           int sockfd, 
-                           int level, 
-                           int optname, 
-                           void * optval, 
-                           socklen_t _in_optlen, 
+int u_net_getsockopt_ocall(int * error,
+                           int sockfd,
+                           int level,
+                           int optname,
+                           void * optval,
+                           socklen_t _in_optlen,
                            socklen_t * optlen)
 {
     int ret = getsockopt(sockfd, level, optname, optval, optlen);

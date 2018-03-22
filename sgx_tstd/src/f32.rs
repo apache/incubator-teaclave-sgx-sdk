@@ -552,7 +552,7 @@ impl f32 {
     /// ```
     ///
     /// If one of the arguments is NaN, then the other argument is returned.
-    
+
     #[inline]
     pub fn max(self, other: f32) -> f32 {
         num::Float::max(self, other)
@@ -967,7 +967,7 @@ impl f32 {
     /// This is currently identical to `transmute::<u32, f32>(v)` on all platforms.
     /// It turns out this is incredibly portable, for two reasons:
     ///
-    /// * Floats and Ints have the same endianess on all supported platforms.
+    /// * Floats and Ints have the same endianness on all supported platforms.
     /// * IEEE-754 very precisely specifies the bit layout of floats.
     ///
     /// However there is one caveat: prior to the 2008 version of IEEE-754, how

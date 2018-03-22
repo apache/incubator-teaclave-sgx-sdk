@@ -33,7 +33,7 @@ use path::PathBuf;
 
 pub trait PathEx {
     fn metadata(&self) -> io::Result<fs::Metadata>;
-    fn symlink_metadata(&self) -> io::Result<fs::Metadata>; 
+    fn symlink_metadata(&self) -> io::Result<fs::Metadata>;
     fn canonicalize(&self) -> io::Result<PathBuf>;
     fn read_link(&self) -> io::Result<PathBuf>;
     fn exists(&self) -> bool;
@@ -41,7 +41,7 @@ pub trait PathEx {
     fn is_dir(&self) -> bool;
 }
 
-impl PathEx for Path { 
+impl PathEx for Path {
     /// Queries the file system to get information about a file, directory, etc.
     ///
     /// This function will traverse symbolic links to query information about the

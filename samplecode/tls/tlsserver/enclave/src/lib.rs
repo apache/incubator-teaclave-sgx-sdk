@@ -39,6 +39,8 @@ extern crate sgx_trts;
 extern crate sgx_tstd as std;
 
 use sgx_types::*;
+use sgx_trts::trts::{rsgx_raw_is_outside_enclave, rsgx_lfence};
+use std::mem;
 
 use std::untrusted::fs;
 use std::io::BufReader;
@@ -191,12 +193,23 @@ pub extern "C" fn tls_server_read(session: *const c_void, buf: * mut c_char, cnt
         return -1;
     }
 
+    if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsServer>()) {
+        return -1;
+    }
+    rsgx_lfence();
+
     let session = unsafe { &mut *(session as *mut TlsServer) };
 
     if buf.is_null() || cnt == 0 {
         // just read_tls
         session.do_read()
     } else {
+
+        if !rsgx_raw_is_outside_enclave(buf as * const u8, cnt as usize) {
+            return -1;
+        }
+        rsgx_lfence();
+
         // read plain buffer
         let mut plaintext = Vec::new();
         let mut result = session.read(&mut plaintext);
@@ -219,6 +232,11 @@ pub extern "C" fn tls_server_write(session: *const c_void, buf: * const c_char, 
         return -1;
     }
 
+    if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsServer>()) {
+        return -1;
+    }
+    rsgx_lfence();
+
     let session = unsafe { &mut *(session as *mut TlsServer) };
 
     // no buffer, just write_tls.
@@ -240,6 +258,12 @@ pub extern "C" fn tls_server_wants_read(session: *const c_void)  -> c_int {
     if session.is_null() {
         return -1;
     }
+
+    if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsServer>()) {
+        return -1;
+    }
+    rsgx_lfence();
+
     let session = unsafe { &mut *(session as *mut TlsServer) };
     let result = session.tls_session.wants_read() as c_int;
     result
@@ -250,6 +274,12 @@ pub extern "C" fn tls_server_wants_write(session: *const c_void)  -> c_int {
     if session.is_null() {
         return -1;
     }
+
+    if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsServer>()) {
+        return -1;
+    }
+    rsgx_lfence();
+
     let session = unsafe { &mut *(session as *mut TlsServer) };
     let result = session.tls_session.wants_write() as c_int;
     result
@@ -258,6 +288,12 @@ pub extern "C" fn tls_server_wants_write(session: *const c_void)  -> c_int {
 #[no_mangle]
 pub extern "C" fn tls_server_close(session: * const c_void) {
     if !session.is_null() {
+
+        if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsServer>()) {
+            return;
+        }
+        rsgx_lfence();
+
         let _ = unsafe { Box::<TlsServer>::from_raw(session as *mut _) };
     }
 }
@@ -265,6 +301,12 @@ pub extern "C" fn tls_server_close(session: * const c_void) {
 #[no_mangle]
 pub extern "C" fn tls_server_send_close(session: * const c_void) {
     if !session.is_null() {
+
+        if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsServer>()) {
+            return;
+        }
+        rsgx_lfence();
+
         let session = unsafe { &mut *(session as *mut TlsServer) };
         session.tls_session.send_close_notify();
     }

@@ -56,7 +56,7 @@ impl RwLockInfo {
     const fn new() -> Self {
         RwLockInfo{
             readers_num: 0,
-            writers_num: 0, 
+            writers_num: 0,
             busy: 0,
             writer_thread: SGX_THREAD_T_NULL,
             cond: SgxThreadCondvar::new(),
@@ -77,7 +77,7 @@ impl RwLockInfo {
                 self.busy += 1;
                 ret = Ok(());
             }
-        } 
+        }
         self.spinlock.unlock();
         ret
     }
@@ -93,7 +93,7 @@ impl RwLockInfo {
                 self.busy -= 1;
                 ret = Ok(());
             }
-        } 
+        }
         self.spinlock.unlock();
         ret
     }
@@ -128,7 +128,7 @@ impl SgxThreadRwLock {
         rwlockinfo.mutex.lock();
         {
             if rwlockinfo.writer_thread == thread::rsgx_thread_self() {
-                
+
                 rwlockinfo.mutex.unlock();
                 rwlockinfo.deref_busy();
                 return Err(libc::EDEADLK);
@@ -150,7 +150,7 @@ impl SgxThreadRwLock {
         rwlockinfo.mutex.unlock();
 
         rwlockinfo.deref_busy();
-        
+
         Ok(())
     }
 
@@ -169,7 +169,7 @@ impl SgxThreadRwLock {
             let mut ret = Ok(());
             if rwlockinfo.writer_thread == thread::rsgx_thread_self() {
                 ret = Err(libc::EDEADLK);
-            } 
+            }
             else if rwlockinfo.readers_num == u32::max_value() {
                 ret = Err(libc::EAGAIN);
             }
@@ -185,13 +185,13 @@ impl SgxThreadRwLock {
                     return Err(e);
                 }
             }
-            
+
             rwlockinfo.readers_num += 1;
         }
         rwlockinfo.mutex.unlock();
 
         rwlockinfo.deref_busy();
-        
+
         Ok(())
     }
 
@@ -206,7 +206,7 @@ impl SgxThreadRwLock {
         rwlockinfo.mutex.lock();
         {
             if rwlockinfo.writer_thread == thread::rsgx_thread_self() {
-                
+
                 rwlockinfo.mutex.unlock();
                 rwlockinfo.deref_busy();
                 return Err(libc::EDEADLK);
@@ -234,7 +234,7 @@ impl SgxThreadRwLock {
         rwlockinfo.mutex.unlock();
 
         rwlockinfo.deref_busy();
-        
+
         Ok(())
     }
 
@@ -253,7 +253,7 @@ impl SgxThreadRwLock {
             let mut ret = Ok(());
             if rwlockinfo.writer_thread == thread::rsgx_thread_self() {
                 ret = Err(libc::EDEADLK);
-            } 
+            }
             else if rwlockinfo.writers_num == u32::max_value() {
                 ret = Err(libc::EAGAIN);
             }
@@ -277,7 +277,7 @@ impl SgxThreadRwLock {
         rwlockinfo.mutex.unlock();
 
         rwlockinfo.deref_busy();
-        
+
         Ok(())
     }
 
@@ -416,7 +416,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// # Panics
     ///
     /// This function might panic when called if the lock is already held by the current thread.
-    pub fn read(&self) -> LockResult<SgxRwLockReadGuard<T>> { 
+    pub fn read(&self) -> LockResult<SgxRwLockReadGuard<T>> {
         unsafe {
             let ret = self.inner.read();
             match ret {
@@ -472,7 +472,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// # Panics
     ///
     /// This function might panic when called if the lock is already held by the current thread.
-    pub fn write(&self) -> LockResult<SgxRwLockWriteGuard<T>> { 
+    pub fn write(&self) -> LockResult<SgxRwLockWriteGuard<T>> {
         unsafe {
             let ret = self.inner.write();
             match ret {
@@ -529,7 +529,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// error will only be returned if the lock would have otherwise been
     /// acquired.
     pub fn into_inner(self) -> LockResult<T> where T: Sized {
-        
+
         unsafe {
             let (inner, poison, data) = {
                 let SgxRwLock { ref inner, ref poison, ref data } = self;
@@ -556,7 +556,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// error will only be returned if the lock would have otherwise been
     /// acquired.
     pub fn get_mut(&mut self) -> LockResult<&mut T> {
-        
+
         let data = unsafe { &mut *self.data.get() };
         poison::map_result(self.poison.borrow(), |_| data)
     }
@@ -565,7 +565,7 @@ impl<T: ?Sized> SgxRwLock<T> {
 unsafe impl<#[may_dangle] T: ?Sized> Drop for SgxRwLock<T> {
     fn drop(&mut self) {
         // IMPORTANT: This code needs to be kept in sync with `SgxRwLock::into_inner`.
-        unsafe { 
+        unsafe {
             let _ = self.inner.destroy();
         }
     }

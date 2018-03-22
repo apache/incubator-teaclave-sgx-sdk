@@ -368,10 +368,10 @@ pub enum Component<'a> {
     /// It represents a separator that designates that a path starts from root.
     RootDir,
 
-    /// A reference to the current directory, i.e. `.`. 
+    /// A reference to the current directory, i.e. `.`.
     CurDir,
 
-    /// A reference to the parent directory, i.e. `..`. 
+    /// A reference to the parent directory, i.e. `..`.
     ParentDir,
 
     /// A normal component, e.g. `a` and `b` in `a/b`.
@@ -1266,7 +1266,7 @@ impl Path {
     /// Return `false` if the `Path` is relative, i.e. not absolute.
     ///
     /// See [`is_absolute`]'s documentation for more details.
-    /// 
+    ///
     pub fn is_relative(&self) -> bool {
         !self.is_absolute()
     }

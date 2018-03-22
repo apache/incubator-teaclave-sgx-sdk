@@ -421,15 +421,15 @@ impl fmt::Display for IntoStringError {
 }
 
 impl CStr {
-    /// Casts a raw C string to a safe C string wrapper.
+    /// Wraps a raw C string with a safe C string wrapper.
     ///
-    /// This function will cast the provided `ptr` to the `CStr` wrapper which
+    /// This function will wrap the provided `ptr` with a `CStr` wrapper, which
     /// allows inspection and interoperation of non-owned C strings. This method
     /// is unsafe for a number of reasons:
     ///
-    /// * There is no guarantee to the validity of `ptr`
+    /// * There is no guarantee to the validity of `ptr`.
     /// * The returned lifetime is not guaranteed to be the actual lifetime of
-    ///   `ptr`
+    ///   `ptr`.
     /// * There is no guarantee that the memory pointed to by `ptr` contains a
     ///   valid nul terminator byte at the end of the string.
     ///
@@ -443,6 +443,12 @@ impl CStr {
         CStr::from_bytes_with_nul_unchecked(slice::from_raw_parts(ptr, len as usize + 1))
     }
 
+    /// Creates a C string wrapper from a byte slice.
+    ///
+    /// This function will cast the provided `bytes` to a `CStr`
+    /// wrapper after ensuring that the byte slice is nul-terminated
+    /// and does not contain any interior nul bytes.
+    ///
     pub fn from_bytes_with_nul(bytes: &[u8])
                                -> Result<&CStr, FromBytesWithNulError> {
         let nul_pos = memchr::memchr(0, bytes);
@@ -456,23 +462,68 @@ impl CStr {
         }
     }
 
+    /// Unsafely creates a C string wrapper from a byte slice.
+    ///
+    /// This function will cast the provided `bytes` to a `CStr` wrapper without
+    /// performing any sanity checks. The provided slice **must** be nul-terminated
+    /// and not contain any interior nul bytes.
+    ///
     pub unsafe fn from_bytes_with_nul_unchecked(bytes: &[u8]) -> &CStr {
         &*(bytes as *const [u8] as *const CStr)
     }
 
+    /// Returns the inner pointer to this C string.
+    ///
+    /// The returned pointer will be valid for as long as `self` is, and points
+    /// to a contiguous region of memory terminated with a 0 byte to represent
+    /// the end of the string.
+    ///
     pub fn as_ptr(&self) -> *const c_char {
         self.inner.as_ptr()
     }
 
+    /// Converts this C string to a byte slice.
+    ///
+    /// The returned slice will **not** contain the trailing nul terminator that this C
+    /// string has.
+    ///
+    /// > **Note**: This method is currently implemented as a constant-time
+    /// > cast, but it is planned to alter its definition in the future to
+    /// > perform the length calculation whenever this method is called.
+    ///
     pub fn to_bytes(&self) -> &[u8] {
         let bytes = self.to_bytes_with_nul();
         &bytes[..bytes.len() - 1]
     }
 
+    /// Converts this C string to a byte slice containing the trailing 0 byte.
+    ///
+    /// This function is the equivalent of [`to_bytes`] except that it will retain
+    /// the trailing nul terminator instead of chopping it off.
+    ///
+    /// > **Note**: This method is currently implemented as a 0-cost cast, but
+    /// > it is planned to alter its definition in the future to perform the
+    /// > length calculation whenever this method is called.
+    ///
+    /// [`to_bytes`]: #method.to_bytes
+    ///
     pub fn to_bytes_with_nul(&self) -> &[u8] {
         unsafe { &*(&self.inner as *const [c_char] as *const [u8]) }
     }
 
+    /// Yields a [`&str`] slice if the `CStr` contains valid UTF-8.
+    ///
+    /// If the contents of the `CStr` are valid UTF-8 data, this
+    /// function will return the corresponding [`&str`] slice. Otherwise,
+    /// it will return an error with details of where UTF-8 validation failed.
+    ///
+    /// > **Note**: This method is currently implemented to check for validity
+    /// > after a constant-time cast, but it is planned to alter its definition
+    /// > in the future to perform the length calculation in addition to the
+    /// > UTF-8 check whenever this method is called.
+    ///
+    /// [`&str`]: ../primitive.str.html
+    ///
     pub fn to_str(&self) -> Result<&str, str::Utf8Error> {
         // NB: When CStr is changed to perform the length check in .to_bytes()
         // instead of in from_ptr(), it may be worth considering if this should
@@ -481,10 +532,34 @@ impl CStr {
         str::from_utf8(self.to_bytes())
     }
 
+    /// Converts a `CStr` into a [`Cow`]`<`[`str`]`>`.
+    ///
+    /// If the contents of the `CStr` are valid UTF-8 data, this
+    /// function will return a [`Cow`]`::`[`Borrowed`]`(`[`&str`]`)`
+    /// with the the corresponding [`&str`] slice. Otherwise, it will
+    /// replace any invalid UTF-8 sequences with `U+FFFD REPLACEMENT
+    /// CHARACTER` and return a [`Cow`]`::`[`Owned`]`(`[`String`]`)`
+    /// with the result.
+    ///
+    /// > **Note**: This method is currently implemented to check for validity
+    /// > after a constant-time cast, but it is planned to alter its definition
+    /// > in the future to perform the length calculation in addition to the
+    /// > UTF-8 check whenever this method is called.
+    ///
+    /// [`Cow`]: ../borrow/enum.Cow.html
+    /// [`Borrowed`]: ../borrow/enum.Cow.html#variant.Borrowed
+    /// [`str`]: ../primitive.str.html
+    /// [`String`]: ../string/struct.String.html
+    ///
     pub fn to_string_lossy(&self) -> Cow<str> {
         String::from_utf8_lossy(self.to_bytes())
     }
 
+    /// Converts a [`Box`]`<CStr>` into a [`CString`] without copying or allocating.
+    ///
+    /// [`Box`]: ../boxed/struct.Box.html
+    /// [`CString`]: struct.CString.html
+    ///
     pub fn into_c_string(self: Box<CStr>) -> CString {
         let raw = Box::into_raw(self) as *mut [u8];
         CString { inner: unsafe { Box::from_raw(raw) } }

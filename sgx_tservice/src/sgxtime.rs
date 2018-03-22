@@ -76,7 +76,7 @@ impl Eq for SgxTime {}
 impl PartialOrd for SgxTime {
 
     fn partial_cmp(&self, other: &SgxTime) -> Option<Ordering> {
-        
+
         if self.source_nonce == other.source_nonce {
             Some(self.timestamp.cmp(&other.timestamp))
         } else {
@@ -94,9 +94,9 @@ impl SgxTime {
 
         let ret = rsgx_get_trusted_time(&mut timestamp, &mut source_nonce);
         match ret {
-            sgx_status_t::SGX_SUCCESS => Ok(SgxTime{ 
-                                            timestamp: timestamp, 
-                                            source_nonce: source_nonce 
+            sgx_status_t::SGX_SUCCESS => Ok(SgxTime{
+                                            timestamp: timestamp,
+                                            source_nonce: source_nonce
                                          }),
             _ => Err(SgxTimeError::SgxStatus(ret)),
         }
@@ -208,7 +208,7 @@ impl SgxTime {
 fn rsgx_get_trusted_time(current_time: &mut sgx_time_t,
                          time_source_nonce: &mut sgx_time_source_nonce_t) -> sgx_status_t {
 
-    unsafe { 
-        sgx_get_trusted_time(current_time as * mut sgx_time_t, time_source_nonce as * mut sgx_time_source_nonce_t) 
+    unsafe {
+        sgx_get_trusted_time(current_time as * mut sgx_time_t, time_source_nonce as * mut sgx_time_source_nonce_t)
     }
 }

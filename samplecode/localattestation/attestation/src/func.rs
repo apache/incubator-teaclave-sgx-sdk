@@ -30,6 +30,7 @@
 //use core::sync::atomic::{AtomicPtr, Ordering};
 
 use sgx_types::*;
+use sgx_trts::trts::{rsgx_raw_is_outside_enclave, rsgx_lfence};
 use sgx_tdh::{SgxDhMsg1, SgxDhMsg2, SgxDhMsg3, SgxDhInitiator, SgxDhResponder};
 use std::boxed::Box;
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -201,6 +202,12 @@ fn exchange_report_safe(src_enclave_id: sgx_enclave_id_t, dh_msg2: &mut sgx_dh_m
 //Verify Message 2, generate Message3 and exchange Message 3 with Source Enclave
 #[no_mangle]
 pub extern "C" fn exchange_report(src_enclave_id: sgx_enclave_id_t, dh_msg2: *mut sgx_dh_msg2_t , dh_msg3: *mut sgx_dh_msg3_t, session_ptr: *mut usize) -> ATTESTATION_STATUS {
+
+    if rsgx_raw_is_outside_enclave(session_ptr as * const u8, mem::size_of::<DhSessionInfo>()) {
+        return ATTESTATION_STATUS::INVALID_PARAMETER;
+    }
+    rsgx_lfence();
+
     unsafe {
         exchange_report_safe(src_enclave_id, &mut *dh_msg2, &mut *dh_msg3, &mut *(session_ptr as *mut DhSessionInfo))
     }
@@ -210,6 +217,12 @@ pub extern "C" fn exchange_report(src_enclave_id: sgx_enclave_id_t, dh_msg2: *mu
 #[no_mangle]
 #[allow(unused_variables)]
 pub extern "C" fn end_session(src_enclave_id: sgx_enclave_id_t, session_ptr: *mut usize) -> ATTESTATION_STATUS {
+
+    if rsgx_raw_is_outside_enclave(session_ptr as * const u8, mem::size_of::<DhSessionInfo>()) {
+        return ATTESTATION_STATUS::INVALID_PARAMETER;
+    }
+    rsgx_lfence();
+
     let _ = unsafe { Box::from_raw(session_ptr as *mut DhSessionInfo) };
-    return ATTESTATION_STATUS::SUCCESS;
+    ATTESTATION_STATUS::SUCCESS
 }

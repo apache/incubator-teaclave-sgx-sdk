@@ -41,7 +41,7 @@ pub extern "C" fn u_env_getenv_ocall(name: * const c_char) -> * const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn u_env_setenv_ocall(error: * mut c_int, 
+pub extern "C" fn u_env_setenv_ocall(error: * mut c_int,
                                      name: * const c_char,
                                      value: * const c_char,
                                      overwrite: c_int) -> c_int {
@@ -57,7 +57,7 @@ pub extern "C" fn u_env_setenv_ocall(error: * mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_env_unsetenv_ocall(error: * mut c_int, 
+pub extern "C" fn u_env_unsetenv_ocall(error: * mut c_int,
                                        name: * const c_char) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::unsetenv(name) };

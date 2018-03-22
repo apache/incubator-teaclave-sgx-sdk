@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //! # The Rust SGX SDK Standard Library
-//! 
+//!
 //! The Rust SGX standard library (previously named as `sgx_tstdc`) is
 //! the foundation of portable Rust SGX SDK, a
 //! set of minimal and battle-tested shared abstractions for the Rust SGX

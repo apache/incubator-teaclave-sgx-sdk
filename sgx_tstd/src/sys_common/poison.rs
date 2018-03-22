@@ -130,7 +130,7 @@ impl<T> Error for PoisonError<T> {
     }
 }
 impl<T> PoisonError<T> {
-    
+
     /// Creates a `PoisonError`.
     ///
     /// This is generally created by methods like [`SgxMutex::lock`] or [`SgxRwLock::read`].

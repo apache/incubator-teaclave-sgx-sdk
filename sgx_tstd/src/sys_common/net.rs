@@ -118,8 +118,8 @@ impl TcpStream {
 
     pub fn raw(&self) -> c_int { self.inner.raw() }
 
-    pub fn into_raw(self) -> c_int { self.inner.into_raw() } 
-    
+    pub fn into_raw(self) -> c_int { self.inner.into_raw() }
+
     pub fn socket(&self) -> &Socket { &self.inner }
 
     pub fn into_socket(self) -> Socket { self.inner }
@@ -255,7 +255,7 @@ impl UdpSocket {
 
     pub fn raw(&self) -> c_int { self.inner.raw() }
 
-    pub fn into_raw(self) -> c_int { self.inner.into_raw() } 
+    pub fn into_raw(self) -> c_int { self.inner.into_raw() }
 
     pub fn bind(&self, addr: &SocketAddr) -> io::Result<()> {
         let (addrp, len) = addr.into_inner();
@@ -513,7 +513,7 @@ mod c {
     }
 
     pub unsafe fn bind(sockfd: c_int, address: * const sockaddr, addrlen: socklen_t) -> c_int {
-        
+
         let mut result: c_int = 0;
         let mut error: c_int = 0;
         let status = u_net_bind_ocall(&mut result as * mut c_int,

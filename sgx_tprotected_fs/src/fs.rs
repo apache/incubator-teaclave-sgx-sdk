@@ -26,7 +26,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-//! # Intel Protected File System API 
+//! # Intel Protected File System API
 use sgx_types::*;
 use sgx_trts::libc::{self, c_void};
 use sgx_trts::error::errno;
@@ -41,7 +41,7 @@ unsafe fn rsgx_fopen(filename: &CStr, mode: &CStr, key: &sgx_key_128bit_t) -> Sy
 
     let file = sgx_fopen(filename.as_ptr(), mode.as_ptr(), key as * const sgx_key_128bit_t);
     if file.is_null() {
-        Err(errno())   
+        Err(errno())
     } else {
         Ok(file)
     }
@@ -51,7 +51,7 @@ unsafe fn rsgx_fopen_auto_key(filename: &CStr, mode: &CStr) -> SysResult<SGX_FIL
 
     let file = sgx_fopen_auto_key(filename.as_ptr(), mode.as_ptr());
     if file.is_null() {
-        Err(errno())   
+        Err(errno())
     } else {
         Ok(file)
     }
@@ -77,10 +77,10 @@ unsafe fn rsgx_fread(stream: SGX_FILE, buf: &mut [u8]) -> SysResult<usize> {
     if stream.is_null() || buf.len() == 0 {
         return Err(libc::EINVAL);
     }
-    
+
     let read_size = cmp::min(buf.len(), max_len());
-    let ret_size = sgx_fread(buf.as_mut_ptr() as * mut c_void, 1, read_size, stream); 
-    
+    let ret_size = sgx_fread(buf.as_mut_ptr() as * mut c_void, 1, read_size, stream);
+
     if ret_size != read_size {
 
         let is_eof = try!(rsgx_feof(stream));
@@ -88,7 +88,7 @@ unsafe fn rsgx_fread(stream: SGX_FILE, buf: &mut [u8]) -> SysResult<usize> {
             Ok(ret_size)
         } else {
             Err(rsgx_ferror(stream))
-        }  
+        }
     } else {
         Ok(ret_size)
     }
@@ -102,11 +102,11 @@ unsafe fn rsgx_ftell(stream: SGX_FILE) -> SysResult<i64> {
 
     let pos = sgx_ftell(stream);
     if pos == -1 {
-        Err(errno())  
+        Err(errno())
     } else {
         Ok(pos)
     }
-}  
+}
 
 unsafe fn rsgx_fseek(stream: SGX_FILE, offset: i64, origin: i32) -> SysError {
 
@@ -118,9 +118,9 @@ unsafe fn rsgx_fseek(stream: SGX_FILE, offset: i64, origin: i32) -> SysError {
     if ret == 0 {
         Ok(())
     } else {
-        Err(rsgx_ferror(stream)) 
+        Err(rsgx_ferror(stream))
     }
-}   
+}
 
 unsafe fn rsgx_fflush(stream: SGX_FILE) -> SysError {
 
@@ -128,7 +128,7 @@ unsafe fn rsgx_fflush(stream: SGX_FILE) -> SysError {
     if ret == 0 {
         Ok(())
     } else if ret == libc::EOF {
-        Err(rsgx_ferror(stream)) 
+        Err(rsgx_ferror(stream))
     } else {
         Err(ret)
     }
@@ -139,7 +139,7 @@ unsafe fn rsgx_ferror(stream: SGX_FILE) -> i32 {
     let mut err = sgx_ferror(stream);
     if err == -1 {
         err = libc::EINVAL;
-    } 
+    }
     err
 }
 
@@ -194,7 +194,7 @@ unsafe fn rsgx_remove(filename: &CStr) -> SysError {
     if ret == 0 {
         Ok(())
     } else {
-        Err(errno()) 
+        Err(errno())
     }
 }
 
@@ -297,8 +297,8 @@ impl SgxFileStream {
     /// in the Protected FS API, otherwise, error code is returned.
     ///
     pub fn open_auto_key(filename: &CStr, mode: &CStr) -> SysResult<SgxFileStream> {
-        unsafe { 
-            rsgx_fopen_auto_key(filename, mode).map(|f| SgxFileStream{ stream: f}) 
+        unsafe {
+            rsgx_fopen_auto_key(filename, mode).map(|f| SgxFileStream{ stream: f})
         }
     }
 
@@ -329,7 +329,7 @@ impl SgxFileStream {
     pub fn read(&self, buf: &mut [u8]) -> SysResult<usize> {
         unsafe { rsgx_fread(self.stream, buf) }
     }
-    
+
     ///
     /// The write function writes the given amount of data to the file, and extends the file pointer by that amount.
     ///
@@ -599,7 +599,7 @@ pub fn remove(filename: &CStr) -> SysError {
 pub fn export_auto_key(filename: &CStr) -> SysResult<sgx_key_128bit_t> {
 
     let mut key: sgx_key_128bit_t = Default::default();
-    unsafe { 
+    unsafe {
         rsgx_fexport_auto_key(filename, &mut key).map(|_| key)
     }
 }

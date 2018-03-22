@@ -221,7 +221,7 @@ pub extern "C" fn u_net_shutdown_ocall(error: * mut c_int, sockfd: c_int, how: c
 
 #[no_mangle]
 pub extern "C" fn u_net_ioctl_ocall(error: * mut c_int, fd: c_int, request: c_int, arg: * mut c_int) -> c_int {
-    
+
     let mut errno = 0;
     let ret = unsafe { libc::ioctl(fd, request as c_ulong, arg) };
     if ret < 0 {

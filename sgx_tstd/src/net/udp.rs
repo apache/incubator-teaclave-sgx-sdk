@@ -40,7 +40,7 @@ use time::Duration;
 /// [sent to] and [received from] any other socket address.
 ///
 /// Although UDP is a connectionless protocol, this implementation provides an interface
-/// to set an address where data should be sent and received from. 
+/// to set an address where data should be sent and received from.
 pub struct UdpSocket(net_imp::UdpSocket);
 
 impl UdpSocket {

@@ -231,7 +231,7 @@ mod libc {
     }
 
     pub unsafe fn recv(sockfd: c_int, buf: * mut c_void, len: size_t, flags: c_int) -> ssize_t {
-        
+
         let mut result: ssize_t = 0;
         let mut error: c_int = 0;
         let status = u_net_recv_ocall(&mut result as * mut ssize_t,

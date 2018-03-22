@@ -57,7 +57,7 @@ pub use self::local::{LocalKey, LocalKeyState, LocalKeyInner, AccessError};
 /// The return value cannot be NULL and is always valid as long as it is invoked by a thread inside the enclave.
 ///
 pub fn rsgx_thread_self() -> sgx_thread_t {
-    
+
     unsafe { sgx_thread_self() }
 }
 
@@ -228,7 +228,7 @@ impl SgxThread {
     pub fn id(&self) -> SgxThreadId {
         self.inner.id
     }
-    
+
     /// Atomically makes the handle's token available if it is not already.
     ///
     /// Every thread is equipped with some basic low-level blocking support, via

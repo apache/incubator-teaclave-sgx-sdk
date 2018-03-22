@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.9.7"
+version = "0.9.8"
 authors = ["duanran01 <duanran01@baidu.com>"]
 build = "build.rs"
 

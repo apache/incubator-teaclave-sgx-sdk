@@ -34,7 +34,7 @@ unsafe fn raw_lock(lock: &mut sgx_spinlock_t) -> * mut sgx_spinlock_t {
     lock as * mut _
 }
 
-/// 
+///
 /// The rsgx_spin_lock function acquires a spin lock within the enclave.
 ///
 /// # Description
@@ -58,7 +58,7 @@ unsafe fn rsgx_spin_lock(lock: &mut sgx_spinlock_t) {
     sgx_types::sgx_spin_lock(raw_lock(lock));
 }
 
-/// 
+///
 /// The rsgx_spin_unlock function releases a spin lock within the enclave.
 ///
 /// # Description
@@ -113,17 +113,17 @@ unsafe impl Send for SgxSpinlock {}
 unsafe impl Sync for SgxSpinlock {}
 
 impl SgxSpinlock {
-    
+
     pub fn new() -> Self {
         SgxSpinlock{inner: SgxThreadSpinlock::new()}
     }
 
     pub fn lock(&self) -> SgxSpinlockGuard {
-        unsafe { 
-            self.inner.lock(); 
+        unsafe {
+            self.inner.lock();
             SgxSpinlockGuard::new(self)
         }
-        
+
     }
 }
 

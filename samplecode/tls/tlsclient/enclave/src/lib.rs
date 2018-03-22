@@ -38,8 +38,11 @@ extern crate sgx_trts;
 #[macro_use]
 extern crate sgx_tstd as std;
 
+use sgx_trts::trts::{rsgx_raw_is_outside_enclave, rsgx_lfence};
+
 use sgx_types::*;
 use std::collections;
+use std::mem;
 
 use std::untrusted::fs;
 use std::io::BufReader;
@@ -256,6 +259,12 @@ pub extern "C" fn tls_client_read(session: *const c_void, buf: * mut c_char, cnt
     if session.is_null() {
         return -1;
     }
+
+    if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsClient>()) {
+        return -1;
+    }
+    rsgx_lfence();
+
     if buf.is_null() {
         return -1;
     }
@@ -283,6 +292,11 @@ pub extern "C" fn tls_client_write(session: *const c_void, buf: * const c_char, 
         return -1;
     }
 
+    if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsClient>()) {
+        return -1;
+    }
+    rsgx_lfence();
+
     let session= unsafe { &mut *(session as *mut TlsClient) };
 
     // no buffer, just write_tls.
@@ -303,6 +317,12 @@ pub extern "C" fn tls_client_wants_read(session: *const c_void)  -> c_int {
     if session.is_null() {
         return -1;
     }
+
+    if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsClient>()) {
+        return -1;
+    }
+    rsgx_lfence();
+
     let session= unsafe { &mut *(session as *mut TlsClient) };
     let result = session.tls_session.wants_read() as c_int;
     result
@@ -313,6 +333,12 @@ pub extern "C" fn tls_client_wants_write(session: *const c_void)  -> c_int {
     if session.is_null() {
         return -1;
     }
+
+    if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsClient>()) {
+        return -1;
+    }
+    rsgx_lfence();
+
     let session= unsafe { &mut *(session as *mut TlsClient) };
     let result = session.tls_session.wants_write() as c_int;
     result
@@ -321,6 +347,12 @@ pub extern "C" fn tls_client_wants_write(session: *const c_void)  -> c_int {
 #[no_mangle]
 pub extern "C" fn tls_client_close(session: * const c_void) {
     if !session.is_null() {
+
+        if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsClient>()) {
+            return;
+        }
+        rsgx_lfence();
+
         let _ = unsafe { Box::<TlsClient>::from_raw(session as *mut _) };
     }
 }

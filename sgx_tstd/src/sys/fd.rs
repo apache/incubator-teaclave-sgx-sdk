@@ -213,7 +213,7 @@ mod libc {
     use sgx_types::sgx_status_t;
     use io;
     pub use sgx_trts::libc::*;
-    
+
     extern "C" {
         pub fn u_fs_read_ocall(result: * mut ssize_t,
                                errno: * mut c_int,
@@ -285,7 +285,7 @@ mod libc {
     }
 
     pub unsafe fn pread64(fd: c_int, buf: * mut c_void, count: size_t, offset: off64_t) -> ssize_t {
-        
+
         let mut result: ssize_t = 0;
         let mut error: c_int = 0;
         let status = u_fs_pread64_ocall(&mut result as * mut ssize_t,
@@ -307,7 +307,7 @@ mod libc {
     }
 
     pub unsafe fn write(fd: c_int, buf: * const c_void, count: size_t) -> ssize_t {
-        
+
         let mut result: ssize_t = 0;
         let mut error: c_int = 0;
         let status = u_fs_write_ocall(&mut result as * mut ssize_t,
@@ -328,7 +328,7 @@ mod libc {
     }
 
     pub unsafe fn pwrite64(fd: c_int, buf: * const c_void, count: size_t, offset: off64_t) -> ssize_t {
-        
+
         let mut result: ssize_t = 0;
         let mut error: c_int = 0;
         let status = u_fs_pwrite64_ocall(&mut result as * mut ssize_t,

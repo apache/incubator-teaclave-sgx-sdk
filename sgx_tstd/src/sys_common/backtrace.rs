@@ -93,7 +93,7 @@ fn _print(w: &mut Write, format: PrintFormat) -> io::Result<()> {
         }
         return state;
     }
-    
+
     let mut frames = [Frame {
         exact_position: ptr::null(),
         symbol_addr: ptr::null(),
@@ -169,7 +169,7 @@ pub fn __rust_begin_short_backtrace<F, T>(f: F) -> T
     f()
 }
 
-/// Controls how the backtrace should be formated.
+/// Controls how the backtrace should be formatted.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum PrintFormat {
     /// Show all the frames with absolute path for files.

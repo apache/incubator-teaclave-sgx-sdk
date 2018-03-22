@@ -147,9 +147,9 @@ pub enum LocalKeyState {
     /// closure passed to [`with`].
     ///
     Valid,
-    /// if TLS data needs to be destructed, TCS policy must be Bound, The key will 
+    /// if TLS data needs to be destructed, TCS policy must be Bound, The key will
     /// enter the 'Error' state.
-    /// 
+    ///
     Error,
 }
 
@@ -170,7 +170,7 @@ impl fmt::Display for AccessError {
 }
 
 impl<T: 'static> LocalKey<T> {
-    
+
     pub const unsafe fn new(inner: unsafe fn() -> Option<&'static UnsafeCell<Option<T>>>,
                      init: fn() -> T) -> LocalKey<T> {
         LocalKey {
@@ -186,7 +186,7 @@ impl<T: 'static> LocalKey<T> {
     ///
     /// # Panics
     ///
-    /// This function will `panic!()` if TLS data needs to be destructed, 
+    /// This function will `panic!()` if TLS data needs to be destructed,
     /// TCS policy must be Bound.
     pub fn with<F, R>(&'static self, f: F) -> R
                       where F: FnOnce(&T) -> R {
@@ -194,7 +194,7 @@ impl<T: 'static> LocalKey<T> {
     }
 
     unsafe fn init(&self, slot: &UnsafeCell<Option<T>>) -> &T {
-        
+
         let value = (self.init)();
         let ptr = slot.get();
 
@@ -258,7 +258,7 @@ impl<T> LocalKeyInner<T> {
     }
 
     pub unsafe fn get(&self) -> Option<&'static UnsafeCell<Option<T>>> {
-        
+
         if intrinsics::needs_drop::<T>() {
             match SgxGlobalData::new().thread_policy() {
                 SgxThreadPolicy::Unbound => {

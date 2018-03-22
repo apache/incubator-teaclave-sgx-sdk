@@ -234,7 +234,7 @@ unsafe fn __init_state() -> io::Result<*mut backtrace_state> {
     }
 
     STATE = backtrace_create_state(filename, 0, error_cb, ptr::null_mut());
-    
+
     if STATE.is_null() {
         return Err(io::Error::from_raw_os_error(libc::ENOMEM));
     }

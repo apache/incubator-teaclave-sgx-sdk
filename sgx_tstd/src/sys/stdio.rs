@@ -52,8 +52,8 @@ impl Stdin {
 
         let mut result: isize = 0;
         let status = unsafe {
-            u_stdin_ocall(&mut result as * mut isize as * mut usize, 
-                          data.as_mut_ptr() as * mut c_void, 
+            u_stdin_ocall(&mut result as * mut isize as * mut usize,
+                          data.as_mut_ptr() as * mut c_void,
                           cmp::min(data.len(), max_len()))
         };
         if status != sgx_status_t::SGX_SUCCESS {
@@ -73,7 +73,7 @@ impl Stdout {
 
         let mut result: isize = 0;
         let status = unsafe {
-            u_stdout_ocall(&mut result as * mut isize as * mut usize, 
+            u_stdout_ocall(&mut result as * mut isize as * mut usize,
                            data.as_ptr() as * const c_void,
                            cmp::min(data.len(), max_len()))
         };
@@ -98,7 +98,7 @@ impl Stderr {
 
         let mut result: isize = 0;
         let status = unsafe {
-            u_stderr_ocall(&mut result as * mut isize as * mut usize, 
+            u_stderr_ocall(&mut result as * mut isize as * mut usize,
                            data.as_ptr() as * const c_void,
                            cmp::min(data.len(), max_len()))
         };

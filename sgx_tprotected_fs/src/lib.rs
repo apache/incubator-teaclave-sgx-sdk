@@ -28,8 +28,8 @@
 
 //! # Intel Protected File System Library
 //!
-//! Intel Protected File System Library provides protected files API for Intel SGX enclaves. 
-//! With this API, the files are encrypted and saved on the untrusted disk during a write operation, 
+//! Intel Protected File System Library provides protected files API for Intel SGX enclaves.
+//! With this API, the files are encrypted and saved on the untrusted disk during a write operation,
 //! and they are verified for confidentiality and integrity during a read operation.
 
 #![no_std]

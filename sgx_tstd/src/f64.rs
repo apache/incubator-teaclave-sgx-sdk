@@ -120,7 +120,7 @@ impl f64 {
     /// // Values between `0` and `min` are Subnormal.
     /// assert!(!lower_than_min.is_normal());
     /// ```
-    /// [subnormal]: https://en.wikipedia.org/wiki/Denormal_number 
+    /// [subnormal]: https://en.wikipedia.org/wiki/Denormal_number
     #[inline]
     pub fn is_normal(self) -> bool { num::Float::is_normal(self) }
 
@@ -496,7 +496,7 @@ impl f64 {
     /// assert_eq!(x.max(y), y);
     /// ```
     ///
-    /// If one of the arguments is NaN, then the other argument is returned.  
+    /// If one of the arguments is NaN, then the other argument is returned.
     #[inline]
     pub fn max(self, other: f64) -> f64 {
         num::Float::max(self, other)
@@ -914,7 +914,7 @@ impl f64 {
     /// This is currently identical to `transmute::<u64, f64>(v)` on all platforms.
     /// It turns out this is incredibly portable, for two reasons:
     ///
-    /// * Floats and Ints have the same endianess on all supported platforms.
+    /// * Floats and Ints have the same endianness on all supported platforms.
     /// * IEEE-754 very precisely specifies the bit layout of floats.
     ///
     /// However there is one caveat: prior to the 2008 version of IEEE-754, how

@@ -45,7 +45,7 @@ pub extern "C" fn t_global_exit_ecall() {
 pub extern "C" fn t_global_init_ecall(id: u64, path: * const u8, len: usize) {
 
     enclave::set_enclave_id(id as sgx_enclave_id_t);
-    let s = unsafe { 
+    let s = unsafe {
         let str_slice = slice::from_raw_parts(path, len);
         str::from_utf8_unchecked(str_slice)
     };

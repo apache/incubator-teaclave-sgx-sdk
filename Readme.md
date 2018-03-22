@@ -1,8 +1,11 @@
 # Rust SGX SDK
 Rust SGX SDK helps developers write Intel SGX applications in Rust programming language. [[Paper pdf]](documents/ccsp17.pdf)
 
+## v0.9.8 Release
+This version provides security updates regards to recent Spectre attacks in Intel SGX. It contains support of [Intel SGX SDK 2.1.2](https://download.01.org/intel-sgx/linux-2.1.2/) and a series of API functions to stop speculative execution on demand. Please refer to [release_notes](release_notes.md) for further details.
+
 ## v0.9.7 Release
-This version provides a new namespace: `sgx_tstd::untrusted`, including `sgx_tstd::untrusted::fs` `sgx_tstd::untrusted::time` and `sgx_tstd::untrusted::path`, providing supports to operation to ocalls in a **untrusted** namespace. The **untrusted** namespace is always enabled no matter `untrusted_*` is set or not. We **urge** the developers to use the `sgx_tstd::untrusted` namespace to port their crates, instead of enabling the `untrusted_` series of features. Also, we renamed the `untrusted_net` feature to `net` for feature name unification. Please refer to [release_notes](release_notes.md) for further details.
+This version provides a new namespace: `sgx_tstd::untrusted`, including `sgx_tstd::untrusted::fs` `sgx_tstd::untrusted::time` and `sgx_tstd::untrusted::path`, providing supports to operation to ocalls in a **untrusted** namespace. The **untrusted** namespace is always enabled no matter `untrusted_*` is set or not. We **urge** the developers to use the `sgx_tstd::untrusted` namespace to port their crates, instead of using the `untrusted_` series of features. Also, we renamed the `untrusted_net` feature to `net` for feature name unification. Please refer to [release_notes](release_notes.md) for further details.
 
 ## v0.9.6 Release
 This version provides security enhancement for untrusted IO and additional support for monotonic counter. Untrusted IO operations in `sgx_tstd::fs` `sgx_tstd::net` and `sgx_tstd::time` are **DISABLED by default** to reduce the untrusted surface, and can be enabled by features. Trusted time support is moved to `sgx_tservice::sgxtime` and monotonic counter is provided by `sgx_tservice::sgxcounter`. Please refer to [release_notes](release_notes.md) for further details.

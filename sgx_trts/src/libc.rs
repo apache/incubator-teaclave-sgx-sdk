@@ -33,13 +33,13 @@
 //! time for documenting it.
 
 pub use sgx_types::{int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t};
-pub use sgx_types::{c_void, c_schar, c_char, c_uchar, c_short, c_ushort, c_int, c_uint, c_float, 
+pub use sgx_types::{c_void, c_schar, c_char, c_uchar, c_short, c_ushort, c_int, c_uint, c_float,
                     c_double, c_longlong, c_ulonglong, intmax_t, uintmax_t, c_ulong, c_long};
 pub use sgx_types::{size_t, ptrdiff_t, intptr_t, uintptr_t, ssize_t};
 
 #[link(name = "sgx_tstdc")]
 extern {
-    
+
     //pub fn memchr(s: * const c_void, c: c_int, n: size_t) -> *mut c_void;
     //pub fn memrchr(cx: *const c_void, c: c_int, n: size_t) -> *mut c_void;
     pub fn strlen(s: * const c_char) -> size_t;
@@ -67,9 +67,9 @@ pub unsafe fn memchr(s: * const u8, c: u8, n: usize) -> * const u8 {
 }
 
 pub unsafe fn memrchr(s: * const u8, c: u8, n: usize) -> * const u8 {
- 
+
     if n == 0 {return 0 as * const u8}
-    
+
     let mut ret = 0 as * const u8;
     let mut p: * const u8 = (s as usize + (n - 1)) as * const u8;
     for _ in 0..n {

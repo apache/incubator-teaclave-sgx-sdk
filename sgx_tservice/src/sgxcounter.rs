@@ -128,7 +128,7 @@ impl SgxMonotonicCounter {
 
         match ret {
             sgx_status_t::SGX_SUCCESS => Ok(SgxMonotonicCounter{
-                                            counter_uuid: counter_uuid, 
+                                            counter_uuid: counter_uuid,
                                             initflag: Cell::new(true),
                                          }),
             _ => Err(ret),
@@ -238,7 +238,7 @@ impl SgxMonotonicCounter {
 
         match ret {
             sgx_status_t::SGX_SUCCESS => Ok(SgxMonotonicCounter{
-                                            counter_uuid: counter_uuid, 
+                                            counter_uuid: counter_uuid,
                                             initflag: Cell::new(true),
                                          }),
             _ => Err(ret),

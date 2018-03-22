@@ -51,7 +51,7 @@ mod imp {
         getrandom(v).expect("unexpected getrandom error");
     }
 
-    #[allow(dead_code)] 
+    #[allow(dead_code)]
     fn is_getrandom_available() -> bool { true }
 
     pub fn fill_bytes(v: &mut [u8]) {

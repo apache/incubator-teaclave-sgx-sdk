@@ -46,29 +46,29 @@ RUN apt-get update && apt-get install -y build-essential ocaml automake autoconf
 #    systemctl enable jhi
 
 RUN mkdir /root/sgx && \
-    wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin https://download.01.org/intel-sgx/linux-2.0/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin && \
-    wget -O /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin https://download.01.org/intel-sgx/linux-2.0/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin && \
+    wget -O /root/sgx/sgx_linux_x64_psw_2.1.102.43402.bin https://download.01.org/intel-sgx/linux-2.1.2/ubuntu64-desktop/sgx_linux_x64_psw_2.1.102.43402.bin && \
+    wget -O /root/sgx/sgx_linux_x64_sdk_2.1.102.43402.bin https://download.01.org/intel-sgx/linux-2.1.2/ubuntu64-desktop/sgx_linux_x64_sdk_2.1.102.43402.bin && \
     cd /root/sgx && \
-    chmod +x /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin && \
-    /root/sgx/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin && \
-    chmod +x /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin && \
-    echo -e 'no\n/opt' | /root/sgx/sgx_linux_ubuntu16.04.1_x64_sdk_2.0.100.40950.bin && \
+    chmod +x /root/sgx/sgx_linux_x64_psw_2.1.102.43402.bin && \
+    /root/sgx/sgx_linux_x64_psw_2.1.102.43402.bin && \
+    chmod +x /root/sgx/sgx_linux_x64_sdk_2.1.102.43402.bin && \
+    echo -e 'no\n/opt' | /root/sgx/sgx_linux_x64_sdk_2.1.102.43402.bin && \
     echo 'source /opt/sgxsdk/environment' >> /root/.bashrc
 
 ADD patch /root/
 
-RUN wget -O /root/sgx_2.0.tar.gz https://github.com/01org/linux-sgx/archive/sgx_2.0.tar.gz && \
-    cd /root && tar xzf sgx_2.0.tar.gz && \
-    cd /root/linux-sgx-sgx_2.0 && git apply ../patch && \
-    /root/linux-sgx-sgx_2.0/download_prebuilt.sh && \
-    cd /root/linux-sgx-sgx_2.0 && make && \
-    cp /root/linux-sgx-sgx_2.0/build/linux/libsgx_tstdc.a /opt/sgxsdk/lib64/libsgx_tstdc.a
+RUN wget -O /root/sgx_2.1.2.tar.gz https://github.com/intel/linux-sgx/archive/sgx_2.1.2.tar.gz && \
+    cd /root && tar xzf sgx_2.1.2.tar.gz && \
+    cd /root/linux-sgx-sgx_2.1.2 && git apply ../patch && \
+    /root/linux-sgx-sgx_2.1.2/download_prebuilt.sh && \
+    cd /root/linux-sgx-sgx_2.1.2 && make -j && \
+    cp /root/linux-sgx-sgx_2.1.2/build/linux/libsgx_tstdc.a /opt/sgxsdk/lib64/libsgx_tstdc.a
 
 RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init && \
     chmod +x /root/rustup-init && \
-    echo '1' | /root/rustup-init --default-toolchain nightly-2018-02-05 && \
+    echo '1' | /root/rustup-init --default-toolchain nightly-2018-03-16 && \
     echo 'source /root/.cargo/env' >> /root/.bashrc && \
     /root/.cargo/bin/rustup component add rust-src && \
+    /root/.cargo/bin/cargo install xargo && \
     apt-get autoclean && apt-get autoremove && rm -rf /var/cache/apt/archives/*
-RUN /root/.cargo/bin/cargo install xargo
 WORKDIR /root

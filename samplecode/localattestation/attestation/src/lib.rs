@@ -40,6 +40,7 @@ extern crate sgx_types;
 extern crate sgx_tdh;
 #[cfg(not(target_env = "sgx"))]
 extern crate sgx_tstd as std;
+extern crate sgx_trts;
 
 pub mod err;
 pub use self::err::*;

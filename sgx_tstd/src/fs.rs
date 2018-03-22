@@ -241,11 +241,9 @@ impl File {
         self.inner.file_attr().map(Metadata)
     }
 
-    /// Creates a new independently owned handle to the underlying file.
-    ///
-    /// The returned `File` is a reference to the same state that this object
-    /// references. Both handles will read and write with the same cursor
-    /// position.
+    /// Create a new `File` instance that shares the same underlying file handle
+    /// as the existing `File` instance. Reads, writes, and seeks will affect
+    /// both `File` instances simultaneously.
     ///
     pub fn try_clone(&self) -> io::Result<File> {
         Ok(File {

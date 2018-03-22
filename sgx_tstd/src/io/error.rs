@@ -403,5 +403,5 @@ fn _assert_error_is_sync_send() {
 impl error::Error for sgx_status_t {
     fn description(&self) -> &str {
         self.__description()
-    } 
+    }
 }

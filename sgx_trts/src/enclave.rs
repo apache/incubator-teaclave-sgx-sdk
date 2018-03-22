@@ -58,7 +58,7 @@ struct thread_data_t {
     stack_limit_addr: usize,
     first_ssa_gpr: usize,
     stack_guard: usize,
-    reserved: usize,
+    flags: usize,
     xsave_size: usize,
     last_error: usize,
     m_next: usize,

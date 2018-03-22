@@ -245,19 +245,19 @@ mod inner {
     extern "C" {
         pub fn u_clock_gettime_ocall(result: * mut c_int,
                                      errno: * mut c_int,
-                                     clk_id: libc::clockid_t, 
+                                     clk_id: libc::clockid_t,
                                      tp: * mut libc::timespec) -> sgx_status_t;
     }
-    
+
     unsafe fn clock_gettime(clk_id: libc::clockid_t, tp: &mut libc::timespec) -> c_int {
 
         let mut result: c_int = 0;
         let mut error: c_int = 0;
-        let status = u_clock_gettime_ocall(&mut result as * mut c_int, 
+        let status = u_clock_gettime_ocall(&mut result as * mut c_int,
                                            &mut error as * mut c_int,
-                                           clk_id, 
+                                           clk_id,
                                            tp as * mut libc::timespec);
-    
+
         if status == sgx_status_t::SGX_SUCCESS {
             if result == -1 {
                 io::set_errno(error);
