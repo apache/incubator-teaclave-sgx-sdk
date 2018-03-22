@@ -1244,7 +1244,6 @@ impl Path {
     ///
     /// [`PathBuf`]: struct.PathBuf.html
     ///
-    #[rustc_conversion_suggestion]
     pub fn to_path_buf(&self) -> PathBuf {
         PathBuf::from(self.inner.to_os_string())
     }

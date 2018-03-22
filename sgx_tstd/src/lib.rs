@@ -49,6 +49,7 @@
 #![allow(unused_features)]
 #![allow(unused_imports)]
 #![allow(dead_code)]
+#![allow(deprecated)]
 
 #![feature(alloc)]
 #![feature(global_allocator)]
@@ -99,6 +100,9 @@
 #![feature(slice_patterns)]
 #![feature(panic_unwind)]
 #![feature(libc)]
+#![feature(core_float)]
+#![feature(unique)]
+#![feature(shared)]
 
 #![default_lib_allocator]
 

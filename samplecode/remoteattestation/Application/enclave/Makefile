@@ -35,10 +35,11 @@ all: $(Rust_Enclave_Name)
 
 $(Rust_Enclave_Name): $(Rust_Enclave_Files)
 ifeq ($(XARGO_SGX), 1)
-	xargo build --target x86_64-unknown-linux-sgx --release
+	cd ../../../../xargo/xargo && cargo build --release
+	RUSTC_BOOTSTRAP=1 ../../../../xargo/xargo/target/release/xargo build --target x86_64-unknown-linux-sgx --release
 	cp ./target/x86_64-unknown-linux-sgx/release/libraenclave.a ../lib/libraenclave.a
 else
-	cargo build --release
+	RUSTC_BOOTSTRAP=1 cargo build --release
 	cp ./target/release/libraenclave.a ../lib/libraenclave.a
 endif
 

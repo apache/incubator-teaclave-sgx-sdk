@@ -959,7 +959,7 @@ impl f32 {
     ///
     #[inline]
     pub fn to_bits(self) -> u32 {
-        num::Float::to_bits(self)
+        unsafe { ::mem::transmute(self) }
     }
 
     /// Raw transmutation from `u32`.
@@ -994,6 +994,6 @@ impl f32 {
     ///
     #[inline]
     pub fn from_bits(v: u32) -> Self {
-        num::Float::from_bits(v)
+        unsafe { ::mem::transmute(v) }
     }
 }

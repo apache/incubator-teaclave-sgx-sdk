@@ -1483,7 +1483,7 @@ impl<'a, K, V> Placer<V> for Entry<'a, K, V> {
     }
 }
 
-unsafe impl<'a, K, V> Place<V> for EntryPlace<'a, K, V> {
+impl<'a, K, V> Place<V> for EntryPlace<'a, K, V> {
     fn pointer(&mut self) -> *mut V {
         self.bucket.read_mut().1
     }

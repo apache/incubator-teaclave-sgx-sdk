@@ -906,7 +906,7 @@ impl f64 {
     ///
     #[inline]
     pub fn to_bits(self) -> u64 {
-        num::Float::to_bits(self)
+        unsafe { ::mem::transmute(self) }
     }
 
     /// Raw transmutation from `u64`.
@@ -941,6 +941,6 @@ impl f64 {
     ///
     #[inline]
     pub fn from_bits(v: u64) -> Self {
-        num::Float::from_bits(v)
+        unsafe { ::mem::transmute(v) }
     }
 }
