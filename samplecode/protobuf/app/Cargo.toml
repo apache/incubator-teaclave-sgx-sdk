@@ -1,0 +1,10 @@
+[package]
+name = "app"
+version = "0.9.7"
+authors = ["duanran01 <duanran01@baidu.com>"]
+build = "build.rs"
+
+[dependencies]
+sgx_types = { path = "../../../sgx_types" }
+sgx_urts = { path = "../../../sgx_urts" }
+protobuf = "1.4.4"
