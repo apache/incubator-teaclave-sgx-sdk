@@ -1,4 +1,3 @@
-#!/bin/bash
 # Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,26 +26,19 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+Rust_Enclave_Name := libenclave.a
+Rust_Enclave_Files := $(wildcard src/*.rs)
 
-test_cases=(backtrace \
-            crypto \
-            file \
-            hello-rust \
-            helloworld \
-#            hugemem \
-            localattestation \
-            machine-learning \
-            protobuf \
-            sealeddata \
-            serialize \
-            thread \
-            unit-test \
-            zlib-lazy-static-sample)
+.PHONY: all
 
-for i in ${test_cases[@]}
-do
-	cd ${i} && make && cd bin && echo -e '\n' | ./app && cd ../ && make clean && \
-	   XARGO_SGX=1 make && cd bin && echo -e '\n' | ./app && cd ../ && make clean && cd ..
-done
+all: $(Rust_Enclave_Name)
 
-echo "Done!"
+$(Rust_Enclave_Name): $(Rust_Enclave_Files)  
+ifeq ($(XARGO_SGX), 1)
+	cd ../../../xargo/xargo && cargo build --release
+	RUSTC_BOOTSTRAP=1 ../../../xargo/xargo/target/release/xargo build --target x86_64-unknown-linux-sgx --release
+	cp ./target/x86_64-unknown-linux-sgx/release/libhelloworldsampleenclave.a ../lib/libenclave.a
+else
+	RUSTC_BOOTSTRAP=1 cargo build --release
+	cp ./target/release/libhelloworldsampleenclave.a ../lib/libenclave.a
+endif
