@@ -26,7 +26,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use alloc::heap::{Heap, Alloc, Layout};
+use alloc::heap::Heap;
+use core::heap::{Alloc, Layout};
 
 use core::cmp;
 use core::hash::{BuildHasher, Hash, Hasher};
@@ -35,6 +36,7 @@ use core::mem::{align_of, size_of, needs_drop};
 use core::mem;
 use core::ops::{Deref, DerefMut};
 use core::ptr::{self, Unique, NonNull};
+use alloc::allocator::CollectionAllocErr;
 
 use self::BucketState::*;
 
@@ -488,21 +490,6 @@ impl<K, V, M> EmptyBucket<K, V, M>
             table: self.table,
         }
     }
-
-    /// Puts given key, remain value uninitialized.
-    /// It is only used for inplacement insertion.
-    pub unsafe fn put_key(mut self, hash: SafeHash, key: K) -> FullBucket<K, V, M> {
-        *self.raw.hash() = hash.inspect();
-        let pair_ptr = self.raw.pair();
-        ptr::write(&mut (*pair_ptr).0, key);
-
-        self.table.borrow_table_mut().size += 1;
-
-        FullBucket {
-            raw: self.raw,
-            table: self.table,
-        }
-    }
 }
 
 impl<K, V, M: Deref<Target = RawTable<K, V>>> FullBucket<K, V, M> {
@@ -577,17 +564,6 @@ impl<'t, K, V> FullBucket<K, V, &'t mut RawTable<K, V>> {
             k,
             v)
         }
-    }
-
-    /// Remove this bucket's `key` from the hashtable.
-    /// Only used for inplacement insertion.
-    /// NOTE: `Value` is uninitialized when this function is called, don't try to drop the `Value`.
-    pub unsafe fn remove_key(&mut self) {
-        self.table.size -= 1;
-
-        *self.raw.hash() = EMPTY_BUCKET;
-        let pair_ptr = self.raw.pair();
-        ptr::drop_in_place(&mut (*pair_ptr).0); // only drop key
     }
 }
 
@@ -725,14 +701,15 @@ fn calculate_allocation(hash_size: usize,
 impl<K, V> RawTable<K, V> {
     /// Does not initialize the buckets. The caller should ensure they,
     /// at the very least, set every hash to EMPTY_BUCKET.
-    unsafe fn new_uninitialized(capacity: usize) -> RawTable<K, V> {
+    /// Returns an error if it cannot allocate or capacity overflows.
+    unsafe fn try_new_uninitialized(capacity: usize) -> Result<RawTable<K, V>, CollectionAllocErr> {
         if capacity == 0 {
-            return RawTable {
+            return Ok(RawTable {
                 size: 0,
                 capacity_mask: capacity.wrapping_sub(1),
                 hashes: TaggedHashUintPtr::new(EMPTY as *mut HashUint),
                 marker: marker::PhantomData,
-            };
+            });
         }
 
         // No need for `checked_mul` before a more restrictive check performed
@@ -752,25 +729,38 @@ impl<K, V> RawTable<K, V> {
                                                            align_of::<HashUint>(),
                                                            pairs_size,
                                                            align_of::<(K, V)>());
-        assert!(!oflo, "capacity overflow");
+        if oflo {
+            return Err(CollectionAllocErr::CapacityOverflow);
+        }
 
         // One check for overflow that covers calculation and rounding of size.
-        let size_of_bucket = size_of::<HashUint>().checked_add(size_of::<(K, V)>()).unwrap();
-        assert!(size >=
-                capacity.checked_mul(size_of_bucket)
-                    .expect("capacity overflow"),
-                "capacity overflow");
+        let size_of_bucket = size_of::<HashUint>().checked_add(size_of::<(K, V)>())
+            .ok_or(CollectionAllocErr::CapacityOverflow)?;
+        let capacity_mul_size_of_bucket = capacity.checked_mul(size_of_bucket);
+        if capacity_mul_size_of_bucket.is_none() || size < capacity_mul_size_of_bucket.unwrap() {
+            return Err(CollectionAllocErr::CapacityOverflow);
+        }
 
-        let buffer = Heap.alloc(Layout::from_size_align(size, alignment).unwrap())
-            .unwrap_or_else(|e| Heap.oom(e));
+        let buffer = Heap.alloc(Layout::from_size_align(size, alignment)
+            .ok_or(CollectionAllocErr::CapacityOverflow)?)?;
 
         let hashes = buffer as *mut HashUint;
 
-        RawTable {
+        Ok(RawTable {
             capacity_mask: capacity.wrapping_sub(1),
             size: 0,
             hashes: TaggedHashUintPtr::new(hashes),
             marker: marker::PhantomData,
+        })
+    }
+
+    /// Does not initialize the buckets. The caller should ensure they,
+    /// at the very least, set every hash to EMPTY_BUCKET.
+    unsafe fn new_uninitialized(capacity: usize) -> RawTable<K, V> {
+        match Self::try_new_uninitialized(capacity) {
+            Err(CollectionAllocErr::CapacityOverflow) => panic!("capacity overflow"),
+            Err(CollectionAllocErr::AllocErr(e)) => Heap.oom(e),
+            Ok(table) => { table }
         }
     }
 
@@ -793,13 +783,23 @@ impl<K, V> RawTable<K, V> {
         }
     }
 
+    /// Tries to create a new raw table from a given capacity. If it cannot allocate,
+    /// it returns with AllocErr.
+    pub fn try_new(capacity: usize) -> Result<RawTable<K, V>, CollectionAllocErr> {
+        unsafe {
+            let ret = RawTable::try_new_uninitialized(capacity)?;
+            ptr::write_bytes(ret.hashes.ptr(), 0, capacity);
+            Ok(ret)
+        }
+    }
+
     /// Creates a new raw table from a given capacity. All buckets are
     /// initially empty.
     pub fn new(capacity: usize) -> RawTable<K, V> {
-        unsafe {
-            let ret = RawTable::new_uninitialized(capacity);
-            ptr::write_bytes(ret.hashes.ptr(), 0, capacity);
-            ret
+        match Self::try_new(capacity) {
+            Err(CollectionAllocErr::CapacityOverflow) => panic!("capacity overflow"),
+            Err(CollectionAllocErr::AllocErr(e)) => Heap.oom(e),
+            Ok(table) => { table }
         }
     }
 
@@ -840,8 +840,8 @@ impl<K, V> RawTable<K, V> {
         // Replace the marker regardless of lifetime bounds on parameters.
         IntoIter {
             iter: RawBuckets {
-                raw: raw,
-                elems_left: elems_left,
+                raw,
+                elems_left,
                 marker: marker::PhantomData,
             },
             table: self,
@@ -853,8 +853,8 @@ impl<K, V> RawTable<K, V> {
         // Replace the marker regardless of lifetime bounds on parameters.
         Drain {
             iter: RawBuckets {
-                raw: raw,
-                elems_left: elems_left,
+                raw,
+                elems_left,
                 marker: marker::PhantomData,
             },
             table: NonNull::from(self),

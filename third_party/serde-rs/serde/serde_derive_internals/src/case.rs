@@ -7,7 +7,6 @@
 // except according to those terms.
 
 #[allow(unused_imports)]
-use std::ascii::AsciiExt;
 use std::str::FromStr;
 
 use self::RenameRule::*;

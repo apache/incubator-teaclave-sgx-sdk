@@ -1,0 +1,117 @@
+package Messages;
+
+message InitialMessage {
+	required uint32 type = 1;
+	optional uint32 size = 2;
+}
+
+message MessageMsg0 {
+	required uint32 type = 1;
+	required uint32 epid = 2;
+	optional uint32 status = 3;
+}
+
+message MessageMSG1 {
+	required uint32 type = 1;
+	required uint32 context = 2;
+	repeated uint32 GaX = 3 [packed=true];
+	repeated uint32 GaY = 4 [packed=true];
+	repeated uint32 GID = 5 [packed=true];
+}
+
+message MessageMSG2 {
+	required uint32 type = 1;
+	optional uint32 size = 2;
+	required uint32 context = 3;
+	repeated uint32 public_key_gx = 4 [packed=true];
+	repeated uint32 public_key_gy = 5 [packed=true];
+	optional uint32 quote_type = 6;
+	repeated uint32 spid = 7 [packed=true];
+	optional uint32 cmac_kdf_id = 8;
+	repeated uint32 signature_x = 9 [packed=true];
+	repeated uint32 signature_y = 10 [packed=true];
+	repeated uint32 smac = 11 [packed=true];
+	optional uint32 size_sigrl = 12;
+	repeated uint32 sigrl = 13 [packed=true];
+}
+
+message MessageMSG3 {
+	required uint32 type = 1;
+	optional uint32 size = 2;
+	required uint32 context = 3;
+	repeated uint32 sgx_mac = 4 [packed=true];
+	repeated uint32 gax_msg3 = 5 [packed=true];
+	repeated uint32 gay_msg3 = 6 [packed=true];
+	repeated uint32 sec_property = 7 [packed=true];
+	repeated uint32 quote = 8 [packed=true];
+}
+
+message AttestationMessage {
+	required uint32 type = 1;
+	required uint32 size = 2;
+	required uint32 context = 3;
+
+	optional uint32 epid_group_status = 4;
+	optional uint32 tcb_evaluation_status = 5;
+	optional uint32 pse_evaluation_status = 6;
+	repeated uint32 latest_equivalent_tcb_psvn = 7 [packed=true];
+	repeated uint32 latest_pse_isvsvn = 8 [packed=true];
+	repeated uint32 latest_psda_svn = 9 [packed=true];
+	repeated uint32 performance_rekey_gid = 10 [packed=true];
+	repeated uint32 ec_sign256_x = 11 [packed=true];
+	repeated uint32 ec_sign256_y = 12 [packed=true];
+	repeated uint32 mac_smk = 13 [packed=true];
+
+	optional uint32 result_size = 14;
+	repeated uint32 reserved = 15 [packed=true];
+	repeated uint32 payload_tag = 16 [packed=true];
+	repeated uint32 payload = 17 [packed=true];
+}
+
+message MessagePsiSalt {
+	required uint32 type = 1;
+	required uint32 size = 2;
+
+	required uint32 context = 3;
+	required uint32 id = 4;
+	required uint32 state = 5;
+	repeated uint32 mac = 6 [packed=true];
+	repeated uint32 salt = 7 [packed=true];
+}
+
+message MessagePsiHashData {
+	required uint32 type = 1;
+	required uint32 size = 2;
+
+	required uint32 context = 3;
+	required uint32 id = 4;
+	repeated uint32 mac = 5 [packed=true];
+	repeated uint32 data = 6 [packed=true];
+}
+
+message MessagePsiHashDataFinished {
+	required uint32 type = 1;
+	required uint32 size = 2;
+
+	required uint32 context = 3;
+	required uint32 id = 4;
+}
+
+message MessagePsiResult {
+	required uint32 type = 1;
+	required uint32 size = 2;
+
+	required uint32 context = 3;
+	required uint32 id = 4;
+	required uint32 state = 5;
+}
+
+message MessagePsiIntersect {
+	required uint32 type = 1;
+	required uint32 size = 2;
+
+	required uint32 context = 3;
+	required uint32 id = 4;
+	repeated uint32 mac = 5 [packed=true];
+	repeated uint32 data = 6 [packed=true];
+}

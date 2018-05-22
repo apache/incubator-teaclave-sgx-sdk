@@ -1,7 +1,23 @@
 [package]
-name = "sgx_types"
-version = "0.9.8"
 authors = ["Baidu"]
+name = "sgx_types"
+version = "1.0.0"
+repository = "https://github.com/baidu/rust-sgx-sdk"
+license-file = "LICENSE"
+documentation = "https://dingelish.github.io/"
+description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
+
+include = [
+    "LICENSE",
+    "Readme.md",
+    "Cargo.toml",
+    "src/marker.rs",
+    "src/function.rs",
+    "src/types.rs",
+    "src/error.rs",
+    "src/macros.rs",
+    "src/lib.rs"
+]
 
 [lib]
 name = "sgx_types"

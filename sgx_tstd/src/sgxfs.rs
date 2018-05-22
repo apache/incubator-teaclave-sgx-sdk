@@ -88,8 +88,7 @@ pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
 /// of a kind other than ErrorKind::Interrupted,
 /// or if the contents of the file are not valid UTF-8.
 ///
-///
-pub fn read_string<P: AsRef<Path>>(path: P) -> io::Result<String> {
+pub fn read_to_string<P: AsRef<Path>>(path: P) -> io::Result<String> {
     let mut string = String::new();
     SgxFile::open(path)?.read_to_string(&mut string)?;
     Ok(string)

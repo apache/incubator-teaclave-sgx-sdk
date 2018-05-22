@@ -101,31 +101,3 @@ fn each_addr<A: ToSocketAddrs, F, T>(addr: A, mut f: F) -> io::Result<T>
                    "could not resolve to any addresses")
     }))
 }
-
-/*
-/// An iterator over `SocketAddr` values returned from a host lookup operation.
-pub struct LookupHost(net_imp::LookupHost);
-
-impl Iterator for LookupHost {
-    type Item = SocketAddr;
-    fn next(&mut self) -> Option<SocketAddr> { self.0.next() }
-}
-
-impl fmt::Debug for LookupHost {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.pad("LookupHost { .. }")
-    }
-}
-
-/// Resolve the host specified by `host` as a number of `SocketAddr` instances.
-///
-/// This method may perform a DNS query to resolve `host` and may also inspect
-/// system configuration to resolve the specified hostname.
-///
-/// The returned iterator will skip over any unknown addresses returned by the
-/// operating system.
-///
-pub fn lookup_host(host: &str) -> io::Result<LookupHost> {
-    net_imp::lookup_host(host).map(LookupHost)
-}
-*/

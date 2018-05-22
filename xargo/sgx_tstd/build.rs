@@ -26,7 +26,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-extern crate build_helper;
+extern crate sgx_build_helper as build_helper;
 
 use std::env;
 use std::process::Command;
@@ -44,7 +44,8 @@ fn main() {
 }
 
 fn build_libbacktrace(host: &str, target: &str) -> Result<(), ()> {
-    let native = native_lib_boilerplate("../libbacktrace", "libbacktrace", "backtrace", ".libs")?;
+    let native = native_lib_boilerplate("../sgx_tstd/libbacktrace", "libbacktrace", "backtrace", ".libs")?;
+    let cflags = env::var("CFLAGS").unwrap_or_default() + " -fvisibility=hidden -O2";
 
     run(Command::new("sh")
                 .current_dir(&native.out_dir)
@@ -57,12 +58,11 @@ fn build_libbacktrace(host: &str, target: &str) -> Result<(), ()> {
                 .arg("--disable-host-shared")
                 .arg(format!("--host={}", build_helper::gnu_target(target)))
                 .arg(format!("--build={}", build_helper::gnu_target(host)))
-                .env("CFLAGS", env::var("CFLAGS").unwrap_or_default() + " -fvisibility=hidden"));
+                .env("CFLAGS", cflags));
 
     run(Command::new(build_helper::make(host))
                 .current_dir(&native.out_dir)
                 .arg(format!("INCDIR={}", native.src_dir.display()))
                 .arg("-j").arg(env::var("NUM_JOBS").expect("NUM_JOBS was not set")));
-
     Ok(())
 }

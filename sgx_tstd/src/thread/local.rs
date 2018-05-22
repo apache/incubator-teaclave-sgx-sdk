@@ -127,32 +127,6 @@ macro_rules! __thread_local_inner {
     }
 }
 
-/// Indicator of the state of a thread local storage key.
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
-pub enum LocalKeyState {
-    /// All keys are in this state whenever a thread starts. Keys will
-    /// transition to the `Valid` state once the first call to [`with`] happens
-    /// and the initialization expression succeeds.
-    ///
-    /// Keys in the `Uninitialized` state will yield a reference to the closure
-    /// passed to [`with`] so long as the initialization routine does not panic.
-    ///
-    Uninitialized,
-    /// Once a key has been accessed successfully, it will enter the `Valid`
-    /// state. Keys in the `Valid` state will remain so until the thread exits,
-    /// at which point the destructor will be run and the key will enter the
-    /// `Destroyed` state.
-    ///
-    /// Keys in the `Valid` state will be guaranteed to yield a reference to the
-    /// closure passed to [`with`].
-    ///
-    Valid,
-    /// if TLS data needs to be destructed, TCS policy must be Bound, The key will
-    /// enter the 'Error' state.
-    ///
-    Error,
-}
-
 pub struct AccessError {
     _private: (),
 }
@@ -203,22 +177,6 @@ impl<T: 'static> LocalKey<T> {
         (*ptr).as_ref().unwrap()
     }
 
-    /// Query the current state of this key.
-    ///
-    pub fn state(&'static self) -> LocalKeyState {
-        unsafe {
-            match (self.inner)() {
-                Some(cell) => {
-                    match *cell.get() {
-                        Some(..) => LocalKeyState::Valid,
-                        None => LocalKeyState::Uninitialized,
-                    }
-                }
-                None => LocalKeyState::Error,
-            }
-        }
-    }
-
     /// Acquires a reference to the value in this TLS key.
     ///
     /// This will lazily initialize the value if this thread has not referenced
@@ -230,7 +188,9 @@ impl<T: 'static> LocalKey<T> {
     /// This function will still `panic!()` if the key is uninitialized and the
     /// key's initializer panics.
     pub fn try_with<F, R>(&'static self, f: F) -> Result<R, AccessError>
-                      where F: FnOnce(&T) -> R {
+    where
+        F: FnOnce(&T) -> R,
+    {
         unsafe {
             let slot = (self.inner)().ok_or(AccessError {
                 _private: (),

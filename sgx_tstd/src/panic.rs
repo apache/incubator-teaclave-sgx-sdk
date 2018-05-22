@@ -39,8 +39,8 @@ use alloc::boxed::Box;
 use alloc::rc::Rc;
 use alloc::arc::Arc;
 
-pub use panicking::{set_panic_handler, PanicInfo, Location};
-
+pub use panicking::set_panic_handler;
+pub use core::panic::{PanicInfo, Location};
 /// A marker trait which represents "panic safe" types in Rust.
 ///
 /// This trait is implemented by default for many types and behaves similarly in

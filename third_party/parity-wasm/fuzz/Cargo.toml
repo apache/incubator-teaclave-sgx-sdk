@@ -1,0 +1,28 @@
+
+[package]
+name = "parity-wasm-fuzz"
+version = "0.0.1"
+authors = ["Pat Hickey phickey@fastly.com"]
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies.binaryen]
+version = "0.3.0"
+
+[dependencies.parity-wasm]
+path = ".."
+[dependencies.libfuzzer-sys]
+git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
+
+[dependencies.mktemp]
+version = "0.3.1"
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "deserialize"
+path = "fuzz_targets/deserialize.rs"

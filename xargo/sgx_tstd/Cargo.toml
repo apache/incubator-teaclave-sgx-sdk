@@ -18,7 +18,7 @@ untrusted_fs = []
 untrusted_time = []
 
 [build-dependencies]
-build_helper = { path = "../../build_helper" }
+sgx_build_helper = { path = "../../build_helper" }
 
 [dependencies]
 sgx_types = { path = "../../sgx_types" }
@@ -31,3 +31,4 @@ sgx_tseal = { path = "../../sgx_tseal" }
 sgx_tservice = { path = "../../sgx_tservice" }
 sgx_tkey_exchange = { path = "../../sgx_tkey_exchange" }
 sgx_tdh = { path = "../../sgx_tdh" }
+sgx_unwind = { path = "../../sgx_unwind" }

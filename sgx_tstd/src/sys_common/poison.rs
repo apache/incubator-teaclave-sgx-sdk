@@ -85,8 +85,10 @@ pub struct PoisonError<T> {
     guard: T,
 }
 
-/// An enumeration of possible errors which can occur while calling the
-/// [`try_lock`] method.
+/// An enumeration of possible errors associated with a [`TryLockResult`] which
+/// can occur while trying to acquire a lock, from the [`try_lock`] method on a
+/// [`Mutex`] or the [`try_read`] and [`try_write`] methods on an [`RwLock`].
+///
 pub enum TryLockError<T> {
     /// The lock could not be acquired because another thread failed while holding
     /// the lock.
@@ -103,6 +105,7 @@ pub enum TryLockError<T> {
 /// that the primitive was poisoned. Note that the [`Err`] variant *also* carries
 /// the associated guard, and it can be acquired through the [`into_inner`]
 /// method.
+///
 pub type LockResult<Guard> = Result<Guard, PoisonError<Guard>>;
 
 /// A type alias for the result of a nonblocking locking method.
@@ -141,14 +144,17 @@ impl<T> PoisonError<T> {
 
     /// Consumes this error indicating that a lock is poisoned, returning the
     /// underlying guard to allow access regardless.
+    ///
     pub fn into_inner(self) -> T { self.guard }
 
     /// Reaches into this error indicating that a lock is poisoned, returning a
     /// reference to the underlying guard to allow access regardless.
+    ///
     pub fn get_ref(&self) -> &T { &self.guard }
 
     /// Reaches into this error indicating that a lock is poisoned, returning a
     /// mutable reference to the underlying guard to allow access regardless.
+    ///
     pub fn get_mut(&mut self) -> &mut T { &mut self.guard }
 }
 

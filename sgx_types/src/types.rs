@@ -251,7 +251,6 @@ impl_enum! {
     pub enum sgx_ra_key_type_t {
         SGX_RA_KEY_SK = 1,
         SGX_RA_KEY_MK = 2,
-        SGX_RA_KEY_VK = 3,
     }
 }
 
@@ -645,10 +644,63 @@ impl_enum! {
     }
 }
 
+/* intel sgx sdk 2.1.3 */
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq)]
+    pub enum sgx_rsa_key_type_t {
+        SGX_RSA_PRIVATE_KEY     = 0,   /* RSA private key state */
+        SGX_RSA_PUBLIC_KEY      = 1,   /* RSA public key state */
+    }
+}
+
+/* intel sgx sdk 2.1.3 */
+pub const N_SIZE_IN_BYTES: ::size_t     = 384;
+pub const E_SIZE_IN_BYTES: ::size_t     = 4;
+pub const D_SIZE_IN_BYTES: ::size_t     = 384;
+pub const P_SIZE_IN_BYTES: ::size_t     = 192;
+pub const Q_SIZE_IN_BYTES: ::size_t     = 192;
+pub const DMP1_SIZE_IN_BYTES: ::size_t  = 192;
+pub const DMQ1_SIZE_IN_BYTES: ::size_t  = 192;
+pub const IQMP_SIZE_IN_BYTES: ::size_t  = 192;
+
+/* intel sgx sdk 2.1.3 */
+pub const N_SIZE_IN_UINT: ::size_t      = (N_SIZE_IN_BYTES / 4);
+pub const E_SIZE_IN_UINT: ::size_t      = (E_SIZE_IN_BYTES / 4);
+pub const D_SIZE_IN_UINT: ::size_t      = (D_SIZE_IN_BYTES / 4);
+pub const P_SIZE_IN_UINT: ::size_t      = (P_SIZE_IN_BYTES / 4);
+pub const Q_SIZE_IN_UINT: ::size_t      = (Q_SIZE_IN_BYTES / 4);
+pub const DMP1_SIZE_IN_UINT: ::size_t   = (DMP1_SIZE_IN_BYTES / 4);
+pub const DMQ1_SIZE_IN_UINT: ::size_t   = (DMQ1_SIZE_IN_BYTES / 4);
+pub const IQMP_SIZE_IN_UINT: ::size_t   = (IQMP_SIZE_IN_BYTES / 4);
+
+
+/* intel sgx sdk 2.1.3 */
+impl_copy_clone! {
+
+    pub struct rsa_params_t {
+        pub n: [::uint32_t; N_SIZE_IN_UINT],
+        pub e: [::uint32_t; E_SIZE_IN_UINT],
+        pub d: [::uint32_t; D_SIZE_IN_UINT],
+        pub p: [::uint32_t; P_SIZE_IN_UINT],
+        pub q: [::uint32_t; Q_SIZE_IN_UINT],
+        pub dmp1: [::uint32_t; DMP1_SIZE_IN_UINT],
+        pub dmq1: [::uint32_t; DMQ1_SIZE_IN_UINT],
+        pub iqmp: [::uint32_t; IQMP_SIZE_IN_UINT],
+    }
+}
+
+impl_struct_default! {
+    rsa_params_t, 1732;
+}
+
+impl_struct_ContiguousMemory! {
+    rsa_params_t;
+}
+
 //
 // sgx_thread.h
 //
-
 
 pub type sgx_thread_t = ::uintptr_t;
 
