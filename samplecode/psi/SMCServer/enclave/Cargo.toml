@@ -1,0 +1,21 @@
+[package]
+name = "PSIenclave"
+version = "1.0.0"
+authors = ["Baidu"]
+
+[lib]
+name = "psienclave"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types = { path = "../../../../sgx_types" }
+sgx_trts = { path = "../../../../sgx_trts" }
+sgx_tstd = { path = "../../../../sgx_tstd" }
+sgx_tdh = { path = "../../../../sgx_tdh" }
+sgx_tcrypto = { path = "../../../../sgx_tcrypto" }
+sgx_tservice = { path = "../../../../sgx_tservice" }
+sgx_tkey_exchange = { path = "../../../../sgx_tkey_exchange" }
+sgx_rand = { path = "../../../../sgx_rand" }

@@ -1,7 +1,18 @@
 [package]
 name = "sgx_tse"
-version = "0.9.8"
+version = "1.0.0"
 authors = ["Baidu"]
+repository = "https://github.com/baidu/rust-sgx-sdk"
+license-file = "LICENSE"
+documentation = "https://dingelish.github.io/"
+description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
+
+include = [
+    "LICENSE",
+    "Readme.md",
+    "Cargo.toml",
+    "src/lib.rs",
+]
 
 [lib]
 name = "sgx_tse"

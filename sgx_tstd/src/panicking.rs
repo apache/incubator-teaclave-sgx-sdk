@@ -33,6 +33,7 @@ use sgx_trts::trts::rsgx_abort;
 use thread;
 use core::mem;
 use core::fmt;
+use core::panic::{PanicInfo, Location};
 use core::any::Any;
 use core::ptr;
 use core::raw;
@@ -130,133 +131,6 @@ extern {
                                 vtable_ptr: *mut usize) -> u32;
     #[unwind(allowed)]
     fn __rust_start_panic(data: usize, vtable: usize) -> u32;
-}
-
-/// A struct providing information about a panic.
-///
-#[derive(Debug)]
-pub struct PanicInfo<'a> {
-    payload: &'a (Any + Send),
-    message: Option<&'a fmt::Arguments<'a>>,
-    location: Location<'a>,
-}
-
-impl<'a> PanicInfo<'a> {
-    pub fn internal_constructor(payload: &'a (Any + Send),
-                                message: Option<&'a fmt::Arguments<'a>>,
-                                location: Location<'a>)
-                                -> Self {
-        PanicInfo { payload, location, message }
-    }
-
-    /// Returns the payload associated with the panic.
-    ///
-    /// This will commonly, but not always, be a `&'static str` or [`String`].
-    ///
-    /// [`String`]: ../../std/string/struct.String.html
-    ///
-    pub fn payload(&self) -> &(Any + Send) {
-        self.payload
-    }
-
-    /// If the `panic!` macro from the `core` crate (not from `std`)
-    /// was used with a formatting string and some additional arguments,
-    /// returns that message ready to be used for example with [`fmt::write`]
-    ///
-    /// [`fmt::write`]: ../fmt/fn.write.html
-    pub fn message(&self) -> Option<&fmt::Arguments> {
-        self.message
-    }
-
-    /// Returns information about the location from which the panic originated,
-    /// if available.
-    ///
-    /// This method will currently always return [`Some`], but this may change
-    /// in future versions.
-    ///
-    /// [`Some`]: ../../std/option/enum.Option.html#variant.Some
-    ///
-    pub fn location(&self) -> Option<&Location> {
-        // NOTE: If this is changed to sometimes return None,
-        // deal with that case in std::panicking::default_hook.
-        Some(&self.location)
-    }
-}
-
-impl<'a> fmt::Display for PanicInfo<'a> {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("panicked at ")?;
-        if let Some(message) = self.message {
-            write!(formatter, "'{}', ", message)?
-        } else if let Some(payload) = self.payload.downcast_ref::<&'static str>() {
-            write!(formatter, "'{}', ", payload)?
-        }
-        // NOTE: we cannot use downcast_ref::<String>() here
-        // since String is not available in libcore!
-        // The payload is a String when `std::panic!` is called with multiple arguments,
-        // but in that case the message is also available.
-
-        self.location.fmt(formatter)
-    }
-}
-
-/// A struct containing information about the location of a panic.
-///
-/// This structure is created by the [`location`] method of [`PanicInfo`].
-///
-/// [`location`]: ../../std/panic/struct.PanicInfo.html#method.location
-/// [`PanicInfo`]: ../../std/panic/struct.PanicInfo.html
-///
-/// # Examples
-///
-/// ```should_panic
-/// use std::panic;
-///
-/// panic::set_hook(Box::new(|panic_info| {
-///     if let Some(location) = panic_info.location() {
-///         println!("panic occurred in file '{}' at line {}", location.file(), location.line());
-///     } else {
-///         println!("panic occurred but can't get location information...");
-///     }
-/// }));
-///
-/// panic!("Normal panic");
-/// ```
-#[derive(Debug)]
-pub struct Location<'a> {
-    file: &'a str,
-    line: u32,
-    col: u32,
-}
-
-impl<'a> Location<'a> {
-    pub fn internal_constructor(file: &'a str, line: u32, col: u32) -> Self {
-        Location { file, line, col }
-    }
-
-    /// Returns the name of the source file from which the panic originated.
-    ///
-    pub fn file(&self) -> &str {
-        self.file
-    }
-
-    /// Returns the line number from which the panic originated.
-    ///
-    pub fn line(&self) -> u32 {
-        self.line
-    }
-
-    /// Returns the column from which the panic originated.
-    ///
-    pub fn column(&self) -> u32 {
-        self.col
-    }
-}
-
-impl<'a> fmt::Display for Location<'a> {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "{}:{}:{}", self.file, self.line, self.col)
-    }
 }
 
 pub fn update_panic_count(amt: isize) -> usize {
@@ -372,20 +246,6 @@ pub fn begin_panic_fmt(msg: &fmt::Arguments,
     let mut s = String::new();
     let _ = s.write_fmt(*msg);
     rust_panic_with_hook(Box::new(s), Some(msg), file_line_col)
-}
-
-/// This is the entry point of panicking for panic!() and assert!().
-#[cfg(stage0)]
-#[inline(never)] #[cold] // avoid code bloat at the call sites as much as possible
-pub fn begin_panic_new<M: Any + Send>(msg: M, file_line_col: &(&'static str, u32, u32)) -> ! {
-    // Note that this should be the only allocation performed in this code path.
-    // Currently this means that panic!() on OOM will invoke this code path,
-    // but then again we're not really ready for panic on OOM anyway. If
-    // we do start doing this, then we should propagate this allocation to
-    // be performed in the parent of this thread instead of the thread that's
-    // panicking.
-
-    rust_panic_with_hook(Box::new(msg), None, file_line_col)
 }
 
 /// This is the entry point of panicking for panic!() and assert!().

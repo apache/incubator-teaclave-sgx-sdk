@@ -72,12 +72,13 @@
 #![feature(fused)]
 #![feature(generic_param_attrs)]
 #![feature(i128)]
-#![feature(i128_type)]
 #![feature(int_error_internals)]
+#![feature(hashmap_internals)]
 #![feature(integer_atomics)]
 #![feature(lang_items)]
 #![feature(macro_reexport)]
 #![feature(macro_vis_matcher)]
+#![feature(nonzero)]
 #![feature(needs_panic_runtime)]
 #![feature(never_type)]
 #![feature(optin_builtin_traits)]
@@ -86,6 +87,7 @@
 #![feature(ptr_internals)]
 #![feature(rand)]
 #![feature(raw)]
+#![feature(shrink_to)]
 #![feature(rustc_attrs)]
 #![feature(sip_hash_13)]
 #![feature(slice_concat_ext)]
@@ -93,11 +95,13 @@
 #![feature(thread_local)]
 #![feature(toowned_clone_into)]
 #![feature(try_from)]
+#![feature(try_reserve)]
 #![feature(unboxed_closures)]
 #![feature(unicode)]
 #![feature(untagged_unions)]
 #![feature(unwind_attributes)]
 #![feature(slice_patterns)]
+#![feature(panic_internals)]
 #![feature(panic_unwind)]
 #![feature(libc)]
 #![feature(core_float)]
@@ -117,8 +121,9 @@ use prelude::v1::*;
 // We want to reexport a few macros from core but libcore has already been
 // imported by the compiler (via our #[no_std] attribute) In this case we just
 // add a new crate name so we can attach the reexports to it.
-#[macro_reexport(assert, assert_eq, assert_ne, debug_assert, debug_assert_eq,
+#[macro_reexport(assert_eq, assert_ne, debug_assert, debug_assert_eq,
                  debug_assert_ne, unreachable, unimplemented, write, writeln, try)]
+#[macro_use]
 extern crate core as __core;
 
 #[allow(unused_imports)]
@@ -126,12 +131,12 @@ extern crate core as __core;
 #[macro_reexport(vec, format)]
 extern crate alloc;
 extern crate std_unicode;
-#[cfg(all(target_env = "sgx", feature = "backtrace"))]
-extern crate libc;
+//#[cfg(all(target_env = "sgx", feature = "backtrace"))]
+//extern crate libc;
 
 // We always need an unwinder currently for backtraces
 #[cfg(feature = "backtrace")]
-extern crate unwind;
+extern crate sgx_unwind;
 
 // compiler-rt intrinsics
 extern crate compiler_builtins;

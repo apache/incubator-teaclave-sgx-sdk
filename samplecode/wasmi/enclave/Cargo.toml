@@ -1,0 +1,22 @@
+[package]
+name = "Wasmienclave"
+version = "1.0.0"
+authors = ["Baidu"]
+
+[lib]
+name = "wasmienclave"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[dependencies]
+wasmi = { path = "../../../third_party/wasmi" }
+serde = { path = "../../../third_party/serde-rs/serde/serde" }
+serde_json = { path = "../../../third_party/serde-rs/json"}
+sgxwasm = { path = "sgxwasm" }
+lazy_static = { path = "../../../third_party/lazy-static.rs" }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types = { path = "../../../sgx_types" }
+sgx_tstd = { path = "../../../sgx_tstd" }

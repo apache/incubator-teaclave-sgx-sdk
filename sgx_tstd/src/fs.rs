@@ -111,7 +111,9 @@ fn initial_buffer_size(file: &File) -> usize {
 /// Read the entire contents of a file into a bytes vector.
 ///
 /// This is a convenience function for using [`File::open`] and [`read_to_end`]
-/// with fewer imports and without an intermediate variable.
+/// with fewer imports and without an intermediate variable.  It pre-allocates a
+/// buffer based on the file size when available, so it is generally faster than
+/// reading into a vector created with `Vec::new()`.
 ///
 /// [`File::open`]: struct.File.html#method.open
 /// [`read_to_end`]: ../io/trait.Read.html#method.read_to_end
@@ -138,7 +140,9 @@ pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
 /// Read the entire contents of a file into a string.
 ///
 /// This is a convenience function for using [`File::open`] and [`read_to_string`]
-/// with fewer imports and without an intermediate variable.
+/// with fewer imports and without an intermediate variable.  It pre-allocates a
+/// buffer based on the file size when available, so it is generally faster than
+/// reading into a string created with `String::new()`.
 ///
 /// [`File::open`]: struct.File.html#method.open
 /// [`read_to_string`]: ../io/trait.Read.html#method.read_to_string
@@ -156,7 +160,7 @@ pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
 ///
 /// [`ErrorKind::Interrupted`]: ../../std/io/enum.ErrorKind.html#variant.Interrupted
 ///
-pub fn read_string<P: AsRef<Path>>(path: P) -> io::Result<String> {
+pub fn read_to_string<P: AsRef<Path>>(path: P) -> io::Result<String> {
     let mut file = File::open(path)?;
     let mut string = String::with_capacity(initial_buffer_size(&file));
     file.read_to_string(&mut string)?;
@@ -226,6 +230,10 @@ impl File {
     /// be shrunk. If it is greater than the current file's size, then the file
     /// will be extended to `size` and have all of the intermediate data filled
     /// in with 0s.
+    ///
+    /// The file's cursor isn't changed. In particular, if the cursor was at the
+    /// end and the file is shrunk using this operation, the cursor will now be
+    /// past the end.
     ///
     /// # Errors
     ///
@@ -507,11 +515,17 @@ impl Metadata {
         FileType(self.0.file_type())
     }
 
-    /// Returns whether this metadata is for a directory.
+    /// Returns whether this metadata is for a directory. The
+    /// result is mutually exclusive to the result of
+    /// [`is_file`], and will be false for symlink metadata
+    /// obtained from [`symlink_metadata`].
     ///
     pub fn is_dir(&self) -> bool { self.file_type().is_dir() }
 
-    /// Returns whether this metadata is for a regular file.
+    /// Returns whether this metadata is for a regular file. The
+    /// result is mutually exclusive to the result of
+    /// [`is_dir`], and will be false for symlink metadata
+    /// obtained from [`symlink_metadata`].
     ///
     pub fn is_file(&self) -> bool { self.file_type().is_file() }
 
@@ -610,26 +624,24 @@ impl Permissions {
 }
 
 impl FileType {
-    /// Test whether this file type represents a directory.
+    /// Test whether this file type represents a directory. The
+    /// result is mutually exclusive to the results of
+    /// [`is_file`] and [`is_symlink`]; only zero or one of these
+    /// tests may pass.
     ///
     pub fn is_dir(&self) -> bool { self.0.is_dir() }
 
     /// Test whether this file type represents a regular file.
+    /// The result is  mutually exclusive to the results of
+    /// [`is_dir`] and [`is_symlink`]; only zero or one of these
+    /// tests may pass.
     ///
     pub fn is_file(&self) -> bool { self.0.is_file() }
 
     /// Test whether this file type represents a symbolic link.
-    ///
-    /// The underlying [`Metadata`] struct needs to be retrieved
-    /// with the [`fs::symlink_metadata`] function and not the
-    /// [`fs::metadata`] function. The [`fs::metadata`] function
-    /// follows symbolic links, so [`is_symlink`] would always
-    /// return false for the target file.
-    ///
-    /// [`Metadata`]: struct.Metadata.html
-    /// [`fs::metadata`]: fn.metadata.html
-    /// [`fs::symlink_metadata`]: fn.symlink_metadata.html
-    /// [`is_symlink`]: struct.FileType.html#method.is_symlink
+    /// The result is mutually exclusive to the results of
+    /// [`is_dir`] and [`is_file`]; only zero or one of these
+    /// tests may pass.
     ///
     pub fn is_symlink(&self) -> bool { self.0.is_symlink() }
 }

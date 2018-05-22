@@ -28,6 +28,7 @@
 #
 Rust_Enclave_Name := libraenclave.a
 Rust_Enclave_Files := $(wildcard src/*.rs)
+Rust_Target_Path := $(CURDIR)/../../../../xargo
 
 .PHONY: all clean
 
@@ -36,7 +37,7 @@ all: $(Rust_Enclave_Name)
 $(Rust_Enclave_Name): $(Rust_Enclave_Files)
 ifeq ($(XARGO_SGX), 1)
 	cd ../../../../xargo/xargo && cargo build --release
-	RUSTC_BOOTSTRAP=1 ../../../../xargo/xargo/target/release/xargo build --target x86_64-unknown-linux-sgx --release
+	RUST_TARGET_PATH=$(Rust_Target_Path) RUSTC_BOOTSTRAP=1 ../../../../xargo/xargo/target/release/xargo build --target x86_64-unknown-linux-sgx --release
 	cp ./target/x86_64-unknown-linux-sgx/release/libraenclave.a ../lib/libraenclave.a
 else
 	RUSTC_BOOTSTRAP=1 cargo build --release

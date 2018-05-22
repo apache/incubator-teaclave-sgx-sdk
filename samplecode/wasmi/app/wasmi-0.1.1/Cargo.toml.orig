@@ -1,0 +1,25 @@
+[package]
+name = "wasmi"
+version = "0.1.1"
+authors = ["Nikolay Volf <nikvolf@gmail.com>", "Svyatoslav Nikolsky <svyatonik@yandex.ru>", "Sergey Pepyakin <s.pepyakin@gmail.com>"]
+license = "MIT/Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/paritytech/wasmi"
+documentation = "https://paritytech.github.io/wasmi/"
+description = "WebAssembly interpreter"
+keywords = ["wasm", "webassembly", "bytecode", "interpreter"]
+exclude = [ "/res/*", "/tests/*", "/fuzz/*" ]
+
+[dependencies]
+parity-wasm = "0.27"
+byteorder = "1.0"
+memory_units = "0.3.0"
+
+[dev-dependencies]
+wabt = "~0.2.2"
+
+[features]
+# 32-bit platforms are not supported and not tested. Use this flag if you really want to use
+# wasmi on these platforms.
+# See https://github.com/pepyakin/wasmi/issues/43
+opt-in-32bit = []

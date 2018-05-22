@@ -1,0 +1,14 @@
+[package]
+name = "sgxwasm"
+version = "0.1.0"
+authors = ["Baidu"]
+
+[dependencies]
+wasmi = { path = "../../../../third_party/wasmi" }
+wabt-core = { path = "../../../../third_party/wabt-rs-core" }
+serde = { path = "../../../../third_party/serde-rs/serde/serde" }
+serde_derive = { path = "../../../../third_party/serde-rs/serde/serde_derive" }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types = { path = "../../../../sgx_types" }
+sgx_tstd = { path = "../../../../sgx_tstd" }

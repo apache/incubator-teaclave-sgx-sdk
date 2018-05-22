@@ -140,8 +140,7 @@ fn run() -> Result<ExitStatus> {
                 sysroot.src()?
             },
             Channel::Stable | Channel::Beta => {
-                let bootstrap = env::var("RUSTC_BOOTSTRAP").is_ok();
-                if bootstrap == true {
+                if env::var("RUSTC_BOOTSTRAP").is_ok() {
                     if let Some(src) = rustc::Src::from_env() {
                         src
                     } else {

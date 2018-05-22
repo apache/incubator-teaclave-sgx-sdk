@@ -1,0 +1,25 @@
+[dependencies]
+alloc = {}
+panic_unwind = {}
+panic_abort = {}
+
+[dependencies.compiler_builtins]
+features = ["c", "compiler-builtins"]
+git = "https://github.com/rust-lang-nursery/compiler-builtins"
+stage = 1
+
+[dependencies.std]
+path = "../../../xargo/sgx_tstd"
+stage = 2
+
+[dependencies.sgx_rand]
+path = "../../../xargo/sgx_rand"
+stage = 3
+
+[dependencies.sgx_serialize]
+path = "../../../xargo/sgx_serialize"
+stage = 3
+
+[dependencies.sgx_tunittest]
+path = "../../../xargo/sgx_tunittest"
+stage = 3

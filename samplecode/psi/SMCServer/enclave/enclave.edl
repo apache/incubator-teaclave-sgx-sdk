@@ -1,0 +1,79 @@
+/*
+ * Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in
+ *     the documentation and/or other materials provided with the
+ *     distribution.
+ *   * Neither the name of Baidu, Inc., nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+ 
+enclave {
+
+    from "sgx_tkey_exchange.edl" import *;
+
+    include "sgx_key_exchange.h"
+    include "sgx_trts.h"
+    from "sgx_stdio.edl" import *;
+    from "sgx_backtrace.edl" import *;
+
+    trusted {
+
+        public sgx_status_t initialize();
+        public void uninitialize();
+        public sgx_status_t enclave_init_ra(int b_pse, [out] sgx_ra_context_t *p_context);
+
+        public sgx_status_t enclave_ra_close(sgx_ra_context_t context);
+
+        public sgx_status_t verify_att_result_mac(sgx_ra_context_t context,
+												  [in, size=message_size] uint8_t* message,
+												  size_t message_size,
+												  [in] uint8_t mac[16]);
+
+        public sgx_status_t verify_secret_data(sgx_ra_context_t context,
+											   [in,size=secret_size] uint8_t* secret,
+											   uint32_t secret_size,
+											   [in] uint8_t gcm_mac[16],
+											   uint32_t max_verification_length,
+											   [out] uint8_t salt[32],
+                                               [out] uint8_t salt_mac[16],
+                                               [out] uint32_t *id);
+        
+        public sgx_status_t add_hash_data(uint32_t id,
+                                          sgx_ra_context_t context,
+                                          [in, size=hash_size] uint8_t* hashdata,
+                                          size_t hash_size,
+                                          [in] uint8_t mac[16]);
+
+        public sgx_status_t get_result_size(uint32_t id, [out] size_t *len);
+
+        public sgx_status_t get_result(uint32_t id,
+                                       sgx_ra_context_t context,
+                                       [out, size=result_size] uint8_t* result,
+                                       size_t result_size,
+                                       [out] uint8_t result_mac[16]);
+    };
+
+};
+

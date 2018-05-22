@@ -274,8 +274,59 @@ extern {
                               p_public: * const sgx_rsa3072_public_key_t,
                               p_signature: * const sgx_rsa3072_signature_t,
                               p_result: * mut sgx_rsa_result_t) -> sgx_status_t;
-}
 
+    /* intel sgx sdk 2.1.3 */
+    pub fn sgx_create_rsa_key_pair(n_byte_size: ::int32_t,
+                                   e_byte_size: ::int32_t,
+                                   p_n: * mut ::uint8_t,
+                                   p_d: * mut ::uint8_t,
+                                   p_e: * mut ::uint8_t,
+                                   p_p: * mut ::uint8_t,
+                                   p_q: * mut ::uint8_t,
+                                   p_dmp1: * mut ::uint8_t,
+                                   p_dmq1: * mut ::uint8_t,
+                                   p_iqmp: * mut ::uint8_t) -> sgx_status_t;
+
+    pub fn sgx_rsa_priv_decrypt_sha256(rsa_key: * const ::c_void,
+                                       pout_data: * mut ::uint8_t,
+                                       pout_len: * mut ::size_t,
+                                       pin_data: * const ::uint8_t,
+                                       pin_len: ::size_t) -> sgx_status_t;
+
+    pub fn sgx_rsa_pub_encrypt_sha256(rsa_key: * const ::c_void,
+                                      pout_data: * mut ::uint8_t,
+                                      pout_len: * mut ::size_t,
+                                      pin_data: * const ::uint8_t,
+                                      pin_len: ::size_t) -> sgx_status_t;
+
+    pub fn sgx_create_rsa_priv2_key(mod_size: ::int32_t,
+                                    exp_size: ::int32_t,
+                                    p_rsa_key_e: * const ::uint8_t,
+                                    p_rsa_key_p: * const ::uint8_t,
+                                    p_rsa_key_q: * const ::uint8_t,
+                                    p_rsa_key_dmp1: * const ::uint8_t,
+                                    p_rsa_key_dmq1: * const ::uint8_t,
+                                    p_rsa_key_iqmp: * const ::uint8_t,
+                                    new_pri_key2: * mut * mut ::c_void) -> sgx_status_t;
+
+    pub fn sgx_create_rsa_pub1_key(mod_size: ::int32_t,
+                                   exp_size: ::int32_t,
+                                   le_n: * const ::uint8_t,
+                                   le_e: * const ::uint8_t,
+                                   new_pub_key1: * mut * mut ::c_void) -> sgx_status_t;
+
+    pub fn sgx_free_rsa_key(p_rsa_key: * const ::c_void,
+                            key_type: sgx_rsa_key_type_t,
+                            mod_size: ::int32_t,
+                            exp_size: ::int32_t) -> sgx_status_t;
+
+    pub fn sgx_calculate_ecdsa_priv_key(hash_drg: * const ::uint8_t,
+                                        hash_drg_len: ::int32_t,
+                                        sgx_nistp256_r_m1: * const ::uint8_t,
+                                        sgx_nistp256_r_m1_len: ::int32_t,
+                                        out_key: * mut ::uint8_t,
+                                        out_key_len: ::int32_t) -> sgx_status_t;
+}
 
 
 //#[link(name = "sgx_tkey_exchange")]
@@ -400,6 +451,15 @@ extern {
                               launch_token_updated: * mut ::int32_t,
                               enclave_id: * mut sgx_enclave_id_t,
                               misc_attr: * mut sgx_misc_attribute_t) -> sgx_status_t;
+
+    /* intel sgx sdk 2.1.3 */
+    pub fn sgx_create_encrypted_enclave(file_name: * const ::c_char,
+                                        debug: ::int32_t,
+                                        launch_token: * mut sgx_launch_token_t,
+                                        launch_token_updated: * mut ::int32_t,
+                                        enclave_id: * mut sgx_enclave_id_t,
+                                        misc_attr: * mut sgx_misc_attribute_t,
+                                        sealed_key: * const ::uint8_t) -> sgx_status_t;
 
     pub fn sgx_destroy_enclave(enclave_id: sgx_enclave_id_t) -> sgx_status_t;
 }

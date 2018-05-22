@@ -26,16 +26,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#[cfg(target_env = "sgx")]
-use libc::c_void;
-#[cfg(not(target_env = "sgx"))]
 use sgx_trts::libc::c_void;
 use error::Error;
 use io;
 use sys::backtrace::BacktraceContext;
 use sys_common::backtrace::Frame;
 
-use unwind as uw;
+use sgx_unwind as uw;
 
 struct Context<'a> {
     idx: usize,
@@ -109,11 +106,7 @@ extern fn trace_fn(ctx: *mut uw::_Unwind_Context,
     // instructions after it. This means that the return instruction
     // pointer points *outside* of the calling function, and by
     // unwinding it we go back to the original function.
-    let symaddr = if cfg!(target_os = "macos") || cfg!(target_os = "ios") {
-        ip
-    } else {
-        unsafe { uw::_Unwind_FindEnclosingFunction(ip) }
-    };
+    let symaddr = unsafe { uw::_Unwind_FindEnclosingFunction(ip) };
 
     if cx.idx < cx.frames.len() {
         cx.frames[cx.idx] = Frame {

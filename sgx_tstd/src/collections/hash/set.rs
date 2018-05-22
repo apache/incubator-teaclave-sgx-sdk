@@ -158,6 +158,18 @@ impl<T, S> HashSet<T, S>
         self.map.shrink_to_fit()
     }
 
+    /// Shrinks the capacity of the set with a lower limit. It will drop
+    /// down no lower than the supplied limit while maintaining the internal rules
+    /// and possibly leaving some space in accordance with the resize policy.
+    ///
+    /// Panics if the current capacity is smaller than the supplied
+    /// minimum capacity.
+    ///
+    #[inline]
+    pub fn shrink_to(&mut self, min_capacity: usize) {
+        self.map.shrink_to(min_capacity)
+    }
+
     /// An iterator visiting all elements in arbitrary order.
     /// The iterator element type is `&'a T`.
     ///

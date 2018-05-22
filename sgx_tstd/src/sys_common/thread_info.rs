@@ -26,7 +26,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use thread::LocalKeyState;
 use thread::SgxThread;
 use core::cell::RefCell;
 
@@ -39,10 +38,6 @@ thread_local! { static THREAD_INFO: RefCell<Option<SgxThreadInfo>> = RefCell::ne
 impl SgxThreadInfo {
 
     fn with<R, F>(f: F) -> Option<R> where F: FnOnce(&mut SgxThreadInfo) -> R {
-        if THREAD_INFO.state() == LocalKeyState::Error {
-            return None
-        }
-
         THREAD_INFO.try_with(move |c| {
             if c.borrow().is_none() {
                 *c.borrow_mut() = Some(SgxThreadInfo {

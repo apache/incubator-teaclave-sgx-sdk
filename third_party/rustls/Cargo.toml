@@ -32,7 +32,7 @@ mio = "0.6"
 docopt = "0.8"
 serde = "1.0"
 serde_derive = "1.0"
-webpki-roots = { git = "https://github.com/briansmith/webpki-roots", branch = "webpki-github" }
+webpki-roots = { git = "https://github.com/ctz/webpki-roots", rev="927e7547f922ed772c1254c61fdc524964a50fc8" }
 ct-logs = "0.2"
 regex = "0.2"
 

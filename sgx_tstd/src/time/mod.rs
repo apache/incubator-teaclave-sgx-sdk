@@ -56,6 +56,9 @@ mod duration;
 /// allows measuring the duration between two instants (or comparing two
 /// instants).
 ///
+/// The size of an `Instant` struct may vary depending on the target operating
+/// system.
+///
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Instant(time::Instant);
 
@@ -78,6 +81,9 @@ pub struct Instant(time::Instant);
 /// information about a `SystemTime`. By calculating the duration from this
 /// fixed point in time, a `SystemTime` can be converted to a human-readable time,
 /// or perhaps some other string representation.
+///
+/// The size of a `SystemTime` struct may vary depending on the target operating
+/// system.
 ///
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SystemTime(time::SystemTime);
@@ -164,6 +170,16 @@ impl fmt::Debug for Instant {
 }
 
 impl SystemTime {
+    /// An anchor in time which can be used to create new `SystemTime` instances or
+    /// learn about where in time a `SystemTime` lies.
+    ///
+    /// This constant is defined to be "1970-01-01 00:00:00 UTC" on all systems with
+    /// respect to the system clock. Using `duration_since` on an existing
+    /// `SystemTime` instance can tell how far away from this point in time a
+    /// measurement lies, and using `UNIX_EPOCH + duration` can be used to create a
+    /// `SystemTime` instance to represent another fixed point in time.
+    ///
+    pub const UNIX_EPOCH: SystemTime = UNIX_EPOCH;
     /// Returns the system time corresponding to "now".
     ///
     #[cfg(feature = "untrusted_time")]

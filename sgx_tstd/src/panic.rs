@@ -33,14 +33,14 @@ use core::any::Any;
 use core::cell::UnsafeCell;
 use core::fmt;
 use core::ops::{Deref, DerefMut, Fn};
-use core::ptr::{Unique, Shared};
+use core::ptr::{Unique, NonNull};
 use core::sync::atomic;
 use alloc::boxed::Box;
 use alloc::rc::Rc;
 use alloc::arc::Arc;
 
-pub use panicking::{set_panic_handler, PanicInfo, Location};
-
+pub use panicking::set_panic_handler;
+pub use core::panic::{PanicInfo, Location};
 /// A marker trait which represents "panic safe" types in Rust.
 ///
 /// This trait is implemented by default for many types and behaves similarly in
@@ -153,7 +153,7 @@ impl<'a, T: RefUnwindSafe + ?Sized> UnwindSafe for &'a T {}
 impl<T: RefUnwindSafe + ?Sized> UnwindSafe for *const T {}
 impl<T: RefUnwindSafe + ?Sized> UnwindSafe for *mut T {}
 impl<T: UnwindSafe + ?Sized> UnwindSafe for Unique<T> {}
-impl<T: RefUnwindSafe + ?Sized> UnwindSafe for Shared<T> {}
+impl<T: RefUnwindSafe + ?Sized> UnwindSafe for NonNull<T> {}
 impl<T> UnwindSafe for AssertUnwindSafe<T> {}
 
 // not covered via the Shared impl above b/c the inner contents use

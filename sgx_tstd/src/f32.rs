@@ -742,7 +742,7 @@ impl f32 {
         unsafe { cmath::atanf(self) }
     }
 
-    /// Computes the four quadrant arctangent of `self` (`y`) and `other` (`x`).
+    /// Computes the four quadrant arctangent of `self` (`y`) and `other` (`x`) in radians.
     ///
     /// * `x = 0`, `y = 0`: `0`
     /// * `x >= 0`: `arctan(y/x)` -> `[-pi/2, pi/2]`
@@ -753,12 +753,13 @@ impl f32 {
     /// use std::f32;
     ///
     /// let pi = f32::consts::PI;
-    /// // All angles from horizontal right (+x)
-    /// // 45 deg counter-clockwise
+    /// // Positive angles measured counter-clockwise
+    /// // from positive x axis
+    /// // -pi/4 radians (45 deg clockwise)
     /// let x1 = 3.0f32;
     /// let y1 = -3.0f32;
     ///
-    /// // 135 deg clockwise
+    /// // 3pi/4 radians (135 deg counter-clockwise)
     /// let x2 = -3.0f32;
     /// let y2 = 3.0f32;
     ///
@@ -959,7 +960,7 @@ impl f32 {
     ///
     #[inline]
     pub fn to_bits(self) -> u32 {
-        unsafe { ::mem::transmute(self) }
+        num::Float::to_bits(self)
     }
 
     /// Raw transmutation from `u32`.
@@ -994,6 +995,6 @@ impl f32 {
     ///
     #[inline]
     pub fn from_bits(v: u32) -> Self {
-        unsafe { ::mem::transmute(v) }
+        num::Float::from_bits(v)
     }
 }
