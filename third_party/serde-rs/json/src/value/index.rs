@@ -6,10 +6,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use std::prelude::v1::*;
+use std::string::String;
 use std::fmt;
 use std::ops;
-use std::borrow::ToOwned;
-use std::string::String;
 
 use super::Value;
 use map::Map;
@@ -80,16 +80,12 @@ impl Index for usize {
         match *v {
             Value::Array(ref mut vec) => {
                 let len = vec.len();
-                vec.get_mut(*self)
-                    .unwrap_or_else(
-                        || {
-                            panic!(
-                                "cannot access index {} of JSON array of length {}",
-                                self,
-                                len
-                            )
-                        },
+                vec.get_mut(*self).unwrap_or_else(|| {
+                    panic!(
+                        "cannot access index {} of JSON array of length {}",
+                        self, len
                     )
+                })
             }
             _ => panic!("cannot access index {} of JSON {}", self, Type(v)),
         }
@@ -111,14 +107,10 @@ impl Index for str {
     }
     fn index_or_insert<'v>(&self, v: &'v mut Value) -> &'v mut Value {
         if let Value::Null = *v {
-            let mut map = Map::new();
-            map.insert(self.to_owned(), Value::Null);
-            *v = Value::Object(map);
+            *v = Value::Object(Map::new());
         }
         match *v {
-            Value::Object(ref mut map) => {
-                map.entry(self.to_owned()).or_insert(Value::Null)
-            }
+            Value::Object(ref mut map) => map.entry(self.to_owned()).or_insert(Value::Null),
             _ => panic!("cannot access key {:?} in JSON {}", self, Type(v)),
         }
     }
@@ -154,7 +146,6 @@ where
 // Prevent users from implementing the Index trait.
 mod private {
     use std::string::String;
-
     pub trait Sealed {}
     impl Sealed for usize {}
     impl Sealed for str {}

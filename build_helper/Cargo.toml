@@ -1,11 +1,19 @@
 [package]
-name = "build_helper"
+name = "sgx_build_helper"
 version = "0.1.0"
 authors = ["baidu"]
+repository = "https://github.com/baidu/rust-sgx-sdk"
+license-file = "LICENSE"
+documentation = "https://dingelish.github.io/"
+description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
+
+include = [
+    "Cargo.toml",
+    "Readme.md",
+    "LICENSE",
+    "lib.rs",
+]
 
 [lib]
-name = "build_helper"
+name = "sgx_build_helper"
 path = "lib.rs"
-
-[dependencies]
-filetime = "0.1"

@@ -91,7 +91,15 @@ impl<R: Read> BufReader<R> {
     /// Returns `true` if there are no bytes in the internal buffer.
     ///
     pub fn is_empty(&self) -> bool {
-        self.pos == self.cap
+        self.buffer().is_empty()
+    }
+
+    /// Returns a reference to the internally buffered data.
+    ///
+    /// Unlike `fill_buf`, this will not attempt to fill the buffer if it is empty.
+    ///
+    pub fn buffer(&self) -> &[u8] {
+        &self.buf[self.pos..self.cap]
     }
 
     /// Unwraps this `BufReader`, returning the underlying reader.

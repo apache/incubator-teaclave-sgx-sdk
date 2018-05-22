@@ -1,0 +1,40 @@
+dist: trusty
+sudo: required
+language:
+- rust
+- cpp
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - gcc-6
+    - g++-6
+    - cmake
+env:
+- NIGHTLY_TOOLCHAIN=nightly-2018-02-05
+
+install:
+# Install `cargo-deadlinks` unless it is currently installed.
+- command -v cargo-deadlinks &> /dev/null || cargo install cargo-deadlinks
+# Install nightly toolchain.
+- rustup toolchain install $NIGHTLY_TOOLCHAIN
+script:
+- export CC=/usr/bin/gcc-6
+- export CXX=/usr/bin/g++-6
+# Make sure fuzz targets are not broken.
+- rustup run $NIGHTLY_TOOLCHAIN cargo check --tests --manifest-path=fuzz/Cargo.toml
+- ./test.sh
+- ./doc.sh
+after_success: |
+  # Build documentation and deploy it to github pages.
+  [ $TRAVIS_BRANCH = master ] &&
+  [ $TRAVIS_PULL_REQUEST = false ] &&
+  echo "<meta http-equiv=refresh content=0;url=`echo $TRAVIS_REPO_SLUG | cut -d '/' -f 2`/index.html>" > target/doc/index.html &&
+  sudo pip install ghp-import &&
+  ghp-import -n target/doc &&
+  git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
+cache: cargo
+before_cache:
+  # Travis can't cache files that are not readable by "others"
+  - chmod -R a+r $HOME/.cargo

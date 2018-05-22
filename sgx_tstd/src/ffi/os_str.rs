@@ -129,6 +129,19 @@ impl OsString {
         self.inner.shrink_to_fit()
     }
 
+    /// Shrinks the capacity of the `OsString` with a lower bound.
+    ///
+    /// The capacity will remain at least as large as both the length
+    /// and the supplied value.
+    ///
+    /// Panics if the current capacity is smaller than the supplied
+    /// minimum capacity.
+    ///
+    #[inline]
+    pub fn shrink_to(&mut self, min_capacity: usize) {
+        self.inner.shrink_to(min_capacity)
+    }
+
     /// Converts this `OsString` into a boxed `OsStr`.
     ///
     pub fn into_boxed_os_str(self) -> Box<OsStr> {

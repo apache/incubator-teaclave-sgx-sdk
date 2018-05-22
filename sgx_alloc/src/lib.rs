@@ -36,12 +36,10 @@
 
 #![feature(global_allocator)]
 #![feature(allocator_api)]
-#![feature(alloc)]
 
 extern crate sgx_trts;
 
-extern crate alloc;
-use self::alloc::heap::{Alloc, AllocErr, Layout, Excess, CannotReallocInPlace};
+use core::heap::{Alloc, AllocErr, Layout, Excess, CannotReallocInPlace};
 
 // The minimum alignment guaranteed by the architecture. This value is used to
 // add fast paths for low alignment values. In practice, the alignment is a
@@ -126,7 +124,7 @@ mod platform {
 
     use MIN_ALIGN;
     use System;
-    use alloc::heap::{Alloc, AllocErr, Layout};
+    use core::heap::{Alloc, AllocErr, Layout};
 
     unsafe impl<'a> Alloc for &'a System {
         #[inline]

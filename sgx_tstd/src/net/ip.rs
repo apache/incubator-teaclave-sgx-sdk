@@ -39,6 +39,9 @@ use sys_common::{AsInner, FromInner};
 /// This enum can contain either an [`Ipv4Addr`] or an [`Ipv6Addr`], see their
 /// respective documentation for more details.
 ///
+/// The size of an `IpAddr` instance may vary depending on the target operating
+/// system.
+///
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, PartialOrd, Ord)]
 pub enum IpAddr {
     /// An IPv4 address.
@@ -54,6 +57,9 @@ pub enum IpAddr {
 ///
 /// See [`IpAddr`] for a type encompassing both IPv4 and IPv6 addresses.
 ///
+/// The size of an `Ipv4Addr` struct may vary depending on the target operating
+/// system.
+///
 #[derive(Copy)]
 pub struct Ipv4Addr {
     inner: c::in_addr,
@@ -65,6 +71,9 @@ pub struct Ipv4Addr {
 /// They are usually represented as eight 16-bit segments.
 ///
 /// See [`IpAddr`] for a type encompassing both IPv4 and IPv6 addresses.
+///
+/// The size of an `Ipv6Addr` struct may vary depending on the target operating
+/// system.
 ///
 #[derive(Copy)]
 pub struct Ipv6Addr {
@@ -427,7 +436,8 @@ impl FromInner<c::in_addr> for Ipv4Addr {
 }
 
 impl From<Ipv4Addr> for u32 {
-    /// It performs the conversion in network order (big-endian).
+    /// Convert an `Ipv4Addr` into a host byte order `u32`.
+    ///
     fn from(ip: Ipv4Addr) -> u32 {
         let ip = ip.octets();
         ((ip[0] as u32) << 24) + ((ip[1] as u32) << 16) + ((ip[2] as u32) << 8) + (ip[3] as u32)
@@ -435,13 +445,16 @@ impl From<Ipv4Addr> for u32 {
 }
 
 impl From<u32> for Ipv4Addr {
-    /// It performs the conversion in network order (big-endian).
+    /// Convert a host byte order `u32` into an `Ipv4Addr`.
+    ///
     fn from(ip: u32) -> Ipv4Addr {
         Ipv4Addr::new((ip >> 24) as u8, (ip >> 16) as u8, (ip >> 8) as u8, ip as u8)
     }
 }
 
 impl From<[u8; 4]> for Ipv4Addr {
+    /// Create an `IpAddr::V4` from a four element byte array.
+    ///
     fn from(octets: [u8; 4]) -> Ipv4Addr {
         Ipv4Addr::new(octets[0], octets[1], octets[2], octets[3])
     }
@@ -821,12 +834,16 @@ impl From<[u16; 8]> for Ipv6Addr {
 }
 
 impl From<[u8; 16]> for IpAddr {
+    /// Create an `IpAddr::V6` from a sixteen element byte array.
+    ///
     fn from(octets: [u8; 16]) -> IpAddr {
         IpAddr::V6(Ipv6Addr::from(octets))
     }
 }
 
 impl From<[u16; 8]> for IpAddr {
+    /// Create an `IpAddr::V6` from an eight element 16-bit array.
+    ///
     fn from(segments: [u16; 8]) -> IpAddr {
         IpAddr::V6(Ipv6Addr::from(segments))
     }

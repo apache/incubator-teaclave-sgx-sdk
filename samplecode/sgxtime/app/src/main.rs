@@ -139,6 +139,14 @@ fn main() {
         }
     }
 
+    match retval {
+        sgx_status_t::SGX_SUCCESS => {},
+        _ => {
+            println!("[-] ECALL Enclave returned error {}!", retval.as_str());
+            return;
+        }
+    }
+
     println!("[+] sgx_time_sample success...");
     
     enclave.destroy();

@@ -35,7 +35,6 @@ use core::iter;
 use alloc::vec;
 use alloc::slice;
 use io;
-//use net::{lookup_host, ntoh, hton, IpAddr, Ipv4Addr, Ipv6Addr};
 use net::{ntoh, hton, IpAddr, Ipv4Addr, Ipv6Addr};
 use sys_common::{FromInner, AsInner, IntoInner};
 
@@ -44,6 +43,9 @@ use sys_common::{FromInner, AsInner, IntoInner};
 /// Internet socket addresses consist of an [IP address], a 16-bit port number, as well
 /// as possibly some version-dependent additional information. See [`SocketAddrV4`]'s and
 /// [`SocketAddrV6`]'s respective documentation for more details.
+///
+/// The size of a `SocketAddr` instance may vary depending on the target operating
+/// system.
 ///
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SocketAddr {
@@ -70,6 +72,9 @@ pub struct SocketAddrV4 { inner: c::sockaddr_in }
 /// (see [IETF RFC 2553, Section 3.3] for more details).
 ///
 /// See [`SocketAddr`] for a type encompassing both IPv4 and IPv6 socket addresses.
+///
+/// The size of a `SocketAddrV6` struct may vary depending on the target operating
+/// system.
 ///
 #[derive(Copy)]
 pub struct SocketAddrV6 { inner: c::sockaddr_in6 }
@@ -483,14 +488,6 @@ impl ToSocketAddrs for (Ipv6Addr, u16) {
         SocketAddrV6::new(ip, port, 0, 0).to_socket_addrs()
     }
 }
-
-/*
-fn resolve_socket_addr(s: &str, p: u16) -> io::Result<vec::IntoIter<SocketAddr>> {
-    let ips = lookup_host(s)?;
-    let v: Vec<_> = ips.map(|mut a| { a.set_port(p); a }).collect();
-    Ok(v.into_iter())
-}
-*/
 
 impl<'a> ToSocketAddrs for (&'a str, u16) {
     type Iter = vec::IntoIter<SocketAddr>;

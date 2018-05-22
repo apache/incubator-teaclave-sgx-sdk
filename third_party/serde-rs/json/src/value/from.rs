@@ -6,9 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use std::prelude::v1::*;
 use std::borrow::Cow;
-use std::string::{String, ToString};
-use std::vec::Vec;
 
 use super::Value;
 use map::Map;
@@ -160,7 +159,7 @@ impl<'a> From<Cow<'a, str>> for Value {
     /// # }
     /// ```
     fn from(f: Cow<'a, str>) -> Self {
-        Value::String(f.to_string())
+        Value::String(f.into_owned())
     }
 }
 
@@ -263,8 +262,6 @@ impl<T: Into<Value>> ::std::iter::FromIterator<T> for Value {
     /// # }
     /// ```
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let vec: Vec<Value> = iter.into_iter().map(|x| x.into()).collect();
-
-        Value::Array(vec)
+        Value::Array(iter.into_iter().map(Into::into).collect())
     }
 }

@@ -300,6 +300,11 @@
 //! `HashMap<K, V>`, as well as any structs or enums annotated with
 //! `#[derive(Serialize)]`.
 //!
+//! # No-std support
+//!
+//! This crate currently requires the Rust standard library. For JSON support in
+//! Serde without a standard library, please see the [`serde-json-core`] crate.
+//!
 //! [value]: https://docs.serde.rs/serde_json/value/enum.Value.html
 //! [from_str]: https://docs.serde.rs/serde_json/de/fn.from_str.html
 //! [from_slice]: https://docs.serde.rs/serde_json/de/fn.from_slice.html
@@ -308,11 +313,12 @@
 //! [to_vec]: https://docs.serde.rs/serde_json/ser/fn.to_vec.html
 //! [to_writer]: https://docs.serde.rs/serde_json/ser/fn.to_writer.html
 //! [macro]: https://docs.serde.rs/serde_json/macro.json.html
+//! [`serde-json-core`]: https://japaric.github.io/serde-json-core/serde_json_core/
 
-#![doc(html_root_url = "https://docs.rs/serde_json/1.0.5")]
+#![doc(html_root_url = "https://docs.rs/serde_json/1.0.17")]
 #![cfg_attr(feature = "cargo-clippy", deny(clippy, clippy_pedantic))]
-// Because of "JavaScript"... fixed in Manishearth/rust-clippy#1071
-#![cfg_attr(feature = "cargo-clippy", allow(doc_markdown))]
+// Whitelisted clippy lints
+#![cfg_attr(feature = "cargo-clippy", allow(doc_markdown, needless_pass_by_value))]
 // Whitelisted clippy_pedantic lints
 #![cfg_attr(feature = "cargo-clippy", allow(
 // Deserializer::from_str, into_iter
@@ -333,31 +339,45 @@
     use_self,
 // not practical
     missing_docs_in_private_items,
+    similar_names,
+// we support older compilers
+    redundant_field_names,
 ))]
-
 #![deny(missing_docs)]
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 #[cfg(not(target_env = "sgx"))]
 extern crate sgx_tstd as std;
+
 extern crate num_traits;
 #[macro_use]
 extern crate serde;
-extern crate itoa;
 extern crate dtoa;
+extern crate itoa;
 #[cfg(feature = "preserve_order")]
 extern crate linked_hash_map;
 
 #[doc(inline)]
-pub use self::de::{Deserializer, StreamDeserializer, from_reader, from_slice, from_str};
+pub use self::de::{from_reader, from_slice, from_str, Deserializer, StreamDeserializer};
 #[doc(inline)]
 pub use self::error::{Error, Result};
 #[doc(inline)]
-pub use self::ser::{Serializer, to_string, to_string_pretty, to_vec, to_vec_pretty, to_writer,
-                    to_writer_pretty};
+pub use self::ser::{to_string, to_string_pretty, to_vec, to_vec_pretty, to_writer,
+                    to_writer_pretty, Serializer};
 #[doc(inline)]
-pub use self::value::{Map, Number, Value, from_value, to_value};
+pub use self::value::{from_value, to_value, Map, Number, Value};
+
+// We only use our own error type; no need for From conversions provided by the
+// standard library's try! macro. This reduces lines of LLVM IR by 4%.
+macro_rules! try {
+    ($e:expr) => {
+        match $e {
+            ::std::result::Result::Ok(val) => val,
+            ::std::result::Result::Err(err) => return ::std::result::Result::Err(err),
+        }
+    };
+}
 
 #[macro_use]
 mod macros;

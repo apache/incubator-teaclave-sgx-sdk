@@ -55,6 +55,7 @@ use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::iter::{self, FusedIterator};
 use core::ops::{self, Deref};
+use core::str::FromStr;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -802,6 +803,31 @@ impl<'a> cmp::Ord for Components<'a> {
     }
 }
 
+/// An iterator over [`Path`] and its ancestors.
+///
+/// This `struct` is created by the [`ancestors`] method on [`Path`].
+/// See its documentation for more.
+///
+#[derive(Copy, Clone, Debug)]
+pub struct Ancestors<'a> {
+    next: Option<&'a Path>,
+}
+
+impl<'a> Iterator for Ancestors<'a> {
+    type Item = &'a Path;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = self.next;
+        self.next = match next {
+            Some(path) => path.parent(),
+            None => None,
+        };
+        next
+    }
+}
+
+impl<'a> FusedIterator for Ancestors<'a> {}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Basic types and traits
 ////////////////////////////////////////////////////////////////////////////////
@@ -1027,6 +1053,28 @@ impl From<PathBuf> for OsString {
 impl From<String> for PathBuf {
     fn from(s: String) -> PathBuf {
         PathBuf::from(OsString::from(s))
+    }
+}
+
+/// Error returned from [`PathBuf::from_str`][`from_str`].
+///
+/// Note that parsing a path will never fail. This error is just a placeholder
+/// for implementing `FromStr` for `PathBuf`.
+///
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParsePathError {}
+
+impl fmt::Display for ParsePathError {
+    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
+        match *self {}
+    }
+}
+
+impl FromStr for PathBuf {
+    type Err = ParsePathError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(PathBuf::from(s))
     }
 }
 
@@ -1305,6 +1353,20 @@ impl Path {
                 _ => None,
             }
         })
+    }
+
+    /// Produces an iterator over `Path` and its ancestors.
+    ///
+    /// The iterator will yield the `Path` that is returned if the [`parent`] method is used zero
+    /// or more times. That means, the iterator will yield `&self`, `&self.parent().unwrap()`,
+    /// `&self.parent().unwrap().parent().unwrap()` and so on. If the [`parent`] method returns
+    /// [`None`], the iterator will do likewise. The iterator will always yield at least one value,
+    /// namely `&self`.
+    ///
+    pub fn ancestors(&self) -> Ancestors {
+        Ancestors {
+            next: Some(&self),
+        }
     }
 
     /// Returns the final component of the `Path`, if there is one.

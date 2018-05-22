@@ -31,7 +31,6 @@ use core::any::TypeId;
 use core::cell;
 use core::mem::transmute;
 use core::num;
-use core::convert;
 use core::array;
 use core::fmt::{self, Debug, Display};
 use alloc::str;
@@ -228,13 +227,6 @@ impl Error for char::CharTryFromError {
 impl Error for char::ParseCharError {
     fn description(&self) -> &str {
         self.__description()
-    }
-}
-
-impl Error for convert::Infallible {
-    fn description(&self) -> &str {
-        match *self {
-        }
     }
 }
 

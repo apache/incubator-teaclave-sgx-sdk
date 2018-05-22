@@ -91,6 +91,13 @@ impl_enum! {
 
         SGX_ERROR_NO_PRIVILEGE              = 0x00005002,   /* Not enough privilege to perform the operation */
 
+        /* SGX Protected Code Loader Error codes*/
+        SGX_ERROR_PCL_ENCRYPTED             = 0x00006001,   /* trying to encrypt an already encrypted enclave */
+        SGX_ERROR_PCL_NOT_ENCRYPTED         = 0x00006002,   /* trying to load a plain enclave using sgx_create_encrypted_enclave */
+        SGX_ERROR_PCL_MAC_MISMATCH          = 0x00006003,   /* section mac result does not match build time mac */
+        SGX_ERROR_PCL_SHA_MISMATCH          = 0x00006004,   /* Unsealed key MAC does not match MAC of key hardcoded in enclave binary */
+        SGX_ERROR_PCL_GUID_MISMATCH         = 0x00006005,   /* GUID in sealed blob does not match GUID hardcoded in enclave binary */
+
         /* SGX errors are only used in the file API when there is no appropriate EXXX (EINVAL, EIO etc.) error code */
         SGX_ERROR_FILE_BAD_STATUS               = 0x00007001,	/* The file is in bad status, run sgx_clearerr to try and fix it */
         SGX_ERROR_FILE_NO_KEY_ID                = 0x00007002,	/* The Key ID field is all zeros, can't re-generate the encryption key */
@@ -101,6 +108,14 @@ impl_enum! {
         SGX_ERROR_FILE_RECOVERY_NEEDED          = 0x00007007,	/* When openeing the file, recovery is needed, but the recovery process failed */
         SGX_ERROR_FILE_FLUSH_FAILED             = 0x00007008,	/* fflush operation (to disk) failed (only used when no EXXX is returned) */
         SGX_ERROR_FILE_CLOSE_FAILED             = 0x00007009,	/* fclose operation (to disk) failed (only used when no EXXX is returned) */
+
+        SGX_INTERNAL_ERROR_ENCLAVE_CREATE_INTERRUPTED = 0x0000F001, /* The ioctl for enclave_create unexpectedly failed with EINTR. */ 
+
+        SGX_ERROR_WASM_BUFFER_TOO_SHORT         = 0x0F00F001,   /* sgxwasm output buffer not long enough */
+        SGX_ERROR_WASM_INTERPRETER_ERROR        = 0x0F00F002,   /* sgxwasm interpreter error */
+        SGX_ERROR_WASM_LOAD_MODULE_ERROR        = 0x0F00F003,   /* sgxwasm loadmodule error */
+        SGX_ERROR_WASM_TRY_LOAD_ERROR           = 0x0F00F004,   /* sgxwasm tryload error */
+        SGX_ERROR_WASM_REGISTER_ERROR           = 0x0F00F005,   /* sgxwasm register error */
     }
 }
 
@@ -160,6 +175,12 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_UNRECOGNIZED_PLATFORM => "EPID Provisioning failed due to platform not recognized by backend server.",
             sgx_status_t::SGX_ERROR_NO_PRIVILEGE => "Not enough privilege to perform the operation.",
 
+            sgx_status_t::SGX_ERROR_PCL_ENCRYPTED => "Trying to encrypt an already encrypted enclave.",
+            sgx_status_t::SGX_ERROR_PCL_NOT_ENCRYPTED => "Trying to load a plain enclave using sgx_create_encrypted_enclave.",
+            sgx_status_t::SGX_ERROR_PCL_MAC_MISMATCH => "Section mac result does not match build time mac.",
+            sgx_status_t::SGX_ERROR_PCL_SHA_MISMATCH => "Unsealed key MAC does not match MAC of key hardcoded in enclave binary.",
+            sgx_status_t::SGX_ERROR_PCL_GUID_MISMATCH => "GUID in sealed blob does not match GUID hardcoded in enclave binary.",
+
             sgx_status_t::SGX_ERROR_FILE_BAD_STATUS => "The file is in bad status.",
             sgx_status_t::SGX_ERROR_FILE_NO_KEY_ID => "The Key ID field is all zeros, can't regenerate the encryption key.",
             sgx_status_t::SGX_ERROR_FILE_NAME_MISMATCH => "The current file name is different then the original file name.",
@@ -169,6 +190,14 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_FILE_RECOVERY_NEEDED => "When openeing the file, recovery is needed, but the recovery process failed.",
             sgx_status_t::SGX_ERROR_FILE_FLUSH_FAILED => "fflush operation failed.",
             sgx_status_t::SGX_ERROR_FILE_CLOSE_FAILED => "fclose operation failed.",
+
+            sgx_status_t::SGX_INTERNAL_ERROR_ENCLAVE_CREATE_INTERRUPTED => "The ioctl for enclave_create unexpectedly failed with EINTR.",
+
+            sgx_status_t::SGX_ERROR_WASM_BUFFER_TOO_SHORT => "sgx wasm output buffer too small.",
+            sgx_status_t::SGX_ERROR_WASM_INTERPRETER_ERROR => "sgx wasm interpreter error.",
+            sgx_status_t::SGX_ERROR_WASM_LOAD_MODULE_ERROR => "sgxwasm loadmodule error.",
+            sgx_status_t::SGX_ERROR_WASM_TRY_LOAD_ERROR => "sgxwasm tryload error.",
+            sgx_status_t::SGX_ERROR_WASM_REGISTER_ERROR => "sgxwasm register error.",
         }
     }
 
@@ -227,6 +256,12 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_UNRECOGNIZED_PLATFORM => "SGX_ERROR_UNRECOGNIZED_PLATFORM",
             sgx_status_t::SGX_ERROR_NO_PRIVILEGE => "SGX_ERROR_NO_PRIVILEGE",
 
+            sgx_status_t::SGX_ERROR_PCL_ENCRYPTED => "SGX_ERROR_PCL_ENCRYPTED",
+            sgx_status_t::SGX_ERROR_PCL_NOT_ENCRYPTED => "SGX_ERROR_PCL_NOT_ENCRYPTED",
+            sgx_status_t::SGX_ERROR_PCL_MAC_MISMATCH => "SGX_ERROR_PCL_MAC_MISMATCH",
+            sgx_status_t::SGX_ERROR_PCL_SHA_MISMATCH => "SGX_ERROR_PCL_SHA_MISMATCH",
+            sgx_status_t::SGX_ERROR_PCL_GUID_MISMATCH => "SGX_ERROR_PCL_GUID_MISMATCH",
+
             sgx_status_t::SGX_ERROR_FILE_BAD_STATUS => "SGX_ERROR_FILE_BAD_STATUS",
             sgx_status_t::SGX_ERROR_FILE_NO_KEY_ID => "SGX_ERROR_FILE_NO_KEY_ID",
             sgx_status_t::SGX_ERROR_FILE_NAME_MISMATCH => "SGX_ERROR_FILE_NAME_MISMATCH",
@@ -236,6 +271,14 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_FILE_RECOVERY_NEEDED => "SGX_ERROR_FILE_RECOVERY_NEEDED",
             sgx_status_t::SGX_ERROR_FILE_FLUSH_FAILED => "SGX_ERROR_FILE_FLUSH_FAILED",
             sgx_status_t::SGX_ERROR_FILE_CLOSE_FAILED => "SGX_ERROR_FILE_CLOSE_FAILED",
+
+            sgx_status_t::SGX_INTERNAL_ERROR_ENCLAVE_CREATE_INTERRUPTED => "SGX_INTERNAL_ERROR_ENCLAVE_CREATE_INTERRUPTED",
+
+            sgx_status_t::SGX_ERROR_WASM_BUFFER_TOO_SHORT => "SGX_ERROR_WASM_BUFFER_TOO_SHORT",
+            sgx_status_t::SGX_ERROR_WASM_INTERPRETER_ERROR => "SGX_ERROR_WASM_INTERPRETER_ERROR",
+            sgx_status_t::SGX_ERROR_WASM_LOAD_MODULE_ERROR => "SGX_ERROR_WASM_LOAD_MODULE_ERROR",
+            sgx_status_t::SGX_ERROR_WASM_TRY_LOAD_ERROR    => "SGX_ERROR_WASM_TRY_LOAD_ERROR",
+            sgx_status_t::SGX_ERROR_WASM_REGISTER_ERROR    => "SGX_ERROR_WASM_REGISTER_ERROR",
         }
     }
 }

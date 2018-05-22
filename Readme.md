@@ -1,6 +1,9 @@
 # Rust SGX SDK
 Rust SGX SDK helps developers write Intel SGX applications in Rust programming language. [[Paper pdf]](documents/ccsp17.pdf)
 
+## v1.0.0 Release
+We proudly announce v1.0.0 of rust-sgx-sdk! We port Parity's [Webassembly Interpreter](https://github.com/paritytech/wasmi) to Intel SGX and provide a full functional in-enclave [wasmi sample](samplecode/wasmi), and a [sample solution](samplecode/psi) of two-party private-set-intersection resisting side-channel attacks! From this version, we start to support most recent stable branch of Rust instead of nightly for better stability and future production use. Thus, the [stable branch](https://github.com/baidu/rust-sgx-sdk/tree/rust-stable) of v1.0.0 supports the most recent Rust stable toolchain (1.26.0 stable-2018-05-07), while the master only supports Rust nightly toolchain of nightly-2018-04-11. Please refer to [release_notes](release_notes.md) for further details.
+
 ## v0.9.8 Release
 This version provides security updates regards to recent Spectre attacks in Intel SGX, and supports **Rust stable (2018-03-01)** (in branch named 'rust-stable'). It contains support of [Intel SGX SDK 2.1.2](https://download.01.org/intel-sgx/linux-2.1.2/) and a series of API functions to stop speculative execution on demand. In addition, we provide a ported version of [rust-protobuf](https://crates.io/crates/protobuf) v1.4.4. Please refer to [release_notes](release_notes.md) for further details.
 
