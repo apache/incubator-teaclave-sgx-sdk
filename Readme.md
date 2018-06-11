@@ -60,6 +60,38 @@ Finally, check if the sample code works
 
 Make sure Intel SGX SDK is properly installed and service started on the host OS. Then `cd dockerfile` and run `docker build -t rust-sgx-docker` to build.
 
+## Use simulation mode for non SGX-enabled machine (includes macOS)
+
+Intel provides a simulation mode so you can develop on regular machines, by building the enclave app using the libraries `sgx_urts_sim`, `lsgx_uae_service_sim`, `sgx_trts_sim`, `sgx_tservice_sim`.
+
+First, pull the docker image. If you'd like to work on stable branch of Rust and `rust-stable` branch of this SDK, please pull `baiduxlab/sgx-rust-stable` instead.
+
+`$ docker pull baiduxlab/sgx-rust`
+
+Second, start a docker with the Rust SGX SDK.
+
+`$ docker run -v /your/path/to/rust-sgx:/root/sgx -ti baiduxlab/sgx-rust`
+
+But when building any sample code, set the `SGX_MODE` to `SW` in `Makefile`.
+
+`root@docker:~/sgx/samplecode/helloworld# vi Makefile`
+
+Replace `SGX_MODE ?= HW` with `SGX_MODE ?= SW`
+
+Finally, check if the sample code works
+
+`root@docker:~/sgx/samplecode/helloworld# make`
+
+`root@docker:~/sgx/samplecode/helloworld# cd bin`
+
+`root@docker:~/sgx/samplecode/helloworld/bin# ./app`
+
+If not set, you could get an error:
+```
+Info: Please make sure SGX module is enabled in the BIOS, and install SGX driver afterwards.
+Error: Invalid SGX device.
+```
+
 # Documents
 
 The online documents for SDK crates can be found [here](https://dingelish.github.io/).
