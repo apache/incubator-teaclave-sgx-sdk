@@ -1,0 +1,25 @@
+[package]
+name = "Filesampleenclave"
+version = "1.0.0"
+authors = ["Baidu"]
+
+[lib]
+name = "filesampleenclave"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path = "../../../sgx_tstd" }
+sgx_rand = { path = "../../../sgx_rand" }
+sgx_serialize = { path = "../../../sgx_serialize" }
+sgx_types = { path = "../../../sgx_types" }
+
+[dependencies]
+sgx_rand_derive = { path = "../../../sgx_rand_derive" }
+sgx_serialize_derive = { path = "../../../sgx_serialize_derive"}
+libsecp256k1 = { path = "../../../third_party/libsecp256k1-rs" }
+etcommon-bigint = { path = "../../../third_party/etcommon-rs/bigint" }
+etcommon-block-transaction = { path = "../../../third_party/etcommon-rs/block-transaction" }
+hex = { path = "../../../third_party/rust-hex" }

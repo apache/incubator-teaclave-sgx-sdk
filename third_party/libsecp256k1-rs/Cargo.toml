@@ -1,0 +1,29 @@
+[package]
+name = "libsecp256k1"
+description = "Pure Rust secp256k1 implementation."
+license = "Apache-2.0"
+version = "0.1.13"
+authors = ["Wei Tang <hi@that.world>"]
+repository = "https://source.that.world/source/libsecp256k1-rs/"
+keywords = [ "crypto", "ECDSA", "secp256k1", "bitcoin", "no_std" ]
+
+[lib]
+name = "secp256k1"
+
+[dependencies]
+sgx_rand = { path = "../../sgx_rand" }
+hmac-drbg = "0.1"
+sha2 = "0.6"
+digest = "0.6"
+typenum = "1.9"
+
+[dev-dependencies]
+secp256k1-test = "0.7"
+rand = "0.4"
+etcommon-hexutil = "0.2"
+
+[workspace]
+members = [
+  "./gen/ecmult",
+  "./gen/genmult",
+]
