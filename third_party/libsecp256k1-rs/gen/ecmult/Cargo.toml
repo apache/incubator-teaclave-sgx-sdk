@@ -1,0 +1,7 @@
+[package]
+name = "libsecp256k1-gen-ecmult"
+version = "0.0.0"
+authors = ["Wei Tang <hi@that.world>"]
+
+[dependencies]
+libsecp256k1 = { path = "../.." }

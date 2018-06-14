@@ -1,0 +1,21 @@
+[package]
+name = "etcommon-rlp"
+description = "Recursive-length prefix encoding, decoding, and compression"
+repository = "https://github.com/ethereumproject/etcommon-rs"
+license = "MIT/Apache-2.0"
+version = "0.2.3"
+authors = ["Parity Technologies <admin@parity.io>", "Wei Tang <hi@that.world>"]
+keywords = ["no_std"]
+
+[lib]
+name = "rlp"
+
+[dependencies]
+elastic-array-plus = { version = "0.9.1", default-features = false }
+lazy_static = { version = "0.2", optional = true }
+byteorder = { version = "1.0", default-features = false }
+etcommon-hexutil = { version = "0.2", path = "../hexutil", default-features = false }
+
+[features]
+default = ["std"]
+std = ["etcommon-hexutil/std", "byteorder/std", "lazy_static", "elastic-array-plus/std"]

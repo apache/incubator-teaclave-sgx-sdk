@@ -1,0 +1,24 @@
+[package]
+name = "etcommon-block-core"
+version = "0.1.0"
+license = "Apache-2.0"
+authors = ["Wei Tang <hi@that.world>"]
+description = "Core block and transaction types for Ethereum."
+repository = "https://github.com/ethereumproject/etcommon-rs"
+keywords = ["no_std"]
+
+[lib]
+name = "block_core"
+
+[dependencies]
+sha3 = "0.6"
+etcommon-bigint = { version = "0.2", path = "../bigint", default-features = false, features = ["rlp", "string"] }
+etcommon-rlp = { version = "0.2", path = "../rlp", default-features = false }
+
+[dev-dependencies]
+rand = "0.3.12"
+etcommon-hexutil = "0.2"
+
+[features]
+default = ["std"]
+std = ["etcommon-bigint/std", "etcommon-rlp/std"]

@@ -1,0 +1,28 @@
+[package]
+name = "etcommon-bigint"
+version = "0.2.9"
+license = "Apache-2.0"
+authors = ["Wei Tang <hi@that.world>"]
+description = "Big integer (256-bit and 512-bit) implementation for SputnikVM and other Ethereum Classic clients."
+repository = "https://github.com/ethereumproject/etcommon-rs"
+keywords = ["no_std"]
+
+[lib]
+name = "bigint"
+
+[dependencies]
+heapsize = { version = "0.4", optional = true }
+byteorder = { version = "1.0", default-features = false }
+libc = { version = "0.2", optional = true }
+etcommon-rlp = { version = "0.2", path = "../rlp", default-features = false, optional = true }
+etcommon-hexutil = { version = "0.2", path = "../hexutil", default-features = false, optional = true }
+sgx_rand = { path = "../../../sgx_rand" }
+
+[features]
+default = ["rlp", "string"]
+heapsizeof = ["heapsize"]
+x64asm_arithmetic = []
+rust_arithmetic = []
+rlp = ["etcommon-rlp"]
+string = ["etcommon-hexutil"]
+std = ["byteorder/std", "libc", "etcommon-rlp/std", "etcommon-hexutil/std"]
