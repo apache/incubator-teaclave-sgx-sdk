@@ -100,7 +100,7 @@ We recommend to use `cargo doc` to generate documents for each crate in this SDK
 
 # Sample Codes
 
-We provide five sample codes to help developers understand how to write Enclave codes in Rust. These codes are located at `samplecode` directory.
+We provide eighteen sample codes to help developers understand how to write Enclave codes in Rust. These codes are located at `samplecode` directory.
 
 * `helloworld` is a very simple app. It shows some basic usages of argument passing, Rust string and ECALL/OCALLs.
 
