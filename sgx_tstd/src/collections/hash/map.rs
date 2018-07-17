@@ -29,10 +29,8 @@
 use self::Entry::*;
 use self::VacantEntryState::*;
 
-use alloc::heap::Heap;
-use alloc::allocator::CollectionAllocErr;
+use alloc::{CollectionAllocErr, oom};
 use core::cell::Cell;
-use core::heap::Alloc;
 use core::borrow::Borrow;
 use core::cmp::max;
 use core::fmt::{self, Debug};
@@ -40,8 +38,7 @@ use core::fmt::{self, Debug};
 use core::hash::{Hash, Hasher, BuildHasher, SipHasher13};
 use core::iter::{FromIterator, FusedIterator};
 use core::mem::{self, replace};
-use core::ops::{Deref, Index, InPlace, Place, Placer};
-use core::ptr;
+use core::ops::{Deref, Index};
 use sys;
 
 use super::table::{self, Bucket, EmptyBucket, FullBucket, FullBucketMut, RawTable, SafeHash};
@@ -54,6 +51,7 @@ const MIN_NONZERO_RAW_CAPACITY: usize = 32;     // must be a power of two
 struct DefaultResizePolicy;
 
 impl DefaultResizePolicy {
+    #[inline]
     fn new() -> DefaultResizePolicy {
         DefaultResizePolicy
     }
@@ -231,7 +229,7 @@ const DISPLACEMENT_THRESHOLD: usize = 128;
 // so we round that up to 128.
 //
 // At a load factor of α, the odds of finding the target bucket after exactly n
-// unsuccesful probes[1] are
+// unsuccessful probes[1] are
 //
 // Pr_α{displacement = n} =
 // (1 - α) / α * ∑_{k≥1} e^(-kα) * (kα)^(k+n) / (k + n)! * (1 - kα / (k + n + 1))
@@ -280,6 +278,14 @@ const DISPLACEMENT_THRESHOLD: usize = 128;
 /// hash, as determined by the [`Hash`] trait, or its equality, as determined by
 /// the [`Eq`] trait, changes while it is in the map. This is normally only
 /// possible through [`Cell`], [`RefCell`], global state, I/O, or unsafe code.
+///
+/// Relevant papers/articles:
+///
+/// 1. Pedro Celis. ["Robin Hood Hashing"](https://cs.uwaterloo.ca/research/tr/1986/CS-86-14.pdf)
+/// 2. Emmanuel Goossaert. ["Robin Hood
+///    hashing"](http://codecapsule.com/2013/11/11/robin-hood-hashing/)
+/// 3. Emmanuel Goossaert. ["Robin Hood hashing: backward shift
+///    deletion"](http://codecapsule.com/2013/11/17/robin-hood-hashing-backward-shift-deletion/)
 ///
 
 #[derive(Clone)]
@@ -507,6 +513,10 @@ impl<K, V, S> HashMap<K, V, S>
 
 impl<K: Hash + Eq, V> HashMap<K, V, RandomState> {
     /// Creates an empty `HashMap`.
+    ///
+    /// The hash map is initially created with a capacity of 0, so it will not allocate until it
+    /// is first inserted into.
+    ///
     #[inline]
     pub fn new() -> HashMap<K, V, RandomState> {
         Default::default()
@@ -561,8 +571,8 @@ impl<K, V, S> HashMap<K, V, S>
         let resize_policy = DefaultResizePolicy::new();
         let raw_cap = resize_policy.raw_capacity(capacity);
         HashMap {
-            hash_builder: hash_builder,
-            resize_policy: resize_policy,
+            hash_builder,
+            resize_policy,
             table: RawTable::new(raw_cap),
         }
     }
@@ -600,7 +610,7 @@ impl<K, V, S> HashMap<K, V, S>
     pub fn reserve(&mut self, additional: usize) {
         match self.try_reserve(additional) {
             Err(CollectionAllocErr::CapacityOverflow) => panic!("capacity overflow"),
-            Err(CollectionAllocErr::AllocErr(e)) => Heap.oom(e),
+            Err(CollectionAllocErr::AllocErr) => oom(),
             Ok(()) => { /* yay */ }
          }
     }
@@ -1050,7 +1060,6 @@ pub struct Iter<'a, K: 'a, V: 'a> {
     inner: table::Iter<'a, K, V>,
 }
 
-// FIXME(#19839) Remove in favor of `#[derive(Clone)]`
 impl<'a, K, V> Clone for Iter<'a, K, V> {
     fn clone(&self) -> Iter<'a, K, V> {
         Iter { inner: self.inner.clone() }
@@ -1098,7 +1107,6 @@ pub struct Keys<'a, K: 'a, V: 'a> {
     inner: Iter<'a, K, V>,
 }
 
-// FIXME(#19839) Remove in favor of `#[derive(Clone)]`
 impl<'a, K, V> Clone for Keys<'a, K, V> {
     fn clone(&self) -> Keys<'a, K, V> {
         Keys { inner: self.inner.clone() }
@@ -1124,7 +1132,6 @@ pub struct Values<'a, K: 'a, V: 'a> {
     inner: Iter<'a, K, V>,
 }
 
-// FIXME(#19839) Remove in favor of `#[derive(Clone)]`
 impl<'a, K, V> Clone for Values<'a, K, V> {
     fn clone(&self) -> Values<'a, K, V> {
         Values { inner: self.inner.clone() }
@@ -1187,14 +1194,14 @@ impl<'a, K, V> InternalEntry<K, V, &'a mut RawTable<K, V>> {
             InternalEntry::Occupied { elem } => {
                 Some(Occupied(OccupiedEntry {
                     key: Some(key),
-                    elem: elem,
+                    elem,
                 }))
             }
             InternalEntry::Vacant { hash, elem } => {
                 Some(Vacant(VacantEntry {
-                    hash: hash,
-                    key: key,
-                    elem: elem,
+                    hash,
+                    key,
+                    elem,
                 }))
             }
             InternalEntry::TableIsEmpty => None,
@@ -1515,63 +1522,7 @@ impl<'a, K, V> fmt::Debug for Drain<'a, K, V>
     }
 }
 
-/// A place for insertion to a `Entry`.
-///
-/// See [`HashMap::entry`](struct.HashMap.html#method.entry) for details.
-pub struct EntryPlace<'a, K: 'a, V: 'a> {
-    bucket: FullBucketMut<'a, K, V>,
-}
-
-impl<'a, K: 'a + Debug, V: 'a + Debug> Debug for EntryPlace<'a, K, V> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("EntryPlace")
-            .field("key", self.bucket.read().0)
-            .field("value", self.bucket.read().1)
-            .finish()
-    }
-}
-
-impl<'a, K, V> Drop for EntryPlace<'a, K, V> {
-    fn drop(&mut self) {
-        // Inplacement insertion failed. Only key need to drop.
-        // The value is failed to insert into map.
-        unsafe { self.bucket.remove_key() };
-    }
-}
-
-impl<'a, K, V> Placer<V> for Entry<'a, K, V> {
-    type Place = EntryPlace<'a, K, V>;
-
-    fn make_place(self) -> EntryPlace<'a, K, V> {
-        let b = match self {
-            Occupied(mut o) => {
-                unsafe { ptr::drop_in_place(o.elem.read_mut().1); }
-                o.elem
-            }
-            Vacant(v) => {
-                unsafe { v.insert_key() }
-            }
-        };
-        EntryPlace { bucket: b }
-    }
-}
-
-unsafe impl<'a, K, V> Place<V> for EntryPlace<'a, K, V> {
-    fn pointer(&mut self) -> *mut V {
-        self.bucket.read_mut().1
-    }
-}
-
-impl<'a, K, V> InPlace<V> for EntryPlace<'a, K, V> {
-    type Owner = ();
-
-    unsafe fn finalize(self) {
-        mem::forget(self);
-    }
-}
-
 impl<'a, K, V> Entry<'a, K, V> {
-
     /// Ensures a value is in the entry by inserting the default if empty, and returns
     /// a mutable reference to the value in the entry.
     ///
@@ -1737,26 +1688,6 @@ impl<'a, K: 'a, V: 'a> VacantEntry<'a, K, V> {
             },
         };
         b.into_mut_refs().1
-    }
-
-    // Only used for InPlacement insert. Avoid unnecessary value copy.
-    // The value remains uninitialized.
-    unsafe fn insert_key(self) -> FullBucketMut<'a, K, V> {
-        match self.elem {
-            NeqElem(mut bucket, disp) => {
-                if disp >= DISPLACEMENT_THRESHOLD {
-                    bucket.table_mut().set_tag(true);
-                }
-                let uninit = mem::uninitialized();
-                robin_hood(bucket, disp, self.hash, self.key, uninit)
-            },
-            NoElem(mut bucket, disp) => {
-                if disp >= DISPLACEMENT_THRESHOLD {
-                    bucket.table_mut().set_tag(true);
-                }
-                bucket.put_key(self.hash, self.key)
-            },
-        }
     }
 }
 

@@ -28,7 +28,7 @@
 
 use sync::SgxThreadMutex;
 use sys_common;
-use alloc::arc::Arc;
+use alloc_crate::arc::Arc;
 use core::cell::{Cell, UnsafeCell};
 use core::ptr;
 

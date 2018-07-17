@@ -32,8 +32,8 @@ use sys;
 use core::fmt;
 use core::result;
 use core::convert::From;
-use alloc::str;
-use alloc::boxed::Box;
+use alloc_crate::str;
+use alloc_crate::boxed::Box;
 
 
 /// A specialized [`Result`](../result/enum.Result.html) type for I/O

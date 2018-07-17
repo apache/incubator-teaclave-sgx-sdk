@@ -1,6 +1,11 @@
 # Rust SGX SDK
 Rust SGX SDK helps developers write Intel SGX applications in Rust programming language. [[Paper pdf]](documents/ccsp17.pdf)
 
+To achieve better security, we recommend developers to apply [Non-bypassable Security Paradigm (NbSP)](https://github.com/baidu/rust-sgx-sdk/blob/master/documents/nbsp.pdf) to the system design and implementation.
+
+## v1.0.1 Release
+This version supports the Rust nightly build (nightly-2018-07-16) in master branch and the most recent Rust stable build (stable-2018-07-10). And it supports the latest Intel SGX SDK **v2.2**. New third party libraries include: bytes, http, iovec, rust-crypto, rust-fnv and rust-threshold-secret-sharing. New code sample 'secretsharing' and 'rust-threshold-secret-sharing' is provided by @davidp94. Please refer to [release_notes](release_notes.md) for further details.
+
 ## v1.0.0 Release
 We proudly announce v1.0.0 of rust-sgx-sdk! We port Parity's [Webassembly Interpreter](https://github.com/paritytech/wasmi) to Intel SGX and provide a full functional in-enclave [wasmi sample](samplecode/wasmi), and a [sample solution](samplecode/psi) of two-party private-set-intersection resisting side-channel attacks! From this version, we start to support most recent stable branch of Rust instead of nightly for better stability and future production use. Thus, the [stable branch](https://github.com/baidu/rust-sgx-sdk/tree/rust-stable) of v1.0.0 supports the most recent Rust stable toolchain (1.26.0 stable-2018-05-07), while the master only supports Rust nightly toolchain of nightly-2018-04-11. Please refer to [release_notes](release_notes.md) for further details.
 
@@ -10,34 +15,14 @@ This version provides security updates regards to recent Spectre attacks in Inte
 ## v0.9.7 Release
 This version provides a new namespace: `sgx_tstd::untrusted`, including `sgx_tstd::untrusted::fs` `sgx_tstd::untrusted::time` and `sgx_tstd::untrusted::path`, providing supports to operation to ocalls in a **untrusted** namespace. The **untrusted** namespace is always enabled no matter `untrusted_*` is set or not. We **urge** the developers to use the `sgx_tstd::untrusted` namespace to port their crates, instead of using the `untrusted_` series of features. Also, we renamed the `untrusted_net` feature to `net` for feature name unification. Please refer to [release_notes](release_notes.md) for further details.
 
-## v0.9.6 Release
-This version provides security enhancement for untrusted IO and additional support for monotonic counter. Untrusted IO operations in `sgx_tstd::fs` `sgx_tstd::net` and `sgx_tstd::time` are **DISABLED by default** to reduce the untrusted surface, and can be enabled by features. Trusted time support is moved to `sgx_tservice::sgxtime` and monotonic counter is provided by `sgx_tservice::sgxcounter`. Please refer to [release_notes](release_notes.md) for further details.
-
-## v0.9.5 Release
-This is a **milestone version**, and may be the last version before 1.0.0. It provides supports of network access, TLS connection, trusted/untrusted file system access, trusted/untrusted time, and environment variable operations. Most important, it supports `xargo`! Now `x86_64-unknown-linux-sgx` is the new platform target. All of the code samples and third-party libraries could be built by `xargo` via `XARGO_SGX=1 make` (cargo also supported by `make`). What's more, we provide a pair of TLS client/server [sample](samplecode/tls) as a complete stack of secure! Please refer to [release_notes](release_notes.md) for further details.
-
 ## Run Rust SGX applications in Mesalock Linux
 [MesaLock Linux](https://github.com/mesalock-linux/mesalock-distro) is a general purpose Linux distribution which aims to provide a safe and secure user space environment. Now we can run Rust SGX applications in Mesalock Linux within a few steps. Please refer to the [tutorial](documents/sgx_in_mesalock_linux.md) for details.
-
-## v0.9.1 Release
-This version supports the recently released [Intel SGX SDK 2.0](https://download.01.org/intel-sgx/linux-2.0/), and provides the most popular machine learning library [rusty-machine](https://github.com/AtheMathmo/rusty-machine/) in Intel SGX! Please refer to [release_notes](https://github.com/baidu/rust-sgx-sdk/blob/master/release_notes.md) for further details.
-
-
-## v0.9.0 Release
-Almost there! Rust SGX SDK v0.9.0 is coming up as a beta version of the future v1.0.0, with the most desired `sgx::tstd` as well as many new features! Also we added support for programming SGX untrusted part in Rust using `sgx::urts`. Now it's easy to port Rust crates to the SGX trust execution environment and write the whole SGX application in Rust! Please refer to [release_notes](https://github.com/baidu/rust-sgx-sdk/blob/master/release_notes.md) for further details.
-
-Good news! Our poster 'Rust SGX SDK: Towards Memory Safety in Intel SGX Enclave' [[pdf]](https://github.com/baidu/rust-sgx-sdk/blob/master/documents/ccsp17.pdf) has been accepted by CCS'17. Please kindly cite our poster if you like Rust SGX SDK!
-
-## v0.2.0 Release
-We are proud to have our v0.2.0 Rust SGX SDK released. It is now providing more threading functions, thread local storages, exception handling routines and supports unwind mechanism, as well as support of **LARGE ENCLAVE MEMORY** with the help of Intel SGX v1.9 (**31.75 GB enclave memory tested**). Please refer to [release notes](https://github.com/baidu/rust-sgx-sdk/blob/master/release_notes.md) for further details. And we are working on a white paper for technical details about this project.
-
-**Attention** Rust has recently merged a patch [(rustc: Implement the #[global_allocator] attribute)](https://github.com/rust-lang/rust/commit/695dee063bcd40f154bb27b7beafcb3d4dd775ac#diff-28f2fd684ad47d385427678d96d2dcd4) which significantly changes the behavior of liballoc. Thus `set_oom_handler` is no longer available since nightly-2017-07-07. Due to its instability, v0.2.0 Rust SGX SDK keeps using the old liballoc instead of new liballoc_system. As a result, nightly version rustc after 2017-07-06 will not successfully compile `sgx_trts`.
 
 ## Requirement
 
 Ubuntu 16.04
 
-[Intel SGX SDK 2.0 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
+[Intel SGX SDK 2.2 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
 
 Docker (Recommended)
 
@@ -46,10 +31,15 @@ Docker (Recommended)
 
 The docker image now supports Intel ME. If you need it, please refer to the sgxtime [readme](documents/sgxtime.md) for instructions.
 
-### Using docker (Recommended) without ME support
-First, make sure Intel SGX Driver 2.0 is installed and functions well. `/dev/isgx` should be appeared.
+### Native without docker (Not recommended)
 
-Second, pull the docker image
+Install Intel SGX driver and SDK first. And refer to [Dockerfile](https://github.com/baidu/rust-sgx-sdk/blob/master/dockerfile/Dockerfile) or stable branch [Dockerfile](https://github.com/baidu/rust-sgx-sdk/blob/master/dockerfile/rust-stable/Dockerfile) to setup your own native Rust-SGX environment.
+
+### Using docker (Recommended) without ME support
+
+First, make sure Intel SGX Driver 2.2 is installed and functions well. `/dev/isgx` should be appeared.
+
+Second, pull the docker image. If you'd like to work on stable branch of Rust and `rust-stable` branch of this SDK, please pull `baiduxlab/sgx-rust-stable` instead.
 
 `$ docker pull baiduxlab/sgx-rust`
 
@@ -69,51 +59,65 @@ Finally, check if the sample code works
 
 `root@docker:~/sgx/samplecode/helloworld/bin# ./app`
 
-### Native without docker (Not recommended)
-
-Install Intel SGX driver and SDK first. And refer to Dockerfile for detail.
-
 ## Build the docker image by yourself
 
-Make sure Intel SGX SDK is properly installed and service started on the host
-OS. Then `cd dockerfile` and run `docker build -t rust-sgx-docker` to build.
+Make sure Intel SGX SDK is properly installed and service started on the host OS. Then `cd dockerfile` and run `docker build -t rust-sgx-docker` to build.
+
+## Use simulation mode for non SGX-enabled machine (includes macOS)
+
+Intel provides a simulation mode so you can develop on regular machines, by building the enclave app using the libraries `sgx_urts_sim`, `lsgx_uae_service_sim`, `sgx_trts_sim`, `sgx_tservice_sim`.
+
+First, pull the docker image. If you'd like to work on stable branch of Rust and `rust-stable` branch of this SDK, please pull `baiduxlab/sgx-rust-stable` instead.
+
+`$ docker pull baiduxlab/sgx-rust`
+
+Second, start a docker with the Rust SGX SDK.
+
+`$ docker run -v /your/path/to/rust-sgx:/root/sgx -ti baiduxlab/sgx-rust`
+
+But when building any sample code, set the `SGX_MODE` to `SW` in `Makefile`.
+
+`root@docker:~/sgx/samplecode/helloworld# vi Makefile`
+
+Replace `SGX_MODE ?= HW` with `SGX_MODE ?= SW`
+
+Finally, check if the sample code works
+
+`root@docker:~/sgx/samplecode/helloworld# make`
+
+`root@docker:~/sgx/samplecode/helloworld# cd bin`
+
+`root@docker:~/sgx/samplecode/helloworld/bin# ./app`
+
+If not set, you could get an error:
+```
+Info: Please make sure SGX module is enabled in the BIOS, and install SGX driver afterwards.
+Error: Invalid SGX device.
+```
 
 # Documents
 
-The online documents for SDK crates can be found
-[here](https://dingelish.github.io/).
+The online documents for SDK crates can be found [here](https://dingelish.github.io/).
 
-We recommend to use `cargo doc` to generate documents for each crate in this
-SDK by yourself.  The auto generated documents are easy to read and search.
+We recommend to use `cargo doc` to generate documents for each crate in this SDK by yourself.  The auto generated documents are easy to read and search.
 
 # Sample Codes
 
-We provide five sample codes to help developers understand how to write Enclave
-codes in Rust. These codes are located at `samplecode` directory.
+We provide eighteen sample codes to help developers understand how to write Enclave codes in Rust. These codes are located at `samplecode` directory.
 
-* `helloworld` is a very simple app. It shows some basic usages of argument
-passing, Rust string and ECALL/OCALLs.
+* `helloworld` is a very simple app. It shows some basic usages of argument passing, Rust string and ECALL/OCALLs.
 
-* `crypto` shows the usage of crypto APIs provided by Intel SGX libraries. It
-does some crypto calculations inside the enclave, which is recommended in most
-circumstances.
+* `crypto` shows the usage of crypto APIs provided by Intel SGX libraries. It does some crypto calculations inside the enclave, which is recommended in most circumstances.
 
-* `localattestation` is a sample ported from the original Intel SGX SDK. It
-shows how to do local attestation in Rust programming language.
+* `localattestation` is a sample ported from the original Intel SGX SDK. It shows how to do local attestation in Rust programming language.
 
-* `sealeddata` sample shows how to seal secret data in an enclave and how to
-verify the sealed data.
+* `sealeddata` sample shows how to seal secret data in an enclave and how to verify the sealed data.
 
-* `thread` sample is a sample ported from the original Intel SGX SDK, showing
-some basic usages of threading APIs.
+* `thread` sample is a sample ported from the original Intel SGX SDK, showing some basic usages of threading APIs.
 
-* `remoteattestation` sample shows how to make remote attestation with
-Rust SGX SDK. The sample is forked from [linux-sgx-attestation](https://github.com/svartkanin/linux-sgx-remoteattestation)
-and credits to Blackrabbit (blackrabbit256@gmail.com). The enclave in Rust
-is shipped in this sample and Makefiles are modified accordingly.
+* `remoteattestation` sample shows how to make remote attestation with Rust SGX SDK. The sample is forked from [linux-sgx-attestation](https://github.com/svartkanin/linux-sgx-remoteattestation) and credits to Blackrabbit (blackrabbit256@gmail.com). The enclave in Rust is shipped in this sample and Makefiles are modified accordingly.
 
-* `hugemem` sample shows how to use huge mem in SGX enclave. In this
-sample, we allocate reserve 31.75GB heap space and allocate 31.625GB buffers!
+* `hugemem` sample shows how to use huge mem in SGX enclave. In this sample, we allocate reserve 31.75GB heap space and allocate 31.625GB buffers!
 
 * `file` sample shows how to read/write files in SGX enclave.
 
@@ -126,8 +130,18 @@ sample, we allocate reserve 31.75GB heap space and allocate 31.625GB buffers!
 * `zlib-lazy-static-sample` shows how to use ported third party crates inside enclave.
 
 * `machine-learning` shows how to use [rusty-machine](https://github.com/AtheMathmo/rusty-machine) for machine learning inside Intel SGX enclave.
-* New! `tls` contains a pair of TLS client/server runs perfectly in SGX enclave!
-* New! `sgxtime` shows how to acquire trusted timestamp via Intel ME. Please refer to this [instruction](documents/sgxtime.md) for detail.
+
+* `tls` contains a pair of TLS client/server runs perfectly in SGX enclave!
+
+* `sgxtime` shows how to acquire trusted timestamp via Intel ME. Please refer to this [instruction](documents/sgxtime.md) for detail.
+
+* `protobuf` shows how to use the ported `rust-protobuf` to pass messages to the enclave using protobuf.
+
+* `wasmi` shows how to pass WebAssembly test suites using the ported WebAssembly interpreter.
+
+* `psi` is a prototype solution of the Private-Set-Intersection problem.
+
+* `secretsharing` shows the usage of Shamir sharing in Rust-SGX environment (provided by @davidp94).
 
 # Samples of ported third-party libraries
 
@@ -137,9 +151,7 @@ As of v0.9.5, we provide 25 ported third-party libraries. All of them could be c
 
 ## Writing EDL
 
-* For fixed-length array in ECALL/OCALL definition, declare it as an array.  For
-dynamic-length array, use the keyword `size=` to let the Intel SGX knows how
-many bytes should be copied.
+* For fixed-length array in ECALL/OCALL definition, declare it as an array.  For dynamic-length array, use the keyword `size=` to let the Intel SGX knows how many bytes should be copied.
 
 ## ECALL Function Naming
 
@@ -147,24 +159,13 @@ many bytes should be copied.
 
 ## Passing/returning arrays
 
-* For dynamic-length array, the only way is to use raw pointers in Rust. There
-are several functions to get/set data using raw pointers such as
-[`offset`](https://doc.rust-lang.org/1.9.0/std/primitive.pointer.html#method.offset)
-method. One can also use
-[`slice::from_raw_parts`](https://doc.rust-lang.org/std/slice/fn.from_raw_parts.html)
-to convert the array to a slice.
+* For dynamic-length array, the only way is to use raw pointers in Rust. There are several functions to get/set data using raw pointers such as [`offset`](https://doc.rust-lang.org/1.9.0/std/primitive.pointer.html#method.offset) method. One can also use [`slice::from_raw_parts`](https://doc.rust-lang.org/std/slice/fn.from_raw_parts.html) to convert the array to a slice.
 
-* For Fixed-length array, the above method is acceptable. And according to
-discussions in [issue 30382](https://github.com/rust-lang/rust/issues/30382)
-and [issue 31227](https://github.com/rust-lang/rust/issues/31227),
-thin-pointers (such as fixed-length array) are FFI-safe for now, but
-undocumented. In the sample codes, we use fixed-length arrays for passing and
-returning some fixed-length data.
+* For Fixed-length array, the above method is acceptable. And according to discussions in [issue 30382](https://github.com/rust-lang/rust/issues/30382) and [issue 31227](https://github.com/rust-lang/rust/issues/31227), thin-pointers (such as fixed-length array) are FFI-safe for now, but undocumented. In the sample codes, we use fixed-length arrays for passing and returning some fixed-length data.
 
 # License
 
-Baidu Rust-SGX SDK is provided under the BSD license. Please refer to the [License file](LICENSE)
-for details.
+Baidu Rust-SGX SDK is provided under the BSD license. Please refer to the [License file](LICENSE) for details.
 
 # Authors
 

@@ -34,7 +34,7 @@ use core::cell::UnsafeCell;
 use core::fmt;
 use core::ops::Deref;
 use core::marker;
-use alloc::boxed::Box;
+use alloc_crate::boxed::Box;
 
 /// The structure of sgx mutex.
 pub struct SgxReentrantThreadMutex {

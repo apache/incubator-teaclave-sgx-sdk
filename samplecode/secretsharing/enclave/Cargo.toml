@@ -1,0 +1,18 @@
+[package]
+name = "Secretsharingenclave"
+version = "1.0.0"
+authors = ["Baidu"]
+
+[lib]
+name = "secretsharingenclave"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types = { path = "../../../sgx_types" }
+sgx_tstd = { path = "../../../sgx_tstd" }
+
+[dependencies]
+threshold-secret-sharing = { path = "../../../third_party/rust-threshold-secret-sharing" }

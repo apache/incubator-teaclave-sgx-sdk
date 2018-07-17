@@ -15,4 +15,3 @@ sgx_tstd = { path =  "../../../sgx_tstd" }
 
 [dependencies.num-traits]
 path = "../traits"
-version = "0.1.32"

@@ -35,9 +35,9 @@ use core::fmt;
 use core::ops::{Deref, DerefMut, Fn};
 use core::ptr::{Unique, NonNull};
 use core::sync::atomic;
-use alloc::boxed::Box;
-use alloc::rc::Rc;
-use alloc::arc::Arc;
+use alloc_crate::boxed::Box;
+use alloc_crate::rc::Rc;
+use alloc_crate::arc::Arc;
 
 pub use panicking::set_panic_handler;
 pub use core::panic::{PanicInfo, Location};

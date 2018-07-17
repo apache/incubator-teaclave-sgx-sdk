@@ -15,7 +15,7 @@ macro_rules! benches {
             $name:ident($value:expr)
         ),*
     ) => {
-        mod bench_itoa {
+        mod bench_itoa_write {
             use test::{Bencher, black_box};
             $(
                 $(#[$attr])*
@@ -33,7 +33,25 @@ macro_rules! benches {
             )*
         }
 
-        mod bench_fmt {
+        mod bench_itoa_fmt {
+            use test::{Bencher, black_box};
+            $(
+                $(#[$attr])*
+                #[bench]
+                fn $name(b: &mut Bencher) {
+                    use itoa;
+
+                    let mut buf = String::with_capacity(40);
+
+                    b.iter(|| {
+                        buf.clear();
+                        itoa::fmt(&mut buf, black_box($value)).unwrap()
+                    });
+                }
+            )*
+        }
+
+        mod bench_std_fmt {
             use test::{Bencher, black_box};
             $(
                 $(#[$attr])*

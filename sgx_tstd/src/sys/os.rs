@@ -39,10 +39,10 @@ use core::marker::PhantomData;
 use core::fmt;
 use core::iter;
 use core::ptr;
-use alloc::slice;
-use alloc::string::String;
-use alloc::str;
-use alloc::vec::{self, Vec};
+use alloc_crate::slice;
+use alloc_crate::string::String;
+use alloc_crate::str;
+use alloc_crate::vec::{self, Vec};
 
 const TMPBUF_SZ: usize = 128;
 static ENV_LOCK: SgxThreadMutex = SgxThreadMutex::new();

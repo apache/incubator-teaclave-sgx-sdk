@@ -46,7 +46,7 @@ use core::ptr;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 use core::marker;
-use alloc::boxed::Box;
+use alloc_crate::boxed::Box;
 
 pub unsafe fn raw_mutex(lock: &mut sgx_thread_mutex_t) -> * mut sgx_thread_mutex_t {
     lock as * mut _

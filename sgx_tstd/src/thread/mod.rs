@@ -34,7 +34,7 @@ use sys_common::thread_info;
 use sync::{SgxMutex, SgxCondvar};
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
-use alloc::arc::Arc;
+use alloc_crate::arc::Arc;
 
 #[macro_use] mod local;
 pub use self::local::{LocalKey, LocalKeyInner, AccessError};

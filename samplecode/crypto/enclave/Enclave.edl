@@ -60,6 +60,8 @@ enclave {
                                      [in] uint8_t key[16],
                                      [out] uint8_t cmac[16]);
 
+        public sgx_status_t rsa_key([in, size=len] const uint8_t* text, size_t len);
+
     };
 
     untrusted {

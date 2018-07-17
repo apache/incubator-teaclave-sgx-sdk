@@ -29,14 +29,12 @@
 use trts;
 use core::sync::atomic::{AtomicPtr, Ordering};
 use core::mem;
-use alloc::heap::AllocErr;
+use core::alloc::AllocErr;
 
 static SGX_OOM_HANDLER: AtomicPtr<()> = AtomicPtr::new(default_oom_handler as * mut ());
 
 #[allow(unused_variables)]
 fn default_oom_handler(err: AllocErr) -> ! {
-
-    //panic!("enclave allocate memory failed.");
     trts::rsgx_abort()
 }
 

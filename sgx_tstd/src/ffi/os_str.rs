@@ -32,11 +32,11 @@ use core::ops;
 use core::cmp;
 use core::hash::{Hash, Hasher};
 use core::fmt;
-use alloc::borrow::{Borrow, Cow, ToOwned};
-use alloc::string::String;
-use alloc::boxed::Box;
-use alloc::rc::Rc;
-use alloc::arc::Arc;
+use alloc_crate::borrow::{Borrow, Cow, ToOwned};
+use alloc_crate::string::String;
+use alloc_crate::boxed::Box;
+use alloc_crate::rc::Rc;
+use alloc_crate::arc::Arc;
 
 
 /// A type that can represent owned, mutable platform-native strings, but is

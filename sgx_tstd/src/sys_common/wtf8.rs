@@ -33,8 +33,7 @@
 // unix (it's mostly used on windows), so don't worry about dead code here.
 #![allow(dead_code)]
 
-use alloc::borrow::Cow;
-use std_unicode::char;
+use core::char;
 use core::str::next_code_point;
 use core::fmt;
 use core::hash::{Hash, Hasher};
@@ -42,9 +41,10 @@ use core::iter::FromIterator;
 use core::mem;
 use core::ops;
 use core::str;
-use alloc::slice;
-use alloc::rc::Rc;
-use alloc::arc::Arc;
+use alloc_crate::slice;
+use alloc_crate::rc::Rc;
+use alloc_crate::arc::Arc;
+use alloc_crate::borrow::Cow;
 use sys_common::AsInner;
 
 const UTF8_REPLACEMENT_CHARACTER: &'static str = "\u{FFFD}";
@@ -882,19 +882,5 @@ impl Hash for Wtf8 {
 }
 
 impl Wtf8 {
-    pub fn is_ascii(&self) -> bool {
-        self.bytes.is_ascii()
-    }
-    pub fn to_ascii_uppercase(&self) -> Wtf8Buf {
-        Wtf8Buf { bytes: self.bytes.to_ascii_uppercase() }
-    }
-    pub fn to_ascii_lowercase(&self) -> Wtf8Buf {
-        Wtf8Buf { bytes: self.bytes.to_ascii_lowercase() }
-    }
-    pub fn eq_ignore_ascii_case(&self, other: &Wtf8) -> bool {
-        self.bytes.eq_ignore_ascii_case(&other.bytes)
-    }
-
     pub fn make_ascii_uppercase(&mut self) { self.bytes.make_ascii_uppercase() }
-    pub fn make_ascii_lowercase(&mut self) { self.bytes.make_ascii_lowercase() }
 }

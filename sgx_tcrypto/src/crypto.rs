@@ -2265,3 +2265,444 @@ pub fn rsgx_rsa3072_verify_slice<T>(data: &[T],
         }
     }
 }
+
+pub fn rsgx_create_rsa_key_pair(n_byte_size: i32,
+                                e_byte_size: i32,
+                                n: &mut [u8],
+                                d: &mut [u8],
+                                e: &mut [u8],
+                                p: &mut [u8],
+                                q: &mut [u8],
+                                dmp1: &mut [u8],
+                                dmq1: &mut [u8],
+                                iqmp: &mut [u8]) -> SgxError {
+
+    if (n_byte_size <= 0) || (e_byte_size <= 0) {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if (n.len() == 0) || (n.len() > i32::max_value() as usize) {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if (d.len() == 0) || (d.len() > i32::max_value() as usize) {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if (e.len() == 0) || (e.len() > i32::max_value() as usize) {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if (p.len() == 0) || (p.len() > i32::max_value() as usize) {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if (q.len() == 0) || (q.len() > i32::max_value() as usize) {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if (dmp1.len() == 0) || (dmp1.len() > i32::max_value() as usize) {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if (dmq1.len() == 0) || (dmq1.len() > i32::max_value() as usize) {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if (iqmp.len() == 0) || (iqmp.len() > i32::max_value() as usize) {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+
+    let ret = unsafe {
+        sgx_create_rsa_key_pair(n_byte_size,
+                                e_byte_size,
+                                n.as_mut_ptr(),
+                                d.as_mut_ptr(),
+                                e.as_mut_ptr(),
+                                p.as_mut_ptr(),
+                                q.as_mut_ptr(),
+                                dmp1.as_mut_ptr(),
+                                dmq1.as_mut_ptr(),
+                                iqmp.as_mut_ptr())
+    };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(()),
+        _ => Err(ret),
+    }
+}
+
+fn rsgx_create_rsa_priv_key(mod_size: i32,
+                            exp_size: i32,
+                            e: &[u8],
+                            p: &[u8],
+                            q: &[u8],
+                            dmp1: &[u8],
+                            dmq1: &[u8],
+                            iqmp: &[u8],
+                            new_pri_key: &mut sgx_rsa_key_t) -> sgx_status_t {
+
+    if (mod_size <= 0) || (exp_size <= 0) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (e.len() == 0) || (e.len() > i32::max_value() as usize) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (p.len() == 0) || (p.len() > i32::max_value() as usize) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (q.len() == 0) || (q.len() > i32::max_value() as usize) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (dmp1.len() == 0) || (dmp1.len() > i32::max_value() as usize) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (dmq1.len() == 0) || (dmq1.len() > i32::max_value() as usize) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (iqmp.len() == 0) || (iqmp.len() > i32::max_value() as usize) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    unsafe {
+        sgx_create_rsa_priv2_key(mod_size,
+                                 exp_size,
+                                 e.as_ptr(),
+                                 p.as_ptr(),
+                                 q.as_ptr(),
+                                 dmp1.as_ptr(),
+                                 dmq1.as_ptr(),
+                                 iqmp.as_ptr(),
+                                 new_pri_key as * mut sgx_rsa_key_t)
+    }
+}
+
+fn rsgx_create_rsa_pub_key(mod_size: i32,
+                           exp_size: i32,
+                           n: &[u8],
+                           e: &[u8],
+                           new_pub_key: &mut sgx_rsa_key_t) -> sgx_status_t {
+
+    if (mod_size <= 0) || (exp_size <= 0) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (n.len() == 0) || (n.len() > i32::max_value() as usize) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (e.len() == 0) || (e.len() > i32::max_value() as usize) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    unsafe {
+        sgx_create_rsa_pub1_key(mod_size,
+                                exp_size,
+                                n.as_ptr(),
+                                e.as_ptr(),
+                                new_pub_key as * mut sgx_rsa_key_t)
+    }
+}
+
+fn rsgx_free_rsa_key(rsa_key: sgx_rsa_key_t,
+                     key_type: sgx_rsa_key_type_t,
+                     mod_size: i32,
+                     exp_size: i32) -> sgx_status_t {
+
+    if (mod_size <= 0) || (exp_size <= 0) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    unsafe {
+        sgx_free_rsa_key(rsa_key, key_type, mod_size, exp_size)
+    }
+}
+
+fn rsgx_rsa_priv_decrypt_sha256(rsa_key: sgx_rsa_key_t,
+                                out_data: &mut [u8],
+                                out_len: &mut usize,
+                                in_data: &[u8]) -> sgx_status_t {
+
+    if in_data.len() == 0 {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if * out_len != 0 && out_data.len() != * out_len {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    unsafe {
+         let mut p_out_data: * mut u8 = ptr::null_mut();
+        if * out_len != 0 {
+            p_out_data = out_data.as_mut_ptr();
+        }
+        sgx_rsa_priv_decrypt_sha256(rsa_key,
+                                    p_out_data,
+                                    out_len as * mut usize,
+                                    in_data.as_ptr(),
+                                    in_data.len())
+    }
+}
+
+fn rsgx_rsa_pub_encrypt_sha256(rsa_key: sgx_rsa_key_t,
+                               out_data: &mut [u8],
+                               out_len: &mut usize,
+                               in_data: &[u8]) -> sgx_status_t {
+
+    if in_data.len() == 0 {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if * out_len != 0 && out_data.len() != * out_len {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    
+    unsafe {
+        let mut p_out_data: * mut u8 = ptr::null_mut();
+        if * out_len != 0 {
+            p_out_data = out_data.as_mut_ptr();
+        }
+        sgx_rsa_pub_encrypt_sha256(rsa_key,
+                                   p_out_data,
+                                   out_len as * mut usize,
+                                   in_data.as_ptr(),
+                                   in_data.len())
+    }
+}
+
+pub struct SgxRsaPrivKey {
+    key: RefCell<sgx_rsa_key_t>,
+    mod_size: Cell<i32>,
+    exp_size: Cell<i32>,
+    createflag: Cell<bool>,
+}
+
+impl SgxRsaPrivKey {
+
+    pub fn new() -> Self {
+        SgxRsaPrivKey {
+            key: RefCell::new(ptr::null_mut() as sgx_rsa_key_t),
+            mod_size: Cell::new(0),
+            exp_size: Cell::new(0),
+            createflag: Cell::new(false),
+        }
+    }
+
+    pub fn create(&self, 
+                  mod_size: i32,
+                  exp_size: i32,
+                  e: &[u8],
+                  p: &[u8],
+                  q: &[u8],
+                  dmp1: &[u8],
+                  dmq1: &[u8],
+                  iqmp: &[u8]) -> SgxError {
+
+        
+        if self.createflag.get() == true {
+            return Ok(());
+        }
+
+        let ret = rsgx_create_rsa_priv_key(mod_size,
+                                           exp_size,
+                                           e,
+                                           p,
+                                           q,
+                                           dmp1,
+                                           dmq1,
+                                           iqmp,
+                                           self.key.borrow_mut().deref_mut());
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                self.mod_size.set(mod_size);
+                self.exp_size.set(exp_size);
+                self.createflag.set(true);
+                Ok(())
+            },
+            _ => Err(ret),
+        }
+    }
+
+    pub fn decrypt_sha256(&self,
+                          out_data: &mut [u8],
+                          out_len: &mut usize,
+                          in_data: &[u8]) -> SgxError {
+
+        if self.createflag.get() == false {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+
+        let ret = rsgx_rsa_priv_decrypt_sha256(*self.key.borrow(),
+                                               out_data,
+                                               out_len,
+                                               in_data);
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                Ok(())
+            },
+            _ => Err(ret),
+        }
+    }
+
+    pub fn free(&self) -> SgxError {
+
+        if self.createflag.get() == false {
+            return Ok(());
+        }
+
+        let ret = {
+            let key = *self.key.borrow();
+            if key.is_null() == true {
+                sgx_status_t::SGX_SUCCESS
+            } else {
+                rsgx_free_rsa_key(key, 
+                                  sgx_rsa_key_type_t::SGX_RSA_PRIVATE_KEY, 
+                                  self.mod_size.get(),
+                                  self.exp_size.get())
+            }
+        };
+
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                self.createflag.set(false);
+                *self.key.borrow_mut() = ptr::null_mut();
+                Ok(())
+            },
+            _ => Err(ret),
+        }
+    }
+}
+
+impl Default for SgxRsaPrivKey {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for SgxRsaPrivKey {
+    fn drop(&mut self) {
+        let _ = self.free();
+    }
+}
+
+pub struct SgxRsaPubKey {
+    key: RefCell<sgx_rsa_key_t>,
+    mod_size: Cell<i32>,
+    exp_size: Cell<i32>,
+    createflag: Cell<bool>,
+}
+
+impl SgxRsaPubKey {
+
+    pub fn new() -> Self {
+        SgxRsaPubKey {
+            key: RefCell::new(ptr::null_mut() as sgx_rsa_key_t),
+            mod_size: Cell::new(0),
+            exp_size: Cell::new(0),
+            createflag: Cell::new(false),
+        }
+    }
+
+    pub fn create(&self, 
+                  mod_size: i32,
+                  exp_size: i32,
+                  n: &[u8],
+                  e: &[u8]) -> SgxError {
+        
+        if self.createflag.get() == true {
+            return Ok(());
+        }
+
+        let ret = rsgx_create_rsa_pub_key(mod_size,
+                                          exp_size,
+                                          n,
+                                          e,
+                                          self.key.borrow_mut().deref_mut());
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                self.mod_size.set(mod_size);
+                self.exp_size.set(exp_size);
+                self.createflag.set(true);
+                Ok(())
+            },
+            _ => Err(ret),
+        }
+    }
+
+    pub fn encrypt_sha256(&self,
+                          out_data: &mut [u8],
+                          out_len: &mut usize, 
+                          in_data: &[u8]) -> SgxError {
+
+        if self.createflag.get() == false {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+
+        let ret = rsgx_rsa_pub_encrypt_sha256(*self.key.borrow(),
+                                              out_data,
+                                              out_len,
+                                              in_data);
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                Ok(())
+            },
+            _ => Err(ret),
+        }
+    }
+
+    pub fn free(&self) -> SgxError {
+
+        if self.createflag.get() == false {
+            return Ok(());
+        }
+
+        let ret = {
+            let key = *self.key.borrow();
+            if key.is_null() == true {
+                sgx_status_t::SGX_SUCCESS
+            } else {
+                rsgx_free_rsa_key(key, 
+                                  sgx_rsa_key_type_t::SGX_RSA_PUBLIC_KEY, 
+                                  self.mod_size.get(),
+                                  self.exp_size.get())
+            }
+        };
+
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                self.createflag.set(false);
+                *self.key.borrow_mut() = ptr::null_mut();
+                Ok(())
+            },
+            _ => Err(ret),
+        }
+    }
+}
+
+impl Default for SgxRsaPubKey {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for SgxRsaPubKey {
+    fn drop(&mut self) {
+        let _ = self.free();
+    }
+}
+
+pub fn rsgx_calculate_ecdsa_priv_key(hash_drg: &[u8],
+                                    sgx_nistp256_r_m1: &[u8],
+                                    out_key: &mut [u8]) -> SgxError {
+
+    if (hash_drg.len() == 0) || (hash_drg.len() > i32::max_value() as usize) {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if (sgx_nistp256_r_m1.len() == 0) || (sgx_nistp256_r_m1.len() > i32::max_value() as usize) {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if (out_key.len() == 0) || (out_key.len() > i32::max_value() as usize) {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+
+    let ret = unsafe {
+        sgx_calculate_ecdsa_priv_key(hash_drg.as_ptr(),
+                                     hash_drg.len() as i32,
+                                     sgx_nistp256_r_m1.as_ptr(),
+                                     sgx_nistp256_r_m1.len() as i32,
+                                     out_key.as_mut_ptr(),
+                                     out_key.len() as i32)
+    };
+
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(()),
+        _ => Err(ret),
+    }
+}

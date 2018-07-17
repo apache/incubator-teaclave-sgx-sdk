@@ -33,9 +33,9 @@ use core::str as core_str;
 use core::fmt;
 use core::result;
 use core::ptr;
-use alloc::vec::Vec;
-use alloc::str;
-use alloc::string::String;
+use alloc_crate::vec::Vec;
+use alloc_crate::str;
+use alloc_crate::string::String;
 
 pub use self::buffered::{BufReader, BufWriter, LineWriter};
 pub use self::buffered::IntoInnerError;
@@ -216,7 +216,7 @@ pub trait Read {
     /// `Read`er - the method only takes `&self` so that it can be used through
     /// trait objects.
     ///
-    /// # Unsafety
+    /// # Safety
     ///
     /// This method is unsafe because a `Read`er could otherwise return a
     /// non-zeroing `Initializer` from another `Read` type without an `unsafe`
@@ -388,7 +388,7 @@ impl Initializer {
 
     /// Returns a new `Initializer` which will not zero out buffers.
     ///
-    /// # Unsafety
+    /// # Safety
     ///
     /// This may only be called by `Read`ers which guarantee that they will not
     /// read from buffers passed to `Read` methods, and that the return value of
@@ -696,8 +696,6 @@ pub trait BufRead: Read {
     ///
     /// If successful, this function will return the total number of bytes read.
     ///
-    /// An empty buffer returned indicates that the stream has reached EOF.
-    ///
     /// # Errors
     ///
     /// This function will ignore all instances of [`ErrorKind::Interrupted`] and
@@ -995,6 +993,7 @@ impl<R: Read> Iterator for Bytes<R> {
 ///
 /// [chars]: trait.Read.html#method.chars
 #[derive(Debug)]
+#[allow(deprecated)]
 pub struct Chars<R> {
     inner: R,
 }
@@ -1002,6 +1001,7 @@ pub struct Chars<R> {
 /// An enumeration of possible errors that can be generated from the `Chars`
 /// adapter.
 #[derive(Debug)]
+#[allow(deprecated)]
 pub enum CharsError {
     /// Variant representing that the underlying stream was read successfully
     /// but it did not contain valid utf8 data.
@@ -1011,6 +1011,7 @@ pub enum CharsError {
     Other(Error),
 }
 
+#[allow(deprecated)]
 impl<R: Read> Iterator for Chars<R> {
     type Item = result::Result<char, CharsError>;
 
@@ -1041,6 +1042,7 @@ impl<R: Read> Iterator for Chars<R> {
     }
 }
 
+#[allow(deprecated)]
 impl std_error::Error for CharsError {
     fn description(&self) -> &str {
         match *self {
@@ -1056,6 +1058,7 @@ impl std_error::Error for CharsError {
     }
 }
 
+#[allow(deprecated)]
 impl fmt::Display for CharsError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {

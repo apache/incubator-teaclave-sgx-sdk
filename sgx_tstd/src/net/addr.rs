@@ -32,8 +32,8 @@ use core::hash;
 use core::mem;
 use core::option;
 use core::iter;
-use alloc::vec;
-use alloc::slice;
+use alloc_crate::vec;
+use alloc_crate::slice;
 use io;
 use net::{ntoh, hton, IpAddr, Ipv4Addr, Ipv6Addr};
 use sys_common::{FromInner, AsInner, IntoInner};
@@ -505,7 +505,6 @@ impl<'a> ToSocketAddrs for (&'a str, u16) {
         }
 
         Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid socket address"))
-        //resolve_socket_addr(host, port)
     }
 }
 
@@ -535,7 +534,6 @@ impl ToSocketAddrs for str {
         let host = try_opt!(parts_iter.next(), "invalid socket address");
         let port: u16 = try_opt!(port_str.parse().ok(), "invalid port value");
         Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid socket address"))
-        //resolve_socket_addr(host, port)
     }
 }
 

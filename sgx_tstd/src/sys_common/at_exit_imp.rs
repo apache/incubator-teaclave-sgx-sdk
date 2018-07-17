@@ -28,7 +28,7 @@
 
 //use sync::SgxThreadMutex;
 use sync::SgxThreadSpinlock;
-use alloc::boxed::{Box, FnBox};
+use alloc_crate::boxed::{Box, FnBox};
 use core::ptr;
 
 type Queue = Vec<Box<FnBox()>>;

@@ -172,10 +172,10 @@ pub fn __rust_begin_short_backtrace<F, T>(f: F) -> T
 /// Controls how the backtrace should be formatted.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum PrintFormat {
-    /// Show all the frames with absolute path for files.
-    Full = 2,
     /// Show only relevant data from the backtrace.
-    Short = 3,
+    Short = 2,
+    /// Show all the frames with absolute path for files.
+    Full = 3,
 }
 
 static ENABLED: atomic::AtomicIsize = atomic::AtomicIsize::new(1);
@@ -185,11 +185,10 @@ static ENABLED: atomic::AtomicIsize = atomic::AtomicIsize::new(1);
 pub fn log_enabled() -> Option<PrintFormat> {
     /*
     match ENABLED.load(Ordering::SeqCst) {
-        0 => {},
+        0 => {}
         1 => return None,
-        2 => return Some(PrintFormat::Full),
-        3 => return Some(PrintFormat::Short),
-        _ => unreachable!(),
+        2 => return Some(PrintFormat::Short),
+        _ => return Some(PrintFormat::Full),
     }
 
     let val: Option<PrintFormat>;
@@ -210,16 +209,16 @@ pub fn log_enabled() -> Option<PrintFormat> {
     match ENABLED.load(Ordering::SeqCst) {
         0 => None,
         1 => None,
-        2 => Some(PrintFormat::Full),
-        3 => Some(PrintFormat::Short),
+        2 => Some(PrintFormat::Short),
+        3 => Some(PrintFormat::Full),
         _ => unreachable!(),
     }
 }
 
 pub fn set_enabled(backtrace: PrintFormat) {
     ENABLED.store(match backtrace {
-        PrintFormat::Full => 2,
-        PrintFormat::Short => 3,
+        PrintFormat::Short => 2,
+        PrintFormat::Full => 3,
     }, Ordering::SeqCst);
 }
 

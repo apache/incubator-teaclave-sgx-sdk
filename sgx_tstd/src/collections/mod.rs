@@ -35,10 +35,10 @@
 //!
 
 pub use ops::Bound;
-pub use alloc::{BinaryHeap, BTreeMap, BTreeSet};
-pub use alloc::{LinkedList, VecDeque};
-pub use alloc::{binary_heap, btree_map, btree_set};
-pub use alloc::{linked_list, vec_deque};
+pub use alloc_crate::{BinaryHeap, BTreeMap, BTreeSet};
+pub use alloc_crate::{LinkedList, VecDeque};
+pub use alloc_crate::{binary_heap, btree_map, btree_set};
+pub use alloc_crate::{linked_list, vec_deque};
 
 pub use self::hash_map::HashMap;
 pub use self::hash_set::HashSet;
@@ -48,7 +48,7 @@ pub mod range {
     pub use ops::RangeBounds as RangeArgument;
 }
 
-pub use alloc::allocator::CollectionAllocErr;
+pub use heap::CollectionAllocErr;
 
 mod hash;
 

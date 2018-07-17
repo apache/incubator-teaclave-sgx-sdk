@@ -461,6 +461,16 @@ extern {
                                         misc_attr: * mut sgx_misc_attribute_t,
                                         sealed_key: * const ::uint8_t) -> sgx_status_t;
 
+    /* intel sgx sdk 2.2 */
+    pub fn sgx_create_enclave_ex(file_name: * const ::c_char,
+                                 debug: ::int32_t,
+                                 launch_token: * mut sgx_launch_token_t,
+                                 launch_token_updated: * mut ::int32_t,
+                                 enclave_id: * mut sgx_enclave_id_t,
+                                 misc_attr: * mut sgx_misc_attribute_t,
+                                 ex_features: ::uint32_t,
+                                 ex_features_p: [* const ::c_void; 32]) -> sgx_status_t;
+
     pub fn sgx_destroy_enclave(enclave_id: sgx_enclave_id_t) -> sgx_status_t;
 }
 

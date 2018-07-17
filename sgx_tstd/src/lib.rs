@@ -70,13 +70,11 @@
 #![feature(fn_traits)]
 #![feature(fnbox)]
 #![feature(fused)]
-#![feature(generic_param_attrs)]
 #![feature(i128)]
 #![feature(int_error_internals)]
 #![feature(hashmap_internals)]
 #![feature(integer_atomics)]
 #![feature(lang_items)]
-#![feature(macro_reexport)]
 #![feature(macro_vis_matcher)]
 #![feature(nonzero)]
 #![feature(needs_panic_runtime)]
@@ -89,7 +87,6 @@
 #![feature(raw)]
 #![feature(shrink_to)]
 #![feature(rustc_attrs)]
-#![feature(sip_hash_13)]
 #![feature(slice_concat_ext)]
 #![feature(str_internals)]
 #![feature(thread_local)]
@@ -97,7 +94,6 @@
 #![feature(try_from)]
 #![feature(try_reserve)]
 #![feature(unboxed_closures)]
-#![feature(unicode)]
 #![feature(untagged_unions)]
 #![feature(unwind_attributes)]
 #![feature(slice_patterns)]
@@ -107,47 +103,50 @@
 #![feature(core_float)]
 #![feature(unique)]
 #![feature(shared)]
+#![feature(std_internals)]
+#![feature(panic_info_message)]
+#![feature(extern_prelude)]
+#![feature(use_extern_macros)]
+#![feature(unicode_internals)]
+#![feature(panic_implementation)]
 
 #![default_lib_allocator]
 
 #[global_allocator]
 static ALLOC: sgx_alloc::System = sgx_alloc::System;
+
 // Explicitly import the prelude. The compiler uses this same unstable attribute
 // to import the prelude implicitly when building crates that depend on std.
 #[prelude_import]
 #[allow(unused)]
 use prelude::v1::*;
 
-// We want to reexport a few macros from core but libcore has already been
-// imported by the compiler (via our #[no_std] attribute) In this case we just
-// add a new crate name so we can attach the reexports to it.
-#[macro_reexport(assert_eq, assert_ne, debug_assert, debug_assert_eq,
-                 debug_assert_ne, unreachable, unimplemented, write, writeln, try)]
-#[macro_use]
-extern crate core as __core;
+// Re-export a few macros from core
+pub use core::{assert_eq, assert_ne, debug_assert, debug_assert_eq, debug_assert_ne};
+pub use core::{unreachable, unimplemented, write, writeln, try};
 
-#[allow(unused_imports)]
+#[allow(unused_imports)] // macros from `alloc` are not used on all platforms
 #[macro_use]
-#[macro_reexport(vec, format)]
-extern crate alloc;
-extern crate std_unicode;
-//#[cfg(all(target_env = "sgx", feature = "backtrace"))]
-//extern crate libc;
+extern crate alloc as alloc_crate;
 
 // We always need an unwinder currently for backtraces
 #[cfg(feature = "backtrace")]
 extern crate sgx_unwind;
 
 // compiler-rt intrinsics
+#[cfg(stage0)]
 extern crate compiler_builtins;
 
 extern crate sgx_alloc;
+
 #[macro_use]
-#[macro_reexport(cfg_if, __cfg_if_items, __cfg_if_apply)]
 extern crate sgx_types;
+pub use sgx_types::{cfg_if, __cfg_if_items, __cfg_if_apply};
+
 #[macro_use]
-#[macro_reexport(global_ctors_object, global_dtors_object)]
 extern crate sgx_trts;
+pub use sgx_trts::{global_ctors_object, global_dtors_object};
+
 extern crate sgx_tprotected_fs;
 
 // The standard macros that are not built-in to the compiler.
@@ -187,15 +186,17 @@ pub use core::u16;
 pub use core::u32;
 pub use core::u64;
 pub use core::u128;
-pub use alloc::boxed;
-pub use alloc::rc;
-pub use alloc::borrow;
-pub use alloc::fmt;
-pub use alloc::slice;
-pub use alloc::str;
-pub use alloc::string;
-pub use alloc::vec;
-pub use std_unicode::char;
+pub use core::char;
+pub use core::hint;
+pub use alloc_crate::boxed;
+pub use alloc_crate::rc;
+pub use alloc_crate::borrow;
+pub use alloc_crate::fmt;
+pub use alloc_crate::format;
+pub use alloc_crate::slice;
+pub use alloc_crate::str;
+pub use alloc_crate::string;
+pub use alloc_crate::vec;
 
 pub mod f32;
 pub mod f64;
@@ -218,13 +219,19 @@ pub mod panic;
 pub mod path;
 pub mod sync;
 pub mod time;
-pub mod heap;
 pub mod enclave;
 pub mod untrusted;
+/// Use the `alloc` module instead.
+pub mod heap {
+    pub use alloc::*;
+}
 
 // Platform-abstraction modules
+#[macro_use]
 mod sys_common;
 mod sys;
+
+pub mod alloc;
 
 // Private support modules
 mod panicking;

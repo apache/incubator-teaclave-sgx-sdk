@@ -142,13 +142,7 @@ impl OpenOptionsExt for OpenOptions {
     }
 }
 
-// Hm, why are there casts here to the returned type, shouldn't the types always
-// be the same? Right you are! Turns out, however, on android at least the types
-// in the raw `stat` structure are not the same as the types being returned. Who
-// knew!
-//
-// As a result to make sure this compiles for all platforms we do the manual
-// casts and rely on manual lowering to `stat` if the raw type is desired.
+/// Unix-specific extensions to fs::Metadata.
 pub trait MetadataExt {
     /// Returns the ID of the device containing the file.
     ///
@@ -221,7 +215,10 @@ impl MetadataExt for fs::Metadata {
     fn blocks(&self) -> u64 { self.st_blocks() }
 }
 
-/// Add support for special unix types (block/char device, fifo and socket).
+/// Unix-specific extensions for FileType.
+///
+/// Adds support for special Unix file types such as block/character devices,
+/// pipes, and sockets.
 pub trait FileTypeExt {
     /// Returns whether this file type is a block device.
     ///

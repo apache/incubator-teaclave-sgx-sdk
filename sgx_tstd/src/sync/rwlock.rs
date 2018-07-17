@@ -39,7 +39,7 @@ use core::mem;
 use core::ptr;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
-use alloc::boxed::Box;
+use alloc_crate::boxed::Box;
 
 struct RwLockInfo {
     readers_num: u32,

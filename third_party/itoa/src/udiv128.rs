@@ -21,6 +21,7 @@
 // (https://github.com/rust-lang/rust/issues/44545) and to allow function
 // inlining which doesn’t happen with the intrinsic.
 
+#[inline]
 pub fn udivmod_1e19(n: u128) -> (u128, u64) {
     let d = 10_000_000_000_000_000_000_u64; // 10^19
 

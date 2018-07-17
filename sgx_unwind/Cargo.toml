@@ -1,7 +1,7 @@
 [package]
 authors = ["The Rust Project Developers"]
 name = "sgx_unwind"
-version = "0.0.0"
+version = "0.0.1"
 build = "build.rs"
 repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"

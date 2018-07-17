@@ -26,23 +26,43 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use alloc::allocator;
 use core::any::TypeId;
 use core::cell;
 use core::mem::transmute;
 use core::num;
 use core::array;
 use core::fmt::{self, Debug, Display};
-use alloc::str;
-use alloc::string::{self, String};
-use alloc::boxed::Box;
-use alloc::borrow::Cow;
-use std_unicode::char;
+use alloc_crate::str;
+use alloc_crate::string::{self, String};
+use alloc_crate::boxed::Box;
+use alloc_crate::borrow::Cow;
+use alloc_crate::heap::{AllocErr, LayoutErr, CannotReallocInPlace};
+use core::char;
 
-/// Base functionality for all errors in Rust.
+/// `Error` is a trait representing the basic expectations for error values,
+/// i.e. values of type `E` in [`Result<T, E>`]. Errors must describe
+/// themselves through the [`Display`] and [`Debug`] traits, and may provide
+/// cause chain information:
+///
+/// The [`cause`] method is generally used when errors cross "abstraction
+/// boundaries", i.e.  when a one module must report an error that is "caused"
+/// by an error from a lower-level module. This setup makes it possible for the
+/// high-level module to provide its own errors that do not commit to any
+/// particular implementation, but also reveal some of its implementation for
+/// debugging via [`cause`] chains.
+///
 pub trait Error: Debug + Display {
-    /// A short description of the error.
-    fn description(&self) -> &str;
+    /// **This method is soft-deprecated.**
+    ///
+    /// Although using it won’t cause compilation warning,
+    /// new code should use [`Display`] instead
+    /// and new `impl`s can omit it.
+    ///
+    /// To obtain error description as a string, use `to_string()`.
+    ///
+    fn description(&self) -> &str {
+        "description() is deprecated; use Display"
+    }
 
     /// The lower-level cause of this error, if any.
     fn cause(&self) -> Option<&Error> { None }
@@ -120,15 +140,21 @@ impl Error for ! {
     fn description(&self) -> &str { *self }
 }
 
-impl Error for allocator::AllocErr {
+impl Error for AllocErr {
     fn description(&self) -> &str {
-        allocator::AllocErr::description(self)
+        "memory allocation failed"
     }
 }
 
-impl Error for allocator::CannotReallocInPlace {
+impl Error for LayoutErr {
     fn description(&self) -> &str {
-        allocator::CannotReallocInPlace::description(self)
+        "invalid parameters to Layout::from_size_align"
+    }
+}
+
+impl Error for CannotReallocInPlace {
+    fn description(&self) -> &str {
+        CannotReallocInPlace::description(self)
     }
 }
 
