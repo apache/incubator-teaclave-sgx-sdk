@@ -81,6 +81,7 @@
 #![feature(const_atomic_ptr_new)]
 #![feature(ascii_ctype)]
 #![feature(asm)]
+#![feature(lang_items)]
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 #![allow(overflowing_literals)]

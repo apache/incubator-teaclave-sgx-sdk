@@ -114,7 +114,7 @@ fn fft3_in_place_rearrange<F: Field>(_zp: &F, data: &mut [F::U]) {
 
 fn fft3_in_place_compute<F: Field>(zp: &F, data: &mut [F::U], omega: F::U) {
     let mut step = 1;
-    let big_omega = zp.qpow(omega, (data.len() as u32 / 3));
+    let big_omega = zp.qpow(omega, data.len() as u32 / 3);
     let big_omega_sq = zp.mul(big_omega, big_omega);
     while step < data.len() {
         let jump = 3 * step;

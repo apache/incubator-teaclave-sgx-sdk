@@ -36,7 +36,7 @@ use alloc::borrow::{Borrow, Cow, ToOwned};
 use alloc::string::String;
 use alloc::boxed::Box;
 use alloc::rc::Rc;
-use alloc::arc::Arc;
+use alloc::sync::Arc;
 
 
 /// A type that can represent owned, mutable platform-native strings, but is

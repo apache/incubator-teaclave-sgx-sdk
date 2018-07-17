@@ -12,3 +12,4 @@ serde = {version = "1.0"}
 serde_json = {version = "1.0.17"}
 serde_derive = {version = "1.0.5"}
 wasmi = { path = "wasmi-0.1.1", version = "0.1.1" }
+dirs = "1.0.2"

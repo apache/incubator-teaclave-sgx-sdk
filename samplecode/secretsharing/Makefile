@@ -30,7 +30,7 @@
 ######## SGX SDK Settings ########
 
 SGX_SDK ?= /opt/intel/sgxsdk
-SGX_MODE ?= SW
+SGX_MODE ?= HW
 SGX_ARCH ?= x64
 
 ifeq ($(shell getconf LONG_BIT), 32)

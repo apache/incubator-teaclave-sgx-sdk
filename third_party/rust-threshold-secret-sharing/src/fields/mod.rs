@@ -95,6 +95,7 @@ pub trait Field {
     }
 }
 
+#[allow(unused_macros)]
 macro_rules! all_fields_test {
     ($field:ty) => {
         #[test] fn test_convert() { ::fields::test::test_convert::<$field>(); }

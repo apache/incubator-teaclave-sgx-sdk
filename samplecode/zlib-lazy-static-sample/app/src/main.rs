@@ -28,13 +28,13 @@
 
 extern crate sgx_types;
 extern crate sgx_urts;
+extern crate dirs;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
 use std::io::{Read, Write};
 use std::fs;
 use std::path;
-use std::env;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
@@ -52,7 +52,7 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
     // 
     // try to get the token saved in $HOME */
     let mut home_dir = path::PathBuf::new();
-    let use_token = match env::home_dir() {
+    let use_token = match dirs::home_dir() {
         Some(path) => {
             println!("[+] Home dir is {}", path.display());
             home_dir = path;

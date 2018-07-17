@@ -26,7 +26,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use alloc::allocator;
 use core::any::TypeId;
 use core::cell;
 use core::mem::transmute;
@@ -37,7 +36,8 @@ use alloc::str;
 use alloc::string::{self, String};
 use alloc::boxed::Box;
 use alloc::borrow::Cow;
-use std_unicode::char;
+use alloc::alloc;
+use core::char;
 
 /// Base functionality for all errors in Rust.
 pub trait Error: Debug + Display {
@@ -120,15 +120,15 @@ impl Error for ! {
     fn description(&self) -> &str { *self }
 }
 
-impl Error for allocator::AllocErr {
+impl Error for alloc::AllocErr {
     fn description(&self) -> &str {
-        allocator::AllocErr::description(self)
+        "memory allocation failed"
     }
 }
 
-impl Error for allocator::CannotReallocInPlace {
+impl Error for alloc::CannotReallocInPlace {
     fn description(&self) -> &str {
-        allocator::CannotReallocInPlace::description(self)
+        alloc::CannotReallocInPlace::description(self)
     }
 }
 

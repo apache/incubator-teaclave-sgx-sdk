@@ -52,7 +52,7 @@ use alloc::vec::Vec;
 use alloc::string::String;
 use alloc::slice;
 use alloc::rc::Rc;
-use alloc::arc::Arc;
+use alloc::sync::Arc;
 
 use alloc::str::{self, Utf8Error};
 

@@ -1,6 +1,6 @@
 [package]
 name = "sgx_tprotected_fs"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Baidu"]
 repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"

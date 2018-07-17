@@ -12,11 +12,17 @@
 //! traditional Shamir sharing and its packet (or ramp) variant.
 //! For now, secrets and shares are fixed as prime field elements
 //! represented by `i64` values.
-#![no_std]
 
-extern crate sgx_rand as rand;
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+
+#![feature(slice_concat_ext)]
+
+#[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
+
+extern crate sgx_rand as rand;
 
 mod fields;
 mod numtheory;

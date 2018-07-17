@@ -9,7 +9,8 @@
 #   * Redistributions of source code must retain the above copyright
 #     notice, this list of conditions and the following disclaimer.
 #   * Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in #     the documentation and/or other materials provided with the
+#     notice, this list of conditions and the following disclaimer in
+#     the documentation and/or other materials provided with the
 #     distribution.
 #   * Neither the name of Baidu, Inc., nor the names of its
 #     contributors may be used to endorse or promote products derived
@@ -54,8 +55,8 @@ RUN mkdir /root/sgx && \
 #    cd jhi && mkdir build && cd build && cmake .. && make && make install && \
 #    systemctl enable jhi
 
-RUN wget -O /root/sgx/psw.bin https://download.01.org/intel-sgx/linux-2.1.3/ubuntu64-desktop/sgx_linux_x64_psw_2.1.103.44322.bin && \
-    wget -O /root/sgx/sdk.bin https://download.01.org/intel-sgx/linux-2.1.3/ubuntu64-desktop/sgx_linux_x64_sdk_2.1.103.44322.bin && \
+RUN wget -O /root/sgx/psw.bin https://download.01.org/intel-sgx/linux-2.2/ubuntu64-desktop/sgx_linux_x64_psw_2.2.100.45311.bin && \
+    wget -O /root/sgx/sdk.bin https://download.01.org/intel-sgx/linux-2.2/ubuntu64-desktop/sgx_linux_x64_sdk_2.2.100.45311.bin && \
     cd /root/sgx && \
     chmod +x /root/sgx/psw.bin && \
     /root/sgx/psw.bin && \
@@ -65,18 +66,18 @@ RUN wget -O /root/sgx/psw.bin https://download.01.org/intel-sgx/linux-2.1.3/ubun
 
 ADD all.patch /root/
 
-RUN wget -O /root/src.tar.gz https://github.com/intel/linux-sgx/archive/sgx_2.1.3.tar.gz && \
-    cd /root && tar xzf src.tar.gz && \
-    cd /root/linux-sgx-sgx_2.1.3 && patch -t -p1 < ../all.patch && \
-    /root/linux-sgx-sgx_2.1.3/download_prebuilt.sh && \
-    cd /root/linux-sgx-sgx_2.1.3 && make -j && \
-    cp /root/linux-sgx-sgx_2.1.3/build/linux/libsgx_tstdc.a /opt/sgxsdk/lib64/libsgx_tstdc.a && \
-    cp /root/linux-sgx-sgx_2.1.3/build/linux/aesm_service /opt/intel/sgxpsw/aesm/aesm_service && \
-    cp /root/linux-sgx-sgx_2.1.3/build/linux/libsgx_uae_service.so /usr/lib/libsgx_uae_service.so
+RUN wget -O /root/src.tar.gz https://github.com/intel/linux-sgx/archive/sgx_2.2.tar.gz && \
+     cd /root && tar xzf src.tar.gz && \
+     cd /root/linux-sgx-sgx_2.2 && patch -t -p1 < ../all.patch && \
+     /root/linux-sgx-sgx_2.2/download_prebuilt.sh && \
+     cd /root/linux-sgx-sgx_2.2 && make -j && \
+     cp /root/linux-sgx-sgx_2.2/build/linux/libsgx_tstdc.a /opt/sgxsdk/lib64/libsgx_tstdc.a && \
+     cp /root/linux-sgx-sgx_2.2/build/linux/aesm_service /opt/intel/sgxpsw/aesm/aesm_service && \
+     cp /root/linux-sgx-sgx_2.2/build/linux/libsgx_uae_service.so /usr/lib/libsgx_uae_service.so
 
 RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init && \
     chmod +x /root/rustup-init && \
-    echo '1' | /root/rustup-init --default-toolchain nightly-2018-04-12 && \
+    echo '1' | /root/rustup-init --default-toolchain nightly-2018-07-16 && \
     echo 'source /root/.cargo/env' >> /root/.bashrc && \
     /root/.cargo/bin/rustup component add rust-src && \
     /root/.cargo/bin/cargo install xargo && \

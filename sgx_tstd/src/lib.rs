@@ -51,7 +51,6 @@
 #![allow(dead_code)]
 
 #![feature(alloc)]
-#![feature(global_allocator)]
 #![feature(allocator_api)]
 #![feature(allocator_internals)]
 #![feature(allow_internal_unstable)]
@@ -74,7 +73,6 @@
 #![feature(hashmap_internals)]
 #![feature(integer_atomics)]
 #![feature(lang_items)]
-#![feature(macro_reexport)]
 #![feature(macro_vis_matcher)]
 #![feature(nonzero)]
 #![feature(needs_panic_runtime)]
@@ -102,6 +100,12 @@
 #![feature(panic_unwind)]
 #![feature(libc)]
 #![feature(panic_internals)]
+#![feature(std_internals)]
+#![feature(panic_info_message)]
+#![feature(extern_prelude)]
+#![feature(use_extern_macros)]
+#![feature(unicode_internals)]
+#![feature(panic_implementation)]
 
 #![default_lib_allocator]
 
@@ -116,18 +120,15 @@ use prelude::v1::*;
 // We want to reexport a few macros from core but libcore has already been
 // imported by the compiler (via our #[no_std] attribute) In this case we just
 // add a new crate name so we can attach the reexports to it.
-#[macro_reexport(assert_eq, assert_ne, debug_assert, debug_assert_eq,
-                 debug_assert_ne, unreachable, unimplemented, write, writeln, try)]
+pub use core::{assert_eq, assert_ne, debug_assert, debug_assert_eq,debug_assert_ne, unreachable, unimplemented, write, writeln, try};
+
 #[macro_use]
 extern crate core as __core;
 
-#[allow(unused_imports)]
 #[macro_use]
-#[macro_reexport(vec, format)]
 extern crate alloc;
-extern crate std_unicode;
-//#[cfg(all(target_env = "sgx", feature = "backtrace"))]
-//extern crate libc;
+
+pub use core::unicode::*;
 
 // We always need an unwinder currently for backtraces
 #[cfg(feature = "backtrace")]
@@ -139,11 +140,13 @@ extern crate compiler_builtins;
 
 extern crate sgx_alloc;
 #[macro_use]
-#[macro_reexport(cfg_if, __cfg_if_items, __cfg_if_apply)]
 extern crate sgx_types;
+pub use sgx_types::{cfg_if, __cfg_if_items, __cfg_if_apply};
+
 #[macro_use]
-#[macro_reexport(global_ctors_object, global_dtors_object)]
 extern crate sgx_trts;
+pub use sgx_trts::{global_ctors_object, global_dtors_object};
+
 extern crate sgx_tprotected_fs;
 
 // The standard macros that are not built-in to the compiler.
@@ -183,6 +186,7 @@ pub use core::u16;
 pub use core::u32;
 pub use core::u64;
 pub use core::u128;
+pub use core::char;
 pub use alloc::boxed;
 pub use alloc::rc;
 pub use alloc::borrow;
@@ -191,7 +195,7 @@ pub use alloc::slice;
 pub use alloc::str;
 pub use alloc::string;
 pub use alloc::vec;
-pub use std_unicode::char;
+pub use alloc::format;
 
 pub mod f32;
 pub mod f64;
@@ -214,7 +218,7 @@ pub mod panic;
 pub mod path;
 pub mod sync;
 pub mod time;
-pub mod heap;
+//pub mod heap;
 pub mod enclave;
 pub mod untrusted;
 
@@ -239,5 +243,4 @@ pub mod backtrace;
 pub use cpuid::*;
 pub use self::thread::{rsgx_thread_self, rsgx_thread_equal};
 
-
-
+pub use sgx_trts::oom::rust_oom;

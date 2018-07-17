@@ -49,7 +49,7 @@ use ffi::{OsStr, OsString};
 use sys::path::{is_sep_byte, is_verbatim_sep, MAIN_SEP_STR, parse_prefix};
 use alloc::borrow::{Borrow, Cow};
 use alloc::rc::Rc;
-use alloc::arc::Arc;
+use alloc::sync::Arc;
 use core::cmp;
 use core::fmt;
 use core::hash::{Hash, Hasher};

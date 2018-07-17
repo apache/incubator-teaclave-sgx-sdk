@@ -39,14 +39,14 @@
 //!
 use sgx_types::{self, SysError, sgx_thread_mutex_t, sgx_thread_cond_t, sgx_thread_condattr_t};
 use sgx_trts::libc;
-use sgx_trts::oom;
+use sgx_trts::trts::rsgx_abort;
 use super::mutex::{self, SgxThreadMutex, SgxMutexGuard};
 use sys_common::poison::{LockResult, PoisonError};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use core::cell::UnsafeCell;
 use core::fmt;
 use core::mem;
-use alloc::heap::{AllocErr, Layout};
+use core::alloc::{AllocErr, Layout};
 use alloc::boxed::Box;
 
 pub unsafe fn raw_cond(lock: &mut sgx_thread_cond_t) -> * mut sgx_thread_cond_t {
@@ -379,9 +379,10 @@ impl SgxCondvar {
             let ret = self.inner.broadcast();
             match ret {
                 Err(r) if r == libc::ENOMEM => {
-                    let layout = Layout::from_size_align(mem::size_of::<usize>(), 1).unwrap();
-                    let err = AllocErr::Exhausted { request: layout };
-                    oom::rsgx_oom(err)
+                    //let _layout = Layout::from_size_align(mem::size_of::<usize>(), 1).unwrap();
+                    //let err = AllocErr::Exhausted { request: layout };
+                    //oom::rsgx_oom(err)
+                    rsgx_abort()
                 },
                 _ => {},
             }

@@ -37,7 +37,7 @@ use core::ptr::{Unique, NonNull};
 use core::sync::atomic;
 use alloc::boxed::Box;
 use alloc::rc::Rc;
-use alloc::arc::Arc;
+use alloc::sync::Arc;
 
 pub use panicking::set_panic_handler;
 pub use core::panic::{PanicInfo, Location};

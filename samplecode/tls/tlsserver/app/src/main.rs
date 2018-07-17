@@ -31,6 +31,7 @@
 
 extern crate sgx_types;
 extern crate sgx_urts;
+extern crate dirs;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
@@ -41,7 +42,6 @@ use std::os::unix::io::AsRawFd;
 use std::ffi::CString;
 use std::fs;
 use std::path;
-use std::env;
 use std::net;
 use std::str;
 use std::ptr;
@@ -80,7 +80,7 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
     //
     // try to get the token saved in $HOME */
     let mut home_dir = path::PathBuf::new();
-    let use_token = match env::home_dir() {
+    let use_token = match dirs::home_dir() {
         Some(path) => {
             println!("[+] Home dir is {}", path.display());
             home_dir = path;

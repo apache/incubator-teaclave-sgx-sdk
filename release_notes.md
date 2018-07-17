@@ -1,3 +1,16 @@
+# Rust SGX SDK v1.0.1 Release Notes
+
+**Support Intel SGX SDK v2.2**
+
+**Support Rust nightly-2018-07-16**
+
+**Support Rust stable-2018-07-10**
+
+**New third party libraries** bytes, http, iovec, rust-crypto, rust-fnv and rust-threshold-secret-sharing.
+
+**New code sample** Thanks to @davidp94 for the secretsharing code sample.
+
+
 # Rust SGX SDK v1.0.0 Release Notes
 
 Baidu X-Lab provides Rust SGX SDK that is a bundle of basic libraries, scripts and ported libraries for developing Intel SGX programs in Rust programming language. Based on this SDK, developers could easily build up their SGX programs in Rust. Rust SGX SDK provides the strongest defence and helps protect the secret data reside in an enclave effectively even when the OS is compromised. It is important to real world data privacy and cloud security. Since the first day of open source, we have recevied many recommendations and supports from both academic and industry. Today, we are proudly releasing the 1.0.0 version of Rust SGX SDK, indicating that Rust SGX SDK is becoming stable and ready for production.

@@ -116,6 +116,8 @@ impl_enum! {
         SGX_ERROR_WASM_LOAD_MODULE_ERROR        = 0x0F00F003,   /* sgxwasm loadmodule error */
         SGX_ERROR_WASM_TRY_LOAD_ERROR           = 0x0F00F004,   /* sgxwasm tryload error */
         SGX_ERROR_WASM_REGISTER_ERROR           = 0x0F00F005,   /* sgxwasm register error */
+        SGX_ERROR_FAAS_BUFFER_TOO_SHORT         = 0x0F00E001,   /* faas output buffer not long enough */
+        SGX_ERROR_FAAS_INTERNAL_ERROR           = 0x0F00E002,   /* faas exec internal error */
     }
 }
 
@@ -198,6 +200,8 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_WASM_LOAD_MODULE_ERROR => "sgxwasm loadmodule error.",
             sgx_status_t::SGX_ERROR_WASM_TRY_LOAD_ERROR => "sgxwasm tryload error.",
             sgx_status_t::SGX_ERROR_WASM_REGISTER_ERROR => "sgxwasm register error.",
+            sgx_status_t::SGX_ERROR_FAAS_BUFFER_TOO_SHORT => "faas output buffer too short.",
+            sgx_status_t::SGX_ERROR_FAAS_INTERNAL_ERROR => "faas exec internal error.",
         }
     }
 
@@ -279,6 +283,8 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_WASM_LOAD_MODULE_ERROR => "SGX_ERROR_WASM_LOAD_MODULE_ERROR",
             sgx_status_t::SGX_ERROR_WASM_TRY_LOAD_ERROR    => "SGX_ERROR_WASM_TRY_LOAD_ERROR",
             sgx_status_t::SGX_ERROR_WASM_REGISTER_ERROR    => "SGX_ERROR_WASM_REGISTER_ERROR",
+            sgx_status_t::SGX_ERROR_FAAS_BUFFER_TOO_SHORT   => "SGX_ERROR_FAAS_BUFFER_TOO_SHORT",
+            sgx_status_t::SGX_ERROR_FAAS_INTERNAL_ERROR => "SGX_ERROR_FAAS_INTERNAL_ERROR",
         }
     }
 }

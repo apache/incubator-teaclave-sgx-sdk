@@ -26,6 +26,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use core::default::Default;
+use core::mem::transmute;
 use error::*;
 use marker::ContiguousMemory;
 
@@ -674,6 +676,8 @@ pub const DMP1_SIZE_IN_UINT: ::size_t   = (DMP1_SIZE_IN_BYTES / 4);
 pub const DMQ1_SIZE_IN_UINT: ::size_t   = (DMQ1_SIZE_IN_BYTES / 4);
 pub const IQMP_SIZE_IN_UINT: ::size_t   = (IQMP_SIZE_IN_BYTES / 4);
 
+pub type sgx_rsa_key_t = * mut ::c_void;
+
 
 /* intel sgx sdk 2.1.3 */
 impl_copy_clone! {
@@ -933,26 +937,26 @@ impl_struct! {
 //
 
 
-pub type sgx_ecall_get_ga_trusted_t = fn(eid: sgx_enclave_id_t,
-                                         retval: * mut sgx_status_t,
-                                         context: sgx_ra_context_t,
-                                         g_a: * mut sgx_ec256_public_t) -> sgx_status_t;
+pub type sgx_ecall_get_ga_trusted_t = extern "C" fn(eid: sgx_enclave_id_t,
+                                                    retval: * mut sgx_status_t,
+                                                    context: sgx_ra_context_t,
+                                                    g_a: * mut sgx_ec256_public_t) -> sgx_status_t;
 
-pub type sgx_ecall_proc_msg2_trusted_t = fn(eid: sgx_enclave_id_t,
-                                            retval: * mut sgx_status_t,
-                                            context: sgx_ra_context_t,
-                                            p_msg2: * const sgx_ra_msg2_t,
-                                            p_qe_target: * const sgx_target_info_t,
-                                            p_report: * mut sgx_report_t,
-                                            nonce: * mut sgx_quote_nonce_t) -> sgx_status_t;
+pub type sgx_ecall_proc_msg2_trusted_t = extern "C" fn(eid: sgx_enclave_id_t,
+                                                       retval: * mut sgx_status_t,
+                                                       context: sgx_ra_context_t,
+                                                       p_msg2: * const sgx_ra_msg2_t,
+                                                       p_qe_target: * const sgx_target_info_t,
+                                                       p_report: * mut sgx_report_t,
+                                                       nonce: * mut sgx_quote_nonce_t) -> sgx_status_t;
 
-pub type sgx_ecall_get_msg3_trusted_t = fn(eid: sgx_enclave_id_t,
-                                           retval: * mut sgx_status_t,
-                                           context: sgx_ra_context_t,
-                                           quote_size: ::uint32_t,
-                                           qe_report: * mut sgx_report_t,
-                                           p_msg3: * mut sgx_ra_msg3_t,
-                                           msg3_size: ::uint32_t) -> sgx_status_t;
+pub type sgx_ecall_get_msg3_trusted_t = extern "C" fn(eid: sgx_enclave_id_t,
+                                                      retval: * mut sgx_status_t,
+                                                      context: sgx_ra_context_t,
+                                                      quote_size: ::uint32_t,
+                                                      qe_report: * mut sgx_report_t,
+                                                      p_msg3: * mut sgx_ra_msg3_t,
+                                                      msg3_size: ::uint32_t) -> sgx_status_t;
 
 //
 // sgx_urts.h
@@ -961,15 +965,21 @@ pub type sgx_ecall_get_msg3_trusted_t = fn(eid: sgx_enclave_id_t,
 
 pub type sgx_launch_token_t = [::uint8_t; 1024];
 
-
-
+/* intel sgx sdk 2.2 */
+pub const MAX_EX_FEATURES_COUNT: ::size_t = 32;
+pub const SGX_CREATE_ENCLAVE_EX_PCL_BIT_IDX: ::size_t = 0;
+pub const SGX_CREATE_ENCLAVE_EX_PCL: ::uint32_t = (1 << SGX_CREATE_ENCLAVE_EX_PCL_BIT_IDX as ::uint32_t);
+pub const SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX: ::size_t = 1;
+pub const SGX_CREATE_ENCLAVE_EX_SWITCHLESS: ::uint32_t = (1 << SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX as ::uint32_t);
+pub const _SGX_LAST_EX_FEATURE_IDX_: ::uint32_t = SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX as ::uint32_t;
+pub const _SGX_EX_FEATURES_MASK_: ::uint32_t = (0xFFFFFFFF_u32 >> (MAX_EX_FEATURES_COUNT as ::uint32_t - 1 - _SGX_LAST_EX_FEATURE_IDX_));
 //
 // trts.pic.h
 //
-pub const ENCLAVE_INIT_NOT_STARTED: u32 = 0;
-pub const ENCLAVE_INIT_IN_PROGRESS: u32 = 1;
-pub const ENCLAVE_INIT_DONE: u32        = 2;
-pub const ENCLAVE_CRASHED: u32          = 3;
+pub const ENCLAVE_INIT_NOT_STARTED: ::uint32_t = 0;
+pub const ENCLAVE_INIT_IN_PROGRESS: ::uint32_t = 1;
+pub const ENCLAVE_INIT_DONE: ::uint32_t        = 2;
+pub const ENCLAVE_CRASHED: ::uint32_t          = 3;
 
 //
 // sgx_cpuid.h
@@ -1002,7 +1012,6 @@ pub const FOPEN_MAX: ::c_uint = 20;     //define in sgx_tprotected_fs.h
 //
 /* intel sgx sdk 2.0 */
 impl_enum! {
-
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq)]
     pub enum sgx_device_status_t {
@@ -1011,8 +1020,71 @@ impl_enum! {
         SGX_DISABLED_LEGACY_OS          = 2,  /* SGX is disabled and a Software Control Interface is not available to enable it */
         SGX_DISABLED                    = 3,  /* SGX is not enabled on this platform. More details are unavailable */
         SGX_DISABLED_SCI_AVAILABLE      = 4,  /* SGX is disabled, but a Software Control Interface is available to enable it */
-        SGX_DISABLED_MANUAL_ENABLE      = 5, /* SGX is disabled, but can be enabled manually in the BIOS setup */
-        SGX_DISABLED_HYPERV_ENABLED     = 6, /* Detected an unsupported version of Windows* 10 with Hyper-V enabled */
-        SGX_DISABLED_UNSUPPORTED_CPU    = 7, /* SGX is not supported by this CPU */
+        SGX_DISABLED_MANUAL_ENABLE      = 5,  /* SGX is disabled, but can be enabled manually in the BIOS setup */
+        SGX_DISABLED_HYPERV_ENABLED     = 6,  /* Detected an unsupported version of Windows* 10 with Hyper-V enabled */
+        SGX_DISABLED_UNSUPPORTED_CPU    = 7,  /* SGX is not supported by this CPU */
+    }
+}
+
+
+//
+// sgx_uswitchless.h
+//
+
+/* intel sgx sdk 2.2 */
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq)]
+    pub enum sgx_uswitchless_worker_type_t {
+        SGX_USWITCHLESS_WORKER_TYPE_UNTRUSTED  = 0,
+        SGX_USWITCHLESS_WORKER_TYPE_TRUSTED    = 1,
+    }
+}
+
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq)]
+    pub enum sgx_uswitchless_worker_event_t {
+        SGX_USWITCHLESS_WORKER_EVENT_START  = 0,  /* a worker thread starts */
+        SGX_USWITCHLESS_WORKER_EVENT_IDLE   = 1,  /* a worker thread is idle */
+        SGX_USWITCHLESS_WORKER_EVENT_MISS   = 2,  /* a worker thread misses some tasks */
+        SGX_USWITCHLESS_WORKER_EVENT_EXIT   = 3,  /* a worker thread exits */
+        SGX_USWITCHLESS_WORKER_EVENT_NUM    = 4,
+    }
+}
+
+impl_struct! {
+    pub struct sgx_uswitchless_worker_stats_t {
+        pub processed: ::uint64_t,  /* # of tasks that all workers have processed */
+        pub missed: ::uint64_t,     /* # of tasks that all workers have missed */
+    }
+}
+
+pub type sgx_uswitchless_worker_callback_t = extern "C" fn(worker_type: sgx_uswitchless_worker_type_t,
+                                                           worker_event: sgx_uswitchless_worker_event_t,
+                                                           worker_stats: * const sgx_uswitchless_worker_stats_t);
+
+pub const SL_DEFAULT_FALLBACK_RETRIES: ::uint32_t = 20000;
+pub const SL_DEFAULT_SLEEP_RETRIES: ::uint32_t = 20000;
+pub const SL_DEFUALT_MAX_TASKS_QWORDS: ::uint32_t = 1;
+pub const SL_MAX_TASKS_MAX_QWORDS: ::uint32_t = 8;
+
+pub const _SGX_USWITCHLESS_WORKER_EVENT_NUM: ::size_t = 4;
+
+pub struct sgx_uswitchless_config_t {
+    pub switchless_calls_pool_size_qwords: ::uint32_t,
+    pub num_uworkers: ::uint32_t,
+    pub num_tworkers: ::uint32_t,
+    pub retries_before_fallback: ::uint32_t,
+    pub retries_before_sleep: ::uint32_t,
+    pub callback_func: [sgx_uswitchless_worker_callback_t; _SGX_USWITCHLESS_WORKER_EVENT_NUM],
+}
+
+impl Default for sgx_uswitchless_config_t {
+    fn default() -> sgx_uswitchless_config_t {
+        let mut config: sgx_uswitchless_config_t = unsafe{ transmute([0u8; 56]) };
+        config.num_uworkers = 1;
+        config.num_tworkers = 1;
+        config
     }
 }

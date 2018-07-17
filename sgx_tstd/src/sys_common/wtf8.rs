@@ -34,7 +34,7 @@
 #![allow(dead_code)]
 
 use alloc::borrow::Cow;
-use std_unicode::char;
+use core::char;
 use core::str::next_code_point;
 use core::fmt;
 use core::hash::{Hash, Hasher};
@@ -44,7 +44,7 @@ use core::ops;
 use core::str;
 use alloc::slice;
 use alloc::rc::Rc;
-use alloc::arc::Arc;
+use alloc::sync::Arc;
 use sys_common::AsInner;
 
 const UTF8_REPLACEMENT_CHARACTER: &'static str = "\u{FFFD}";

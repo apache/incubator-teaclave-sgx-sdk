@@ -38,7 +38,7 @@
 //! Synchronization library supports, as well as the OCALLs that each API function needs.
 //!
 
-pub use alloc::arc::{Arc, Weak};
+pub use alloc::sync::{Arc, Weak};
 pub use core::sync::atomic;
 
 pub use self::barrier::{Barrier, BarrierWaitResult};

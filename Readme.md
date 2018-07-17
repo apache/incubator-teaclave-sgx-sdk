@@ -3,6 +3,9 @@ Rust SGX SDK helps developers write Intel SGX applications in Rust programming l
 
 To achieve better security, we recommend developers to apply [Non-bypassable Security Paradigm (NbSP)](https://github.com/baidu/rust-sgx-sdk/blob/master/documents/nbsp.pdf) to the system design and implementation.
 
+## v1.0.1 Release
+This version supports the Rust nightly build (nightly-2018-07-16) in master branch and the most recent Rust stable build (stable-2018-07-10). And it supports the latest Intel SGX SDK **v2.2**. New third party libraries include: bytes, http, iovec, rust-crypto, rust-fnv and rust-threshold-secret-sharing. New code sample 'secretsharing' and 'rust-threshold-secret-sharing' is provided by @davidp94. Please refer to [release_notes](release_notes.md) for further details.
+
 ## v1.0.0 Release
 We proudly announce v1.0.0 of rust-sgx-sdk! We port Parity's [Webassembly Interpreter](https://github.com/paritytech/wasmi) to Intel SGX and provide a full functional in-enclave [wasmi sample](samplecode/wasmi), and a [sample solution](samplecode/psi) of two-party private-set-intersection resisting side-channel attacks! From this version, we start to support most recent stable branch of Rust instead of nightly for better stability and future production use. Thus, the [stable branch](https://github.com/baidu/rust-sgx-sdk/tree/rust-stable) of v1.0.0 supports the most recent Rust stable toolchain (1.26.0 stable-2018-05-07), while the master only supports Rust nightly toolchain of nightly-2018-04-11. Please refer to [release_notes](release_notes.md) for further details.
 
@@ -19,7 +22,7 @@ This version provides a new namespace: `sgx_tstd::untrusted`, including `sgx_tst
 
 Ubuntu 16.04
 
-[Intel SGX SDK 2.1.3 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
+[Intel SGX SDK 2.2 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
 
 Docker (Recommended)
 
@@ -34,7 +37,7 @@ Install Intel SGX driver and SDK first. And refer to [Dockerfile](https://github
 
 ### Using docker (Recommended) without ME support
 
-First, make sure Intel SGX Driver 2.1.3 is installed and functions well. `/dev/isgx` should be appeared.
+First, make sure Intel SGX Driver 2.2 is installed and functions well. `/dev/isgx` should be appeared.
 
 Second, pull the docker image. If you'd like to work on stable branch of Rust and `rust-stable` branch of this SDK, please pull `baiduxlab/sgx-rust-stable` instead.
 
@@ -137,6 +140,8 @@ We provide eighteen sample codes to help developers understand how to write Encl
 * `wasmi` shows how to pass WebAssembly test suites using the ported WebAssembly interpreter.
 
 * `psi` is a prototype solution of the Private-Set-Intersection problem.
+
+* `secretsharing` shows the usage of Shamir sharing in Rust-SGX environment (provided by @davidp94).
 
 # Samples of ported third-party libraries
 

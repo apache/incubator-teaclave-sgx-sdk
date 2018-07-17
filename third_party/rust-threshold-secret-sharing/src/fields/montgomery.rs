@@ -58,7 +58,7 @@ impl MontgomeryField32 {
     fn redc(&self, a: u64) -> Value {
         let m: u64 = (a as u32).wrapping_mul(self.n_quote) as u64;
         let t: u32 = ((a + m * (self.n as u64)) >> 32) as u32;
-        Value((if t >= (self.n) { t - (self.n) } else { t }))
+        Value(if t >= (self.n) { t - self.n } else { t })
     }
 }
 

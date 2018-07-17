@@ -26,17 +26,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use alloc::heap::Heap;
-use core::heap::{Alloc, Layout};
-
-use core::cmp;
-use core::hash::{BuildHasher, Hash, Hasher};
-use core::marker;
-use core::mem::{align_of, size_of, needs_drop};
-use core::mem;
-use core::ops::{Deref, DerefMut};
-use core::ptr::{self, Unique, NonNull};
-use alloc::allocator::CollectionAllocErr;
+use alloc::alloc::{Global, Alloc, Layout, LayoutErr, handle_alloc_error};
+use alloc::collections::CollectionAllocErr;
+use hash::{BuildHasher, Hash, Hasher};
+use marker;
+use mem::{size_of, needs_drop};
+use mem;
+use ops::{Deref, DerefMut};
+use ptr::{self, Unique, NonNull};
+use core::hint;
 
 use self::BucketState::*;
 
@@ -100,7 +98,7 @@ impl TaggedHashUintPtr {
 ///
 /// Essential invariants of this structure:
 ///
-///   - if t.hashes[i] == EMPTY_BUCKET, then `Bucket::at_index(&t, i).raw`
+///   - if `t.hashes[i] == EMPTY_BUCKET`, then `Bucket::at_index(&t, i).raw`
 ///     points to 'undefined' contents. Don't read from it. This invariant is
 ///     enforced outside this module with the `EmptyBucket`, `FullBucket`,
 ///     and `SafeHash` types.
@@ -236,6 +234,20 @@ pub fn make_hash<T: ?Sized, S>(hash_state: &S, t: &T) -> SafeHash
     SafeHash::new(state.finish())
 }
 
+// `replace` casts a `*HashUint` to a `*SafeHash`. Since we statically
+// ensure that a `FullBucket` points to an index with a non-zero hash,
+// and a `SafeHash` is just a `HashUint` with a different name, this is
+// safe.
+//
+// This test ensures that a `SafeHash` really IS the same size as a
+// `HashUint`. If you need to change the size of `SafeHash` (and
+// consequently made this test fail), `replace` needs to be
+// modified to no longer assume this.
+#[test]
+fn can_alias_safehash_as_hash() {
+    assert_eq!(size_of::<SafeHash>(), size_of::<HashUint>())
+}
+
 // RawBucket methods are unsafe as it's possible to
 // make a RawBucket point to invalid memory using safe code.
 impl<K, V> RawBucket<K, V> {
@@ -356,14 +368,14 @@ impl<K, V, M: Deref<Target = RawTable<K, V>>> Bucket<K, V, M> {
         let ib_index = ib_index & table.capacity_mask;
         Bucket {
             raw: table.raw_bucket_at(ib_index),
-            table: table,
+            table,
         }
     }
 
     pub fn first(table: M) -> Bucket<K, V, M> {
         Bucket {
             raw: table.raw_bucket_at(0),
-            table: table,
+            table,
         }
     }
 
@@ -458,7 +470,7 @@ impl<K, V, M: Deref<Target = RawTable<K, V>>> EmptyBucket<K, V, M> {
         match self.next().peek() {
             Full(bucket) => {
                 Ok(GapThenFull {
-                    gap: gap,
+                    gap,
                     full: bucket,
                 })
             }
@@ -658,51 +670,39 @@ impl<K, V, M> GapThenFull<K, V, M>
     }
 }
 
-
-/// Rounds up to a multiple of a power of two. Returns the closest multiple
-/// of `target_alignment` that is higher or equal to `unrounded`.
-///
-/// # Panics
-///
-/// Panics if `target_alignment` is not a power of two.
-#[inline]
-fn round_up_to_next(unrounded: usize, target_alignment: usize) -> usize {
-    assert!(target_alignment.is_power_of_two());
-    (unrounded + target_alignment - 1) & !(target_alignment - 1)
+// Returns a Layout which describes the allocation required for a hash table,
+// and the offset of the array of (key, value) pairs in the allocation.
+fn calculate_layout<K, V>(capacity: usize) -> Result<(Layout, usize), LayoutErr> {
+    let hashes = Layout::array::<HashUint>(capacity)?;
+    let pairs = Layout::array::<(K, V)>(capacity)?;
+    hashes.extend(pairs).map(|(layout, _)| {
+        // LLVM seems to have trouble properly const-propagating pairs.align(),
+        // possibly due to the use of NonZeroUsize. This little hack allows it
+        // to generate optimal code.
+        //
+        // See https://github.com/rust-lang/rust/issues/51346 for more details.
+        (
+            layout,
+            hashes.size() + hashes.padding_needed_for(mem::align_of::<(K, V)>()),
+        )
+    })
 }
 
-// Returns a tuple of (pairs_offset, end_of_pairs_offset),
-// from the start of a mallocated array.
-#[inline]
-fn calculate_offsets(hashes_size: usize,
-                     pairs_size: usize,
-                     pairs_align: usize)
-                     -> (usize, usize, bool) {
-    let pairs_offset = round_up_to_next(hashes_size, pairs_align);
-    let (end_of_pairs, oflo) = pairs_offset.overflowing_add(pairs_size);
-
-    (pairs_offset, end_of_pairs, oflo)
+pub(crate) enum Fallibility {
+    Fallible,
+    Infallible,
 }
 
-// Returns a tuple of (minimum required malloc alignment,
-// array_size), from the start of a mallocated array.
-fn calculate_allocation(hash_size: usize,
-                        hash_align: usize,
-                        pairs_size: usize,
-                        pairs_align: usize)
-                        -> (usize, usize, bool) {
-    let (_, end_of_pairs, oflo) = calculate_offsets(hash_size, pairs_size, pairs_align);
-
-    let align = cmp::max(hash_align, pairs_align);
-
-    (align, end_of_pairs, oflo)
-}
+use self::Fallibility::*;
 
 impl<K, V> RawTable<K, V> {
     /// Does not initialize the buckets. The caller should ensure they,
     /// at the very least, set every hash to EMPTY_BUCKET.
     /// Returns an error if it cannot allocate or capacity overflows.
-    unsafe fn try_new_uninitialized(capacity: usize) -> Result<RawTable<K, V>, CollectionAllocErr> {
+    unsafe fn new_uninitialized_internal(
+        capacity: usize,
+        fallibility: Fallibility,
+    ) -> Result<RawTable<K, V>, CollectionAllocErr> {
         if capacity == 0 {
             return Ok(RawTable {
                 size: 0,
@@ -712,44 +712,20 @@ impl<K, V> RawTable<K, V> {
             });
         }
 
-        // No need for `checked_mul` before a more restrictive check performed
-        // later in this method.
-        let hashes_size = capacity.wrapping_mul(size_of::<HashUint>());
-        let pairs_size = capacity.wrapping_mul(size_of::<(K, V)>());
-
         // Allocating hashmaps is a little tricky. We need to allocate two
         // arrays, but since we know their sizes and alignments up front,
         // we just allocate a single array, and then have the subarrays
         // point into it.
-        //
-        // This is great in theory, but in practice getting the alignment
-        // right is a little subtle. Therefore, calculating offsets has been
-        // factored out into a different function.
-        let (alignment, size, oflo) = calculate_allocation(hashes_size,
-                                                           align_of::<HashUint>(),
-                                                           pairs_size,
-                                                           align_of::<(K, V)>());
-        if oflo {
-            return Err(CollectionAllocErr::CapacityOverflow);
-        }
-
-        // One check for overflow that covers calculation and rounding of size.
-        let size_of_bucket = size_of::<HashUint>().checked_add(size_of::<(K, V)>())
-            .ok_or(CollectionAllocErr::CapacityOverflow)?;
-        let capacity_mul_size_of_bucket = capacity.checked_mul(size_of_bucket);
-        if capacity_mul_size_of_bucket.is_none() || size < capacity_mul_size_of_bucket.unwrap() {
-            return Err(CollectionAllocErr::CapacityOverflow);
-        }
-
-        let buffer = Heap.alloc(Layout::from_size_align(size, alignment)
-            .ok_or(CollectionAllocErr::CapacityOverflow)?)?;
-
-        let hashes = buffer as *mut HashUint;
+        let (layout, _) = calculate_layout::<K, V>(capacity)?;
+        let buffer = Global.alloc(layout).map_err(|e| match fallibility {
+            Infallible => handle_alloc_error(layout),
+            Fallible => e,
+        })?;
 
         Ok(RawTable {
             capacity_mask: capacity.wrapping_sub(1),
             size: 0,
-            hashes: TaggedHashUintPtr::new(hashes),
+            hashes: TaggedHashUintPtr::new(buffer.cast().as_ptr()),
             marker: marker::PhantomData,
         })
     }
@@ -757,48 +733,50 @@ impl<K, V> RawTable<K, V> {
     /// Does not initialize the buckets. The caller should ensure they,
     /// at the very least, set every hash to EMPTY_BUCKET.
     unsafe fn new_uninitialized(capacity: usize) -> RawTable<K, V> {
-        match Self::try_new_uninitialized(capacity) {
+        match Self::new_uninitialized_internal(capacity, Infallible) {
             Err(CollectionAllocErr::CapacityOverflow) => panic!("capacity overflow"),
-            Err(CollectionAllocErr::AllocErr(e)) => Heap.oom(e),
+            Err(CollectionAllocErr::AllocErr) => unreachable!(),
             Ok(table) => { table }
         }
     }
 
     fn raw_bucket_at(&self, index: usize) -> RawBucket<K, V> {
-        let hashes_size = self.capacity() * size_of::<HashUint>();
-        let pairs_size = self.capacity() * size_of::<(K, V)>();
-
-        let (pairs_offset, _, oflo) =
-            calculate_offsets(hashes_size, pairs_size, align_of::<(K, V)>());
-        debug_assert!(!oflo, "capacity overflow");
-
+        let (_, pairs_offset) = calculate_layout::<K, V>(self.capacity())
+            .unwrap_or_else(|_| unsafe { hint::unreachable_unchecked() });
         let buffer = self.hashes.ptr() as *mut u8;
         unsafe {
             RawBucket {
                 hash_start: buffer as *mut HashUint,
-                pair_start: buffer.offset(pairs_offset as isize) as *const (K, V),
+                pair_start: buffer.add(pairs_offset) as *const (K, V),
                 idx: index,
                 _marker: marker::PhantomData,
             }
         }
     }
 
-    /// Tries to create a new raw table from a given capacity. If it cannot allocate,
-    /// it returns with AllocErr.
-    pub fn try_new(capacity: usize) -> Result<RawTable<K, V>, CollectionAllocErr> {
+    fn new_internal(
+        capacity: usize,
+        fallibility: Fallibility,
+    ) -> Result<RawTable<K, V>, CollectionAllocErr> {
         unsafe {
-            let ret = RawTable::try_new_uninitialized(capacity)?;
+            let ret = RawTable::new_uninitialized_internal(capacity, fallibility)?;
             ptr::write_bytes(ret.hashes.ptr(), 0, capacity);
             Ok(ret)
         }
     }
 
+    /// Tries to create a new raw table from a given capacity. If it cannot allocate,
+    /// it returns with AllocErr.
+    pub fn try_new(capacity: usize) -> Result<RawTable<K, V>, CollectionAllocErr> {
+        Self::new_internal(capacity, Fallible)
+    }
+
     /// Creates a new raw table from a given capacity. All buckets are
     /// initially empty.
     pub fn new(capacity: usize) -> RawTable<K, V> {
-        match Self::try_new(capacity) {
+        match Self::new_internal(capacity, Infallible) {
             Err(CollectionAllocErr::CapacityOverflow) => panic!("capacity overflow"),
-            Err(CollectionAllocErr::AllocErr(e)) => Heap.oom(e),
+            Err(CollectionAllocErr::AllocErr) => unreachable!(),
             Ok(table) => { table }
         }
     }
@@ -905,7 +883,7 @@ struct RawBuckets<'a, K, V> {
     marker: marker::PhantomData<&'a ()>,
 }
 
-// FIXME(#19839) Remove in favor of `#[derive(Clone)]`
+// FIXME(#26925) Remove in favor of `#[derive(Clone)]`
 impl<'a, K, V> Clone for RawBuckets<'a, K, V> {
     fn clone(&self) -> RawBuckets<'a, K, V> {
         RawBuckets {
@@ -956,7 +934,7 @@ pub struct Iter<'a, K: 'a, V: 'a> {
 unsafe impl<'a, K: Sync, V: Sync> Sync for Iter<'a, K, V> {}
 unsafe impl<'a, K: Sync, V: Sync> Send for Iter<'a, K, V> {}
 
-// FIXME(#19839) Remove in favor of `#[derive(Clone)]`
+// FIXME(#26925) Remove in favor of `#[derive(Clone)]`
 impl<'a, K, V> Clone for Iter<'a, K, V> {
     fn clone(&self) -> Iter<'a, K, V> {
         Iter {
@@ -1113,7 +1091,7 @@ impl<'a, K, V> ExactSizeIterator for Drain<'a, K, V> {
 
 impl<'a, K: 'a, V: 'a> Drop for Drain<'a, K, V> {
     fn drop(&mut self) {
-        for _ in self {}
+        self.for_each(drop);
     }
 }
 
@@ -1162,18 +1140,10 @@ unsafe impl<#[may_dangle] K, #[may_dangle] V> Drop for RawTable<K, V> {
             }
         }
 
-        let hashes_size = self.capacity() * size_of::<HashUint>();
-        let pairs_size = self.capacity() * size_of::<(K, V)>();
-        let (align, size, oflo) = calculate_allocation(hashes_size,
-                                                       align_of::<HashUint>(),
-                                                       pairs_size,
-                                                       align_of::<(K, V)>());
-
-        debug_assert!(!oflo, "should be impossible");
-
+        let (layout, _) = calculate_layout::<K, V>(self.capacity())
+            .unwrap_or_else(|_| unsafe { hint::unreachable_unchecked() });
         unsafe {
-            Heap.dealloc(self.hashes.ptr() as *mut u8,
-                         Layout::from_size_align(size, align).unwrap());
+            Global.dealloc(NonNull::new_unchecked(self.hashes.ptr()).cast(), layout);
             // Remember how everything was allocated out of one buffer
             // during initialization? We only need one call to free here.
         }

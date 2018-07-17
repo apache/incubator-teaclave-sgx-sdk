@@ -20,9 +20,9 @@ sgx_tstd = { path =  "../../../sgx_tstd" }
 
 [dependencies]
 serde = { version = "1.0", path = "../serde/serde" }
-num-traits = { version = "0.1.32", path = "../../num/traits" }
+num-traits = { path = "../../num/traits" }
 linked-hash-map = { version = "0.5", path = "../../linked-hash-map", optional = true }
-itoa = { version = "0.3", path = "../../itoa" }
+itoa = { version = "0.4", path = "../../itoa" }
 dtoa = { version = "0.4", path = "../../dtoa" }
 
 [dev-dependencies]
