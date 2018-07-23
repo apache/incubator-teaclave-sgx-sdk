@@ -30,6 +30,7 @@ extern crate sgx_types;
 extern crate sgx_urts;
 extern crate dirs;
 extern crate protobuf;
+extern crate hex;
 
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
@@ -41,7 +42,7 @@ use std::path;
 mod person;
 use person::Person;
 use protobuf::Message;
-use protobuf::hex::encode_hex;
+use hex::encode;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
@@ -138,7 +139,7 @@ fn main() {
     one_person.set_email("david@foo.com".to_string());
 
 //    let input_string = String::from("This is a normal world string passed into Enclave!\n");
-    let input_string = encode_hex(&one_person.write_to_bytes().unwrap());
+    let input_string = encode(&one_person.write_to_bytes().unwrap());
     
     let mut retval = sgx_status_t::SGX_SUCCESS; 
 

@@ -1,9 +1,10 @@
+use std::prelude::v1::*;
+
 use std::mem;
+use std::io;
 use std::io::{BufRead, Read};
 use std::io::Write;
 use std::slice;
-use std::string::String;
-use std::vec::Vec;
 
 #[cfg(feature = "bytes")]
 use bytes::Bytes;
@@ -14,8 +15,7 @@ use varint;
 use misc::remaining_capacity_as_slice_mut;
 use misc::remove_lifetime_mut;
 use protocore::Message;
-use protocore::MessageStatic;
-use protocore::ProtobufEnum;
+use enums::ProtobufEnum;
 use unknown::UnknownFields;
 use unknown::UnknownValue;
 use unknown::UnknownValueRef;
@@ -31,6 +31,9 @@ use buf_read_iter::BufReadIter;
 // Equal to the default buffer size of `BufWriter`, so when
 // `CodedOutputStream` wraps `BufWriter`, it often skips double buffering.
 const OUTPUT_STREAM_BUFFER_SIZE: usize = 8 * 1024;
+
+// Default recursion level limit. 100 is the default value of C++'s implementation.
+const DEFAULT_RECURSION_LIMIT: u32 = 100;
 
 
 pub mod wire_format {
@@ -122,24 +125,53 @@ pub mod wire_format {
 
 pub struct CodedInputStream<'a> {
     source: BufReadIter<'a>,
+    recursion_level: u32,
+    recursion_limit: u32,
 }
 
 impl<'a> CodedInputStream<'a> {
     pub fn new(read: &'a mut Read) -> CodedInputStream<'a> {
-        CodedInputStream { source: BufReadIter::from_read(read) }
+        CodedInputStream::from_buf_read_iter(BufReadIter::from_read(read))
     }
 
     pub fn from_buffered_reader(buf_read: &'a mut BufRead) -> CodedInputStream<'a> {
-        CodedInputStream { source: BufReadIter::from_buf_read(buf_read) }
+        CodedInputStream::from_buf_read_iter(BufReadIter::from_buf_read(buf_read))
     }
 
     pub fn from_bytes(bytes: &'a [u8]) -> CodedInputStream<'a> {
-        CodedInputStream { source: BufReadIter::from_byte_slice(bytes) }
+        CodedInputStream::from_buf_read_iter(BufReadIter::from_byte_slice(bytes))
     }
 
     #[cfg(feature = "bytes")]
     pub fn from_carllerche_bytes(bytes: &'a Bytes) -> CodedInputStream<'a> {
-        CodedInputStream { source: BufReadIter::from_bytes(bytes) }
+        CodedInputStream::from_buf_read_iter(BufReadIter::from_bytes(bytes))
+    }
+
+    fn from_buf_read_iter(source: BufReadIter<'a>) -> CodedInputStream<'a> {
+        CodedInputStream {
+            source: source,
+            recursion_level: 0,
+            recursion_limit: DEFAULT_RECURSION_LIMIT,
+        }
+    }
+
+    /// Set the recursion limit.
+    pub fn set_recursion_limit(&mut self, limit: u32) {
+        self.recursion_limit = limit;
+    }
+
+    #[inline]
+    pub(crate) fn incr_recursion(&mut self) -> ProtobufResult<()> {
+        if self.recursion_level >= self.recursion_limit {
+            return Err(ProtobufError::WireError(WireError::OverRecursionLimit));
+        }
+        self.recursion_level += 1;
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn decr_recursion(&mut self) {
+        self.recursion_level -= 1;
     }
 
     pub fn pos(&self) -> u64 {
@@ -157,8 +189,7 @@ impl<'a> CodedInputStream<'a> {
 
     #[cfg(feature = "bytes")]
     fn read_raw_callerche_bytes(&mut self, count: usize) -> ProtobufResult<Bytes> {
-        let r = self.source.read_exact_bytes(count)?;
-        Ok(r)
+        self.source.read_exact_bytes(count)
     }
 
     #[inline(always)]
@@ -176,7 +207,7 @@ impl<'a> CodedInputStream<'a> {
 
     #[inline(always)]
     pub fn eof(&mut self) -> ProtobufResult<bool> {
-        Ok(self.source.eof()?)
+        self.source.eof()
     }
 
     pub fn check_eof(&mut self) -> ProtobufResult<()> {
@@ -648,8 +679,7 @@ impl<'a> CodedInputStream<'a> {
     }
 
     pub fn read_string_into(&mut self, target: &mut String) -> ProtobufResult<()> {
-        // assert string is empty, otherwize UTF-8 validation is too expensive
-        assert!(target.is_empty());
+        target.clear();
         // take target's buffer
         let mut vec = mem::replace(target, String::new()).into_bytes();
         self.read_bytes_into(&mut vec)?;
@@ -670,11 +700,27 @@ impl<'a> CodedInputStream<'a> {
         Ok(())
     }
 
-    pub fn read_message<M : Message + MessageStatic>(&mut self) -> ProtobufResult<M> {
-        let mut r: M = MessageStatic::new();
+    pub fn read_message<M : Message>(&mut self) -> ProtobufResult<M> {
+        let mut r: M = Message::new();
         self.merge_message(&mut r)?;
         r.check_initialized()?;
         Ok(r)
+    }
+}
+
+impl<'a> Read for CodedInputStream<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.source.read(buf).map_err(Into::into)
+    }
+}
+
+impl<'a> BufRead for CodedInputStream<'a> {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        self.source.fill_buf().map_err(Into::into)
+    }
+
+    fn consume(&mut self, amt: usize) {
+        self.source.consume(amt)
     }
 }
 
@@ -1181,11 +1227,23 @@ impl<'a> CodedOutputStream<'a> {
     }
 }
 
+impl<'a> Write for CodedOutputStream<'a> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.write_raw_bytes(buf)?;
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        CodedOutputStream::flush(self).map_err(Into::into)
+    }
+}
+
 
 #[cfg(test)]
 mod test {
 
     use std::io;
+    use std::io::Read;
     use std::io::BufRead;
     use std::io::Write;
     use std::iter::repeat;
@@ -1349,6 +1407,26 @@ mod test {
         });
     }
 
+    #[test]
+    fn test_input_stream_io_read() {
+        test_read("aa bb cc", |is| {
+            let mut buf = [0; 3];
+            assert_eq!(Read::read(is, &mut buf).expect("io::Read"), 3);
+            assert_eq!(buf, [0xaa, 0xbb, 0xcc]);
+        });
+    }
+
+    #[test]
+    fn test_input_stream_io_bufread() {
+        test_read("aa bb cc", |is| {
+            assert_eq!(
+                BufRead::fill_buf(is).expect("io::BufRead::fill_buf"),
+                &[0xaa, 0xbb, 0xcc]
+            );
+            BufRead::consume(is, 3);
+        });
+    }
+
     fn test_write<F>(expected: &str, mut gen: F)
     where
         F : FnMut(&mut CodedOutputStream) -> ProtobufResult<()>,
@@ -1471,5 +1549,45 @@ mod test {
         test_write("f1 e2 d3 c4 b5 a6 07 f8", |os| {
             os.write_raw_little_endian64(0xf807a6b5c4d3e2f1)
         });
+    }
+
+    #[test]
+    fn test_output_stream_io_write() {
+        let expected = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77];
+
+        // write to Write
+        {
+            let mut v = Vec::new();
+            {
+                let mut os = CodedOutputStream::new(&mut v as &mut Write);
+                Write::write(&mut os, &expected).expect("io::Write::write");
+                Write::flush(&mut os).expect("io::Write::flush");
+            }
+            assert_eq!(expected, *v);
+        }
+
+        // write to &[u8]
+        {
+            let mut v = Vec::with_capacity(expected.len());
+            v.resize(expected.len(), 0);
+            {
+                let mut os = CodedOutputStream::bytes(&mut v);
+                Write::write(&mut os, &expected).expect("io::Write::write");
+                Write::flush(&mut os).expect("io::Write::flush");
+                os.check_eof();
+            }
+            assert_eq!(expected, *v);
+        }
+
+        // write to Vec<u8>
+        {
+            let mut v = Vec::new();
+            {
+                let mut os = CodedOutputStream::vec(&mut v);
+                Write::write(&mut os, &expected).expect("io::Write::write");
+                Write::flush(&mut os).expect("io::Write::flush");
+            }
+            assert_eq!(expected, *v);
+        }
     }
 }

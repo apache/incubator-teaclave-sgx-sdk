@@ -1,6 +1,6 @@
+use std::prelude::v1::*;
+
 use std::marker;
-use std::string::String;
-use std::vec::Vec;
 
 #[cfg(feature = "bytes")]
 use bytes::Bytes;
@@ -10,9 +10,8 @@ use chars::Chars;
 use stream::CodedInputStream;
 use stream::CodedOutputStream;
 use error::ProtobufResult;
-use protocore::ProtobufEnum;
 use protocore::Message;
-use protocore::MessageStatic;
+use enums::ProtobufEnum;
 use wire_format::WireType;
 use rt;
 use reflect::ProtobufValue;
@@ -529,7 +528,7 @@ impl<E : ProtobufEnum + ProtobufValue> ProtobufType for ProtobufTypeEnum<E> {
     }
 }
 
-impl<M : Message + MessageStatic + ProtobufValue> ProtobufType for ProtobufTypeMessage<M> {
+impl<M : Message + Clone + ProtobufValue> ProtobufType for ProtobufTypeMessage<M> {
     type Value = M;
 
     fn wire_type() -> WireType {

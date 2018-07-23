@@ -7,5 +7,6 @@ build = "build.rs"
 [dependencies]
 sgx_types = { path = "../../../sgx_types" }
 sgx_urts = { path = "../../../sgx_urts" }
-protobuf = "=1.4.4"
+protobuf = "=2.0.3"
 dirs = "1.0.2"
+hex = "0.3.2"

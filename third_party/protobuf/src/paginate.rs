@@ -1,4 +1,4 @@
-use std::vec::Vec;
+use std::prelude::v1::*;
 
 pub trait PaginatableIterator: Sized {
     fn paginate(self, page: usize) -> Paginate<Self>;

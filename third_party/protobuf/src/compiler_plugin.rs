@@ -1,9 +1,10 @@
+// TODO: move into separate crate
+#![doc(hidden)]
+use std::prelude::v1::*;
+
 use std::io::stdin;
 use std::io::stdout;
 use std::str;
-use std::string::String;
-use std::string::ToString;
-use std::vec::Vec;
 use plugin::*;
 use protobuf::parse_from_reader;
 use protobuf::Message;
@@ -15,10 +16,9 @@ pub struct GenResult {
     pub content: Vec<u8>,
 }
 
-pub fn plugin_main(
-    gen: fn(file_descriptors: &[FileDescriptorProto], files_to_generate: &[String])
-        -> Vec<GenResult>,
-) {
+pub fn plugin_main<F>(gen: F)
+    where F : Fn(&[FileDescriptorProto], &[String]) -> Vec<GenResult>
+{
     let req = parse_from_reader::<CodeGeneratorRequest>(&mut stdin()).unwrap();
     let result = gen(req.get_proto_file(), req.get_file_to_generate());
     let mut resp = CodeGeneratorResponse::new();

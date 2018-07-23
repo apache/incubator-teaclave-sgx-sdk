@@ -135,7 +135,7 @@ We provide eighteen sample codes to help developers understand how to write Encl
 
 * `sgxtime` shows how to acquire trusted timestamp via Intel ME. Please refer to this [instruction](documents/sgxtime.md) for detail.
 
-* `protobuf` shows how to use the ported `rust-protobuf` to pass messages to the enclave using protobuf.
+* `protobuf` shows how to use the ported `rust-protobuf` to pass messages to the enclave using protobuf. Please install protobuf-compiler by `apt-get install protobuf-compiler` and protobuf-codegen by `cargo install protobuf-codegen --vers=2.0.3` before compiling this sample.
 
 * `wasmi` shows how to pass WebAssembly test suites using the ported WebAssembly interpreter.
 

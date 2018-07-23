@@ -1,11 +1,11 @@
-use std::string::String;
-use std::vec::Vec;
+use std::prelude::v1::*;
 
 #[cfg(feature = "bytes")]
 use bytes::Bytes;
 
 /// anything that can be cleared
 pub trait Clear {
+    /// Clear this make, make it equivalent to newly created object.
     fn clear(&mut self);
 }
 

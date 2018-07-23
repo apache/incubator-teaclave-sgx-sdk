@@ -1,4 +1,4 @@
-use std::string::String;
+use std::prelude::v1::*;
 
 static RUST_KEYWORDS: &'static [&'static str] = &[
     "as",
@@ -59,7 +59,6 @@ pub fn is_rust_keyword(ident: &str) -> bool {
     RUST_KEYWORDS.contains(&ident)
 }
 
-#[allow(dead_code)]
 fn hex_digit(value: u32) -> char {
     if value < 10 {
         (b'0' + value as u8) as char
@@ -70,7 +69,6 @@ fn hex_digit(value: u32) -> char {
     }
 }
 
-#[allow(dead_code)]
 pub fn quote_escape_str(s: &str) -> String {
     let mut buf = String::new();
     buf.push('"');
@@ -79,7 +77,6 @@ pub fn quote_escape_str(s: &str) -> String {
     buf
 }
 
-#[allow(dead_code)]
 pub fn quote_escape_bytes(bytes: &[u8]) -> String {
     let mut buf = String::new();
     buf.push('b');

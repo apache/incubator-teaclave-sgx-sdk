@@ -1,6 +1,7 @@
+use std::prelude::v1::*;
+
 use std::slice;
 use std::mem;
-use std::vec::Vec;
 
 /// Slice from `vec[vec.len()..vec.capacity()]`
 pub unsafe fn remaining_capacity_as_slice_mut<A>(vec: &mut Vec<A>) -> &mut [A] {

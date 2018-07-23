@@ -1,25 +1,29 @@
+use std::prelude::v1::*;
+
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::option;
 use std::default::Default;
 use std::fmt;
 use std::mem;
-use std::boxed::Box;
 
 use clear::Clear;
 
 
+/// Like `Option<T>`, but keeps the actual element on `clear`.
 pub struct SingularField<T> {
     value: T,
     set: bool,
 }
 
+/// Like `Option<Box<T>>`, but keeps the actual element on `clear`.
 pub struct SingularPtrField<T> {
     value: Option<Box<T>>,
     set: bool,
 }
 
 impl<T> SingularField<T> {
+    /// Construct this object from given value.
     #[inline]
     pub fn some(value: T) -> SingularField<T> {
         SingularField {
@@ -28,26 +32,31 @@ impl<T> SingularField<T> {
         }
     }
 
+    /// True iff this object contains data.
     #[inline]
     pub fn is_some(&self) -> bool {
         self.set
     }
 
+    /// True iff this object contains no data.
     #[inline]
     pub fn is_none(&self) -> bool {
         !self.is_some()
     }
 
+    /// Convert this object into `Option`.
     #[inline]
     pub fn into_option(self) -> Option<T> {
         if self.set { Some(self.value) } else { None }
     }
 
+    /// View data as `Option`.
     #[inline]
     pub fn as_ref<'a>(&'a self) -> Option<&'a T> {
         if self.set { Some(&self.value) } else { None }
     }
 
+    /// View data as mutable `Option`.
     #[inline]
     pub fn as_mut<'a>(&'a mut self) -> Option<&'a mut T> {
         if self.set {
@@ -57,16 +66,19 @@ impl<T> SingularField<T> {
         }
     }
 
+    /// Unwrap data as reference.
     #[inline]
-    pub fn get_ref<'a>(&'a self) -> &'a T {
+    pub fn unwrap_ref<'a>(&'a self) -> &'a T {
         self.as_ref().unwrap()
     }
 
+    /// Unwrap data as mutable reference.
     #[inline]
-    pub fn get_mut_ref<'a>(&'a mut self) -> &'a mut T {
+    pub fn unwrap_mut_ref<'a>(&'a mut self) -> &'a mut T {
         self.as_mut().unwrap()
     }
 
+    /// Unwrap data, panic if not set.
     #[inline]
     pub fn unwrap(self) -> T {
         if self.set {
@@ -76,11 +88,13 @@ impl<T> SingularField<T> {
         }
     }
 
+    /// Unwrap data or return given default value.
     #[inline]
     pub fn unwrap_or(self, def: T) -> T {
         if self.set { self.value } else { def }
     }
 
+    /// Unwrap data or return given default value.
     #[inline]
     pub fn unwrap_or_else<F>(self, f: F) -> T
     where
@@ -89,6 +103,7 @@ impl<T> SingularField<T> {
         if self.set { self.value } else { f() }
     }
 
+    /// Apply a function to contained element and store result in new `SingularPtrField`.
     #[inline]
     pub fn map<U, F>(self, f: F) -> SingularPtrField<U>
     where
@@ -97,16 +112,20 @@ impl<T> SingularField<T> {
         SingularPtrField::from_option(self.into_option().map(f))
     }
 
+    /// View as iterator over references.
     #[inline]
     pub fn iter<'a>(&'a self) -> option::IntoIter<&'a T> {
         self.as_ref().into_iter()
     }
 
+    /// View as iterator over mutable references.
     #[inline]
     pub fn mut_iter<'a>(&'a mut self) -> option::IntoIter<&'a mut T> {
         self.as_mut().into_iter()
     }
 
+    /// Clear this object.
+    /// Note, contained object destructor is not called, so allocated memory could be reused.
     #[inline]
     pub fn clear(&mut self) {
         self.set = false;
@@ -114,6 +133,7 @@ impl<T> SingularField<T> {
 }
 
 impl<T : Default> SingularField<T> {
+    /// Construct a `SingularField` with no data.
     #[inline]
     pub fn none() -> SingularField<T> {
         SingularField {
@@ -122,6 +142,7 @@ impl<T : Default> SingularField<T> {
         }
     }
 
+    /// Construct `SingularField` from `Option`.
     #[inline]
     pub fn from_option(option: Option<T>) -> SingularField<T> {
         match option {
@@ -130,6 +151,7 @@ impl<T : Default> SingularField<T> {
         }
     }
 
+    /// Return data as option, clear this object.
     #[inline]
     pub fn take(&mut self) -> Option<T> {
         if self.set {
@@ -142,6 +164,7 @@ impl<T : Default> SingularField<T> {
 }
 
 impl<T> SingularPtrField<T> {
+    /// Construct `SingularPtrField` from given object.
     #[inline]
     pub fn some(value: T) -> SingularPtrField<T> {
         SingularPtrField {
@@ -150,6 +173,7 @@ impl<T> SingularPtrField<T> {
         }
     }
 
+    /// Construct an empty `SingularPtrField`.
     #[inline]
     pub fn none() -> SingularPtrField<T> {
         SingularPtrField {
@@ -158,6 +182,7 @@ impl<T> SingularPtrField<T> {
         }
     }
 
+    /// Construct `SingularPtrField` from optional.
     #[inline]
     pub fn from_option(option: Option<T>) -> SingularPtrField<T> {
         match option {
@@ -166,16 +191,19 @@ impl<T> SingularPtrField<T> {
         }
     }
 
+    /// True iff this object contains data.
     #[inline]
     pub fn is_some(&self) -> bool {
         self.set
     }
 
+    /// True iff this object contains no data.
     #[inline]
     pub fn is_none(&self) -> bool {
         !self.is_some()
     }
 
+    /// Convert into `Option<T>`.
     #[inline]
     pub fn into_option(self) -> Option<T> {
         if self.set {
@@ -185,6 +213,7 @@ impl<T> SingularPtrField<T> {
         }
     }
 
+    /// View data as reference option.
     #[inline]
     pub fn as_ref<'a>(&'a self) -> Option<&'a T> {
         if self.set {
@@ -194,6 +223,7 @@ impl<T> SingularPtrField<T> {
         }
     }
 
+    /// View data as mutable reference option.
     #[inline]
     pub fn as_mut<'a>(&'a mut self) -> Option<&'a mut T> {
         if self.set {
@@ -203,16 +233,22 @@ impl<T> SingularPtrField<T> {
         }
     }
 
+    /// Get data as reference.
+    /// Panics if empty.
     #[inline]
     pub fn get_ref<'a>(&'a self) -> &'a T {
         self.as_ref().unwrap()
     }
 
+    /// Get data as mutable reference.
+    /// Panics if empty.
     #[inline]
     pub fn get_mut_ref<'a>(&'a mut self) -> &'a mut T {
         self.as_mut().unwrap()
     }
 
+    /// Take the data.
+    /// Panics if empty
     #[inline]
     pub fn unwrap(self) -> T {
         if self.set {
@@ -222,11 +258,13 @@ impl<T> SingularPtrField<T> {
         }
     }
 
+    /// Take the data or return supplied default element if empty.
     #[inline]
     pub fn unwrap_or(self, def: T) -> T {
         if self.set { *self.value.unwrap() } else { def }
     }
 
+    /// Take the data or return supplied default element if empty.
     #[inline]
     pub fn unwrap_or_else<F>(self, f: F) -> T
     where
@@ -235,6 +273,8 @@ impl<T> SingularPtrField<T> {
         if self.set { *self.value.unwrap() } else { f() }
     }
 
+    /// Apply given function to contained data to construct another `SingularPtrField`.
+    /// Returns empty `SingularPtrField` if this object is empty.
     #[inline]
     pub fn map<U, F>(self, f: F) -> SingularPtrField<U>
     where
@@ -243,16 +283,19 @@ impl<T> SingularPtrField<T> {
         SingularPtrField::from_option(self.into_option().map(f))
     }
 
+    /// View data as iterator.
     #[inline]
     pub fn iter<'a>(&'a self) -> option::IntoIter<&'a T> {
         self.as_ref().into_iter()
     }
 
+    /// View data as mutable iterator.
     #[inline]
     pub fn mut_iter<'a>(&'a mut self) -> option::IntoIter<&'a mut T> {
         self.as_mut().into_iter()
     }
 
+    /// Take data as option, leaving this object empty.
     #[inline]
     pub fn take(&mut self) -> Option<T> {
         if self.set {
@@ -263,6 +306,7 @@ impl<T> SingularPtrField<T> {
         }
     }
 
+    /// Clear this object, but do not call destructor of underlying data.
     #[inline]
     pub fn clear(&mut self) {
         self.set = false;
@@ -270,12 +314,16 @@ impl<T> SingularPtrField<T> {
 }
 
 impl<T : Default + Clear> SingularField<T> {
+    /// Get contained data, consume self. Return default value for type if this is empty.
     #[inline]
     pub fn unwrap_or_default(mut self) -> T {
         self.value.clear();
         self.value
     }
 
+    /// Initialize this object with default value.
+    /// This operation can be more efficient then construction of clear element,
+    /// because it may reuse previously contained object.
     #[inline]
     pub fn set_default<'a>(&'a mut self) -> &'a mut T {
         self.set = true;
@@ -285,6 +333,7 @@ impl<T : Default + Clear> SingularField<T> {
 }
 
 impl<T : Default + Clear> SingularPtrField<T> {
+    /// Get contained data, consume self. Return default value for type if this is empty.
     #[inline]
     pub fn unwrap_or_default(mut self) -> T {
         if self.set {
@@ -297,6 +346,9 @@ impl<T : Default + Clear> SingularPtrField<T> {
         }
     }
 
+    /// Initialize this object with default value.
+    /// This operation can be more efficient then construction of clear element,
+    /// because it may reuse previously contained object.
     #[inline]
     pub fn set_default<'a>(&'a mut self) -> &'a mut T {
         self.set = true;

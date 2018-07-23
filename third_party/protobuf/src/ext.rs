@@ -1,5 +1,6 @@
+use std::prelude::v1::*;
+
 use std::marker::PhantomData;
-use std::vec::Vec;
 
 use protocore::Message;
 use types::ProtobufType;
