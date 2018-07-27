@@ -81,6 +81,8 @@ But when building any sample code, set the `SGX_MODE` to `SW` in `Makefile`.
 
 Replace `SGX_MODE ?= HW` with `SGX_MODE ?= SW`
 
+or run `export SGX_MODE=SW` in your terminal.
+
 Finally, check if the sample code works
 
 `root@docker:~/sgx/samplecode/helloworld# make`
