@@ -7,7 +7,7 @@
 /*!
 
 The `aessafe` module implements the AES algorithm completely in software without using any table
-lookups or other timing dependant mechanisms. This module actually contains two seperate
+lookups or other timing dependant mechanisms. This module actually contains two separate
 implementations - an implementation that works on a single block at a time and a second
 implementation that processes 8 blocks in parallel. Some block encryption modes really only work if
 you are processing a single blocks (CFB, OFB, and CBC encryption for example) while other modes
