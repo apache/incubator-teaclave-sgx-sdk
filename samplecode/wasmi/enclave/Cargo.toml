@@ -15,7 +15,7 @@ wasmi = { path = "../../../third_party/wasmi" }
 serde = { path = "../../../third_party/serde-rs/serde/serde" }
 serde_json = { path = "../../../third_party/serde-rs/json"}
 sgxwasm = { path = "sgxwasm" }
-lazy_static = { path = "../../../third_party/lazy-static.rs" }
+lazy_static = { version = "1.0.2", features = ["spin_no_std"] }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../../../sgx_types" }

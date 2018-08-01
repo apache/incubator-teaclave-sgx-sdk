@@ -18,11 +18,14 @@ extern crate docopt;
 use docopt::Docopt;
 
 extern crate env_logger;
-
+extern crate vecio;
 extern crate rustls;
 
 use rustls::{RootCertStore, Session, NoClientAuth, AllowAnyAuthenticatedClient,
              AllowAnyAnonymousOrAuthenticatedClient};
+
+mod util;
+use util::WriteVAdapter;
 
 // Token for our listening socket.
 const LISTENER: mio::Token = mio::Token(0);
@@ -54,11 +57,11 @@ struct TlsServer {
 impl TlsServer {
     fn new(server: TcpListener, mode: ServerMode, cfg: Arc<rustls::ServerConfig>) -> TlsServer {
         TlsServer {
-            server: server,
+            server,
             connections: HashMap::new(),
             next_id: 2,
             tls_config: cfg,
-            mode: mode,
+            mode,
         }
     }
 
@@ -109,6 +112,7 @@ struct Connection {
     socket: TcpStream,
     token: mio::Token,
     closing: bool,
+    closed: bool,
     mode: ServerMode,
     tls_session: rustls::ServerSession,
     back: Option<TcpStream>,
@@ -150,12 +154,13 @@ impl Connection {
            -> Connection {
         let back = open_back(&mode);
         Connection {
-            socket: socket,
-            token: token,
+            socket,
+            token,
             closing: false,
-            mode: mode,
-            tls_session: tls_session,
-            back: back,
+            closed: false,
+            mode,
+            tls_session,
+            back,
             sent_http_response: false,
         }
     }
@@ -178,6 +183,7 @@ impl Connection {
         if self.closing && !self.tls_session.wants_write() {
             let _ = self.socket.shutdown(Shutdown::Both);
             self.close_back();
+            self.closed = true;
         } else {
             self.reregister(poll);
         }
@@ -298,7 +304,7 @@ impl Connection {
     }
 
     fn do_tls_write(&mut self) {
-        let rc = self.tls_session.write_tls(&mut self.socket);
+        let rc = self.tls_session.writev_tls(&mut WriteVAdapter::new(&mut self.socket));
         if rc.is_err() {
             error!("write failed {:?}", rc);
             self.closing = true;
@@ -354,7 +360,7 @@ impl Connection {
     }
 
     fn is_closed(&self) -> bool {
-        self.closing
+        self.closed
     }
 }
 
@@ -399,6 +405,8 @@ Options:
                         authentication.
     --resumption        Support session resumption.
     --tickets           Support tickets.
+    --protover VERSION  Disable default TLS version list, and use
+                        VERSION instead.  May be used multiple times.
     --suite SUITE       Disable default cipher suite list, and use
                         SUITE instead.  May be used multiple times.
     --proto PROTOCOL    Negotiate PROTOCOL using ALPN.
@@ -415,6 +423,7 @@ struct Args {
     cmd_forward: bool,
     flag_port: Option<u16>,
     flag_verbose: bool,
+    flag_protover: Vec<String>,
     flag_suite: Vec<String>,
     flag_proto: Vec<String>,
     flag_certs: Option<String>,
@@ -448,6 +457,22 @@ fn lookup_suites(suites: &[String]) -> Vec<&'static rustls::SupportedCipherSuite
             Some(s) => out.push(s),
             None => panic!("cannot look up ciphersuite '{}'", csname),
         }
+    }
+
+    out
+}
+
+/// Make a vector of protocol versions named in `versions`
+fn lookup_versions(versions: &[String]) -> Vec<rustls::ProtocolVersion> {
+    let mut out = Vec::new();
+
+    for vname in versions {
+        let version = match vname.as_ref() {
+            "1.2" => rustls::ProtocolVersion::TLSv1_2,
+            "1.3" => rustls::ProtocolVersion::TLSv1_3,
+            _ => panic!("cannot look up version '{}', valid are '1.2' and '1.3'", vname),
+        };
+        out.push(version);
     }
 
     out
@@ -515,14 +540,20 @@ fn make_config(args: &Args) -> Arc<rustls::ServerConfig> {
     };
 
     let mut config = rustls::ServerConfig::new(client_auth);
+    config.key_log = Arc::new(rustls::KeyLogFile::new());
 
     let certs = load_certs(args.flag_certs.as_ref().expect("--certs option missing"));
     let privkey = load_private_key(args.flag_key.as_ref().expect("--key option missing"));
     let ocsp = load_ocsp(&args.flag_ocsp);
-    config.set_single_cert_with_ocsp_and_sct(certs, privkey, ocsp, vec![]);
+    config.set_single_cert_with_ocsp_and_sct(certs, privkey, ocsp, vec![])
+        .expect("bad certificates/private key");
 
     if !args.flag_suite.is_empty() {
         config.ciphersuites = lookup_suites(&args.flag_suite);
+    }
+
+    if !args.flag_protover.is_empty() {
+        config.versions = lookup_versions(&args.flag_protover);
     }
 
     if args.flag_resumption {
@@ -548,9 +579,9 @@ fn main() {
         .unwrap_or_else(|e| e.exit());
 
     if args.flag_verbose {
-        let mut logger = env_logger::LogBuilder::new();
-        logger.parse("debug");
-        logger.init().unwrap();
+        env_logger::Builder::new()
+            .parse("trace")
+            .init();
     }
 
     let mut addr: net::SocketAddr = "0.0.0.0:443".parse().unwrap();

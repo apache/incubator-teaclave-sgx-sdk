@@ -8,10 +8,15 @@ categories = [ "algorithms", "science" ]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/rust-num/num"
 name = "num-integer"
-version = "0.1.35"
+version = "0.1.39"
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_tstd = { path =  "../../../sgx_tstd" }
 
 [dependencies.num-traits]
 path = "../traits"
+
+[features]
+default = ["std",]
+i128 = ["num-traits/i128"]
+std = ["num-traits/std"]

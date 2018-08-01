@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -38,7 +45,7 @@ require "x86asm.pl";
 $output=pop;
 open STDOUT,">$output";
 
-&asm_init($ARGV[0],"chacha-x86.pl",$ARGV[$#ARGV] eq "386");
+&asm_init($ARGV[0],$ARGV[$#ARGV] eq "386");
 
 $xmm=$ymm=1;
 $gasver=999;  # enable everything
@@ -421,7 +428,7 @@ my ($ap,$bp,$cp,$dp)=map(($_&~3)+(($_-1)&3),($ai,$bi,$ci,$di));	# previous
 	($xd,$xd_)=($xd_,$xd);
 }
 
-&function_begin("ChaCha20_ssse3");
+&function_begin("_ChaCha20_ssse3");
 &set_label("ssse3_shortcut");
 	&mov		($out,&wparam(0));
 	&mov		($inp,&wparam(1));
@@ -744,7 +751,7 @@ sub SSSE3ROUND {	# critical path is 20 "SIMD ticks" per round
 }
 &set_label("done");
 	&mov		("esp",&DWP(512,"esp"));
-&function_end("ChaCha20_ssse3");
+&function_end("_ChaCha20_ssse3");
 
 &align	(64);
 &set_label("ssse3_data");

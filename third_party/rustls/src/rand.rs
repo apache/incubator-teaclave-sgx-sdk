@@ -3,6 +3,7 @@
 /// for our own use.  These functions never fail,
 /// they panic on error.
 
+use std::prelude::v1::*;
 use ring::rand::{SystemRandom, SecureRandom};
 use msgs::codec;
 
@@ -11,6 +12,15 @@ pub fn fill_random(bytes: &mut [u8]) {
     SystemRandom::new()
         .fill(bytes)
         .unwrap();
+}
+
+/// Make a Vec<u8> of the given size
+/// containing random material.
+pub fn random_vec(len: usize) -> Vec<u8> {
+    let mut v = Vec::with_capacity(len);
+    v.resize(len, 0u8);
+    fill_random(&mut v);
+    v
 }
 
 /// Return a uniformly random u32.

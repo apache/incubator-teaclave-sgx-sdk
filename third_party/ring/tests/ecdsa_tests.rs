@@ -15,7 +15,6 @@
 #![forbid(
     anonymous_parameters,
     box_pointers,
-    fat_ptr_transmutes,
     legacy_directory_ownership,
     missing_copy_implementations,
     missing_debug_implementations,
@@ -36,6 +35,8 @@ extern crate ring;
 extern crate untrusted;
 
 use ring::{rand, signature, test};
+
+// ECDSA *signing* tests are in src/ec/ecdsa/signing.rs.
 
 #[test]
 fn ecdsa_from_pkcs8_test() {
@@ -62,15 +63,15 @@ fn ecdsa_from_pkcs8_test() {
         let error = test_case.consume_optional_string("Error");
 
         assert_eq!(
-            signature::ECDSAKeyPair::from_pkcs8(this_fixed, input).is_ok(),
+            signature::key_pair_from_pkcs8(this_fixed, input).is_ok(),
             error.is_none());
         assert_eq!(
-            signature::ECDSAKeyPair::from_pkcs8(this_asn1, input).is_ok(),
+            signature::key_pair_from_pkcs8(this_asn1, input).is_ok(),
             error.is_none());
         assert!(
-            signature::ECDSAKeyPair::from_pkcs8(other_fixed, input).is_err());
+            signature::key_pair_from_pkcs8(other_fixed, input).is_err());
         assert!(
-            signature::ECDSAKeyPair::from_pkcs8(other_asn1, input).is_err());
+            signature::key_pair_from_pkcs8(other_asn1, input).is_err());
 
         Ok(())
     });
@@ -92,8 +93,8 @@ fn ecdsa_generate_pkcs8_test() {
         }
         println!();
         println!();
-        let _ = signature::ECDSAKeyPair::from_pkcs8(
-            alg, untrusted::Input::from(pkcs8.as_ref())).unwrap();
+        let _ = signature::key_pair_from_pkcs8(
+            *alg, untrusted::Input::from(pkcs8.as_ref())).unwrap();
     }
 }
 

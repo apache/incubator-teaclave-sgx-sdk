@@ -1,12 +1,10 @@
-use std::vec::Vec;
-use std::boxed::Box;
-use std::option::Option;
-
+use std::prelude::v1::*;
 use msgs::handshake::CertificatePayload;
 use msgs::handshake::DigitallySignedStruct;
 use msgs::handshake::SessionID;
 use msgs::handshake::SCTList;
 use msgs::handshake::ServerExtension;
+use msgs::handshake::ClientExtension;
 use msgs::persist;
 use msgs::enums::ExtensionType;
 use msgs::enums::NamedGroup;
@@ -58,18 +56,22 @@ pub struct HandshakeDetails {
     pub randoms: SessionRandoms,
     pub using_ems: bool,
     pub session_id: SessionID,
+    pub sent_tls13_fake_ccs: bool,
     pub dns_name: webpki::DNSName,
+    pub extra_exts: Vec<ClientExtension>,
 }
 
 impl HandshakeDetails {
-    pub fn new(host_name: webpki::DNSName) -> HandshakeDetails {
+    pub fn new(host_name: webpki::DNSName, extra_exts: Vec<ClientExtension>) -> HandshakeDetails {
         HandshakeDetails {
             transcript: hash_hs::HandshakeHash::new(),
             resuming_session: None,
             randoms: SessionRandoms::for_client(),
             using_ems: false,
             session_id: SessionID::empty(),
+            sent_tls13_fake_ccs: false,
             dns_name: host_name,
+            extra_exts,
         }
     }
 }

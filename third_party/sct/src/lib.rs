@@ -26,7 +26,7 @@ extern crate sgx_tstd as std;
 extern crate ring;
 extern crate untrusted;
 
-use std::vec::Vec;
+use std::prelude::v1::*;
 
 /// Describes a CT log
 ///

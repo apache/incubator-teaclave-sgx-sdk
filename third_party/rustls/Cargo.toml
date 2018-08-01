@@ -1,6 +1,6 @@
 [package]
 name = "rustls"
-version = "0.11.0"
+version = "0.13.0"
 authors = ["Joseph Birr-Pixton <jpixton@gmail.com>"]
 license = "Apache-2.0/ISC/MIT"
 readme = "README.md"
@@ -13,33 +13,33 @@ categories = ["network-programming", "cryptography"]
 sgx_tstd = { path =  "../../sgx_tstd" }
 
 [dependencies]
-untrusted = { version = "0.6", path = "../untrusted" }
+untrusted = "0.6.2"
 base64 = { path = "../rust-base64" }
-log = { path = "../log" , optional = true }
-ring = { path = "../ring" , version="0.12.1", features = ["rsa_signing"] }
-webpki = { path = "../webpki" }
+log = { path = "../log", optional = true }
+ring = { path = "../ring", version = "0.13.2", features = ["rsa_signing"] }
+webpki = { path = "../webpki", version = "0.18.1" }
 sct = { path = "../sct" }
 
 [features]
 default = ["logging"]
 logging = ["log"]
 dangerous_configuration = []
+quic = []
 
 [dev-dependencies]
 log = { path = "../log" }
-env_logger = "0.4.2"
+env_logger = "0.5"
 mio = "0.6"
-docopt = "0.8"
+docopt = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-webpki-roots = { git = "https://github.com/ctz/webpki-roots", rev="927e7547f922ed772c1254c61fdc524964a50fc8" }
-ct-logs = "0.2"
-regex = "0.2"
+regex = "1.0"
+vecio = "0.1"
 
 [[example]]
 name = "bogo_shim"
 path = "examples/internal/bogo_shim.rs"
-required-features = ["dangerous_configuration"]
+required-features = ["dangerous_configuration", "quic"]
 
 [[example]]
 name = "trytls_shim"

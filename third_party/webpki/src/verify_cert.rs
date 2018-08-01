@@ -152,7 +152,7 @@ fn check_issuer_independent_properties<'a>(
         |value| check_basic_constraints(value, used_as_ca, sub_ca_count))?;
     untrusted::read_all_optional(
         cert.eku, Error::BadDER,
-        |value| check_eku(value, used_as_ca, required_eku_if_present))?;
+        |value| check_eku(value, required_eku_if_present))?;
 
     Ok(())
 }
@@ -247,13 +247,6 @@ pub static EKU_OCSP_SIGNING: KeyPurposeId = KeyPurposeId {
     oid_value: &[(40 * 1) + 3, 6, 1, 5, 5, 7, 3, 9]
 };
 
-// id-Netscape        OBJECT IDENTIFIER ::= { 2 16 840 1 113730 }
-// id-Netscape-policy OBJECT IDENTIFIER ::= { id-Netscape 4 }
-// id-Netscape-stepUp OBJECT IDENTIFIER ::= { id-Netscape-policy 1 }
-static EKU_NETSCAPE_SERVER_STEP_UP: KeyPurposeId = KeyPurposeId {
-    oid_value: &[(40 * 2) + 16, 128 + 6, 72, 1, 128 + 6, 128 + 120, 66, 4, 1 ]
-};
-
 // https://tools.ietf.org/html/rfc5280#section-4.2.1.12
 //
 // Notable Differences from RFC 5280:
@@ -271,21 +264,13 @@ static EKU_NETSCAPE_SERVER_STEP_UP: KeyPurposeId = KeyPurposeId {
 //   certificates (only). Comodo has issued certificates that require this
 //   behavior that don't expire until June 2020. See
 //   https://bugzilla.mozilla.org/show_bug.cgi?id=982292.
-fn check_eku(input: Option<&mut untrusted::Reader>, used_as_ca: UsedAsCA,
-             required_eku_if_present: KeyPurposeId) -> Result<(), Error> {
+fn check_eku(input: Option<&mut untrusted::Reader>, required_eku_if_present: KeyPurposeId)
+             -> Result<(), Error> {
     match input {
         Some(input) => {
-            let match_step_up = match used_as_ca {
-                UsedAsCA::Yes if required_eku_if_present.oid_value ==
-                                 EKU_SERVER_AUTH.oid_value => true,
-                _ => false
-            };
-
             loop {
                 let value = der::expect_tag_and_get_value(input, der::Tag::OID)?;
-                if value == required_eku_if_present.oid_value ||
-                   (match_step_up &&
-                    value == EKU_NETSCAPE_SERVER_STEP_UP.oid_value) {
+                if value == required_eku_if_present.oid_value {
                     let _ = input.skip_to_end();
                     break;
                 }

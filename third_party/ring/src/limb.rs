@@ -18,9 +18,7 @@
 //! Limbs ordered least-significant-limb to most-significant-limb. The bits
 //! limbs use the native endianness.
 
-#![cfg_attr(not(feature = "use_heap"), allow(dead_code))]
-
-use {polyfill, c, error, untrusted};
+use {c, error, untrusted};
 
 // XXX: Not correct for x32 ABIs.
 #[cfg(target_pointer_width = "64")] pub type Limb = u64;
@@ -28,8 +26,8 @@ use {polyfill, c, error, untrusted};
 #[cfg(target_pointer_width = "64")] pub const LIMB_BITS: usize = 64;
 #[cfg(target_pointer_width = "32")] pub const LIMB_BITS: usize = 32;
 
+#[allow(trivial_numeric_casts)]
 #[cfg(target_pointer_width = "64")]
-#[allow(trivial_numeric_casts)] // XXX: workaround compiler bug.
 #[derive(Debug, PartialEq)]
 #[repr(u64)]
 pub enum LimbMask {
@@ -38,7 +36,6 @@ pub enum LimbMask {
 }
 
 #[cfg(target_pointer_width = "32")]
-#[allow(trivial_numeric_casts)] // XXX: workaround compiler bug.
 #[derive(Debug, PartialEq)]
 #[repr(u32)]
 pub enum LimbMask {
@@ -51,25 +48,15 @@ pub const LIMB_BYTES: usize = (LIMB_BITS + 7) / 8;
 #[cfg(all(any(test, feature = "rsa_signing"), target_pointer_width = "64"))]
 #[inline]
 pub fn limbs_as_bytes<'a>(src: &'a [Limb]) -> &'a [u8] {
+    use polyfill;
     polyfill::slice::u64_as_u8(src)
-}
-
-#[cfg(all(feature = "rsa_signing", target_pointer_width = "64"))]
-#[inline]
-pub fn limbs_as_bytes_mut<'a>(src: &'a mut [Limb]) -> &'a mut [u8] {
-    polyfill::slice::u64_as_u8_mut(src)
 }
 
 #[cfg(all(any(test, feature = "rsa_signing"), target_pointer_width = "32"))]
 #[inline]
 pub fn limbs_as_bytes<'a>(src: &'a [Limb]) -> &'a [u8] {
+    use polyfill;
     polyfill::slice::u32_as_u8(src)
-}
-
-#[cfg(all(feature = "rsa_signing", target_pointer_width = "32"))]
-#[inline]
-pub fn limbs_as_bytes_mut<'a>(src: &'a mut [Limb]) -> &'a mut [u8] {
-    polyfill::slice::u32_as_u8_mut(src)
 }
 
 #[inline]
@@ -84,8 +71,26 @@ pub fn limbs_less_than_limbs_vartime(a: &[Limb], b: &[Limb]) -> bool {
 }
 
 #[inline]
+#[cfg(feature = "use_heap")]
+pub fn limbs_less_than_limb_constant_time(a: &[Limb], b: Limb) -> LimbMask {
+    unsafe { LIMBS_less_than_limb(a.as_ptr(), b, a.len()) }
+}
+
+#[inline]
 pub fn limbs_are_zero_constant_time(limbs: &[Limb]) -> LimbMask {
     unsafe { LIMBS_are_zero(limbs.as_ptr(), limbs.len()) }
+}
+
+#[cfg(feature = "use_heap")]
+#[inline]
+pub fn limbs_are_even_constant_time(limbs: &[Limb]) -> LimbMask {
+    unsafe { LIMBS_are_even(limbs.as_ptr(), limbs.len()) }
+}
+
+#[cfg(any(test, feature = "rsa_signing"))]
+#[inline]
+pub fn limbs_equal_limb_constant_time(a: &[Limb], b: Limb) -> LimbMask {
+    unsafe { LIMBS_equal_limb(a.as_ptr(), b, a.len()) }
 }
 
 /// Equivalent to `if (r >= m) { r -= m; }`
@@ -189,30 +194,32 @@ pub fn parse_big_endian_and_pad_consttime(
     })
 }
 
-/// XXX: Panics if `out` isn't large enough, but in theory the callers ensure
-/// that never happens. TODO: When `ring::rsa::bigint::Nonnegative` stops using
-/// `BIGNUM`, it should be the case that `limbs.len() == out.len() * LIMB_BYTES`
-/// and so the padding logic can be dropped.
-pub fn big_endian_from_limbs_padded(limbs: &[Limb], out: &mut [u8]) {
+pub fn big_endian_from_limbs(limbs: &[Limb], out: &mut [u8]) {
     let num_limbs = limbs.len();
     let out_len = out.len();
-    let (to_zero, dest) =
-        out.split_at_mut(out_len - (num_limbs * LIMB_BYTES)); // May panic.
+    assert_eq!(out_len, num_limbs * LIMB_BYTES);
     for i in 0..num_limbs {
         let mut limb = limbs[i];
         for j in 0..LIMB_BYTES {
-            dest[((num_limbs - i - 1) * LIMB_BYTES) + (LIMB_BYTES - j - 1)] =
+            out[((num_limbs - i - 1) * LIMB_BYTES) + (LIMB_BYTES - j - 1)] =
                  (limb & 0xff) as u8;
             limb >>= 8;
         }
     }
-    polyfill::slice::fill(to_zero, 0);
 }
 
 extern {
+    #[cfg(feature = "use_heap")]
+    fn LIMBS_are_even(a: *const Limb, num_limbs: c::size_t) -> LimbMask;
     fn LIMBS_are_zero(a: *const Limb, num_limbs: c::size_t) -> LimbMask;
+    #[cfg(any(test, feature = "rsa_signing"))]
+    fn LIMBS_equal_limb(a: *const Limb, b: Limb, num_limbs: c::size_t)
+                        -> LimbMask;
     fn LIMBS_less_than(a: *const Limb, b: *const Limb, num_limbs: c::size_t)
                        -> LimbMask;
+    #[cfg(feature = "use_heap")]
+    fn LIMBS_less_than_limb(a: *const Limb, b: Limb, num_limbs: c::size_t)
+                            -> LimbMask;
     fn LIMBS_reduce_once(r: *mut Limb, m: *const Limb, num_limbs: c::size_t);
 }
 
@@ -220,6 +227,144 @@ extern {
 mod tests {
     use untrusted;
     use super::*;
+
+    const MAX: Limb = LimbMask::True as Limb;
+
+    #[test]
+    fn test_limbs_are_even() {
+        static EVENS: &[&[Limb]] = &[
+            &[],
+            &[0],
+            &[2],
+            &[0, 0],
+            &[2, 0],
+            &[0, 1],
+            &[0, 2],
+            &[0, 3],
+            &[0, 0, 0, 0, MAX],
+        ];
+        for even in EVENS {
+            assert_eq!(limbs_are_even_constant_time(even), LimbMask::True);
+        }
+        static ODDS: &[&[Limb]] = &[
+            &[1],
+            &[3],
+            &[1, 0],
+            &[3, 0],
+            &[1, 1],
+            &[1, 2],
+            &[1, 3],
+            &[1, 0, 0, 0, MAX],
+        ];
+        for odd in ODDS {
+           assert_eq!(limbs_are_even_constant_time(odd), LimbMask::False);
+        }
+    }
+
+    static ZEROES: &[&[Limb]] = &[
+        &[],
+        &[0],
+        &[0, 0],
+        &[0, 0, 0],
+        &[0, 0, 0, 0],
+        &[0, 0, 0, 0, 0],
+        &[0, 0, 0, 0, 0, 0, 0],
+        &[0, 0, 0, 0, 0, 0, 0, 0],
+        &[0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ];
+
+    static NONZEROES: &[&[Limb]] = &[
+        &[1],
+        &[0, 1],
+        &[1, 1],
+        &[1, 0, 0, 0],
+        &[0, 1, 0, 0],
+        &[0, 0, 1, 0],
+        &[0, 0, 0, 1],
+    ];
+
+    #[test]
+    fn test_limbs_are_zero() {
+        for zero in ZEROES {
+            assert_eq!(limbs_are_zero_constant_time(zero), LimbMask::True);
+        }
+        for nonzero in NONZEROES {
+            assert_eq!(limbs_are_zero_constant_time(nonzero), LimbMask::False);
+        }
+    }
+
+    #[test]
+    fn test_limbs_equal_limb() {
+        for zero in ZEROES {
+            assert_eq!(limbs_equal_limb_constant_time(zero, 0), LimbMask::True);
+        }
+        for nonzero in NONZEROES {
+            assert_eq!(limbs_equal_limb_constant_time(nonzero, 0), LimbMask::False);
+        }
+        static EQUAL: &[(&[Limb], Limb)] = &[
+            (&[1], 1),
+            (&[MAX], MAX),
+            (&[1, 0], 1),
+            (&[MAX, 0, 0], MAX),
+            (&[0b100], 0b100),
+            (&[0b100, 0], 0b100),
+        ];
+        for &(a, b) in EQUAL {
+            assert_eq!(limbs_equal_limb_constant_time(a, b), LimbMask::True);
+        }
+        static UNEQUAL: &[(&[Limb], Limb)] = &[
+            (&[0], 1),
+            (&[2], 1),
+            (&[3], 1),
+            (&[1, 1], 1),
+            (&[0b100, 0b100], 0b100),
+            (&[1, 0, 0b100, 0, 0, 0, 0, 0], 1),
+            (&[1, 0, 0, 0, 0, 0, 0, 0b100], 1),
+            (&[MAX, MAX], MAX),
+            (&[MAX, 1], MAX),
+        ];
+        for &(a, b) in UNEQUAL {
+            assert_eq!(limbs_equal_limb_constant_time(a, b), LimbMask::False);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "rsa_signing")]
+    fn test_limbs_less_than_limb_constant_time() {
+        static LESSER: &[(&[Limb], Limb)] = &[
+            (&[0], 1),
+            (&[0, 0], 1),
+            (&[1, 0], 2),
+            (&[2, 0], 3),
+            (&[2, 0], 3),
+            (&[MAX - 1], MAX),
+            (&[MAX - 1, 0], MAX),
+        ];
+        for &(a, b) in LESSER {
+            assert_eq!(limbs_less_than_limb_constant_time(a, b),
+                       LimbMask::True);
+        }
+        static EQUAL: &[(&[Limb], Limb)] = &[
+            (&[0], 0),
+            (&[0, 0, 0, 0], 0),
+            (&[1], 1),
+            (&[1, 0, 0, 0, 0, 0, 0], 1),
+            (&[MAX], MAX),
+        ];
+        static GREATER: &[(&[Limb], Limb)] = &[
+            (&[1], 0),
+            (&[2, 0], 1),
+            (&[3, 0, 0, 0], 1),
+            (&[0, 1, 0, 0], 1),
+            (&[0, 0, 1, 0], 1),
+            (&[0, 0, 1, 1], 1),
+            (&[MAX], MAX - 1),
+        ];
+        for &(a, b) in EQUAL.iter().chain(GREATER.iter()) {
+            assert_eq!(limbs_less_than_limb_constant_time(a, b),
+                       LimbMask::False);
+        }
+    }
 
     #[test]
     fn test_parse_big_endian_and_pad_consttime() {
@@ -266,7 +411,7 @@ mod tests {
     }
 
     #[test]
-    fn test_big_endian_from_limbs_padded_same_length() {
+    fn test_big_endian_from_limbs_same_length() {
         #[cfg(target_pointer_width = "32")]
         let limbs = [
             0xbccddeef, 0x89900aab, 0x45566778, 0x01122334,
@@ -287,12 +432,13 @@ mod tests {
         ];
 
         let mut out = [0xabu8; 32];
-        big_endian_from_limbs_padded(&limbs[..], &mut out);
+        big_endian_from_limbs(&limbs[..], &mut out);
         assert_eq!(&out[..], &expected[..]);
     }
 
+    #[should_panic]
     #[test]
-    fn test_big_endian_from_limbs_padded_fewer_limbs() {
+    fn test_big_endian_from_limbs_fewer_limbs() {
         #[cfg(target_pointer_width = "32")]
         // Two fewer limbs.
         let limbs = [
@@ -307,16 +453,8 @@ mod tests {
             0x99aabbcc_ddeeff00,
         ];
 
-        let expected = [
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00,
-            0x01, 0x12, 0x23, 0x34, 0x45, 0x56, 0x67, 0x78,
-            0x89, 0x90, 0x0a, 0xab, 0xbc, 0xcd, 0xde, 0xef,
-        ];
-
         let mut out = [0xabu8; 32];
 
-        big_endian_from_limbs_padded(&limbs[..], &mut out);
-        assert_eq!(&out[..], &expected[..]);
+        big_endian_from_limbs(&limbs[..], &mut out);
     }
 }

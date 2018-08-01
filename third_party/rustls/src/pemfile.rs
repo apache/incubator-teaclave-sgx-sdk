@@ -1,7 +1,4 @@
-use std::vec::Vec;
-use std::result::Result;
-use std::string::String;
-
+use std::prelude::v1::*;
 use std::io;
 use base64;
 use key;

@@ -1,7 +1,4 @@
-use std::vec::Vec;
-use std::string::String;
-use std::slice::SliceConcatExt;
-
+use std::prelude::v1::*;
 use std::fmt;
 use std::error::Error;
 use msgs::enums::{ContentType, HandshakeType, AlertDescription};
@@ -70,6 +67,13 @@ pub enum TLSError {
 
     /// A syntactically-invalid DNS hostname was given.
     InvalidDNSName(String),
+
+    /// This function doesn't work until the TLS handshake
+    /// is complete.
+    HandshakeNotComplete,
+
+    /// The peer sent an oversized record/fragment.
+    PeerSentOversizedRecord,
 }
 
 fn join<T: fmt::Debug>(items: &[T]) -> String {
@@ -105,7 +109,9 @@ impl fmt::Display for TLSError {
             TLSError::WebPKIError(ref err) => write!(f, "{}: {:?}", self.description(), err),
             TLSError::CorruptMessage |
             TLSError::NoCertificatesPresented |
-            TLSError::DecryptError => write!(f, "{}", self.description()),
+            TLSError::DecryptError |
+            TLSError::PeerSentOversizedRecord |
+            TLSError::HandshakeNotComplete => write!(f, "{}", self.description()),
             _ => write!(f, "{}: {:?}", self.description(), self),
         }
     }
@@ -129,7 +135,9 @@ impl Error for TLSError {
             TLSError::InvalidSCT(_) => "invalid certificate timestamp",
             TLSError::General(_) => "unexpected error", // (please file a bug),
             TLSError::FailedToGetCurrentTime => "failed to get current time",
-            TLSError::InvalidDNSName(_) => "Invalid DNS name",
+            TLSError::InvalidDNSName(_) => "invalid DNS name",
+            TLSError::HandshakeNotComplete => "handshake not complete",
+            TLSError::PeerSentOversizedRecord => "peer sent excess record size",
         }
     }
 }
@@ -161,7 +169,11 @@ mod tests {
                        TLSError::AlertReceived(AlertDescription::ExportRestriction),
                        TLSError::WebPKIError(webpki::Error::ExtensionValueInvalid),
                        TLSError::InvalidSCT(sct::Error::MalformedSCT),
-                       TLSError::General("undocumented error".to_string())];
+                       TLSError::General("undocumented error".to_string()),
+                       TLSError::FailedToGetCurrentTime,
+                       TLSError::InvalidDNSName("dns something".to_string()),
+                       TLSError::HandshakeNotComplete,
+                       TLSError::PeerSentOversizedRecord];
 
         for err in all {
             println!("{:?}:", err);

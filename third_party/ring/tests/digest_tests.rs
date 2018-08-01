@@ -15,7 +15,6 @@
 #![forbid(
     anonymous_parameters,
     box_pointers,
-    fat_ptr_transmutes,
     legacy_directory_ownership,
     missing_copy_implementations,
     missing_debug_implementations,
@@ -78,7 +77,7 @@ mod digest_shavs {
                 fn short_msg_known_answer_test() {
                     run_known_answer_test(
                         &digest::$algorithm_name,
-                        &format!("third-party/NIST/SHAVS/{}ShortMsg.rsp",
+                        &format!("third_party/NIST/SHAVS/{}ShortMsg.rsp",
                                  stringify!($algorithm_name)));
                 }
 
@@ -86,7 +85,7 @@ mod digest_shavs {
                 fn long_msg_known_answer_test() {
                     run_known_answer_test(
                         &digest::$algorithm_name,
-                        &format!("third-party/NIST/SHAVS/{}LongMsg.rsp",
+                        &format!("third_party/NIST/SHAVS/{}LongMsg.rsp",
                                  stringify!($algorithm_name)));
                 }
 
@@ -94,7 +93,7 @@ mod digest_shavs {
                 fn monte_carlo_test() {
                     run_monte_carlo_test(
                         &digest::$algorithm_name,
-                        &format!("third-party/NIST/SHAVS/{}Monte.rsp",
+                        &format!("third_party/NIST/SHAVS/{}Monte.rsp",
                                  stringify!($algorithm_name)));
                 }
             }

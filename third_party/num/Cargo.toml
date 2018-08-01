@@ -28,5 +28,8 @@ path = "./traits"
 [dependencies.num-derive]
 path = "./derive"
 
+[dependencies.num-bigint]
+path = "./bigint"
+
 [dev-dependencies]
 

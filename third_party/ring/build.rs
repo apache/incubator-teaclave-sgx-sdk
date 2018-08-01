@@ -37,7 +37,6 @@
 )]
 
 extern crate cc;
-extern crate rayon;
 
 // In the `pregenerate_asm_main()` case we don't want to access (Cargo)
 // environment variables at all, so avoid `use std::env` here.
@@ -46,94 +45,89 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::fs::{self, DirEntry};
 use std::time::SystemTime;
-use rayon::iter::{ParallelIterator, IndexedParallelIterator,
-                  IntoParallelIterator, IntoParallelRefIterator};
 
 const X86: &'static str = "x86";
 const X86_64: &'static str = "x86_64";
 const AARCH64: &'static str = "aarch64";
 const ARM: &'static str = "arm";
+const NEVER: &'static str = "Don't ever build this file.";
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
 const RING_SRCS: &'static [(&'static [&'static str], &'static str)] = &[
-    (&[], "crypto/aes/aes.c"),
-    (&[], "crypto/bn/bn.c"),
-    (&[], "crypto/bn/exponentiation.c"),
-    (&[], "crypto/bn/generic.c"),
-    (&[], "crypto/bn/montgomery.c"),
-    (&[], "crypto/bn/montgomery_inv.c"),
-    (&[], "crypto/bn/mul.c"),
-    (&[], "crypto/bn/shift.c"),
-    (&[], "crypto/cipher/e_aes.c"),
+    (&[], "crypto/fipsmodule/aes/aes.c"),
+    (&[], "crypto/fipsmodule/bn/exponentiation.c"),
+    (&[], "crypto/fipsmodule/bn/generic.c"),
+    (&[], "crypto/fipsmodule/bn/montgomery.c"),
+    (&[], "crypto/fipsmodule/bn/montgomery_inv.c"),
+    (&[], "crypto/fipsmodule/bn/shift.c"),
+    (&[], "crypto/fipsmodule/cipher/e_aes.c"),
+    (&[NEVER], "crypto/cipher_extra/e_aesgcmsiv.c"),
     (&[], "crypto/crypto.c"),
-    (&[], "crypto/curve25519/curve25519.c"),
-    (&[], "crypto/ec/ecp_nistz.c"),
-    (&[], "crypto/ec/ecp_nistz256.c"),
-    (&[], "crypto/ec/gfp_p256.c"),
-    (&[], "crypto/ec/gfp_p384.c"),
+    (&[], "crypto/fipsmodule/ec/ecp_nistz.c"),
+    (&[], "crypto/fipsmodule/ec/ecp_nistz256.c"),
+    (&[], "crypto/fipsmodule/ec/gfp_p256.c"),
+    (&[], "crypto/fipsmodule/ec/gfp_p384.c"),
     (&[], "crypto/limbs/limbs.c"),
     (&[], "crypto/mem.c"),
-    (&[], "crypto/modes/gcm.c"),
+    (&[], "crypto/fipsmodule/modes/gcm.c"),
+    (&[NEVER], "crypto/fipsmodule/modes/polyval.c"),
+    (&[], "third_party/fiat/curve25519.c"),
 
     (&[X86_64, X86], "crypto/cpu-intel.c"),
 
-    (&[X86], "crypto/aes/asm/aes-586.pl"),
-    (&[X86], "crypto/aes/asm/aesni-x86.pl"),
-    (&[X86], "crypto/aes/asm/vpaes-x86.pl"),
-    (&[X86], "crypto/bn/asm/x86-mont.pl"),
+    (&[X86], "crypto/fipsmodule/aes/asm/aes-586.pl"),
+    (&[X86], "crypto/fipsmodule/aes/asm/aesni-x86.pl"),
+    (&[X86], "crypto/fipsmodule/aes/asm/vpaes-x86.pl"),
+    (&[X86], "crypto/fipsmodule/bn/asm/x86-mont.pl"),
     (&[X86], "crypto/chacha/asm/chacha-x86.pl"),
-    (&[X86], "crypto/ec/asm/ecp_nistz256-x86.pl"),
-    (&[X86], "crypto/modes/asm/ghash-x86.pl"),
+    (&[X86], "crypto/fipsmodule/ec/asm/ecp_nistz256-x86.pl"),
+    (&[X86], "crypto/fipsmodule/modes/asm/ghash-x86.pl"),
     (&[X86], "crypto/poly1305/asm/poly1305-x86.pl"),
-    (&[X86], "crypto/sha/asm/sha256-586.pl"),
-    (&[X86], "crypto/sha/asm/sha512-586.pl"),
+    (&[X86], "crypto/fipsmodule/sha/asm/sha256-586.pl"),
+    (&[X86], "crypto/fipsmodule/sha/asm/sha512-586.pl"),
 
-    (&[X86_64], "crypto/curve25519/x25519-x86_64.c"),
-
-    (&[X86_64], "crypto/aes/asm/aes-x86_64.pl"),
-    (&[X86_64], "crypto/aes/asm/aesni-x86_64.pl"),
-    (&[X86_64], "crypto/aes/asm/bsaes-x86_64.pl"),
-    (&[X86_64], "crypto/aes/asm/vpaes-x86_64.pl"),
-    (&[X86_64], "crypto/bn/asm/x86_64-mont.pl"),
-    (&[X86_64], "crypto/bn/asm/x86_64-mont5.pl"),
+    (&[X86_64], "crypto/fipsmodule/aes/asm/aes-x86_64.pl"),
+    (&[X86_64], "crypto/fipsmodule/aes/asm/aesni-x86_64.pl"),
+    (&[X86_64], "crypto/fipsmodule/aes/asm/vpaes-x86_64.pl"),
+    (&[X86_64], "crypto/fipsmodule/bn/asm/x86_64-mont.pl"),
+    (&[X86_64], "crypto/fipsmodule/bn/asm/x86_64-mont5.pl"),
     (&[X86_64], "crypto/chacha/asm/chacha-x86_64.pl"),
-    (&[X86_64], "crypto/curve25519/asm/x25519-asm-x86_64.S"),
-    (&[X86_64], "crypto/ec/asm/ecp_nistz256-x86_64.pl"),
-    (&[X86_64], "crypto/ec/asm/p256-x86_64-asm.pl"),
-    (&[X86_64], "crypto/modes/asm/aesni-gcm-x86_64.pl"),
-    (&[X86_64], "crypto/modes/asm/ghash-x86_64.pl"),
+    (&[NEVER], "crypto/cipher_extra/asm/aes128gcmsiv-x86_64.pl"),
+    (&[X86_64], "crypto/fipsmodule/ec/asm/p256-x86_64-asm.pl"),
+    (&[X86_64], "crypto/fipsmodule/modes/asm/aesni-gcm-x86_64.pl"),
+    (&[X86_64], "crypto/fipsmodule/modes/asm/ghash-x86_64.pl"),
     (&[X86_64], "crypto/poly1305/asm/poly1305-x86_64.pl"),
     (&[X86_64], SHA512_X86_64),
 
-    (&[AARCH64, ARM], "crypto/aes/asm/aesv8-armx.pl"),
+    (&[AARCH64, ARM], "crypto/fipsmodule/aes/asm/aesv8-armx.pl"),
     (&[AARCH64, ARM], "crypto/cpu-arm-linux.c"),
     (&[AARCH64, ARM], "crypto/cpu-arm.c"),
-    (&[AARCH64, ARM], "crypto/modes/asm/ghashv8-armx.pl"),
+    (&[AARCH64, ARM], "crypto/fipsmodule/modes/asm/ghashv8-armx.pl"),
 
-    (&[ARM], "crypto/aes/asm/aes-armv4.pl"),
-    (&[ARM], "crypto/aes/asm/bsaes-armv7.pl"),
-    (&[ARM], "crypto/bn/asm/armv4-mont.pl"),
+    (&[ARM], "crypto/fipsmodule/aes/asm/aes-armv4.pl"),
+    (&[ARM], "crypto/fipsmodule/aes/asm/bsaes-armv7.pl"),
+    (&[ARM], "crypto/fipsmodule/bn/asm/armv4-mont.pl"),
     (&[ARM], "crypto/chacha/asm/chacha-armv4.pl"),
     (&[ARM], "crypto/curve25519/asm/x25519-asm-arm.S"),
-    (&[ARM], "crypto/ec/asm/ecp_nistz256-armv4.pl"),
-    (&[ARM], "crypto/modes/asm/ghash-armv4.pl"),
+    (&[ARM], "crypto/fipsmodule/ec/asm/ecp_nistz256-armv4.pl"),
+    (&[ARM], "crypto/fipsmodule/modes/asm/ghash-armv4.pl"),
     (&[ARM], "crypto/poly1305/asm/poly1305-armv4.pl"),
-    (&[ARM], "crypto/sha/asm/sha256-armv4.pl"),
-    (&[ARM], "crypto/sha/asm/sha512-armv4.pl"),
+    (&[ARM], "crypto/fipsmodule/sha/asm/sha256-armv4.pl"),
+    (&[ARM], "crypto/fipsmodule/sha/asm/sha512-armv4.pl"),
 
-    (&[AARCH64], "crypto/bn/asm/armv8-mont.pl"),
+    (&[AARCH64], "crypto/fipsmodule/bn/asm/armv8-mont.pl"),
     (&[AARCH64], "crypto/cpu-aarch64-linux.c"),
     (&[AARCH64], "crypto/chacha/asm/chacha-armv8.pl"),
-    (&[AARCH64], "crypto/ec/asm/ecp_nistz256-armv8.pl"),
+    (&[AARCH64], "crypto/fipsmodule/ec/asm/ecp_nistz256-armv8.pl"),
     (&[AARCH64], "crypto/poly1305/asm/poly1305-armv8.pl"),
     (&[AARCH64], SHA512_ARMV8),
 ];
 
-const SHA256_X86_64: &'static str = "crypto/sha/asm/sha256-x86_64.pl";
-const SHA512_X86_64: &'static str = "crypto/sha/asm/sha512-x86_64.pl";
+const SHA256_X86_64: &'static str = "crypto/fipsmodule/sha/asm/sha256-x86_64.pl";
+const SHA512_X86_64: &'static str = "crypto/fipsmodule/sha/asm/sha512-x86_64.pl";
 
-const SHA256_ARMV8: &'static str = "crypto/sha/asm/sha256-armv8.pl";
-const SHA512_ARMV8: &'static str = "crypto/sha/asm/sha512-armv8.pl";
+const SHA256_ARMV8: &'static str = "crypto/fipsmodule/sha/asm/sha256-armv8.pl";
+const SHA512_ARMV8: &'static str = "crypto/fipsmodule/sha/asm/sha512-armv8.pl";
 
 const RING_TEST_SRCS: &'static [&'static str] = &[
     ("crypto/constant_time_test.c"),
@@ -141,25 +135,27 @@ const RING_TEST_SRCS: &'static [&'static str] = &[
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
 const RING_INCLUDES: &'static [&'static str] =
-    &["crypto/bn/internal.h",
-      "crypto/cipher/internal.h",
-      "crypto/curve25519/internal.h",
-      "crypto/ec/ecp_nistz256_table.inl",
-      "crypto/ec/ecp_nistz384.inl",
-      "crypto/ec/ecp_nistz.h",
-      "crypto/ec/ecp_nistz384.h",
-      "crypto/ec/ecp_nistz256.h",
+    &["crypto/fipsmodule/aes/internal.h",
+      "crypto/fipsmodule/bn/internal.h",
+      "crypto/fipsmodule/cipher/internal.h",
+      "crypto/fipsmodule/ec/ecp_nistz256_table.inl",
+      "crypto/fipsmodule/ec/ecp_nistz384.inl",
+      "crypto/fipsmodule/ec/ecp_nistz.h",
+      "crypto/fipsmodule/ec/ecp_nistz384.h",
+      "crypto/fipsmodule/ec/ecp_nistz256.h",
       "crypto/internal.h",
       "crypto/limbs/limbs.h",
       "crypto/limbs/limbs.inl",
-      "crypto/modes/internal.h",
+      "crypto/fipsmodule/modes/internal.h",
       "include/GFp/aes.h",
       "include/GFp/arm_arch.h",
       "include/GFp/base.h",
-      "include/GFp/bn.h",
       "include/GFp/cpu.h",
       "include/GFp/mem.h",
-      "include/GFp/type_check.h"];
+      "include/GFp/type_check.h",
+      "third_party/fiat/curve25519_tables.h",
+      "third_party/fiat/internal.h",
+    ];
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
 const RING_PERL_INCLUDES: &'static [&'static str] =
@@ -191,8 +187,6 @@ fn c_flags(target: &Target) -> &'static [&'static str] {
 fn cpp_flags(target: &Target) -> &'static [&'static str] {
     if target.env != MSVC {
         static NON_MSVC_FLAGS: &'static [&'static str] = &[
-            "-fdata-sections",
-            "-ffunction-sections",
             "-pedantic",
             "-pedantic-errors",
             "-Wall",
@@ -234,13 +228,13 @@ fn cpp_flags(target: &Target) -> &'static [&'static str] {
             // Warnings.
             "/sdl",
             "/Wall",
-            "/WX",
             "/wd4127", // C4127: conditional expression is constant
             "/wd4464", // C4464: relative include path contains '..'
             "/wd4514", // C4514: <name>: unreferenced inline function has be
             "/wd4710", // C4710: function not inlined
             "/wd4711", // C4711: function 'function' selected for inline expansion
             "/wd4820", // C4820: <struct>: <n> bytes padding added after <name>
+			"/wd5045", // C5045: Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
         ];
         MSVC_FLAGS
     }
@@ -253,12 +247,14 @@ const LD_FLAGS: &'static [&'static str] = &[];
 const ASM_TARGETS:
     &'static [(&'static str, Option<&'static str>, &'static str)] =
 &[
+//    ("x86_64", Some("ios"), "macosx"),
 //    ("x86_64", Some("macos"), "macosx"),
 //    ("x86_64", Some(WINDOWS), "nasm"),
     ("x86_64", None, "elf"),
 //    ("aarch64", Some("ios"), "ios64"),
 //    ("aarch64", None, "linux64"),
 //    ("x86", Some(WINDOWS), "win32n"),
+//    ("x86", Some("ios"), "macosx"),
 //    ("x86", None, "elf"),
 //    ("arm", Some("ios"), "ios32"),
 //    ("arm", None, "linux32"),
@@ -285,15 +281,6 @@ fn main() {
 fn ring_build_rs_main() {
     use std::env;
 
-    if let Ok(amt) = std::env::var("NUM_JOBS") {
-        if let Ok(amt) = amt.parse() {
-            rayon::ThreadPoolBuilder::new()
-                .num_threads(amt)
-                .build_global()
-                .unwrap()
-        }
-    }
-
     for (key, value) in env::vars() {
         println!("{}: {}", key, value);
     }
@@ -316,8 +303,8 @@ fn ring_build_rs_main() {
         PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
             .join(PREGENERATED);
 
-    let _ = rayon::join(check_all_files_tracked,
-                        || build_c_code(&target, pregenerated, &out_dir));
+    build_c_code(&target, pregenerated, &out_dir);
+    check_all_files_tracked()
 }
 
 fn pregenerate_asm_main() {
@@ -378,10 +365,9 @@ impl Target {
 }
 
 fn build_c_code(target: &Target, pregenerated: PathBuf, out_dir: &Path) {
-    let includes_modified = RING_INCLUDES.par_iter()
-        .with_max_len(1)
-        .chain(RING_BUILD_FILE.par_iter())
-        .chain(RING_PERL_INCLUDES.par_iter())
+    let includes_modified = RING_INCLUDES.iter()
+        .chain(RING_BUILD_FILE.iter())
+        .chain(RING_PERL_INCLUDES.iter())
         .map(|f| file_modified(Path::new(*f)))
         .max()
         .unwrap();
@@ -395,7 +381,7 @@ fn build_c_code(target: &Target, pregenerated: PathBuf, out_dir: &Path) {
         }
     }
 
-    let &(_, _, perlasm_format) = ASM_TARGETS.iter().find(|entry| {
+    let (_, _, perlasm_format) = ASM_TARGETS.iter().find(|entry| {
         let &(entry_arch, entry_os, _) = *entry;
         entry_arch == target.arch() && is_none_or_equals(entry_os, target.os())
     }).unwrap();
@@ -444,8 +430,7 @@ fn build_c_code(target: &Target, pregenerated: PathBuf, out_dir: &Path) {
 
     // XXX: Ideally, ring-test would only be built for `cargo test`, but Cargo
     // can't do that yet.
-    libs.into_par_iter()
-        .with_max_len(1)
+    libs.into_iter()
         .for_each(|&(lib_name, srcs, additional_srcs)|
             build_library(&target, &out_dir, lib_name, srcs, additional_srcs,
                           warnings_are_errors, includes_modified));
@@ -460,26 +445,19 @@ fn build_library(target: &Target, out_dir: &Path, lib_name: &str,
                  warnings_are_errors: bool, includes_modified: SystemTime) {
     // Compile all the (dirty) source files into object files.
     #[allow(box_pointers)] // XXX
-    let objs = additional_srcs.into_par_iter().chain(srcs.into_par_iter())
-        .with_max_len(1)
+    let objs = additional_srcs.into_iter().chain(srcs.into_iter())
         .filter(|f|
             target.env() != "msvc" ||
                 f.extension().unwrap().to_str().unwrap() != "S")
         .map(|f| compile(f, target, warnings_are_errors, out_dir,
                          includes_modified))
-        .map(|v| vec![v])
-        .reduce(Vec::new,
-                &|mut a: Vec<String>, b: Vec<String>| -> Vec<String> {
-                    a.extend(b.into_iter());
-                    a
-                });
+        .collect::<Vec<_>>();
 
     // Rebuild the library if necessary.
     let lib_path = PathBuf::from(out_dir).join(format!("lib{}.a", lib_name));
 
-    if objs.par_iter()
-        .with_max_len(1)
-        .map(|f| Path::new(f))
+    if objs.iter()
+        .map(Path::new)
         .any(|p| need_run(&p, &lib_path, includes_modified)) {
         let mut c = cc::Build::new();
 
@@ -584,9 +562,15 @@ fn cc(file: &Path, ext: &str, target: &Target, warnings_are_errors: bool,
 
     if target.env() != "msvc" {
         let _ = c.define("_XOPEN_SOURCE", Some("700"));
-        if warnings_are_errors {
-            let _ = c.flag("-Werror");
-        }
+    }
+
+    if warnings_are_errors {
+        let flag = if target.env() != "msvc" {
+            "-Werror"
+        } else {
+            "/WX"
+        };
+        let _ = c.flag(flag);
     }
     if target.env() == "musl" {
         // Some platforms enable _FORTIFY_SOURCE by default, but musl
@@ -595,12 +579,6 @@ fn cc(file: &Path, ext: &str, target: &Target, warnings_are_errors: bool,
         // http://www.openwall.com/lists/musl/2015/02/04/3
         // http://www.openwall.com/lists/musl/2015/06/17/1
         let _ = c.flag("-U_FORTIFY_SOURCE");
-    }
-    if target.os() == "android" {
-        // Define __ANDROID_API__ to the Android API level we want.
-        // Needed for Android NDK Unified Headers, see:
-        // https://android.googlesource.com/platform/ndk/+/master/docs/UnifiedHeaders.md#Supporting-Unified-Headers-in-Your-Build-System
-        let _ = c.define("__ANDROID_API__", Some("18"));
     }
 
     let mut c = c.get_compiler().to_command();
@@ -647,14 +625,13 @@ fn run_command(mut cmd: Command) {
 
 fn sources_for_arch(arch: &str) -> Vec<PathBuf> {
     RING_SRCS.iter()
-        .filter(|&&(ref archs, _)| archs.is_empty() || archs.contains(&arch))
-        .map(|&(_, ref p)| PathBuf::from(p))
+        .filter(|&&(archs, _)| archs.is_empty() || archs.contains(&arch))
+        .map(|&(_, p)| PathBuf::from(p))
         .collect::<Vec<_>>()
 }
 
 fn perlasm_src_dsts(out_dir: &Path, arch: &str, os: Option<&str>,
                     perlasm_format: &str) -> Vec<(PathBuf, PathBuf)> {
-
     let srcs = sources_for_arch(arch);
     let mut src_dsts = srcs.iter()
         .filter(|p| is_perlasm(p))
@@ -703,7 +680,7 @@ fn asm_path(out_dir: &Path, src: &Path, os: Option<&str>, perlasm_format: &str)
 
 fn perlasm(src_dst: &[(PathBuf, PathBuf)], arch: &str,
            perlasm_format: &str, includes_modified: Option<SystemTime>) {
-    for &(ref src, ref dst) in src_dst {
+    for (src, dst) in src_dst {
         if let Some(includes_modified) = includes_modified {
             if !need_run(src, dst, includes_modified) {
                 continue;
@@ -750,8 +727,9 @@ fn get_command(var: &str, default: &str) -> String {
 }
 
 fn check_all_files_tracked() {
-    let _ = rayon::join(|| walk_dir(&PathBuf::from("crypto"), &is_tracked),
-                        || walk_dir(&PathBuf::from("include"), &is_tracked));
+    for path in &["crypto", "include", "third_party/fiat"] {
+        walk_dir(&PathBuf::from(path), &is_tracked);
+    }
 }
 
 fn is_tracked(file: &DirEntry) {
@@ -765,11 +743,11 @@ fn is_tracked(file: &DirEntry) {
         Some("c") |
         Some("S") |
         Some("asm") => {
-            RING_SRCS.iter().any(|&(_, ref f)| cmp(f)) ||
+            RING_SRCS.iter().any(|(_, f)| cmp(f)) ||
                 RING_TEST_SRCS.iter().any(cmp)
         },
         Some("pl") => {
-            RING_SRCS.iter().any(|&(_, ref f)| cmp(f)) ||
+            RING_SRCS.iter().any(|(_, f)| cmp(f)) ||
                 RING_PERL_INCLUDES.iter().any(cmp)
         },
         _ => true,

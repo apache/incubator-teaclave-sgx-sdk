@@ -5,28 +5,29 @@
 //!
 //! ## Current features
 //!
-//! * TLS1.2 and TLS1.3 (draft 18) only.
+//! * TLS1.2 and TLS1.3 (draft 23) only.
 //! * ECDSA or RSA server authentication by clients.
-//! * RSA server authentication by servers.
+//! * ECDSA or RSA server authentication by servers.
 //! * Forward secrecy using ECDHE; with curve25519, nistp256 or nistp384 curves.
 //! * AES128-GCM and AES256-GCM bulk encryption, with safe nonces.
 //! * Chacha20Poly1305 bulk encryption.
 //! * ALPN support.
 //! * SNI support.
 //! * Tunable MTU to make TLS messages match size of underlying transport.
+//! * Optional use of vectored IO to minimise system calls.
 //! * TLS1.2 session resumption.
 //! * TLS1.2 resumption via tickets (RFC5077).
-//! * TLS1.3 resumption via tickets.
+//! * TLS1.3 resumption via tickets or session storage.
 //! * Client authentication by clients.
 //! * Client authentication by servers.
 //! * Extended master secret support (RFC7627).
+//! * Exporters (RFC5705).
 //! * OCSP stapling by servers.
 //! * SCT stapling by servers.
 //! * SCT verification by clients.
 //!
 //! ## Possible future features
 //!
-//! * ECDSA server authentication by servers.
 //! * PSK support.
 //! * OCSP verification by clients.
 //! * Certificate pinning.
@@ -75,9 +76,6 @@
 //!                     |                       |
 //!     write_tls()     +-----------------------+      io::Write
 //! ```
-//!
-//! These objects are `Send` but not `Sync`, so are usable in only one thread unless
-//! you make your own arrangements.
 //!
 //! ### Rustls takes care of server certificate verification
 //! You do not need to provide anything other than a set of root certificates to trust.
@@ -178,12 +176,13 @@
 //!   such as replacing the certificate verification process.  Applications
 //!   requesting this feature should be reviewed carefully.
 //!
+//! - `quic`: this feature exposes additional constructors and functions
+//!   for using rustls as a TLS library for QUIC.  See the `quic` module for
+//!   details of these.  You will only need this if you're writing a QUIC
+//!   implementation.
+//!
 
 // Require docs for public APIs, deny unsafe code, etc.
-
-// #![forbid(unsafe_code,
-//          unstable_features)]
-
 #![forbid(unsafe_code)]
 #![deny(trivial_casts,
         trivial_numeric_casts,
@@ -199,6 +198,14 @@
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 #![feature(slice_concat_ext)]
+
+// Relax these clippy lints:
+// - needless_pass_by_value: this is unhelpful for trait implementations
+//   which need to match the trait.
+#![cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
+// - ptr_arg: this triggers on references to type aliases that are Vec
+//   underneath.
+#![cfg_attr(feature = "cargo-clippy", allow(ptr_arg))]
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
@@ -261,6 +268,9 @@ mod ticketer;
 mod server;
 mod client;
 mod key;
+mod bs_debug;
+//mod keylog;
+
 /// Internal classes which may be useful outside the library.
 /// The contents of this section DO NOT form part of the stable interface.
 pub mod internal {
@@ -278,16 +288,17 @@ pub mod internal {
 // The public interface is:
 pub use msgs::enums::ProtocolVersion;
 pub use msgs::enums::SignatureScheme;
+pub use msgs::enums::CipherSuite;
 pub use error::TLSError;
 pub use session::Session;
-pub use stream::Stream;
+pub use stream::{Stream, StreamOwned};
 pub use anchors::{DistinguishedNames, RootCertStore};
 pub use client::StoresClientSessions;
-pub use client::handy::ClientSessionMemoryCache;
+pub use client::handy::{NoClientSessionStorage, ClientSessionMemoryCache};
 pub use client::{ClientConfig, ClientSession};
 pub use client::ResolvesClientCert;
 pub use server::StoresServerSessions;
-pub use server::handy::ServerSessionMemoryCache;
+pub use server::handy::{NoServerSessionStorage, ServerSessionMemoryCache};
 pub use server::{ServerConfig, ServerSession};
 pub use server::handy::ResolvesServerCertUsingSNI;
 pub use server::ResolvesServerCert;
@@ -295,11 +306,26 @@ pub use server::ProducesTickets;
 pub use ticketer::Ticketer;
 pub use verify::{NoClientAuth, AllowAnyAuthenticatedClient,
                  AllowAnyAnonymousOrAuthenticatedClient};
-pub use suites::{ALL_CIPHERSUITES, SupportedCipherSuite};
+pub use suites::{ALL_CIPHERSUITES, BulkAlgorithm, SupportedCipherSuite};
 pub use key::{Certificate, PrivateKey};
+//pub use keylog::{KeyLog, NoKeyLog, KeyLogFile};
+pub use vecbuf::WriteV;
 
 /// Message signing interfaces and implementations.
 pub mod sign;
+
+#[cfg(feature = "quic")]
+/// APIs for implementing QUIC TLS
+pub mod quic;
+
+#[cfg(not(feature = "quic"))]
+// If QUIC support is disabled, just define a private module with an empty
+// trait to allow Session having QuicExt as a trait bound.
+mod quic {
+    pub trait QuicExt {}
+    impl QuicExt for super::ClientSession {}
+    impl QuicExt for super::ServerSession {}
+}
 
 #[cfg(feature = "dangerous_configuration")]
 pub use verify::{ServerCertVerifier, ServerCertVerified,

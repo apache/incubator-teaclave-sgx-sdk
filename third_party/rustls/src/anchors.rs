@@ -1,6 +1,4 @@
-use std::vec::Vec;
-use std::option::Option;
-
+use std::prelude::v1::*;
 use webpki;
 use untrusted;
 
@@ -103,7 +101,7 @@ impl RootCertStore {
     /// PEM format errors, but not certificate validity errors.
     ///
     /// This is because large collections of root certificates often
-    /// include ancient or syntactictally invalid certificates.  CAs
+    /// include ancient or syntactically invalid certificates.  CAs
     /// are competent like that.
     ///
     /// Returns the number of certificates added, and the number

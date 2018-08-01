@@ -27,8 +27,9 @@
 
 use error;
 
+
 /// A secure random number generator.
-pub trait SecureRandom {
+pub trait SecureRandom: private::Sealed {
     /// Fills `dest` with random bytes.
     fn fill(&self, dest: &mut [u8]) -> Result<(), error::Unspecified>;
 }
@@ -93,6 +94,8 @@ impl SecureRandom for SystemRandom {
     }
 }
 
+impl private::Sealed for SystemRandom {}
+
 #[cfg(not(any(target_os = "linux",
               target_os = "macos",
               target_os = "ios",
@@ -108,38 +111,37 @@ use self::sysrand_or_urandom::fill as fill_impl;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 use self::darwin::fill as fill_impl;
+use private;
 
 #[cfg(target_os = "linux")]
 mod sysrand_chunk {
-    // use {c, error};
-    // use libc;
-
-    // extern {
-    //     static GFp_SYS_GETRANDOM: c::long;
-    // }
     use error;
     use sgx_rand::*;
+
+    //extern {
+    //    static GFp_SYS_GETRANDOM: c::long;
+    //}
 
     #[inline]
     pub fn chunk(dest: &mut [u8]) -> Result<usize, error::Unspecified> {
         let mut os_rng = os::SgxRng::new().unwrap();
         os_rng.fill_bytes(dest);
         Ok(dest.len())
-        // let chunk_len: c::size_t = dest.len();
-        // let flags: c::uint = 0;
-        // let r = unsafe {
-        //     libc::syscall(GFp_SYS_GETRANDOM, dest.as_mut_ptr(), chunk_len, flags)
-        // };
-        // if r < 0 {
-        //     if unsafe { *libc::__errno_location() } == libc::EINTR {
-        //         // If an interrupt occurs while getrandom() is blocking to wait
-        //         // for the entropy pool, then EINTR is returned. Returning 0
-        //         // will cause the caller to try again.
-        //         return Ok(0);
-        //     }
-        //     return Err(error::Unspecified);
-        // }
-        // Ok(r as usize)
+        //let chunk_len: c::size_t = dest.len();
+        //let flags: c::uint = 0;
+        //let r = unsafe {
+        //    libc::syscall(GFp_SYS_GETRANDOM, dest.as_mut_ptr(), chunk_len, flags)
+        //};
+        //if r < 0 {
+        //    if unsafe { *libc::__errno_location() } == libc::EINTR {
+        //        // If an interrupt occurs while getrandom() is blocking to wait
+        //        // for the entropy pool, then EINTR is returned. Returning 0
+        //        // will cause the caller to try again.
+        //        return Ok(0);
+        //    }
+        //    return Err(error::Unspecified);
+        //}
+        //Ok(r as usize)
     }
 }
 
@@ -194,8 +196,10 @@ mod sysrand {
           not(all(target_os = "linux",
                   not(feature = "dev_urandom_fallback")))))]
 mod urandom {
+//    use std;
     use error;
     use sgx_rand::*;
+
     pub fn fill(dest: &mut [u8]) -> Result<(), error::Unspecified> {
 //        #[cfg(target_os = "redox")]
 //        static RANDOM_PATH: &'static str = "rand:";

@@ -121,10 +121,32 @@ use bits;
 
 use {digest, error};
 
+use core;
 use std;
 use std::string::String;
 use std::vec::Vec;
 //use std::io::BufRead;
+
+
+/// `compile_time_assert_clone::<T>();` fails to compile if `T` doesn't
+/// implement `Clone`.
+pub fn compile_time_assert_clone<T: Clone>() {}
+
+/// `compile_time_assert_copy::<T>();` fails to compile if `T` doesn't
+/// implement `Copy`.
+pub fn compile_time_assert_copy<T: Copy>() {}
+
+/// `compile_time_assert_send::<T>();` fails to compile if `T` doesn't
+/// implement `Send`.
+pub fn compile_time_assert_send<T: Send>() {}
+
+/// `compile_time_assert_sync::<T>();` fails to compile if `T` doesn't
+/// implement `Sync`.
+pub fn compile_time_assert_sync<T: Sync>() {}
+
+/// `compile_time_assert_debug::<T>();` fails to compile if `T` doesn't
+/// implement `Debug`.
+pub fn compile_time_assert_debug<T: core::fmt::Debug>() {}
 
 /// A test case. A test case consists of a set of named attributes. Every
 /// attribute in the test case must be consumed exactly once; this helps catch
@@ -175,14 +197,14 @@ impl TestCase {
             let mut s = s.as_bytes().iter().skip(1);
             loop {
                 let b = match s.next() {
-                    Some(&b'\\') => {
+                    Some(b'\\') => {
                         match s.next() {
                             // We don't allow all octal escape sequences, only "\0" for null.
-                            Some(&b'0') => 0u8,
-                            Some(&b't') => b'\t',
-                            Some(&b'n') => b'\n',
+                            Some(b'0') => 0u8,
+                            Some(b't') => b'\t',
+                            Some(b'n') => b'\n',
                             // "\xHH"
-                            Some(&b'x') => {
+                            Some(b'x') => {
                                 let hi = s.next().expect("Invalid hex escape sequence in string.");
                                 let lo = s.next().expect("Invalid hex escape sequence in string.");
                                 if let (Ok(hi), Ok(lo)) =
@@ -197,7 +219,7 @@ impl TestCase {
                             }
                         }
                     },
-                    Some(&b'"') => {
+                    Some(b'"') => {
                         if s.next().is_some() {
                             panic!("characters after the closing quote of a quoted string.");
                         }
@@ -215,7 +237,7 @@ impl TestCase {
             // The value is hex encoded.
             match from_hex(&s) {
                 Ok(s) => s,
-                Err(ref err_str) => {
+                Err(err_str) => {
                     panic!("{} in {}", err_str, s);
                 },
             }
@@ -248,7 +270,7 @@ impl TestCase {
     /// Like `consume_string()` except it returns `None` if the test case
     /// doesn't have the attribute.
     pub fn consume_optional_string(&mut self, key: &str) -> Option<String> {
-        for &mut (ref name, ref value, ref mut consumed) in
+        for (name, value, consumed) in
                 &mut self.attributes {
             if key == name {
                 if *consumed {
@@ -284,7 +306,7 @@ pub fn ring_src_path() -> std::path::PathBuf {
 /// `test_data_relative_file_path`, calling `f` on each vector until `f` fails
 /// or until all the test vectors have been read. `f` can indicate failure
 /// either by returning `Err()` or by panicking.
-pub fn from_file<F>(_: &str, mut __: F)
+pub fn from_file<F>(_test_data_relative_file_path: &str, mut _f: F)
                     where F: FnMut(&str, &mut TestCase)
                                    -> Result<(), error::Unspecified> {
     unimplemented!();
@@ -305,7 +327,7 @@ pub fn from_file<F>(_: &str, mut __: F)
 //        let result = match result {
 //            Ok(Ok(())) => {
 //                if !test_case.attributes.iter().any(
-//                        |&(_, _, ref consumed)| !consumed) {
+//                        |&(_, _, consumed)| !consumed) {
 //                    Ok(())
 //                } else {
 //                    failed = true;
@@ -320,8 +342,8 @@ pub fn from_file<F>(_: &str, mut __: F)
 //            failed = true;
 //
 //            println!("{}: {}", test_data_relative_file_path, msg);
-//            for (ref name, ref value, ref consumed) in test_case.attributes {
-//                let consumed_str = if *consumed { "" } else { " (unconsumed)" };
+//            for (name, value, consumed) in test_case.attributes {
+//                let consumed_str = if consumed { "" } else { " (unconsumed)" };
 //                println!("{}{} = {}", name, consumed_str, value);
 //            }
 //        };
@@ -362,7 +384,7 @@ fn from_hex_digit(d: u8) -> Result<u8, String> {
 }
 
 //type FileLines<'a> = std::io::Lines<std::io::BufReader<&'a std::fs::File>>;
-
+//
 //fn parse_test_case(current_section: &mut String, lines: &mut FileLines)
 //                   -> Option<TestCase> {
 //    let mut attributes = Vec::new();
@@ -375,7 +397,7 @@ fn from_hex_digit(d: u8) -> Result<u8, String> {
 //        };
 //
 //        if cfg!(feature = "test_logging") {
-//            if let Some(ref text) = line {
+//            if let Some(text) = &line {
 //                println!("Line: {}", text);
 //            }
 //        }
@@ -444,6 +466,7 @@ fn from_hex_digit(d: u8) -> Result<u8, String> {
 pub mod rand {
     use core;
     use {error, polyfill, rand};
+    use private;
 
     /// An implementation of `SecureRandom` that always fills the output slice
     /// with the given byte.
@@ -509,6 +532,11 @@ pub mod rand {
             assert_eq!(unsafe { *self.current.get() }, self.bytes.len());
         }
     }
+
+    impl private::Sealed for FixedByteRandom {}
+    impl<'a> private::Sealed for FixedSliceRandom<'a> {}
+    impl<'a> private::Sealed for FixedSliceSequenceRandom<'a> {}
+
 }
 
 

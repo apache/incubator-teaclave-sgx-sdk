@@ -1,7 +1,4 @@
-
-use std::vec::Vec;
-use std::option::Option;
-
+use std::prelude::v1::*;
 use std::collections::VecDeque;
 
 use msgs::codec;
@@ -73,7 +70,7 @@ impl HandshakeJoiner {
     /// within `buf`.
     fn buf_contains_message(&self) -> bool {
         self.buf.len() >= HEADER_SIZE &&
-        self.buf.len() >= (codec::decode_u24(&self.buf[1..4]).unwrap() as usize) + HEADER_SIZE
+        self.buf.len() >= (codec::u24::decode(&self.buf[1..4]).unwrap().0 as usize) + HEADER_SIZE
     }
 
     /// Take a TLS handshake payload off the front of `buf`, and put it onto
@@ -91,7 +88,7 @@ impl HandshakeJoiner {
 
             let m = Message {
                 typ: ContentType::Handshake,
-                version: version,
+                version,
                 payload: MessagePayload::Handshake(payload.unwrap()),
             };
 

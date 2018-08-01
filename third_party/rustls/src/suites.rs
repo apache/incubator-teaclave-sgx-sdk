@@ -1,22 +1,25 @@
-use std::option::Option;
-use std::vec::Vec;
-
+use std::prelude::v1::*;
 use msgs::enums::{CipherSuite, HashAlgorithm, SignatureAlgorithm, SignatureScheme};
 use msgs::enums::{NamedGroup, ProtocolVersion};
 use msgs::handshake::KeyExchangeAlgorithm;
 use msgs::handshake::DecomposedSignatureScheme;
 use msgs::handshake::{ClientECDHParams, ServerECDHParams};
 use msgs::codec::{Reader, Codec};
-use util;
 
 use ring;
 use untrusted;
 
+/// Bulk symmetric encryption scheme used by a cipher suite.
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq)]
 pub enum BulkAlgorithm {
+    /// AES with 128-bit keys in Galois counter mode.
     AES_128_GCM,
+
+    /// AES with 256-bit keys in Galois counter mode.
     AES_256_GCM,
+
+    /// Chacha20 for confidentiality with poly1305 for authenticity.
     CHACHA20_POLY1305,
 }
 
@@ -49,14 +52,14 @@ impl KeyExchange {
 
     pub fn client_ecdhe(kx_params: &[u8]) -> Option<KeyExchangeResult> {
         let mut rd = Reader::init(kx_params);
-        let ecdh_params = try_ret!(ServerECDHParams::read(&mut rd));
+        let ecdh_params = ServerECDHParams::read(&mut rd)?;
 
-        try_ret!(KeyExchange::start_ecdhe(ecdh_params.curve_params.named_group))
+        KeyExchange::start_ecdhe(ecdh_params.curve_params.named_group)?
             .complete(&ecdh_params.public.0)
     }
 
     pub fn start_ecdhe(named_group: NamedGroup) -> Option<KeyExchange> {
-        let alg = try_ret!(KeyExchange::named_group_to_ecdh_alg(named_group));
+        let alg = KeyExchange::named_group_to_ecdh_alg(named_group)?;
         let rng = ring::rand::SystemRandom::new();
         let ours = ring::agreement::EphemeralPrivateKey::generate(alg, &rng).unwrap();
 
@@ -66,9 +69,9 @@ impl KeyExchange {
 
         Some(KeyExchange {
             group: named_group,
-            alg: alg,
+            alg,
             privkey: ours,
-            pubkey: pubkey,
+            pubkey,
         })
     }
 
@@ -187,12 +190,12 @@ impl SupportedCipherSuite {
         }
     }
 
-    /// Resolve a single supported `SignatureScheme` from the
-    /// offered `SupportedSignatureSchemes`.  If we return None,
-    /// the handshake terminates.
-    pub fn resolve_sig_scheme(&self,
+    /// Resolve the set of supported `SignatureScheme`s from the
+    /// offered `SupportedSignatureSchemes`.  If we return an empty
+    /// set, the handshake terminates.
+    pub fn resolve_sig_schemes(&self,
                               offered: &[SignatureScheme])
-                              -> Option<SignatureScheme> {
+                              -> Vec<SignatureScheme> {
         let mut our_preference = vec![
             // Prefer the designated hash algorithm of this suite, for
             // security level consistency.
@@ -212,7 +215,8 @@ impl SupportedCipherSuite {
             our_preference.push(SignatureScheme::RSA_PSS_SHA256);
         }
 
-        util::first_in_both(our_preference.as_slice(), offered)
+        our_preference.retain(|pref| offered.contains(pref));
+        our_preference
     }
 
     /// Which AEAD algorithm to use for this suite.

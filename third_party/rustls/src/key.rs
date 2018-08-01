@@ -1,4 +1,5 @@
-use std::vec::Vec;
+use std::prelude::v1::*;
+use std::fmt;
 
 /// This type contains a private key by value.
 ///
@@ -15,11 +16,28 @@ pub struct PrivateKey(pub Vec<u8>);
 /// The certificate must be DER-encoded X.509.
 ///
 /// `rustls::pemfile::certs` function can be used to parse a PEM file.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Certificate(pub Vec<u8>);
 
 impl AsRef<[u8]> for Certificate {
     fn as_ref(&self) -> &[u8] {
         &self.0
+    }
+}
+
+impl fmt::Debug for Certificate {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use super::bs_debug::BsDebug;
+        f.debug_tuple("Certificate").field(&BsDebug(&self.0)).finish()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Certificate;
+
+    #[test]
+    fn certificate_debug() {
+        assert_eq!("Certificate(b\"ab\")", format!("{:?}", Certificate(b"ab".to_vec())));
     }
 }

@@ -22,6 +22,10 @@ extern crate rustls;
 extern crate webpki;
 extern crate webpki_roots;
 extern crate ct_logs;
+extern crate vecio;
+
+mod util;
+use util::WriteVAdapter;
 
 use rustls::Session;
 
@@ -144,7 +148,7 @@ impl TlsClient {
     }
 
     fn do_write(&mut self) {
-        self.tls_session.write_tls(&mut self.socket).unwrap();
+        self.tls_session.writev_tls(&mut WriteVAdapter::new(&mut self.socket)).unwrap();
     }
 
     fn register(&self, poll: &mut mio::Poll) {
@@ -294,10 +298,12 @@ Options:
     --auth-key KEY      Read client authentication key from KEY.
     --auth-certs CERTS  Read client authentication certificates from CERTS.
                         CERTS must match up with KEY.
+    --protover VERSION  Disable default TLS version list, and use
+                        VERSION instead.  May be used multiple times.
     --suite SUITE       Disable default cipher suite list, and use
                         SUITE instead.  May be used multiple times.
     --proto PROTOCOL    Send ALPN extension containing PROTOCOL.
-                        May be used multiple times to offer serveral protocols.
+                        May be used multiple times to offer several protocols.
     --cache CACHE       Save session cache to file CACHE.
     --no-tickets        Disable session ticket support.
     --no-sni            Disable server name indication support.
@@ -313,6 +319,7 @@ struct Args {
     flag_port: Option<u16>,
     flag_http: bool,
     flag_verbose: bool,
+    flag_protover: Vec<String>,
     flag_suite: Vec<String>,
     flag_proto: Vec<String>,
     flag_mtu: Option<usize>,
@@ -365,6 +372,22 @@ fn lookup_suites(suites: &[String]) -> Vec<&'static rustls::SupportedCipherSuite
             Some(s) => out.push(s),
             None => panic!("cannot look up ciphersuite '{}'", csname),
         }
+    }
+
+    out
+}
+
+/// Make a vector of protocol versions named in `versions`
+fn lookup_versions(versions: &[String]) -> Vec<rustls::ProtocolVersion> {
+    let mut out = Vec::new();
+
+    for vname in versions {
+        let version = match vname.as_ref() {
+            "1.2" => rustls::ProtocolVersion::TLSv1_2,
+            "1.3" => rustls::ProtocolVersion::TLSv1_3,
+            _ => panic!("cannot look up version '{}', valid are '1.2' and '1.3'", vname),
+        };
+        out.push(version);
     }
 
     out
@@ -428,9 +451,14 @@ fn apply_dangerous_options(args: &Args, _: &mut rustls::ClientConfig) {
 /// Build a `ClientConfig` from our arguments
 fn make_config(args: &Args) -> Arc<rustls::ClientConfig> {
     let mut config = rustls::ClientConfig::new();
+    config.key_log = Arc::new(rustls::KeyLogFile::new());
 
     if !args.flag_suite.is_empty() {
         config.ciphersuites = lookup_suites(&args.flag_suite);
+    }
+
+    if !args.flag_protover.is_empty() {
+        config.versions = lookup_versions(&args.flag_protover);
     }
 
     if args.flag_cafile.is_some() {
@@ -487,9 +515,9 @@ fn main() {
         .unwrap_or_else(|e| e.exit());
 
     if args.flag_verbose {
-        let mut logger = env_logger::LogBuilder::new();
-        logger.parse("debug");
-        logger.init().unwrap();
+        env_logger::Builder::new()
+            .parse("trace")
+            .init();
     }
 
     let port = args.flag_port.unwrap_or(443);
