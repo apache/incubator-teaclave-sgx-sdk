@@ -210,7 +210,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
     }
 
     ///
-    /// This function is used to verify the authenticity of the input sealed data structure using AES-GMAC. This function verifies the MAC generated with sgx_mac_aadataorsgx_mac_aadata_ex.
+    /// This function is used to verify the authenticity of the input sealed data structure using AES-GMAC. This function verifies the MAC generated with sgx_mac_aadata or sgx_mac_aadata_ex.
     ///
     /// # Descryption
     ///
@@ -372,9 +372,9 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
          self.inner.unmac_aadata().map(|x| {
-            let ptr = (x.additional).as_ptr() as * mut T;
+            let ptr = Box::into_raw(x.additional);
             unsafe {
-                let slice = slice::from_raw_parts_mut(ptr, aad_len/size);
+                let slice = slice::from_raw_parts_mut(ptr as *mut T, aad_len/size);
                 Box::from_raw(slice as * mut [T])
             }
         })

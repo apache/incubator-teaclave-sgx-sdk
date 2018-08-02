@@ -120,6 +120,10 @@ fn test_main_entrance() -> sgx_status_t {
                      test_cstr,
                      // tseal
                      test_seal_unseal,
+                     test_number_sealing,        // Thanks to @silvanegli
+                     test_array_sealing,         // Thanks to @silvanegli
+                     test_mac_aadata_slice,
+                     test_mac_aadata_number,
                      // rand
                      test_rand_os_sgxrng,
                      test_rand_distributions,

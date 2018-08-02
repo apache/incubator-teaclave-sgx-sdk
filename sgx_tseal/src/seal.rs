@@ -693,8 +693,8 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
         }
 
         self.inner.unseal_data().map(|x| {
-            let ptr = (x.decrypt).as_ptr() as * mut T;
-            let slice = unsafe{slice::from_raw_parts_mut(ptr, encrypt_len/size)};
+            let ptr = Box::into_raw(x.decrypt);
+            let slice = unsafe{slice::from_raw_parts_mut(ptr as * mut T, encrypt_len/size)};
             SgxUnsealedData {
                 payload_size: x.payload_size,
                 decrypt: unsafe{Box::from_raw(slice as * mut [T])},
