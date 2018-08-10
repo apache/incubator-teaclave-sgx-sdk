@@ -1,5 +1,13 @@
+// Copyright 2017 Serde Developers
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
 extern crate serde_test;
-use self::serde_test::{Token, assert_tokens_readable};
+use self::serde_test::{assert_tokens, Configure, Token};
 
 use std::net;
 
@@ -9,9 +17,8 @@ mod macros;
 
 #[test]
 fn ip_addr_roundtrip() {
-
-    assert_tokens_readable(
-        &net::IpAddr::from(*b"1234"),
+    assert_tokens(
+        &net::IpAddr::from(*b"1234").compact(),
         &seq![
             Token::NewtypeVariant { name: "IpAddr", variant: "V4" },
 
@@ -19,15 +26,13 @@ fn ip_addr_roundtrip() {
             seq b"1234".iter().map(|&b| Token::U8(b)),
             Token::TupleEnd,
         ],
-        Some(false),
     );
 }
 
 #[test]
-fn socked_addr_roundtrip() {
-
-    assert_tokens_readable(
-        &net::SocketAddr::from((*b"1234567890123456", 1234)),
+fn socket_addr_roundtrip() {
+    assert_tokens(
+        &net::SocketAddr::from((*b"1234567890123456", 1234)).compact(),
         &seq![
             Token::NewtypeVariant { name: "SocketAddr", variant: "V6" },
 
@@ -40,6 +45,5 @@ fn socked_addr_roundtrip() {
             Token::U16(1234),
             Token::TupleEnd,
         ],
-        Some(false),
     );
 }

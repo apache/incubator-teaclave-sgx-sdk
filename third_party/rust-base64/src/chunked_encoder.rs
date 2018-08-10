@@ -1,6 +1,7 @@
-use super::{Config, LineWrap, LineEnding, encode_to_slice, add_padding};
-use super::line_wrap::line_wrap;
+use encode::{add_padding, encode_to_slice};
+use line_wrap::line_wrap;
 use std::cmp;
+use {Config, LineEnding, LineWrap};
 
 /// The output mechanism for ChunkedEncoder's encoded bytes.
 pub trait Sink {
@@ -41,8 +42,7 @@ impl ChunkedEncoder {
 
         while input_index < bytes.len() {
             // either the full input chunk size, or it's the last iteration
-            let input_chunk_len = cmp::min(self.max_input_chunk_len,
-                                           bytes.len() - input_index);
+            let input_chunk_len = cmp::min(self.max_input_chunk_len, bytes.len() - input_index);
 
             let chunk = &bytes[input_index..(input_index + input_chunk_len)];
 
@@ -78,7 +78,8 @@ impl ChunkedEncoder {
                             }
                             LineEnding::CRLF => {
                                 encode_buf[b64_bytes_written + initial_line_ending_bytes] = b'\r';
-                                encode_buf[b64_bytes_written + initial_line_ending_bytes + 1] = b'\n';
+                                encode_buf[b64_bytes_written + initial_line_ending_bytes + 1] =
+                                    b'\n';
                                 initial_line_ending_bytes + 2
                             }
                         }
@@ -116,10 +117,11 @@ impl ChunkedEncoder {
 /// conservatively calculate space as if it should because encoding is done in chunks, and all the
 /// chunks before the last one will need a line ending after the last encoded line in that chunk.
 fn max_input_length(encoded_buf_len: usize, config: &Config) -> Result<usize, ChunkedEncoderError> {
-
     let effective_buf_len = if config.pad {
         // make room for padding
-        encoded_buf_len.checked_sub(2).expect("Don't use a tiny buffer")
+        encoded_buf_len
+            .checked_sub(2)
+            .expect("Don't use a tiny buffer")
     } else {
         encoded_buf_len
     };
@@ -135,7 +137,8 @@ fn max_input_length(encoded_buf_len: usize, config: &Config) -> Result<usize, Ch
                 return Err(ChunkedEncoderError::InvalidLineLength);
             }
 
-            let single_encoded_full_line_with_ending_len = line_len.checked_add(line_ending.len())
+            let single_encoded_full_line_with_ending_len = line_len
+                .checked_add(line_ending.len())
                 .expect("Encoded line length with ending exceeds usize");
 
             // max number of complete lines with endings that will fit in buffer
@@ -164,12 +167,14 @@ fn max_input_length(encoded_buf_len: usize, config: &Config) -> Result<usize, Ch
 pub mod tests {
     extern crate rand;
 
-    use super::super::*;
-    use super::super::tests::random_config;
     use super::*;
+    use tests::random_config;
+    use *;
 
-    use self::rand::Rng;
+    use std::str;
+
     use self::rand::distributions::{IndependentSample, Range};
+    use self::rand::Rng;
 
     #[test]
     fn chunked_encode_empty() {
@@ -179,14 +184,19 @@ pub mod tests {
     #[test]
     fn chunked_encode_intermediate_fast_loop() {
         // > 8 bytes input, will enter the pretty fast loop
-        assert_eq!("Zm9vYmFyYmF6cXV4", chunked_encode_str(b"foobarbazqux", STANDARD));
+        assert_eq!(
+            "Zm9vYmFyYmF6cXV4",
+            chunked_encode_str(b"foobarbazqux", STANDARD)
+        );
     }
 
     #[test]
     fn chunked_encode_fast_loop() {
         // > 32 bytes input, will enter the uber fast loop
-        assert_eq!("Zm9vYmFyYmF6cXV4cXV1eGNvcmdlZ3JhdWx0Z2FycGx5eg==",
-            chunked_encode_str(b"foobarbazquxquuxcorgegraultgarplyz", STANDARD));
+        assert_eq!(
+            "Zm9vYmFyYmF6cXV4cXV1eGNvcmdlZ3JhdWx0Z2FycGx5eg==",
+            chunked_encode_str(b"foobarbazquxquuxcorgegraultgarplyz", STANDARD)
+        );
     }
 
     #[test]
@@ -199,7 +209,10 @@ pub mod tests {
     fn chunked_encode_line_wrap_padding() {
         // < 8 bytes input, slow loop only
         let config = config_wrap(true, 4, LineEnding::LF);
-        assert_eq!("Zm9v\nYmFy\nZm9v\nYmFy\nZg==", chunked_encode_str(b"foobarfoobarf", config));
+        assert_eq!(
+            "Zm9v\nYmFy\nZm9v\nYmFy\nZg==",
+            chunked_encode_str(b"foobarfoobarf", config)
+        );
     }
 
     #[test]
@@ -325,15 +338,21 @@ pub mod tests {
     fn max_input_length_wrap_line_len_wont_fit_one_line_lf() {
         // 300 bytes is 400 encoded, + 1 for LF
         let config = config_wrap(false, 400, LineEnding::LF);
-        assert_eq!(ChunkedEncoderError::InvalidLineLength,
-            max_input_length(400, &config).unwrap_err());
+        assert_eq!(
+            ChunkedEncoderError::InvalidLineLength,
+            max_input_length(400, &config).unwrap_err()
+        );
     }
 
     #[test]
     fn max_input_length_wrap_line_len_just_fits_one_line_lf() {
         // 300 bytes is 400 encoded, + 1 for LF
-        let config = Config::new(CharacterSet::Standard, false, false,
-                                 LineWrap::Wrap(400, LineEnding::LF));
+        let config = Config::new(
+            CharacterSet::Standard,
+            false,
+            false,
+            LineWrap::Wrap(400, LineEnding::LF),
+        );
         assert_eq!(300, max_input_length(401, &config).unwrap());
     }
 
@@ -370,7 +389,10 @@ pub mod tests {
     #[test]
     fn max_input_length_wrap_line_len_not_multiple_of_4_rejected() {
         let config = config_wrap(false, 41, LineEnding::LF);
-        assert_eq!(ChunkedEncoderError::InvalidLineLength, max_input_length(400, &config).unwrap_err());
+        assert_eq!(
+            ChunkedEncoderError::InvalidLineLength,
+            max_input_length(400, &config).unwrap_err()
+        );
     }
 
     pub fn chunked_encode_matches_normal_encode_random<S: SinkTestHelper>(sink_test_helper: &S) {
@@ -394,8 +416,11 @@ pub mod tests {
             let chunk_encoded_string = sink_test_helper.encode_to_string(config, &input_buf);
             encode_config_buf(&input_buf, config, &mut output_buf);
 
-            assert_eq!(output_buf, chunk_encoded_string, "input len={}, config: pad={}, wrap={:?}",
-                buf_len, config.pad, config.line_wrap);
+            assert_eq!(
+                output_buf, chunk_encoded_string,
+                "input len={}, config: pad={}, wrap={:?}",
+                buf_len, config.pad, config.line_wrap
+            );
         }
     }
 
@@ -410,18 +435,19 @@ pub mod tests {
         return sink.string;
     }
 
-    fn random_config_for_chunked_encoder<R: Rng>(rng: &mut R, line_len_range: &Range<usize>) -> Config{
+    fn random_config_for_chunked_encoder<R: Rng>(
+        rng: &mut R,
+        line_len_range: &Range<usize>,
+    ) -> Config {
         loop {
             let config = random_config(rng, line_len_range);
 
             // only use a config with line_len that is divisible by 4
             match config.line_wrap {
                 LineWrap::NoWrap => return config,
-                LineWrap::Wrap(line_len, _) => {
-                    if line_len % 4 == 0 {
-                        return config;
-                    }
-                }
+                LineWrap::Wrap(line_len, _) => if line_len % 4 == 0 {
+                    return config;
+                },
             }
         }
     }
@@ -431,7 +457,12 @@ pub mod tests {
     }
 
     fn config_wrap(pad: bool, line_len: usize, line_ending: LineEnding) -> Config {
-        Config::new(CharacterSet::Standard, pad, false, LineWrap::Wrap(line_len, line_ending))
+        Config::new(
+            CharacterSet::Standard,
+            pad,
+            false,
+            LineWrap::Wrap(line_len, line_ending),
+        )
     }
 
     // An abstraction around sinks so that we can have tests that easily to any sink implementation
@@ -441,13 +472,13 @@ pub mod tests {
 
     // A really simple sink that just appends to a string for testing
     struct StringSink {
-        string: String
+        string: String,
     }
 
     impl StringSink {
         fn new() -> StringSink {
             StringSink {
-                string: String::new()
+                string: String::new(),
             }
         }
     }

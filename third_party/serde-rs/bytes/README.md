@@ -37,12 +37,6 @@ struct Packet {
 }
 ```
 
-Rust support for specialization is being tracked in [rust-lang/rust#31844].
-Once it lands in the stable compiler Serde will be deprecating these wrapper
-types in favor of optimizing `&[u8]` and `Vec<u8>` out of the box.
-
-[rust-lang/rust#31844]: https://github.com/rust-lang/rust/issues/31844
-
 ## License
 
 Serde is licensed under either of

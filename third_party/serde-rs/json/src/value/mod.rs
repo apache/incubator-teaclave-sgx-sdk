@@ -109,7 +109,7 @@
 
 use std::prelude::v1::*;
 use std::fmt::{self, Debug};
-use std::i64;
+use std::io;
 use std::mem;
 use std::str;
 
@@ -192,7 +192,7 @@ pub enum Value {
     /// Represents a JSON object.
     ///
     /// By default the map is backed by a BTreeMap. Enable the `preserve_order`
-    /// feature of serde_json to use LinkedHashMap instead, which preserves
+    /// feature of serde_json to use IndexMap instead, which preserves
     /// entries in the order they are inserted into the map. In particular, this
     /// allows JSON data to be deserialized into a Value and serialized to a
     /// string while retaining the order of map keys in the input.
@@ -217,6 +217,68 @@ impl Debug for Value {
             Value::String(ref v) => formatter.debug_tuple("String").field(v).finish(),
             Value::Array(ref v) => formatter.debug_tuple("Array").field(v).finish(),
             Value::Object(ref v) => formatter.debug_tuple("Object").field(v).finish(),
+        }
+    }
+}
+
+struct WriterFormatter<'a, 'b: 'a> {
+    inner: &'a mut fmt::Formatter<'b>,
+}
+
+impl<'a, 'b> io::Write for WriterFormatter<'a, 'b> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        fn io_error<E>(_: E) -> io::Error {
+            // Error value does not matter because fmt::Display impl below just
+            // maps it to fmt::Error
+            io::Error::new(io::ErrorKind::Other, "fmt error")
+        }
+        let s = try!(str::from_utf8(buf).map_err(io_error));
+        try!(self.inner.write_str(s).map_err(io_error));
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl fmt::Display for Value {
+    /// Display a JSON value as a string.
+    ///
+    /// ```rust
+    /// # #[macro_use]
+    /// # extern crate serde_json;
+    /// #
+    /// # fn main() {
+    /// let json = json!({ "city": "London", "street": "10 Downing Street" });
+    ///
+    /// // Compact format:
+    /// //
+    /// // {"city":"London","street":"10 Downing Street"}
+    /// let compact = format!("{}", json);
+    /// assert_eq!(compact,
+    ///     "{\"city\":\"London\",\"street\":\"10 Downing Street\"}");
+    ///
+    /// // Pretty format:
+    /// //
+    /// // {
+    /// //   "city": "London",
+    /// //   "street": "10 Downing Street"
+    /// // }
+    /// let pretty = format!("{:#}", json);
+    /// assert_eq!(pretty,
+    ///     "{\n  \"city\": \"London\",\n  \"street\": \"10 Downing Street\"\n}");
+    /// # }
+    /// ```
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let alternate = f.alternate();
+        let mut wr = WriterFormatter { inner: f };
+        if alternate {
+            // {:#}
+            super::ser::to_writer_pretty(&mut wr, self).map_err(|_| fmt::Error)
+        } else {
+            // {}
+            super::ser::to_writer(&mut wr, self).map_err(|_| fmt::Error)
         }
     }
 }
@@ -527,10 +589,8 @@ impl Value {
     /// # #[macro_use]
     /// # extern crate serde_json;
     /// #
-    /// # use std::i64;
-    /// #
     /// # fn main() {
-    /// let big = i64::MAX as u64 + 10;
+    /// let big = i64::max_value() as u64 + 10;
     /// let v = json!({ "a": 64, "b": big, "c": 256.0 });
     ///
     /// assert!(v["a"].is_i64());
@@ -613,10 +673,8 @@ impl Value {
     /// # #[macro_use]
     /// # extern crate serde_json;
     /// #
-    /// # use std::i64;
-    /// #
     /// # fn main() {
-    /// let big = i64::MAX as u64 + 10;
+    /// let big = i64::max_value() as u64 + 10;
     /// let v = json!({ "a": 64, "b": big, "c": 256.0 });
     ///
     /// assert_eq!(v["a"].as_i64(), Some(64));

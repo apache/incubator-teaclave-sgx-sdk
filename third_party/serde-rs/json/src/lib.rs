@@ -315,10 +315,13 @@
 //! [macro]: https://docs.serde.rs/serde_json/macro.json.html
 //! [`serde-json-core`]: https://japaric.github.io/serde-json-core/serde_json_core/
 
-#![doc(html_root_url = "https://docs.rs/serde_json/1.0.17")]
+#![doc(html_root_url = "https://docs.rs/serde_json/1.0.24")]
 #![cfg_attr(feature = "cargo-clippy", deny(clippy, clippy_pedantic))]
 // Whitelisted clippy lints
-#![cfg_attr(feature = "cargo-clippy", allow(doc_markdown, needless_pass_by_value))]
+#![cfg_attr(
+    feature = "cargo-clippy",
+    allow(doc_markdown, needless_pass_by_value)
+)]
 // Whitelisted clippy_pedantic lints
 #![cfg_attr(feature = "cargo-clippy", allow(
 // Deserializer::from_str, into_iter
@@ -344,27 +347,29 @@
     redundant_field_names,
 ))]
 #![deny(missing_docs)]
+
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 #[cfg(not(target_env = "sgx"))]
+#[macro_use]
 extern crate sgx_tstd as std;
 
-extern crate num_traits;
 #[macro_use]
 extern crate serde;
 extern crate dtoa;
-extern crate itoa;
 #[cfg(feature = "preserve_order")]
-extern crate linked_hash_map;
+extern crate indexmap;
+extern crate itoa;
 
 #[doc(inline)]
 pub use self::de::{from_reader, from_slice, from_str, Deserializer, StreamDeserializer};
 #[doc(inline)]
 pub use self::error::{Error, Result};
 #[doc(inline)]
-pub use self::ser::{to_string, to_string_pretty, to_vec, to_vec_pretty, to_writer,
-                    to_writer_pretty, Serializer};
+pub use self::ser::{
+    to_string, to_string_pretty, to_vec, to_vec_pretty, to_writer, to_writer_pretty, Serializer,
+};
 #[doc(inline)]
 pub use self::value::{from_value, to_value, Map, Number, Value};
 

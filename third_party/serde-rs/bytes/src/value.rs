@@ -1,3 +1,4 @@
+use std::prelude::v1::*;
 use serde::de::{Deserializer, IntoDeserializer, Visitor, Error};
 
 #[cfg(feature = "std")]
@@ -6,11 +7,8 @@ use std::marker::PhantomData;
 #[cfg(not(feature = "std"))]
 use core::marker::PhantomData;
 
-#[cfg(feature = "std")]
-use std::vec::Vec;
 #[cfg(feature = "alloc")]
 use alloc::Vec;
-
 
 //////////////////////////////////////////////////////////////////////////////
 

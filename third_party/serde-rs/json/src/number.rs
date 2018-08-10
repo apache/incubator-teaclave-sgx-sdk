@@ -6,12 +6,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::prelude::v1::*;
 use error::Error;
 use serde::de::{self, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug, Display};
-use std::i64;
 
 #[cfg(feature = "arbitrary_precision")]
 use dtoa;
@@ -65,10 +63,8 @@ impl Number {
     /// # #[macro_use]
     /// # extern crate serde_json;
     /// #
-    /// # use std::i64;
-    /// #
     /// # fn main() {
-    /// let big = i64::MAX as u64 + 10;
+    /// let big = i64::max_value() as u64 + 10;
     /// let v = json!({ "a": 64, "b": big, "c": 256.0 });
     ///
     /// assert!(v["a"].is_i64());
@@ -171,10 +167,8 @@ impl Number {
     /// # #[macro_use]
     /// # extern crate serde_json;
     /// #
-    /// # use std::i64;
-    /// #
     /// # fn main() {
-    /// let big = i64::MAX as u64 + 10;
+    /// let big = i64::max_value() as u64 + 10;
     /// let v = json!({ "a": 64, "b": big, "c": 256.0 });
     ///
     /// assert_eq!(v["a"].as_i64(), Some(64));
@@ -566,6 +560,11 @@ impl<'de> Deserializer<'de> for Number {
     deserialize_number!(deserialize_f32 => visit_f32);
     deserialize_number!(deserialize_f64 => visit_f64);
 
+    serde_if_integer128! {
+        deserialize_number!(deserialize_i128 => visit_i128);
+        deserialize_number!(deserialize_u128 => visit_u128);
+    }
+
     forward_to_deserialize_any! {
         bool char str string bytes byte_buf option unit unit_struct
         newtype_struct seq tuple tuple_struct map struct enum identifier
@@ -588,6 +587,11 @@ impl<'de, 'a> Deserializer<'de> for &'a Number {
     deserialize_number!(deserialize_u64 => visit_u64);
     deserialize_number!(deserialize_f32 => visit_f32);
     deserialize_number!(deserialize_f64 => visit_f64);
+
+    serde_if_integer128! {
+        deserialize_number!(deserialize_i128 => visit_i128);
+        deserialize_number!(deserialize_u128 => visit_u128);
+    }
 
     forward_to_deserialize_any! {
         bool char str string bytes byte_buf option unit unit_struct
@@ -640,9 +644,9 @@ impl<'de> Deserializer<'de> for NumberFieldDeserializer {
     }
 
     forward_to_deserialize_any! {
-        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
-        ignored_any unit_struct tuple_struct tuple enum identifier
+        bool u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 f32 f64 char str string seq
+        bytes byte_buf map struct option unit newtype_struct ignored_any
+        unit_struct tuple_struct tuple enum identifier
     }
 }
 

@@ -6,25 +6,27 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![cfg_attr(feature = "unstable", feature(never_type))]
+
 #[macro_use]
 extern crate serde_derive;
 
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::net;
-use std::path::{Path, PathBuf};
-use std::time::{Duration, UNIX_EPOCH};
 use std::ffi::CString;
-use std::rc::Rc;
-use std::sync::Arc;
+use std::mem;
+use std::net;
+use std::num::Wrapping;
+use std::path::{Path, PathBuf};
+use std::rc::{Rc, Weak as RcWeak};
+use std::sync::{Arc, Weak as ArcWeak};
+use std::time::{Duration, UNIX_EPOCH};
 
 #[cfg(unix)]
 use std::str;
 
-extern crate serde;
-
 extern crate serde_test;
-use self::serde_test::{Token, assert_ser_tokens, assert_ser_tokens_error,
-                       assert_ser_tokens_readable};
+use self::serde_test::{assert_ser_tokens, assert_ser_tokens_error, Configure, Token};
 
 extern crate fnv;
 use self::fnv::FnvHasher;
@@ -52,7 +54,10 @@ enum Enum {
     Unit,
     One(i32),
     Seq(i32, i32),
-    Map { a: i32, b: i32 },
+    Map {
+        a: i32,
+        b: i32,
+    },
     #[serde(skip_serializing)]
     SkippedUnit,
     #[serde(skip_serializing)]
@@ -60,21 +65,24 @@ enum Enum {
     #[serde(skip_serializing)]
     SkippedSeq(i32, i32),
     #[serde(skip_serializing)]
-    SkippedMap { _a: i32, _b: i32 },
+    SkippedMap {
+        _a: i32,
+        _b: i32,
+    },
 }
 
 //////////////////////////////////////////////////////////////////////////
 
 macro_rules! declare_tests {
     (
-        readable: $readable:tt
+        $readable:tt
         $($name:ident { $($value:expr => $tokens:expr,)+ })+
     ) => {
         $(
             #[test]
             fn $name() {
                 $(
-                    assert_ser_tokens_readable(&$value, $tokens, Some($readable));
+                    assert_ser_tokens(&$value.$readable(), $tokens);
                 )+
             }
         )+
@@ -369,6 +377,17 @@ declare_tests! {
             Token::StructEnd,
         ],
     }
+    test_range_inclusive {
+        1u32..=2u32 => &[
+            Token::Struct { name: "RangeInclusive", len: 2 },
+                Token::Str("start"),
+                Token::U32(1),
+
+                Token::Str("end"),
+                Token::U32(2),
+            Token::StructEnd,
+        ],
+    }
     test_path {
         Path::new("/usr/local/lib") => &[
             Token::Str("/usr/local/lib"),
@@ -394,15 +413,76 @@ declare_tests! {
             Token::Bool(true),
         ],
     }
+    test_rc_weak_some {
+        {
+            let rc = Rc::new(true);
+            mem::forget(rc.clone());
+            Rc::downgrade(&rc)
+        } => &[
+            Token::Some,
+            Token::Bool(true),
+        ],
+    }
+    test_rc_weak_none {
+        RcWeak::<bool>::new() => &[
+            Token::None,
+        ],
+    }
     test_arc {
         Arc::new(true) => &[
             Token::Bool(true),
         ],
     }
+    test_arc_weak_some {
+        {
+            let arc = Arc::new(true);
+            mem::forget(arc.clone());
+            Arc::downgrade(&arc)
+        } => &[
+            Token::Some,
+            Token::Bool(true),
+        ],
+    }
+    test_arc_weak_none {
+        ArcWeak::<bool>::new() => &[
+            Token::None,
+        ],
+    }
+    test_wrapping {
+        Wrapping(1usize) => &[
+            Token::U64(1),
+        ],
+    }
+    test_rc_dst {
+        Rc::<str>::from("s") => &[
+            Token::Str("s"),
+        ],
+        Rc::<[bool]>::from(&[true][..]) => &[
+            Token::Seq { len: Some(1) },
+            Token::Bool(true),
+            Token::SeqEnd,
+        ],
+    }
+    test_arc_dst {
+        Arc::<str>::from("s") => &[
+            Token::Str("s"),
+        ],
+        Arc::<[bool]>::from(&[true][..]) => &[
+            Token::Seq { len: Some(1) },
+            Token::Bool(true),
+            Token::SeqEnd,
+        ],
+    }
+    test_fmt_arguments {
+        format_args!("{}{}", 1, 'a') => &[
+            Token::Str("1a"),
+        ],
+    }
 }
 
 declare_tests! {
-    readable: true
+    readable
+
     test_net_ipv4addr_readable {
         "1.2.3.4".parse::<net::Ipv4Addr>().unwrap() => &[Token::Str("1.2.3.4")],
     }
@@ -420,7 +500,8 @@ declare_tests! {
 }
 
 declare_tests! {
-    readable: false
+    compact
+
     test_net_ipv4addr_compact {
         net::Ipv4Addr::from(*b"1234") => &seq![
             Token::Tuple { len: 4 },
@@ -480,27 +561,12 @@ declare_tests! {
     }
 }
 
-// Serde's implementation is not unstable, but the constructors are.
 #[cfg(feature = "unstable")]
 declare_tests! {
-    test_rc_dst {
-        Rc::<str>::from("s") => &[
-            Token::Str("s"),
-        ],
-        Rc::<[bool]>::from(&[true][..]) => &[
-            Token::Seq { len: Some(1) },
-            Token::Bool(true),
-            Token::SeqEnd,
-        ],
-    }
-    test_arc_dst {
-        Arc::<str>::from("s") => &[
-            Token::Str("s"),
-        ],
-        Arc::<[bool]>::from(&[true][..]) => &[
-            Token::Seq { len: Some(1) },
-            Token::Bool(true),
-            Token::SeqEnd,
+    test_never_result {
+        Ok::<u8, !>(0) => &[
+            Token::NewtypeVariant { name: "Result", variant: "Ok" },
+            Token::U8(0),
         ],
     }
 }
@@ -518,11 +584,14 @@ fn test_cannot_serialize_paths() {
     let mut path_buf = PathBuf::new();
     path_buf.push(path);
 
-    assert_ser_tokens_error(
-        &path_buf,
-        &[],
-        "path contains invalid UTF-8 characters",
-    );
+    assert_ser_tokens_error(&path_buf, &[], "path contains invalid UTF-8 characters");
+}
+
+#[test]
+fn test_cannot_serialize_mutably_borrowed_ref_cell() {
+    let ref_cell = RefCell::new(42);
+    let _reference = ref_cell.borrow_mut();
+    assert_ser_tokens_error(&ref_cell, &[], "already mutably borrowed");
 }
 
 #[test]
@@ -547,4 +616,11 @@ fn test_enum_skipped() {
         &[],
         "the enum variant Enum::SkippedMap cannot be serialized",
     );
+}
+
+#[test]
+fn test_integer128() {
+    assert_ser_tokens_error(&1i128, &[], "i128 is not supported");
+
+    assert_ser_tokens_error(&1u128, &[], "u128 is not supported");
 }

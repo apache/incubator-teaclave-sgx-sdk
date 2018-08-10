@@ -7,7 +7,10 @@
 // except according to those terms.
 
 #![cfg(not(feature = "preserve_order"))]
-#![cfg_attr(feature = "cargo-clippy", allow(float_cmp, unreadable_literal))]
+#![cfg_attr(
+    feature = "cargo-clippy",
+    allow(float_cmp, unreadable_literal)
+)]
 #![cfg_attr(feature = "trace-macros", feature(trace_macros))]
 #[cfg(feature = "trace-macros")]
 trace_macros!(true);
@@ -39,8 +42,10 @@ use serde::ser::{self, Serialize, Serializer};
 
 use serde_bytes::{ByteBuf, Bytes};
 
-use serde_json::{from_reader, from_slice, from_str, from_value, to_string, to_string_pretty,
-                 to_value, to_vec, to_writer, Deserializer, Number, Value};
+use serde_json::{
+    from_reader, from_slice, from_str, from_value, to_string, to_string_pretty, to_value, to_vec,
+    to_writer, Deserializer, Number, Value,
+};
 
 macro_rules! treemap {
     () => {
@@ -309,6 +314,8 @@ fn test_write_object() {
             "{\"a\":{},\"b\":{},\"c\":{\"a\":{\"a\":[1,2,3]},\"b\":{},\"c\":{}}}",
         ),
     ]);
+
+    test_encode_ok(&[(treemap!['c' => ()], "{\"c\":null}")]);
 
     test_pretty_encode_ok(&[
         (
@@ -609,6 +616,15 @@ where
         let mut de = Deserializer::from_str(&twoline);
         IgnoredAny::deserialize(&mut de).unwrap();
         assert_eq!(0xDEAD_BEEF, u64::deserialize(&mut de).unwrap());
+
+        // Make sure every prefix is an EOF error, except that a prefix of a
+        // number may be a valid number.
+        if !json_value.is_number() {
+            for (i, _) in s.trim_right().char_indices() {
+                assert!(from_str::<Value>(&s[..i]).unwrap_err().is_eof());
+                assert!(from_str::<IgnoredAny>(&s[..i]).unwrap_err().is_eof());
+            }
+        }
     }
 }
 
@@ -667,8 +683,8 @@ where
 #[test]
 fn test_parse_null() {
     test_parse_err::<()>(&[
-        ("n", "expected ident at line 1 column 1"),
-        ("nul", "expected ident at line 1 column 3"),
+        ("n", "EOF while parsing a value at line 1 column 1"),
+        ("nul", "EOF while parsing a value at line 1 column 3"),
         ("nulla", "trailing characters at line 1 column 5"),
     ]);
 
@@ -678,9 +694,9 @@ fn test_parse_null() {
 #[test]
 fn test_parse_bool() {
     test_parse_err::<bool>(&[
-        ("t", "expected ident at line 1 column 1"),
+        ("t", "EOF while parsing a value at line 1 column 1"),
         ("truz", "expected ident at line 1 column 4"),
-        ("f", "expected ident at line 1 column 1"),
+        ("f", "EOF while parsing a value at line 1 column 1"),
         ("faz", "expected ident at line 1 column 3"),
         ("truea", "trailing characters at line 1 column 5"),
         ("falsea", "trailing characters at line 1 column 6"),
@@ -1096,6 +1112,8 @@ fn test_parse_object() {
             )
         ),
     )]);
+
+    test_parse_ok(vec![("{\"c\":null}", treemap!('c' => ()))]);
 }
 
 #[test]
@@ -1209,8 +1227,8 @@ fn test_parse_enum_errors() {
             ("\"Frog\" 0 ", "invalid type: unit variant, expected tuple variant"),
             ("{\"Frog\":{}}",
              "invalid type: map, expected tuple variant Animal::Frog at line 1 column 8"),
-            ("{\"Cat\":[]}", "invalid length 0, expected tuple of 2 elements at line 1 column 9"),
-            ("{\"Cat\":[0]}", "invalid length 1, expected tuple of 2 elements at line 1 column 10"),
+            ("{\"Cat\":[]}", "invalid length 0, expected struct variant Animal::Cat with 2 elements at line 1 column 9"),
+            ("{\"Cat\":[0]}", "invalid length 1, expected struct variant Animal::Cat with 2 elements at line 1 column 10"),
             ("{\"Cat\":[0, \"\", 2]}", "trailing characters at line 1 column 16"),
             ("{\"Cat\":{\"age\": 5, \"name\": \"Kate\", \"foo\":\"bar\"}",
              "unknown field `foo`, expected `age` or `name` at line 1 column 39"),
@@ -1829,6 +1847,9 @@ fn test_json_macro() {
         (<Result<&str, ()> as Clone>::clone(&Ok("")).unwrap()): "ok",
         (<Result<(), &str> as Clone>::clone(&Err("")).unwrap_err()): "err"
     });
+
+    #[deny(unused_results)]
+    let _ = json!({ "architecture": [true, null] });
 }
 
 #[test]
@@ -1980,4 +2001,41 @@ fn null_invalid_type() {
         format!("{}", err),
         String::from("invalid type: null, expected a string at line 1 column 4")
     );
+}
+
+#[test]
+fn test_integer128() {
+    let signed = &[i128::min_value(), -1, 0, 1, i128::max_value()];
+    let unsigned = &[0, 1, u128::max_value()];
+
+    for integer128 in signed {
+        let expected = integer128.to_string();
+        assert_eq!(to_string(integer128).unwrap(), expected);
+        assert_eq!(from_str::<i128>(&expected).unwrap(), *integer128);
+    }
+
+    for integer128 in unsigned {
+        let expected = integer128.to_string();
+        assert_eq!(to_string(integer128).unwrap(), expected);
+        assert_eq!(from_str::<u128>(&expected).unwrap(), *integer128);
+    }
+
+    test_parse_err::<i128>(&[
+        (
+            "-170141183460469231731687303715884105729",
+            "number out of range at line 1 column 40",
+        ),
+        (
+            "170141183460469231731687303715884105728",
+            "number out of range at line 1 column 39",
+        ),
+    ]);
+
+    test_parse_err::<u128>(&[
+        ("-1", "number out of range at line 1 column 1"),
+        (
+            "340282366920938463463374607431768211456",
+            "number out of range at line 1 column 39",
+        ),
+    ]);
 }

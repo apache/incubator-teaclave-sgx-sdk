@@ -53,7 +53,7 @@
 //! # use serde::ser::{Serialize, Serializer, SerializeMap};
 //! # use serde::de::{Deserialize, Deserializer, Visitor, MapAccess};
 //! #
-//! # // Dumb immitation of LinkedHashMap.
+//! # // Dumb imitation of LinkedHashMap.
 //! # #[derive(PartialEq, Debug)]
 //! # struct LinkedHashMap<K, V>(Vec<(K, V)>);
 //! #
@@ -68,11 +68,13 @@
 //! # }
 //! #
 //! # impl<K, V> Serialize for LinkedHashMap<K, V>
-//! #     where K: Serialize,
-//! #           V: Serialize
+//! # where
+//! #     K: Serialize,
+//! #     V: Serialize,
 //! # {
 //! #     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//! #         where S: Serializer
+//! #     where
+//! #         S: Serializer,
 //! #     {
 //! #         let mut map = serializer.serialize_map(Some(self.0.len()))?;
 //! #         for &(ref k, ref v) in &self.0 {
@@ -85,8 +87,9 @@
 //! # struct LinkedHashMapVisitor<K, V>(PhantomData<(K, V)>);
 //! #
 //! # impl<'de, K, V> Visitor<'de> for LinkedHashMapVisitor<K, V>
-//! #     where K: Deserialize<'de>,
-//! #           V: Deserialize<'de>
+//! # where
+//! #     K: Deserialize<'de>,
+//! #     V: Deserialize<'de>,
 //! # {
 //! #     type Value = LinkedHashMap<K, V>;
 //! #
@@ -95,7 +98,8 @@
 //! #     }
 //! #
 //! #     fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
-//! #         where M: MapAccess<'de>
+//! #     where
+//! #         M: MapAccess<'de>,
 //! #     {
 //! #         let mut map = LinkedHashMap::new();
 //! #         while let Some((key, value)) = access.next_entry()? {
@@ -106,11 +110,13 @@
 //! # }
 //! #
 //! # impl<'de, K, V> Deserialize<'de> for LinkedHashMap<K, V>
-//! #     where K: Deserialize<'de>,
-//! #           V: Deserialize<'de>
+//! # where
+//! #     K: Deserialize<'de>,
+//! #     V: Deserialize<'de>,
 //! # {
 //! #     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-//! #         where D: Deserializer<'de>
+//! #     where
+//! #         D: Deserializer<'de>,
 //! #     {
 //! #         deserializer.deserialize_map(LinkedHashMapVisitor(PhantomData))
 //! #     }
@@ -155,30 +161,41 @@
 //! # }
 //! ```
 
-#![doc(html_root_url = "https://docs.rs/serde_test/1.0.16")]
-#![cfg_attr(not(target_env = "sgx"), no_std)]
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
-
-#[cfg(not(target_env = "sgx"))]
-extern crate sgx_tstd as std;
+#![doc(html_root_url = "https://docs.rs/serde_test/1.0.71")]
+#![cfg_attr(feature = "cargo-clippy", deny(clippy, clippy_pedantic))]
+// Whitelisted clippy lints
+#![cfg_attr(feature = "cargo-clippy", allow(float_cmp))]
+// Whitelisted clippy_pedantic lints
+#![cfg_attr(
+    feature = "cargo-clippy",
+    allow(
+        empty_line_after_outer_attr,
+        missing_docs_in_private_items,
+        redundant_field_names,
+        stutter,
+        use_debug,
+        use_self
+    )
+)]
 
 #[macro_use]
 extern crate serde;
 
-mod ser;
 mod de;
 mod error;
+mod ser;
 
-mod token;
 mod assert;
+mod configure;
+mod token;
 
+pub use assert::{
+    assert_de_tokens, assert_de_tokens_error, assert_ser_tokens, assert_ser_tokens_error,
+    assert_tokens,
+};
 pub use token::Token;
-pub use assert::{assert_tokens, assert_ser_tokens, assert_ser_tokens_error,
-                 assert_de_tokens, assert_de_tokens_error};
 
-// Not public API.
-#[doc(hidden)]
-pub use assert::{assert_tokens_readable, assert_de_tokens_readable, assert_ser_tokens_readable};
+pub use configure::{Compact, Configure, Readable};
 
 // Not public API.
 #[doc(hidden)]

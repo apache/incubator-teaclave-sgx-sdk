@@ -147,11 +147,7 @@ where
     }
 }
 
-impl<R> private::Sealed for IoRead<R>
-where
-    R: io::Read,
-{
-}
+impl<R> private::Sealed for IoRead<R> where R: io::Read {}
 
 impl<R> IoRead<R>
 where
@@ -341,10 +337,8 @@ impl<'a> SliceRead<'a> {
                         return result(self, borrowed).map(Reference::Borrowed);
                     } else {
                         scratch.extend_from_slice(&self.slice[start..self.index]);
-                        // "as &[u8]" is required for rustc 1.8.0
-                        let copied = scratch as &[u8];
                         self.index += 1;
-                        return result(self, copied).map(Reference::Copied);
+                        return result(self, scratch).map(Reference::Copied);
                     }
                 }
                 b'\\' => {
@@ -607,11 +601,7 @@ fn parse_escape<'de, R: Read<'de>>(read: &mut R, scratch: &mut Vec<u8>) -> Resul
                 },
             };
 
-            // FIXME: this allocation is required in order to be compatible with stable
-            // rust, which doesn't support encoding a `char` into a stack buffer.
-            let mut buf = String::new();
-            buf.push(c);
-            scratch.extend(buf.bytes());
+            scratch.extend_from_slice(c.encode_utf8(&mut [0_u8; 4]).as_bytes());
         }
         _ => {
             return error(read, ErrorCode::InvalidEscape);

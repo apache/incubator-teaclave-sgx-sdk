@@ -7,7 +7,6 @@
 // except according to those terms.
 
 use std::prelude::v1::*;
-use std::string::String;
 use std::fmt;
 use std::ops;
 
@@ -145,16 +144,12 @@ where
 
 // Prevent users from implementing the Index trait.
 mod private {
-    use std::string::String;
+    use std::prelude::v1::*;
     pub trait Sealed {}
     impl Sealed for usize {}
     impl Sealed for str {}
     impl Sealed for String {}
-    impl<'a, T: ?Sized> Sealed for &'a T
-    where
-        T: Sealed,
-    {
-    }
+    impl<'a, T: ?Sized> Sealed for &'a T where T: Sealed {}
 }
 
 /// Used in panic messages.

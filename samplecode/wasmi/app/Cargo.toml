@@ -8,8 +8,8 @@ build = "build.rs"
 sgx_types = { path = "../../../sgx_types" }
 sgx_urts = { path = "../../../sgx_urts" }
 wabt = "~0.2.2"
-serde = {version = "1.0"}
-serde_json = {version = "1.0.17"}
-serde_derive = {version = "1.0.5"}
+serde = {version = "=1.0.71"}
+serde_json = {version = "=1.0.24"}
+serde_derive = {version = "=1.0.71"}
 wasmi = { path = "wasmi-0.1.1", version = "0.1.1" }
 dirs = "1.0.2"

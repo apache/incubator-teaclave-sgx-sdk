@@ -1,9 +1,11 @@
-# Serde &emsp; [![Build Status]][travis] [![Latest Version]][crates.io]
+# Serde &emsp; [![Build Status]][travis] [![Latest Version]][crates.io] [![Rustc Version 1.13+]][rustc]
 
 [Build Status]: https://api.travis-ci.org/serde-rs/serde.svg?branch=master
 [travis]: https://travis-ci.org/serde-rs/serde
 [Latest Version]: https://img.shields.io/crates/v/serde.svg
 [crates.io]: https://crates.io/crates/serde
+[Rustc Version 1.13+]: https://img.shields.io/badge/rustc-1.13+-lightgray.svg
+[rustc]: https://blog.rust-lang.org/2016/11/10/Rust-1.13.html
 
 **Serde is a framework for *ser*ializing and *de*serializing Rust data structures efficiently and generically.**
 
@@ -20,9 +22,30 @@ You may be looking for:
 
 ## Serde in action
 
-<a href="http://play.integer32.com/?gist=9003c5b88c1f4989941925d7190c6eec" target="_blank">
-<img align="right" width="50" src="https://raw.githubusercontent.com/serde-rs/serde-rs.github.io/master/img/run.png">
-</a>
+<details>
+<summary>
+Click to show Cargo.toml.
+<a href="https://play.rust-lang.org/?gist=9003c5b88c1f4989941925d7190c6eec" target="_blank">Run this code in the playground.</a>
+</summary>
+
+```toml
+[dependencies]
+
+# The core APIs, including the Serialize and Deserialize traits. Always
+# required when using Serde.
+serde = "1.0"
+
+# Support for #[derive(Serialize, Deserialize)]. Required if you want Serde
+# to work for structs and enums defined in your crate.
+serde_derive = "1.0"
+
+# Each data format lives in its own crate; the sample code below uses JSON
+# but you may be using a different one.
+serde_json = "1.0"
+```
+
+</details>
+<p></p>
 
 ```rust
 #[macro_use]
@@ -56,12 +79,13 @@ fn main() {
 
 ## Getting help
 
-Serde developers live in the #serde channel on
-[`irc.mozilla.org`](https://wiki.mozilla.org/IRC). The #rust channel is also a
-good resource with generally faster response time but less specific knowledge
-about Serde. If IRC is not your thing or you don't get a good response, we are
-happy to respond to [GitHub issues](https://github.com/serde-rs/serde/issues/new)
-as well.
+Serde developers live in the #serde channel on [`irc.mozilla.org`][irc]. The
+\#rust channel is also a good resource with generally faster response time but
+less specific knowledge about Serde. If IRC is not your thing or you don't get a
+good response, we are happy to respond to [GitHub issues][issues] as well.
+
+[irc]: https://wiki.mozilla.org/IRC
+[issues]: https://github.com/serde-rs/serde/issues/new/choose
 
 ## License
 

@@ -52,6 +52,8 @@
 //! - [Pickle], a format common in the Python world.
 //! - [Hjson], a variant of JSON designed to be readable and writable by humans.
 //! - [BSON], the data storage and network transfer format used by MongoDB.
+//! - [Avro], a binary format used within Apache Hadoop, with support for schema
+//!   definition.
 //! - [URL], the x-www-form-urlencoded format.
 //! - [XML], the flexible machine-friendly W3C standard.
 //!   *(deserialization only)*
@@ -69,6 +71,7 @@
 //! [Pickle]: https://github.com/birkenfeld/serde-pickle
 //! [Hjson]: https://github.com/laktak/hjson-rust
 //! [BSON]: https://github.com/zonyitoo/bson-rs
+//! [Avro]: https://github.com/flavray/avro-rs
 //! [URL]: https://github.com/nox/serde_urlencoded
 //! [XML]: https://github.com/RReverser/serde-xml-rs
 //! [Envy]: https://github.com/softprops/envy
@@ -79,29 +82,31 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // Serde types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/serde/1.0.16")]
-
+#![doc(html_root_url = "https://docs.rs/serde/1.0.71")]
 // Support using Serde without the standard library!
-//#![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(not(all(target_env = "sgx", feature = "std")), no_std)]
-#![cfg_attr(all(target_env = "sgx", feature = "std"), feature(rustc_private))]
+#![cfg_attr(not(feature = "std"), no_std)]
 // Unstable functionality only if the user asks for it. For tracking and
 // discussion of these features please refer to this issue:
 //
 //    https://github.com/serde-rs/serde/issues/812
-#![cfg_attr(feature = "unstable", feature(nonzero, specialization))]
+#![cfg_attr(feature = "unstable", feature(specialization, never_type))]
 #![cfg_attr(feature = "alloc", feature(alloc))]
-
 #![cfg_attr(feature = "cargo-clippy", deny(clippy, clippy_pedantic))]
 // Whitelisted clippy lints
-#![cfg_attr(feature = "cargo-clippy", allow(
-    cast_lossless,
-    doc_markdown,
-    linkedlist,
-    type_complexity,
-    unreadable_literal,
-    zero_prefixed_literal,
-))]
+#![cfg_attr(
+    feature = "cargo-clippy",
+    allow(
+        cast_lossless,
+        const_static_lifetime,
+        doc_markdown,
+        linkedlist,
+        needless_pass_by_value,
+        redundant_field_names,
+        type_complexity,
+        unreadable_literal,
+        zero_prefixed_literal
+    )
+)]
 // Whitelisted clippy_pedantic lints
 #![cfg_attr(feature = "cargo-clippy", allow(
 // integer and float ser/de requires these sorts of casts
@@ -112,6 +117,7 @@
 // simplifies some macros
     invalid_upcast_comparisons,
 // things are often more readable this way
+    decimal_literal_representation,
     option_unwrap_used,
     result_unwrap_used,
     shadow_reuse,
@@ -119,40 +125,47 @@
     stutter,
     use_self,
 // not practical
+    indexing_slicing,
+    many_single_char_names,
     missing_docs_in_private_items,
+    similar_names,
 // alternative is not stable
     empty_enum,
     use_debug,
 ))]
-
 // Blacklisted Rust lints.
-#![deny(missing_docs, unused_imports)]
+//
+// Compiler bug involving unused_imports:
+// https://github.com/rust-lang/rust/issues/51661
+#![deny(missing_docs, /*unused_imports*/)]
+
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+
+#[cfg(not(target_env = "sgx"))]
+#[macro_use]
+extern crate sgx_tstd as std;
 
 ////////////////////////////////////////////////////////////////////////////////
-#[cfg(all(not(target_env = "sgx"), feature = "std"))]
-extern crate sgx_tstd as std;
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
-
-#[cfg(all(feature = "unstable", feature = "std"))]
-extern crate core;
 
 /// A facade around all the types we need from the `std`, `core`, and `alloc`
 /// crates. This avoids elaborate import wrangling having to happen in every
 /// module.
 mod lib {
     mod core {
-        #[cfg(feature = "std")]
-        pub use std::*;
         #[cfg(not(feature = "std"))]
         pub use core::*;
+        #[cfg(feature = "std")]
+        pub use std::*;
     }
 
-    pub use self::core::{cmp, iter, mem, ops, slice, str};
-    pub use self::core::{i8, i16, i32, i64, isize};
-    pub use self::core::{u8, u16, u32, u64, usize};
+    pub use self::core::{cmp, iter, mem, num, slice, str};
     pub use self::core::{f32, f64};
+    pub use self::core::{i16, i32, i64, i8, isize};
+    pub use self::core::{u16, u32, u64, u8, usize};
 
     pub use self::core::cell::{Cell, RefCell};
     pub use self::core::clone::{self, Clone};
@@ -160,43 +173,44 @@ mod lib {
     pub use self::core::default::{self, Default};
     pub use self::core::fmt::{self, Debug, Display};
     pub use self::core::marker::{self, PhantomData};
+    pub use self::core::ops::Range;
     pub use self::core::option::{self, Option};
     pub use self::core::result::{self, Result};
 
-    #[cfg(feature = "std")]
-    pub use std::borrow::{Cow, ToOwned};
     #[cfg(all(feature = "alloc", not(feature = "std")))]
     pub use alloc::borrow::{Cow, ToOwned};
-
     #[cfg(feature = "std")]
-    pub use std::string::{String, ToString};
+    pub use std::borrow::{Cow, ToOwned};
+
     #[cfg(all(feature = "alloc", not(feature = "std")))]
     pub use alloc::string::{String, ToString};
-
     #[cfg(feature = "std")]
-    pub use std::vec::Vec;
+    pub use std::string::String;
+
     #[cfg(all(feature = "alloc", not(feature = "std")))]
     pub use alloc::vec::Vec;
-
     #[cfg(feature = "std")]
-    pub use std::boxed::Box;
+    pub use std::vec::Vec;
+
     #[cfg(all(feature = "alloc", not(feature = "std")))]
     pub use alloc::boxed::Box;
-
-    #[cfg(all(feature = "rc", feature = "std"))]
-    pub use std::rc::Rc;
-    #[cfg(all(feature = "rc", feature = "alloc", not(feature = "std")))]
-    pub use alloc::rc::Rc;
-
-    #[cfg(all(feature = "rc", feature = "std"))]
-    pub use std::sync::Arc;
-    #[cfg(all(feature = "rc", feature = "alloc", not(feature = "std")))]
-    pub use alloc::arc::Arc;
-
     #[cfg(feature = "std")]
-    pub use std::collections::{BinaryHeap, BTreeMap, BTreeSet, LinkedList, VecDeque};
+    pub use std::boxed::Box;
+
+    #[cfg(all(feature = "rc", feature = "alloc", not(feature = "std")))]
+    pub use alloc::rc::{Rc, Weak as RcWeak};
+    #[cfg(all(feature = "rc", feature = "std"))]
+    pub use std::rc::{Rc, Weak as RcWeak};
+
+    #[cfg(all(feature = "rc", feature = "alloc", not(feature = "std")))]
+    pub use alloc::arc::{Arc, Weak as ArcWeak};
+    #[cfg(all(feature = "rc", feature = "std"))]
+    pub use std::sync::{Arc, Weak as ArcWeak};
+
     #[cfg(all(feature = "alloc", not(feature = "std")))]
-    pub use alloc::{BinaryHeap, BTreeMap, BTreeSet, LinkedList, VecDeque};
+    pub use alloc::collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque};
+    #[cfg(feature = "std")]
+    pub use std::collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque};
 
     #[cfg(feature = "std")]
     pub use std::{error, net};
@@ -204,20 +218,25 @@ mod lib {
     #[cfg(feature = "std")]
     pub use std::collections::{HashMap, HashSet};
     #[cfg(feature = "std")]
-    pub use std::ffi::{CString, CStr, OsString, OsStr};
+    pub use std::ffi::{CStr, CString, OsStr, OsString};
     #[cfg(feature = "std")]
-    pub use std::hash::{Hash, BuildHasher};
+    pub use std::hash::{BuildHasher, Hash};
     #[cfg(feature = "std")]
     pub use std::io::Write;
     #[cfg(feature = "std")]
+    pub use std::num::Wrapping;
+    #[cfg(feature = "std")]
     pub use std::path::{Path, PathBuf};
     #[cfg(feature = "std")]
-    pub use std::time::{Duration, SystemTime, UNIX_EPOCH};
-    #[cfg(feature = "std")]
     pub use std::sync::{SgxMutex, SgxRwLock};
+    #[cfg(feature = "std")]
+    pub use std::time::{SystemTime, UNIX_EPOCH};
 
-    #[cfg(feature = "unstable")]
-    pub use core::nonzero::{NonZero, Zeroable};
+    #[cfg(any(core_duration, feature = "std"))]
+    pub use self::core::time::Duration;
+
+    #[cfg(range_inclusive)]
+    pub use self::core::ops::RangeInclusive;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -225,13 +244,16 @@ mod lib {
 #[macro_use]
 mod macros;
 
-pub mod ser;
+#[macro_use]
+mod integer128;
+
 pub mod de;
+pub mod ser;
 
 #[doc(inline)]
-pub use ser::{Serialize, Serializer};
-#[doc(inline)]
 pub use de::{Deserialize, Deserializer};
+#[doc(inline)]
+pub use ser::{Serialize, Serializer};
 
 // Generated code uses these to support no_std. Not public API.
 #[doc(hidden)]

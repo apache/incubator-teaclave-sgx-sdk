@@ -1,3 +1,20 @@
+# 0.9.2
+
+- Derive `Clone` for `DecodeError`.
+
+# 0.9.1
+
+- Add support for `crypt(3)`'s base64 variant.
+
+# 0.9.0
+
+- `decode_config_slice` function for no-allocation decoding, analogous to `encode_config_slice`
+- Decode performance optimization
+
+# 0.8.0
+
+- `encode_config_slice` function for no-allocation encoding
+
 # 0.7.0
 
 - `STANDARD_NO_PAD` config

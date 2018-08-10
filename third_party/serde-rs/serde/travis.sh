@@ -34,6 +34,9 @@ if [ -n "${CLIPPY}" ]; then
     cd "$DIR/serde_derive"
     cargo clippy -- -Dclippy
 
+    cd "$DIR/serde_test"
+    cargo clippy -- -Dclippy
+
     cd "$DIR/test_suite"
     cargo clippy --features unstable -- -Dclippy
 
@@ -52,6 +55,7 @@ else
     channel build
     cd "$DIR/test_suite"
     channel test --features unstable
+    channel build --tests --features proc-macro2/nightly
     if [ -z "${APPVEYOR}" ]; then
         cd "$DIR/test_suite/no_std"
         channel build
@@ -83,4 +87,18 @@ else
     channel build --no-default-features
     cd "$DIR/serde_test"
     channel build
+
+    CHANNEL=1.15.0
+    cd "$DIR"
+    cargo clean
+    cd "$DIR/serde_derive"
+    channel build
+
+    for CHANNEL in 1.20.0 1.21.0 1.25.0 1.26.0; do
+        cd "$DIR"
+        cargo clean
+        cd "$DIR/serde"
+        channel build --no-default-features
+        channel build
+    done
 fi
