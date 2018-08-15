@@ -125,6 +125,12 @@ impl Instant {
     pub fn elapsed(&self) -> Duration {
         Instant::now() - *self
     }
+
+    /// Return a tup (sec, nsec)
+    ///
+    pub fn get_tup(&self) -> (i64, i64) {
+        self.0.get_tup()
+    }
 }
 
 impl Add<Duration> for Instant {
@@ -218,6 +224,12 @@ impl SystemTime {
     #[cfg(feature = "untrusted_time")]
     pub fn elapsed(&self) -> Result<Duration, SystemTimeError> {
         SystemTime::now().duration_since(*self)
+    }
+
+    /// Return a tup (sec, nsec)
+    ///
+    pub fn get_tup(&self) -> (i64, i64) {
+        self.0.get_tup()
     }
 }
 

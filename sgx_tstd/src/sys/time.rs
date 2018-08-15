@@ -184,6 +184,11 @@ mod inner {
         pub fn sub_duration(&self, other: &Duration) -> Instant {
             Instant { t: self.t.sub_duration(other) }
         }
+
+        pub fn get_tup(&self) -> (i64, i64) {
+            (self.t.t.tv_sec,
+             self.t.t.tv_nsec)
+        }
     }
 
     impl fmt::Debug for Instant {
@@ -211,6 +216,11 @@ mod inner {
 
         pub fn sub_duration(&self, other: &Duration) -> SystemTime {
             SystemTime { t: self.t.sub_duration(other) }
+        }
+
+        pub fn get_tup(&self) -> (i64, i64) {
+            (self.t.t.tv_sec,
+             self.t.t.tv_nsec)
         }
     }
 

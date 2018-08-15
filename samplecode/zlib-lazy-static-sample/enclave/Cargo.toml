@@ -17,4 +17,4 @@ sgx_tstd = { path = "../../../sgx_tstd" }
 [dependencies]
 inflate = { path = "../../../third_party/inflate" }
 libflate = { path = "../../../third_party/libflate" }
-lazy_static = { version = "1.0.2", features = ["spin_no_std"] }
+lazy_static = { version = "1.1.0", features = ["spin_no_std"] }
