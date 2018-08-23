@@ -1,4 +1,3 @@
-use std::prelude::v1::*;
 use std::any::TypeId;
 use value::{RuntimeValue, FromRuntimeValue};
 use {TrapKind, Trap};
@@ -108,6 +107,7 @@ pub trait HostError: 'static + ::std::fmt::Display + ::std::fmt::Debug + Send + 
 
 impl HostError {
 	/// Attempt to downcast this `HostError` to a concrete type by reference.
+    #[allow(dead_code)]
 	pub fn downcast_ref<T: HostError>(&self) -> Option<&T> {
 		if self.__private_get_type_id__() == TypeId::of::<T>() {
 			unsafe { Some(&*(self as *const HostError as *const T)) }
@@ -118,6 +118,7 @@ impl HostError {
 
 	/// Attempt to downcast this `HostError` to a concrete type by mutable
 	/// reference.
+    #[allow(dead_code)]
 	pub fn downcast_mut<T: HostError>(&mut self) -> Option<&mut T> {
 		if self.__private_get_type_id__() == TypeId::of::<T>() {
 			unsafe { Some(&mut *(self as *mut HostError as *mut T)) }

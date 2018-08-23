@@ -1,6 +1,6 @@
 [package]
 name = "wabt-core"
-version = "0.2.2"
+version = "0.4.0"
 authors = ["Sergey Pepyakin <s.pepyakin@gmail.com>"]
 license = "Apache-2.0"
 readme = "README.md"
@@ -11,10 +11,10 @@ categories = ["api-bindings"]
 keywords = ["tools", "webassembly", "wasm"]
 
 [dependencies]
-serde_json = { path = "../../third_party/serde-rs/json" }
-serde_derive = { path = "../../third_party/serde-rs/serde/serde_derive" }
-serde = { path = "../../third_party/serde-rs/serde/serde"}
+serde_json   = { version = "1.0", path = "../serde-rs/json" }
+serde_derive = { version = "1.0", path = "../serde-rs/serde/serde_derive"}
+serde        = { version = "1.0", path = "../serde-rs/serde/serde"}
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types= { path =  "../../sgx_types" }
 sgx_tstd = { path =  "../../sgx_tstd" }
-sgx_types = { path =  "../../sgx_types" }

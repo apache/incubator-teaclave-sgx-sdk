@@ -1,18 +1,20 @@
 use std::prelude::v1::*;
 use std::error;
 use std::fmt;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use parity_wasm::elements::{
-	BlockType, External, GlobalEntry, GlobalType, Internal, MemoryType, Module, Opcode,
-	ResizableLimits, TableType, ValueType, InitExpr, Type
+	BlockType, External, GlobalEntry, GlobalType, Internal, MemoryType, Module, Instruction,
+	ResizableLimits, TableType, ValueType, InitExpr, Type,
 };
 use common::stack;
 use self::context::ModuleContextBuilder;
-use self::func::Validator;
+use self::func::FunctionReader;
 use memory_units::Pages;
+use isa;
 
 mod context;
 mod func;
+mod util;
 
 #[cfg(test)]
 mod tests;
@@ -40,7 +42,7 @@ impl From<stack::Error> for Error {
 
 #[derive(Clone)]
 pub struct ValidatedModule {
-	pub labels: HashMap<usize, HashMap<usize, usize>>,
+	pub code_map: Vec<isa::Instructions>,
 	pub module: Module,
 }
 
@@ -51,10 +53,123 @@ impl ::std::ops::Deref for ValidatedModule {
 	}
 }
 
+pub fn deny_floating_point(module: &Module) -> Result<(), Error> {
+	if let Some(code) = module.code_section() {
+		for op in code.bodies().iter().flat_map(|body| body.code().elements()) {
+			use parity_wasm::elements::Instruction::*;
+
+			macro_rules! match_eq {
+				($pattern:pat) => {
+					|val| if let $pattern = *val { true } else { false }
+				};
+			}
+
+			const DENIED: &[fn(&Instruction) -> bool] = &[
+				match_eq!(F32Load(_, _)),
+				match_eq!(F64Load(_, _)),
+				match_eq!(F32Store(_, _)),
+				match_eq!(F64Store(_, _)),
+				match_eq!(F32Const(_)),
+				match_eq!(F64Const(_)),
+				match_eq!(F32Eq),
+				match_eq!(F32Ne),
+				match_eq!(F32Lt),
+				match_eq!(F32Gt),
+				match_eq!(F32Le),
+				match_eq!(F32Ge),
+				match_eq!(F64Eq),
+				match_eq!(F64Ne),
+				match_eq!(F64Lt),
+				match_eq!(F64Gt),
+				match_eq!(F64Le),
+				match_eq!(F64Ge),
+				match_eq!(F32Abs),
+				match_eq!(F32Neg),
+				match_eq!(F32Ceil),
+				match_eq!(F32Floor),
+				match_eq!(F32Trunc),
+				match_eq!(F32Nearest),
+				match_eq!(F32Sqrt),
+				match_eq!(F32Add),
+				match_eq!(F32Sub),
+				match_eq!(F32Mul),
+				match_eq!(F32Div),
+				match_eq!(F32Min),
+				match_eq!(F32Max),
+				match_eq!(F32Copysign),
+				match_eq!(F64Abs),
+				match_eq!(F64Neg),
+				match_eq!(F64Ceil),
+				match_eq!(F64Floor),
+				match_eq!(F64Trunc),
+				match_eq!(F64Nearest),
+				match_eq!(F64Sqrt),
+				match_eq!(F64Add),
+				match_eq!(F64Sub),
+				match_eq!(F64Mul),
+				match_eq!(F64Div),
+				match_eq!(F64Min),
+				match_eq!(F64Max),
+				match_eq!(F64Copysign),
+				match_eq!(F32ConvertSI32),
+				match_eq!(F32ConvertUI32),
+				match_eq!(F32ConvertSI64),
+				match_eq!(F32ConvertUI64),
+				match_eq!(F32DemoteF64),
+				match_eq!(F64ConvertSI32),
+				match_eq!(F64ConvertUI32),
+				match_eq!(F64ConvertSI64),
+				match_eq!(F64ConvertUI64),
+				match_eq!(F64PromoteF32),
+				match_eq!(F32ReinterpretI32),
+				match_eq!(F64ReinterpretI64),
+				match_eq!(I32TruncSF32),
+				match_eq!(I32TruncUF32),
+				match_eq!(I32TruncSF64),
+				match_eq!(I32TruncUF64),
+				match_eq!(I64TruncSF32),
+				match_eq!(I64TruncUF32),
+				match_eq!(I64TruncSF64),
+				match_eq!(I64TruncUF64),
+				match_eq!(I32ReinterpretF32),
+				match_eq!(I64ReinterpretF64),
+			];
+
+			if DENIED.iter().any(|is_denied| is_denied(op)) {
+				return Err(Error(format!("Floating point operation denied: {:?}", op)));
+			}
+		}
+	}
+
+	if let (Some(sec), Some(types)) = (module.function_section(), module.type_section()) {
+		use parity_wasm::elements::{Type, ValueType};
+
+		let types = types.types();
+
+		for sig in sec.entries() {
+			if let Some(typ) = types.get(sig.type_ref() as usize) {
+				match *typ {
+					Type::Function(ref func) => {
+						if func.params()
+							.iter()
+							.chain(func.return_type().as_ref())
+							.any(|&typ| typ == ValueType::F32 || typ == ValueType::F64)
+						{
+							return Err(Error(format!("Use of floating point types denied")));
+						}
+					}
+				}
+			}
+		}
+	}
+
+	Ok(())
+}
+
 pub fn validate_module(module: Module) -> Result<ValidatedModule, Error> {
 	let mut context_builder = ModuleContextBuilder::new();
 	let mut imported_globals = Vec::new();
-	let mut labels = HashMap::new();
+	let mut code_map = Vec::new();
 
 	// Copy types from module as is.
 	context_builder.set_types(
@@ -144,12 +259,12 @@ pub fn validate_module(module: Module) -> Result<ValidatedModule, Error> {
 					index
 				)),
 			)?;
-			let func_labels = Validator::validate_function(&context, function, function_body)
+			let code = FunctionReader::read_function(&context, function, function_body)
 				.map_err(|e| {
 					let Error(ref msg) = e;
-					Error(format!("Function #{} validation error: {}", index, msg))
+					Error(format!("Function #{} reading/validation error: {}", index, msg))
 				})?;
-			labels.insert(index, func_labels);
+			code_map.push(code);
 		}
 	}
 
@@ -261,7 +376,7 @@ pub fn validate_module(module: Module) -> Result<ValidatedModule, Error> {
 
 	Ok(ValidatedModule {
 		module,
-		labels
+		code_map,
 	})
 }
 
@@ -310,11 +425,11 @@ fn expr_const_type(init_expr: &InitExpr, globals: &[GlobalType]) -> Result<Value
 		));
 	}
 	let expr_ty: ValueType = match code[0] {
-		Opcode::I32Const(_) => ValueType::I32,
-		Opcode::I64Const(_) => ValueType::I64,
-		Opcode::F32Const(_) => ValueType::F32,
-		Opcode::F64Const(_) => ValueType::F64,
-		Opcode::GetGlobal(idx) => {
+		Instruction::I32Const(_) => ValueType::I32,
+		Instruction::I64Const(_) => ValueType::I64,
+		Instruction::F32Const(_) => ValueType::F32,
+		Instruction::F64Const(_) => ValueType::F64,
+		Instruction::GetGlobal(idx) => {
 			match globals.get(idx as usize) {
 				Some(target_global) => {
 					if target_global.is_mutable() {
@@ -331,7 +446,7 @@ fn expr_const_type(init_expr: &InitExpr, globals: &[GlobalType]) -> Result<Value
 		}
 		_ => return Err(Error("Non constant opcode in init expr".into())),
 	};
-	if code[1] != Opcode::End {
+	if code[1] != Instruction::End {
 		return Err(Error("Expression doesn't ends with `end` opcode".into()));
 	}
 	Ok(expr_ty)

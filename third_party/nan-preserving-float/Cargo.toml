@@ -1,0 +1,12 @@
+[package]
+name = "nan-preserving-float"
+version = "0.1.0"
+authors = ["Vurich <jackefransham@gmail.com>"]
+description = "(Mostly) drop-in replacement for floats that preserves the signalling bit in NaNs under conversions and unary operations"
+license = "Unlicense"
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }
+
+[dev-dependencies]
+rand = "0.4.2"

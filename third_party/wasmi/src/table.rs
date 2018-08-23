@@ -25,8 +25,6 @@ impl ::std::ops::Deref for TableRef {
 	}
 }
 
-unsafe impl Sync for TableRef {}
-
 /// Runtime representation of a table.
 ///
 /// A table is a array of untyped functions. It allows wasm code to call functions
@@ -46,8 +44,6 @@ pub struct TableInstance {
 	/// Table memory buffer.
 	buffer: RefCell<Vec<Option<FuncRef>>>,
 }
-
-unsafe impl Sync for TableInstance {}
 
 impl fmt::Debug for TableInstance {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -158,3 +154,6 @@ impl TableInstance {
 		Ok(())
 	}
 }
+
+unsafe impl Sync for TableRef {}
+unsafe impl Sync for TableInstance {}

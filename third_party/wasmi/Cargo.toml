@@ -1,6 +1,6 @@
 [package]
 name = "wasmi"
-version = "0.1.1"
+version = "0.4.0"
 authors = ["Nikolay Volf <nikvolf@gmail.com>", "Svyatoslav Nikolsky <svyatonik@yandex.ru>", "Sergey Pepyakin <s.pepyakin@gmail.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
@@ -8,24 +8,15 @@ repository = "https://github.com/paritytech/wasmi"
 documentation = "https://paritytech.github.io/wasmi/"
 description = "WebAssembly interpreter"
 keywords = ["wasm", "webassembly", "bytecode", "interpreter"]
-exclude = [ "/res/*", "/tests/*", "/fuzz/*" ]
-
-[lib]
-name = "wasmi"
-crate-type = ["rlib"]
+exclude = [ "/res/*", "/tests/*", "/fuzz/*", "/benches/*" ]
 
 [dependencies]
-parity-wasm = { path = "../parity-wasm" }
-byteorder = { path = "../byteorder" }
-memory_units = "*"
-serde = { path = "../serde-rs/serde/serde" }
-serde_derive = { path = "../serde-rs/serde/serde_derive" }
+parity-wasm             = { version = "0.31", default-features = false }
+byteorder               = { version = "1.0", path = "../byteorder"}
+memory_units            = { version = "0.4.0" }
+nan-preserving-float    = { version = "0.1.0", path = "../nan-preserving-float" }
+serde                   = { path = "../serde-rs/serde/serde" }
+serde_derive            = { path = "../serde-rs/serde/serde_derive" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_tstd = { path =  "../../sgx_tstd" }
-
-[features]
-# 32-bit platforms are not supported and not tested. Use this flag if you really want to use
-# wasmi on these platforms.
-# See https://github.com/pepyakin/wasmi/issues/43
-opt-in-32bit = []

@@ -1,4 +1,7 @@
-# wasmi
+[![crates.io link](https://img.shields.io/crates/v/wasmi.svg)](https://crates.io/crates/wasmi)
+[![Build Status](https://travis-ci.org/paritytech/wasmi.svg?branch=master)](https://travis-ci.org/paritytech/wasmi)
+
+# `wasmi`
 
 WASM interpreter (previously lived in [parity-wasm](https://github.com/paritytech/parity-wasm))
 
@@ -12,6 +15,17 @@ At the moment, the API is rather low-level (especially, in the part related to h
 license and the Apache License (Version 2.0), at your choice.
 
 See LICENSE-APACHE, and LICENSE-MIT for details.
+
+# Build & Test
+
+As `wasmi` contains a git submodule, you need to use `--recursive` for cloning or to checkout the submodule explicitly, otherwise the testing would fail.
+
+```
+git clone https://github.com/paritytech/wasmi.git --recursive
+cd wasmi
+cargo build
+cargo test
+```
 
 ## Contribution
 

@@ -1,4 +1,3 @@
-use std::prelude::v1::*;
 //use std::rc::Rc;
 use std::sync::Arc;
 use std::cell::Cell;
@@ -22,8 +21,6 @@ impl ::std::ops::Deref for GlobalRef {
 	}
 }
 
-unsafe impl Sync for GlobalRef {}
-
 /// Runtime representation of a global variable (or `global` for short).
 ///
 /// Global contains a value of a specified type and flag which specifies whether this
@@ -40,8 +37,6 @@ pub struct GlobalInstance {
 	val: Cell<RuntimeValue>,
 	mutable: bool,
 }
-
-unsafe impl Sync for GlobalInstance {}
 
 impl GlobalInstance {
 	/// Allocate a global variable instance.
@@ -93,3 +88,6 @@ impl GlobalInstance {
 		self.value_type().into_elements()
 	}
 }
+
+unsafe impl Sync for GlobalRef {}
+unsafe impl Sync for GlobalInstance {}
