@@ -145,6 +145,8 @@ We provide eighteen sample codes to help developers understand how to write Encl
 
 * `secretsharing` shows the usage of Shamir sharing in Rust-SGX environment (provided by @davidp94).
 
+* `switchless` shows the usage of latest "switchless" execution model provided by intel. Please pay attention to the Makefile and the position of link flag "-lsgx_tswitchless".
+
 # Samples of ported third-party libraries
 
 As of v0.9.5, we provide 25 ported third-party libraries. All of them could be compiled using xargo (`XARGO_SGX=1` make) or cargo (`make`).
