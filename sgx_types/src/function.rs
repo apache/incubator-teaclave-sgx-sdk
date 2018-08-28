@@ -34,8 +34,8 @@ extern {
     //
     // sgx_cpuid.h
     //
-    pub fn sgx_cpuid(cpuinfo: [::int32_t; 4], leaf: ::int32_t) -> sgx_status_t;
-    pub fn sgx_cpuidex(cpuinfo: [::int32_t; 4], leaf: ::int32_t, subleaf: ::int32_t) -> sgx_status_t;
+    pub fn sgx_cpuid(cpuinfo: * mut [::int32_t; 4], leaf: ::int32_t) -> sgx_status_t;
+    pub fn sgx_cpuidex(cpuinfo: * mut [::int32_t; 4], leaf: ::int32_t, subleaf: ::int32_t) -> sgx_status_t;
 
     //
     // sgx_spinlock.h
@@ -469,7 +469,7 @@ extern {
                                  enclave_id: * mut sgx_enclave_id_t,
                                  misc_attr: * mut sgx_misc_attribute_t,
                                  ex_features: ::uint32_t,
-                                 ex_features_p: &[* const ::c_void; 32]) -> sgx_status_t;
+                                 ex_features_p: * const [* const ::c_void; 32]) -> sgx_status_t;
 
     pub fn sgx_destroy_enclave(enclave_id: sgx_enclave_id_t) -> sgx_status_t;
 }

@@ -962,7 +962,6 @@ pub type sgx_ecall_get_msg3_trusted_t = extern "C" fn(eid: sgx_enclave_id_t,
 // sgx_urts.h
 //
 
-
 pub type sgx_launch_token_t = [::uint8_t; 1024];
 
 /* intel sgx sdk 2.2 */
@@ -973,9 +972,11 @@ pub const SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX: ::size_t = 1;
 pub const SGX_CREATE_ENCLAVE_EX_SWITCHLESS: ::uint32_t = (1 << SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX as ::uint32_t);
 pub const _SGX_LAST_EX_FEATURE_IDX_: ::uint32_t = SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX as ::uint32_t;
 pub const _SGX_EX_FEATURES_MASK_: ::uint32_t = (0xFFFFFFFF_u32 >> (MAX_EX_FEATURES_COUNT as ::uint32_t - 1 - _SGX_LAST_EX_FEATURE_IDX_));
+
 //
 // trts.pic.h
 //
+
 pub const ENCLAVE_INIT_NOT_STARTED: ::uint32_t = 0;
 pub const ENCLAVE_INIT_IN_PROGRESS: ::uint32_t = 1;
 pub const ENCLAVE_INIT_DONE: ::uint32_t        = 2;
@@ -1026,6 +1027,14 @@ impl_enum! {
     }
 }
 
+//
+// sgx_pcl_guid.h
+//
+/* intel sgx sdk 2.1.3 */
+
+pub const SGX_PCL_GUID_SIZE: ::size_t   = 16;
+pub const SGX_PCL_GUID: [::uint8_t; SGX_PCL_GUID_SIZE] =
+    [0x95, 0x48, 0x6e, 0x8f, 0x8f, 0x4a, 0x41, 0x4f, 0xb1, 0x27, 0x46, 0x21, 0xa8, 0x59, 0xa8, 0xac];
 
 //
 // sgx_uswitchless.h

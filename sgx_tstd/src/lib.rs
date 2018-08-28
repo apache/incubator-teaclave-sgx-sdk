@@ -95,7 +95,6 @@
 #![feature(std_internals)]
 #![feature(panic_info_message)]
 #![feature(extern_prelude)]
-#![feature(use_extern_macros)]
 #![feature(unicode_internals)]
 #![feature(panic_implementation)]
 

@@ -225,13 +225,36 @@ pub fn rsgx_create_enclave(file_name: &CStr,
     }
 }
 
+pub fn rsgx_create_encrypted_enclave(file_name: &CStr,
+                                     debug: i32,
+                                     launch_token: &mut sgx_launch_token_t,
+                                     launch_token_updated: &mut i32,
+                                     misc_attr: &mut sgx_misc_attribute_t,
+                                     sealed_key: &sgx_sealed_data_t) -> SgxResult<sgx_enclave_id_t> {
+
+    let mut enclave_id: sgx_enclave_id_t = 0;
+    let ret = unsafe {
+        sgx_create_encrypted_enclave(file_name.as_ptr() as * const c_schar,
+                                     debug as int32_t,
+                                     launch_token as * mut sgx_launch_token_t,
+                                     launch_token_updated as * mut int32_t,
+                                     &mut enclave_id as * mut sgx_enclave_id_t,
+                                     misc_attr as * mut sgx_misc_attribute_t,
+                                     sealed_key as * const sgx_sealed_data_t as * const uint8_t)
+    };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(enclave_id),
+        _ => Err(ret),
+    }
+}
+
 ///
 /// Loads the enclave using its file name and initializes it using a launch token and
 /// certain number of uworkers and tworkers.
 ///
 /// # Description
 ///
-/// The rsgx_create_enclave_ex function will load and initialize the enclave using
+/// The rsgx_create_enclave_with_workers function will load and initialize the enclave using
 /// the enclave file name and a launch token. If the launch token is incorrect, it will
 /// get a new one and save it back to the input parameter “token”, and the parameter
 /// “updated” will indicate that the launch token was updated. uworkers and tworkers
@@ -429,7 +452,7 @@ pub fn rsgx_create_enclave_with_workers(file_name: &CStr,
                               &mut enclave_id as * mut sgx_enclave_id_t,
                               misc_attr as * mut sgx_misc_attribute_t,
                               SGX_CREATE_ENCLAVE_EX_SWITCHLESS,
-						      &enclave_ex_p)
+                              &enclave_ex_p as * const [*const c_void ;32])
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(enclave_id),
@@ -507,6 +530,32 @@ impl SgxEnclave {
                                           launch_token,
                                           launch_token_updated,
                                           misc_attr)
+                        .map(|eid| SgxEnclave {
+                                    id: eid,
+                                    debug: debug,
+                                    path: file_name.as_ref().to_owned()})?;
+
+        enclave.init();
+        Ok(enclave)
+    }
+
+    pub fn create_encrypt<P: AsRef<Path>>(file_name: P,
+                                          debug: i32,
+                                          launch_token: &mut sgx_launch_token_t,
+                                          launch_token_updated: &mut i32,
+                                          misc_attr: &mut sgx_misc_attribute_t,
+                                          sealed_key: &sgx_sealed_data_t) -> SgxResult<SgxEnclave> {
+
+        let path: CString = cstr(file_name
+                                    .as_ref())
+                                    .map_err(|_| sgx_status_t::SGX_ERROR_INVALID_ENCLAVE)?;
+
+        let enclave = rsgx_create_encrypted_enclave(path.as_c_str(),
+                                                    debug,
+                                                    launch_token,
+                                                    launch_token_updated,
+                                                    misc_attr,
+                                                    sealed_key)
                         .map(|eid| SgxEnclave {
                                     id: eid,
                                     debug: debug,
