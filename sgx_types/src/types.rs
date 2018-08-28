@@ -1071,6 +1071,7 @@ pub const SL_MAX_TASKS_MAX_QWORDS: ::uint32_t = 8;
 
 pub const _SGX_USWITCHLESS_WORKER_EVENT_NUM: ::size_t = 4;
 
+#[repr(C)]
 pub struct sgx_uswitchless_config_t {
     pub switchless_calls_pool_size_qwords: ::uint32_t,
     pub num_uworkers: ::uint32_t,
