@@ -32,7 +32,9 @@
 FROM ubuntu:16.04
 MAINTAINER Yu Ding
 
-RUN apt-get update && apt-get install -y build-essential ocaml automake autoconf libtool wget python libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev sudo kmod vim curl git-core libprotobuf-c0-dev libboost-thread-dev libboost-system-dev liblog4cpp5-dev libjsoncpp-dev alien uuid-dev libxml2-dev cmake pkg-config expect
+RUN apt-get update && \ 
+    apt-get install -y --no-install-recommends ca-certificates build-essential ocaml automake autoconf libtool wget python libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev sudo kmod vim curl git-core libprotobuf-c0-dev libboost-thread-dev libboost-system-dev liblog4cpp5-dev libjsoncpp-dev alien uuid-dev libxml2-dev cmake pkg-config expect && \
+    rm -rf /var/lib/apt/lists/* &&  rm -rf /var/cache/apt/archives/*
 
 
 # Uncomment the following lines for setup iCls
@@ -53,7 +55,8 @@ RUN mkdir /root/sgx && \
     /root/sgx/psw.bin && \
     chmod +x /root/sgx/sdk.bin && \
     echo -e 'no\n/opt' | /root/sgx/sdk.bin && \
-    echo 'source /opt/sgxsdk/environment' >> /root/.bashrc
+    echo 'source /opt/sgxsdk/environment' >> /root/.bashrc && \
+    rm -rf /root/sgx/*
 
 ADD patch /root/
 
@@ -62,7 +65,8 @@ RUN wget -O /root/src.tar.gz https://github.com/intel/linux-sgx/archive/sgx_2.2.
     cd /root/linux-sgx-sgx_2.2 && git apply ../patch && \
     /root/linux-sgx-sgx_2.2/download_prebuilt.sh && \
     cd /root/linux-sgx-sgx_2.2 && make -j && \
-    cp /root/linux-sgx-sgx_2.2/build/linux/libsgx_tstdc.a /opt/sgxsdk/lib64/libsgx_tstdc.a
+    cp /root/linux-sgx-sgx_2.2/build/linux/libsgx_tstdc.a /opt/sgxsdk/lib64/libsgx_tstdc.a && \
+    rm /root/src.tar.gz && rm -rf /root/linux-sgx-sgx_2.2
 
 RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init && \
     chmod +x /root/rustup-init && \
@@ -70,5 +74,5 @@ RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rust
     echo 'source /root/.cargo/env' >> /root/.bashrc && \
     /root/.cargo/bin/rustup component add rust-src && \
     /root/.cargo/bin/cargo install xargo && \
-    apt-get autoclean && apt-get autoremove && rm -rf /var/cache/apt/archives/*
+    rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git
 WORKDIR /root
