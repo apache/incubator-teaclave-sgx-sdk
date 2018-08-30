@@ -33,10 +33,11 @@ FROM ubuntu:16.04
 MAINTAINER Yu Ding
 
 RUN apt-get update && \
-    apt-get install --allow-unauthenticated -y build-essential ocaml automake \
-            autoconf libtool wget python libssl-dev libcurl4-openssl-dev sudo kmod vim curl \
-            git-core liblog4cpp5-dev libjsoncpp-dev autoconf make g++ unzip python-dev \
-            alien uuid-dev libxml2-dev cmake pkg-config g++ unzip expect
+    apt-get install --allow-unauthenticated --no-install-recommends -y build-essential \
+    ca-certificates ocaml automake autoconf libtool wget python libssl-dev sudo expect \
+    libcurl4-openssl-dev kmod vim curl git-core liblog4cpp5-dev libjsoncpp-dev unzip \
+    autoconf make g++ unzip python-dev alien uuid-dev libxml2-dev cmake pkg-config g++ && \
+    rm -rf /var/lib/apt/lists/* &&  rm -rf /var/cache/apt/archives/*
 
 RUN mkdir /root/sgx && \
     cd /root/sgx && \
@@ -62,7 +63,8 @@ RUN wget -O /root/sgx/psw.bin https://download.01.org/intel-sgx/linux-2.2/ubuntu
     /root/sgx/psw.bin && \
     chmod +x /root/sgx/sdk.bin && \
     echo -e 'no\n/opt' | /root/sgx/sdk.bin && \
-    echo 'source /opt/sgxsdk/environment' >> /root/.bashrc
+    echo 'source /opt/sgxsdk/environment' >> /root/.bashrc && \
+    rm -rf /root/sgx/*
 
 ADD all.patch /root/
 
@@ -73,7 +75,8 @@ RUN wget -O /root/src.tar.gz https://github.com/intel/linux-sgx/archive/sgx_2.2.
      cd /root/linux-sgx-sgx_2.2 && make -j && \
      cp /root/linux-sgx-sgx_2.2/build/linux/libsgx_tstdc.a /opt/sgxsdk/lib64/libsgx_tstdc.a && \
      cp /root/linux-sgx-sgx_2.2/build/linux/aesm_service /opt/intel/sgxpsw/aesm/aesm_service && \
-     cp /root/linux-sgx-sgx_2.2/build/linux/libsgx_uae_service.so /usr/lib/libsgx_uae_service.so
+     cp /root/linux-sgx-sgx_2.2/build/linux/libsgx_uae_service.so /usr/lib/libsgx_uae_service.so & \
+     rm -rf /root/src.tar.gz && rm -rf /root/linux-sgx-sgx_2.2
 
 RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init && \
     chmod +x /root/rustup-init && \
@@ -81,5 +84,5 @@ RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rust
     echo 'source /root/.cargo/env' >> /root/.bashrc && \
     /root/.cargo/bin/rustup component add rust-src && \
     /root/.cargo/bin/cargo install xargo && \
-    apt-get autoclean && apt-get autoremove && rm -rf /var/cache/apt/archives/*
+    rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git
 WORKDIR /root
