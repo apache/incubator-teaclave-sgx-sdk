@@ -70,7 +70,7 @@ RUN wget -O /root/src.tar.gz https://github.com/intel/linux-sgx/archive/sgx_2.2.
 
 RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init && \
     chmod +x /root/rustup-init && \
-    echo '1' | /root/rustup-init --default-toolchain nightly-2018-07-16 && \
+    echo '1' | /root/rustup-init --default-toolchain nightly-2018-08-25 && \
     echo 'source /root/.cargo/env' >> /root/.bashrc && \
     /root/.cargo/bin/rustup component add rust-src && \
     /root/.cargo/bin/cargo install xargo && \
