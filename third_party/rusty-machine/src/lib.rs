@@ -115,6 +115,9 @@ extern crate sgx_tstd as std;
 
 extern crate rulinalg;
 extern crate num as libnum;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 
 extern crate sgx_rand as rand;
 

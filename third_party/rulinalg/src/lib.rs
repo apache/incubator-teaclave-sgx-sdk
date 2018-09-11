@@ -94,6 +94,9 @@ extern crate sgx_tstd as std;
 
 extern crate num as libnum;
 extern crate matrixmultiply;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 
 // macros should be at the top in order for macros to be accessible in subsequent modules
 #[macro_use]

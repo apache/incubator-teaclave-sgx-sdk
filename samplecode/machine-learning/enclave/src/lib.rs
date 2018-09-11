@@ -42,9 +42,11 @@ use std::vec::Vec;
 
 extern crate rusty_machine;
 extern crate sgx_rand as rand;
+extern crate serde;
+extern crate serde_json;
 
 use rusty_machine::linalg::{Matrix, BaseMatrix};
-use rusty_machine::learning::k_means::KMeansClassifier;
+use rusty_machine::learning::k_means::{KMeansClassifier, KPlusPlus};
 use rusty_machine::learning::UnSupModel;
 
 use rand::thread_rng;
@@ -107,12 +109,30 @@ fn sample_main() -> sgx_status_t {
     // Our train function returns a Result<(), E>
     model.train(&samples).unwrap();
 
+    // Serialize the model to string
+    let model_json = serde_json::to_string(&model).unwrap();
+    println!("serialized model = {}", model_json);
+
     let centroids = model.centroids().as_ref().unwrap();
     println!("Model Centroids:\n{:.3}", centroids);
 
     // Predict the classes and partition into
     println!("Classifying the samples...");
     let classes = model.predict(&samples).unwrap();
+    let (first, second): (Vec<usize>, Vec<usize>) = classes.data().iter().partition(|&x| *x == 0);
+
+    println!("Samples closest to first centroid: {}", first.len());
+    println!("Samples closest to second centroid: {}", second.len());
+
+    let model_recovered : KMeansClassifier<KPlusPlus> = serde_json::from_str(&model_json).unwrap();
+    println!("deserialized model = {:?}", model_recovered);
+
+    let centroids = model_recovered.centroids().as_ref().unwrap();
+    println!("Model Centroids:\n{:.3}", centroids);
+
+    // Predict the classes and partition into
+    println!("Classifying the samples using the deseralized model...");
+    let classes = model_recovered.predict(&samples).unwrap();
     let (first, second): (Vec<usize>, Vec<usize>) = classes.data().iter().partition(|&x| *x == 0);
 
     println!("Samples closest to first centroid: {}", first.len());

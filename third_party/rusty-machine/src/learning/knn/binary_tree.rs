@@ -10,7 +10,7 @@ use learning::error::Error;
 use super::{KNearest, KNearestSearch, get_distances, dist};
 
 /// Binary tree
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BinaryTree<B: BinarySplit> {
     // Binary tree leaf size
     leafsize: usize,
@@ -226,7 +226,7 @@ impl BinarySplit for BallTreeBranch {
 }
 
 /// Binary tree node (either branch or leaf)
-#[derive(Debug)]
+#[derive(Debug,Serialize, Deserialize)]
 pub enum Node<B: BinarySplit> {
     /// Binary tree branch
     Branch(B),
@@ -235,7 +235,7 @@ pub enum Node<B: BinarySplit> {
 }
 
 /// Binary tree leaf
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Leaf {
     children: Vec<usize>
 }

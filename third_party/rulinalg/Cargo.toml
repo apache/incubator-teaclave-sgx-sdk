@@ -22,10 +22,10 @@ num = {path = "../num", default-features = false }
 rustc-serialize = { path = "../rustc-serialize", optional = true }
 csv = { path = "../rust-csv", optional = true}
 matrixmultiply = { path = "../matrixmultiply" }
+serde = { path = "../serde-rs/serde/serde" }
+serde_derive = { path = "../serde-rs/serde/serde_derive" }
 
 [dev-dependencies]
 rand = "0.3"
 quickcheck = "0.4"
 itertools = "0.5.9"
-
-
