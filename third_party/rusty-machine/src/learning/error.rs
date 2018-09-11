@@ -19,7 +19,7 @@ pub struct Error {
 ///
 /// List intended to grow and so you should
 /// be wary of matching against explicitly.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum ErrorKind {
     /// The parameters used to define the model are not valid.
     InvalidParameters,

@@ -271,7 +271,7 @@ pub trait Initializer: Debug {
 }
 
 /// The Forgy initialization scheme.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Forgy;
 
 impl Initializer for Forgy {
@@ -291,7 +291,7 @@ impl Initializer for Forgy {
 }
 
 /// The Random Partition initialization scheme.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RandomPartition;
 
 impl Initializer for RandomPartition {

@@ -19,7 +19,7 @@ use linalg::{Matrix, MatrixSlice, BaseMatrix};
 use libnum::{FromPrimitive, Float};
 
 /// Model Regularization
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Regularization<T: Float> {
     /// L1 Regularization
     L1(T),

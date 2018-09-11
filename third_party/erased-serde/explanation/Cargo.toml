@@ -1,0 +1,9 @@
+[package]
+name = "erased-serde-explanation"
+version = "0.0.0"
+authors = ["David Tolnay <dtolnay@gmail.com>"]
+publish = false
+
+[[bin]]
+name = "erased-serde-explanation"
+path = "main.rs"

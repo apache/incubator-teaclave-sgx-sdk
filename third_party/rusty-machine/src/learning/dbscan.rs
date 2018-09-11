@@ -48,7 +48,7 @@ use rulinalg::matrix::Row;
 ///
 /// Implements clustering using the DBSCAN algorithm
 /// via the `UnSupModel` trait.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DBSCAN {
     eps: f64,
     min_points: usize,

@@ -48,6 +48,7 @@ use std::vec::*;
 use std::boxed::*;
 use linalg::{Matrix, MatrixSlice};
 use rulinalg::utils;
+use serde;
 
 use learning::{LearningResult, SupModel};
 use learning::error::{Error, ErrorKind};
@@ -65,7 +66,7 @@ use self::net_layer::NetLayer;
 ///
 /// The Neural Network struct specifies a `Criterion` and
 /// a gradient descent algorithm.
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct NeuralNet<T, A>
     where T: Criterion,
           A: OptimAlgorithm<BaseNeuralNet<T>>
@@ -162,7 +163,7 @@ impl<T, A> NeuralNet<T, A>
     /// let mut net = NeuralNet::mlp(layers, BCECriterion::default(), StochasticGD::default(), Sigmoid);
     /// ```
     pub fn mlp<U>(layer_sizes: &[usize], criterion: T, alg: A, activ_fn: U) -> NeuralNet<T, A> 
-        where U: ActivationFunc + 'static {
+        where U: ActivationFunc + 'static + serde::Serialize {
         NeuralNet {
             base: BaseNeuralNet::mlp(layer_sizes, criterion, activ_fn),
             alg: alg,
@@ -245,7 +246,7 @@ impl<T, A> NeuralNet<T, A>
 /// Base Neural Network struct
 ///
 /// This struct cannot be instantiated and is used internally only.
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct BaseNeuralNet<T: Criterion> {
     layers: Vec<Box<NetLayer>>,
     weights: Vec<f64>,
@@ -256,7 +257,7 @@ pub struct BaseNeuralNet<T: Criterion> {
 impl BaseNeuralNet<BCECriterion> {
     /// Creates a base neural network with the specified layer sizes.
     fn default<U>(layer_sizes: &[usize], activ_fn: U) -> BaseNeuralNet<BCECriterion>
-        where U: ActivationFunc + 'static {
+        where U: ActivationFunc + 'static + serde::Serialize {
         BaseNeuralNet::mlp(layer_sizes, BCECriterion::default(), activ_fn)
     }
 }
@@ -274,7 +275,7 @@ impl<T: Criterion> BaseNeuralNet<T> {
 
     /// Create a multilayer perceptron with the specified layer sizes.
     fn mlp<U>(layer_sizes: &[usize], criterion: T, activ_fn: U) -> BaseNeuralNet<T> 
-        where U: ActivationFunc + 'static {
+        where U: ActivationFunc + 'static + serde::Serialize {
         let mut mlp = BaseNeuralNet {
             layers: Vec::with_capacity(2*(layer_sizes.len()-1)),
             weights: Vec::new(),
@@ -510,7 +511,7 @@ pub trait Criterion {
 ///
 /// Uses the Sigmoid activation function and the
 /// cross entropy error.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct BCECriterion {
     regularization: Regularization<f64>,
 }
@@ -551,7 +552,7 @@ impl BCECriterion {
 ///
 /// Uses the Linear activation function and the
 /// mean squared error.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct MSECriterion {
     regularization: Regularization<f64>,
 }

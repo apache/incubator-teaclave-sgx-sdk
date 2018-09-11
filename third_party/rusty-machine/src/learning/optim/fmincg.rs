@@ -36,7 +36,7 @@ use std::f64;
 
 
 /// Conjugate Gradient Descent algorithm
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct ConjugateGD {
     /// Constant in the Wolfe-Powell conditions.
     pub rho: f64,

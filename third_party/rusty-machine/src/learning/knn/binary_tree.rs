@@ -64,7 +64,7 @@ pub trait BinarySplit: Sized {
 }
 
 /// Kd-tree branch
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct KDTreeBranch {
     /// dimension (column) to split
     dim: usize,
@@ -85,7 +85,7 @@ pub struct KDTreeBranch {
 }
 
 /// Ball-tree branch
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BallTreeBranch {
     /// dimension (column) to split
     dim: usize,

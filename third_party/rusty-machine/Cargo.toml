@@ -24,3 +24,4 @@ num = { path = "../num" , default-features = false }
 rulinalg = { path = "../rulinalg" }
 serde = { path = "../serde-rs/serde/serde" }
 serde_derive = { path = "../serde-rs/serde/serde_derive" }
+erased-serde = { path = "../erased-serde" }
