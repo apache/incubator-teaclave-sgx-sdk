@@ -397,10 +397,11 @@ fn rust_panic_with_hook(payload: &mut BoxMeUp,
     }
 
     {
-        let info = PanicInfo::internal_constructor(
+        let mut info = PanicInfo::internal_constructor(
             message,
-			Location::internal_constructor(file, line, col),
+            Location::internal_constructor(file, line, col),
         );
+        info.set_payload(payload.get());
         panic_handler(&info);
     }
 
