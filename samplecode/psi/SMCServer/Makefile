@@ -67,7 +67,12 @@ ifeq ($(SUPPLIED_KEY_DERIVATION), 1)
         SGX_COMMON_CFLAGS += -DSUPPLIED_KEY_DERIVATION
 endif
 
-SGX_COMMON_CFLAGS += -L./lib
+######## CUSTOM Settings ########
+
+CUSTOM_LIBRARY_PATH := ./lib
+CUSTOM_BIN_PATH := ./bin
+CUSTOM_EDL_PATH := ../../../edl
+CUSTOM_COMMON_PATH := ../../../common
 
 ######## App Settings ########
 
@@ -82,7 +87,7 @@ App_Cpp_Files := isv_app/isv_app.cpp ../Util/LogBase.cpp ../Networking/NetworkMa
 ../Networking/Client.cpp ../Networking/NetworkManagerServer.cpp ../GoogleMessages/Messages.pb.cpp ../Networking/AbstractNetworkOps.cpp \
 ../Util/UtilityFunctions.cpp ../Enclave/Enclave.cpp ../MessageHandler/MessageHandler.cpp ../Util/Base64.cpp
 
-App_Include_Paths := -I../Util -Iservice_provider -I$(SGX_SDK)/include -Iheaders  -I../Networking -Iisv_app -I../GoogleMessages -I/usr/local/include -I../Enclave \
+App_Include_Paths := -I../Util -Iservice_provider -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH) -Iheaders  -I../Networking -Iisv_app -I../GoogleMessages -I/usr/local/include -I../Enclave \
 -I../MessageHandler
 
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
@@ -127,7 +132,7 @@ ProtectedFs_Library_Name := sgx_tprotected_fs
 
 #Enclave_Cpp_Files := isv_enclave/isv_enclave.cpp
 Enclave_Cpp_Files :=
-Enclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/stlport -I$(SGX_SDK)/include/crypto_px/include -I../Enclave/
+Enclave_Include_Paths := -I$(CUSTOM_COMMON_PATH)/inc -I$(CUSTOM_EDL_PATH) -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/stlport -I$(SGX_SDK)/include/crypto_px/include -I../Enclave/
 
 Enclave_C_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Enclave_Include_Paths)
 Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++
@@ -253,7 +258,7 @@ psienclave:
 .PHONY: sgx_ustdc
 sgx_ustdc:
 	$(MAKE) -C ../../../sgx_ustdc/ 2> /dev/null
-	
+
 .PHONY: clean
 clean:
 	$(MAKE) -C ./enclave clean

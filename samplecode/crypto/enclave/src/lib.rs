@@ -276,7 +276,7 @@ pub extern "C" fn aes_gcm_128_decrypt(key: &[u8;16],
     println!("aes_gcm_128_decrypt parameter prepared! {}, {}",
               ciphertext_slice.len(),
               plaintext_slice.len());
-    
+
     // After everything has been set, call API
     let result = rsgx_rijndael128GCM_decrypt(key,
                                              &ciphertext_slice,
@@ -378,8 +378,8 @@ pub extern "C" fn rsa_key(text: * const u8, text_len: usize) -> sgx_status_t {
     let mut dmq1: Vec<u8> = vec![0_u8; mod_size as usize / 2];
     let mut iqmp: Vec<u8> = vec![0_u8; mod_size as usize / 2];
 
-    let result = rsgx_create_rsa_key_pair(mod_size, 
-                                          exp_size, 
+    let result = rsgx_create_rsa_key_pair(mod_size,
+                                          exp_size,
                                           n.as_mut_slice(),
                                           d.as_mut_slice(),
                                           e.as_mut_slice(),

@@ -27,6 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_types::*;
+use std::ptr;
 use std::path::{Path, PathBuf};
 use std::ffi::{CString, CStr};
 use std::io;
@@ -440,7 +441,7 @@ pub fn rsgx_create_enclave_with_workers(file_name: &CStr,
     let mut us_config = sgx_uswitchless_config_t::default();
     us_config.num_tworkers = num_tworkers;
     us_config.num_uworkers = num_uworkers;
-    let mut enclave_ex_p : [*const c_void ;32] = [0 as *const c_void; 32];
+    let mut enclave_ex_p : [*const c_void ;32] = [ptr::null(); 32];
     enclave_ex_p[SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX] = &us_config as *const sgx_uswitchless_config_t as *const c_void;
 
     let mut enclave_id: sgx_enclave_id_t = 0;
@@ -532,7 +533,7 @@ impl SgxEnclave {
                                           misc_attr)
                         .map(|eid| SgxEnclave {
                                     id: eid,
-                                    debug: debug,
+                                    debug,
                                     path: file_name.as_ref().to_owned()})?;
 
         enclave.init();
@@ -558,7 +559,7 @@ impl SgxEnclave {
                                                     sealed_key)
                         .map(|eid| SgxEnclave {
                                     id: eid,
-                                    debug: debug,
+                                    debug,
                                     path: file_name.as_ref().to_owned()})?;
 
         enclave.init();
@@ -586,7 +587,7 @@ impl SgxEnclave {
                                                        num_tworkers)
                         .map(|eid| SgxEnclave {
                                     id: eid,
-                                    debug: debug,
+                                    debug,
                                     path: file_name.as_ref().to_owned()})?;
 
         enclave.init();

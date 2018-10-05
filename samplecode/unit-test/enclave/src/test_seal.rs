@@ -47,13 +47,13 @@ fn from_sealed_log<'a, T: Copy + ContiguousMemory>(sealed_log: * mut u8, sealed_
 }
 
 pub fn test_seal_unseal () {
-	#[derive(Copy, Clone, Default, Debug)]
-	struct RandData {
-	    key: u32,
-	    rand: [u8; 16],
-	}
+    #[derive(Copy, Clone, Default, Debug)]
+    struct RandData {
+        key: u32,
+        rand: [u8; 16],
+    }
 
-	unsafe impl ContiguousMemory for RandData {}
+    unsafe impl ContiguousMemory for RandData {}
 
     let mut data = RandData::default();
     data.key = 0x1234;
@@ -67,7 +67,7 @@ pub fn test_seal_unseal () {
     let sealed_log = sealed_log_arr.as_mut_ptr();
     let sealed_log_size : u32 = 2048;
     let opt = to_sealed_log(&sealed_data, sealed_log, sealed_log_size);
-	assert_eq!(opt.is_some(), true);
+    assert_eq!(opt.is_some(), true);
 
     let sealed_data = from_sealed_log::<RandData>(sealed_log, sealed_log_size).unwrap();
     let unsealed_data = sealed_data.unseal_data().unwrap();
@@ -81,7 +81,7 @@ pub fn test_number_sealing() {
     let aad: [u8; 0] = [0_u8; 0];
     let sealed_data = SgxSealedData::<u64>::seal_data(&aad, &data).expect("error while sealing u64");
     let unsealed_data = sealed_data.unseal_data().expect("error while unsealing u64");
-	assert_eq!(*unsealed_data.get_decrypt_txt(), data);
+    assert_eq!(*unsealed_data.get_decrypt_txt(), data);
 }
 
 pub fn test_array_sealing() {
@@ -89,7 +89,7 @@ pub fn test_array_sealing() {
     let aad: [u8; 0] = [0_u8; 0];
     let sealed_data = SgxSealedData::<[u8]>::seal_data(&aad, &data).expect("error while sealing array");
     let unsealed_data = sealed_data.unseal_data().expect("error while unsealing array");
-	assert_eq!(unsealed_data.get_decrypt_txt(), data);
+    assert_eq!(unsealed_data.get_decrypt_txt(), data);
 }
 
 pub fn test_mac_aadata_number() {

@@ -79,6 +79,7 @@
 #![feature(allocator_api)]
 #![feature(asm)]
 #![feature(lang_items)]
+#![feature(tool_lints)]
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 #![allow(overflowing_literals)]

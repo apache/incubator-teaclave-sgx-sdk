@@ -128,7 +128,7 @@ pub fn rsgx_slice_is_within_enclave<T: Copy + ContiguousMemory>(data: &[T]) -> b
 pub fn rsgx_raw_is_within_enclave(addr: * const u8, size: usize) -> bool {
 
     let ret = unsafe { sgx_is_within_enclave(addr as * const c_void, size) };
-    if ret == 0 { false } else { true }
+    ret != 0
 }
 
 ///
@@ -187,13 +187,13 @@ pub fn rsgx_slice_is_outside_enclave<T: Copy + ContiguousMemory>(data: &[T]) -> 
 pub fn rsgx_raw_is_outside_enclave(addr: * const u8, size: usize) -> bool {
 
     let ret = unsafe { sgx_is_outside_enclave(addr as * const c_void, size) };
-    if ret == 0 { false } else { true }
+    ret != 0
 }
 
 pub fn rsgx_is_enclave_crashed() -> bool {
 
     let ret = unsafe { sgx_is_enclave_crashed() };
-    if ret == 0 { false } else { true }
+    ret != 0
 }
 
 pub type exit_function_t = extern "C" fn();
@@ -211,11 +211,7 @@ pub fn rsgx_abort() -> ! {
 pub fn rsgx_atexit(fun: exit_function_t) -> bool {
 
     let ret = unsafe { atexit(fun) };
-    if ret < 0 {
-        false
-    } else {
-        true
-    }
+    ret >= 0
 }
 
 #[inline(always)]

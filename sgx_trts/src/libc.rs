@@ -37,6 +37,8 @@ pub use sgx_types::{c_void, c_schar, c_char, c_uchar, c_short, c_ushort, c_int, 
                     c_double, c_longlong, c_ulonglong, intmax_t, uintmax_t, c_ulong, c_long};
 pub use sgx_types::{size_t, ptrdiff_t, intptr_t, uintptr_t, ssize_t};
 
+use core::ptr;
+
 #[link(name = "sgx_tstdc")]
 extern {
 
@@ -53,7 +55,7 @@ extern {
 
 pub unsafe fn memchr(s: * const u8, c: u8, n: usize) -> * const u8 {
 
-    let mut ret = 0 as * const u8;
+    let mut ret = ptr::null();
     let mut p = s;
 
     for _ in 0..n {
@@ -68,9 +70,9 @@ pub unsafe fn memchr(s: * const u8, c: u8, n: usize) -> * const u8 {
 
 pub unsafe fn memrchr(s: * const u8, c: u8, n: usize) -> * const u8 {
 
-    if n == 0 {return 0 as * const u8}
+    if n == 0 {return ptr::null();}
 
-    let mut ret = 0 as * const u8;
+    let mut ret = ptr::null();
     let mut p: * const u8 = (s as usize + (n - 1)) as * const u8;
     for _ in 0..n {
         if *p == c {
@@ -336,12 +338,12 @@ pub const O_CREAT: c_int = 64;
 pub const O_EXCL: c_int = 128;
 pub const O_NOCTTY: c_int = 256;
 pub const O_NONBLOCK: c_int = 2048;
-pub const O_SYNC: c_int = 1052672;
-pub const O_RSYNC: c_int = 1052672;
+pub const O_SYNC: c_int = 1_052_672;
+pub const O_RSYNC: c_int = 1_052_672;
 pub const O_DSYNC: c_int = 4096;
-pub const O_FSYNC: c_int = 0x101000;
-pub const O_NOATIME: c_int = 0o1000000;
-pub const O_PATH: c_int = 0o10000000;
+pub const O_FSYNC: c_int = 0x0010_1000;
+pub const O_NOATIME: c_int = 0o1_000_000;
+pub const O_PATH: c_int = 0o10_000_000;
 
 pub const O_ASYNC: c_int = 0x2000;
 pub const O_NDELAY: c_int = 0x800;
@@ -356,7 +358,7 @@ pub const F_SETLKW: c_int = 7;
 
 pub const SFD_NONBLOCK: c_int = 0x0800;
 
-pub const SFD_CLOEXEC: c_int = 0x080000;
+pub const SFD_CLOEXEC: c_int = 0x0008_0000;
 
 pub const NCCS: usize = 32;
 
@@ -476,8 +478,8 @@ pub const MAP_ANONYMOUS: c_int = 0x0020;
 pub const MAP_DENYWRITE: c_int = 0x0800;
 pub const MAP_EXECUTABLE: c_int = 0x01000;
 pub const MAP_POPULATE: c_int = 0x08000;
-pub const MAP_NONBLOCK: c_int = 0x010000;
-pub const MAP_STACK: c_int = 0x020000;
+pub const MAP_NONBLOCK: c_int = 0x0001_0000;
+pub const MAP_STACK: c_int = 0x0002_0000;
 
 pub const SOCK_STREAM: c_int = 1;
 pub const SOCK_DGRAM: c_int = 2;
@@ -688,8 +690,8 @@ pub const MSG_ERRQUEUE: c_int = 0x2000;
 pub const MSG_NOSIGNAL: c_int = 0x4000;
 pub const MSG_MORE: c_int = 0x8000;
 pub const MSG_WAITFORONE: c_int = 0x10000;
-pub const MSG_FASTOPEN: c_int = 0x20000000;
-pub const MSG_CMSG_CLOEXEC: c_int = 0x40000000;
+pub const MSG_FASTOPEN: c_int = 0x2000_0000;
+pub const MSG_CMSG_CLOEXEC: c_int = 0x4000_0000;
 
 pub const SCM_TIMESTAMP: c_int = SO_TIMESTAMP;
 
@@ -751,7 +753,7 @@ pub const EPOLLWRBAND: c_int = 0x200;
 pub const EPOLLMSG: c_int = 0x400;
 pub const EPOLLERR: c_int = 0x8;
 pub const EPOLLHUP: c_int = 0x10;
-pub const EPOLLET: c_int = 0x80000000;
+pub const EPOLLET: c_int = 0x8000_0000;
 
 pub const EPOLL_CTL_ADD: c_int = 1;
 pub const EPOLL_CTL_MOD: c_int = 3;
@@ -987,4 +989,4 @@ pub const ENOTRECOVERABLE: int32_t    = 131;
 pub const ERFKILL: int32_t            = 132;
 pub const EHWPOISON: int32_t          = 133;
 pub const ENOTSUP: int32_t            = EOPNOTSUPP;
-pub const ESGX: int32_t               = 0x0000FFFF;
+pub const ESGX: int32_t               = 0x0000_FFFF;

@@ -46,7 +46,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use core::cell::UnsafeCell;
 use core::fmt;
 use core::mem;
-use core::alloc::{AllocErr, Layout};
+use core::alloc::AllocErr;
 use alloc::boxed::Box;
 
 pub unsafe fn raw_cond(lock: &mut sgx_thread_cond_t) -> * mut sgx_thread_cond_t {
@@ -380,9 +380,7 @@ impl SgxCondvar {
             match ret {
                 Err(r) if r == libc::ENOMEM => {
                     //let _layout = Layout::from_size_align(mem::size_of::<usize>(), 1).unwrap();
-                    //let err = AllocErr::Exhausted { request: layout };
-                    //oom::rsgx_oom(err)
-                    rsgx_abort()
+                    sgx_trts::oom::rsgx_oom(AllocErr)
                 },
                 _ => {},
             }

@@ -32,6 +32,9 @@
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
+#[cfg(target_env = "sgx")]
+extern crate core;
+
 extern crate sgx_types;
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
@@ -42,6 +45,7 @@ extern crate sgx_tunittest;
 extern crate sgx_trts;
 extern crate sgx_rand;
 extern crate sgx_tseal;
+extern crate rand;
 
 extern crate sgx_serialize;
 pub use sgx_serialize::*;
@@ -82,6 +86,12 @@ use test_file::*;
 mod test_time;
 use test_time::*;
 
+mod test_rand_cratesio;
+use test_rand_cratesio::*;
+
+mod test_types;
+use test_types::*;
+
 #[no_mangle]
 pub extern "C"
 fn test_main_entrance() -> sgx_status_t {
@@ -98,6 +108,8 @@ fn test_main_entrance() -> sgx_status_t {
                      test_register_last_exception_handler,
                      test_register_multiple_exception_handler,
                      // rts::trts
+                     test_rsgx_get_thread_policy,
+                     test_trts_sizes,
                      test_read_rand,
                      test_data_is_within_enclave,
                      test_slice_is_within_enlave,
@@ -141,7 +153,12 @@ fn test_main_entrance() -> sgx_status_t {
                      // std::fs untrusted mode
                      test_fs_untrusted_fs_feature_enabled,
                      // std::time
-                     test_std_time
+                     test_std_time,
+                     // rand
+                     test_rand_cratesio,
+                     // types
+                     check_metadata_size,
+                     check_version
                      );
     sgx_status_t::SGX_SUCCESS
 }

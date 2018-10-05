@@ -52,7 +52,7 @@ void MessageHandler::start() {
     if (SGX_SUCCESS != ret) {
         Log("Error, call initEnclave fail", log::error);
         return;
-    } 
+    }
 
     sgx_status_t status;
     ret = initialize(this->enclave->getID(), &status);
@@ -111,7 +111,7 @@ string MessageHandler::generateMSG1() {
     if (SGX_SUCCESS != ret) {
         Log("Error, call enclave_init_ra fail", log::error);
         return "";
-    } 
+    }
 
     while (1) {
         retGIDStatus = sgx_ra_get_msg1(context,
@@ -207,6 +207,7 @@ void MessageHandler::assembleMSG2(Messages::MessageMSG2 msg, sgx_ra_msg2_t **pp_
         sigrl[i] = msg.sigrl(i);
 
     memcpy(&p_msg2->sig_rl, &sigrl, msg.size_sigrl());
+    free(sigrl);
 
     *pp_msg2 = p_msg2;
 }
@@ -334,9 +335,9 @@ void MessageHandler::assembleAttestationMSG(Messages::AttestationMessage msg, ra
 }
 
 string MessageHandler::generateAttestationFailed(uint32_t id, sgx_ra_context_t context) {
-    
+
     Messages::MessagePsiSalt msg;
-    
+
     msg.set_type(RA_PSI_SLAT);
     msg.set_size(0);
     msg.set_state(0);
@@ -425,7 +426,7 @@ string MessageHandler::handleAttestationResult(Messages::AttestationMessage msg)
             for (int i = 0; i < SGX_MAC_SIZE; i++) {
                 msg.add_mac(mac[i]);
             }
-            
+
             return nm->serialize(msg);
         }
     }
@@ -514,9 +515,9 @@ string MessageHandler::handlePsiHashDataFinished(Messages::MessagePsiHashDataFin
     size_t data_size = 0;
     sgx_status_t status;
     sgx_status_t ret;
-    
+
     Log("[PSI] Received hash data finished, %d", id);
-    
+
     ret = get_result_size(this->enclave->getID(), &status, id, &data_size);
     if (SGX_SUCCESS != ret) {
         Log("[PSI] get_result_size failed, %d", ret);
@@ -542,7 +543,7 @@ string MessageHandler::handlePsiHashDataFinished(Messages::MessagePsiHashDataFin
             return "";
         }
     }
-    
+
     if (data_size > 0) {
         data = (uint8_t*)malloc(data_size);
         if (data == NULL) {

@@ -65,7 +65,7 @@ pub struct CString {
 
 /// Representation of a borrowed C string.
 ///
-#[derive(Hash)]
+#[derive(Hash, Eq, PartialEq)]
 pub struct CStr {
     inner: [c_char]
 }
@@ -287,7 +287,7 @@ impl fmt::Debug for CStr {
 
 impl<'a> Default for &'a CStr {
     fn default() -> &'a CStr {
-        const SLICE: &'static [c_char] = &[0];
+        const SLICE: & [c_char] = &[0];
         unsafe { CStr::from_ptr(SLICE.as_ptr()) }
     }
 }
@@ -562,19 +562,20 @@ impl CStr {
     /// [`Box`]: ../boxed/struct.Box.html
     /// [`CString`]: struct.CString.html
     ///
+    #[allow(clippy::wrong_self_convention)]
     pub fn into_c_string(self: Box<CStr>) -> CString {
         let raw = Box::into_raw(self) as *mut [u8];
         CString { inner: unsafe { Box::from_raw(raw) } }
     }
 }
 
-impl PartialEq for CStr {
-    fn eq(&self, other: &CStr) -> bool {
-        self.to_bytes().eq(other.to_bytes())
-    }
-}
+//impl PartialEq for CStr {
+//    fn eq(&self, other: &CStr) -> bool {
+//        self.to_bytes().eq(other.to_bytes())
+//    }
+//}
 
-impl Eq for CStr {}
+//impl Eq for CStr {}
 
 impl PartialOrd for CStr {
     fn partial_cmp(&self, other: &CStr) -> Option<Ordering> {

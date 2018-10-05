@@ -123,6 +123,7 @@ typedef __ssize_t   ssize_t;
 #ifndef _OFF_T_DEFINED_
 #define _OFF_T_DEFINED_
 typedef __off_t     off_t;
+typedef __off64_t   off64_t;
 #endif
 
 #endif /* !_SYS_TYPES_H_ */

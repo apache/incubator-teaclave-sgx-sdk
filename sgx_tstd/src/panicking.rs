@@ -232,7 +232,7 @@ pub extern fn rust_begin_panic(msg: fmt::Arguments,
 /// Entry point of panic from the libcore crate.
 #[cfg(not(test))]
 #[cfg(not(stage0))]
-#[panic_implementation]
+#[panic_handler]
 #[unwind(allowed)]
 pub fn rust_begin_panic(info: &PanicInfo) -> ! {
     continue_panic_fmt(&info)
@@ -397,11 +397,10 @@ fn rust_panic_with_hook(payload: &mut BoxMeUp,
     }
 
     {
-        let mut info = PanicInfo::internal_constructor(
+        let info = PanicInfo::internal_constructor(
             message,
-            Location::internal_constructor(file, line, col),
+			Location::internal_constructor(file, line, col),
         );
-        info.set_payload(payload.get());
         panic_handler(&info);
     }
 

@@ -326,6 +326,10 @@ extern {
                                         sgx_nistp256_r_m1_len: ::int32_t,
                                         out_key: * mut ::uint8_t,
                                         out_key_len: ::int32_t) -> sgx_status_t;
+
+    /* intel sgx sdk 2.3 */
+    pub fn sgx_ecc256_calculate_pub_from_priv(p_att_priv_key: * const sgx_ec256_private_t,
+                                              p_att_pub_key: * mut sgx_ec256_public_t) -> sgx_status_t;
 }
 
 

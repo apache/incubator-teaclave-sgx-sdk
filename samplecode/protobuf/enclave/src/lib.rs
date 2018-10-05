@@ -54,9 +54,9 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
     let str_slice = unsafe { slice::from_raw_parts(some_string, some_len) };
     let _ = io::stdout().write(str_slice);
 
-    let decoded = decode_hex(&String::from_utf8(str_slice.to_vec()).unwrap());    
+    let decoded = decode_hex(&String::from_utf8(str_slice.to_vec()).unwrap());
     let parsed = parse_from_bytes::<Person>(&decoded).unwrap();
-    
+
     println!("\nname: {}, id: 0x{:08X}, email at: {}", parsed.get_name(), parsed.get_id(), parsed.get_email() );
 
     sgx_status_t::SGX_SUCCESS

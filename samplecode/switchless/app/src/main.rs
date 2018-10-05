@@ -50,12 +50,12 @@ extern {
 }
 
 fn init_enclave(num_uworker : u32, num_tworker : u32) -> SgxResult<SgxEnclave> {
-    
+
     let mut launch_token: sgx_launch_token_t = [0; 1024];
     let mut launch_token_updated: i32 = 0;
-    // Step 1: try to retrieve the launch token saved by last transaction 
+    // Step 1: try to retrieve the launch token saved by last transaction
     //         if there is no token, then create a new one.
-    // 
+    //
     // try to get the token saved in $HOME */
     let mut home_dir = path::PathBuf::new();
     let use_token = match dirs::home_dir() {
@@ -89,21 +89,21 @@ fn init_enclave(num_uworker : u32, num_tworker : u32) -> SgxResult<SgxEnclave> {
     }
 
     // Step 2: call sgx_create_enclave to initialize an enclave instance
-    // Debug Support: set 2nd parameter to 1 
+    // Debug Support: set 2nd parameter to 1
     let debug = 1;
     let mut misc_attr = sgx_misc_attribute_t {secs_attr: sgx_attributes_t { flags:0, xfrm:0}, misc_select:0};
 
     let enclave = try!(SgxEnclave::create_with_workers(ENCLAVE_FILE,
-                                                       debug, 
+                                                       debug,
                                                        &mut launch_token,
                                                        &mut launch_token_updated,
                                                        &mut misc_attr,
                                                        num_uworker,
                                                        num_tworker));
-    
-    // Step 3: save the launch token if it is updated 
+
+    // Step 3: save the launch token if it is updated
     if use_token == true && launch_token_updated != 0 {
-        // reopen the file with write capablity 
+        // reopen the file with write capablity
         match fs::File::create(&token_file) {
             Ok(mut f) => {
                 match f.write_all(&launch_token) {
@@ -143,10 +143,10 @@ fn benchmark_empty_ocall(eid : sgx_enclave_id_t,
 
     let start = Instant::now();
     let _ = unsafe {
-		ecall_repeat_ocalls(eid, REPEATS, is_switchless)
-	};
+        ecall_repeat_ocalls(eid, REPEATS, is_switchless)
+    };
     let elapsed = start.elapsed();
-    println!("Time elapsed {:?}", elapsed);    
+    println!("Time elapsed {:?}", elapsed);
 }
 
 fn benchmark_empty_ecall(eid : sgx_enclave_id_t,
@@ -166,14 +166,14 @@ fn benchmark_empty_ecall(eid : sgx_enclave_id_t,
     let start = Instant::now();
     for _ in 0..REPEATS {
         let _ = unsafe {
-	    	func(eid)
-	    };
+            func(eid)
+        };
     }
     let elapsed = start.elapsed();
-    println!("Time elapsed {:?}", elapsed);    
+    println!("Time elapsed {:?}", elapsed);
 }
 
-fn main() { 
+fn main() {
 
     let enclave = match init_enclave(2,2) {
         Ok(r) => {
@@ -192,6 +192,6 @@ fn main() {
     benchmark_empty_ecall(enclave.geteid(),1);
 
     println!("[+] say_something success...");
-    
+
     enclave.destroy();
 }

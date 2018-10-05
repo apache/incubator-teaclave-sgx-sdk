@@ -29,11 +29,10 @@
 #include <iostream>
 #include <unistd.h>
 
+#include "MessageHandler.h"
 #include "LogBase.h"
 
 using namespace util;
-
-#include "MessageHandler.h"
 
 int Main(int argc, char* argv[]) {
     LogBase::Inst();

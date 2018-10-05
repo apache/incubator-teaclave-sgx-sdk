@@ -1,0 +1,49 @@
+[package]
+name = "chrono"
+version = "0.4.5"
+authors = [
+    "Kang Seonghoon <public+rust@mearie.org>",
+    "Brandon W Maister <quodlibetor@gmail.com>",
+]
+
+description = "Date and time library for Rust"
+homepage = "https://github.com/chronotope/chrono"
+documentation = "https://docs.rs/chrono/"
+repository = "https://github.com/chronotope/chrono"
+keywords = ["date", "time", "calendar"]
+categories = ["date-and-time"]
+readme = "README.md"
+license = "MIT/Apache-2.0"
+
+[badges]
+travis-ci = { repository = "chronotope/chrono" }
+appveyor = { repository = "chronotope/chrono" }
+
+[lib]
+name = "chrono"
+
+[features]
+default = []
+clock = ["sgx_untrusted_time"]
+
+[dependencies]
+num-integer = { path = "../num/integer" }
+num-traits = { path = "../num/traits", default-features = false }
+rustc-serialize = { path = "../rustc-serialize", optional = true }
+serde = { path = "../serde-rs/serde/serde", optional = true }
+sgx_untrusted_time = { path = "../time", optional = true }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }
+
+[dev-dependencies]
+serde_json = { version = "1" }
+serde_derive = { version = "1" }
+bincode = { version = "0.8.0" }
+num-iter = { version = "0.1.35", default-features = false }
+
+[package.metadata.docs.rs]
+all-features = true
+
+[package.metadata.playground]
+all-features = true

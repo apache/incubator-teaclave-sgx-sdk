@@ -118,5 +118,5 @@ pub fn rsgx_register_exception_handler(is_first_handler: u32, exception_handler:
 pub fn rsgx_unregister_exception_handler(handle: exception_handle) -> bool {
 
     let ret = unsafe { sgx_unregister_exception_handler(handle) };
-    if ret == 0 { false } else { true }
+    ret != 0
 }

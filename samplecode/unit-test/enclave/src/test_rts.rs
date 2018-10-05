@@ -37,6 +37,9 @@ use sgx_trts::c_str::*;
 use sgx_trts::error;
 use sgx_trts::memchr;
 use sgx_trts::libc;
+use sgx_trts::enclave::*;
+
+use core::mem;
 
 global_ctors_object! {
     VARNAME, func_name = {()}
@@ -45,6 +48,16 @@ global_ctors_object! {
 // veh
 extern "C" fn sample_exception_handler(_ : *mut sgx_exception_info_t) -> uint32_t {
     0
+}
+
+pub fn test_rsgx_get_thread_policy() {
+    assert_eq!(rsgx_get_thread_policy(), SgxThreadPolicy::Bound);
+}
+
+pub fn test_trts_sizes() {
+    //Only during dev
+    //assert_eq!(mem::size_of::<global_data_t>(), 1488);
+    //assert_eq!(mem::size_of::<thread_data_t>(), 160);
 }
 
 pub fn test_register_first_exception_handler() {
@@ -316,17 +329,17 @@ pub fn test_ascii(){
 
 // c_str
 pub fn test_cstr(){
-	let c_string = CString::new("foo").unwrap();
-	let ptr = c_string.into_raw();
+    let c_string = CString::new("foo").unwrap();
+    let ptr = c_string.into_raw();
 
-	unsafe {
-	    assert_eq!(b'f', *ptr as u8);
-	    assert_eq!(b'o', *ptr.offset(1) as u8);
-	    assert_eq!(b'o', *ptr.offset(2) as u8);
-	    assert_eq!(b'\0', *ptr.offset(3) as u8);
-	    // retake pointer to free memory
-	    let _ = CString::from_raw(ptr);
-	}
+    unsafe {
+        assert_eq!(b'f', *ptr as u8);
+        assert_eq!(b'o', *ptr.offset(1) as u8);
+        assert_eq!(b'o', *ptr.offset(2) as u8);
+        assert_eq!(b'\0', *ptr.offset(3) as u8);
+        // retake pointer to free memory
+        let _ = CString::from_raw(ptr);
+    }
 
     let c_string = CString::new("foo").unwrap();
     let bytes = c_string.into_bytes();

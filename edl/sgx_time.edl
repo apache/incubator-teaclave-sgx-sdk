@@ -33,17 +33,11 @@ enclave {
 
     include "time.h"
 
-    struct timespec_t
-    {
-        time_t tv_sec;
-        long tv_nesc;
-    };
-
 	trusted {
         /* define ECALLs here. */
     };
 
     untrusted {
-        int u_clock_gettime_ocall([out] int *error, int clk_id, [out] struct timespec_t *tp);
+        int u_clock_gettime_ocall([out] int *error, int clk_id, [out] struct timespec *tp);
     };
 };

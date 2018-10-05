@@ -55,9 +55,8 @@ MessageManager* MessageManager::getInstance() {
 int MessageManager::init(string path) {
     if (this->sp) {
         delete this->sp;
-        this->sp = new PSIWorker(this->ws);
     }
-
+    this->sp = new PSIWorker(this->ws);
     this->sp->set_hash_path(path);
 
     this->nm->Init();
@@ -179,9 +178,9 @@ string MessageManager::handleHashData(Messages::MessagePsiResult msg, bool* fini
         } else {
             Log("[PSI] Send hash data again");
             return nm->serialize(hash_data);
-        }    
+        }
     }
-    
+
     return "";
 }
 

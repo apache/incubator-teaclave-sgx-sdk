@@ -85,14 +85,14 @@ fn wasm_get(module : Option<String>, field : String)
                  program
                  .module_or_last(None)
                  .expect(&format!("Expected program to have loaded module {:?}",
-                        "None" 
+                        "None"
                  ))
         },
         Some(str) => {
                  program
                  .module_or_last(Some(&str))
                  .expect(&format!("Expected program to have loaded module {:?}",
-                         str 
+                         str
                  ))
         }
     };
@@ -137,7 +137,7 @@ fn wasm_load_module(name: Option<String>, module: Vec<u8>)
     Ok(())
 }
 
-fn wasm_register(name: &Option<String>, as_name: String) 
+fn wasm_register(name: &Option<String>, as_name: String)
                     -> Result<(), InterpreterError> {
     let ref mut spec_driver = SPECDRIVER.lock().unwrap();
     spec_driver.register(name, as_name)

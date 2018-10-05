@@ -36,7 +36,7 @@ enclave {
     from "sgx_tstdc.edl" import *;
     trusted {
         /* define ECALLs here. */
-		
+
         public sgx_status_t sgxwasm_init();
         public sgx_status_t sgxwasm_run_action([in, size=req_len] const uint8_t* req_bin,
                                                            size_t req_len,

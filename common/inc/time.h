@@ -43,6 +43,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
+#include <sys/struct_timespec.h>
 
 #ifndef NULL
 #ifdef __cplusplus

@@ -142,12 +142,12 @@ fn spec_to_runtime_value(value: Value) -> RuntimeValue {
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
-    
+
     let mut launch_token: sgx_launch_token_t = [0; 1024];
     let mut launch_token_updated: i32 = 0;
-    // Step 1: try to retrieve the launch token saved by last transaction 
+    // Step 1: try to retrieve the launch token saved by last transaction
     //         if there is no token, then create a new one.
-    // 
+    //
     // try to get the token saved in $HOME */
     let mut home_dir = path::PathBuf::new();
     let use_token = match dirs::home_dir() {
@@ -181,18 +181,18 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
     }
 
     // Step 2: call sgx_create_enclave to initialize an enclave instance
-    // Debug Support: set 2nd parameter to 1 
+    // Debug Support: set 2nd parameter to 1
     let debug = 1;
     let mut misc_attr = sgx_misc_attribute_t {secs_attr: sgx_attributes_t { flags:0, xfrm:0}, misc_select:0};
-    let enclave = try!(SgxEnclave::create(ENCLAVE_FILE, 
-                                          debug, 
+    let enclave = try!(SgxEnclave::create(ENCLAVE_FILE,
+                                          debug,
                                           &mut launch_token,
                                           &mut launch_token_updated,
                                           &mut misc_attr));
-    
-    // Step 3: save the launch token if it is updated 
+
+    // Step 3: save the launch token if it is updated
     if use_token == true && launch_token_updated != 0 {
-        // reopen the file with write capablity 
+        // reopen the file with write capablity
         match fs::File::create(&token_file) {
             Ok(mut f) => {
                 match f.write_all(&launch_token) {
@@ -254,7 +254,7 @@ fn sgx_enclave_wasm_invoke(req_str : String,
                                      result_max_len)};
 
     match sgx_ret {
-        // sgx_ret falls in range of Intel's Error code set 
+        // sgx_ret falls in range of Intel's Error code set
         sgx_status_t::SGX_SUCCESS => {},
         _ => {
             println!("[-] ECALL Enclave Failed {}!", sgx_ret.as_str());
@@ -302,7 +302,7 @@ fn sgx_enclave_wasm_load_module(module : Vec<u8>,
                   name : name.as_ref().map(|x| x.clone()),
                   module : module,
               };
-    
+
     match sgx_enclave_wasm_invoke(serde_json::to_string(&req).unwrap(),
                                   MAXOUTPUT,
                                   enclave) {
@@ -359,7 +359,7 @@ fn sgx_enclave_wasm_run_action(action : &Action, enclave : &SgxEnclave) -> Resul
             ref field,
             ..
         } => {
-            // Deal with Get 
+            // Deal with Get
             // Make a SgxWasmAction::Get structure and send it to sgx_enclave_wasm_invoke
             let req = SgxWasmAction::Get {
                 module : module.as_ref().map(|x| x.clone()),
@@ -447,7 +447,7 @@ fn wasm_main_loop(wast_file : &str, enclave : &SgxEnclave) -> Result<(), String>
     let mut parser = ScriptParser::from_source_and_name(&wast_content, fnme).unwrap();
 
     sgx_enclave_wasm_init(enclave)?;
-    while let Some(Command{kind,line}) = 
+    while let Some(Command{kind,line}) =
             match parser.next() {
                 Ok(x) => x,
                 _ => { return Err("Error parsing test input".to_string()); }
@@ -495,7 +495,7 @@ fn wasm_main_loop(wast_file : &str, enclave : &SgxEnclave) -> Result<(), String>
 
             CommandKind::AssertReturnCanonicalNan { action }
             | CommandKind::AssertReturnArithmeticNan { action } => {
-                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave); 
+                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave);
                 match result {
                     Ok(result) => {
                         for actual_result in result.into_iter().collect::<Vec<RuntimeValue>>() {
@@ -516,15 +516,15 @@ fn wasm_main_loop(wast_file : &str, enclave : &SgxEnclave) -> Result<(), String>
                     Err(e) => {
                         panic!("Expected action to return value, got error: {:?}", e);
                     }
-                }            
+                }
             },
 
             CommandKind::AssertExhaustion { action, .. } => {
-                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave); 
+                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave);
                 match result {
                     Ok(result) => panic!("Expected exhaustion, got result: {:?}", result),
                     Err(e) => println!("assert_exhaustion at line {} - success ({:?})", line, e),
-                } 
+                }
             },
 
             CommandKind::AssertTrap { action, .. } => {
@@ -568,22 +568,22 @@ fn wasm_main_loop(wast_file : &str, enclave : &SgxEnclave) -> Result<(), String>
             },
 
             CommandKind::PerformAction(action) => {
-                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave); 
+                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave);
                 match result {
                     Ok(_) => {println!("invoke - success at line {}", line)},
-                    Err(e) => panic!("Failed to invoke action at line {}: {:?}", line, e), 
+                    Err(e) => panic!("Failed to invoke action at line {}: {:?}", line, e),
                 }
             },
         }
     }
-    println!("[+] all tests passed!"); 
+    println!("[+] all tests passed!");
     Ok(())
 }
 
 fn run_a_wast(enclave   : &SgxEnclave,
               wast_file : &str) -> Result<(), String> {
 
-    // Step 1: Init the sgxwasm spec driver engine 
+    // Step 1: Init the sgxwasm spec driver engine
     sgx_enclave_wasm_init(enclave)?;
 
     // Step 2: Load the wast file and run
@@ -592,7 +592,7 @@ fn run_a_wast(enclave   : &SgxEnclave,
     Ok(())
 }
 
-fn main() { 
+fn main() {
 
     let enclave = match init_enclave() {
         Ok(r) => {

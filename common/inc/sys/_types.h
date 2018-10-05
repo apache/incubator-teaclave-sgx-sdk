@@ -42,8 +42,13 @@ typedef short               __int16_t;
 typedef unsigned short      __uint16_t;
 typedef int                 __int32_t;
 typedef unsigned int        __uint32_t;
+#ifdef __x86_64__
+typedef long                __int64_t;
+typedef unsigned long       __uint64_t;
+#else
 typedef long long           __int64_t;
 typedef unsigned long long  __uint64_t;
+#endif
 
 /* 7.18.1.2 Minimum-width integer types */
 typedef __int8_t            __int_least8_t;
@@ -77,6 +82,11 @@ typedef __uint64_t          __uint_fast64_t;
 #endif
 
 typedef long                __off_t;
+#ifdef __x86_64__
+typedef long int 			__off64_t;
+#else
+typedef long long int 		__off64_t;
+#endif
 
 /* 7.18.1.4 Integer types capable of holding object pointers */
 #ifdef __i386__
@@ -105,7 +115,7 @@ typedef long                __clock_t;
 
 typedef long                __time_t;
 typedef __builtin_va_list   __va_list;
-typedef int                 __wint_t;
+typedef unsigned int        __wint_t;
 /* wctype_t and wctrans_t are defined in wchar.h */
 typedef unsigned long int   __wctype_t;
 typedef int *               __wctrans_t;
@@ -126,6 +136,28 @@ typedef struct {
 /* 7.18.1.5 Greatest-width integer types */
 typedef __int64_t           __intmax_t;
 typedef __uint64_t          __uintmax_t;
+
+
+typedef unsigned long int 		__ino_t;
+typedef unsigned int 			__mode_t;
+typedef unsigned int 			__uid_t;
+typedef unsigned int 			__gid_t;
+typedef long int 				__blksize_t;
+typedef long int 				__blkcnt_t;
+
+#ifdef __x86_64__
+typedef unsigned long int 		__dev_t;
+typedef long int 				__off64_t;
+typedef unsigned long int		__nlink_t;
+typedef long int 				__blkcnt64_t;
+typedef unsigned long int 		__ino64_t;
+#else
+typedef unsigned long long int 	__dev_t;
+typedef long long int 			__off64_t;
+typedef unsigned int 			__nlink_t;
+typedef long long int 			__blkcnt64_t;
+typedef unsigned long long int 	__ino64_t;
+#endif
 
 #endif /* !_SYS__TYPES_H_ */
 

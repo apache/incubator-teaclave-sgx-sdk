@@ -23,7 +23,7 @@ pub fn test_std_time() {
         let a = Instant::now();
         a.elapsed();
     }
-    
+
     {
         let a = Instant::now();
         let b = Instant::now();
@@ -108,6 +108,6 @@ pub fn test_std_time() {
         // Should give us ~70 years to fix this!
         let hundred_twenty_years = thirty_years * 4;
         assert!(a < hundred_twenty_years);
-    } 
+    }
 }
 

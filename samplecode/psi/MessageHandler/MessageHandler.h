@@ -41,7 +41,7 @@
 #include "Messages.pb.h"
 #include "UtilityFunctions.h"
 #include "remote_attestation_result.h"
-#include "LogBase.h"
+//#include "LogBase.h"
 #include "../GeneralSettings.h"
 
 using namespace std;

@@ -309,7 +309,7 @@ pub extern "C" fn tls_client_write(session: *const c_void, buf: * const c_char, 
         let result = session.write(plaintext);
 
         result
-    }    
+    }
 }
 
 #[no_mangle]

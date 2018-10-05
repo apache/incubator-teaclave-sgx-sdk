@@ -67,8 +67,7 @@ impl SgxDhMsg3 {
     /// Create a SgxDhMsg3 with default values.
     ///
     pub fn new() -> Self {
-        let dh_msg3 = SgxDhMsg3::default();
-        dh_msg3
+        SgxDhMsg3::default()
     }
 
     ///
@@ -119,7 +118,7 @@ impl SgxDhMsg3 {
         if p.is_null() {
             return None;
         }
-        if rsgx_raw_is_within_enclave(p as * mut u8, len as usize) == false {
+        if !rsgx_raw_is_within_enclave(p as * mut u8, len as usize) {
             return None;
         }
 
@@ -172,7 +171,7 @@ impl SgxDhMsg3 {
         if p.is_null() {
             return None;
         }
-        if rsgx_raw_is_within_enclave(p as * mut u8, len as usize) == false {
+        if !rsgx_raw_is_within_enclave(p as * mut u8, len as usize) {
             return None;
         }
 
@@ -285,10 +284,10 @@ impl SgxDhResponder {
     ///
     pub fn gen_msg1(&mut self, msg1: &mut SgxDhMsg1) -> SgxError {
 
-        if rsgx_data_is_within_enclave(self) == false {
+        if !rsgx_data_is_within_enclave(self) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if rsgx_data_is_within_enclave(msg1) == false {
+        if !rsgx_data_is_within_enclave(msg1) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
@@ -298,16 +297,13 @@ impl SgxDhResponder {
         }
 
         let error = self.dh_generate_message1(msg1);
-        match error {
-            Err(mut ret) => {
-                *self = Self::default();
-                if ret != sgx_status_t::SGX_ERROR_OUT_OF_MEMORY {
-                    ret = sgx_status_t::SGX_ERROR_UNEXPECTED;
-                }
-                return Err(ret);
-            },
-            _ => (),
-        };
+        if let Err(mut ret) = error {
+            *self = Self::default();
+            if ret != sgx_status_t::SGX_ERROR_OUT_OF_MEMORY {
+                ret = sgx_status_t::SGX_ERROR_UNEXPECTED;
+            }
+            return Err(ret);
+        }
 
         self.state = SgxDhSessionState::SGX_DH_SESSION_RESPONDER_WAIT_M2;
         Ok(())
@@ -385,24 +381,23 @@ impl SgxDhResponder {
                      aek: &mut sgx_key_128bit_t,
                      initiator_identity: &mut sgx_dh_session_enclave_identity_t) -> SgxError {
 
-        if rsgx_data_is_within_enclave(self) == false {
+        if !rsgx_data_is_within_enclave(self) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if (rsgx_data_is_within_enclave(msg2) == false) ||
-           (rsgx_data_is_within_enclave(aek) == false) ||
-           (rsgx_data_is_within_enclave(initiator_identity) == false) ||
-           (rsgx_raw_is_within_enclave(msg3 as * const _ as * const u8, mem::size_of::<SgxDhMsg3>()) == false) {
+        if !rsgx_data_is_within_enclave(msg2) ||
+           !rsgx_data_is_within_enclave(aek) ||
+           !rsgx_data_is_within_enclave(initiator_identity) ||
+           !rsgx_raw_is_within_enclave(msg3 as * const _ as * const u8, mem::size_of::<SgxDhMsg3>()) {
             *self = Self::default();
             self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if msg3.msg3_body.additional_prop.len() > 0 {
-            if (rsgx_slice_is_within_enclave(&msg3.msg3_body.additional_prop) == false) ||
-               (msg3.msg3_body.additional_prop.len() > (u32::max_value() as usize) - mem::size_of::<sgx_dh_msg3_t>()) {
-                *self = Self::default();
-                self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
-                return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
-            }
+        if msg3.msg3_body.additional_prop.len() > 0 &&
+              (!(rsgx_slice_is_within_enclave(&msg3.msg3_body.additional_prop)) ||
+               (msg3.msg3_body.additional_prop.len() > (u32::max_value() as usize) - mem::size_of::<sgx_dh_msg3_t>())) {
+            *self = Self::default();
+            self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
+            return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
         if self.state != SgxDhSessionState::SGX_DH_SESSION_RESPONDER_WAIT_M2 {
@@ -442,6 +437,8 @@ impl SgxDhResponder {
 
         let report = try!(rsgx_create_report(&target, &report_data));
 
+        msg1.target = Default::default();
+        msg1.g_a = Default::default();
         msg1.target.mr_enclave = report.body.mr_enclave;
         msg1.target.attributes = report.body.attributes;
         msg1.target.misc_select = report.body.misc_select;
@@ -462,13 +459,13 @@ impl SgxDhResponder {
         let kdf_id = &msg2.report.body.report_data.d[SGX_SHA256_HASH_SIZE..SGX_SHA256_HASH_SIZE + 2];
         let data_hash = &msg2.report.body.report_data.d[..SGX_SHA256_HASH_SIZE];
 
-        if kdf_id.eq(&AES_CMAC_KDF_ID) == false {
+        if !kdf_id.eq(&AES_CMAC_KDF_ID) {
             return Err(sgx_status_t::SGX_ERROR_KDF_MISMATCH);
         }
 
         let report = msg2.report;
         let data_mac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &report));
-        if data_mac.consttime_memeq(&msg2.cmac) == false {
+        if !data_mac.consttime_memeq(&msg2.cmac) {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
 
@@ -480,7 +477,7 @@ impl SgxDhResponder {
         try!(sha_handle.update_msg(&msg2.g_b));
         let msg_hash = try!(sha_handle.get_hash());
 
-        if msg_hash.eq(data_hash) == false {
+        if !msg_hash.eq(data_hash) {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
 
@@ -524,12 +521,11 @@ impl SgxDhResponder {
 
         *self = Self::default();
         self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
-        let ret = match sgx_ret {
+        match sgx_ret {
             sgx_status_t::SGX_ERROR_OUT_OF_MEMORY => sgx_status_t::SGX_ERROR_OUT_OF_MEMORY,
             sgx_status_t::SGX_ERROR_KDF_MISMATCH => sgx_status_t::SGX_ERROR_KDF_MISMATCH,
             _ => sgx_status_t::SGX_ERROR_UNEXPECTED,
-        };
-        ret
+        }
     }
 }
 
@@ -611,11 +607,11 @@ impl SgxDhInitiator {
     ///
     pub fn proc_msg1(&mut self, msg1: &SgxDhMsg1, msg2: &mut SgxDhMsg2) -> SgxError {
 
-        if rsgx_data_is_within_enclave(self) == false {
+        if !rsgx_data_is_within_enclave(self) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if (rsgx_data_is_within_enclave(msg1) == false) ||
-           (rsgx_data_is_within_enclave(msg2) == false) {
+        if !rsgx_data_is_within_enclave(msg1) ||
+           !rsgx_data_is_within_enclave(msg2) {
             *self = Self::default();
             self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -707,23 +703,22 @@ impl SgxDhInitiator {
                      aek: &mut sgx_key_128bit_t,
                      responder_identity: &mut sgx_dh_session_enclave_identity_t) -> SgxError {
 
-        if rsgx_data_is_within_enclave(self) == false {
+        if !rsgx_data_is_within_enclave(self) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if (rsgx_raw_is_within_enclave(msg3 as * const _ as * const u8, mem::size_of::<SgxDhMsg3>()) == false) ||
-           (rsgx_data_is_within_enclave(aek) == false) ||
-           (rsgx_data_is_within_enclave(responder_identity) == false) {
+        if !rsgx_raw_is_within_enclave(msg3 as * const _ as * const u8, mem::size_of::<SgxDhMsg3>()) ||
+           !rsgx_data_is_within_enclave(aek) ||
+           !rsgx_data_is_within_enclave(responder_identity) {
             *self = Self::default();
             self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if msg3.msg3_body.additional_prop.len() > 0 {
-            if (rsgx_slice_is_within_enclave(&msg3.msg3_body.additional_prop) == false) ||
-               (msg3.msg3_body.additional_prop.len() > (u32::max_value() as usize) - mem::size_of::<sgx_dh_msg3_t>()) {
+        if msg3.msg3_body.additional_prop.len() > 0 &&
+               (!rsgx_slice_is_within_enclave(&msg3.msg3_body.additional_prop) ||
+               (msg3.msg3_body.additional_prop.len() > (u32::max_value() as usize) - mem::size_of::<sgx_dh_msg3_t>())) {
                 *self = Self::default();
                 self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
                 return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
-            }
         }
 
         if self.state != SgxDhSessionState::SGX_DH_SESSION_INITIATOR_WAIT_M3 {
@@ -786,7 +781,7 @@ impl SgxDhInitiator {
         }
         let data_mac = try!(cmac_handle.get_hash());
 
-        if data_mac.consttime_memeq(&msg3.cmac) == false {
+        if !data_mac.consttime_memeq(&msg3.cmac) {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
 
@@ -799,7 +794,7 @@ impl SgxDhInitiator {
         let msg_hash = try!(sha_handle.get_hash());
 
         let data_hash = &msg3.msg3_body.report.body.report_data.d[..SGX_SHA256_HASH_SIZE];
-        if msg_hash.eq(data_hash) == false {
+        if !msg_hash.eq(data_hash) {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
 
@@ -810,10 +805,9 @@ impl SgxDhInitiator {
 
         *self = Self::default();
         self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
-        let ret = match sgx_ret {
+        match sgx_ret {
             sgx_status_t::SGX_ERROR_OUT_OF_MEMORY => sgx_status_t::SGX_ERROR_OUT_OF_MEMORY,
             _ => sgx_status_t::SGX_ERROR_UNEXPECTED,
-        };
-        ret
+        }
     }
 }

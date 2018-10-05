@@ -84,7 +84,7 @@ fn consttime_memequal(b1: * const u8, b2: * const u8, l: usize) -> i32
 
     while len > 0 {
         len -= 1;
-        res |= (p1[len] ^ p2[len]) as i32;
+        res |= i32::from(p1[len] ^ p2[len]);
     }
     /*
      * Map 0 to 1 and [1, 256) to 0 using only constant-time

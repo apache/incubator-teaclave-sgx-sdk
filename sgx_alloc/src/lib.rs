@@ -39,7 +39,7 @@
 
 extern crate sgx_trts;
 
-use core::alloc::{GlobalAlloc, Alloc, AllocErr, Layout, };
+use core::alloc::{GlobalAlloc, Alloc, AllocErr, Layout};
 use core::ptr::NonNull;
 
 // The minimum alignment guaranteed by the architecture. This value is used to
@@ -114,12 +114,11 @@ mod platform {
     unsafe impl GlobalAlloc for System {
         #[inline]
         unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-            let ptr = if layout.align() <= MIN_ALIGN && layout.align() <= layout.size() {
+            if layout.align() <= MIN_ALIGN && layout.align() <= layout.size() {
                 libc::malloc(layout.size()) as *mut u8
             } else {
                 aligned_malloc(&layout)
-            };
-            ptr
+            }
         }
 
         #[inline]
@@ -129,11 +128,11 @@ mod platform {
             if layout.align() <= MIN_ALIGN && layout.align() <= layout.size() {
                 libc::calloc(layout.size(), 1) as *mut u8
             } else {
-                let ptr = self.alloc(layout.clone());
+                let ptr = self.alloc(layout);
                 if !ptr.is_null() {
                     ptr::write_bytes(ptr, 0, layout.size());
                 }
-                ptr 
+                ptr
             }
         }
 

@@ -32,6 +32,9 @@
 //! have time for its documents.
 
 use sgx_types::*;
+use sgx_types::metadata::*;
+
+pub const LAYOUT_ENTRY_NUM : usize = 38;
 
 #[link(name = "sgx_trts")]
 extern {
@@ -47,7 +50,12 @@ struct global_data_t {
     enclave_size: usize,
     heap_offset: usize,
     heap_size: usize,
-    thread_policy: u32,
+    thread_policy: usize,
+    td_template : thread_data_t,
+    tcs_template: [u8;TCS_TEMPLATE_SIZE], // 72
+    layout_entry_num : u32,
+    reserved : u32,
+    layout_table : [layout_t;LAYOUT_ENTRY_NUM],
 }
 
 #[repr(C)]
@@ -77,6 +85,12 @@ pub struct SgxGlobalData {
     heap_offset: usize,
     heap_size: usize,
     thread_policy: SgxThreadPolicy,
+}
+
+impl Default for SgxGlobalData {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SgxGlobalData {
@@ -162,7 +176,7 @@ impl SgxGlobalData {
 }
 
 #[allow(dead_code)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct SgxThreadData {
     td_addr: usize,
     last_sp: usize,
@@ -187,6 +201,7 @@ impl SgxThreadData {
     ///
     /// This API is only an experimental funtion.
     ///
+    #[allow(clippy::cast_ptr_alignment)]
     pub fn new() -> Self {
         let td = unsafe {
             let p = rsgx_get_thread_data() as * const thread_data_t;
@@ -270,7 +285,7 @@ impl SgxThreadData {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum SgxThreadPolicy {
     Bound,
     Unbound

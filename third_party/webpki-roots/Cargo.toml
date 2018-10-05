@@ -1,0 +1,16 @@
+[package]
+name = "webpki-roots"
+version = "0.15.0"
+authors = ["Joseph Birr-Pixton <jpixton@gmail.com>"]
+readme = "README.md"
+license = "MPL-2.0"
+description = "Mozilla's CA root certificates for use with webpki"
+homepage = "https://github.com/ctz/webpki-roots"
+repository = "https://github.com/ctz/webpki-roots"
+
+[dependencies]
+untrusted = "0.6.2"
+webpki = { path = "../webpki", version = "0.18.1" }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }

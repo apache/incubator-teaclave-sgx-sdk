@@ -84,6 +84,7 @@
 
 #![no_std]
 #![feature(alloc)]
+#![feature(tool_lints)]
 
 #![allow(non_camel_case_types)]
 #![allow(unused_assignments)]

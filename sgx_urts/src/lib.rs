@@ -26,6 +26,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#![feature(tool_lints)]
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
+
 extern crate libc;
 extern crate sgx_types;
 

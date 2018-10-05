@@ -71,7 +71,6 @@
 #![feature(hashmap_internals)]
 #![feature(integer_atomics)]
 #![feature(lang_items)]
-#![feature(macro_vis_matcher)]
 #![feature(needs_panic_runtime)]
 #![feature(never_type)]
 #![feature(optin_builtin_traits)]
@@ -94,7 +93,6 @@
 #![feature(panic_internals)]
 #![feature(std_internals)]
 #![feature(panic_info_message)]
-#![feature(extern_prelude)]
 #![feature(unicode_internals)]
 #![feature(panic_implementation)]
 

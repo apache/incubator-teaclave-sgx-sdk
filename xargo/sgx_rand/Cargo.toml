@@ -1,6 +1,6 @@
 [package]
 name = "sgx_rand"
-version = "1.0.0"
+version = "1.0.4"
 authors = ["Baidu"]
 
 [lib]
