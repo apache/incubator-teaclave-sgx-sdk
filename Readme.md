@@ -88,13 +88,6 @@ Replace `SGX_MODE ?= HW` with `SGX_MODE ?= SW`
 
 or run `export SGX_MODE=SW` in your terminal.
 
-Next, upgrade the toolchain (to the aforementioned version) to use the **master** branch
-
-```
-root@docker:/# rustup default nightly-2018-08-25-x86_64-unknown-linux-gnu
-root@docker:/# rustup component add rust-src
-```
-
 Finally, check if the sample code works
 
 `root@docker:~/sgx/samplecode/helloworld# make`
