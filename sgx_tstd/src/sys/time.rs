@@ -173,7 +173,7 @@ mod inner {
 
         pub fn sub_instant(&self, other: &Instant) -> Duration {
             self.t.sub_timespec(&other.t).unwrap_or_else(|_| {
-                panic!("other was less than the current instant")
+                panic!("specified instant was later than self")
             })
         }
 
@@ -183,6 +183,10 @@ mod inner {
 
         pub fn sub_duration(&self, other: &Duration) -> Instant {
             Instant { t: self.t.sub_duration(other) }
+        }
+
+        pub fn get_tup(&self) -> (i64, i64) {
+            (self.t.t.tv_sec, self.t.t.tv_nsec)
         }
     }
 
@@ -211,6 +215,10 @@ mod inner {
 
         pub fn sub_duration(&self, other: &Duration) -> SystemTime {
             SystemTime { t: self.t.sub_duration(other) }
+        }
+
+        pub fn get_tup(&self) -> (i64, i64) {
+            (self.t.t.tv_sec, self.t.t.tv_nsec)
         }
     }
 

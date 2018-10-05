@@ -15,11 +15,39 @@
 //! Elliptic curve operations on the birationally equivalent curves Curve25519
 //! and Edwards25519.
 
-use {bssl, c, error};
+use {bssl, c, error, limb};
+use std::marker::PhantomData;
 
-// Keep this in sync with `fe` in curve25519/internal.h.
-pub type Elem = [i32; ELEM_LIMBS];
-const ELEM_LIMBS: usize = 10;
+// Elem<T>` is `fe` in curve25519/internal.h.
+// Elem<L> is `fe_loose` in curve25519/internal.h.
+// Keep this in sync with curve25519/internal.h.
+#[repr(C)]
+pub struct Elem<E: Encoding> {
+    limbs: [limb::Limb; ELEM_LIMBS], // This is called `v` in the C code.
+    encoding: PhantomData<E>,
+}
+
+pub trait Encoding {}
+pub struct T; impl Encoding for T {} // Tight
+// pub struct L; impl Encoding for L {} // Loose
+
+const ELEM_LIMBS: usize = 5 * 64 / limb::LIMB_BITS;
+
+
+impl<E: Encoding> Elem<E> {
+    fn zero() -> Self {
+        Self {
+            limbs: Default::default(),
+            encoding: PhantomData,
+        }
+    }
+}
+
+impl Elem<T> {
+    fn negate(&mut self) {
+        unsafe { GFp_x25519_fe_neg(self); }
+    }
+}
 
 // An encoding of a curve point. If on Curve25519, it should be encoded as
 // described in Section 5 of [RFC 7748]. If on Edwards25519, it should be
@@ -39,19 +67,19 @@ const UNREDUCED_SCALAR_LEN: usize = SCALAR_LEN * 2;
 // Keep this in sync with `ge_p3` in curve25519/internal.h.
 #[repr(C)]
 pub struct ExtPoint {
-    x: Elem,
-    y: Elem,
-    z: Elem,
-    t: Elem,
+    x: Elem<T>,
+    y: Elem<T>,
+    z: Elem<T>,
+    t: Elem<T>,
 }
 
 impl ExtPoint {
     pub fn new_at_infinity() -> Self {
         ExtPoint {
-            x: [0; ELEM_LIMBS],
-            y: [0; ELEM_LIMBS],
-            z: [0; ELEM_LIMBS],
-            t: [0; ELEM_LIMBS],
+            x: Elem::zero(),
+            y: Elem::zero(),
+            z: Elem::zero(),
+            t: Elem::zero(),
         }
     }
 
@@ -71,27 +99,25 @@ impl ExtPoint {
     }
 
     pub fn invert_vartime(&mut self) {
-        for i in 0..ELEM_LIMBS {
-            self.x[i] = -self.x[i];
-            self.t[i] = -self.t[i];
-        }
+        self.x.negate();
+        self.t.negate();
     }
 }
 
 // Keep this in sync with `ge_p2` in curve25519/internal.h.
 #[repr(C)]
 pub struct Point {
-    x: Elem,
-    y: Elem,
-    z: Elem,
+    x: Elem<T>,
+    y: Elem<T>,
+    z: Elem<T>,
 }
 
 impl Point {
     pub fn new_at_infinity() -> Self {
         Point {
-            x: [0; ELEM_LIMBS],
-            y: [0; ELEM_LIMBS],
-            z: [0; ELEM_LIMBS],
+            x: Elem::zero(),
+            y: Elem::zero(),
+            z: Elem::zero(),
         }
     }
 
@@ -100,18 +126,21 @@ impl Point {
     }
 }
 
-fn encode_point(x: Elem, y: Elem, z: Elem) -> EncodedPoint {
-    let mut recip = [0; ELEM_LIMBS];
-    let mut x_over_z = [0; ELEM_LIMBS];
-    let mut y_over_z = [0; ELEM_LIMBS];
+fn encode_point(x: Elem<T>, y: Elem<T>, z: Elem<T>) -> EncodedPoint {
     let mut bytes = [0; ELEM_LEN];
 
     let sign_bit: u8 = unsafe {
-        GFp_fe_invert(&mut recip, &z);
-        GFp_fe_mul(&mut x_over_z, &x, &recip);
-        GFp_fe_mul(&mut y_over_z, &y, &recip);
-        GFp_fe_tobytes(&mut bytes, &y_over_z);
-        GFp_fe_isnegative(&x_over_z)
+        let mut recip = Elem::zero();
+        GFp_x25519_fe_invert(&mut recip, &z);
+
+        let mut x_over_z = Elem::zero();
+        GFp_x25519_fe_mul_ttt(&mut x_over_z, &x, &recip);
+
+        let mut y_over_z = Elem::zero();
+        GFp_x25519_fe_mul_ttt(&mut y_over_z, &y, &recip);
+        GFp_x25519_fe_tobytes(&mut bytes, &y_over_z);
+
+        GFp_x25519_fe_isnegative(&x_over_z)
     };
 
     // The preceding computations must execute in constant time, but this
@@ -122,10 +151,11 @@ fn encode_point(x: Elem, y: Elem, z: Elem) -> EncodedPoint {
 }
 
 extern {
-    fn GFp_fe_invert(out: &mut Elem, z: &Elem);
-    fn GFp_fe_isnegative(elem: &Elem) -> u8;
-    fn GFp_fe_mul(h: &mut Elem, f: &Elem, g: &Elem);
-    fn GFp_fe_tobytes(bytes: &mut EncodedPoint, elem: &Elem);
+    fn GFp_x25519_fe_invert(out: &mut Elem<T>, z: &Elem<T>);
+    fn GFp_x25519_fe_isnegative(elem: &Elem<T>) -> u8;
+    fn GFp_x25519_fe_mul_ttt(h: &mut Elem<T>, f: &Elem<T>, g: &Elem<T>);
+    fn GFp_x25519_fe_neg(f: &mut Elem<T>);
+    fn GFp_x25519_fe_tobytes(bytes: &mut EncodedPoint, elem: &Elem<T>);
     fn GFp_x25519_ge_frombytes_vartime(h: &mut ExtPoint, s: &EncodedPoint)
                                        -> c::int;
 }

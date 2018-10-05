@@ -52,11 +52,13 @@
 #![allow(deprecated)]
 
 #![feature(alloc)]
-#![feature(global_allocator)]
+#![feature(alloc_error_handler)]
 #![feature(allocator_api)]
 #![feature(allocator_internals)]
 #![feature(allow_internal_unstable)]
+#![feature(allow_internal_unsafe)]
 #![feature(align_offset)]
+#![feature(arbitrary_self_types)]
 #![feature(array_error_internals)]
 #![feature(box_syntax)]
 #![feature(cfg_target_has_atomic)]
@@ -69,8 +71,9 @@
 #![feature(dropck_eyepatch)]
 #![feature(fn_traits)]
 #![feature(fnbox)]
+#![feature(futures_api)]
+#![feature(generator_trait)]
 #![feature(fused)]
-#![feature(i128)]
 #![feature(int_error_internals)]
 #![feature(hashmap_internals)]
 #![feature(integer_atomics)]
@@ -80,6 +83,7 @@
 #![feature(needs_panic_runtime)]
 #![feature(never_type)]
 #![feature(optin_builtin_traits)]
+#![feature(pin)]
 #![feature(placement_new_protocol)]
 #![feature(prelude_import)]
 #![feature(ptr_internals)]
@@ -100,7 +104,6 @@
 #![feature(panic_internals)]
 #![feature(panic_unwind)]
 #![feature(libc)]
-#![feature(core_float)]
 #![feature(unique)]
 #![feature(shared)]
 #![feature(std_internals)]
@@ -133,12 +136,7 @@ extern crate alloc as alloc_crate;
 #[cfg(feature = "backtrace")]
 extern crate sgx_unwind;
 
-// compiler-rt intrinsics
-#[cfg(stage0)]
-extern crate compiler_builtins;
-
 extern crate sgx_alloc;
-
 #[macro_use]
 extern crate sgx_types;
 pub use sgx_types::{cfg_if, __cfg_if_items, __cfg_if_apply};
@@ -221,10 +219,16 @@ pub mod sync;
 pub mod time;
 pub mod enclave;
 pub mod untrusted;
-/// Use the `alloc` module instead.
-pub mod heap {
-    pub use alloc::*;
+
+pub mod task {
+    //! Types and Traits for working with asynchronous tasks.
+    #[doc(inline)]
+    pub use core::task::*;
+    #[doc(inline)]
+    pub use alloc_crate::task::*;
 }
+
+pub mod future;
 
 // Platform-abstraction modules
 #[macro_use]

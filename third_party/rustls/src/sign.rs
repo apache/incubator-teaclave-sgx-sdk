@@ -1,9 +1,4 @@
-use std::option::Option;
-use std::result::Result;
-use std::boxed::Box;
-use std::vec::Vec;
-use std::string::ToString;
-
+use std::prelude::v1::*;
 use msgs::enums::{SignatureAlgorithm, SignatureScheme};
 use util;
 use key;
@@ -40,7 +35,7 @@ pub trait Signer : Send + Sync {
     fn get_scheme(&self) -> SignatureScheme;
 }
 
-/// A packaged together certificate chain, matching `SigningKey` and
+/// A packaged-together certificate chain, matching `SigningKey` and
 /// optional stapled OCSP response and/or SCT.
 #[derive(Clone)]
 pub struct CertifiedKey {
@@ -67,8 +62,8 @@ impl CertifiedKey {
     /// must be the end-entity certificate.
     pub fn new(cert: Vec<key::Certificate>, key: Arc<Box<SigningKey>>) -> CertifiedKey {
         CertifiedKey {
-            cert: cert,
-            key: key,
+            cert,
+            key,
             ocsp: None,
             sct_list: None,
         }
@@ -131,7 +126,7 @@ impl CertifiedKey {
             // certificate is valid; it only validates that the name is one
             // that the certificate is valid for, if the certificate is
             // valid.
-            if !end_entity_cert.verify_is_valid_for_dns_name(name).is_ok() {
+            if end_entity_cert.verify_is_valid_for_dns_name(name).is_err() {
                 return Err(TLSError::General("The server certificate is not \
                                              valid for the given name".to_string()));
             }
@@ -139,6 +134,33 @@ impl CertifiedKey {
 
         Ok(())
     }
+}
+
+/// Parse `der` as any supported key encoding/type, returning
+/// the first which works.
+pub fn any_supported_type(der: &key::PrivateKey) -> Result<Box<SigningKey>, ()> {
+    if let Ok(rsa) = RSASigningKey::new(der) {
+        return Ok(Box::new(rsa));
+    }
+
+    any_ecdsa_type(der)
+}
+
+/// Parse `der` as any ECDSA key type, returning the first which works.
+pub fn any_ecdsa_type(der: &key::PrivateKey) -> Result<Box<SigningKey>, ()> {
+    if let Ok(ecdsa_p256) = SingleSchemeSigningKey::new(der,
+                                                        SignatureScheme::ECDSA_NISTP256_SHA256,
+                                                        &signature::ECDSA_P256_SHA256_ASN1_SIGNING) {
+        return Ok(Box::new(ecdsa_p256));
+    }
+
+    if let Ok(ecdsa_p384) = SingleSchemeSigningKey::new(der,
+                                                        SignatureScheme::ECDSA_NISTP384_SHA384,
+                                                        &signature::ECDSA_P384_SHA384_ASN1_SIGNING) {
+        return Ok(Box::new(ecdsa_p384));
+    }
+
+    Err(())
 }
 
 /// A `SigningKey` for RSA-PKCS1 or RSA-PSS
@@ -214,6 +236,70 @@ impl Signer for RSASigner {
         signer.sign(self.encoding, &rng, message, &mut sig)
             .map(|_| sig)
             .map_err(|_| TLSError::General("signing failed".to_string()))
+    }
+
+    fn get_scheme(&self) -> SignatureScheme {
+        self.scheme
+    }
+}
+
+/// A SigningKey that uses exactly one TLS-level SignatureScheme
+/// and one ring-level signature::SigningAlgorithm.
+///
+/// Compare this to RSASigningKey, which for a particular key is
+/// willing to sign with several algorithms.  This is quite poor
+/// cryptography practice, but is necessary because a given RSA key
+/// is expected to work in TLS1.2 (PKCS#1 signatures) and TLS1.3
+/// (PSS signatures) -- nobody is willing to obtain certificates for
+/// different protocol versions.
+///
+/// Currently this is only implemented for ECDSA keys.
+struct SingleSchemeSigningKey {
+    key: Arc<signature::KeyPair>,
+    scheme: SignatureScheme,
+}
+
+impl SingleSchemeSigningKey {
+    /// Make a new `ECDSASigningKey` from a DER encoding in PKCS#8 format,
+    /// expecting a key usable with precisely the given signature scheme.
+    pub fn new(der: &key::PrivateKey,
+               scheme: SignatureScheme,
+               sigalg: &'static signature::SigningAlgorithm) -> Result<SingleSchemeSigningKey, ()> {
+        signature::key_pair_from_pkcs8(sigalg,
+                                       untrusted::Input::from(&der.0))
+            .map(|kp| SingleSchemeSigningKey { key: Arc::new(kp), scheme })
+            .map_err(|_| ())
+    }
+}
+
+impl SigningKey for SingleSchemeSigningKey {
+    fn choose_scheme(&self, offered: &[SignatureScheme]) -> Option<Box<Signer>> {
+        if offered.contains(&self.scheme) {
+            Some(Box::new(SingleSchemeSigner { key: self.key.clone(), scheme: self.scheme } ))
+        } else {
+            None
+        }
+    }
+
+    fn algorithm(&self) -> SignatureAlgorithm {
+        use msgs::handshake::DecomposedSignatureScheme;
+        self.scheme.sign()
+    }
+}
+
+struct SingleSchemeSigner {
+    key: Arc<signature::KeyPair>,
+    scheme: SignatureScheme,
+}
+
+impl Signer for SingleSchemeSigner {
+    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, TLSError> {
+        let rng = ring::rand::SystemRandom::new();
+        ring::signature::sign(&self.key,
+                              &rng,
+                              untrusted::Input::from(message))
+            .map_err(|_| TLSError::General("signing failed".into()))
+            .map(|sig| sig.as_ref().into())
     }
 
     fn get_scheme(&self) -> SignatureScheme {

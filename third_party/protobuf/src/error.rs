@@ -1,8 +1,9 @@
+use std::prelude::v1::*;
+
 use std::io;
 use std::error::Error;
 use std::fmt;
 use std::str;
-use std::boxed::Box;
 
 use wire_format::WireType;
 
@@ -19,6 +20,7 @@ pub enum WireError {
     IncorrectVarint,
     Utf8Error,
     InvalidEnumValue(i32),
+    OverRecursionLimit,
     Other,
 }
 
@@ -56,6 +58,7 @@ impl Error for ProtobufError {
                     WireError::IncorrectVarint => "incorrect varint",
                     WireError::IncompleteMap => "incomplete map",
                     WireError::UnexpectedEof => "unexpected EOF",
+                    WireError::OverRecursionLimit => "over recursion limit",
                     WireError::Other => "other error",
                 }
             }

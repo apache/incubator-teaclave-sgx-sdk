@@ -9,10 +9,11 @@ unstable = ["serde/unstable", "compiletest_rs"]
 
 [dev-dependencies]
 fnv = "1.0"
+proc-macro2 = "0.4"
 rustc-serialize = "0.3.16"
 serde = { path = "../serde", features = ["rc"] }
-serde_derive = { path = "../serde_derive" }
+serde_derive = { path = "../serde_derive", features = ["deserialize_in_place"] }
 serde_test = { path = "../serde_test" }
 
 [dependencies]
-compiletest_rs = { version = "0.2", optional = true }
+compiletest_rs = { version = "0.3", optional = true }

@@ -1,7 +1,4 @@
-use std::boxed::Box;
-use std::vec::Vec;
-use std::string::ToString;
-
+use std::prelude::v1::*;
 use ring;
 use std::io::Write;
 use msgs::codec;
@@ -12,7 +9,7 @@ use msgs::fragmenter::MAX_FRAGMENT_LEN;
 use error::TLSError;
 use session::SessionSecrets;
 use suites::{SupportedCipherSuite, BulkAlgorithm};
-use key_schedule::hkdf_expand_label;
+use key_schedule::{derive_traffic_key, derive_traffic_iv};
 
 // accum[i] ^= offset[i] for all i in 0..len(accum)
 fn xor(accum: &mut [u8], offset: &[u8]) {
@@ -117,8 +114,8 @@ pub fn new_tls12(scs: &'static SupportedCipherSuite,
 pub fn new_tls13_read(scs: &'static SupportedCipherSuite,
                       secret: &[u8]) -> Box<MessageDecrypter> {
     let hash = scs.get_hash();
-    let key = hkdf_expand_label(hash, secret, b"key", &[], scs.enc_key_len as u16);
-    let iv = hkdf_expand_label(hash, secret, b"iv", &[], scs.fixed_iv_len as u16);
+    let key = derive_traffic_key(hash, secret, scs.enc_key_len);
+    let iv = derive_traffic_iv(hash, secret, scs.fixed_iv_len);
     let aead_alg = scs.get_aead_alg();
 
     Box::new(TLS13MessageDecrypter::new(aead_alg, &key, &iv))
@@ -127,8 +124,8 @@ pub fn new_tls13_read(scs: &'static SupportedCipherSuite,
 pub fn new_tls13_write(scs: &'static SupportedCipherSuite,
                        secret: &[u8]) -> Box<MessageEncrypter> {
     let hash = scs.get_hash();
-    let key = hkdf_expand_label(hash, secret, b"key", &[], scs.enc_key_len as u16);
-    let iv = hkdf_expand_label(hash, secret, b"iv", &[], scs.fixed_iv_len as u16);
+    let key = derive_traffic_key(hash, secret, scs.enc_key_len);
+    let iv = derive_traffic_iv(hash, secret, scs.fixed_iv_len);
     let aead_alg = scs.get_aead_alg();
 
     Box::new(TLS13MessageEncrypter::new(aead_alg, &key, &iv))
@@ -177,8 +174,7 @@ impl MessageDecrypter for GCMMessageDecrypter {
             .len();
 
         if plain_len > MAX_FRAGMENT_LEN {
-            let msg = "peer sent oversized fragment".to_string();
-            return Err(TLSError::PeerMisbehavedError(msg));
+            return Err(TLSError::PeerSentOversizedRecord);
         }
 
         buf.truncate(plain_len);
@@ -235,7 +231,7 @@ impl GCMMessageEncrypter {
            nonce_offset: &[u8])
            -> GCMMessageEncrypter {
         let mut ret = GCMMessageEncrypter {
-            alg: alg,
+            alg,
             enc_key: ring::aead::SealingKey::new(alg, enc_key).unwrap(),
             enc_salt: [0u8; 4],
             nonce_offset: [0u8; 8],
@@ -308,7 +304,7 @@ impl MessageEncrypter for TLS13MessageEncrypter {
 
         Ok(Message {
             typ: ContentType::ApplicationData,
-            version: ProtocolVersion::TLSv1_0,
+            version: ProtocolVersion::TLSv1_2,
             payload: MessagePayload::new_opaque(buf),
         })
     }
@@ -334,6 +330,10 @@ impl MessageDecrypter for TLS13MessageDecrypter {
 
         buf.truncate(plain_len);
 
+        if buf.len() > MAX_FRAGMENT_LEN + 1 {
+            return Err(TLSError::PeerSentOversizedRecord);
+        }
+
         let content_type = unpad_tls13(&mut buf);
         if content_type == ContentType::Unknown(0) {
             let msg = "peer sent bad TLSInnerPlaintext".to_string();
@@ -341,8 +341,7 @@ impl MessageDecrypter for TLS13MessageDecrypter {
         }
 
         if buf.len() > MAX_FRAGMENT_LEN {
-            let msg = "peer sent oversized fragment".to_string();
-            return Err(TLSError::PeerMisbehavedError(msg));
+            return Err(TLSError::PeerSentOversizedRecord);
         }
 
         Ok(Message {
@@ -358,7 +357,7 @@ impl TLS13MessageEncrypter {
            enc_key: &[u8],
            enc_iv: &[u8]) -> TLS13MessageEncrypter {
         let mut ret = TLS13MessageEncrypter {
-            alg: alg,
+            alg,
             enc_key: ring::aead::SealingKey::new(alg, enc_key).unwrap(),
             enc_offset: [0u8; 12],
         };
@@ -373,7 +372,7 @@ impl TLS13MessageDecrypter {
            dec_key: &[u8],
            dec_iv: &[u8]) -> TLS13MessageDecrypter {
         let mut ret = TLS13MessageDecrypter {
-            alg: alg,
+            alg,
             dec_key: ring::aead::OpeningKey::new(alg, dec_key).unwrap(),
             dec_offset: [0u8; 12],
         };
@@ -405,7 +404,7 @@ impl ChaCha20Poly1305MessageEncrypter {
            enc_key: &[u8],
            enc_iv: &[u8]) -> ChaCha20Poly1305MessageEncrypter {
         let mut ret = ChaCha20Poly1305MessageEncrypter {
-            alg: alg,
+            alg,
             enc_key: ring::aead::SealingKey::new(alg, enc_key).unwrap(),
             enc_offset: [0u8; 12],
         };
@@ -454,8 +453,7 @@ impl MessageDecrypter for ChaCha20Poly1305MessageDecrypter {
             .len();
 
         if plain_len > MAX_FRAGMENT_LEN {
-            let err_msg = "peer sent oversized fragment".to_string();
-            return Err(TLSError::PeerMisbehavedError(err_msg));
+            return Err(TLSError::PeerSentOversizedRecord);
         }
 
         buf.truncate(plain_len);

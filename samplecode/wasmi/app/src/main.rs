@@ -28,17 +28,20 @@
 
 extern crate sgx_types;
 extern crate sgx_urts;
+extern crate dirs;
 
+extern crate nan_preserving_float;
 extern crate wabt;
-extern crate wasmi;
 
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
 use std::io::{Read, Write};
-use std::{fs, path, env};
+use std::{fs, path};
 
-use wasmi::{RuntimeValue, Error as InterpreterError};
+mod wasm_def;
+
+use wasm_def::{RuntimeValue, Error as InterpreterError};
 use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
 
 extern crate serde;
@@ -114,8 +117,8 @@ fn boundary_value_to_runtime_value(rv: BoundaryValue) -> RuntimeValue {
     match rv {
         BoundaryValue::I32(bv) => RuntimeValue::I32(bv),
         BoundaryValue::I64(bv) => RuntimeValue::I64(bv),
-        BoundaryValue::F32(bv) => RuntimeValue::F32(f32::from_bits(bv)),
-        BoundaryValue::F64(bv) => RuntimeValue::F64(f64::from_bits(bv)),
+        BoundaryValue::F32(bv) => RuntimeValue::F32(bv.into()),
+        BoundaryValue::F64(bv) => RuntimeValue::F64(bv.into()),
     }
 }
 
@@ -133,21 +136,21 @@ fn spec_to_runtime_value(value: Value) -> RuntimeValue {
     match value {
         Value::I32(v) => RuntimeValue::I32(v),
         Value::I64(v) => RuntimeValue::I64(v),
-        Value::F32(v) => RuntimeValue::F32(v),
-        Value::F64(v) => RuntimeValue::F64(v),
+        Value::F32(v) => RuntimeValue::F32(v.into()),
+        Value::F64(v) => RuntimeValue::F64(v.into()),
     }
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
-    
+
     let mut launch_token: sgx_launch_token_t = [0; 1024];
     let mut launch_token_updated: i32 = 0;
-    // Step 1: try to retrieve the launch token saved by last transaction 
+    // Step 1: try to retrieve the launch token saved by last transaction
     //         if there is no token, then create a new one.
-    // 
+    //
     // try to get the token saved in $HOME */
     let mut home_dir = path::PathBuf::new();
-    let use_token = match env::home_dir() {
+    let use_token = match dirs::home_dir() {
         Some(path) => {
             println!("[+] Home dir is {}", path.display());
             home_dir = path;
@@ -178,18 +181,18 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
     }
 
     // Step 2: call sgx_create_enclave to initialize an enclave instance
-    // Debug Support: set 2nd parameter to 1 
+    // Debug Support: set 2nd parameter to 1
     let debug = 1;
     let mut misc_attr = sgx_misc_attribute_t {secs_attr: sgx_attributes_t { flags:0, xfrm:0}, misc_select:0};
-    let enclave = try!(SgxEnclave::create(ENCLAVE_FILE, 
-                                          debug, 
+    let enclave = try!(SgxEnclave::create(ENCLAVE_FILE,
+                                          debug,
                                           &mut launch_token,
                                           &mut launch_token_updated,
                                           &mut misc_attr));
-    
-    // Step 3: save the launch token if it is updated 
+
+    // Step 3: save the launch token if it is updated
     if use_token == true && launch_token_updated != 0 {
-        // reopen the file with write capablity 
+        // reopen the file with write capablity
         match fs::File::create(&token_file) {
             Ok(mut f) => {
                 match f.write_all(&launch_token) {
@@ -251,7 +254,7 @@ fn sgx_enclave_wasm_invoke(req_str : String,
                                      result_max_len)};
 
     match sgx_ret {
-        // sgx_ret falls in range of Intel's Error code set 
+        // sgx_ret falls in range of Intel's Error code set
         sgx_status_t::SGX_SUCCESS => {},
         _ => {
             println!("[-] ECALL Enclave Failed {}!", sgx_ret.as_str());
@@ -299,7 +302,7 @@ fn sgx_enclave_wasm_load_module(module : Vec<u8>,
                   name : name.as_ref().map(|x| x.clone()),
                   module : module,
               };
-    
+
     match sgx_enclave_wasm_invoke(serde_json::to_string(&req).unwrap(),
                                   MAXOUTPUT,
                                   enclave) {
@@ -356,7 +359,7 @@ fn sgx_enclave_wasm_run_action(action : &Action, enclave : &SgxEnclave) -> Resul
             ref field,
             ..
         } => {
-            // Deal with Get 
+            // Deal with Get
             // Make a SgxWasmAction::Get structure and send it to sgx_enclave_wasm_invoke
             let req = SgxWasmAction::Get {
                 module : module.as_ref().map(|x| x.clone()),
@@ -436,9 +439,15 @@ fn sgx_enclave_wasm_register(name : Option<String>,
 }
 
 fn wasm_main_loop(wast_file : &str, enclave : &SgxEnclave) -> Result<(), String> {
-    let mut parser = ScriptParser::from_file(wast_file).unwrap();
+
+    // ScriptParser interface has changed. Need to feed it with wast content.
+    let wast_content : Vec<u8> = std::fs::read(wast_file).unwrap();
+    let path = std::path::Path::new(wast_file);
+    let fnme = path.file_name().unwrap().to_str().unwrap();
+    let mut parser = ScriptParser::from_source_and_name(&wast_content, fnme).unwrap();
+
     sgx_enclave_wasm_init(enclave)?;
-    while let Some(Command{kind,line}) = 
+    while let Some(Command{kind,line}) =
             match parser.next() {
                 Ok(x) => x,
                 _ => { return Err("Error parsing test input".to_string()); }
@@ -448,7 +457,7 @@ fn wasm_main_loop(wast_file : &str, enclave : &SgxEnclave) -> Result<(), String>
 
         match kind {
             CommandKind::Module { name, module, .. } => {
-                sgx_enclave_wasm_load_module (module.into_vec().unwrap(), &name, enclave)?;
+                sgx_enclave_wasm_load_module (module.into_vec(), &name, enclave)?;
                 println!("load module - success at line {}", line)
             },
 
@@ -486,7 +495,7 @@ fn wasm_main_loop(wast_file : &str, enclave : &SgxEnclave) -> Result<(), String>
 
             CommandKind::AssertReturnCanonicalNan { action }
             | CommandKind::AssertReturnArithmeticNan { action } => {
-                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave); 
+                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave);
                 match result {
                     Ok(result) => {
                         for actual_result in result.into_iter().collect::<Vec<RuntimeValue>>() {
@@ -507,15 +516,15 @@ fn wasm_main_loop(wast_file : &str, enclave : &SgxEnclave) -> Result<(), String>
                     Err(e) => {
                         panic!("Expected action to return value, got error: {:?}", e);
                     }
-                }            
+                }
             },
 
             CommandKind::AssertExhaustion { action, .. } => {
-                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave); 
+                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave);
                 match result {
                     Ok(result) => panic!("Expected exhaustion, got result: {:?}", result),
                     Err(e) => println!("assert_exhaustion at line {} - success ({:?})", line, e),
-                } 
+                }
             },
 
             CommandKind::AssertTrap { action, .. } => {
@@ -535,7 +544,7 @@ fn wasm_main_loop(wast_file : &str, enclave : &SgxEnclave) -> Result<(), String>
             | CommandKind::AssertMalformed { module, .. }
             | CommandKind::AssertUnlinkable { module, .. } => {
                 // Malformed
-                let module_load = sgx_enclave_wasm_try_load(&module.into_vec().unwrap(), enclave);
+                let module_load = sgx_enclave_wasm_try_load(&module.into_vec(), enclave);
                 match module_load {
                     Ok(_) => panic!("Expected invalid module definition, got some module!"),
                     Err(e) => println!("assert_invalid at line {} - success ({:?})", line, e),
@@ -543,7 +552,7 @@ fn wasm_main_loop(wast_file : &str, enclave : &SgxEnclave) -> Result<(), String>
             },
 
             CommandKind::AssertUninstantiable { module, .. } => {
-                let module_load = sgx_enclave_wasm_try_load(&module.into_vec().unwrap(), enclave);
+                let module_load = sgx_enclave_wasm_try_load(&module.into_vec(), enclave);
                 match module_load {
                     Ok(_) => panic!("Expected error running start function at line {}", line),
                     Err(e) => println!("assert_uninstantiable - success ({:?})", e),
@@ -559,22 +568,22 @@ fn wasm_main_loop(wast_file : &str, enclave : &SgxEnclave) -> Result<(), String>
             },
 
             CommandKind::PerformAction(action) => {
-                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave); 
+                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave);
                 match result {
                     Ok(_) => {println!("invoke - success at line {}", line)},
-                    Err(e) => panic!("Failed to invoke action at line {}: {:?}", line, e), 
+                    Err(e) => panic!("Failed to invoke action at line {}: {:?}", line, e),
                 }
             },
         }
     }
-    println!("[+] all tests passed!"); 
+    println!("[+] all tests passed!");
     Ok(())
 }
 
 fn run_a_wast(enclave   : &SgxEnclave,
               wast_file : &str) -> Result<(), String> {
 
-    // Step 1: Init the sgxwasm spec driver engine 
+    // Step 1: Init the sgxwasm spec driver engine
     sgx_enclave_wasm_init(enclave)?;
 
     // Step 2: Load the wast file and run
@@ -583,7 +592,7 @@ fn run_a_wast(enclave   : &SgxEnclave,
     Ok(())
 }
 
-fn main() { 
+fn main() {
 
     let enclave = match init_enclave() {
         Ok(r) => {
@@ -597,76 +606,78 @@ fn main() {
     };
 
     let wast_list = vec![
-        "../test_input/break-drop.wast",
-        "../test_input/const.wast",
-        "../test_input/nop.wast",
-        "../test_input/get_local.wast",
-        "../test_input/elem.wast",
-        "../test_input/br_table.wast",
-        "../test_input/typecheck.wast",
-        "../test_input/exports.wast",
-        "../test_input/block.wast",
-        "../test_input/utf8-custom-section-id.wast",
-        "../test_input/linking.wast",
-        "../test_input/i64.wast",
-        "../test_input/traps.wast",
-        "../test_input/f64_cmp.wast",
-        "../test_input/set_local.wast",
-        "../test_input/tee_local.wast",
-        "../test_input/type.wast",
-        "../test_input/left-to-right.wast",
-        "../test_input/memory_trap.wast",
-        "../test_input/br_if.wast",
-        "../test_input/call_indirect.wast",
         "../test_input/int_exprs.wast",
-        "../test_input/float_exprs.wast",
-        "../test_input/unwind.wast",
-        "../test_input/start.wast",
-        "../test_input/stack.wast",
-        "../test_input/f64_bitwise.wast",
+        "../test_input/conversions.wast",
+        "../test_input/nop.wast",
+        "../test_input/float_memory.wast",
+        "../test_input/call.wast",
         "../test_input/memory.wast",
-        "../test_input/int_literals.wast",
-        "../test_input/align.wast",
-        "../test_input/utf8-invalid-encoding.wast",
-        "../test_input/utf8-import-field.wast",
-        "../test_input/func_ptrs.wast",
-        "../test_input/imports.wast",
-        "../test_input/float_misc.wast",
-        "../test_input/memory_redundancy.wast",
-        "../test_input/f32_cmp.wast",
-        "../test_input/address.wast",
-        "../test_input/custom_section.wast",
-        "../test_input/forward.wast",
-        "../test_input/loop.wast",
-        "../test_input/f32_bitwise.wast",
-        "../test_input/br.wast",
-        "../test_input/labels.wast",
         "../test_input/utf8-import-module.wast",
-        "../test_input/return.wast",
-        "../test_input/store_retval.wast",
+        "../test_input/labels.wast",
+        "../test_input/align.wast",
+        "../test_input/memory_trap.wast",
+        "../test_input/br.wast",
+        "../test_input/globals.wast",
         "../test_input/comments.wast",
+        "../test_input/get_local.wast",
+        "../test_input/float_literals.wast",
+        "../test_input/elem.wast",
+        "../test_input/f64_bitwise.wast",
+        "../test_input/custom_section.wast",
+        "../test_input/inline-module.wast",
+        "../test_input/call_indirect.wast",
+        "../test_input/break-drop.wast",
+        "../test_input/unreached-invalid.wast",
+        "../test_input/utf8-import-field.wast",
+        "../test_input/loop.wast",
+        "../test_input/br_if.wast",
+        "../test_input/select.wast",
+        "../test_input/unwind.wast",
+        "../test_input/binary.wast",
+        "../test_input/tee_local.wast",
+        "../test_input/custom.wast",
+        "../test_input/start.wast",
+        "../test_input/float_misc.wast",
+        "../test_input/stack.wast",
+        "../test_input/f32_cmp.wast",
+        "../test_input/i64.wast",
+        "../test_input/const.wast",
+        "../test_input/unreachable.wast",
+        "../test_input/switch.wast",
         "../test_input/resizing.wast",
         "../test_input/i32.wast",
-        "../test_input/float_memory.wast",
-        "../test_input/f32.wast",
-        "../test_input/unreachable.wast",
-        "../test_input/token.wast",
-        "../test_input/unreached-invalid.wast",
-        "../test_input/binary.wast",
-        "../test_input/select.wast",
+        "../test_input/f64_cmp.wast",
+        "../test_input/int_literals.wast",
+        "../test_input/br_table.wast",
+        "../test_input/traps.wast",
+        "../test_input/return.wast",
         "../test_input/f64.wast",
-        "../test_input/if.wast",
-        "../test_input/func.wast",
-        "../test_input/call.wast",
+        "../test_input/type.wast",
         "../test_input/fac.wast",
-        "../test_input/switch.wast",
-        "../test_input/names.wast",
-        "../test_input/endianness.wast",
-        "../test_input/conversions.wast",
-        "../test_input/inline-module.wast",
-        "../test_input/float_literals.wast",
-        "../test_input/globals.wast",
+        "../test_input/set_local.wast",
+        "../test_input/func.wast",
+        "../test_input/f32.wast",
+        "../test_input/f32_bitwise.wast",
+        "../test_input/float_exprs.wast",
+        "../test_input/linking.wast",
         "../test_input/skip-stack-guard-page.wast",
+        "../test_input/names.wast",
+        "../test_input/address.wast",
+        "../test_input/memory_redundancy.wast",
+        "../test_input/block.wast",
+        "../test_input/utf8-invalid-encoding.wast",
+        "../test_input/left-to-right.wast",
+        "../test_input/forward.wast",
+        "../test_input/typecheck.wast",
+        "../test_input/store_retval.wast",
+        "../test_input/imports.wast",
+        "../test_input/exports.wast",
+        "../test_input/endianness.wast",
+        "../test_input/func_ptrs.wast",
+        "../test_input/if.wast",
+        "../test_input/token.wast",
+        "../test_input/data.wast",
+        "../test_input/utf8-custom-section-id.wast",
         ];
 
     for wfile in wast_list {

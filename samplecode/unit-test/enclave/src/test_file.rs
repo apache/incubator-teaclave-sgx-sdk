@@ -34,7 +34,7 @@ use std::io::{Read, Write};
 use std::string::*;
 
 pub fn test_sgxfs() {
-    
+
     let mut write_data: [u8; 16] = [0; 16];
     let mut read_data: [u8; 16] = [0; 16];
     let write_size;

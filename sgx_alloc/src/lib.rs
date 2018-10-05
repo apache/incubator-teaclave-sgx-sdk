@@ -34,17 +34,12 @@
 
 #![no_std]
 
-#![feature(global_allocator)]
 #![feature(allocator_api)]
 
 extern crate sgx_trts;
 
-use core::alloc::{Alloc, GlobalAlloc, AllocErr, Layout, Opaque};
-use core::ptr::NonNull;
-
 // The minimum alignment guaranteed by the architecture. This value is used to
-// add fast paths for low alignment values. In practice, the alignment is a
-// constant at the call site and the branch will be optimized out.
+// add fast paths for low alignment values.
 #[cfg(target_arch = "x86")]
 #[allow(dead_code)]
 const MIN_ALIGN: usize = 8;
@@ -52,74 +47,75 @@ const MIN_ALIGN: usize = 8;
 #[allow(dead_code)]
 const MIN_ALIGN: usize = 16;
 
+use core::alloc::{Alloc, GlobalAlloc, AllocErr, Layout};
+use core::ptr::NonNull;
+
+/// The default memory allocator provided by the operating system.
+///
+/// This is based on `malloc` on Unix platforms and `HeapAlloc` on Windows,
+/// plus related functions.
+///
+/// This type can be used in a `static` item
+/// with the `#[global_allocator]` attribute
+/// to force the global allocator to be the system’s one.
+/// (The default is jemalloc for executables, on some platforms.)
+///
+/// ```rust
+/// use std::alloc::System;
+///
+/// #[global_allocator]
+/// static A: System = System;
+///
+/// fn main() {
+///     let a = Box::new(4); // Allocates from the system allocator.
+///     println!("{}", a);
+/// }
+/// ```
+///
+/// It can also be used directly to allocate memory
+/// independently of the standard library’s global allocator.
 pub struct System;
 
 unsafe impl Alloc for System {
     #[inline]
-    unsafe fn alloc(&mut self, layout: Layout) -> Result<NonNull<Opaque>, AllocErr> {
+    unsafe fn alloc(&mut self, layout: Layout) -> Result<NonNull<u8>, AllocErr> {
         NonNull::new(GlobalAlloc::alloc(self, layout)).ok_or(AllocErr)
     }
 
     #[inline]
-    unsafe fn alloc_zeroed(&mut self, layout: Layout) -> Result<NonNull<Opaque>, AllocErr> {
+    unsafe fn alloc_zeroed(&mut self, layout: Layout) -> Result<NonNull<u8>, AllocErr> {
         NonNull::new(GlobalAlloc::alloc_zeroed(self, layout)).ok_or(AllocErr)
     }
 
     #[inline]
-    unsafe fn dealloc(&mut self, ptr: NonNull<Opaque>, layout: Layout) {
+    unsafe fn dealloc(&mut self, ptr: NonNull<u8>, layout: Layout) {
         GlobalAlloc::dealloc(self, ptr.as_ptr(), layout)
     }
 
     #[inline]
     unsafe fn realloc(&mut self,
-                      ptr: NonNull<Opaque>,
+                      ptr: NonNull<u8>,
                       layout: Layout,
-                      new_size: usize) -> Result<NonNull<Opaque>, AllocErr> {
+                      new_size: usize) -> Result<NonNull<u8>, AllocErr> {
         NonNull::new(GlobalAlloc::realloc(self, ptr.as_ptr(), layout, new_size)).ok_or(AllocErr)
     }
 }
 
-#[cfg(stage0)]
-unsafe impl<'a> Alloc for &'a System {
-    #[inline]
-    unsafe fn alloc(&mut self, layout: Layout) -> Result<NonNull<Opaque>, AllocErr> {
-        NonNull::new(GlobalAlloc::alloc(*self, layout)).ok_or(AllocErr)
-    }
-
-    #[inline]
-    unsafe fn alloc_zeroed(&mut self, layout: Layout) -> Result<NonNull<Opaque>, AllocErr> {
-        NonNull::new(GlobalAlloc::alloc_zeroed(*self, layout)).ok_or(AllocErr)
-    }
-
-    #[inline]
-    unsafe fn dealloc(&mut self, ptr: NonNull<Opaque>, layout: Layout) {
-        GlobalAlloc::dealloc(*self, ptr.as_ptr(), layout)
-    }
-
-    #[inline]
-    unsafe fn realloc(&mut self,
-                      ptr: NonNull<Opaque>,
-                      layout: Layout,
-                      new_size: usize) -> Result<NonNull<Opaque>, AllocErr> {
-        NonNull::new(GlobalAlloc::realloc(*self, ptr.as_ptr(), layout, new_size)).ok_or(AllocErr)
-    }
-}
-
 mod realloc_fallback {
-    use core::alloc::{GlobalAlloc, Opaque, Layout};
+    use core::alloc::{GlobalAlloc, Layout};
     use core::cmp;
     use core::ptr;
 
     impl super::System {
-        pub(crate) unsafe fn realloc_fallback(&self, ptr: *mut Opaque, old_layout: Layout,
-                                              new_size: usize) -> *mut Opaque {
+        pub(crate) unsafe fn realloc_fallback(&self, ptr: *mut u8, old_layout: Layout,
+                                              new_size: usize) -> *mut u8 {
             // Docs for GlobalAlloc::realloc require this to be valid:
             let new_layout = Layout::from_size_align_unchecked(new_size, old_layout.align());
 
             let new_ptr = GlobalAlloc::alloc(self, new_layout);
             if !new_ptr.is_null() {
                 let size = cmp::min(old_layout.size(), new_size);
-                ptr::copy_nonoverlapping(ptr as *mut u8, new_ptr as *mut u8, size);
+                ptr::copy_nonoverlapping(ptr, new_ptr, size);
                 GlobalAlloc::dealloc(self, ptr, old_layout);
             }
             new_ptr
@@ -134,40 +130,40 @@ mod platform {
 
     use MIN_ALIGN;
     use System;
-    use core::alloc::{GlobalAlloc, Layout, Opaque};
+    use core::alloc::{GlobalAlloc, Layout};
 
     unsafe impl GlobalAlloc for System {
         #[inline]
-        unsafe fn alloc(&self, layout: Layout) -> *mut Opaque {
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
             if layout.align() <= MIN_ALIGN && layout.align() <= layout.size() {
-                libc::malloc(layout.size()) as *mut Opaque
+                libc::malloc(layout.size()) as *mut u8
             } else {
                 aligned_malloc(&layout)
             }
         }
 
         #[inline]
-        unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut Opaque {
+        unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
             if layout.align() <= MIN_ALIGN && layout.align() <= layout.size() {
-                libc::calloc(layout.size(), 1) as *mut Opaque
+                libc::calloc(layout.size(), 1) as *mut u8
             } else {
                 let ptr = self.alloc(layout.clone());
                 if !ptr.is_null() {
-                    ptr::write_bytes(ptr as *mut u8, 0, layout.size());
+                    ptr::write_bytes(ptr, 0, layout.size());
                 }
                 ptr
             }
         }
 
         #[inline]
-        unsafe fn dealloc(&self, ptr: *mut Opaque, _layout: Layout) {
+        unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
             libc::free(ptr as *mut libc::c_void)
         }
 
         #[inline]
-        unsafe fn realloc(&self, ptr: *mut Opaque, layout: Layout, new_size: usize) -> *mut Opaque {
+        unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
             if layout.align() <= MIN_ALIGN && layout.align() <= new_size {
-                libc::realloc(ptr as *mut libc::c_void, new_size) as *mut Opaque
+                libc::realloc(ptr as *mut libc::c_void, new_size) as *mut u8
             } else {
                 self.realloc_fallback(ptr, layout, new_size)
             }
@@ -175,14 +171,13 @@ mod platform {
     }
 
     #[inline]
-    unsafe fn aligned_malloc(layout: &Layout) -> *mut Opaque {
+    unsafe fn aligned_malloc(layout: &Layout) -> *mut u8 {
         let mut out = ptr::null_mut();
         let ret = libc::posix_memalign(&mut out, layout.align(), layout.size());
         if ret != 0 {
-            // FIXME: use Opaque::null_mut https://github.com/rust-lang/rust/issues/49659
-            0 as *mut Opaque
+            ptr::null_mut()
         } else {
-            out as *mut Opaque
+            out as *mut u8
         }
     }
 }

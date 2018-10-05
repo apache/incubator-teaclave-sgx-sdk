@@ -38,11 +38,11 @@ use marker::ContiguousMemory;
 pub type sgx_misc_select_t = ::uint32_t;
 
 // Enclave Flags Bit Masks
-pub const SGX_FLAGS_INITTED: ::uint64_t         = 0x0000000000000001;    //If set, then the enclave is initialized
-pub const SGX_FLAGS_DEBUG: ::uint64_t           = 0x0000000000000002;    //If set, then the enclave is debug
-pub const SGX_FLAGS_MODE64BIT: ::uint64_t       = 0x0000000000000004;    //If set, then the enclave is 64 bit
-pub const SGX_FLAGS_PROVISION_KEY: ::uint64_t   = 0x0000000000000010;    //If set, then the enclave has access to provision key
-pub const SGX_FLAGS_EINITTOKEN_KEY: ::uint64_t  = 0x0000000000000020;    //If set, then the enclave has access to EINITTOKEN key
+pub const SGX_FLAGS_INITTED: ::uint64_t         = 0x0000_0000_0000_0001;    //If set, then the enclave is initialized
+pub const SGX_FLAGS_DEBUG: ::uint64_t           = 0x0000_0000_0000_0002;    //If set, then the enclave is debug
+pub const SGX_FLAGS_MODE64BIT: ::uint64_t       = 0x0000_0000_0000_0004;    //If set, then the enclave is 64 bit
+pub const SGX_FLAGS_PROVISION_KEY: ::uint64_t   = 0x0000_0000_0000_0010;    //If set, then the enclave has access to provision key
+pub const SGX_FLAGS_EINITTOKEN_KEY: ::uint64_t  = 0x0000_0000_0000_0020;    //If set, then the enclave has access to EINITTOKEN key
 pub const SGX_FLAGS_RESERVED: ::uint64_t        = (!(SGX_FLAGS_INITTED
                                                 | SGX_FLAGS_DEBUG
                                                 | SGX_FLAGS_MODE64BIT
@@ -50,10 +50,10 @@ pub const SGX_FLAGS_RESERVED: ::uint64_t        = (!(SGX_FLAGS_INITTED
                                                 | SGX_FLAGS_EINITTOKEN_KEY));
 
 // XSAVE Feature Request Mask
-pub const SGX_XFRM_LEGACY: ::uint64_t           = 0x0000000000000003;  //Legacy XFRM
-pub const SGX_XFRM_AVX: ::uint64_t              = 0x0000000000000006;  // AVX
-pub const SGX_XFRM_AVX512: ::uint64_t           = 0x00000000000000E6;  // AVX-512 - not supported
-pub const SGX_XFRM_MPX: ::uint64_t              = 0x0000000000000018;  // MPX - not supported
+pub const SGX_XFRM_LEGACY: ::uint64_t           = 0x0000_0000_0000_0003;  //Legacy XFRM
+pub const SGX_XFRM_AVX: ::uint64_t              = 0x0000_0000_0000_0006;  // AVX
+pub const SGX_XFRM_AVX512: ::uint64_t           = 0x0000_0000_0000_00E6;  // AVX-512 - not supported
+pub const SGX_XFRM_MPX: ::uint64_t              = 0x0000_0000_0000_0018;  // MPX - not supported
 
 pub const SGX_XFRM_RESERVED: ::uint64_t         = (!(SGX_XFRM_LEGACY | SGX_XFRM_AVX));
 
@@ -611,29 +611,29 @@ impl_enum! {
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq)]
     pub enum sgx_generic_ecresult_t {
-        SGX_EC_VALID                = 0x00000000,   /* validation pass successfully     */
+        SGX_EC_VALID                = 0x0000_0000,   /* validation pass successfully     */
 
-        SGX_EC_COMPOSITE_BASE       = 0x00000001,   /* field based on composite         */
-        SGX_EC_COMPLICATED_BASE     = 0x00000002,   /* number of non-zero terms in the polynomial (> PRIME_ARR_MAX) */
-        SGX_EC_IS_ZERO_DISCRIMINANT = 0x00000003,   /* zero discriminant */
-        SGX_EC_COMPOSITE_ORDER      = 0x00000004,   /* composite order of base point    */
-        SGX_EC_INVALID_ORDER        = 0x00000005,   /* invalid base point order         */
-        SGX_EC_IS_WEAK_MOV          = 0x00000006,   /* weak Meneze-Okamoto-Vanstone  reduction attack */
-        SGX_EC_IS_WEAK_SSA          = 0x00000007,   /* weak Semaev-Smart,Satoh-Araki reduction attack */
-        SGX_EC_IS_SUPER_SINGULAR    = 0x00000008,   /* supersingular curve */
+        SGX_EC_COMPOSITE_BASE       = 0x0000_0001,   /* field based on composite         */
+        SGX_EC_COMPLICATED_BASE     = 0x0000_0002,   /* number of non-zero terms in the polynomial (> PRIME_ARR_MAX) */
+        SGX_EC_IS_ZERO_DISCRIMINANT = 0x0000_0003,   /* zero discriminant */
+        SGX_EC_COMPOSITE_ORDER      = 0x0000_0004,   /* composite order of base point    */
+        SGX_EC_INVALID_ORDER        = 0x0000_0005,   /* invalid base point order         */
+        SGX_EC_IS_WEAK_MOV          = 0x0000_0006,   /* weak Meneze-Okamoto-Vanstone  reduction attack */
+        SGX_EC_IS_WEAK_SSA          = 0x0000_0007,   /* weak Semaev-Smart,Satoh-Araki reduction attack */
+        SGX_EC_IS_SUPER_SINGULAR    = 0x0000_0008,   /* supersingular curve */
 
-        SGX_EC_INVALID_PRIVATE_KEY  = 0x00000009,   /* !(0 < Private < order) */
-        SGX_EC_INVALID_PUBLIC_KEY   = 0x0000000a,   /* (order*PublicKey != Infinity)    */
-        SGX_EC_INVALID_KEY_PAIR     = 0x0000000b,   /* (Private*BasePoint != PublicKey) */
+        SGX_EC_INVALID_PRIVATE_KEY  = 0x0000_0009,   /* !(0 < Private < order) */
+        SGX_EC_INVALID_PUBLIC_KEY   = 0x0000_000a,   /* (order*PublicKey != Infinity)    */
+        SGX_EC_INVALID_KEY_PAIR     = 0x0000_000b,   /* (Private*BasePoint != PublicKey) */
 
-        SGX_EC_POINT_OUT_OF_GROUP   = 0x0000000c,   /* out of group (order*P != Infinity)  */
-        SGX_EC_POINT_IS_AT_INFINITY = 0x0000000d,   /* point (P=(Px,Py)) at Infinity  */
-        SGX_EC_POINT_IS_NOT_VALID   = 0x0000000e,   /* point (P=(Px,Py)) out-of EC    */
+        SGX_EC_POINT_OUT_OF_GROUP   = 0x0000_000c,   /* out of group (order*P != Infinity)  */
+        SGX_EC_POINT_IS_AT_INFINITY = 0x0000_000d,   /* point (P=(Px,Py)) at Infinity  */
+        SGX_EC_POINT_IS_NOT_VALID   = 0x0000_000e,   /* point (P=(Px,Py)) out-of EC    */
 
-        SGX_EC_POINT_IS_EQUAL       = 0x0000000f,   /* compared points are equal     */
-        SGX_EC_POINT_IS_NOT_EQUAL   = 0x00000010,   /* compared points are different  */
+        SGX_EC_POINT_IS_EQUAL       = 0x0000_000f,   /* compared points are equal     */
+        SGX_EC_POINT_IS_NOT_EQUAL   = 0x0000_0010,   /* compared points are different  */
 
-        SGX_EC_INVALID_SIGNATURE    = 0x00000011,   /* invalid signature */
+        SGX_EC_INVALID_SIGNATURE    = 0x0000_0011,   /* invalid signature */
     }
 }
 
@@ -808,7 +808,7 @@ pub type sgx_ra_derive_secret_keys_t = extern "C" fn(p_shared_key: * const sgx_e
 //
 
 pub const EXCEPTION_CONTINUE_SEARCH: ::uint32_t      = 0;
-pub const EXCEPTION_CONTINUE_EXECUTION: ::uint32_t   = 0xFFFFFFFF;
+pub const EXCEPTION_CONTINUE_EXECUTION: ::uint32_t   = 0xFFFF_FFFF;
 
 impl_enum! {
 
@@ -962,7 +962,6 @@ pub type sgx_ecall_get_msg3_trusted_t = extern "C" fn(eid: sgx_enclave_id_t,
 // sgx_urts.h
 //
 
-
 pub type sgx_launch_token_t = [::uint8_t; 1024];
 
 /* intel sgx sdk 2.2 */
@@ -972,10 +971,12 @@ pub const SGX_CREATE_ENCLAVE_EX_PCL: ::uint32_t = (1 << SGX_CREATE_ENCLAVE_EX_PC
 pub const SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX: ::size_t = 1;
 pub const SGX_CREATE_ENCLAVE_EX_SWITCHLESS: ::uint32_t = (1 << SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX as ::uint32_t);
 pub const _SGX_LAST_EX_FEATURE_IDX_: ::uint32_t = SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX as ::uint32_t;
-pub const _SGX_EX_FEATURES_MASK_: ::uint32_t = (0xFFFFFFFF_u32 >> (MAX_EX_FEATURES_COUNT as ::uint32_t - 1 - _SGX_LAST_EX_FEATURE_IDX_));
+pub const _SGX_EX_FEATURES_MASK_: ::uint32_t = (0xFFFF_FFFF_u32 >> (MAX_EX_FEATURES_COUNT as ::uint32_t - 1 - _SGX_LAST_EX_FEATURE_IDX_));
+
 //
 // trts.pic.h
 //
+
 pub const ENCLAVE_INIT_NOT_STARTED: ::uint32_t = 0;
 pub const ENCLAVE_INIT_IN_PROGRESS: ::uint32_t = 1;
 pub const ENCLAVE_INIT_DONE: ::uint32_t        = 2;
@@ -1026,6 +1027,14 @@ impl_enum! {
     }
 }
 
+//
+// sgx_pcl_guid.h
+//
+/* intel sgx sdk 2.1.3 */
+
+pub const SGX_PCL_GUID_SIZE: ::size_t   = 16;
+pub const SGX_PCL_GUID: [::uint8_t; SGX_PCL_GUID_SIZE] =
+    [0x95, 0x48, 0x6e, 0x8f, 0x8f, 0x4a, 0x41, 0x4f, 0xb1, 0x27, 0x46, 0x21, 0xa8, 0x59, 0xa8, 0xac];
 
 //
 // sgx_uswitchless.h
@@ -1071,6 +1080,7 @@ pub const SL_MAX_TASKS_MAX_QWORDS: ::uint32_t = 8;
 
 pub const _SGX_USWITCHLESS_WORKER_EVENT_NUM: ::size_t = 4;
 
+#[repr(C)]
 pub struct sgx_uswitchless_config_t {
     pub switchless_calls_pool_size_qwords: ::uint32_t,
     pub num_uworkers: ::uint32_t,
@@ -1088,3 +1098,4 @@ impl Default for sgx_uswitchless_config_t {
         config
     }
 }
+

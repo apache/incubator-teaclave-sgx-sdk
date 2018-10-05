@@ -1,6 +1,6 @@
 [package]
 name = "sct"
-version = "0.2.0"
+version = "0.4.0"
 authors = ["Joseph Birr-Pixton <jpixton@gmail.com>"]
 description = "Certificate transparency SCT verification library"
 license = "Apache-2.0/ISC/MIT"
@@ -13,5 +13,5 @@ categories = ["network-programming", "cryptography"]
 sgx_tstd = { path =  "../../sgx_tstd" }
 
 [dependencies]
-ring = { version = "0.12", path = "../ring" }
-untrusted = { version = "0.6", path = "../untrusted" }
+ring = { version = "0.13.2", path = "../ring" }
+untrusted = "0.6.2"

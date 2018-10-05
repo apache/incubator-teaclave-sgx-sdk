@@ -42,7 +42,7 @@ use learning::error::Error;
 /// Linear Regression Model.
 ///
 /// Contains option for optimized parameter.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LinRegressor {
     /// The parameters for the regression model.
     parameters: Option<Vector<f64>>,

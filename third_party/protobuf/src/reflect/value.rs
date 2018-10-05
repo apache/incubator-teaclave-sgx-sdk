@@ -1,6 +1,6 @@
+use std::prelude::v1::*;
+
 use std::any::Any;
-use std::string::String;
-use std::vec::Vec;
 
 #[cfg(feature = "bytes")]
 use bytes::Bytes;

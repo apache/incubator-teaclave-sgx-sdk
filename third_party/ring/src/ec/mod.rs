@@ -24,6 +24,8 @@ pub struct AgreementAlgorithmImpl {
                  -> Result<(), error::Unspecified>,
 }
 
+derive_debug_from_field!(AgreementAlgorithmImpl, curve);
+
 impl PartialEq for AgreementAlgorithmImpl {
     fn eq(&self, other: &Self) -> bool { self.curve.id == other.curve.id }
 }
@@ -46,7 +48,9 @@ pub struct Curve {
                             -> Result<(), error::Unspecified>,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+derive_debug_from_field!(Curve, id);
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CurveID {
     Curve25519,
     P256,
@@ -118,8 +122,5 @@ pub const PUBLIC_KEY_MAX_LEN: usize = 1 + (2 * ELEM_MAX_BYTES);
 pub const PKCS8_DOCUMENT_MAX_LEN: usize =
     40 + SCALAR_MAX_BYTES + PUBLIC_KEY_MAX_LEN;
 
-//#[path = "curve25519/curve25519.rs"]
 pub mod curve25519;
-
-//#[path = "suite_b/suite_b.rs"]
 pub mod suite_b;

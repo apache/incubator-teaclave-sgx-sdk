@@ -149,7 +149,9 @@ pub trait AsciiExt {
     /// # Note
     ///
     /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
+    /// inherent methods on `u8` and `char`.
+    /// For `[u8]` use `.iter().all(u8::is_ascii_alphabetic)`.
+    /// For `str` use `.bytes().all(u8::is_ascii_alphabetic)`.
     fn is_ascii_alphabetic(&self) -> bool { unimplemented!(); }
 
     /// Checks if the value is an ASCII uppercase character:
@@ -160,7 +162,9 @@ pub trait AsciiExt {
     /// # Note
     ///
     /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
+    /// inherent methods on `u8` and `char`.
+    /// For `[u8]` use `.iter().all(u8::is_ascii_uppercase)`.
+    /// For `str` use `.bytes().all(u8::is_ascii_uppercase)`.
     fn is_ascii_uppercase(&self) -> bool { unimplemented!(); }
 
     /// Checks if the value is an ASCII lowercase character:
@@ -171,7 +175,9 @@ pub trait AsciiExt {
     /// # Note
     ///
     /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
+    /// inherent methods on `u8` and `char`.
+    /// For `[u8]` use `.iter().all(u8::is_ascii_lowercase)`.
+    /// For `str` use `.bytes().all(u8::is_ascii_lowercase)`.
     fn is_ascii_lowercase(&self) -> bool { unimplemented!(); }
 
     /// Checks if the value is an ASCII alphanumeric character:
@@ -183,7 +189,9 @@ pub trait AsciiExt {
     /// # Note
     ///
     /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
+    /// inherent methods on `u8` and `char`.
+    /// For `[u8]` use `.iter().all(u8::is_ascii_alphanumeric)`.
+    /// For `str` use `.bytes().all(u8::is_ascii_alphanumeric)`.
     fn is_ascii_alphanumeric(&self) -> bool { unimplemented!(); }
 
     /// Checks if the value is an ASCII decimal digit:
@@ -194,7 +202,9 @@ pub trait AsciiExt {
     /// # Note
     ///
     /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
+    /// inherent methods on `u8` and `char`.
+    /// For `[u8]` use `.iter().all(u8::is_ascii_digit)`.
+    /// For `str` use `.bytes().all(u8::is_ascii_digit)`.
     fn is_ascii_digit(&self) -> bool { unimplemented!(); }
 
     /// Checks if the value is an ASCII hexadecimal digit:
@@ -206,7 +216,9 @@ pub trait AsciiExt {
     /// # Note
     ///
     /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
+    /// inherent methods on `u8` and `char`.
+    /// For `[u8]` use `.iter().all(u8::is_ascii_hexdigit)`.
+    /// For `str` use `.bytes().all(u8::is_ascii_hexdigit)`.
     fn is_ascii_hexdigit(&self) -> bool { unimplemented!(); }
 
     /// Checks if the value is an ASCII punctuation character:
@@ -222,7 +234,9 @@ pub trait AsciiExt {
     /// # Note
     ///
     /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
+    /// inherent methods on `u8` and `char`.
+    /// For `[u8]` use `.iter().all(u8::is_ascii_punctuation)`.
+    /// For `str` use `.bytes().all(u8::is_ascii_punctuation)`.
     fn is_ascii_punctuation(&self) -> bool { unimplemented!(); }
 
     /// Checks if the value is an ASCII graphic character:
@@ -233,7 +247,9 @@ pub trait AsciiExt {
     /// # Note
     ///
     /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
+    /// inherent methods on `u8` and `char`.
+    /// For `[u8]` use `.iter().all(u8::is_ascii_graphic)`.
+    /// For `str` use `.bytes().all(u8::is_ascii_graphic)`.
     fn is_ascii_graphic(&self) -> bool { unimplemented!(); }
 
     /// Checks if the value is an ASCII whitespace character:
@@ -261,7 +277,9 @@ pub trait AsciiExt {
     /// # Note
     ///
     /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
+    /// inherent methods on `u8` and `char`.
+    /// For `[u8]` use `.iter().all(u8::is_ascii_whitespace)`.
+    /// For `str` use `.bytes().all(u8::is_ascii_whitespace)`.
     fn is_ascii_whitespace(&self) -> bool { unimplemented!(); }
 
     /// Checks if the value is an ASCII control character:
@@ -272,7 +290,9 @@ pub trait AsciiExt {
     /// # Note
     ///
     /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
+    /// inherent methods on `u8` and `char`.
+    /// For `[u8]` use `.iter().all(u8::is_ascii_control)`.
+    /// For `str` use `.bytes().all(u8::is_ascii_control)`.
     fn is_ascii_control(&self) -> bool { unimplemented!(); }
 }
 

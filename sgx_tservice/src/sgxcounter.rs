@@ -128,7 +128,7 @@ impl SgxMonotonicCounter {
 
         match ret {
             sgx_status_t::SGX_SUCCESS => Ok(SgxMonotonicCounter{
-                                            counter_uuid: counter_uuid,
+                                            counter_uuid,
                                             initflag: Cell::new(true),
                                          }),
             _ => Err(ret),
@@ -238,7 +238,7 @@ impl SgxMonotonicCounter {
 
         match ret {
             sgx_status_t::SGX_SUCCESS => Ok(SgxMonotonicCounter{
-                                            counter_uuid: counter_uuid,
+                                            counter_uuid,
                                             initflag: Cell::new(true),
                                          }),
             _ => Err(ret),
@@ -317,7 +317,7 @@ impl SgxMonotonicCounter {
     ///
     pub fn destory(&self) -> SgxError {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_MC_NOT_FOUND);
         }
 
@@ -402,7 +402,7 @@ impl SgxMonotonicCounter {
     ///
     pub fn increment(&self) -> SgxResult<u32> {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_MC_NOT_FOUND);
         }
 
@@ -477,7 +477,7 @@ impl SgxMonotonicCounter {
     ///
     pub fn read(&self) -> SgxResult<u32> {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_MC_NOT_FOUND);
         }
 

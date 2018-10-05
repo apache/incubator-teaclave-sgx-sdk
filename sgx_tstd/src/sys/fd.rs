@@ -126,6 +126,12 @@ impl FileDesc {
         }
     }
 
+    pub fn get_cloexec(&self) -> io::Result<bool> {
+        unsafe {
+            Ok((cvt(libc::fcntl_arg0(self.fd, libc::F_GETFD))? & libc::FD_CLOEXEC) != 0)
+        }
+    }
+
     pub fn set_cloexec(&self) -> io::Result<()> {
         unsafe {
             cvt(libc::ioctl_arg0(self.fd, libc::FIOCLEX))?;
@@ -255,6 +261,11 @@ mod libc {
                                      fd: c_int,
                                      request: c_int,
                                      arg: * const c_int) -> sgx_status_t;
+
+        pub fn u_fs_fcntl_arg0_ocall(result: * mut c_int,
+                                     errno: * mut c_int,
+                                     fd: c_int,
+                                     cmd: c_int) -> sgx_status_t;
 
         pub fn u_fs_fcntl_arg1_ocall(result: * mut c_int,
                                      errno: * mut c_int,
@@ -397,6 +408,26 @@ mod libc {
                                            fd,
                                            request,
                                            arg);
+
+        if status == sgx_status_t::SGX_SUCCESS {
+            if result == -1 {
+                io::set_errno(error);
+            }
+        } else {
+            io::set_errno(ESGX);
+            result = -1;
+        }
+        result
+    }
+
+    pub unsafe fn fcntl_arg0(fd: c_int, cmd: c_int) -> c_int {
+
+        let mut result: c_int = 0;
+        let mut error: c_int = 0;
+        let status = u_fs_fcntl_arg0_ocall(&mut result as * mut c_int,
+                                           &mut error as * mut c_int,
+                                           fd,
+                                           cmd);
 
         if status == sgx_status_t::SGX_SUCCESS {
             if result == -1 {

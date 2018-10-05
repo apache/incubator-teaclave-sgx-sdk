@@ -31,7 +31,6 @@
 
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
-#![feature(const_atomic_ptr_new)]
 #![feature(asm)]
 #![allow(dead_code)]
 #![allow(unused_variables)]
@@ -127,7 +126,7 @@ fn initialize() -> sgx_status_t {
 }
 
 #[no_mangle]
-pub extern "C" 
+pub extern "C"
 fn uninitialize() {
 
     let ptr = GLOBAL_HASH_BUFFER.swap(0 as * mut (), Ordering::SeqCst) as * mut RefCell<SetIntersection>;
@@ -280,7 +279,7 @@ fn verify_secret_data(context: sgx_ra_context_t,
                 match ret {
                     Ok(()) => {
                         *id = data.number;
-                        return sgx_status_t::SGX_SUCCESS; 
+                        return sgx_status_t::SGX_SUCCESS;
                     },
                     Err(_) => { return sgx_status_t::SGX_ERROR_UNEXPECTED; },
                 }
@@ -360,9 +359,9 @@ fn get_result_size(id: u32, len: &mut usize) -> sgx_status_t {
     } else {
         0
     };
-    
+
     let mut intersection = get_ref_hash_buffer().unwrap().borrow_mut();
-    
+
     if intersection.data[cid].state == 0 {
         intersection.data[cid].state = HASH_DATA_FINISH;
     }
@@ -390,7 +389,7 @@ fn get_result_size(id: u32, len: &mut usize) -> sgx_status_t {
     } else if (state1 == RESULT_FINISH) && (state2 == RESULT_FINISH) {
         intersection.data[cid].result.len()
     } else {
-        return sgx_status_t::SGX_ERROR_UNEXPECTED; 
+        return sgx_status_t::SGX_ERROR_UNEXPECTED;
     };
 
     *len = result_len;
@@ -422,7 +421,7 @@ fn get_result(id: u32,
     };
 
     let mut intersection = get_ref_hash_buffer().unwrap().borrow_mut();
-    
+
     let state1 = intersection.data[cid].state;
     let state2 = intersection.data[other].state;
     if (state1 != RESULT_FINISH) && (state2 != RESULT_FINISH) {
@@ -530,7 +529,7 @@ fn ge(a: &[u8; SGX_HASH_SIZE], b: &[u8; SGX_HASH_SIZE]) -> isize {
 }
 
 fn oequal(x: usize, y: usize) -> bool {
-    
+
     let ret: bool;
     unsafe {
         asm!(
@@ -546,7 +545,7 @@ fn oequal(x: usize, y: usize) -> bool {
 }
 
 fn obe(x: usize, y: usize) -> bool {
-    
+
     let ret: bool;
     unsafe {
         asm!(
@@ -562,7 +561,7 @@ fn obe(x: usize, y: usize) -> bool {
 }
 
 fn ob(x: usize, y: usize) -> bool {
-    
+
     let ret: bool;
     unsafe {
         asm!(
@@ -578,7 +577,7 @@ fn ob(x: usize, y: usize) -> bool {
 }
 
 fn oae(x: usize, y: usize) -> bool {
-    
+
     let ret: bool;
     unsafe {
         asm!(
@@ -594,7 +593,7 @@ fn oae(x: usize, y: usize) -> bool {
 }
 
 fn oa(x: usize, y: usize) -> bool {
-    
+
     let ret: bool;
     unsafe {
         asm!(

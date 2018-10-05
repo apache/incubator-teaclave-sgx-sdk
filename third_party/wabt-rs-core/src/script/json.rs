@@ -33,8 +33,8 @@ pub enum Command {
         filename: String
     },
     #[serde(rename = "assert_return")]
-    AssertReturn { 
-        line: u64, 
+    AssertReturn {
+        line: u64,
         action: Action,
         expected: Vec<RuntimeValue>,
     },

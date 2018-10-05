@@ -63,12 +63,12 @@ else
 	SGX_COMMON_CFLAGS += -O2
 endif
 
-SGX_COMMON_CFLAGS += -L./lib
-
 ######## CUSTOM Settings ########
 
 CUSTOM_LIBRARY_PATH := ./lib
 CUSTOM_BIN_PATH := ./bin
+CUSTOM_EDL_PATH := ../../edl
+CUSTOM_COMMON_PATH := ../../common
 
 ######## EDL Settings ########
 
@@ -83,7 +83,7 @@ else
 endif
 
 App_Cpp_Files := $(wildcard ./app/*.cpp)
-App_Include_Paths := -I ./app -I./include -I$(SGX_SDK)/include -I./attestation -I./Include
+App_Include_Paths := -I ./app -I./include -I$(SGX_SDK)/include -I./attestation -I./Include -I$(CUSTOM_EDL_PATH)
 App_Cpp_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -L$(CUSTOM_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread
 ifneq ($(SGX_MODE), HW)
@@ -113,7 +113,7 @@ ProtectedFs_Library_Name := sgx_tprotected_fs
 
 RustEnclave_C_Files := $(wildcard ./enclave1/*.c ./enclave2/*.c ./enclave3/*.c ./attestation/*.c)
 RustEnclave_C_Objects := $(RustEnclave_C_Files:.c=.o)
-RustEnclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/stlport -I$(SGX_SDK)/include/epid
+RustEnclave_Include_Paths := -I$(CUSTOM_COMMON_PATH)/inc -I$(CUSTOM_EDL_PATH) -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/stlport -I$(SGX_SDK)/include/epid
 
 RustEnclave_Link_Libs := -L$(CUSTOM_LIBRARY_PATH) -lcompiler-rt-patch
 RustEnclave_Compile_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(RustEnclave_Include_Paths)

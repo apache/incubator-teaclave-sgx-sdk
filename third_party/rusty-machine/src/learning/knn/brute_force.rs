@@ -6,7 +6,7 @@ use learning::error::Error;
 use super::{KNearest, KNearestSearch, get_distances, dist};
 
 /// Perform brute-force search
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BruteForce {
     data: Option<Matrix<f64>>,
 }

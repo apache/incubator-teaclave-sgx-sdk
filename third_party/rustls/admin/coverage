@@ -22,11 +22,17 @@ def run(which):
     exe = filter(lambda x: '.d' not in x, glob.glob('target/debug/' + which + '-*'))[0]
     sh('./' + exe)
 
+def cargo():
+    # run stable cargo, because nightly is oft-broken
+    out = subprocess.check_output(['rustup', 'run', 'stable', 'rustup', 'which', 'cargo'])
+    return out.strip()
+
 def rustc(*args):
-    exe = ['cargo', 'rustc', '--all-features'] + list(args)
+    exe = [cargo(), 'rustc', '--all-features'] + list(args)
     env = dict(os.environ)
     env.update(RUSTC_WRAPPER = './admin/coverage-rustc',
-               COVERAGE_OPTIONS = COVERAGE_OPTIONS)
+               COVERAGE_OPTIONS = COVERAGE_OPTIONS,
+               CARGO_INCREMENTAL = '0')
     subprocess.check_call(exe, env = env)
 
 def lcov(outfile):
@@ -42,6 +48,9 @@ def merge(outfile, infiles):
     arg.append('-o')
     arg.append(outfile)
     subprocess.check_call(lcov_exe(*arg))
+
+def remove(outfile, infile, pattern):
+    subprocess.check_call(lcov_exe('--remove', infile, os.getcwd() + pattern, '-o', outfile))
 
 def extract(outfile, infile):
     subprocess.check_call(lcov_exe('--extract', infile, os.getcwd() + '/src/*', '-o', outfile))
@@ -72,6 +81,7 @@ for test in 'api badssl bugs client_suites curves errors features server_suites 
 sh('cd bogo && ./runme')
 all_infos.append(lcov('tests.info'))
 
-merge('coverage.info', all_infos)
+merge('merged.info', all_infos)
+remove('coverage.info', 'merged.info', '/src/msgs/macros.rs')
 extract('final.info', 'coverage.info')
 genhtml('target/coverage/', 'final.info')

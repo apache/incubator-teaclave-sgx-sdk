@@ -34,8 +34,8 @@ extern {
     //
     // sgx_cpuid.h
     //
-    pub fn sgx_cpuid(cpuinfo: [::int32_t; 4], leaf: ::int32_t) -> sgx_status_t;
-    pub fn sgx_cpuidex(cpuinfo: [::int32_t; 4], leaf: ::int32_t, subleaf: ::int32_t) -> sgx_status_t;
+    pub fn sgx_cpuid(cpuinfo: * mut [::int32_t; 4], leaf: ::int32_t) -> sgx_status_t;
+    pub fn sgx_cpuidex(cpuinfo: * mut [::int32_t; 4], leaf: ::int32_t, subleaf: ::int32_t) -> sgx_status_t;
 
     //
     // sgx_spinlock.h
@@ -326,6 +326,10 @@ extern {
                                         sgx_nistp256_r_m1_len: ::int32_t,
                                         out_key: * mut ::uint8_t,
                                         out_key_len: ::int32_t) -> sgx_status_t;
+
+    /* intel sgx sdk 2.3 */
+    pub fn sgx_ecc256_calculate_pub_from_priv(p_att_priv_key: * const sgx_ec256_private_t,
+                                              p_att_pub_key: * mut sgx_ec256_public_t) -> sgx_status_t;
 }
 
 
@@ -469,7 +473,7 @@ extern {
                                  enclave_id: * mut sgx_enclave_id_t,
                                  misc_attr: * mut sgx_misc_attribute_t,
                                  ex_features: ::uint32_t,
-                                 ex_features_p: [* const ::c_void; 32]) -> sgx_status_t;
+                                 ex_features_p: * const [* const ::c_void; 32]) -> sgx_status_t;
 
     pub fn sgx_destroy_enclave(enclave_id: sgx_enclave_id_t) -> sgx_status_t;
 }

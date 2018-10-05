@@ -1,11 +1,11 @@
 //! Safe wrappers for memory-accessing functions like `std::ptr::copy()`.
+
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 #[cfg(not(target_env = "sgx"))]
 extern crate sgx_tstd as std;
 use std::ptr;
-use std::vec::Vec;
 
 macro_rules! idx_check (
     ($slice:expr, $idx:expr) => {
@@ -61,6 +61,7 @@ pub fn write_bytes(slice: &mut [u8], byte: u8) {
 ///
 /// ###Panics
 /// If `vec.len() + elems.len()` overflows.
+#[cfg(feature = "std")]
 pub fn prepend<T: Copy>(elems: &[T], vec: &mut Vec<T>) {
     // Our overflow check occurs here, no need to do it ourselves.
     vec.reserve(elems.len());
@@ -100,12 +101,14 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn prepend_empty() {
         let mut vec: Vec<i32> = vec![];
         prepend(&[1, 2, 3], &mut vec);
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn prepend_i32() {
         let mut vec = vec![3, 4, 5];
         prepend(&[1, 2], &mut vec);

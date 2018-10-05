@@ -46,7 +46,7 @@ use learning::error::{Error, ErrorKind};
 /// The model is generic over a Criterion
 /// which specifies the distribution family and
 /// the link function.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GenLinearModel<C: Criterion> {
     parameters: Option<Vector<f64>>,
     criterion: C,
@@ -227,7 +227,7 @@ pub trait LinkFunc {
 /// The Logit link function.
 ///
 /// Used primarily as the canonical link in Binomial Regression.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Logit;
 
 /// The Logit link function.
@@ -250,7 +250,7 @@ impl LinkFunc for Logit {
 /// The log link function.
 ///
 /// Used primarily as the canonical link in Poisson Regression.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Log;
 
 /// The log link function.
@@ -273,7 +273,7 @@ impl LinkFunc for Log {
 /// The Identity link function.
 ///
 /// Used primarily as the canonical link in Linear Regression.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Identity;
 
 /// The Identity link function.
@@ -296,7 +296,7 @@ impl LinkFunc for Identity {
 /// The Bernoulli regression family.
 ///
 /// This is equivalent to logistic regression.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Bernoulli;
 
 impl Criterion for Bernoulli {
@@ -362,7 +362,7 @@ impl Criterion for Bernoulli {
 }
 
 /// The Binomial regression family.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Binomial {
     weights: Vec<f64>,
 }
@@ -433,7 +433,7 @@ impl Criterion for Binomial {
 /// The Normal regression family.
 ///
 /// This is equivalent to the Linear Regression model.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Normal;
 
 impl Criterion for Normal {
@@ -445,7 +445,7 @@ impl Criterion for Normal {
 }
 
 /// The Poisson regression family.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Poisson;
 
 impl Criterion for Poisson {

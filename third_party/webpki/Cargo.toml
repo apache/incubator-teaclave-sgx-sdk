@@ -21,7 +21,7 @@ license-file = "LICENSE"
 name = "webpki"
 readme = "README.md"
 repository = "https://github.com/briansmith/webpki"
-version = "0.18.0"
+version = "0.18.1"
 
 include = [
     "Cargo.toml",
@@ -67,10 +67,10 @@ sgx_tstd = { path =  "../../sgx_tstd" }
 
 [dependencies]
 ring = { path = "../ring" }
-untrusted = { version = "0.6", path = "../untrusted" }
+untrusted = "0.6.2"
 
 [dev-dependencies]
-base64 = { path = "../rust-base64" }
+base64 = "0.9.1"
 
 [profile.bench]
 opt-level = 3

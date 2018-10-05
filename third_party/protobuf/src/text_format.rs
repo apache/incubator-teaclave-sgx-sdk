@@ -1,9 +1,8 @@
+use std::prelude::v1::*;
+
 use std;
 use std::fmt;
 use std::fmt::Write;
-use std::string::String;
-use std::string::ToString;
-use std::vec::Vec;
 use protocore::Message;
 use reflect::ReflectFieldRef;
 use reflect::ProtobufValueRef;
@@ -34,12 +33,14 @@ fn quote_escape_bytes_to(bytes: &[u8], buf: &mut String) {
     buf.push('"');
 }
 
+#[doc(hidden)]
 pub fn quote_escape_bytes(bytes: &[u8]) -> String {
     let mut r = String::new();
     quote_escape_bytes_to(bytes, &mut r);
     r
 }
 
+#[doc(hidden)]
 pub fn unescape_string(string: &str) -> Vec<u8> {
     fn parse_if_digit(chars: &mut std::str::Chars) -> u8 {
         let mut copy = chars.clone();
@@ -55,9 +56,18 @@ pub fn unescape_string(string: &str) -> Vec<u8> {
         d
     }
 
+    fn parse_hex_digit(chars: &mut std::str::Chars) -> u8 {
+        match chars.next().unwrap() {
+            c @ '0'...'9' => (c as u8) - b'0',
+            c @ 'a'...'f' => (c as u8) - b'a' + 10,
+            c @ 'A'...'F' => (c as u8) - b'A' + 10,
+            _ => panic!("incorrect hex escape"),
+        }
+    }
+
     fn parse_escape_rem(chars: &mut std::str::Chars) -> u8 {
         let n = chars.next().unwrap();
-        let d1 = match n {
+        match n {
             'a' => return b'\x07',
             'b' => return b'\x08',
             'f' => return b'\x0c',
@@ -66,12 +76,20 @@ pub fn unescape_string(string: &str) -> Vec<u8> {
             't' => return b'\t',
             'v' => return b'\x0b',
             '"' => return b'"',
-            '0'...'9' => (n as u8 - b'0'),
+            '\'' => return b'\'',
+            '0'...'9' => {
+                let d1 = n as u8 - b'0';
+                let d2 = parse_if_digit(chars);
+                let d3 = parse_if_digit(chars);
+                return (d1 * 64 + d2 * 8 + d3) as u8;
+            },
+            'x' => {
+                let d1 = parse_hex_digit(chars);
+                let d2 = parse_hex_digit(chars);
+                return d1 * 16 + d2;
+            }
             c => return c as u8, // TODO: validate ASCII
         };
-        let d2 = parse_if_digit(chars);
-        let d3 = parse_if_digit(chars);
-        return (d1 * 64 + d2 * 8 + d3) as u8;
     }
 
     let mut chars = string.chars();
@@ -223,12 +241,6 @@ fn print_to_internal(m: &Message, buf: &mut String, pretty: bool, indent: usize)
                     print_field(buf, pretty, indent, &mut first, f.name(), v);
                 }
             }
-            ReflectFieldRef::RepeatedOld(..) => {
-                for i in 0..f.len_field(m) {
-                    let v = f.get_rep_item(m, i);
-                    print_field(buf, pretty, indent, &mut first, f.name(), v);
-                }
-            }
         }
     }
 
@@ -287,5 +299,12 @@ mod test {
         test_escape_unescape("\r", "\\r");
         test_escape_unescape("\t", "\\t");
         test_escape_unescape("你好", "\\344\\275\\240\\345\\245\\275");
+        // hex
+        assert_eq!(b"aaa\x01bbb", &super::unescape_string("aaa\\x01bbb")[..]);
+        assert_eq!(b"aaa\xcdbbb", &super::unescape_string("aaa\\xCDbbb")[..]);
+        assert_eq!(b"aaa\xcdbbb", &super::unescape_string("aaa\\xCDbbb")[..]);
+        // quotes
+        assert_eq!(b"aaa\"bbb", &super::unescape_string("aaa\\\"bbb")[..]);
+        assert_eq!(b"aaa\'bbb", &super::unescape_string("aaa\\\'bbb")[..]);
     }
 }

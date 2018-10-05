@@ -37,18 +37,19 @@
 #![doc(html_root_url="https://briansmith.org/rustdoc/")]
 
 #![allow(
-    legacy_directory_ownership,
     missing_copy_implementations,
     missing_debug_implementations,
+    non_camel_case_types,
+    non_snake_case,
     unsafe_code,
 )]
 
-// `#[derive(...)]` uses `#[allow(unused_qualifications )]` internally.
+// `#[derive(...)]` uses `trivial_numeric_casts` and `unused_qualifications`
+// internally.
 #![deny(
-    box_pointers,
     missing_docs,
     trivial_numeric_casts,
-    //unstable_features,
+    //unstable_features, // Used by `internal_benches`
     unused_qualifications,
 )]
 
@@ -67,10 +68,9 @@
 
 #![cfg_attr(feature = "internal_benches", allow(unstable_features))]
 #![cfg_attr(feature = "internal_benches", feature(test))]
-#![feature(libc)]
 
-#[cfg(any(feature = "use_heap", target_os = "linux"))]
-extern crate sgx_trts;
+//#[cfg(target_os = "linux")]
+//extern crate sgx_trts;
 
 #[cfg(feature = "internal_benches")]
 extern crate test as bench;
@@ -83,11 +83,14 @@ extern crate test as bench;
 #[macro_use]
 extern crate lazy_static;
 
-// `ring::test` uses the formatting & printing stuff in non-test mode.
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
 
+#[macro_use]
+mod debug;
+
+// `ring::test` uses the formatting & printing stuff in non-test mode.
 #[cfg(target_env = "sgx")]
 #[macro_use]
 extern crate std;
@@ -96,7 +99,6 @@ extern crate sgx_rand;
 
 extern crate untrusted;
 
-//#[path = "arithmetic/arithmetic.rs"]
 mod arithmetic;
 
 #[macro_use]
@@ -105,9 +107,7 @@ mod bssl;
 #[macro_use]
 mod polyfill;
 
-//#[path = "aead/aead.rs"]
 pub mod aead;
-
 pub mod agreement;
 
 #[cfg(feature = "use_heap")]
@@ -120,12 +120,8 @@ pub mod constant_time;
 #[doc(hidden)]
 pub mod der;
 
-//#[path = "digest/digest.rs"]
 pub mod digest;
-
-//#[path = "ec/ec.rs"]
 mod ec;
-
 pub mod error;
 pub mod hkdf;
 pub mod hmac;
@@ -137,7 +133,6 @@ mod poly1305;
 pub mod rand;
 
 #[cfg(feature = "use_heap")]
-//#[path = "rsa/rsa.rs"]
 mod rsa;
 
 pub mod signature;
@@ -153,13 +148,13 @@ mod private {
     // ```
     // use private;
     //
-    // pub trait MyType : private::Private {
+    // pub trait MyType : private::Sealed {
     //     // [...]
     // }
     //
-    // impl private::Private for MyType { }
+    // impl private::Sealed for MyType { }
     // ```
-    pub trait Private {}
+    pub trait Sealed {}
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 [package]
 name = "serde_bytes"
-version = "0.10.2" # remember to update html_root_url
+version = "0.10.4" # remember to update html_root_url
 authors = ["David Tolnay <dtolnay@gmail.com>"]
 license = "MIT/Apache-2.0"
 description = "Optimized handling of `&[u8]` and `Vec<u8>` for Serde"
@@ -24,6 +24,6 @@ sgx_tstd = { path =  "../../../sgx_tstd" }
 serde = { version = "1.0", default-features = false, path = "../serde/serde" }
 
 [dev-dependencies]
-bincode = { version = "0.9.2", path = "../../bincode" }
-serde_derive = { version = "1.0", path = "../serde/serde_derive" }
-serde_test = { version = "1.0", path = "../serde/serde_test" }
+bincode = "0.8"
+serde_derive = "1.0"
+serde_test = "1.0"

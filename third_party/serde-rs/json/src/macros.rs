@@ -141,6 +141,11 @@ macro_rules! json_internal {
         json_internal!(@array [$($elems,)*] $($rest)*)
     };
 
+    // Unexpected token after most recent element.
+    (@array [$($elems:expr),*] $unexpected:tt $($rest:tt)*) => {
+        json_unexpected!($unexpected)
+    };
+
     //////////////////////////////////////////////////////////////////////////
     // TT muncher for parsing the inside of an object {...}. Each entry is
     // inserted into the given map variable.
@@ -156,13 +161,18 @@ macro_rules! json_internal {
 
     // Insert the current entry followed by trailing comma.
     (@object $object:ident [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {
-        $object.insert(($($key)+).into(), $value);
+        let _ = $object.insert(($($key)+).into(), $value);
         json_internal!(@object $object () ($($rest)*) ($($rest)*));
+    };
+
+    // Current entry followed by unexpected token.
+    (@object $object:ident [$($key:tt)+] ($value:expr) $unexpected:tt $($rest:tt)*) => {
+        json_unexpected!($unexpected);
     };
 
     // Insert the last entry without trailing comma.
     (@object $object:ident [$($key:tt)+] ($value:expr)) => {
-        $object.insert(($($key)+).into(), $value);
+        let _ = $object.insert(($($key)+).into(), $value);
     };
 
     // Next value is `null`.
@@ -216,13 +226,13 @@ macro_rules! json_internal {
     // Misplaced colon. Trigger a reasonable error message.
     (@object $object:ident () (: $($rest:tt)*) ($colon:tt $($copy:tt)*)) => {
         // Takes no arguments so "no rules expected the token `:`".
-        unimplemented!($colon);
+        json_unexpected!($colon);
     };
 
     // Found a comma inside a key. Trigger a reasonable error message.
     (@object $object:ident ($($key:tt)*) (, $($rest:tt)*) ($comma:tt $($copy:tt)*)) => {
         // Takes no arguments so "no rules expected the token `,`".
-        unimplemented!($comma);
+        json_unexpected!($comma);
     };
 
     // Key is fully parenthesized. This avoids clippy double_parens false
@@ -279,4 +289,10 @@ macro_rules! json_internal {
     ($other:expr) => {
         $crate::to_value(&$other).unwrap()
     };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! json_unexpected {
+    () => {};
 }

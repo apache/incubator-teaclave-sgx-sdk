@@ -23,10 +23,10 @@
 //! Before execution a module should be validated. This process checks that module is well-formed
 //! and makes only allowed operations.
 //!
-//! Valid modules can't access memory out of it's sandbox, can't cause stack underflow
+//! Valid modules can't access memory out of its sandbox, can't cause stack underflow
 //! and can call functions only with correct signatures.
 //!
-//! ## Instantiatiation
+//! ## Instantiation
 //!
 //! In order to execute code in wasm module it should be instatiated.
 //! Instantiation includes the following steps:
@@ -93,14 +93,20 @@
 //!     );
 //! }
 //! ```
-#![warn(missing_docs)]
 
+#![warn(missing_docs)]
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
+
+#[cfg(test)]
+extern crate wabt;
+#[cfg(test)]
+#[macro_use]
+extern crate assert_matches;
 
 extern crate parity_wasm;
 extern crate byteorder;
@@ -110,19 +116,13 @@ extern crate memory_units as memory_units_crate;
 extern crate serde_derive;
 extern crate serde;
 
-#[cfg(all(not(feature = "32bit_opt_in"), target_pointer_width = "32"))]
-compile_error! {
-"32-bit targets are not supported at the moment.
-You can use '32bit_opt_in' feature.
-See https://github.com/pepyakin/wasmi/issues/43"
-}
+pub extern crate nan_preserving_float;
 
 use std::prelude::v1::*;
 use std::fmt;
 use std::error;
-use std::collections::HashMap;
 
-/// Error type which can thrown by wasm code or by host environment.
+/// Error type which can be thrown by wasm code or by host environment.
 ///
 /// Under some conditions, wasm execution may produce a `Trap`, which immediately aborts execution.
 /// Traps can't be handled by WebAssembly code, but are reported to the embedder.
@@ -155,7 +155,7 @@ impl error::Error for Trap {
 	}
 }
 
-/// Error type which can thrown by wasm code or by host environment.
+/// Error type which can be thrown by wasm code or by host environment.
 ///
 /// See [`Trap`] for details.
 ///
@@ -232,6 +232,16 @@ pub enum TrapKind {
 	//Host(Box<host::HostError>),
 }
 
+//impl TrapKind {
+//	/// Whether this trap is specified by the host.
+//	pub fn is_host(&self) -> bool {
+//		match self {
+//			&TrapKind::Host(_) => true,
+//			_ => false,
+//		}
+//	}
+//}
+
 /// Internal interpreter error.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Error {
@@ -257,24 +267,24 @@ pub enum Error {
 }
 
 //impl Error {
-	// Returns [`HostError`] if this `Error` represents some host error.
-	//
-	// I.e. if this error have variant [`Host`] or [`Trap`][`Trap`] with [host][`TrapKind::Host`] error.
-	//
-	// [`HostError`]: trait.HostError.html
-	// [`Host`]: enum.Error.html#variant.Host
-	// [`Trap`]: enum.Error.html#variant.Trap
-	// [`TrapKind::Host`]: enum.TrapKind.html#variant.Host
-	//pub fn as_host_error(&self) -> Option<&host::HostError> {
-	//	match *self {
-	//		Error::Host(ref host_err) => Some(&**host_err),
-	//		Error::Trap(ref trap) => match *trap.kind() {
-	//			TrapKind::Host(ref host_err) => Some(&**host_err),
-	//			_ => None,
-	//		}
-	//		_ => None,
-	//	}
-	//}
+//	/// Returns [`HostError`] if this `Error` represents some host error.
+//	///
+//	/// I.e. if this error have variant [`Host`] or [`Trap`][`Trap`] with [host][`TrapKind::Host`] error.
+//	///
+//	/// [`HostError`]: trait.HostError.html
+//	/// [`Host`]: enum.Error.html#variant.Host
+//	/// [`Trap`]: enum.Error.html#variant.Trap
+//	/// [`TrapKind::Host`]: enum.TrapKind.html#variant.Host
+//	pub fn as_host_error(&self) -> Option<&host::HostError> {
+//		match *self {
+//			//Error::Host(ref host_err) => Some(&**host_err),
+//			Error::Trap(ref trap) => match *trap.kind() {
+//				//TrapKind::Host(ref host_err) => Some(&**host_err),
+//				_ => None,
+//			}
+//			_ => None,
+//		}
+//	}
 //}
 
 impl Into<String> for Error {
@@ -288,7 +298,7 @@ impl Into<String> for Error {
 			Error::Global(s) => s,
 			Error::Value(s) => s,
 			Error::Trap(s) => format!("trap: {:?}", s),
-//			Error::Host(e) => format!("user: {}", e),
+			//Error::Host(e) => format!("user: {}", e),
 		}
 	}
 }
@@ -304,7 +314,7 @@ impl fmt::Display for Error {
 			Error::Global(ref s) => write!(f, "Global: {}", s),
 			Error::Value(ref s) => write!(f, "Value: {}", s),
 			Error::Trap(ref s) => write!(f, "Trap: {:?}", s),
-//			Error::Host(ref e) => write!(f, "User: {}", e),
+			//Error::Host(ref e) => write!(f, "User: {}", e),
 		}
 	}
 }
@@ -320,7 +330,7 @@ impl error::Error for Error {
 			Error::Global(ref s) => s,
 			Error::Value(ref s) => s,
 			Error::Trap(_) => "Trap",
-//			Error::Host(_) => "Host error",
+			//Error::Host(_) => "Host error",
 		}
 	}
 }
@@ -367,18 +377,19 @@ mod imports;
 mod global;
 mod func;
 mod types;
-//
-////#[cfg(test)]
-////mod tests;
-//
+mod isa;
+
+#[cfg(test)]
+mod tests;
+
 pub use self::memory::{MemoryInstance, MemoryRef, LINEAR_MEMORY_PAGE_SIZE};
 pub use self::table::{TableInstance, TableRef};
 pub use self::value::{RuntimeValue, FromRuntimeValue};
-pub use self::host::{Externals, NopExternals, HostError, RuntimeArgs};
+pub use self::host::{Externals, NopExternals, RuntimeArgs};
 pub use self::imports::{ModuleImportResolver, ImportResolver, ImportsBuilder};
 pub use self::module::{ModuleInstance, ModuleRef, ExternVal, NotStartedModuleRef};
 pub use self::global::{GlobalInstance, GlobalRef};
-pub use self::func::{FuncInstance, FuncRef};
+pub use self::func::{FuncInstance, FuncRef, FuncInvocation, ResumableError};
 pub use self::types::{Signature, ValueType, GlobalDescriptor, TableDescriptor, MemoryDescriptor};
 
 /// WebAssembly-specific sizes and units.
@@ -389,12 +400,11 @@ pub mod memory_units {
 
 /// Deserialized module prepared for instantiation.
 pub struct Module {
-	labels: HashMap<usize, HashMap<usize, usize>>,
+	code_map: Vec<isa::Instructions>,
 	module: parity_wasm::elements::Module,
 }
 
 impl Module {
-
 	/// Create `Module` from `parity_wasm::elements::Module`.
 	///
 	/// This function will load, validate and prepare a `parity_wasm`'s `Module`.
@@ -430,14 +440,74 @@ impl Module {
 	pub fn from_parity_wasm_module(module: parity_wasm::elements::Module) -> Result<Module, Error> {
 		use validation::{validate_module, ValidatedModule};
 		let ValidatedModule {
-			labels,
+			code_map,
 			module,
 		} = validate_module(module)?;
 
 		Ok(Module {
-			labels,
+			code_map,
 			module,
 		})
+	}
+
+	/// Fail if the module contains any floating-point operations
+	///
+	/// # Errors
+	///
+	/// Returns `Err` if provided `Module` is not valid.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # extern crate wasmi;
+	/// # extern crate wabt;
+	///
+	/// let wasm_binary: Vec<u8> =
+	///     wabt::wat2wasm(
+	///         r#"
+	///         (module
+	///          (func $add (param $lhs i32) (param $rhs i32) (result i32)
+	///                get_local $lhs
+	///                get_local $rhs
+	///                i32.add))
+	///         "#,
+	///     )
+	///     .expect("failed to parse wat");
+	///
+	/// // Load wasm binary and prepare it for instantiation.
+	/// let module = wasmi::Module::from_buffer(&wasm_binary).expect("Parsing failed");
+	/// assert!(module.deny_floating_point().is_ok());
+	///
+	/// let wasm_binary: Vec<u8> =
+	///     wabt::wat2wasm(
+	///         r#"
+	///         (module
+	///          (func $add (param $lhs f32) (param $rhs f32) (result f32)
+	///                get_local $lhs
+	///                get_local $rhs
+	///                f32.add))
+	///         "#,
+	///     )
+	///     .expect("failed to parse wat");
+	///
+	/// let module = wasmi::Module::from_buffer(&wasm_binary).expect("Parsing failed");
+	/// assert!(module.deny_floating_point().is_err());
+	///
+	/// let wasm_binary: Vec<u8> =
+	///     wabt::wat2wasm(
+	///         r#"
+	///         (module
+	///          (func $add (param $lhs f32) (param $rhs f32) (result f32)
+	///                get_local $lhs))
+	///         "#,
+	///     )
+	///     .expect("failed to parse wat");
+	///
+	/// let module = wasmi::Module::from_buffer(&wasm_binary).expect("Parsing failed");
+	/// assert!(module.deny_floating_point().is_err());
+	/// ```
+	pub fn deny_floating_point(&self) -> Result<(), Error> {
+		validation::deny_floating_point(&self.module).map_err(Into::into)
 	}
 
 	/// Create `Module` from a given buffer.
@@ -476,7 +546,7 @@ impl Module {
 		&self.module
 	}
 
-	pub(crate) fn labels(&self) -> &HashMap<usize, HashMap<usize, usize>> {
-		&self.labels
+	pub(crate) fn code(&self) -> &Vec<isa::Instructions> {
+		&self.code_map
 	}
 }

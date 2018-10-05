@@ -7,12 +7,15 @@ use std::time::{Duration, Instant};
 use std::sync::Arc;
 use std::fs;
 use std::io::{self, Write};
+use std::env;
 
 extern crate rustls;
 use rustls::{ClientConfig, ClientSession};
 use rustls::{ServerConfig, ServerSession};
 use rustls::ServerSessionMemoryCache;
 use rustls::ClientSessionMemoryCache;
+use rustls::NoServerSessionStorage;
+use rustls::NoClientSessionStorage;
 use rustls::{NoClientAuth, RootCertStore, AllowAnyAuthenticatedClient};
 use rustls::Session;
 use rustls::Ticketer;
@@ -52,23 +55,30 @@ fn time<F>(mut f: F) -> f64
     f64::from(dur)
 }
 
-fn transfer(left: &mut Session, right: &mut Session) {
+fn transfer(left: &mut Session, right: &mut Session) -> f64 {
     let mut buf = [0u8; 262144];
+    let mut read_time = 0f64;
 
     while left.wants_write() {
         let sz = left.write_tls(&mut buf.as_mut()).unwrap();
+
         if sz == 0 {
-            return;
+            return read_time;
         }
 
         let mut offs = 0;
         loop {
+            let start = Instant::now();
             offs += right.read_tls(&mut buf[offs..sz].as_ref()).unwrap();
+            let end = Instant::now();
+            read_time += f64::from(duration_nanos(end.duration_since(start)));
             if sz == offs {
                 break;
             }
         }
     }
+
+    read_time
 }
 
 fn drain(d: &mut Session, expect_len: usize) {
@@ -83,25 +93,13 @@ fn drain(d: &mut Session, expect_len: usize) {
     }
 }
 
-fn get_chain() -> Vec<rustls::Certificate> {
-    pemfile::certs(&mut io::BufReader::new(fs::File::open("test-ca/rsa/end.fullchain").unwrap()))
-        .unwrap()
-}
-
-fn get_key() -> rustls::PrivateKey {
-    pemfile::rsa_private_keys(&mut io::BufReader::new(fs::File::open("test-ca/rsa/end.rsa")
-                .unwrap()))
-            .unwrap()[0]
-        .clone()
-}
-
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Copy)]
 enum ClientAuth {
     No,
     Yes,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Copy)]
 enum Resumption {
     No,
     SessionID,
@@ -118,31 +116,86 @@ impl Resumption {
     }
 }
 
+// copied from tests/api.rs
+#[derive(PartialEq, Clone, Copy)]
+enum KeyType {
+    RSA,
+    ECDSA
+}
+
+impl KeyType {
+    fn for_suite(suite: &'static rustls::SupportedCipherSuite) -> KeyType {
+        if suite.sign == SignatureAlgorithm::ECDSA {
+            KeyType::ECDSA
+        } else {
+            KeyType::RSA
+        }
+    }
+
+    fn path_for(&self, part: &str) -> String {
+        match self {
+            KeyType::RSA => format!("test-ca/rsa/{}", part),
+            KeyType::ECDSA => format!("test-ca/ecdsa/{}", part),
+        }
+    }
+
+    fn get_chain(&self) -> Vec<rustls::Certificate> {
+        pemfile::certs(&mut io::BufReader::new(fs::File::open(self.path_for("end.fullchain"))
+                                               .unwrap()))
+            .unwrap()
+    }
+
+    fn get_key(&self) -> rustls::PrivateKey {
+        pemfile::pkcs8_private_keys(&mut io::BufReader::new(fs::File::open(self.path_for("end.key"))
+                                                            .unwrap()))
+                .unwrap()[0]
+            .clone()
+    }
+
+    fn get_client_chain(&self) -> Vec<rustls::Certificate> {
+        pemfile::certs(&mut io::BufReader::new(fs::File::open(self.path_for("client.fullchain"))
+                                               .unwrap()))
+            .unwrap()
+    }
+
+    fn get_client_key(&self) -> rustls::PrivateKey {
+        pemfile::pkcs8_private_keys(&mut io::BufReader::new(fs::File::open(self.path_for("client.key"))
+                                                            .unwrap()))
+                .unwrap()[0]
+            .clone()
+    }
+}
+
 fn make_server_config(version: rustls::ProtocolVersion,
-                      client_auth: &ClientAuth,
-                      resume: &Resumption)
+                      suite: &'static rustls::SupportedCipherSuite,
+                      client_auth: ClientAuth,
+                      resume: Resumption)
                       -> ServerConfig {
+    let kt = KeyType::for_suite(suite);
     let client_auth = match client_auth {
-        &ClientAuth::Yes => {
-            let roots = get_chain();
+        ClientAuth::Yes => {
+            let roots = kt.get_chain();
             let mut client_auth_roots = RootCertStore::empty();
             for root in roots {
                 client_auth_roots.add(&root).unwrap();
             }
             AllowAnyAuthenticatedClient::new(client_auth_roots)
         },
-        &ClientAuth::No => {
+        ClientAuth::No => {
             NoClientAuth::new()
         }
     };
 
     let mut cfg = ServerConfig::new(client_auth);
-    cfg.set_single_cert(get_chain(), get_key());
+    cfg.set_single_cert(kt.get_chain(), kt.get_key())
+        .expect("bad certs/private key?");
 
-    if resume == &Resumption::SessionID {
+    if resume == Resumption::SessionID {
         cfg.set_persistence(ServerSessionMemoryCache::new(128));
-    } else if resume == &Resumption::Tickets {
+    } else if resume == Resumption::Tickets {
         cfg.ticketer = Ticketer::new();
+    } else {
+        cfg.set_persistence(Arc::new(NoServerSessionStorage {}));
     }
 
     cfg.versions.clear();
@@ -153,23 +206,26 @@ fn make_server_config(version: rustls::ProtocolVersion,
 
 fn make_client_config(version: rustls::ProtocolVersion,
                       suite: &'static rustls::SupportedCipherSuite,
-                      clientauth: &ClientAuth,
-                      resume: &Resumption)
+                      clientauth: ClientAuth,
+                      resume: Resumption)
                       -> ClientConfig {
+    let kt = KeyType::for_suite(suite);
     let mut cfg = ClientConfig::new();
-    let mut rootbuf = io::BufReader::new(fs::File::open("test-ca/rsa/ca.cert").unwrap());
+    let mut rootbuf = io::BufReader::new(fs::File::open(kt.path_for("ca.cert")).unwrap());
     cfg.root_store.add_pem_file(&mut rootbuf).unwrap();
     cfg.ciphersuites.clear();
     cfg.ciphersuites.push(suite);
     cfg.versions.clear();
     cfg.versions.push(version);
 
-    if clientauth == &ClientAuth::Yes {
-        cfg.set_single_client_cert(get_chain(), get_key());
+    if clientauth == ClientAuth::Yes {
+        cfg.set_single_client_cert(kt.get_client_chain(), kt.get_client_key());
     }
 
-    if resume != &Resumption::No {
+    if resume != Resumption::No {
         cfg.set_persistence(ClientSessionMemoryCache::new(128));
+    } else {
+        cfg.set_persistence(Arc::new(NoClientSessionStorage {}));
     }
 
     cfg
@@ -179,14 +235,14 @@ fn bench_handshake(version: rustls::ProtocolVersion,
                    suite: &'static rustls::SupportedCipherSuite,
                    clientauth: ClientAuth,
                    resume: Resumption) {
-    let client_config = Arc::new(make_client_config(version, suite, &clientauth, &resume));
-    let server_config = Arc::new(make_server_config(version, &clientauth, &resume));
+    let client_config = Arc::new(make_client_config(version, suite, clientauth, resume));
+    let server_config = Arc::new(make_server_config(version, suite, clientauth, resume));
 
     if !suite.usable_for_version(version) {
         return;
     }
 
-    let rounds = 512;
+    let rounds = if resume == Resumption::No { 512 } else { 4096 };
     let mut client_time = 0f64;
     let mut server_time = 0f64;
 
@@ -244,10 +300,11 @@ fn do_handshake(client: &mut ClientSession, server: &mut ServerSession) {
     }
 }
 
-fn bench_bulk(version: rustls::ProtocolVersion, suite: &'static rustls::SupportedCipherSuite) {
+fn bench_bulk(version: rustls::ProtocolVersion, suite: &'static rustls::SupportedCipherSuite,
+              plaintext_size: u32) {
     let client_config =
-        Arc::new(make_client_config(version, suite, &ClientAuth::No, &Resumption::No));
-    let server_config = Arc::new(make_server_config(version, &ClientAuth::No, &Resumption::No));
+        Arc::new(make_client_config(version, suite, ClientAuth::No, Resumption::No));
+    let server_config = Arc::new(make_server_config(version, suite, ClientAuth::No, Resumption::No));
 
     if !suite.usable_for_version(version) {
         return;
@@ -260,43 +317,105 @@ fn bench_bulk(version: rustls::ProtocolVersion, suite: &'static rustls::Supporte
     do_handshake(&mut client, &mut server);
 
     let mut buf = Vec::new();
-    buf.resize(1024 * 1024, 0u8);
+    buf.resize(plaintext_size as usize, 0u8);
 
-    let total_mb = 512;
+    let total_data = if plaintext_size < 8192 {
+        64 * 1024 * 1024
+    } else {
+        1024 * 1024 * 1024
+    };
+    let rounds = total_data / plaintext_size;
     let mut time_send = 0f64;
     let mut time_recv = 0f64;
 
-    for _ in 0..total_mb {
+    for _ in 0..rounds {
         time_send += time(|| {
             server.write_all(&buf).unwrap();
             ()
         });
+
+        time_recv += transfer(&mut server, &mut client);
+
         time_recv += time(|| {
-            transfer(&mut server, &mut client);
             client.process_new_packets().unwrap()
         });
         drain(&mut client, buf.len());
     }
 
+    let total_mbs = f64::from(plaintext_size * rounds) / (1024. * 1024.);
     println!("bulk\t{:?}\t{:?}\tsend\t{:.2}\tMB/s",
              version,
              suite.suite,
-             f64::from(total_mb) / time_send);
+             total_mbs / time_send);
     println!("bulk\t{:?}\t{:?}\trecv\t{:.2}\tMB/s",
              version,
              suite.suite,
-             f64::from(total_mb) / time_recv);
+             total_mbs / time_recv);
 }
 
-fn main() {
+fn lookup_suite(name: &str) -> &'static rustls::SupportedCipherSuite {
+    for suite in &rustls::ALL_CIPHERSUITES {
+        if format!("{:?}", suite.suite).to_lowercase() == name.to_lowercase() {
+            return suite;
+        }
+    }
+
+    panic!("unknown suite {:?}", name);
+}
+
+fn selected_tests(mut args: env::Args) {
+    let mode = args.next()
+        .expect("first argument must be mode");
+
+    match mode.as_ref() {
+        "bulk" => {
+            match args.next() {
+                Some(suite) => {
+                    let len = args.next()
+                        .map(|arg| arg.parse::<u32>()
+                             .expect("3rd arg must be integer"))
+                        .unwrap_or(1048576);
+                    let suite = lookup_suite(&suite);
+                    bench_bulk(rustls::ProtocolVersion::TLSv1_3, suite, len);
+                    bench_bulk(rustls::ProtocolVersion::TLSv1_2, suite, len);
+                }
+                None => {
+                    panic!("bulk needs ciphersuite argument");
+                }
+            }
+        }
+
+        "handshake" | "handshake-resume" | "handshake-ticket" => {
+            match args.next() {
+                Some(suite) => {
+                    let suite = lookup_suite(&suite);
+                    let resume = if mode == "handshake" {
+                        Resumption::No
+                    } else if mode == "handshake-resume" {
+                        Resumption::SessionID
+                    } else {
+                        Resumption::Tickets
+                    };
+
+                    bench_handshake(rustls::ProtocolVersion::TLSv1_3, suite, ClientAuth::No, resume);
+                    bench_handshake(rustls::ProtocolVersion::TLSv1_2, suite, ClientAuth::No, resume);
+                }
+                None => {
+                    panic!("handshake* needs ciphersuite argument");
+                }
+            }
+        }
+
+        _ => {
+            panic!("unsupported mode {:?}", mode);
+        }
+    }
+}
+
+fn all_tests() {
     for version in &[rustls::ProtocolVersion::TLSv1_3, rustls::ProtocolVersion::TLSv1_2] {
         for suite in &rustls::ALL_CIPHERSUITES {
-            if suite.sign == SignatureAlgorithm::ECDSA {
-                // TODO: Need ECDSA server support for this.
-                continue;
-            }
-
-            bench_bulk(*version, suite);
+            bench_bulk(*version, suite, 1024 * 1024);
             bench_handshake(*version, suite, ClientAuth::No, Resumption::No);
             bench_handshake(*version, suite, ClientAuth::Yes, Resumption::No);
             bench_handshake(*version, suite, ClientAuth::No, Resumption::SessionID);
@@ -304,5 +423,15 @@ fn main() {
             bench_handshake(*version, suite, ClientAuth::No, Resumption::Tickets);
             bench_handshake(*version, suite, ClientAuth::Yes, Resumption::Tickets);
         }
+    }
+}
+
+fn main() {
+    let mut args = env::args();
+    if args.len() > 1 {
+        args.next();
+        selected_tests(args);
+    } else {
+        all_tests();
     }
 }

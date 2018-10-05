@@ -36,7 +36,7 @@ use alloc_crate::borrow::{Borrow, Cow, ToOwned};
 use alloc_crate::string::String;
 use alloc_crate::boxed::Box;
 use alloc_crate::rc::Rc;
-use alloc_crate::arc::Arc;
+use alloc_crate::sync::Arc;
 
 
 /// A type that can represent owned, mutable platform-native strings, but is
@@ -47,7 +47,16 @@ pub struct OsString {
     inner: Buf
 }
 
-/// Slices into OS strings (see [`OsString`]).
+/// Borrowed reference to an OS string (see [`OsString`]).
+///
+/// This type represents a borrowed reference to a string in the operating system's preferred
+/// representation.
+///
+/// `&OsStr` is to [`OsString`] as [`&str`] is to [`String`]: the former in each pair are borrowed
+/// references; the latter are owned strings.
+///
+/// See the [module's toplevel documentation about conversions][conversions] for a discussion on
+/// the traits which `OsStr` implements for [conversions] from/to native representations.
 ///
 pub struct OsStr {
     inner: Slice
@@ -82,7 +91,7 @@ impl OsString {
 
     /// Creates a new `OsString` with the given capacity.
     ///
-    /// The string will be able to hold exactly `capacity` lenth units of other
+    /// The string will be able to hold exactly `capacity` length units of other
     /// OS strings without reallocating. If `capacity` is 0, the string will not
     /// allocate.
     ///
@@ -212,6 +221,18 @@ impl PartialEq<OsString> for str {
     }
 }
 
+impl<'a> PartialEq<&'a str> for OsString {
+    fn eq(&self, other: &&'a str) -> bool {
+        **self == **other
+    }
+}
+
+impl<'a> PartialEq<OsString> for &'a str {
+    fn eq(&self, other: &OsString) -> bool {
+        **other == **self
+    }
+}
+
 impl Eq for OsString {}
 
 impl PartialOrd for OsString {
@@ -292,7 +313,7 @@ impl OsStr {
     /// Returns the length of this `OsStr`.
     ///
     /// Note that this does **not** return the number of bytes in this string
-    /// as, for example, OS strings on Windows are encoded as a list of `u16`
+    /// as, for example, OS strings on Windows are encoded as a list of [`u16`]
     /// rather than a list of bytes. This number is simply useful for passing to
     /// other methods like [`OsString::with_capacity`] to avoid reallocations.
     ///
@@ -302,7 +323,7 @@ impl OsStr {
         self.inner.inner.len()
     }
 
-    /// Converts a `Box<OsStr>` into an `OsString` without copying or allocating.
+    /// Converts a [`Box`]`<OsStr>` into an [`OsString`] without copying or allocating.
     pub fn into_os_string(self: Box<OsStr>) -> OsString {
         let boxed = unsafe { Box::from_raw(Box::into_raw(self) as *mut Slice) };
         OsString { inner: Buf::from_box(boxed) }
@@ -310,6 +331,8 @@ impl OsStr {
 
     /// Gets the underlying byte representation.
     ///
+    /// Note: it is *crucial* that this API is private, to avoid
+    /// revealing the internal, platform-specific encodings.
     fn bytes(&self) -> &[u8] {
         unsafe { &*(&self.inner as *const _ as *const [u8]) }
     }
@@ -331,6 +354,13 @@ impl From<Box<OsStr>> for OsString {
 impl From<OsString> for Box<OsStr> {
     fn from(s: OsString) -> Box<OsStr> {
         s.into_boxed_os_str()
+    }
+}
+
+impl Clone for Box<OsStr> {
+    #[inline]
+    fn clone(&self) -> Self {
+        self.to_os_string().into_boxed_os_str()
     }
 }
 
@@ -363,6 +393,34 @@ impl<'a> From<&'a OsStr> for Rc<OsStr> {
     fn from(s: &OsStr) -> Rc<OsStr> {
         let rc = s.inner.into_rc();
         unsafe { Rc::from_raw(Rc::into_raw(rc) as *const OsStr) }
+    }
+}
+
+impl<'a> From<OsString> for Cow<'a, OsStr> {
+    #[inline]
+    fn from(s: OsString) -> Cow<'a, OsStr> {
+        Cow::Owned(s)
+    }
+}
+
+impl<'a> From<&'a OsStr> for Cow<'a, OsStr> {
+    #[inline]
+    fn from(s: &'a OsStr) -> Cow<'a, OsStr> {
+        Cow::Borrowed(s)
+    }
+}
+
+impl<'a> From<&'a OsString> for Cow<'a, OsStr> {
+    #[inline]
+    fn from(s: &'a OsString) -> Cow<'a, OsStr> {
+        Cow::Borrowed(s.as_os_str())
+    }
+}
+
+impl<'a> From<Cow<'a, OsStr>> for OsString {
+    #[inline]
+    fn from(s: Cow<'a, OsStr>) -> Self {
+        s.into_owned()
     }
 }
 
@@ -483,6 +541,7 @@ impl OsStr {
         fmt::Display::fmt(&self.inner, formatter)
     }
 }
+
 impl Borrow<OsStr> for OsString {
     fn borrow(&self) -> &OsStr { &self[..] }
 }

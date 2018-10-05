@@ -188,3 +188,27 @@ macro_rules! impl_enum {
     )
 }
 
+#[macro_export]
+macro_rules! meta_data_make_version {
+    ($major:ident, $minor:ident) => ( ($major as u64) << 32 | $minor as u64 )
+}
+
+#[macro_export]
+macro_rules! major_version_of_metadata {
+    ($version:ident) => ( ($version as u64) >> 32 )
+}
+
+#[macro_export]
+macro_rules! minor_version_of_metadata {
+    ($version:ident) => ( ($version as u64) & 0x0000_0000_FFFF_FFFF )
+}
+
+#[macro_export]
+macro_rules! group_id {
+    ($gid:expr) => ( (GROUP_FLAG | $gid) )
+}
+
+#[macro_export]
+macro_rules! is_group_id {
+    ($gid:expr) => ( (!!($gid & GROUP_FLAG)) )
+}

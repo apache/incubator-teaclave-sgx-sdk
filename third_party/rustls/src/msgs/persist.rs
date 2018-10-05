@@ -1,12 +1,9 @@
-use std::vec::Vec;
-use std::option::Option;
-
+use std::prelude::v1::*;
 use msgs::handshake::SessionID;
 use msgs::enums::{CipherSuite, ProtocolVersion};
 use msgs::codec::{Reader, Codec};
 use msgs::handshake::CertificatePayload;
 use msgs::base::{PayloadU8, PayloadU16};
-use msgs::codec;
 
 use webpki;
 use untrusted;
@@ -75,32 +72,32 @@ impl Codec for ClientSessionValue {
         self.session_id.encode(bytes);
         self.ticket.encode(bytes);
         self.master_secret.encode(bytes);
-        codec::encode_u64(self.epoch, bytes);
-        codec::encode_u32(self.lifetime, bytes);
-        codec::encode_u32(self.age_add, bytes);
-        codec::encode_u8(if self.extended_ms { 1u8 } else { 0u8 }, bytes);
+        self.epoch.encode(bytes);
+        self.lifetime.encode(bytes);
+        self.age_add.encode(bytes);
+        (if self.extended_ms { 1u8 } else { 0u8 }).encode(bytes);
     }
 
     fn read(r: &mut Reader) -> Option<ClientSessionValue> {
-        let v = try_ret!(ProtocolVersion::read(r));
-        let cs = try_ret!(CipherSuite::read(r));
-        let sid = try_ret!(SessionID::read(r));
-        let ticket = try_ret!(PayloadU16::read(r));
-        let ms = try_ret!(PayloadU8::read(r));
-        let epoch = try_ret!(codec::read_u64(r));
-        let lifetime = try_ret!(codec::read_u32(r));
-        let age_add = try_ret!(codec::read_u32(r));
-        let extended_ms = try_ret!(codec::read_u8(r));
+        let v = ProtocolVersion::read(r)?;
+        let cs = CipherSuite::read(r)?;
+        let sid = SessionID::read(r)?;
+        let ticket = PayloadU16::read(r)?;
+        let ms = PayloadU8::read(r)?;
+        let epoch = u64::read(r)?;
+        let lifetime = u32::read(r)?;
+        let age_add = u32::read(r)?;
+        let extended_ms = u8::read(r)?;
 
         Some(ClientSessionValue {
             version: v,
             cipher_suite: cs,
             session_id: sid,
-            ticket: ticket,
+            ticket,
             master_secret: ms,
-            epoch: epoch,
-            lifetime: lifetime,
-            age_add: age_add,
+            epoch,
+            lifetime,
+            age_add,
             extended_ms: extended_ms == 1u8,
         })
     }
@@ -140,7 +137,7 @@ impl ClientSessionValue {
     }
 
     pub fn has_expired(&self, time_now: u64) -> bool {
-        self.lifetime != 0 && self.epoch + (self.lifetime as u64) < time_now
+        self.lifetime != 0 && self.epoch + u64::from(self.lifetime) < time_now
     }
 
     pub fn get_obfuscated_ticket_age(&self, time_now: u64) -> u32 {
@@ -171,36 +168,36 @@ pub struct ServerSessionValue {
 
 impl Codec for ServerSessionValue {
     fn encode(&self, bytes: &mut Vec<u8>) {
-        if let &Some(ref sni) = &self.sni {
-            codec::encode_u8(1, bytes);
+        if let Some(ref sni) = self.sni {
+            1u8.encode(bytes);
             let sni_bytes: &str = sni.as_ref().into();
             PayloadU8::new(Vec::from(sni_bytes)).encode(bytes);
         } else {
-            codec::encode_u8(0, bytes);
+            0u8.encode(bytes);
         }
         self.version.encode(bytes);
         self.cipher_suite.encode(bytes);
         self.master_secret.encode(bytes);
-        codec::encode_u8(if self.extended_ms { 1u8 } else { 0u8 }, bytes);
+        (if self.extended_ms { 1u8 } else { 0u8 }).encode(bytes);
         if self.client_cert_chain.is_some() {
             self.client_cert_chain.as_ref().unwrap().encode(bytes);
         }
     }
 
     fn read(r: &mut Reader) -> Option<ServerSessionValue> {
-        let has_sni = try_ret!(codec::read_u8(r));
+        let has_sni = u8::read(r)?;
         let sni = if has_sni == 1 {
-            let dns_name = try_ret!(PayloadU8::read(r));
-            let dns_name = try_ret!(webpki::DNSNameRef::try_from_ascii(
-                untrusted::Input::from(&dns_name.0)).ok());
+            let dns_name = PayloadU8::read(r)?;
+            let dns_name = webpki::DNSNameRef::try_from_ascii(
+                untrusted::Input::from(&dns_name.0)).ok()?;
             Some(dns_name.into())
         } else {
             None
         };
-        let v = try_ret!(ProtocolVersion::read(r));
-        let cs = try_ret!(CipherSuite::read(r));
-        let ms = try_ret!(PayloadU8::read(r));
-        let ems = try_ret!(codec::read_u8(r));
+        let v = ProtocolVersion::read(r)?;
+        let cs = CipherSuite::read(r)?;
+        let ms = PayloadU8::read(r)?;
+        let ems = u8::read(r)?;
         let ccert = if r.any_left() {
             CertificatePayload::read(r)
         } else {
@@ -208,7 +205,7 @@ impl Codec for ServerSessionValue {
         };
 
         Some(ServerSessionValue {
-            sni: sni,
+            sni,
             version: v,
             cipher_suite: cs,
             master_secret: ms,
@@ -226,7 +223,7 @@ impl ServerSessionValue {
                cert_chain: &Option<CertificatePayload>)
                -> ServerSessionValue {
         ServerSessionValue {
-            sni: sni.map(|sni| sni.clone()),
+            sni: sni.cloned(),
             version: v,
             cipher_suite: cs,
             master_secret: PayloadU8::new(ms),

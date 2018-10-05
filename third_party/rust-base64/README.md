@@ -1,13 +1,11 @@
 [base64](https://crates.io/crates/base64)
 ===
-[![Docs](https://docs.rs/base64/badge.svg)](https://docs.rs/base64)
+[![](https://img.shields.io/crates/v/base64.svg)](https://crates.io/crates/base64) [![Docs](https://docs.rs/base64/badge.svg)](https://docs.rs/base64)
 
 It's base64. What more could anyone want?
 
 Example
 ---
-
-In Cargo.toml: `base64 = "~0.6.0"`
 
 ```rust
 extern crate base64;
@@ -23,23 +21,7 @@ fn main() {
 }
 ```
 
-API
----
-
-base64 exposes six functions:
-
-```rust
-fn encode<T: ?Sized + AsRef<[u8]>>(&T) -> String;
-fn decode<T: ?Sized + AsRef<[u8]>>(&T) -> Result<Vec<u8>, DecodeError>;
-fn encode_config<T: ?Sized + AsRef<[u8]>>(&T, Config) -> String;
-fn encode_config_buf<T: ?Sized + AsRef<[u8]>>(&T, Config, &mut String);
-fn decode_config<T: ?Sized + AsRef<[u8]>>(&T, Config) -> Result<Vec<u8>, DecodeError>;
-fn decode_config_buf<T: ?Sized + AsRef<[u8]>>(&T, Config, &mut Vec<u8>) -> Result<(), DecodeError>;
-```
-
-`STANDARD`, `URL_SAFE`, `URL_SAFE_NO_PAD`, and `MIME` configuation structs are provided for convenience. `encode` and `decode` are convenience wrappers for the `_config` functions called with the `STANDARD` config, and they are themselves wrappers of the `_buf` functions that allocate on the user's behalf. Encode produces valid padding absent a config that states otherwise; decode produces the same output for valid or omitted padding in all cases, but errors on invalid (superfluous) padding. Whitespace in the input to decode is an error for all modes except `MIME`, which disregards it ("whitespace" according to POSIX-locale `isspace`, meaning \n \r \f \t \v and space).
-
-`Config` exposes a constructor to allow custom combinations of character set, output padding, input whitespace permissiveness, linewrapping, and line ending character(s). The vast majority of usecases should be covered by the four provided, however.
+See the [docs](https://docs.rs/base64) for all the details.
 
 Purpose
 ---
@@ -107,10 +89,10 @@ Fuzzing
 This uses [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz). See `fuzz/fuzzers` for the available fuzzing scripts. To run, use an invocation like these:
 
 ```
-rustup run nightly cargo fuzz run roundtrip
-rustup run nightly cargo fuzz run roundtrip_no_pad
-rustup run nightly cargo fuzz run roundtrip_mime -- -max_len=10240
-rustup run nightly cargo fuzz run roundtrip_random_config -- -max_len=10240
+cargo +nightly fuzz run roundtrip
+cargo +nightly fuzz run roundtrip_no_pad
+cargo +nightly fuzz run roundtrip_mime -- -max_len=10240
+cargo +nightly fuzz run roundtrip_random_config -- -max_len=10240
 ```
 
 

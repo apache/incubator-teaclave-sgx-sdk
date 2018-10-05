@@ -30,8 +30,9 @@
 use sync::SgxThreadSpinlock;
 use alloc_crate::boxed::{Box, FnBox};
 use core::ptr;
+use core::mem;
 
-type Queue = Vec<Box<FnBox()>>;
+type Queue = Vec<Box<dyn FnBox()>>;
 
 // NB these are specifically not types from `std::sync` as they currently rely
 // on poisoning and this module needs to operate at a lower level than requiring
@@ -40,6 +41,7 @@ type Queue = Vec<Box<FnBox()>>;
 //static LOCK: SgxThreadMutex = SgxThreadMutex::new();
 static LOCK: SgxThreadSpinlock = SgxThreadSpinlock::new();
 static mut QUEUE: *mut Queue = ptr::null_mut();
+const DONE: *mut Queue = 1_usize as *mut _;
 
 // The maximum number of times the cleanup routines will be run. While running
 // the at_exit closures new ones may be registered, and this count is the number
@@ -51,7 +53,7 @@ unsafe fn init() -> bool {
     if QUEUE.is_null() {
         let state: Box<Queue> = Box::new(Vec::new());
         QUEUE = Box::into_raw(state);
-    } else if QUEUE as usize == 1 {
+    } else if QUEUE == DONE {
         // can't re-init after a cleanup
         return false
     }
@@ -60,18 +62,18 @@ unsafe fn init() -> bool {
 }
 
 pub fn cleanup() {
-    for i in 0..ITERS {
+    for i in 1..=ITERS {
         unsafe {
             LOCK.lock();
             let queue = QUEUE;
-            QUEUE = if i == ITERS - 1 {1} else {0} as *mut _;
+            QUEUE = mem::replace(&mut QUEUE, if i == ITERS { DONE } else { ptr::null_mut() });
             LOCK.unlock();
 
             // make sure we're not recursively cleaning up
-            assert!(queue as usize != 1);
+            assert!(queue != DONE);
 
             // If we never called init, not need to cleanup!
-            if queue as usize != 0 {
+            if !queue.is_null() {
                 let queue: Box<Queue> = Box::from_raw(queue);
                 for to_run in *queue {
                     to_run();
@@ -81,16 +83,16 @@ pub fn cleanup() {
     }
 }
 
-pub fn push(f: Box<FnBox()>) -> bool {
-    let mut ret = true;
+pub fn push(f: Box<dyn FnBox()>) -> bool {
     unsafe {
         LOCK.lock();
-        if init() {
+        let ret = if init() {
             (*QUEUE).push(f);
+            true
         } else {
-            ret = false;
-        }
+            false
+        };
         LOCK.unlock();
+        ret
     }
-    ret
 }

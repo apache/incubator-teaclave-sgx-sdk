@@ -154,7 +154,7 @@ pub fn test_rand_distributions () {
         norm.ind_sample(&mut rng);
     }
 
-	should_panic!(Normal::new(10.0, -1.0));
+    should_panic!(Normal::new(10.0, -1.0));
 
     let mut lnorm = LogNormal::new(10.0, 10.0);
     for _ in 0..1000 {
@@ -162,7 +162,7 @@ pub fn test_rand_distributions () {
         lnorm.ind_sample(&mut rng);
     }
 
-	should_panic!(LogNormal::new(10.0, -1.0));
+    should_panic!(LogNormal::new(10.0, -1.0));
 
     use sgx_rand::distributions::{IndependentSample, RandSample, Sample, Weighted, WeightedChoice};
 

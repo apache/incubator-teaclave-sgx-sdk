@@ -16,19 +16,20 @@
 #define RING_LIMBS_H
 
 #include <GFp/base.h>
-#include <GFp/bn.h>
 
-#include <stddef.h>
+#include "../internal.h"
 
+typedef crypto_word Limb;
 
-typedef BN_ULONG Limb;
-
-#define LIMB_BITS BN_BITS2
+#define LIMB_BITS CRYPTO_WORD_BITS
 #define LIMB_HIGH_BIT ((Limb)(1) << (LIMB_BITS - 1))
 
 
 Limb LIMBS_are_zero(const Limb a[], size_t num_limbs);
+Limb LIMBS_are_even(const Limb a[], size_t num_limbs);
+void LIMBS_copy(Limb r[], const Limb a[], size_t num_limbs);
 Limb LIMBS_equal(const Limb a[], const Limb b[], size_t num_limbs);
+Limb LIMBS_equal_limb(const Limb a[], Limb b, size_t num_limbs);
 void LIMBS_reduce_once(Limb r[], const Limb m[], size_t num_limbs);
 void LIMBS_add_mod(Limb r[], const Limb a[], const Limb b[], const Limb m[],
                    size_t num_limbs);

@@ -4,9 +4,6 @@
 // Note: we don't use any of the standard 'cargo bench', 'test::Bencher',
 // etc. because it's unstable at the time of writing.
 
-use std::vec::Vec;
-use std::result::Result;
-
 use std::time::{Duration, Instant};
 
 use anchors;

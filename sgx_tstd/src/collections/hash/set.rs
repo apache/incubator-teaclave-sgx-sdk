@@ -183,7 +183,7 @@ impl<T, S> HashSet<T, S>
     pub fn difference<'a>(&'a self, other: &'a HashSet<T, S>) -> Difference<'a, T, S> {
         Difference {
             iter: self.iter(),
-            other: other,
+            other,
         }
     }
 
@@ -202,7 +202,7 @@ impl<T, S> HashSet<T, S>
     pub fn intersection<'a>(&'a self, other: &'a HashSet<T, S>) -> Intersection<'a, T, S> {
         Intersection {
             iter: self.iter(),
-            other: other,
+            other,
         }
     }
 

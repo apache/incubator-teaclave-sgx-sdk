@@ -30,6 +30,7 @@ pub use sgx_trts::c_str::*;
 
 use error::Error;
 use io;
+use core::fmt;
 
 impl Error for NulError {
     fn description(&self) -> &str { "nul byte found in data" }
@@ -50,11 +51,10 @@ impl Error for FromBytesWithNulError {
 
 impl Error for IntoStringError {
     fn description(&self) -> &str {
-        //"C string contained non-utf8 bytes"
         self.__description()
     }
 
-    fn cause(&self) -> Option<&Error> {
-        self.__cause().map(|e| e as &Error)
+    fn cause(&self) -> Option<&dyn Error> {
+        Some(self.__cause())
     }
 }

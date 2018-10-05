@@ -224,7 +224,7 @@ impl SgxShaHandle {
     ///
     pub fn init(&self) -> SgxError {
 
-        if self.initflag.get() == true {
+        if self.initflag.get() {
             return Ok(());
         }
 
@@ -280,7 +280,7 @@ impl SgxShaHandle {
     pub fn update_msg<T>(&self, src: &T) -> SgxError
         where T: Copy + ContiguousMemory {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -297,7 +297,7 @@ impl SgxShaHandle {
     pub fn update_slice<T>(&self, src: &[T]) -> SgxError
         where T: Copy + ContiguousMemory {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -340,7 +340,7 @@ impl SgxShaHandle {
     ///
     pub fn get_hash(&self) -> SgxResult<sgx_sha256_hash_t> {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -372,13 +372,13 @@ impl SgxShaHandle {
     ///
     pub fn close(&self) -> SgxError {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Ok(());
         }
 
         let ret = {
             let handle = *self.handle.borrow();
-            if handle.is_null() == true {
+            if handle.is_null() {
                 sgx_status_t::SGX_SUCCESS
             } else {
                 rsgx_sha256_close(handle)
@@ -513,17 +513,13 @@ pub fn rsgx_rijndael128GCM_encrypt(key: &sgx_aes_gcm_128bit_key_t,
     }
 
     let ret = unsafe {
-        let mut p_aad: * const u8 = ptr::null();
-        if aad_len != 0 {
-            p_aad = aad.as_ptr();
-        }
+        let p_aad = if aad_len != 0 { aad.as_ptr() } else { ptr::null() };
 
-        let mut p_src: * const u8 = ptr::null();
-        let mut p_dst: * mut u8 = ptr::null_mut();
-        if src_len != 0 {
-            p_src = src.as_ptr();
-            p_dst = dst.as_mut_ptr();
-        }
+        let (mut p_src, mut p_dst) = if src_len != 0 {
+            (src.as_ptr(), dst.as_mut_ptr())
+        } else {
+            (ptr::null(), ptr::null_mut())
+        };
 
         sgx_rijndael128GCM_encrypt(key as * const sgx_aes_gcm_128bit_key_t,
                                    p_src,
@@ -645,17 +641,13 @@ pub fn rsgx_rijndael128GCM_decrypt(key: &sgx_aes_gcm_128bit_key_t,
     }
 
     let ret = unsafe {
-        let mut p_aad: * const u8 =  ptr::null();
-        if aad.len() != 0 {
-            p_aad = aad.as_ptr();
-        }
+        let mut p_aad = if !aad.is_empty() { aad.as_ptr() } else { ptr::null() };
 
-        let mut p_src: * const u8 = ptr::null();
-        let mut p_dst: * mut u8 = ptr::null_mut();
-        if src.len() != 0 {
-            p_src = src.as_ptr();
-            p_dst = dst.as_mut_ptr();
-        }
+        let (mut p_src, mut p_dst) = if src_len != 0 {
+            (src.as_ptr(), dst.as_mut_ptr())
+        } else {
+            (ptr::null(), ptr::null_mut())
+        };
 
         sgx_rijndael128GCM_decrypt(key as * const sgx_aes_gcm_128bit_key_t,
                                    p_src,
@@ -882,7 +874,7 @@ impl SgxCmacHandle {
     ///
     pub fn init(&self, key: &sgx_cmac_128bit_key_t) -> SgxError {
 
-        if self.initflag.get() == true {
+        if self.initflag.get() {
             return Ok(());
         }
 
@@ -943,7 +935,7 @@ impl SgxCmacHandle {
     pub fn update_msg<T>(&self, src: &T) -> SgxError
         where T: Copy + ContiguousMemory {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -960,7 +952,7 @@ impl SgxCmacHandle {
     pub fn update_slice<T>(&self, src: &[T]) -> SgxError
         where T: Copy + ContiguousMemory {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -1003,7 +995,7 @@ impl SgxCmacHandle {
     ///
     pub fn get_hash(&self) -> SgxResult<sgx_cmac_128bit_tag_t> {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -1035,13 +1027,13 @@ impl SgxCmacHandle {
     ///
     pub fn close(&self) -> SgxError {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Ok(());
         }
 
         let ret = {
             let handle = *self.handle.borrow();
-            if handle.is_null() == true {
+            if handle.is_null() {
                 sgx_status_t::SGX_SUCCESS
             } else {
                 rsgx_cmac128_close(handle)
@@ -1387,7 +1379,7 @@ fn rsgx_ecdsa_verify_msg<T>(data: &T,
                                    ecc_handle);
         match ret {
             sgx_status_t::SGX_SUCCESS => {
-                let ecresult = sgx_generic_ecresult_t::from_repr(verify as u32);
+                let ecresult = sgx_generic_ecresult_t::from_repr(u32::from(verify));
                 *result = ecresult.unwrap_or(sgx_generic_ecresult_t::SGX_EC_INVALID_SIGNATURE);
             },
             _ => { *result = sgx_generic_ecresult_t::SGX_EC_INVALID_SIGNATURE; },
@@ -1422,7 +1414,7 @@ fn rsgx_ecdsa_verify_slice<T>(data: &[T],
                                    ecc_handle);
         match ret {
             sgx_status_t::SGX_SUCCESS => {
-                let ecresult = sgx_generic_ecresult_t::from_repr(verify as u32);
+                let ecresult = sgx_generic_ecresult_t::from_repr(u32::from(verify));
                 *result = ecresult.unwrap_or(sgx_generic_ecresult_t::SGX_EC_INVALID_SIGNATURE);
             },
             _ => { *result = sgx_generic_ecresult_t::SGX_EC_INVALID_SIGNATURE; },
@@ -1513,7 +1505,7 @@ impl SgxEccHandle {
     ///
     pub fn open(&self) -> SgxError {
 
-        if self.initflag.get() == true {
+        if self.initflag.get() {
             return Ok(());
         }
 
@@ -1584,7 +1576,7 @@ impl SgxEccHandle {
     ///
     pub fn create_key_pair(&self) -> SgxResult<(sgx_ec256_private_t, sgx_ec256_public_t)> {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -1647,7 +1639,7 @@ impl SgxEccHandle {
     ///
     pub fn check_point(&self, point: &sgx_ec256_public_t) -> SgxResult<bool> {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -1657,8 +1649,6 @@ impl SgxEccHandle {
             sgx_status_t::SGX_SUCCESS => {
                 if valid > 0 {
                     Ok(true)
-                } else if valid == 0 {
-                    Ok(false)
                 } else {
                     Ok(false)
                 }
@@ -1759,7 +1749,7 @@ impl SgxEccHandle {
     ///
     pub fn compute_shared_dhkey(&self, private_b: &sgx_ec256_private_t, public_ga: &sgx_ec256_public_t) -> SgxResult<sgx_ec256_dh_shared_t> {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -1850,7 +1840,7 @@ impl SgxEccHandle {
     pub fn ecdsa_sign_msg<T>(&self, data: &T, private: &sgx_ec256_private_t) -> SgxResult<sgx_ec256_signature_t>
         where T: Copy + ContiguousMemory {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -1868,7 +1858,7 @@ impl SgxEccHandle {
     pub fn ecdsa_sign_slice<T>(&self, data: &[T], private: &sgx_ec256_private_t) -> SgxResult<sgx_ec256_signature_t>
         where T: Copy + ContiguousMemory {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -1946,7 +1936,7 @@ impl SgxEccHandle {
                                signature: &sgx_ec256_signature_t) -> SgxResult<bool>
         where T: Copy + ContiguousMemory {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -1972,7 +1962,7 @@ impl SgxEccHandle {
                                  signature: &sgx_ec256_signature_t) -> SgxResult<bool>
         where T: Copy + ContiguousMemory {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -2009,13 +1999,13 @@ impl SgxEccHandle {
     ///
     pub fn close(&self) -> SgxError {
 
-        if self.initflag.get() == false {
+        if !self.initflag.get() {
             return Ok(());
         }
 
         let ret = {
             let handle = *self.handle.borrow();
-            if handle.is_null() == true {
+            if handle.is_null() {
                 sgx_status_t::SGX_SUCCESS
             } else {
                 rsgx_ecc256_close_context(handle)
@@ -2280,28 +2270,28 @@ pub fn rsgx_create_rsa_key_pair(n_byte_size: i32,
     if (n_byte_size <= 0) || (e_byte_size <= 0) {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
-    if (n.len() == 0) || (n.len() > i32::max_value() as usize) {
+    if (n.is_empty()) || (n.len() > i32::max_value() as usize) {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
-    if (d.len() == 0) || (d.len() > i32::max_value() as usize) {
+    if (d.is_empty()) || (d.len() > i32::max_value() as usize) {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
-    if (e.len() == 0) || (e.len() > i32::max_value() as usize) {
+    if (e.is_empty()) || (e.len() > i32::max_value() as usize) {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
-    if (p.len() == 0) || (p.len() > i32::max_value() as usize) {
+    if (p.is_empty()) || (p.len() > i32::max_value() as usize) {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
-    if (q.len() == 0) || (q.len() > i32::max_value() as usize) {
+    if (q.is_empty()) || (q.len() > i32::max_value() as usize) {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
-    if (dmp1.len() == 0) || (dmp1.len() > i32::max_value() as usize) {
+    if (dmp1.is_empty()) || (dmp1.len() > i32::max_value() as usize) {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
-    if (dmq1.len() == 0) || (dmq1.len() > i32::max_value() as usize) {
+    if (dmq1.is_empty()) || (dmq1.len() > i32::max_value() as usize) {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
-    if (iqmp.len() == 0) || (iqmp.len() > i32::max_value() as usize) {
+    if (iqmp.is_empty()) || (iqmp.len() > i32::max_value() as usize) {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
 
@@ -2336,22 +2326,22 @@ fn rsgx_create_rsa_priv_key(mod_size: i32,
     if (mod_size <= 0) || (exp_size <= 0) {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
-    if (e.len() == 0) || (e.len() > i32::max_value() as usize) {
+    if (e.is_empty()) || (e.len() > i32::max_value() as usize) {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
-    if (p.len() == 0) || (p.len() > i32::max_value() as usize) {
+    if (p.is_empty()) || (p.len() > i32::max_value() as usize) {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
-    if (q.len() == 0) || (q.len() > i32::max_value() as usize) {
+    if (q.is_empty()) || (q.len() > i32::max_value() as usize) {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
-    if (dmp1.len() == 0) || (dmp1.len() > i32::max_value() as usize) {
+    if (dmp1.is_empty()) || (dmp1.len() > i32::max_value() as usize) {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
-    if (dmq1.len() == 0) || (dmq1.len() > i32::max_value() as usize) {
+    if (dmq1.is_empty()) || (dmq1.len() > i32::max_value() as usize) {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
-    if (iqmp.len() == 0) || (iqmp.len() > i32::max_value() as usize) {
+    if (iqmp.is_empty()) || (iqmp.len() > i32::max_value() as usize) {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -2377,10 +2367,10 @@ fn rsgx_create_rsa_pub_key(mod_size: i32,
     if (mod_size <= 0) || (exp_size <= 0) {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
-    if (n.len() == 0) || (n.len() > i32::max_value() as usize) {
+    if (n.is_empty()) || (n.len() > i32::max_value() as usize) {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
-    if (e.len() == 0) || (e.len() > i32::max_value() as usize) {
+    if (e.is_empty()) || (e.len() > i32::max_value() as usize) {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -2412,7 +2402,7 @@ fn rsgx_rsa_priv_decrypt_sha256(rsa_key: sgx_rsa_key_t,
                                 out_len: &mut usize,
                                 in_data: &[u8]) -> sgx_status_t {
 
-    if in_data.len() == 0 {
+    if in_data.is_empty() {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
     if * out_len != 0 && out_data.len() != * out_len {
@@ -2420,10 +2410,12 @@ fn rsgx_rsa_priv_decrypt_sha256(rsa_key: sgx_rsa_key_t,
     }
 
     unsafe {
-         let mut p_out_data: * mut u8 = ptr::null_mut();
-        if * out_len != 0 {
-            p_out_data = out_data.as_mut_ptr();
-        }
+        let p_out_data: * mut u8 = if *out_len != 0 {
+            out_data.as_mut_ptr()
+        } else {
+            ptr::null_mut()
+        };
+
         sgx_rsa_priv_decrypt_sha256(rsa_key,
                                     p_out_data,
                                     out_len as * mut usize,
@@ -2437,18 +2429,20 @@ fn rsgx_rsa_pub_encrypt_sha256(rsa_key: sgx_rsa_key_t,
                                out_len: &mut usize,
                                in_data: &[u8]) -> sgx_status_t {
 
-    if in_data.len() == 0 {
+    if in_data.is_empty() {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
     if * out_len != 0 && out_data.len() != * out_len {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
-    
+
     unsafe {
-        let mut p_out_data: * mut u8 = ptr::null_mut();
-        if * out_len != 0 {
-            p_out_data = out_data.as_mut_ptr();
-        }
+        let p_out_data: * mut u8 = if *out_len != 0 {
+            out_data.as_mut_ptr()
+        } else {
+            ptr::null_mut()
+        };
+
         sgx_rsa_pub_encrypt_sha256(rsa_key,
                                    p_out_data,
                                    out_len as * mut usize,
@@ -2475,7 +2469,7 @@ impl SgxRsaPrivKey {
         }
     }
 
-    pub fn create(&self, 
+    pub fn create(&self,
                   mod_size: i32,
                   exp_size: i32,
                   e: &[u8],
@@ -2485,8 +2479,8 @@ impl SgxRsaPrivKey {
                   dmq1: &[u8],
                   iqmp: &[u8]) -> SgxError {
 
-        
-        if self.createflag.get() == true {
+
+        if self.createflag.get() {
             return Ok(());
         }
 
@@ -2515,7 +2509,7 @@ impl SgxRsaPrivKey {
                           out_len: &mut usize,
                           in_data: &[u8]) -> SgxError {
 
-        if self.createflag.get() == false {
+        if !self.createflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -2533,17 +2527,17 @@ impl SgxRsaPrivKey {
 
     pub fn free(&self) -> SgxError {
 
-        if self.createflag.get() == false {
+        if !self.createflag.get() {
             return Ok(());
         }
 
         let ret = {
             let key = *self.key.borrow();
-            if key.is_null() == true {
+            if key.is_null() {
                 sgx_status_t::SGX_SUCCESS
             } else {
-                rsgx_free_rsa_key(key, 
-                                  sgx_rsa_key_type_t::SGX_RSA_PRIVATE_KEY, 
+                rsgx_free_rsa_key(key,
+                                  sgx_rsa_key_type_t::SGX_RSA_PRIVATE_KEY,
                                   self.mod_size.get(),
                                   self.exp_size.get())
             }
@@ -2590,13 +2584,13 @@ impl SgxRsaPubKey {
         }
     }
 
-    pub fn create(&self, 
+    pub fn create(&self,
                   mod_size: i32,
                   exp_size: i32,
                   n: &[u8],
                   e: &[u8]) -> SgxError {
-        
-        if self.createflag.get() == true {
+
+        if self.createflag.get() {
             return Ok(());
         }
 
@@ -2618,10 +2612,10 @@ impl SgxRsaPubKey {
 
     pub fn encrypt_sha256(&self,
                           out_data: &mut [u8],
-                          out_len: &mut usize, 
+                          out_len: &mut usize,
                           in_data: &[u8]) -> SgxError {
 
-        if self.createflag.get() == false {
+        if !self.createflag.get() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
@@ -2639,17 +2633,17 @@ impl SgxRsaPubKey {
 
     pub fn free(&self) -> SgxError {
 
-        if self.createflag.get() == false {
+        if !self.createflag.get() {
             return Ok(());
         }
 
         let ret = {
             let key = *self.key.borrow();
-            if key.is_null() == true {
+            if key.is_null() {
                 sgx_status_t::SGX_SUCCESS
             } else {
-                rsgx_free_rsa_key(key, 
-                                  sgx_rsa_key_type_t::SGX_RSA_PUBLIC_KEY, 
+                rsgx_free_rsa_key(key,
+                                  sgx_rsa_key_type_t::SGX_RSA_PUBLIC_KEY,
                                   self.mod_size.get(),
                                   self.exp_size.get())
             }
@@ -2678,17 +2672,52 @@ impl Drop for SgxRsaPubKey {
     }
 }
 
+///
+/// rsgx_calculate_ecdsa_priv_key generates an ECDSA private key based on an input random seed.
+///
+/// # Description
+///
+/// This function generates an ECDSA private key based on an input random seed.
+///
+/// # Parameters
+///
+/// **hash_drg**
+///
+/// Pointer to the input random seed.
+///
+/// **sgx_nistp256_r_m1**
+///
+/// Pointer to the buffer for n-1 where n is order of the ECC group used.
+///
+/// **out_key**
+///
+/// Pointer to the generated ECDSA private key.
+///
+/// # Requirements
+///
+/// Library: libsgx_tcrypto.a
+///
+/// # Errors
+///
+/// **SGX_ERROR_INVALID_PARAMETER**
+///
+/// Some of the pointers are NULL, or the input size is 0.
+///
+/// **SGX_ERROR_UNEXPECTED**
+///
+/// Unexpected error occurred during the ECDSA private key generation.
+///
 pub fn rsgx_calculate_ecdsa_priv_key(hash_drg: &[u8],
-                                    sgx_nistp256_r_m1: &[u8],
-                                    out_key: &mut [u8]) -> SgxError {
+                                     sgx_nistp256_r_m1: &[u8],
+                                     out_key: &mut [u8]) -> SgxError {
 
-    if (hash_drg.len() == 0) || (hash_drg.len() > i32::max_value() as usize) {
+    if (hash_drg.is_empty()) || (hash_drg.len() > i32::max_value() as usize) {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
-    if (sgx_nistp256_r_m1.len() == 0) || (sgx_nistp256_r_m1.len() > i32::max_value() as usize) {
+    if (sgx_nistp256_r_m1.is_empty()) || (sgx_nistp256_r_m1.len() > i32::max_value() as usize) {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
-    if (out_key.len() == 0) || (out_key.len() > i32::max_value() as usize) {
+    if (out_key.is_empty()) || (out_key.len() > i32::max_value() as usize) {
         return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
     }
 
@@ -2699,6 +2728,20 @@ pub fn rsgx_calculate_ecdsa_priv_key(hash_drg: &[u8],
                                      sgx_nistp256_r_m1.len() as i32,
                                      out_key.as_mut_ptr(),
                                      out_key.len() as i32)
+    };
+
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(()),
+        _ => Err(ret),
+    }
+}
+
+pub fn rsgx_ecc256_calculate_pub_from_priv(priv_key: &sgx_ec256_private_t,
+                                           pub_key: &mut sgx_ec256_public_t) -> SgxError {
+
+    let ret = unsafe {
+        sgx_ecc256_calculate_pub_from_priv(priv_key as * const sgx_ec256_private_t,
+                                           pub_key as * mut sgx_ec256_public_t)
     };
 
     match ret {

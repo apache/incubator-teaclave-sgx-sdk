@@ -621,7 +621,7 @@ int PSIWorker::set_hash_salt(Messages::MessagePsiSalt msg) {
 
     //printf_array("salt: ", salt, SALT_SIZE);
     Log("Received SALT: %s", psi_salt);
-    
+
     return 0;
 }
 
@@ -642,7 +642,7 @@ int PSIWorker::sp_psi_get_data_hash(Messages::MessagePsiHashData *data) {
         if (file_size <= 0) {
             return -1;
         }
-        
+
         char * p = (char*)file_data;
         const char * s = p;
         char* n = (char*)p;
@@ -657,7 +657,7 @@ int PSIWorker::sp_psi_get_data_hash(Messages::MessagePsiHashData *data) {
             if (strlen(p) <= 0) {//ignore null line
                 continue;
             }
-            
+
             sample_sha256_hash_t report_data = {0};
             Sha256 sha256;
             sha256.update((uint8_t*)p, strlen(p));
@@ -749,7 +749,7 @@ int PSIWorker::sp_psi_intersect(Messages::MessagePsiIntersect msg) {
     for (int i = 0; i < data_size; i++) {
         data[i] = (uint8_t)msg.data(i);
     }
-    
+
     uint8_t aes_gcm_iv[SAMPLE_SP_IV_SIZE] = {0};
 
     int ret = sample_rijndael128GCM_decrypt(&g_sp_db.sk_key,
@@ -761,7 +761,7 @@ int PSIWorker::sp_psi_intersect(Messages::MessagePsiIntersect msg) {
                                             NULL,
                                             0,
                                             &in_mac);
-    
+
     if (ret != SAMPLE_SUCCESS) {
         Log("sample_rijndael128GCM_decrypt failed, %d", ret);
         SafeFree(data);

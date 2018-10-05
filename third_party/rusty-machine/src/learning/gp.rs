@@ -40,7 +40,7 @@ pub trait MeanFunc {
 }
 
 /// Constant mean function
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct ConstMean {
     a: f64,
 }
@@ -63,7 +63,7 @@ impl MeanFunc for ConstMean {
 /// Gaussian process with generic kernel and deterministic mean function.
 /// Can be used for gaussian process regression with noise.
 /// Currently does not support classification.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GaussianProcess<T: Kernel, U: MeanFunc> {
     ker: T,
     mean: U,

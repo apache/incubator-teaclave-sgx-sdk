@@ -92,3 +92,5 @@ mod function;
 pub use self::function::*;
 
 pub mod marker;
+
+pub mod metadata;

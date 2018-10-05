@@ -56,6 +56,7 @@ mod sha1;
 ///
 /// assert_eq!(&one_shot.as_ref(), &multi_part.as_ref());
 /// ```
+#[derive(Clone)]
 pub struct Context {
     state: State,
 
@@ -195,20 +196,6 @@ impl Context {
     pub fn algorithm(&self) -> &'static Algorithm { self.algorithm }
 }
 
-// XXX: This should just be `#[derive(Clone)]` but that doesn't work because
-// `[u8; 128]` doesn't implement `Clone`.
-impl Clone for Context {
-    fn clone(&self) -> Context {
-        Context {
-            state: self.state,
-            pending: self.pending,
-            completed_data_blocks: self.completed_data_blocks,
-            num_pending: self.num_pending,
-            algorithm: self.algorithm,
-        }
-    }
-}
-
 /// Returns the digest of `data` using the given digest algorithm.
 ///
 /// C analog: `EVP_Digest`
@@ -299,8 +286,7 @@ pub struct Algorithm {
     id: AlgorithmID,
 }
 
-#[derive(Eq, PartialEq)]
-#[allow(non_camel_case_types)]
+#[derive(Debug, Eq, PartialEq)]
 enum AlgorithmID {
     SHA1,
     SHA256,
@@ -315,22 +301,7 @@ impl PartialEq for Algorithm {
 
 impl Eq for Algorithm {}
 
-impl core::fmt::Debug for Algorithm {
-    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
-        // This would have to change if/when we add other algorithms with the
-        // same lengths.
-        let (n, suffix) =
-            if self.output_len == SHA512_256_OUTPUT_LEN &&
-               self.block_len == SHA512_BLOCK_LEN {
-            (512, "_256")
-        } else if self.output_len == 20 {
-            (1, "")
-        } else {
-            (self.output_len * 8, "")
-        };
-        write!(fmt, "SHA{}{}", n, suffix)
-    }
-}
+derive_debug_from_field!(Algorithm, id);
 
 /// SHA-1 as specified in [FIPS 180-4]. Deprecated.
 ///
@@ -534,7 +505,6 @@ mod tests {
 
         macro_rules! max_input_tests {
             ( $algorithm_name:ident ) => {
-                #[allow(non_snake_case)]
                 mod $algorithm_name {
                     use super::super::super::super::digest;
 

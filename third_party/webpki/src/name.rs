@@ -18,9 +18,6 @@ use {der, Error};
 use untrusted;
 
 #[cfg(feature = "std")]
-use std;
-
-#[cfg(feature = "std")]
 use std::string::String;
 
 /// A DNS Name suitable for use in the TLS Server Name Indication (SNI)
@@ -40,7 +37,7 @@ use std::string::String;
 ///
 /// [RFC 5280 Section 7.2]: https://tools.ietf.org/html/rfc5280#section-7.2
 #[cfg(feature = "std")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct DNSName(String);
 
 #[cfg(feature = "std")]
@@ -52,13 +49,16 @@ impl DNSName {
 }
 
 #[cfg(feature = "std")]
-impl<'a> From<DNSNameRef<'a>> for DNSName {
-    fn from(DNSNameRef(dns_name): DNSNameRef<'a>) -> Self {
-        // The `unwrap()` won't fail because a DNSNameRef is already guaranteed
-        // to be valid ASCII, which is a subset of UTF-8.
-        let s = std::str::from_utf8(dns_name.as_slice_less_safe()).unwrap();
-        DNSName(String::from(s))
+impl AsRef<str> for DNSName {
+    fn as_ref(&self) -> &str {
+       self.0.as_ref()
     }
+}
+
+// Deprecated
+#[cfg(feature = "std")]
+impl<'a> From<DNSNameRef<'a>> for DNSName {
+    fn from(dns_name: DNSNameRef<'a>) -> Self { dns_name.to_owned() }
 }
 
 /// A reference to a DNS Name suitable for use in the TLS Server Name Indication
@@ -93,12 +93,23 @@ impl<'a> DNSNameRef<'a> {
     pub fn try_from_ascii_str(dns_name: &str) -> Result<DNSNameRef, ()> {
         DNSNameRef::try_from_ascii(untrusted::Input::from(dns_name.as_bytes()))
     }
+
+    /// Constructs a `DNSName` from this `DNSNameRef`
+    pub fn to_owned(&self) -> DNSName {
+        // DNSNameRef is already guaranteed to be valid ASCII, which is a
+        // subset of UTF-8.
+        let s: &str = self.clone().into();
+        DNSName(s.to_ascii_lowercase())
+    }
 }
 
 #[cfg(feature = "std")]
 impl<'a> core::fmt::Debug for DNSNameRef<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> Result<(), core::fmt::Error> {
-        DNSName::from(*self).fmt(f)
+        let lowercase = self.clone().to_owned();
+        f.debug_tuple("DNSNameRef")
+            .field(&lowercase.0)
+            .finish()
     }
 }
 
@@ -124,7 +135,7 @@ pub fn verify_cert_dns_name(cert: &super::EndEntityCert,
         match name {
             GeneralName::DNSName(presented_id) => {
                 match presented_dns_id_matches_reference_dns_id(
-                        presented_id, IDRole::ReferenceID, dns_name) {
+                        presented_id, dns_name) {
                     Some(true) => { return NameIteration::Stop(Ok(())); },
                     Some(false) => (),
                     None => { return NameIteration::Stop(Err(Error::BadDER)); },
@@ -231,9 +242,8 @@ fn check_presented_id_conforms_to_constraints_in_subtree(
         let matches = match (name, base) {
             (GeneralName::DNSName(name),
              GeneralName::DNSName(base)) =>
-                presented_dns_id_matches_reference_dns_id(
-                    name, IDRole::NameConstraint, base)
-                        .ok_or(Error::BadDER),
+                presented_dns_id_matches_dns_id_constraint(name, base)
+                    .ok_or(Error::BadDER),
 
             (GeneralName::DirectoryName(name),
              GeneralName::DirectoryName(base)) =>
@@ -438,6 +448,20 @@ fn general_name<'a>(input: &mut untrusted::Reader<'a>)
     Ok(name)
 }
 
+fn presented_dns_id_matches_reference_dns_id(
+        presented_dns_id: untrusted::Input,
+        reference_dns_id: untrusted::Input) -> Option<bool> {
+    presented_dns_id_matches_reference_dns_id_internal(
+        presented_dns_id, IDRole::ReferenceID, reference_dns_id)
+}
+
+fn presented_dns_id_matches_dns_id_constraint(
+    presented_dns_id: untrusted::Input,
+    reference_dns_id: untrusted::Input) -> Option<bool> {
+    presented_dns_id_matches_reference_dns_id_internal(
+        presented_dns_id, IDRole::NameConstraint, reference_dns_id)
+}
+
 // We do not distinguish between a syntactically-invalid presented_dns_id and
 // one that is syntactically valid but does not match reference_dns_id; in both
 // cases, the result is false.
@@ -558,7 +582,7 @@ fn general_name<'a>(input: &mut untrusted::Reader<'a>)
 // [4] Feedback on the lack of clarify in the definition that never got
 //     incorporated into the spec:
 //     https://www.ietf.org/mail-archive/web/pkix/current/msg21192.html
-fn presented_dns_id_matches_reference_dns_id(
+fn presented_dns_id_matches_reference_dns_id_internal(
         presented_dns_id: untrusted::Input, reference_dns_id_role: IDRole,
         reference_dns_id: untrusted::Input) -> Option<bool> {
     if !is_valid_dns_id(presented_dns_id, IDRole::PresentedID,
@@ -1044,8 +1068,7 @@ mod tests {
     fn presented_matches_reference_test() {
         for &(presented, reference, expected_result) in PRESENTED_MATCHES_REFERENCE {
             let actual_result = presented_dns_id_matches_reference_dns_id(
-                untrusted::Input::from(presented), IDRole::ReferenceID,
-                untrusted::Input::from(reference));
+                untrusted::Input::from(presented), untrusted::Input::from(reference));
             assert_eq!(actual_result, expected_result,
                 "presented_dns_id_matches_reference_dns_id(\"{}\", IDRole::ReferenceID, \"{}\")",
                 String::from_utf8_lossy(presented),

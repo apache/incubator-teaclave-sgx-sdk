@@ -32,9 +32,10 @@ use sgx_types::{sgx_thread_t, sgx_thread_self};
 use panicking;
 use sys_common::thread_info;
 use sync::{SgxMutex, SgxCondvar};
+use core::any::Any;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
-use alloc_crate::arc::Arc;
+use alloc_crate::sync::Arc;
 
 #[macro_use] mod local;
 pub use self::local::{LocalKey, LocalKeyInner, AccessError};
@@ -162,7 +163,10 @@ pub fn park() {
     let mut m = thread.inner.lock.lock().unwrap();
     match thread.inner.state.compare_exchange(EMPTY, PARKED, SeqCst, SeqCst) {
         Ok(_) => {}
-        Err(NOTIFIED) => return, // notified after we locked
+        Err(NOTIFIED) => {
+            thread.inner.state.store(EMPTY, SeqCst);
+            return;
+        } // should consume this notification, so prohibit spurious wakeups in next park.
         Err(_) => panic!("inconsistent park state"),
     }
     loop {
@@ -255,3 +259,7 @@ impl SgxThread {
         }
     }
 }
+
+/// A specialized [`Result`] type for threads.
+///
+pub type Result<T> = ::result::Result<T, Box<dyn Any + Send + 'static>>;

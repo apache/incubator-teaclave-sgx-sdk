@@ -1,10 +1,6 @@
 //! Bindings to the [wabt](https://github.com/WebAssembly/wabt) library.
 //!
 
-//#![deny(missing_docs)]
-
-#![crate_type = "staticlib"]
-
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
@@ -12,7 +8,6 @@ extern crate sgx_types;
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
-
 use std::prelude::v1::*;
 
 extern crate serde;
@@ -20,7 +15,7 @@ extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 
-use std::ffi::{NulError};
+use std::ffi::NulError;
 use std::error;
 use std::fmt;
 
@@ -43,27 +38,27 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match self.0 {
             ErrorKind::Nul => "string contained nul-byte",
-    //        ErrorKind::Deserialize(_) => "failed to deserialize",
-    //        ErrorKind::Parse(_) => "failed to parse",
-    //        ErrorKind::WriteText => "failed to write text",
-    //        ErrorKind::NonUtf8Result => "result is not a valid utf8",
-    //        ErrorKind::WriteBinary => "failed to write binary",
-    //        ErrorKind::ResolveNames(_) => "failed to resolve names",
-    //        ErrorKind::Validate(_) => "failed to validate",
+            ErrorKind::Deserialize(_) => "failed to deserialize",
+            ErrorKind::Parse(_) => "failed to parse",
+            ErrorKind::WriteText => "failed to write text",
+            ErrorKind::NonUtf8Result => "result is not a valid utf8",
+            ErrorKind::WriteBinary => "failed to write binary",
+            ErrorKind::ResolveNames(_) => "failed to resolve names",
+            ErrorKind::Validate(_) => "failed to validate",
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-enum ErrorKind {
+pub enum ErrorKind {
     Nul,
-    //Deserialize(String),
-    //Parse(String),
-    //WriteText,
-    //NonUtf8Result,
-    //WriteBinary,
-    //ResolveNames(String),
-    //Validate(String),
+    Deserialize(String),
+    Parse(String),
+    WriteText,
+    NonUtf8Result,
+    WriteBinary,
+    ResolveNames(String),
+    Validate(String),
 }
 
 impl From<NulError> for Error {
@@ -221,25 +216,25 @@ impl From<NulError> for Error {
 //}
 //
 ///// Buffer returned by wabt.
-///// 
-///// # Examples 
-///// 
+/////
+///// # Examples
+/////
 ///// You can convert it either to `Vec`:
-///// 
+/////
 ///// ```rust
 ///// # extern crate wabt;
 ///// # let wabt_buf = wabt::Wat2Wasm::new().convert("(module)").unwrap();
 ///// let vec: Vec<u8> = wabt_buf.as_ref().to_vec();
 ///// ```
-///// 
+/////
 ///// Or in `String`:
-///// 
+/////
 ///// ```rust
 ///// # extern crate wabt;
 ///// # let wabt_buf = wabt::Wat2Wasm::new().convert("(module)").unwrap();
 ///// let text = String::from_utf8(wabt_buf.as_ref().to_vec()).unwrap();
 ///// ```
-///// 
+/////
 //pub struct WabtBuf {
 //    raw_buffer: *mut ffi::OutputBuffer,
 //}
@@ -251,7 +246,7 @@ impl From<NulError> for Error {
 //            if size == 0 {
 //                return &[];
 //            }
-//            
+//
 //            let data = ffi::wabt_output_buffer_get_data(self.raw_buffer) as *const u8;
 //
 //            slice::from_raw_parts(data, size)
@@ -320,7 +315,7 @@ impl From<NulError> for Error {
 //
 //struct WriteTextOptions {
 //    fold_exprs: bool,
-//    inline_export: bool,    
+//    inline_export: bool,
 //}
 //
 //impl Default for WriteTextOptions {
@@ -412,7 +407,7 @@ impl From<NulError> for Error {
 //        unsafe {
 //            let result = ffi::wabt_resolve_names_script(
 //                self.lexer.raw_lexer,
-//                self.raw_script, 
+//                self.raw_script,
 //                error_handler.raw_buffer
 //            );
 //            if result == ffi::Result::Error {
@@ -439,26 +434,21 @@ impl From<NulError> for Error {
 //        Ok(())
 //    }
 //
-//    fn write_binaries(&self, source: &str, out: &Path) -> Result<(), Error> {
+//    fn write_binaries(&self, source: &str) -> Result<WabtWriteScriptResult, Error> {
 //        let source_cstr = CString::new(source)?;
-//        let out_cstr = CString::new(out.to_str().ok_or_else(|| Error(ErrorKind::Nul))?)?;
 //
 //        let result = unsafe {
-//            let raw_result = ffi::wabt_write_binary_spec_script(
+//            let raw_script_result = ffi::wabt_write_binary_spec_script(
 //                self.raw_script,
 //                source_cstr.as_ptr(),
-//                out_cstr.as_ptr(),
+//                ptr::null(),
 //                0,
 //                1,
 //                0,
-//                0,
-//            );
-//            WriteModuleResult { raw_result }
+//                0);
+//            Ok(WabtWriteScriptResult { raw_script_result })
 //        };
 //        result
-//            .take_wabt_buf()
-//            .map(|_| ())
-//            .map_err(|_| Error(ErrorKind::WriteBinary))
 //    }
 //}
 //
@@ -486,12 +476,12 @@ impl From<NulError> for Error {
 //            }
 //        }
 //    }
-//    
+//
 //    /// Read WebAssembly binary.
-//    /// 
+//    ///
 //    /// `read_binary` doesn't do any validation. If you want to validate, you can the module you can
 //    /// call [`validate`].
-//    /// 
+//    ///
 //    /// [`validate`]: #method.validate
 //    pub fn read_binary<S: AsRef<[u8]>>(wasm: S, options: &ReadBinaryOptions) -> Result<Module, Error> {
 //        let error_handler = ErrorHandler::new_binary();
@@ -499,9 +489,9 @@ impl From<NulError> for Error {
 //            let wasm = wasm.as_ref();
 //            let raw_result = unsafe {
 //                ffi::wabt_read_binary(
-//                    wasm.as_ptr(), 
-//                    wasm.len(), 
-//                    options.read_debug_names as c_int, 
+//                    wasm.as_ptr(),
+//                    wasm.len(),
+//                    options.read_debug_names as c_int,
 //                    error_handler.raw_buffer
 //                )
 //            };
@@ -569,8 +559,8 @@ impl From<NulError> for Error {
 //    fn write_text(&self, options: &WriteTextOptions) -> Result<WabtBuf, Error> {
 //        let result = unsafe {
 //            let raw_result = ffi::wabt_write_text_module(
-//                self.raw_module, 
-//                options.fold_exprs as c_int, 
+//                self.raw_module,
+//                options.fold_exprs as c_int,
 //                options.inline_export as c_int,
 //            );
 //            WriteModuleResult { raw_result }
@@ -590,14 +580,14 @@ impl From<NulError> for Error {
 //}
 //
 ///// A builder for translate wasm text source to wasm binary format.
-///// 
+/////
 ///// This version allows you to tweak parameters. If you need simple version
 ///// check out [`wat2wasm`].
-///// 
+/////
 ///// [`wat2wasm`]: fn.wat2wasm.html
-///// 
+/////
 ///// # Examples
-///// 
+/////
 ///// ```rust
 ///// extern crate wabt;
 ///// use wabt::Wat2Wasm;
@@ -617,11 +607,11 @@ impl From<NulError> for Error {
 /////                 )
 /////             "#
 /////         ).unwrap();
-///// 
+/////
 /////     # wasm_binary;
 ///// }
 ///// ```
-///// 
+/////
 //pub struct Wat2Wasm {
 //    validate: bool,
 //    write_binary_options: WriteBinaryOptions,
@@ -637,7 +627,7 @@ impl From<NulError> for Error {
 //    }
 //
 //    /// Write canonicalized LEB128 for var ints.
-//    /// 
+//    ///
 //    /// Set this to `false` to write all LEB128 sizes as 5-bytes instead of their minimal size.
 //    /// `true` by default.
 //    pub fn canonicalize_lebs(&mut self, canonicalize_lebs: bool) -> &mut Wat2Wasm {
@@ -645,8 +635,8 @@ impl From<NulError> for Error {
 //        self
 //    }
 //
-//    /// Create a relocatable wasm binary 
-//    /// 
+//    /// Create a relocatable wasm binary
+//    ///
 //    /// (suitable for linking with wasm-link).
 //    /// `false` by default.
 //    pub fn relocatable(&mut self, relocatable: bool) -> &mut Wat2Wasm {
@@ -655,7 +645,7 @@ impl From<NulError> for Error {
 //    }
 //
 //    /// Write debug names to the generated binary file
-//    /// 
+//    ///
 //    /// `false` by default.
 //    pub fn write_debug_names(&mut self, write_debug_names: bool) -> &mut Wat2Wasm {
 //        self.write_binary_options.write_debug_names = write_debug_names;
@@ -663,7 +653,7 @@ impl From<NulError> for Error {
 //    }
 //
 //    /// Check for validity of module before writing.
-//    /// 
+//    ///
 //    /// `true` by default.
 //    pub fn validate(&mut self, validate: bool) -> &mut Wat2Wasm {
 //        self.validate = validate;
@@ -687,9 +677,9 @@ impl From<NulError> for Error {
 //}
 //
 ///// A builder for converting wasm binary to wasm text format.
-///// 
+/////
 ///// # Examples
-///// 
+/////
 ///// ```rust
 ///// extern crate wabt;
 ///// use wabt::Wasm2Wat;
@@ -704,11 +694,11 @@ impl From<NulError> for Error {
 /////                 1, 0, 0, 0       //  0x01 - version
 /////             ]
 /////         ).unwrap();
-///// 
+/////
 /////     # wasm_text;
 ///// }
 ///// ```
-///// 
+/////
 //pub struct Wasm2Wat {
 //    read_binary_options: ReadBinaryOptions,
 //    write_text_options: WriteTextOptions,
@@ -724,7 +714,7 @@ impl From<NulError> for Error {
 //    }
 //
 //    /// Read debug names in the binary file.
-//    /// 
+//    ///
 //    /// `false` by default.
 //    pub fn read_debug_names(&mut self, read_debug_names: bool) -> &mut Wasm2Wat {
 //        self.read_binary_options.read_debug_names = read_debug_names;
@@ -732,9 +722,9 @@ impl From<NulError> for Error {
 //    }
 //
 //    /// Write folded expressions where possible.
-//    /// 
+//    ///
 //    /// Example of folded code (if `true`):
-//    /// 
+//    ///
 //    /// ```WebAssembly
 //    /// (module
 //    ///     (func (param i32 i32) (result i32)
@@ -745,9 +735,9 @@ impl From<NulError> for Error {
 //    ///     )
 //    /// )
 //    /// ```
-//    /// 
+//    ///
 //    /// Example of straight code (if `false`):
-//    /// 
+//    ///
 //    /// ```WebAssembly
 //    /// (module
 //    ///     (func (param i32 i32) (result i32)
@@ -757,7 +747,7 @@ impl From<NulError> for Error {
 //    ///     )
 //    /// )
 //    /// ```
-//    /// 
+//    ///
 //    /// `false` by default.
 //    pub fn fold_exprs(&mut self, fold_exprs: bool) -> &mut Wasm2Wat {
 //        self.write_text_options.fold_exprs = fold_exprs;
@@ -765,9 +755,9 @@ impl From<NulError> for Error {
 //    }
 //
 //    /// Write all exports inline.
-//    /// 
+//    ///
 //    /// Example of code with inline exports (if `true`):
-//    /// 
+//    ///
 //    /// ```WebAssembly
 //    /// (module
 //    /// (func $addTwo (export "addTwo") (param $p0 i32) (param $p1 i32) (result i32)
@@ -775,9 +765,9 @@ impl From<NulError> for Error {
 //    ///     (get_local $p0)
 //    ///     (get_local $p1))))
 //    /// ```
-//    /// 
+//    ///
 //    /// Example of code with separate exports (if `false`):
-//    /// 
+//    ///
 //    /// ```WebAssembly
 //    /// (module
 //    ///   (func $addTwo (param $p0 i32) (param $p1 i32) (result i32)
@@ -786,7 +776,7 @@ impl From<NulError> for Error {
 //    ///       (get_local $p1)))
 //    ///   (export "addTwo" (func $addTwo)))
 //    /// ```
-//    /// 
+//    ///
 //    /// `false` by default.
 //    pub fn inline_export(&mut self, inline_export: bool) -> &mut Wasm2Wat {
 //        self.write_text_options.inline_export = inline_export;
@@ -802,17 +792,17 @@ impl From<NulError> for Error {
 //}
 //
 ///// Translate wasm text source to wasm binary format.
-///// 
+/////
 ///// If wasm source is valid wasm binary will be returned in the vector.
 ///// Returned binary is validated and can be executed.
-///// 
-///// This function will make translation with default parameters. 
+/////
+///// This function will make translation with default parameters.
 ///// If you want to find out what default parameters are or you want to tweak them
 ///// you can use [`Wat2Wasm`]
 /////
 ///// For more examples and online demo you can check online version
 ///// of [wat2wasm](https://cdn.rawgit.com/WebAssembly/wabt/aae5a4b7/demo/wat2wasm/).
-///// 
+/////
 ///// [`Wat2Wasm`]: struct.Wat2Wasm.html
 /////
 ///// # Examples
@@ -861,6 +851,81 @@ impl From<NulError> for Error {
 //    let text = String::from_utf8(result_buf.as_ref().to_vec())
 //            .map_err(|_| Error(ErrorKind::NonUtf8Result))?;
 //    Ok(text)
+//}
+//
+//struct WabtWriteScriptResult {
+//    raw_script_result: *mut ffi::WabtWriteScriptResult,
+//}
+//
+//struct WabtWriteScriptResultRelease {
+//    json_output_buffer: WabtBuf,
+//    _log_output_buffer: WabtBuf,
+//    module_output_buffers: HashMap<CString, WabtBuf>,
+//}
+//
+//impl WabtWriteScriptResult {
+//    fn is_ok(&self) -> bool {
+//        unsafe {
+//            ffi::wabt_write_script_result_get_result(self.raw_script_result) == ffi::Result::Ok
+//        }
+//    }
+//
+//    fn module_count(&self) -> usize {
+//        unsafe {
+//            ffi::wabt_write_script_result_get_module_count(self.raw_script_result)
+//        }
+//    }
+//
+//    fn module_filename(&self, index: usize) -> &CStr {
+//        assert!(index < self.module_count());
+//        unsafe {
+//            let s = ffi::wabt_write_script_result_get_module_filename(
+//                self.raw_script_result, index);
+//            CStr::from_ptr(s)
+//        }
+//    }
+//
+//    fn take_all(self) -> Result<WabtWriteScriptResultRelease, ()> {
+//        if self.is_ok() {
+//            let json_output_buffer;
+//            let log_output_buffer;
+//            let mut module_output_buffers = HashMap::new();
+//            unsafe {
+//                json_output_buffer =
+//                    ffi::wabt_write_script_result_release_json_output_buffer(
+//                        self.raw_script_result);
+//                log_output_buffer =
+//                    ffi::wabt_write_script_result_release_log_output_buffer(
+//                        self.raw_script_result);
+//            }
+//            for i in 0..self.module_count() {
+//                let module_output_buffer = unsafe {
+//                    ffi::wabt_write_script_result_release_module_output_buffer(
+//                        self.raw_script_result, i)
+//                };
+//                let name = self.module_filename(i);
+//                module_output_buffers.insert(
+//                    name.to_owned(),
+//                    WabtBuf { raw_buffer: module_output_buffer },
+//                );
+//            }
+//            Ok(WabtWriteScriptResultRelease {
+//                json_output_buffer: WabtBuf { raw_buffer: json_output_buffer },
+//                _log_output_buffer: WabtBuf { raw_buffer: log_output_buffer },
+//                module_output_buffers,
+//            })
+//        } else {
+//            Err(())
+//        }
+//    }
+//}
+//
+//impl Drop for WabtWriteScriptResult {
+//    fn drop(&mut self) {
+//        unsafe {
+//            ffi::wabt_destroy_write_script_result(self.raw_script_result);
+//        }
+//    }
 //}
 //
 //#[test]
@@ -932,9 +997,9 @@ impl From<NulError> for Error {
 //fn roundtrip() {
 //    #[cfg_attr(rustfmt, rustfmt_skip)]
 //    let factorial: &[u8] = &[
-//        0, 97, 115, 109, 1, 0, 0, 0, 1, 6, 1, 96, 1, 124, 1, 124, 3, 2, 1, 0, 7, 7, 
-//        1, 3, 102, 97, 99, 0, 0, 10, 46, 1, 44, 0, 32, 0, 68, 0, 0, 0, 0, 0, 0, 240, 
-//        63, 99, 4, 124, 68, 0, 0, 0, 0, 0, 0, 240, 63, 5, 32, 0, 32, 0, 68, 0, 0, 0, 
+//        0, 97, 115, 109, 1, 0, 0, 0, 1, 6, 1, 96, 1, 124, 1, 124, 3, 2, 1, 0, 7, 7,
+//        1, 3, 102, 97, 99, 0, 0, 10, 46, 1, 44, 0, 32, 0, 68, 0, 0, 0, 0, 0, 0, 240,
+//        63, 99, 4, 124, 68, 0, 0, 0, 0, 0, 0, 240, 63, 5, 32, 0, 32, 0, 68, 0, 0, 0,
 //        0, 0, 0, 240, 63, 161, 16, 0, 162, 11, 11
 //    ];
 //

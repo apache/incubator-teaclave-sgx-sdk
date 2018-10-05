@@ -63,7 +63,7 @@ pub extern "C" fn write_file() -> i32 {
         Some(d) => d,
         None => {
             println!("encode data failed.");
-            return 1; 
+            return 1;
         },
     };
 
@@ -71,7 +71,7 @@ pub extern "C" fn write_file() -> i32 {
         Ok(f) => f,
         Err(_) => {
             println!("SgxFile::create failed.");
-            return 2; 
+            return 2;
         },
     };
 
@@ -79,7 +79,7 @@ pub extern "C" fn write_file() -> i32 {
         Ok(len) => len,
         Err(_) => {
             println!("SgxFile::write failed.");
-            return 3; 
+            return 3;
         },
     };
 
@@ -96,7 +96,7 @@ pub extern "C" fn read_file() -> i32 {
         Ok(f) => f,
         Err(_) => {
             println!("SgxFile::open failed.");
-            return 1; 
+            return 1;
         },
     };
 
@@ -104,7 +104,7 @@ pub extern "C" fn read_file() -> i32 {
         Ok(len) => len,
         Err(_) => {
             println!("SgxFile::read failed.");
-            return 2; 
+            return 2;
         },
     };
 
@@ -113,7 +113,7 @@ pub extern "C" fn read_file() -> i32 {
         Some(d) => d,
         None => {
             println!("decode data failed.");
-            return 3; 
+            return 3;
         },
     };
 

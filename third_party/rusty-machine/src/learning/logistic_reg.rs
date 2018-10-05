@@ -46,7 +46,7 @@ use learning::error::Error;
 /// Logistic Regression Model.
 ///
 /// Contains option for optimized parameter.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LogisticRegressor<A>
     where A: OptimAlgorithm<BaseLogisticRegressor>
 {
@@ -141,7 +141,7 @@ impl<A> SupModel<Matrix<f64>, Vector<f64>> for LogisticRegressor<A>
 /// The Base Logistic Regression model.
 ///
 /// This struct cannot be instantianated and is used internally only.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BaseLogisticRegressor {
     parameters: Option<Vector<f64>>,
 }

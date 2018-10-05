@@ -33,7 +33,7 @@ enclave  {
     from "sgx_stdio.edl" import *;
     from "sgx_backtrace.edl" import *;
     from "sgx_tstdc.edl" import *;
-    
+
     include "sgx_eid.h"
     include "sgx_dh.h"
     trusted{

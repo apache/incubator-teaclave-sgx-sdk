@@ -77,9 +77,6 @@
 
 #![feature(alloc)]
 #![feature(allocator_api)]
-#![feature(fused)]
-#![feature(const_atomic_ptr_new)]
-#![feature(ascii_ctype)]
 #![feature(asm)]
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]

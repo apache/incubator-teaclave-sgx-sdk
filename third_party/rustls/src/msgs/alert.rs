@@ -1,6 +1,4 @@
-use std::vec::Vec;
-use std::option::Option;
-
+use std::prelude::v1::*;
 use msgs::enums::{AlertLevel, AlertDescription};
 use msgs::codec::{Codec, Reader};
 
@@ -17,12 +15,12 @@ impl Codec for AlertMessagePayload {
     }
 
     fn read(r: &mut Reader) -> Option<AlertMessagePayload> {
-        let level = try_ret!(AlertLevel::read(r));
-        let desc = try_ret!(AlertDescription::read(r));
+        let level = AlertLevel::read(r)?;
+        let description = AlertDescription::read(r)?;
 
         Some(AlertMessagePayload {
-            level: level,
-            description: desc,
+            level,
+            description,
         })
     }
 }

@@ -77,3 +77,39 @@ int u_backtrace_munmap_ocall(int * error, void * start, size_t length)
     }
     return ret;
 }
+
+int u_backtrace_fstat_ocall(int * error, int fd, struct stat * buf)
+{
+    int ret = fstat(fd, buf);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+int u_backtrace_lstat_ocall(int * error, const char * path, struct stat * buf)
+{
+    int ret = lstat(path, buf);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+ssize_t u_backtrace_read_ocall(int * error, int fd, void * buf, size_t count)
+{
+    ssize_t ret = read(fd, buf, count);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+off_t u_backtrace_lseek_ocall(int * error, int fd, off_t offset, int whence)
+{
+    off_t ret = lseek(fd, offset, whence);
+    if (error) {
+        *error = ret == (off_t)-1 ? errno : 0;
+    }
+    return ret;
+}

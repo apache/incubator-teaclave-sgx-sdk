@@ -49,7 +49,7 @@ use ffi::{OsStr, OsString};
 use sys::path::{is_sep_byte, is_verbatim_sep, MAIN_SEP_STR, parse_prefix};
 use alloc_crate::borrow::{Borrow, Cow};
 use alloc_crate::rc::Rc;
-use alloc_crate::arc::Arc;
+use alloc_crate::sync::Arc;
 use core::cmp;
 use core::fmt;
 use core::hash::{Hash, Hasher};
@@ -816,10 +816,7 @@ impl<'a> Iterator for Ancestors<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.next;
-        self.next = match next {
-            Some(path) => path.parent(),
-            None => None,
-        };
+        self.next = next.and_then(Path::parent);
         next
     }
 }
@@ -1030,6 +1027,13 @@ impl From<PathBuf> for Box<Path> {
     }
 }
 
+impl Clone for Box<Path> {
+    #[inline]
+    fn clone(&self) -> Self {
+        self.to_path_buf().into_boxed_path()
+    }
+}
+
 impl<'a, T: ?Sized + AsRef<OsStr>> From<&'a T> for PathBuf {
     fn from(s: &'a T) -> PathBuf {
         PathBuf::from(s.as_ref().to_os_string())
@@ -1071,7 +1075,7 @@ impl<P: AsRef<Path>> iter::Extend<P> for PathBuf {
 }
 
 impl fmt::Debug for PathBuf {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&**self, formatter)
     }
 }
@@ -1107,6 +1111,20 @@ impl<'a> From<PathBuf> for Cow<'a, Path> {
     #[inline]
     fn from(s: PathBuf) -> Cow<'a, Path> {
         Cow::Owned(s)
+    }
+}
+
+impl<'a> From<&'a PathBuf> for Cow<'a, Path> {
+    #[inline]
+    fn from(p: &'a PathBuf) -> Cow<'a, Path> {
+        Cow::Borrowed(p.as_path())
+    }
+}
+
+impl<'a> From<Cow<'a, Path>> for PathBuf {
+    #[inline]
+    fn from(p: Cow<'a, Path>) -> Self {
+        p.into_owned()
     }
 }
 
@@ -1304,7 +1322,7 @@ impl Path {
     /// * On Unix, a path has a root if it begins with `/`.
     ///
     /// * On Windows, a path has a root if it:
-    ///     * has no prefix and begins with a separator, e.g. `\\windows`
+    ///     * has no prefix and begins with a separator, e.g. `\windows`
     ///     * has a prefix followed by a separator, e.g. `c:\windows` but not `c:windows`
     ///     * has any non-disk prefix, e.g. `\\server\share`
     ///
@@ -1569,8 +1587,8 @@ impl Path {
         fs::symlink_metadata(self)
     }
 
-    /// Returns the canonical form of the path with all intermediate components
-    /// normalized and symbolic links resolved.
+    /// Returns the canonical, absolute form of the path with all intermediate
+    /// components normalized and symbolic links resolved.
     ///
     /// This is an alias to [`fs::canonicalize`].
     ///

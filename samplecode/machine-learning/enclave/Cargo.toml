@@ -17,3 +17,5 @@ sgx_rand = { path = "../../../sgx_rand" }
 
 [dependencies]
 rusty-machine = { path = "../../../third_party/rusty-machine" }
+serde         = { path = "../../../third_party/serde-rs/serde/serde" }
+serde_json    = { path = "../../../third_party/serde-rs/json" }

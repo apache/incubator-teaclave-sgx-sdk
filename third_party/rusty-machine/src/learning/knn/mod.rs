@@ -41,7 +41,7 @@ pub use self::binary_tree::{KDTree, BallTree};
 pub use self::brute_force::BruteForce;
 
 /// k-Nearest Neighbor Classifier
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct KNNClassifier<S: KNearestSearch> {
     k: usize,
 

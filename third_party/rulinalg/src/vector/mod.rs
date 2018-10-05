@@ -9,7 +9,7 @@ mod impl_vec;
 /// The Vector struct.
 ///
 /// Can be instantiated with any type.
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Vector<T> {
     size: usize,
     data: Vec<T>,

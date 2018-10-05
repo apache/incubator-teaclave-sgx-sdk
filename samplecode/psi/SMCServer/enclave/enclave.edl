@@ -28,7 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
- 
+
 enclave {
 
     from "sgx_tkey_exchange.edl" import *;
@@ -59,7 +59,7 @@ enclave {
 											   [out] uint8_t salt[32],
                                                [out] uint8_t salt_mac[16],
                                                [out] uint32_t *id);
-        
+
         public sgx_status_t add_hash_data(uint32_t id,
                                           sgx_ra_context_t context,
                                           [in, size=hash_size] uint8_t* hashdata,

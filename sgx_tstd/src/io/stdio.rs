@@ -33,7 +33,7 @@ use sync::{SgxMutex, SgxMutexGuard, SgxReentrantMutex, SgxReentrantMutexGuard};
 use sys::stdio;
 use core::cell::RefCell;
 use core::fmt;
-use alloc_crate::arc::Arc;
+use alloc_crate::sync::Arc;
 
 /// A handle to a raw instance of the standard input stream of this process.
 ///

@@ -8,3 +8,4 @@ build = "build.rs"
 sgx_types = { path = "../../../../sgx_types" }
 sgx_urts = { path = "../../../../sgx_urts" }
 mio = "0.6"
+dirs = "1.0.2"

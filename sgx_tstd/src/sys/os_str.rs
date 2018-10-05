@@ -35,7 +35,7 @@ use alloc_crate::string::String;
 use alloc_crate::vec::Vec;
 use alloc_crate::boxed::Box;
 use alloc_crate::rc::Rc;
-use alloc_crate::arc::Arc;
+use alloc_crate::sync::Arc;
 use sys_common::bytestring::debug_fmt_bytestring;
 use core::str::lossy::Utf8Lossy;
 

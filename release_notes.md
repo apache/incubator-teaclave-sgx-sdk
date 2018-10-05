@@ -1,3 +1,28 @@
+# Rust SGX SDK v1.0.4 Release Notes
+
+**Upgrade recommended** Rust community has fixed a [memory bug](https://blog.rust-lang.org/2018/09/21/Security-advisory-for-std.html) in [liballoc](https://github.com/rust-lang/rust/commit/8ac88d375e00c91a3db5d78852048322f88be3c1) recently. We strongly recommend to upgrade to rust-sgx-sdk v1.0.4 and use the most recent Rust releases to build it.
+
+**Support Intel SGX SDK v2.3.1** We skip Intel SDK v2.3 due to a [logic error patched in 2.3.1](https://github.com/intel/linux-sgx/pull/313).
+
+**Support Rust nightly-2018-10-01** in master branch
+
+**Support Rust stable-2018-09-25** in stable branch
+
+**New third party libraries** bit-vec, chrono, erased-serde, fxhash, nan-preserving-float, num-bigint, quick-error, raft-rs, time, webpki-roots, yasna
+
+**mutual-ra code sample** contains an implementation of remote attestation based TLS channel between enclaves. The algorithm comes from Intel's [paper](https://github.com/cloud-security-research/sgx-ra-tls/blob/master/whitepaper.pdf).
+
+**ue-ra code sample** contains an implementation of remote attestation based TLS channel between untrusted party and enclave, use the same algorithm above.
+
+**switchless code sample** shows how to use the new **Switchless** model provided by Intel.
+
+**Refactored dockerfile** Since Intel has provided support to Ubuntu 18.04, we could remove the experimental docker image. Now we provide docker images for ubuntu 16.04 and 18.04 with both Rust nightly and stable releases.
+
+**AI Model serialize/deserialize in rusty-machine** Resolved in [issue 35](https://github.com/baidu/rust-sgx-sdk/issues/35). One can serialize a rusty-machine model into a json string and deserialize from it.
+
+**Third party crates upgraded/discontinued** Upgraded ring/webpki/rustls, wasmi/wabt-rs-core. Removed lazy-static, parity-wasm and untrusted because these crates supports `no_std` and could be used directly from crates.io.
+
+
 # Rust SGX SDK v1.0.1 Release Notes
 
 **Support Intel SGX SDK v2.2**

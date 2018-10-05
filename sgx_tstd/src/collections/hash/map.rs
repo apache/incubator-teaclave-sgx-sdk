@@ -29,7 +29,7 @@
 use self::Entry::*;
 use self::VacantEntryState::*;
 
-use alloc::{CollectionAllocErr, oom};
+use collections::CollectionAllocErr;
 use core::cell::Cell;
 use core::borrow::Borrow;
 use core::cmp::max;
@@ -41,8 +41,10 @@ use core::mem::{self, replace};
 use core::ops::{Deref, Index};
 use sys;
 
-use super::table::{self, Bucket, EmptyBucket, FullBucket, FullBucketMut, RawTable, SafeHash};
+use super::table::{self, Bucket, EmptyBucket, Fallibility, FullBucket, FullBucketMut, RawTable,
+                   SafeHash};
 use super::table::BucketState::{Empty, Full};
+use super::table::Fallibility::{Fallible, Infallible};
 
 const MIN_NONZERO_RAW_CAPACITY: usize = 32;     // must be a power of two
 
@@ -287,7 +289,6 @@ const DISPLACEMENT_THRESHOLD: usize = 128;
 /// 3. Emmanuel Goossaert. ["Robin Hood hashing: backward shift
 ///    deletion"](http://codecapsule.com/2013/11/17/robin-hood-hashing-backward-shift-deletion/)
 ///
-
 #[derive(Clone)]
 pub struct HashMap<K, V, S = RandomState> {
     // All hashes are keyed on these values, to prevent hash collision attacks.
@@ -549,7 +550,7 @@ impl<K, V, S> HashMap<K, V, S>
     #[inline]
     pub fn with_hasher(hash_builder: S) -> HashMap<K, V, S> {
         HashMap {
-            hash_builder: hash_builder,
+            hash_builder,
             resize_policy: DefaultResizePolicy::new(),
             table: RawTable::new(0),
         }
@@ -608,11 +609,11 @@ impl<K, V, S> HashMap<K, V, S>
     /// Panics if the new allocation size overflows [`usize`].
     ///
     pub fn reserve(&mut self, additional: usize) {
-        match self.try_reserve(additional) {
+        match self.reserve_internal(additional, Infallible) {
             Err(CollectionAllocErr::CapacityOverflow) => panic!("capacity overflow"),
-            Err(CollectionAllocErr::AllocErr) => oom(),
+            Err(CollectionAllocErr::AllocErr) => unreachable!(),
             Ok(()) => { /* yay */ }
-         }
+        }
     }
 
     /// Tries to reserve capacity for at least `additional` more elements to be inserted
@@ -625,17 +626,24 @@ impl<K, V, S> HashMap<K, V, S>
     /// is returned.
     ///
     pub fn try_reserve(&mut self, additional: usize) -> Result<(), CollectionAllocErr> {
+        self.reserve_internal(additional, Fallible)
+    }
+
+    fn reserve_internal(&mut self, additional: usize, fallibility: Fallibility)
+        -> Result<(), CollectionAllocErr> {
+
         let remaining = self.capacity() - self.len(); // this can't overflow
         if remaining < additional {
-            let min_cap = self.len().checked_add(additional)
+            let min_cap = self.len()
+                .checked_add(additional)
                 .ok_or(CollectionAllocErr::CapacityOverflow)?;
             let raw_cap = self.resize_policy.try_raw_capacity(min_cap)?;
-            self.try_resize(raw_cap)?;
+            self.try_resize(raw_cap, fallibility)?;
         } else if self.table.tag() && remaining <= self.len() {
             // Probe sequence is too long and table is half full,
             // resize early to reduce probing length.
             let new_capacity = self.table.capacity() * 2;
-            self.try_resize(new_capacity)?;
+            self.try_resize(new_capacity, fallibility)?;
         }
         Ok(())
     }
@@ -647,11 +655,21 @@ impl<K, V, S> HashMap<K, V, S>
     ///   2) Ensure `new_raw_cap` is a power of two or zero.
     #[inline(never)]
     #[cold]
-    fn try_resize(&mut self, new_raw_cap: usize) -> Result<(), CollectionAllocErr> {
+    fn try_resize(
+        &mut self,
+        new_raw_cap: usize,
+        fallibility: Fallibility,
+    ) -> Result<(), CollectionAllocErr> {
         assert!(self.table.size() <= new_raw_cap);
         assert!(new_raw_cap.is_power_of_two() || new_raw_cap == 0);
 
-        let mut old_table = replace(&mut self.table, RawTable::try_new(new_raw_cap)?);
+        let mut old_table = replace(
+            &mut self.table,
+            match fallibility {
+                Infallible => RawTable::new(new_raw_cap),
+                Fallible => RawTable::try_new(new_raw_cap)?,
+            }
+        );
         let old_size = old_table.size();
 
         if old_table.size() == 0 {
@@ -1603,12 +1621,17 @@ impl<'a, K, V> OccupiedEntry<'a, K, V> {
 
     /// Gets a mutable reference to the value in the entry.
     ///
+    /// If you need a reference to the `OccupiedEntry` which may outlive the
+    /// destruction of the `Entry` value, see [`into_mut`].
+    ///
     pub fn get_mut(&mut self) -> &mut V {
         self.elem.read_mut().1
     }
 
     /// Converts the OccupiedEntry into a mutable reference to the value in the entry
     /// with a lifetime bound to the map itself.
+    ///
+    /// If you need multiple references to the `OccupiedEntry`, see [`get_mut`].
     ///
     pub fn into_mut(self) -> &'a mut V {
         self.elem.into_mut_refs().1

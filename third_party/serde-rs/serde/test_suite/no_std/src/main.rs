@@ -1,8 +1,15 @@
-#![feature(lang_items, start, compiler_builtins_lib)]
+// Copyright 2017 Serde Developers
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+#![feature(lang_items, start, panic_implementation)]
 #![no_std]
 
 extern crate libc;
-extern crate compiler_builtins;
 
 #[start]
 fn start(_argc: isize, _argv: *const *const u8) -> isize {
@@ -11,19 +18,12 @@ fn start(_argc: isize, _argv: *const *const u8) -> isize {
 
 #[lang = "eh_personality"]
 #[no_mangle]
-pub extern fn rust_eh_personality() {}
+pub extern "C" fn rust_eh_personality() {}
 
-#[lang = "eh_unwind_resume"]
-#[no_mangle]
-pub extern fn rust_eh_unwind_resume() {}
-
-#[lang = "panic_fmt"]
-#[no_mangle]
-pub extern fn rust_begin_panic(_msg: core::fmt::Arguments,
-                               _file: &'static str,
-                               _line: u32) -> ! {
+#[panic_implementation]
+fn panic(_info: &core::panic::PanicInfo) -> ! {
     unsafe {
-        libc::abort()
+        libc::abort();
     }
 }
 
@@ -42,7 +42,9 @@ struct Newtype(u8);
 struct Tuple(u8, u8);
 
 #[derive(Serialize, Deserialize)]
-struct Struct { f: u8 }
+struct Struct {
+    f: u8,
+}
 
 #[derive(Serialize, Deserialize)]
 enum Enum {

@@ -122,8 +122,8 @@ pub fn boundary_value_to_runtime_value(rv: BoundaryValue) -> RuntimeValue {
     match rv {
         BoundaryValue::I32(bv) => RuntimeValue::I32(bv),
         BoundaryValue::I64(bv) => RuntimeValue::I64(bv),
-        BoundaryValue::F32(bv) => RuntimeValue::F32(f32::from_bits(bv)),
-        BoundaryValue::F64(bv) => RuntimeValue::F64(f64::from_bits(bv)),
+        BoundaryValue::F32(bv) => RuntimeValue::F32(f32::from_bits(bv).into()),
+        BoundaryValue::F64(bv) => RuntimeValue::F64(f64::from_bits(bv).into()),
     }
 }
 
@@ -151,8 +151,8 @@ impl SpecModule {
             table: TableInstance::alloc(10, Some(20)).unwrap(),
             memory: MemoryInstance::alloc(Pages(1), Some(Pages(2))).unwrap(),
             global_i32: GlobalInstance::alloc(RuntimeValue::I32(666), false),
-            global_f32: GlobalInstance::alloc(RuntimeValue::F32(666.0), false),
-            global_f64: GlobalInstance::alloc(RuntimeValue::F64(666.0), false),
+            global_f32: GlobalInstance::alloc(RuntimeValue::F32(666.0.into()), false),
+            global_f64: GlobalInstance::alloc(RuntimeValue::F64(666.0.into()), false),
         }
     }
 }
@@ -161,8 +161,8 @@ pub fn spec_to_runtime_value(value: Value) -> RuntimeValue {
     match value {
         Value::I32(v) => RuntimeValue::I32(v),
         Value::I64(v) => RuntimeValue::I64(v),
-        Value::F32(v) => RuntimeValue::F32(v),
-        Value::F64(v) => RuntimeValue::F64(v),
+        Value::F32(v) => RuntimeValue::F32(v.into()),
+        Value::F64(v) => RuntimeValue::F64(v.into()),
     }
 }
 

@@ -37,7 +37,7 @@ enclave {
     //from "sgx_tstdc.edl" import *;
     trusted {
         /* define ECALLs here. */
-		
+
         public sgx_status_t sgx_time_sample();
     };
 };

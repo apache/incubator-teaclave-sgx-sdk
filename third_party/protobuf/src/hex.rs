@@ -1,8 +1,7 @@
 // hex encoder and decoder used by rust-protobuf unittests
-use std::string::String;
-use std::vec::Vec;
+
+use std::prelude::v1::*;
 use std::char;
-use std::slice::SliceConcatExt;
 
 fn decode_hex_digit(digit: char) -> u8 {
     match digit {

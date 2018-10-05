@@ -31,29 +31,9 @@
 
 enclave {
 
-    struct stat64_t 
-    {
-        uint64_t st_dev;
-        uint64_t st_ino;
-        uint64_t st_nlink;
-        uint32_t st_mode;
-        uint32_t st_uid;
-        uint32_t st_gid;
-        int __pad0;
-        uint64_t st_rdev;
-        uint64_t st_size;
-        int64_t st_blksize;
-        int64_t st_blocks;
-        int64_t st_atime;
-        int64_t st_atime_nsec;
-        int64_t st_mtime;
-        int64_t st_mtime_nsec;
-        int64_t st_ctime;
-        int64_t st_ctime_nsec;
-        int64_t __reserved[3];
-    };
+    include "inc/stat.h"
 
-	trusted {
+    trusted {
         /* define ECALLs here. */
     };
 

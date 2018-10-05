@@ -167,7 +167,7 @@ fn make_config(cert: &str, key: &str) -> Arc<rustls::ServerConfig> {
 
     let certs = load_certs(cert);
     let privkey = load_private_key(key);
-    config.set_single_cert_with_ocsp_and_sct(certs, privkey, vec![], vec![]);
+    config.set_single_cert_with_ocsp_and_sct(certs, privkey, vec![], vec![]).unwrap();
 
     Arc::new(config)
 }

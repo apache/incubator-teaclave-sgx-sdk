@@ -28,7 +28,7 @@
 
 use sync::SgxThreadMutex;
 use sys_common;
-use alloc_crate::arc::Arc;
+use alloc_crate::sync::Arc;
 use core::cell::{Cell, UnsafeCell};
 use core::ptr;
 
@@ -38,6 +38,9 @@ pub struct Lazy<T> {
     init: fn() -> Arc<T>,
 }
 
+#[inline]
+const fn done<T>() -> *mut Arc<T> { 1_usize as *mut _ }
+
 unsafe impl<T> Sync for Lazy<T> {}
 
 impl<T: Send + Sync + 'static> Lazy<T> {
@@ -46,7 +49,7 @@ impl<T: Send + Sync + 'static> Lazy<T> {
         Lazy {
             lock: SgxThreadMutex::new(),
             ptr: Cell::new(ptr::null_mut()),
-            init: init
+            init,
         }
     }
 
@@ -59,38 +62,15 @@ impl<T: Send + Sync + 'static> Lazy<T> {
             let ptr = self.ptr.get();
             let ret = if ptr.is_null() {
                 Some(self.init())
-            } else if ptr as usize == 1 {
+            } else if ptr == done() {
                 None
             } else {
                 Some((*ptr).clone())
             };
             self.lock.unlock();
-            return ret
+            ret
         }
     }
-    /*
-    #[cfg(not(feature = "global_exit"))]
-    pub unsafe fn destroy(&'static self) {
-
-        self.lock.lock();
-        let ptr = self.ptr.get();
-        if ptr.is_null() || ptr as usize == 1 {
-            self.lock.unlock();
-            return;
-        }
-        self.ptr.set(1 as *mut _);
-        self.lock.unlock();
-        drop(Box::from_raw(ptr))
-    }
-
-    #[cfg(not(feature = "global_exit"))]
-    unsafe fn init(&'static self) -> Arc<T> {
-
-        let ret = (self.init)();
-        self.ptr.set(Box::into_raw(Box::new(ret.clone())));
-        ret
-    }
-    */
 
     unsafe fn init(&'static self) -> Arc<T> {
         // If we successfully register an at exit handler, then we cache the
@@ -99,12 +79,7 @@ impl<T: Send + Sync + 'static> Lazy<T> {
         // `Arc`.
         let registered = sys_common::at_exit(move || {
             self.lock.lock();
-            let ptr = self.ptr.get();
-            if ptr.is_null() || ptr as usize == 1 {
-                self.lock.unlock();
-                return;
-            }
-            self.ptr.set(1 as *mut _);
+            let ptr = self.ptr.replace(done());
             self.lock.unlock();
             drop(Box::from_raw(ptr))
         });

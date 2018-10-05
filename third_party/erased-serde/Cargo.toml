@@ -1,0 +1,31 @@
+[package]
+name = "erased-serde"
+version = "0.3.6"
+authors = ["David Tolnay <dtolnay@gmail.com>"]
+license = "MIT/Apache-2.0"
+description = "Type-erased Serialize and Serializer traits"
+repository = "https://github.com/dtolnay/erased-serde"
+documentation = "https://github.com/dtolnay/erased-serde"
+keywords = ["serde", "erasure"]
+include = ["Cargo.toml", "src/**/*.rs", "LICENSE-*"]
+
+[dependencies]
+serde = { path = "../serde-rs/serde/serde" }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }
+
+[dev-dependencies]
+serde_cbor = "0.8"
+serde_derive = "1.0"
+serde_json = "1.0"
+
+[features]
+unstable-debug = []
+
+[[test]]
+name = "test"
+path = "tests/readme.rs"
+
+[badges]
+travis-ci = { repository = "dtolnay/erased-serde" }

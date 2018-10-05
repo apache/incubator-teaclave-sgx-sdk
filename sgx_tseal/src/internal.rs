@@ -45,10 +45,10 @@ use alloc::vec::Vec;
  *    SGX_FLAGS_MODE64BIT
  *    SGX_FLAGS_PROVISION_KEY
  *    SGX_FLAGS_EINITTOKEN_KEY */
-const FLAGS_NON_SECURITY_BITS: uint64_t = (0x00FFFFFFFFFFFFC0 | SGX_FLAGS_MODE64BIT | SGX_FLAGS_PROVISION_KEY| SGX_FLAGS_EINITTOKEN_KEY);
+const FLAGS_NON_SECURITY_BITS: uint64_t = (0x00FF_FFFF_FFFF_FFC0 | SGX_FLAGS_MODE64BIT | SGX_FLAGS_PROVISION_KEY| SGX_FLAGS_EINITTOKEN_KEY);
 const TSEAL_DEFAULT_FLAGSMASK: uint64_t = (!FLAGS_NON_SECURITY_BITS);
 
-const MISC_NON_SECURITY_BITS: uint32_t =  0x0FFFFFFF;  /* bit[27:0]: have no security implications */
+const MISC_NON_SECURITY_BITS: uint32_t =  0x0FFF_FFFF;  /* bit[27:0]: have no security implications */
 const TSEAL_DEFAULT_MISCMASK: uint32_t =  (!MISC_NON_SECURITY_BITS);
 
 #[derive(Clone, Default)]
@@ -136,9 +136,8 @@ impl SgxInternalSealedData {
     pub fn get_add_mac_txt_len(&self) -> u32 {
 
         let data_size = self.payload_data.additional.len();
-        if data_size > self.payload_data.payload_size as usize {
-            u32::max_value()
-        } else if data_size >= u32::max_value() as usize {
+        if data_size > self.payload_data.payload_size as usize ||
+           data_size >= u32::max_value() as usize {
             u32::max_value()
         } else {
             data_size as u32
@@ -148,9 +147,8 @@ impl SgxInternalSealedData {
     pub fn get_encrypt_txt_len(&self) -> u32 {
 
         let data_size = self.payload_data.encrypt.len();
-        if data_size > self.payload_data.payload_size as usize {
-            u32::max_value()
-        } else if data_size >= u32::max_value() as usize {
+        if data_size > self.payload_data.payload_size as usize ||
+           data_size >= u32::max_value() as usize {
             u32::max_value()
         } else {
             data_size as u32
@@ -162,8 +160,8 @@ impl SgxInternalSealedData {
         if p.is_null() {
             return None;
         }
-        if rsgx_raw_is_within_enclave(p as * mut u8, len as usize) == false &&
-           rsgx_raw_is_outside_enclave(p as * mut u8, len as usize) == false {
+        if !rsgx_raw_is_within_enclave(p as * mut u8, len as usize) &&
+           !rsgx_raw_is_outside_enclave(p as * mut u8, len as usize) {
             return None;
         }
 
@@ -185,7 +183,7 @@ impl SgxInternalSealedData {
         }
 
         let ptr_sealed_data = p as *mut u8;
-        let ptr_encrypt = ptr_sealed_data.offset(mem::size_of::<sgx_sealed_data_t>() as isize);
+        let ptr_encrypt = ptr_sealed_data.add(mem::size_of::<sgx_sealed_data_t>());
         if encrypt_len > 0 {
             ptr::copy_nonoverlapping(self.payload_data.encrypt.as_ptr(), ptr_encrypt, encrypt_len as usize);
         }
@@ -208,8 +206,8 @@ impl SgxInternalSealedData {
         if p.is_null() {
             return None;
         }
-        if rsgx_raw_is_within_enclave(p as * mut u8, len as usize) == false &&
-           rsgx_raw_is_outside_enclave(p as * mut u8, len as usize) == false {
+        if !rsgx_raw_is_within_enclave(p as * mut u8, len as usize) &&
+           !rsgx_raw_is_outside_enclave(p as * mut u8, len as usize) {
             return None;
         }
 
@@ -240,23 +238,26 @@ impl SgxInternalSealedData {
             return None;
         }
 
-        let ptr_encrypt = ptr_sealed_data.offset(mem::size_of::<sgx_sealed_data_t>() as isize);
-        let mut encrypt: Vec<u8> =  Vec::new();
-        if encrypt_len > 0 {
+        let ptr_encrypt = ptr_sealed_data.add(mem::size_of::<sgx_sealed_data_t>());
+
+        let encrypt : Vec<u8> = if encrypt_len > 0 {
             let mut temp: Vec<u8> = Vec::with_capacity(encrypt_len as usize);
             temp.set_len(encrypt_len as usize);
             ptr::copy_nonoverlapping(ptr_encrypt as * const u8, temp.as_mut_ptr(), encrypt_len as usize);
-            encrypt = temp;
-        }
+            temp
+        } else {
+            Vec::new()
+        };
 
-        let mut additional: Vec<u8> = Vec::new();
-        if additional_len > 0 {
+        let additional: Vec<u8> = if additional_len > 0 {
             let ptr_additional = ptr_encrypt.offset(encrypt_len as isize);
             let mut temp: Vec<u8> = Vec::with_capacity(additional_len as usize);
             temp.set_len(additional_len as usize);
             ptr::copy_nonoverlapping(ptr_additional as * const u8, temp.as_mut_ptr(), additional_len as usize);
-            additional = temp;
-        }
+            temp
+        } else {
+            Vec::new()
+        };
 
         let mut sealed_data = Self::default();
         sealed_data.key_request = raw_sealed_data.key_request;
@@ -308,15 +309,14 @@ impl SgxInternalSealedData {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
-        if rsgx_slice_is_within_enclave(encrypt_text) == false {
+        if !rsgx_slice_is_within_enclave(encrypt_text) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
-        if additional_len > 0 {
-            if (rsgx_slice_is_within_enclave(additional_text) == false) &&
-               (rsgx_slice_is_outside_enclave(additional_text) == false) {
+        if additional_len > 0 &&
+               !rsgx_slice_is_within_enclave(additional_text) &&
+               !rsgx_slice_is_outside_enclave(additional_text) {
                 return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
-            }
         }
 
         let target_info = sgx_target_info_t::default();
@@ -333,21 +333,19 @@ impl SgxInternalSealedData {
         }
 
         let key_request = sgx_key_request_t{key_name: SGX_KEYSELECT_SEAL,
-                                            key_policy: key_policy,
+                                            key_policy,
                                             isv_svn: report.body.isv_svn,
                                             reserved1: 0_u16,
                                             cpu_svn: report.body.cpu_svn,
-                                            attribute_mask: attribute_mask,
-                                            key_id: key_id,
-                                            misc_mask: misc_mask,
+                                            attribute_mask,
+                                            key_id,
+                                            misc_mask,
                                             reserved2: [0_u8; SGX_KEY_REQUEST_RESERVED2_BYTES]};
 
         let payload_iv = [0_u8; SGX_SEAL_IV_SIZE];
         let mut result = Self::seal_data_iv(additional_text, encrypt_text, &payload_iv, &key_request);
-        match result {
-            Ok(ref mut sealed_data) => sealed_data.key_request = key_request,
-            _ => {},
-        };
+
+        if let Ok(ref mut sealed_data) = result { sealed_data.key_request = key_request};
 
         report = sgx_report_t::default();
         key_id = sgx_key_id_t::default();
@@ -372,16 +370,15 @@ impl SgxInternalSealedData {
         if (additional_len + encrypt_len) != self.get_payload_size() {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
-        if rsgx_raw_is_within_enclave(self as * const _ as * const u8,  mem::size_of::<Self>()) == false {
+        if !rsgx_raw_is_within_enclave(self as * const _ as * const u8,  mem::size_of::<Self>()) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if rsgx_slice_is_within_enclave(self.get_encrypt_txt()) == false {
+        if !rsgx_slice_is_within_enclave(self.get_encrypt_txt()) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if additional_len > 0 {
-            if rsgx_slice_is_within_enclave(self.get_additional_txt()) == false {
+        if additional_len > 0 &&
+            !rsgx_slice_is_within_enclave(self.get_additional_txt()) {
                 return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
-            }
         }
 
         self.unseal_data_helper()
@@ -421,8 +418,8 @@ impl SgxInternalSealedData {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
-        if (rsgx_slice_is_within_enclave(additional_text) == false) &&
-           (rsgx_slice_is_outside_enclave(additional_text) == false) {
+        if !rsgx_slice_is_within_enclave(additional_text) &&
+           !rsgx_slice_is_outside_enclave(additional_text) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
@@ -440,21 +437,18 @@ impl SgxInternalSealedData {
         }
 
         let key_request = sgx_key_request_t{key_name: SGX_KEYSELECT_SEAL,
-                                            key_policy: key_policy,
+                                            key_policy,
                                             isv_svn: report.body.isv_svn,
                                             reserved1: 0_u16,
                                             cpu_svn: report.body.cpu_svn,
-                                            attribute_mask: attribute_mask,
-                                            key_id: key_id,
-                                            misc_mask: misc_mask,
+                                            attribute_mask,
+                                            key_id,
+                                            misc_mask,
                                             reserved2: [0_u8; SGX_KEY_REQUEST_RESERVED2_BYTES]};
 
         let payload_iv = [0_u8; SGX_SEAL_IV_SIZE];
         let mut result = Self::seal_data_iv(additional_text, &[0_u8; 0], &payload_iv, &key_request);
-        match result {
-            Ok(ref mut sealed_data) => sealed_data.key_request = key_request,
-            _ => {},
-        };
+        if let Ok(ref mut sealed_data) = result { sealed_data.key_request = key_request};
 
         report = sgx_report_t::default();
         key_id = sgx_key_id_t::default();
@@ -483,10 +477,10 @@ impl SgxInternalSealedData {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
 
-        if rsgx_raw_is_within_enclave(self as * const _ as * const u8,  mem::size_of::<Self>()) == false {
+        if !rsgx_raw_is_within_enclave(self as * const _ as * const u8,  mem::size_of::<Self>()) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if rsgx_slice_is_within_enclave(self.get_additional_txt()) == false {
+        if !rsgx_slice_is_within_enclave(self.get_additional_txt()) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
@@ -522,7 +516,7 @@ impl SgxInternalSealedData {
         }
 
         sealed_data.payload_data.payload_size = (encrypt_text.len() + additional_text.len()) as u32;
-        if additional_text.len() > 0 {
+        if !additional_text.is_empty() {
             sealed_data.payload_data.additional = additional_text.to_vec().into_boxed_slice();
         }
 

@@ -94,10 +94,7 @@ impl SgxTime {
 
         let ret = rsgx_get_trusted_time(&mut timestamp, &mut source_nonce);
         match ret {
-            sgx_status_t::SGX_SUCCESS => Ok(SgxTime{
-                                            timestamp: timestamp,
-                                            source_nonce: source_nonce
-                                         }),
+            sgx_status_t::SGX_SUCCESS => Ok(SgxTime{timestamp, source_nonce}),
             _ => Err(SgxTimeError::SgxStatus(ret)),
         }
     }

@@ -3,6 +3,9 @@ Rust SGX SDK helps developers write Intel SGX applications in Rust programming l
 
 To achieve better security, we recommend developers to apply [Non-bypassable Security Paradigm (NbSP)](https://github.com/baidu/rust-sgx-sdk/blob/master/documents/nbsp.pdf) to the system design and implementation.
 
+## v1.0.4 Release
+This version supports Rust nightly build (nightly-2018-10-01) in the master branch and the most recent stable build (stable-2018-09-25) in the rust-stable branch. It supports the latest Intel SGX SDK **v2.3.1** and Ubuntu Linux 18.04. It now contains further third party libraries including: bit-vec, chrono, erased-serde, fxhash, nan-preserving-float, num-bigint, quick-error, raft-rs, time, webpki-roots, and yasna. Some third party libraries, like untrusted, parity-wasm and lazy-static, are removed because they support `no_std` and can be used directly from crates.io. We strongly recommend developers upgrade to v1.0.4 and use the most recent Rust release to build it due to the [Security advisory for the standard library](https://blog.rust-lang.org/2018/09/21/Security-advisory-for-std.html). Please refer to [release_notes](release_notes.md) for further details.
+
 ## v1.0.1 Release
 This version supports the Rust nightly build (nightly-2018-07-16) in master branch and the most recent Rust stable build (stable-2018-07-10). And it supports the latest Intel SGX SDK **v2.2**. New third party libraries include: bytes, http, iovec, rust-crypto, rust-fnv and rust-threshold-secret-sharing. New code sample 'secretsharing' and 'rust-threshold-secret-sharing' is provided by @davidp94. Please refer to [release_notes](release_notes.md) for further details.
 
@@ -20,9 +23,9 @@ This version provides a new namespace: `sgx_tstd::untrusted`, including `sgx_tst
 
 ## Requirement
 
-Ubuntu 16.04
+Ubuntu 16.04 or 18.04
 
-[Intel SGX SDK 2.2 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
+[Intel SGX SDK 2.3.1 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
 
 Docker (Recommended)
 
@@ -33,11 +36,13 @@ The docker image now supports Intel ME. If you need it, please refer to the sgxt
 
 ### Native without docker (Not recommended)
 
-Install Intel SGX driver and SDK first. And refer to [Dockerfile](https://github.com/baidu/rust-sgx-sdk/blob/master/dockerfile/Dockerfile) or stable branch [Dockerfile](https://github.com/baidu/rust-sgx-sdk/blob/master/dockerfile/rust-stable/Dockerfile) to setup your own native Rust-SGX environment.
+Install Intel SGX driver and SDK first. And refer to [Dockerfile](dockerfile/Dockerfile.1604.nightly) or stable branch [Dockerfile](Dockerfile.1604.stable) to setup your own native Rust-SGX environment.
 
 ### Using docker (Recommended) without ME support
 
-First, make sure Intel SGX Driver 2.2 is installed and functions well. `/dev/isgx` should be appeared.
+* As of v1.0.4, we provide 4 docker images: `baiduxlab/sgx-rust:1604` `baiduxlab/sgx-rust:1804` `baiduxlab/sgx-rust-stable:1604` `baiduxlab/sgx-rust-stable:1804`. The `latest` tag pins on `baiduxlab/sgx-rust:1604`.
+
+First, make sure Intel SGX Driver 2.3.1 is installed and functions well. `/dev/isgx` should appear.
 
 Second, pull the docker image. If you'd like to work on stable branch of Rust and `rust-stable` branch of this SDK, please pull `baiduxlab/sgx-rust-stable` instead.
 
@@ -49,7 +54,7 @@ Third, start a docker with sgx device support and the Rust SGX SDK.
 
 Next, start the aesm service inside the docker
 
-`root@docker:/# /opt/intel/sgxpsw/aesm/aesm_service &`
+`root@docker:/# /opt/intel/libsgx-enclave-common/aesm/aesm_service &`
 
 Finally, check if the sample code works
 
@@ -61,7 +66,7 @@ Finally, check if the sample code works
 
 ## Build the docker image by yourself
 
-Make sure Intel SGX SDK is properly installed and service started on the host OS. Then `cd dockerfile` and run `docker build -t rust-sgx-docker` to build.
+Make sure Intel SGX SDK is properly installed and service started on the host OS. Then `cd dockerfile` and run `docker build -t rust-sgx-docker -f Dockerfile.1604.nightly .` to build.
 
 ## Use simulation mode for non SGX-enabled machine (includes macOS)
 
@@ -80,6 +85,15 @@ But when building any sample code, set the `SGX_MODE` to `SW` in `Makefile`.
 `root@docker:~/sgx/samplecode/helloworld# vi Makefile`
 
 Replace `SGX_MODE ?= HW` with `SGX_MODE ?= SW`
+
+or run `export SGX_MODE=SW` in your terminal.
+
+Next, upgrade the toolchain (to the aforementioned version) to use the **master** branch
+
+```
+root@docker:/# rustup default nightly-2018-08-25-x86_64-unknown-linux-gnu
+root@docker:/# rustup component add rust-src
+```
 
 Finally, check if the sample code works
 
@@ -135,7 +149,7 @@ We provide eighteen sample codes to help developers understand how to write Encl
 
 * `sgxtime` shows how to acquire trusted timestamp via Intel ME. Please refer to this [instruction](documents/sgxtime.md) for detail.
 
-* `protobuf` shows how to use the ported `rust-protobuf` to pass messages to the enclave using protobuf.
+* `protobuf` shows how to use the ported `rust-protobuf` to pass messages to the enclave using protobuf. Please install protobuf-compiler by `apt-get install protobuf-compiler` and protobuf-codegen by `cargo install protobuf-codegen --vers=2.0.3` before compiling this sample.
 
 * `wasmi` shows how to pass WebAssembly test suites using the ported WebAssembly interpreter.
 
@@ -143,9 +157,11 @@ We provide eighteen sample codes to help developers understand how to write Encl
 
 * `secretsharing` shows the usage of Shamir sharing in Rust-SGX environment (provided by @davidp94).
 
-# Samples of ported third-party libraries
+* `switchless` shows the usage of latest "switchless" execution model provided by intel. Please pay attention to the Makefile and the position of link flag "-lsgx_tswitchless".
 
-As of v0.9.5, we provide 25 ported third-party libraries. All of them could be compiled using xargo (`XARGO_SGX=1` make) or cargo (`make`).
+* `mutual-ra` provides remote attestation based TLS connection between SGX enclaves. See the [readme](samplecode/mutual-ra/Readme.md) for details.
+
+* `ue-ra` provides remote attestation based TLS connection between an untrusted party and one SGX enclave. See the [readme](samplecode/ue-ra/Readme.md) for details.
 
 # Tips for writing enclaves in Rust
 
@@ -169,7 +185,7 @@ Baidu Rust-SGX SDK is provided under the BSD license. Please refer to the [Licen
 
 # Authors
 
-Ran Duan, Long Li, Shi Jia, Yu Ding, Lenx Wei, Tanghui Chen
+Ran Duan, Long Li, Shi Jia, Yu Ding, Yulong Zhang, Yueqiang Cheng, Lenx Wei, Tanghui Chen
 
 ![Baidu X-Lab Logo](https://raw.githubusercontent.com/baidu/rust-sgx-sdk/master/logo_25.png)
 

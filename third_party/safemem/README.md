@@ -1,6 +1,13 @@
 # safemem
 Safe wrappers for `memmove`, `memset`, etc. in Rust
 
+`no_std` Support
+----------------
+
+This crate has support for `no_std` which is controlled via default feature `std`. To use the crate
+in a `no_std` environment simply turn off default features.
+
+
 License
 -------
 

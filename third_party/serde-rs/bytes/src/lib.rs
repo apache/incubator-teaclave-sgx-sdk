@@ -36,29 +36,23 @@
 //! #
 //! # fn main() {}
 //! ```
-//!
-//! Rust support for specialization is being tracked in [rust-lang/rust#31844].
-//! Once it lands in the stable compiler Serde will be deprecating these wrapper
-//! types in favor of optimizing `&[u8]` and `Vec<u8>` out of the box.
-//!
-//! [rust-lang/rust#31844]: https://github.com/rust-lang/rust/issues/31844
 
-#![doc(html_root_url = "https://docs.rs/serde_bytes/0.10.2")]
-//#![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(not(all(target_env = "sgx", feature = "std")), no_std)]
-#![cfg_attr(all(target_env = "sgx", feature = "std"), feature(rustc_private))]
+#![doc(html_root_url = "https://docs.rs/serde_bytes/0.10.4")]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "alloc", feature(alloc))]
 #![deny(missing_docs)]
 
-#[cfg(all(not(target_env = "sgx"), feature = "std"))]
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+
+#[cfg(not(target_env = "sgx"))]
+#[macro_use]
 extern crate sgx_tstd as std;
-#[cfg(not(feature = "std"))]
-extern crate core;
+
+use std::prelude::v1::*;
 
 #[cfg(feature = "std")]
 use std::{fmt, ops};
-#[cfg(feature = "std")]
-use std::vec::Vec;
 
 #[cfg(not(feature = "std"))]
 use core::{fmt, ops};
@@ -108,7 +102,7 @@ mod value;
 /// # fn main() {}
 /// ```
 pub fn serialize<T, S>(bytes: &T, serializer: S) -> Result<S::Ok, S::Error>
-    where T: AsRef<[u8]>,
+    where T: ?Sized + AsRef<[u8]>,
           S: Serializer
 {
     serializer.serialize_bytes(bytes.as_ref())
@@ -256,10 +250,9 @@ impl<'a, 'de: 'a> Deserialize<'de> for Bytes<'a> {
 mod bytebuf {
     #[cfg(feature = "std")]
     use std::{cmp, fmt, ops};
+
     #[cfg(feature = "std")]
-    use std::vec::Vec;
-    #[cfg(feature = "std")]
-    use std::string::String;
+    use std::prelude::v1::*;
 
     #[cfg(not(feature = "std"))]
     use core::{cmp, fmt, ops};
@@ -308,11 +301,13 @@ mod bytebuf {
     impl ByteBuf {
         /// Construct a new, empty `ByteBuf`.
         pub fn new() -> Self {
+            use std::prelude::v1::*;
             ByteBuf::from(Vec::new())
         }
 
         /// Construct a new, empty `ByteBuf` with the specified capacity.
         pub fn with_capacity(cap: usize) -> Self {
+            use std::prelude::v1::*;
             ByteBuf::from(Vec::with_capacity(cap))
         }
 
@@ -400,6 +395,7 @@ mod bytebuf {
         fn visit_seq<V>(self, mut visitor: V) -> Result<ByteBuf, V::Error>
             where V: SeqAccess<'de>
         {
+            use std::prelude::v1::*;
             let len = cmp::min(visitor.size_hint().unwrap_or(0), 4096);
             let mut values = Vec::with_capacity(len);
 

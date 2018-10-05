@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use std::io::Error;
-use libc::{self, c_char, c_int, c_void, size_t, off_t};
+use libc::{self, c_char, c_int, c_void, size_t, ssize_t, off_t, stat};
 
 #[no_mangle]
 pub extern "C" fn u_backtrace_open_ocall(error: * mut c_int,
@@ -99,6 +99,69 @@ pub extern "C" fn u_backtrace_munmap_ocall(error: * mut c_int,
                                            length: size_t) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::munmap(start, length) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_backtrace_fstat_ocall(error: * mut c_int,
+                                         fd: c_int,
+                                         buf: * mut stat) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::fstat(fd, buf) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_backtrace_lstat_ocall(error: * mut c_int,
+                                          path: * const c_char,
+                                          buf: * mut stat) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::stat(path, buf) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_backtrace_read_ocall(error: * mut c_int,
+                                         fd: c_int,
+                                         buf: * mut c_void,
+                                         count: size_t) -> ssize_t {
+    let mut errno = 0;
+    let ret = unsafe { libc::read(fd, buf, count) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_backtrace_lseek_ocall(error: * mut c_int,
+                                          fd: c_int,
+                                          offset: off_t,
+                                          whence: c_int) -> off_t {
+
+    let mut errno = 0;
+    let ret = unsafe { libc::lseek(fd, offset, whence) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }

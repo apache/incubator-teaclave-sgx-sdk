@@ -97,7 +97,7 @@ sgx_status_t Enclave::raInit(sgx_ra_context_t *ra_context) {
     } else {
         Log("Call enclave_ra_init success");
         *ra_context = context;
-    }  
+    }
     return ret;
 }
 
@@ -116,7 +116,7 @@ void Enclave::raClose(sgx_ra_context_t ra_context) {
             // led us to this point in the code.
             ret = ret_save;
             Log("Call enclave_ra_close success");
-        }    
+        }
     }
 }
 

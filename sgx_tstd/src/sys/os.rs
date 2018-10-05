@@ -192,7 +192,7 @@ pub fn getenv(k: &OsStr) -> io::Result<Option<OsString>> {
             Some(OsStringExt::from_vec(CStr::from_ptr(s).to_bytes().to_vec()))
         };
         ENV_LOCK.unlock();
-        return Ok(ret)
+        Ok(ret)
     }
 }
 
@@ -204,7 +204,7 @@ pub fn setenv(k: &OsStr, v: &OsStr) -> io::Result<()> {
         ENV_LOCK.lock();
         let ret = cvt(libc::setenv(k.as_ptr(), v.as_ptr(), 1)).map(|_| ());
         ENV_LOCK.unlock();
-        return ret
+        ret
     }
 }
 
@@ -215,7 +215,7 @@ pub fn unsetenv(n: &OsStr) -> io::Result<()> {
         ENV_LOCK.lock();
         let ret = cvt(libc::unsetenv(nbuf.as_ptr())).map(|_| ());
         ENV_LOCK.unlock();
-        return ret
+        ret
     }
 }
 

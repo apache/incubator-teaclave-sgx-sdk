@@ -1,18 +1,17 @@
-use std::vec::Vec;
-use std::boxed::Box;
-use std::option::Option;
-use std::string::String;
-
-use session::{Session, SessionSecrets, SessionCommon};
+use std::prelude::v1::*;
+use session::{Session, SessionCommon};
+//use keylog::{KeyLog, NoKeyLog};
 use suites::{SupportedCipherSuite, ALL_CIPHERSUITES};
 use msgs::enums::{ContentType, SignatureScheme};
 use msgs::enums::{AlertDescription, HandshakeType, ProtocolVersion};
-use msgs::handshake::SessionID;
+use msgs::handshake::{ServerExtension, SessionID};
 use msgs::message::Message;
 use error::TLSError;
 use sign;
 use verify;
 use key;
+use vecbuf::WriteV;
+
 use webpki;
 
 use std::sync::Arc;
@@ -30,7 +29,7 @@ pub mod handy;
 /// **highly sensitive data**, containing enough key material
 /// to break all security of the corresponding session.
 ///
-/// `put` and `del` are mutating operations; this isn't expressed
+/// `put` is a mutating operation; this isn't expressed
 /// in the type system to allow implementations freedom in
 /// how to achieve interior mutability.  `Mutex` is a common
 /// choice.
@@ -41,15 +40,11 @@ pub trait StoresServerSessions : Send + Sync {
     /// Store session secrets encoded in `value` against key `id`,
     /// overwrites any existing value against `id`.  Returns `true`
     /// if the value was stored.
-    fn put(&self, id: &SessionID, value: Vec<u8>) -> bool;
+    fn put(&self, key: Vec<u8>, value: Vec<u8>) -> bool;
 
     /// Find a session with the given `id`.  Return it, or None
     /// if it doesn't exist.
-    fn get(&self, id: &SessionID) -> Option<Vec<u8>>;
-
-    /// Erase a session with the given `id`.  Return true if
-    /// `id` existed and was removed.
-    fn del(&self, id: &SessionID) -> bool;
+    fn get(&self, key: &[u8]) -> Option<Vec<u8>>;
 }
 
 /// A trait for the ability to encrypt and decrypt tickets.
@@ -113,6 +108,9 @@ pub struct ServerConfig {
     /// which is supported by the client.
     pub ignore_client_order: bool,
 
+    /// Our MTU.  If None, we don't limit TLS message sizes.
+    pub mtu: Option<usize>,
+
     /// How to store client sessions.
     pub session_storage: Arc<StoresServerSessions + Send + Sync>,
 
@@ -132,30 +130,38 @@ pub struct ServerConfig {
 
     /// How to verify client certificates.
     verifier: Arc<verify::ClientCertVerifier>,
+
+    // How to output key material for debugging.  The default
+    // does nothing.
+    //pub key_log: Arc<KeyLog>,
 }
 
 impl ServerConfig {
     /// Make a `ServerConfig` with a default set of ciphersuites,
-    /// no keys/certificates, no ALPN protocols, and no session persistence.
+    /// no keys/certificates, and no ALPN protocols.  Session resumption
+    /// is enabled by storing up to 256 recent sessions in memory. Tickets are
+    /// disabled.
     ///
     /// Publicly-available web servers on the internet generally don't do client
     /// authentication; for this use case, `client_cert_verifier` should be a
     /// `NoClientAuth`. Otherwise, use `AllowAnyAuthenticatedClient` or another
     /// implementation to enforce client authentication.
-    //
-    // We don't provide a default for `client_cert_verifier` because the safest
-    // default, requiring client authentication, requires additional
-    // configuration that we cannot provide reasonable defaults for.
+    ///
+    /// We don't provide a default for `client_cert_verifier` because the safest
+    /// default, requiring client authentication, requires additional
+    /// configuration that we cannot provide reasonable defaults for.
     pub fn new(client_cert_verifier: Arc<verify::ClientCertVerifier>) -> ServerConfig {
         ServerConfig {
             ciphersuites: ALL_CIPHERSUITES.to_vec(),
             ignore_client_order: false,
-            session_storage: Arc::new(handy::NoSessionStorage {}),
+            mtu: None,
+            session_storage: handy::ServerSessionMemoryCache::new(256),
             ticketer: Arc::new(handy::NeverProducesTickets {}),
             alpn_protocols: Vec::new(),
             cert_resolver: Arc::new(handy::FailResolveChain {}),
             versions: vec![ ProtocolVersion::TLSv1_3, ProtocolVersion::TLSv1_2 ],
             verifier: client_cert_verifier,
+            //key_log: Arc::new(NoKeyLog {}),
         }
     }
 
@@ -179,11 +185,15 @@ impl ServerConfig {
     /// disregarded.
     ///
     /// `cert_chain` is a vector of DER-encoded certificates.
-    /// `key_der` is a DER-encoded RSA private key.
+    /// `key_der` is a DER-encoded RSA or ECDSA private key.
+    ///
+    /// This function fails if `key_der` is invalid.
     pub fn set_single_cert(&mut self,
                            cert_chain: Vec<key::Certificate>,
-                           key_der: key::PrivateKey) {
-        self.cert_resolver = Arc::new(handy::AlwaysResolvesChain::new_rsa(cert_chain, &key_der));
+                           key_der: key::PrivateKey) -> Result<(), TLSError> {
+        let resolver = handy::AlwaysResolvesChain::new(cert_chain, &key_der)?;
+        self.cert_resolver = Arc::new(resolver);
+        Ok(())
     }
 
     /// Sets a single certificate chain, matching private key and OCSP
@@ -191,20 +201,23 @@ impl ServerConfig {
     /// connections, irrespective of things like SNI hostname.
     ///
     /// `cert_chain` is a vector of DER-encoded certificates.
-    /// `key_der` is a DER-encoded RSA private key.
+    /// `key_der` is a DER-encoded RSA or ECDSA private key.
     /// `ocsp` is a DER-encoded OCSP response.  Ignored if zero length.
     /// `scts` is an `SignedCertificateTimestampList` encoding (see RFC6962)
     /// and is ignored if empty.
+    ///
+    /// This function fails if `key_der` is invalid.
     pub fn set_single_cert_with_ocsp_and_sct(&mut self,
                                              cert_chain: Vec<key::Certificate>,
                                              key_der: key::PrivateKey,
                                              ocsp: Vec<u8>,
-                                             scts: Vec<u8>) {
-        let resolver = handy::AlwaysResolvesChain::new_rsa_with_extras(cert_chain,
-                                                                       &key_der,
-                                                                       ocsp,
-                                                                       scts);
+                                             scts: Vec<u8>) -> Result<(), TLSError> {
+        let resolver = handy::AlwaysResolvesChain::new_with_extras(cert_chain,
+                                                                   &key_der,
+                                                                   ocsp,
+                                                                   scts)?;
         self.cert_resolver = Arc::new(resolver);
+        Ok(())
     }
 
     /// Set the ALPN protocol list to the given protocol names.
@@ -220,10 +233,10 @@ impl ServerConfig {
 
 pub struct ServerSessionImpl {
     pub config: Arc<ServerConfig>,
-    pub secrets: Option<SessionSecrets>,
     pub common: SessionCommon,
     sni: Option<webpki::DNSName>,
     pub alpn_protocol: Option<String>,
+    pub quic_params: Option<Vec<u8>>,
     pub error: Option<TLSError>,
     pub state: Option<Box<hs::State + Send + Sync>>,
     pub client_cert_chain: Option<Vec<key::Certificate>>,
@@ -236,17 +249,18 @@ impl fmt::Debug for ServerSessionImpl {
 }
 
 impl ServerSessionImpl {
-    pub fn new(server_config: &Arc<ServerConfig>) -> ServerSessionImpl {
+    pub fn new(server_config: &Arc<ServerConfig>, extra_exts: Vec<ServerExtension>)
+               -> ServerSessionImpl {
         let perhaps_client_auth = server_config.verifier.offer_client_auth();
 
         ServerSessionImpl {
             config: server_config.clone(),
-            secrets: None,
-            common: SessionCommon::new(None, false),
+            common: SessionCommon::new(server_config.mtu, false),
             sni: None,
             alpn_protocol: None,
+            quic_params: None,
             error: None,
-            state: Some(Box::new(hs::ExpectClientHello::new(perhaps_client_auth))),
+            state: Some(Box::new(hs::ExpectClientHello::new(perhaps_client_auth, extra_exts))),
             client_cert_chain: None,
         }
     }
@@ -274,6 +288,14 @@ impl ServerSessionImpl {
     }
 
     pub fn process_msg(&mut self, mut msg: Message) -> Result<(), TLSError> {
+        // TLS1.3: drop CCS at any time during handshaking
+        if self.common.is_tls13()
+            && msg.is_content_type(ContentType::ChangeCipherSpec)
+            && self.is_handshaking() {
+            trace!("Dropping CCS");
+            return Ok(());
+        }
+
         // Decrypt if demanded by current state.
         if self.common.peer_encrypting {
             let dm = self.common.decrypt_incoming(msg)?;
@@ -352,10 +374,6 @@ impl ServerSessionImpl {
         Ok(())
     }
 
-    pub fn start_encryption_tls12(&mut self) {
-        self.common.start_encryption_tls12(self.secrets.as_ref().unwrap());
-    }
-
     pub fn get_peer_certificates(&self) -> Option<Vec<key::Certificate>> {
         if self.client_cert_chain.is_none() {
             return None;
@@ -378,6 +396,10 @@ impl ServerSessionImpl {
         self.common.negotiated_version
     }
 
+    pub fn get_negotiated_ciphersuite(&self) -> Option<&'static SupportedCipherSuite> {
+        self.common.get_suite()
+    }
+
     pub fn get_sni(&self)-> Option<&webpki::DNSName> {
         self.sni.as_ref()
     }
@@ -396,14 +418,14 @@ impl ServerSessionImpl {
 #[derive(Debug)]
 pub struct ServerSession {
     // We use the pimpl idiom to hide unimportant details.
-    imp: ServerSessionImpl,
+    pub(crate) imp: ServerSessionImpl,
 }
 
 impl ServerSession {
     /// Make a new ServerSession.  `config` controls how
     /// we behave in the TLS protocol.
     pub fn new(config: &Arc<ServerConfig>) -> ServerSession {
-        ServerSession { imp: ServerSessionImpl::new(config) }
+        ServerSession { imp: ServerSessionImpl::new(config, vec![]) }
     }
 
     /// Retrieves the SNI hostname, if any, used to select the certificate and
@@ -435,6 +457,10 @@ impl Session for ServerSession {
     /// Writes TLS messages to `wr`.
     fn write_tls(&mut self, wr: &mut io::Write) -> io::Result<usize> {
         self.imp.common.write_tls(wr)
+    }
+
+    fn writev_tls(&mut self, wr: &mut WriteV) -> io::Result<usize> {
+        self.imp.common.writev_tls(wr)
     }
 
     fn process_new_packets(&mut self) -> Result<(), TLSError> {
@@ -471,6 +497,17 @@ impl Session for ServerSession {
 
     fn get_protocol_version(&self) -> Option<ProtocolVersion> {
         self.imp.get_protocol_version()
+    }
+
+    fn export_keying_material(&self,
+                              output: &mut [u8],
+                              label: &[u8],
+                              context: Option<&[u8]>) -> Result<(), TLSError> {
+        self.imp.common.export_keying_material(output, label, context)
+    }
+
+    fn get_negotiated_ciphersuite(&self) -> Option<&'static SupportedCipherSuite> {
+        self.imp.get_negotiated_ciphersuite()
     }
 }
 

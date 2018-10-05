@@ -27,7 +27,7 @@ pub trait ActivationFunc: Clone + Debug {
 }
 
 /// Sigmoid activation function.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Sigmoid;
 
 impl ActivationFunc for Sigmoid {
@@ -55,7 +55,7 @@ impl ActivationFunc for Sigmoid {
 }
 
 /// Linear activation function.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Linear;
 
 impl ActivationFunc for Linear {
@@ -77,7 +77,7 @@ impl ActivationFunc for Linear {
 }
 
 /// Exponential activation function.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Exp;
 
 impl ActivationFunc for Exp {
@@ -99,7 +99,7 @@ impl ActivationFunc for Exp {
 }
 
 /// Hyperbolic tangent activation function
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Tanh;
 
 impl ActivationFunc for Tanh {

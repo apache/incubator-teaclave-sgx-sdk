@@ -80,8 +80,8 @@ use sgx_types::*;
 ///
 pub fn rsgx_cpuid(leaf: i32) -> SgxResult<sgx_cpuinfo_t> {
 
-    let cpuinfo = [0_i32; 4];
-    let ret = unsafe { sgx_cpuid(cpuinfo, leaf) };
+    let mut cpuinfo = [0_i32; 4];
+    let ret = unsafe { sgx_cpuid(&mut cpuinfo as * mut sgx_cpuinfo_t, leaf) };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(cpuinfo),
         _ => Err(ret),
@@ -144,8 +144,8 @@ pub fn rsgx_cpuid(leaf: i32) -> SgxResult<sgx_cpuinfo_t> {
 ///
 pub fn rsgx_cpuidex(leaf: i32, subleaf: i32) -> SgxResult<sgx_cpuinfo_t> {
 
-    let cpuinfo = [0_i32; 4];
-    let ret = unsafe { sgx_cpuidex(cpuinfo, leaf, subleaf) };
+    let mut cpuinfo = [0_i32; 4];
+    let ret = unsafe { sgx_cpuidex(&mut cpuinfo as * mut sgx_cpuinfo_t, leaf, subleaf) };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(cpuinfo),
         _ => Err(ret),

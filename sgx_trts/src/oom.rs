@@ -33,13 +33,11 @@ use core::alloc::AllocErr;
 
 static SGX_OOM_HANDLER: AtomicPtr<()> = AtomicPtr::new(default_oom_handler as * mut ());
 
-#[allow(unused_variables)]
-fn default_oom_handler(err: AllocErr) -> ! {
+fn default_oom_handler( _err: AllocErr) -> ! {
     trts::rsgx_abort()
 }
 
 pub fn rsgx_oom(err: AllocErr) -> ! {
-
     let value = SGX_OOM_HANDLER.load(Ordering::SeqCst);
     let handler: fn(AllocErr) -> ! = unsafe { mem::transmute(value) };
     handler(err);
@@ -50,6 +48,5 @@ pub fn rsgx_oom(err: AllocErr) -> ! {
 /// To avoid recursive OOM failures, it is critical that the OOM handler does
 /// not allocate any memory itself.
 pub fn set_panic_handler(handler: fn(AllocErr) -> !) {
-
     SGX_OOM_HANDLER.store(handler as * mut (), Ordering::SeqCst);
 }

@@ -29,15 +29,19 @@
 //! Panic support in the standard library
 
 use panicking;
+use task::{self, Poll};
+use thread::Result;
 use core::any::Any;
 use core::cell::UnsafeCell;
 use core::fmt;
+use core::mem::PinMut;
 use core::ops::{Deref, DerefMut, Fn};
 use core::ptr::{Unique, NonNull};
 use core::sync::atomic;
+use core::future::Future;
 use alloc_crate::boxed::Box;
 use alloc_crate::rc::Rc;
-use alloc_crate::arc::Arc;
+use alloc_crate::sync::Arc;
 
 pub use panicking::set_panic_handler;
 pub use core::panic::{PanicInfo, Location};
@@ -230,6 +234,15 @@ impl<T: fmt::Debug> fmt::Debug for AssertUnwindSafe<T> {
     }
 }
 
+impl<'a, F: Future> Future for AssertUnwindSafe<F> {
+    type Output = F::Output;
+
+    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        let pinned_field = unsafe { PinMut::map_unchecked(self, |x| &mut x.0) };
+        pinned_field.poll(cx)
+    }
+}
+
 /// Invokes a closure, capturing the cause of an unwinding panic if one occurs.
 ///
 /// This function will return `Ok` with the closure's result if the closure
@@ -264,7 +277,7 @@ impl<T: fmt::Debug> fmt::Debug for AssertUnwindSafe<T> {
 /// aborting the process as well. This function *only* catches unwinding panics,
 /// not those that abort the process.
 ///
-pub fn catch_unwind<F: FnOnce() -> R + UnwindSafe, R>(f: F) -> Result<R, Box<Any + Send  + 'static>> {
+pub fn catch_unwind<F: FnOnce() -> R + UnwindSafe, R>(f: F) -> Result<R> {
     unsafe {
         panicking::try(f)
     }
@@ -282,6 +295,6 @@ pub fn catch_unwind<F: FnOnce() -> R + UnwindSafe, R>(f: F) -> Result<R, Box<Any
 /// panics are implemented this way then this function will abort the process,
 /// not trigger an unwind.
 ///
-pub fn resume_unwind(payload: Box<Any + Send>) -> ! {
+pub fn resume_unwind(payload: Box<dyn Any + Send>) -> ! {
     panicking::update_count_then_panic(payload)
 }

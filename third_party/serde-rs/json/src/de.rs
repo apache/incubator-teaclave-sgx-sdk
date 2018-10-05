@@ -275,15 +275,50 @@ impl<'de, R: Read<'de>> Deserializer<R> {
         }
     }
 
+    serde_if_integer128! {
+        fn scan_integer128(&mut self, buf: &mut String) -> Result<()> {
+            match try!(self.next_char_or_null()) {
+                b'0' => {
+                    buf.push('0');
+                    // There can be only one leading '0'.
+                    match try!(self.peek_or_null()) {
+                        b'0'...b'9' => {
+                            Err(self.peek_error(ErrorCode::InvalidNumber))
+                        }
+                        _ => Ok(()),
+                    }
+                }
+                c @ b'1'...b'9' => {
+                    buf.push(c as char);
+                    while let c @ b'0'...b'9' = try!(self.peek_or_null()) {
+                        self.eat_char();
+                        buf.push(c as char);
+                    }
+                    Ok(())
+                }
+                _ => {
+                    Err(self.error(ErrorCode::InvalidNumber))
+                }
+            }
+        }
+    }
+
     #[cold]
     fn fix_position(&self, err: Error) -> Error {
         err.fix_position(move |code| self.error(code))
     }
 
     fn parse_ident(&mut self, ident: &[u8]) -> Result<()> {
-        for c in ident {
-            if Some(*c) != try!(self.next_char()) {
-                return Err(self.error(ErrorCode::ExpectedSomeIdent));
+        for expected in ident {
+            match try!(self.next_char()) {
+                None => {
+                    return Err(self.error(ErrorCode::EofWhileParsingValue));
+                }
+                Some(next) => {
+                    if next != *expected {
+                        return Err(self.error(ErrorCode::ExpectedSomeIdent));
+                    }
+                }
             }
         }
 
@@ -312,11 +347,13 @@ impl<'de, R: Read<'de>> Deserializer<R> {
                             // number as a `u64` until we grow too large. At that point, switch to
                             // parsing the value as a `f64`.
                             if overflow!(res * 10 + digit, u64::max_value()) {
-                                return Ok(ParserNumber::F64(try!(self.parse_long_integer(
-                                    positive,
-                                    res,
-                                    1, // res * 10^1
-                                ))));
+                                return Ok(ParserNumber::F64(try!(
+                                    self.parse_long_integer(
+                                        positive,
+                                        res,
+                                        1, // res * 10^1
+                                    )
+                                )));
                             }
 
                             res = res * 10 + digit;
@@ -1099,6 +1136,70 @@ impl<'de, 'a, R: Read<'de>> de::Deserializer<'de> for &'a mut Deserializer<R> {
     deserialize_prim_number!(deserialize_f32);
     deserialize_prim_number!(deserialize_f64);
 
+    serde_if_integer128! {
+        fn deserialize_i128<V>(self, visitor: V) -> Result<V::Value>
+        where
+            V: de::Visitor<'de>,
+        {
+            let mut buf = String::new();
+
+            match try!(self.parse_whitespace()) {
+                Some(b'-') => {
+                    self.eat_char();
+                    buf.push('-');
+                }
+                Some(_) => {}
+                None => {
+                    return Err(self.peek_error(ErrorCode::EofWhileParsingValue));
+                }
+            };
+
+            try!(self.scan_integer128(&mut buf));
+
+            let value = match buf.parse() {
+                Ok(int) => visitor.visit_i128(int),
+                Err(_) => {
+                    return Err(self.error(ErrorCode::NumberOutOfRange));
+                }
+            };
+
+            match value {
+                Ok(value) => Ok(value),
+                Err(err) => Err(self.fix_position(err)),
+            }
+        }
+
+        fn deserialize_u128<V>(self, visitor: V) -> Result<V::Value>
+        where
+            V: de::Visitor<'de>,
+        {
+            match try!(self.parse_whitespace()) {
+                Some(b'-') => {
+                    return Err(self.peek_error(ErrorCode::NumberOutOfRange));
+                }
+                Some(_) => {}
+                None => {
+                    return Err(self.peek_error(ErrorCode::EofWhileParsingValue));
+                }
+            }
+
+            let mut buf = String::new();
+            try!(self.scan_integer128(&mut buf));
+
+            let value = match buf.parse() {
+                Ok(int) => visitor.visit_u128(int),
+                Err(_) => {
+                    return Err(self.error(ErrorCode::NumberOutOfRange));
+                }
+            };
+
+            match value {
+                Ok(value) => Ok(value),
+                Err(err) => Err(self.fix_position(err)),
+            }
+        }
+    }
+
     fn deserialize_char<V>(self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
@@ -1800,6 +1901,11 @@ where
     deserialize_integer_key!(deserialize_u16 => visit_u16);
     deserialize_integer_key!(deserialize_u32 => visit_u32);
     deserialize_integer_key!(deserialize_u64 => visit_u64);
+
+    serde_if_integer128! {
+        deserialize_integer_key!(deserialize_i128 => visit_i128);
+        deserialize_integer_key!(deserialize_u128 => visit_u128);
+    }
 
     #[inline]
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>

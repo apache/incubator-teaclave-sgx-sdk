@@ -1,6 +1,4 @@
-use std::vec::Vec;
-use std::result::Result;
-
+use std::prelude::v1::*;
 use webpki;
 use untrusted;
 use sct;
@@ -85,7 +83,7 @@ pub trait ClientCertVerifier : Send + Sync {
 
     /// Returns the subject names of the client authentication trust anchors to
     /// share with the client when requesting client authentication.
-    fn client_auth_root_subjects<'a>(&'a self) -> DistinguishedNames;
+    fn client_auth_root_subjects(&self) -> DistinguishedNames;
 
     /// Verify a certificate chain `presented_certs` is rooted in `roots`.
     /// Does no further checking of the certificate.
@@ -169,7 +167,7 @@ impl AllowAnyAuthenticatedClient {
     /// Construct a new `AllowAnyAuthenticatedClient`.
     ///
     /// `roots` is the list of trust anchors to use for certificate validation.
-    pub fn new(roots: RootCertStore) -> Arc< ClientCertVerifier > {
+    pub fn new(roots: RootCertStore) -> Arc<ClientCertVerifier> {
         Arc::new(AllowAnyAuthenticatedClient { roots })
     }
 }
@@ -179,7 +177,7 @@ impl ClientCertVerifier for AllowAnyAuthenticatedClient {
 
     fn client_auth_mandatory(&self) -> bool { true }
 
-    fn client_auth_root_subjects<'a>(&'a self) -> DistinguishedNames {
+    fn client_auth_root_subjects(&self) -> DistinguishedNames {
         self.roots.get_subjects()
     }
 
@@ -221,7 +219,7 @@ impl ClientCertVerifier for AllowAnyAnonymousOrAuthenticatedClient {
 
     fn client_auth_mandatory(&self) -> bool { false }
 
-    fn client_auth_root_subjects<'a>(&'a self) -> DistinguishedNames {
+    fn client_auth_root_subjects(&self) -> DistinguishedNames {
         self.inner.client_auth_root_subjects()
     }
 
@@ -242,7 +240,7 @@ impl NoClientAuth {
 impl ClientCertVerifier for NoClientAuth {
     fn offer_client_auth(&self) -> bool { false }
 
-    fn client_auth_root_subjects<'a>(&'a self) -> DistinguishedNames {
+    fn client_auth_root_subjects(&self) -> DistinguishedNames {
         unimplemented!();
     }
 

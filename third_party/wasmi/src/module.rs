@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::cell::RefCell;
 use std::fmt;
 use std::collections::HashMap;
-use parity_wasm::elements::{External, InitExpr, Internal, Opcode, ResizableLimits, Type};
+use parity_wasm::elements::{External, InitExpr, Internal, Instruction, ResizableLimits, Type};
 use {Module, Error, Signature, MemoryInstance, RuntimeValue, TableInstance};
 use imports::ImportResolver;
 use global::{GlobalInstance, GlobalRef};
@@ -41,8 +41,6 @@ impl ::std::ops::Deref for ModuleRef {
 	}
 }
 
-unsafe impl Sync for ModuleRef {}
-
 /// An external value is the runtime representation of an entity
 /// that can be imported or exported.
 pub enum ExternVal {
@@ -76,8 +74,6 @@ impl Clone for ExternVal {
 		}
 	}
 }
-
-unsafe impl Sync for ExternVal {}
 
 impl fmt::Debug for ExternVal {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -163,7 +159,6 @@ pub struct ModuleInstance {
 	exports: RefCell<HashMap<String, ExternVal>>,
 }
 
-unsafe impl Sync for ModuleInstance {}
 
 impl ModuleInstance {
 	fn default() -> Self {
@@ -221,9 +216,9 @@ impl ModuleInstance {
 		self.exports.borrow_mut().insert(name.into(), extern_val);
 	}
 
-	fn alloc_module(
+	fn alloc_module<'i, I: Iterator<Item = &'i ExternVal>>(
 		loaded_module: &Module,
-		extern_vals: &[ExternVal]
+		extern_vals: I,
 	) -> Result<ModuleRef, Error> {
 		let module = loaded_module.module();
 		let instance = ModuleRef(Arc::new(ModuleInstance::default()));
@@ -234,18 +229,26 @@ impl ModuleInstance {
 		}
 
 		{
-			let imports = module.import_section().map(|is| is.entries()).unwrap_or(
-				&[],
-			);
-			if imports.len() != extern_vals.len() {
-				return Err(Error::Instantiation(
-					"extern_vals length is not equal to import section entries".to_owned()
-				));
-			}
+			let mut imports = module
+				.import_section()
+				.map(|is| is.entries())
+				.unwrap_or(&[])
+				.into_iter();
+			let mut extern_vals = extern_vals;
+			loop {
+				// Iterate on imports and extern_vals in lockstep, a-la `Iterator:zip`.
+				// We can't use `Iterator::zip` since we want to check if lengths of both iterators are same and
+				// `Iterator::zip` just returns `None` if either of iterators return `None`.
+				let (import, extern_val) = match (imports.next(), extern_vals.next()) {
+					(Some(import), Some(extern_val)) => (import, extern_val),
+					(None, None) => break,
+					(Some(_), None) | (None, Some(_)) => {
+						return Err(Error::Instantiation(
+							"extern_vals length is not equal to import section entries".to_owned(),
+						));
+					}
+				};
 
-			for (import, extern_val) in
-				Iterator::zip(imports.into_iter(), extern_vals.into_iter())
-			{
 				match (import.external(), extern_val) {
 					(&External::Function(fn_type_idx), &ExternVal::Func(ref func)) => {
 						let expected_fn_type = instance.signature_by_index(fn_type_idx).expect(
@@ -291,7 +294,7 @@ impl ModuleInstance {
 			}
 		}
 
-		let labels = loaded_module.labels();
+		let code = loaded_module.code();
 		{
 			let funcs = module.function_section().map(|fs| fs.entries()).unwrap_or(
 				&[],
@@ -308,13 +311,12 @@ impl ModuleInstance {
 				let signature = instance.signature_by_index(ty.type_ref()).expect(
 					"Due to validation type should exists",
 				);
-				let labels = labels.get(&index).expect(
+				let code = code.get(index).expect(
 					"At func validation time labels are collected; Collected labels are added by index; qed",
 				).clone();
 				let func_body = FuncBody {
 					locals: body.locals().to_vec(),
-					opcodes: body.code().clone(),
-					labels: labels,
+					code: code,
 				};
 				let func_instance =
 					FuncInstance::alloc_internal(Arc::downgrade(&instance.0), signature, func_body);
@@ -391,10 +393,16 @@ impl ModuleInstance {
 		Ok(instance)
 	}
 
-	fn instantiate_with_externvals(
-		loaded_module: &Module,
-		extern_vals: &[ExternVal],
-	) -> Result<ModuleRef, Error> {
+	/// Instantiate a module with given [external values][ExternVal] as imports.
+	///
+	/// See [new] for details.
+	///
+	/// [new]: #method.new
+	/// [ExternVal]: https://webassembly.github.io/spec/core/exec/runtime.html#syntax-externval
+	pub fn with_externvals<'a, 'i, I: Iterator<Item = &'i ExternVal>>(
+		loaded_module: &'a Module,
+		extern_vals: I,
+	) -> Result<NotStartedModuleRef<'a>, Error> {
 		let module = loaded_module.module();
 
 		let module_ref = ModuleInstance::alloc_module(loaded_module, extern_vals)?;
@@ -414,7 +422,7 @@ impl ModuleInstance {
 
 			// This check is not only for bailing out early, but also to check the case when
 			// segment consist of 0 members.
-			if offset_val as usize + element_segment.members().len() > table_inst.current_size() as usize {
+			if offset_val as u64 + element_segment.members().len() as u64 > table_inst.current_size() as u64 {
 				return Err(
 					Error::Instantiation("elements segment does not fit".to_string())
 				);
@@ -441,7 +449,10 @@ impl ModuleInstance {
 			memory_inst.set(offset_val, data_segment.value())?;
 		}
 
-		Ok(module_ref)
+		Ok(NotStartedModuleRef {
+			loaded_module,
+			instance: module_ref,
+		})
 	}
 
 	/// Instantiate a [module][`Module`].
@@ -543,11 +554,7 @@ impl ModuleInstance {
 			extern_vals.push(extern_val);
 		}
 
-		let instance = Self::instantiate_with_externvals(loaded_module, &extern_vals)?;
-		Ok(NotStartedModuleRef {
-			loaded_module,
-			instance,
-		})
+		Self::with_externvals(loaded_module, extern_vals.iter())
 	}
 
 	/// Invoke exported function by a name.
@@ -561,7 +568,7 @@ impl ModuleInstance {
 	///
 	/// - there are no export with a given name or this export is not a function,
 	/// - given arguments doesn't match to function signature,
-	/// - trap occured at the execution time,
+	/// - trap occurred at the execution time,
 	///
 	/// # Examples
 	///
@@ -639,7 +646,7 @@ impl ModuleInstance {
 ///
 /// You can still access not fully initialized instance by calling [`not_started_instance`],
 /// but keep in mind, that this is sort of escape hatch: module really might depend on initialization
-/// done in `start` function. It's definetely not recommended to call any exports on [`ModuleRef`]
+/// done in `start` function. It's definitely not recommended to call any exports on [`ModuleRef`]
 /// returned by this function.
 ///
 /// If you sure, that there is no `start` function (e.g. because you created it without one), you can
@@ -704,11 +711,11 @@ fn eval_init_expr(init_expr: &InitExpr, module: &ModuleInstance) -> RuntimeValue
 		"Due to validation `code`.len() should be 2"
 	);
 	match code[0] {
-		Opcode::I32Const(v) => v.into(),
-		Opcode::I64Const(v) => v.into(),
-		Opcode::F32Const(v) => RuntimeValue::decode_f32(v),
-		Opcode::F64Const(v) => RuntimeValue::decode_f64(v),
-		Opcode::GetGlobal(idx) => {
+		Instruction::I32Const(v) => v.into(),
+		Instruction::I64Const(v) => v.into(),
+		Instruction::F32Const(v) => RuntimeValue::decode_f32(v),
+		Instruction::F64Const(v) => RuntimeValue::decode_f64(v),
+		Instruction::GetGlobal(idx) => {
 			let global = module.global_by_index(idx).expect(
 				"Due to validation global should exists in module",
 			);
@@ -760,7 +767,9 @@ pub fn check_limits(limits: &ResizableLimits) -> Result<(), Error> {
 #[cfg(test)]
 mod tests {
 	use imports::ImportsBuilder;
-	use super::{ModuleInstance};
+	use func::FuncInstance;
+	use types::{Signature, ValueType};
+	use super::{ModuleInstance, ExternVal};
 	use tests::parse_wat;
 
 	#[should_panic]
@@ -778,4 +787,55 @@ mod tests {
 			&ImportsBuilder::default()
 		).unwrap().assert_no_start();
 	}
+
+	#[test]
+	fn imports_provided_by_externvals() {
+		let module_with_single_import = parse_wat(
+			r#"
+			(module
+				(import "foo" "bar" (func))
+				)
+			"#,
+		);
+
+		assert!(
+			ModuleInstance::with_externvals(
+				&module_with_single_import,
+				[
+					ExternVal::Func(FuncInstance::alloc_host(Signature::new(&[][..], None), 0),)
+				].iter(),
+			).is_ok()
+		);
+
+		// externval vector is longer than import count.
+		assert!(
+			ModuleInstance::with_externvals(
+				&module_with_single_import,
+				[
+					ExternVal::Func(FuncInstance::alloc_host(Signature::new(&[][..], None), 0)),
+					ExternVal::Func(FuncInstance::alloc_host(Signature::new(&[][..], None), 1)),
+				].iter(),
+			).is_err()
+		);
+
+		// externval vector is shorter than import count.
+		assert!(ModuleInstance::with_externvals(&module_with_single_import, [].iter(),).is_err());
+
+		// externval vector has an unexpected type.
+		assert!(
+			ModuleInstance::with_externvals(
+				&module_with_single_import,
+				[
+					ExternVal::Func(FuncInstance::alloc_host(
+						Signature::new(&[][..], Some(ValueType::I32)),
+						0
+					),)
+				].iter(),
+			).is_err()
+		);
+	}
 }
+
+unsafe impl Sync for ModuleRef {}
+unsafe impl Sync for ExternVal {}
+unsafe impl Sync for ModuleInstance {}

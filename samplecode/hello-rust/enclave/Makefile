@@ -34,7 +34,7 @@ Rust_Target_Path := $(CURDIR)/../../../xargo
 
 all: $(Rust_Enclave_Name)
 
-$(Rust_Enclave_Name): $(Rust_Enclave_Files)  
+$(Rust_Enclave_Name): $(Rust_Enclave_Files)
 ifeq ($(XARGO_SGX), 1)
 	cd ../../../xargo/xargo && cargo build --release
 	RUST_TARGET_PATH=$(Rust_Target_Path) RUSTC_BOOTSTRAP=1 ../../../xargo/xargo/target/release/xargo build --target x86_64-unknown-linux-sgx --release

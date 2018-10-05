@@ -1,7 +1,8 @@
+use std::prelude::v1::*;
+
 use std::hash::Hash;
 use std::collections::HashMap;
 use std::collections::hash_map;
-use std::boxed::Box;
 
 use super::value::ProtobufValue;
 

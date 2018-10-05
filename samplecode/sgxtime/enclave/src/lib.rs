@@ -67,6 +67,6 @@ pub extern "C" fn sgx_time_sample() -> sgx_status_t {
             return sgx_status_t::SGX_ERROR_UNEXPECTED;
         }
     }
-    
+
     sgx_status_t::SGX_SUCCESS
 }

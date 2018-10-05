@@ -44,6 +44,9 @@ pub struct SgxReentrantThreadMutex {
 unsafe impl Send for SgxReentrantThreadMutex {}
 unsafe impl Sync for SgxReentrantThreadMutex {}
 
+impl UnwindSafe for SgxReentrantThreadMutex {}
+impl RefUnwindSafe for SgxReentrantThreadMutex {}
+
 impl SgxReentrantThreadMutex {
 
     ///

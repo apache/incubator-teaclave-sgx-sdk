@@ -1,21 +1,20 @@
-use std::vec::Vec;
-use std::boxed::Box;
-use std::option::Option;
-use std::string::String;
-
+use std::prelude::v1::*;
 use msgs::enums::CipherSuite;
 use msgs::enums::{AlertDescription, HandshakeType};
-use session::{Session, SessionSecrets, SessionCommon};
+use session::{Session, SessionCommon};
+//use keylog::{KeyLog, NoKeyLog};
 use suites::{SupportedCipherSuite, ALL_CIPHERSUITES};
 use msgs::handshake::CertificatePayload;
 use msgs::enums::SignatureScheme;
 use msgs::enums::{ContentType, ProtocolVersion};
+use msgs::handshake::ClientExtension;
 use msgs::message::Message;
 use verify;
 use anchors;
 use sign;
 use error::TLSError;
 use key;
+use vecbuf::WriteV;
 
 use std::sync::Arc;
 use std::io;
@@ -122,25 +121,32 @@ pub struct ClientConfig {
 
     /// How to verify the server certificate chain.
     verifier: Arc<verify::ServerCertVerifier>,
+
+    // How to output key material for debugging.  The default
+    // does nothing.
+    //pub key_log: Arc<KeyLog>,
 }
 
 impl ClientConfig {
     /// Make a `ClientConfig` with a default set of ciphersuites,
-    /// no root certificates, no ALPN protocols, no
-    /// session persistence, and no client auth.
+    /// no root certificates, no ALPN protocols, and no client auth.
+    ///
+    /// The default session persistence provider stores up to 32
+    /// items in memory.
     pub fn new() -> ClientConfig {
         ClientConfig {
             ciphersuites: ALL_CIPHERSUITES.to_vec(),
             root_store: anchors::RootCertStore::empty(),
             alpn_protocols: Vec::new(),
-            session_persistence: Arc::new(handy::NoSessionStorage {}),
+            session_persistence: handy::ClientSessionMemoryCache::new(32),
             mtu: None,
             client_auth_cert_resolver: Arc::new(handy::FailResolveClientCert {}),
             enable_tickets: true,
             versions: vec![ProtocolVersion::TLSv1_3, ProtocolVersion::TLSv1_2],
             ct_logs: None,
             enable_sni: true,
-            verifier: Arc::new(verify::WebPKIVerifier::new())
+            verifier: Arc::new(verify::WebPKIVerifier::new()),
+            //key_log: Arc::new(NoKeyLog {}),
         }
     }
 
@@ -184,11 +190,11 @@ impl ClientConfig {
     /// This is blindly used for all servers that ask for client auth.
     ///
     /// `cert_chain` is a vector of DER-encoded certificates,
-    /// `key_der` is a DER-encoded RSA private key.
+    /// `key_der` is a DER-encoded RSA or ECDSA private key.
     pub fn set_single_client_cert(&mut self,
                                   cert_chain: Vec<key::Certificate>,
                                   key_der: key::PrivateKey) {
-        let resolver = handy::AlwaysResolvesClientCert::new_rsa(cert_chain, &key_der);
+        let resolver = handy::AlwaysResolvesClientCert::new(cert_chain, &key_der);
         self.client_auth_cert_resolver = Arc::new(resolver);
     }
 
@@ -225,8 +231,8 @@ pub mod danger {
 
 pub struct ClientSessionImpl {
     pub config: Arc<ClientConfig>,
-    pub secrets: Option<SessionSecrets>,
     pub alpn_protocol: Option<String>,
+    pub quic_params: Option<Vec<u8>>,
     pub common: SessionCommon,
     pub error: Option<TLSError>,
     pub state: Option<Box<hs::State + Send + Sync>>,
@@ -240,20 +246,20 @@ impl fmt::Debug for ClientSessionImpl {
 }
 
 impl ClientSessionImpl {
-    pub fn new(config: &Arc<ClientConfig>, hostname: webpki::DNSName)
-               -> ClientSessionImpl {
-        let mut cs = ClientSessionImpl {
+    pub fn new(config: &Arc<ClientConfig>) -> ClientSessionImpl {
+        ClientSessionImpl {
             config: config.clone(),
-            secrets: None,
             alpn_protocol: None,
+            quic_params: None,
             common: SessionCommon::new(config.mtu, true),
             error: None,
             state: None,
             server_cert_chain: Vec::new(),
-        };
+        }
+    }
 
-        cs.state = Some(hs::start_handshake(&mut cs, hostname));
-        cs
+    pub fn start_handshake(&mut self, hostname: webpki::DNSName, extra_exts: Vec<ClientExtension>) {
+        self.state = Some(hs::start_handshake(self, hostname, extra_exts));
     }
 
     pub fn get_cipher_suites(&self) -> Vec<CipherSuite> {
@@ -267,10 +273,6 @@ impl ClientSessionImpl {
         ret.push(CipherSuite::TLS_EMPTY_RENEGOTIATION_INFO_SCSV);
 
         ret
-    }
-
-    pub fn start_encryption_tls12(&mut self) {
-        self.common.start_encryption_tls12(self.secrets.as_ref().unwrap());
     }
 
     pub fn find_cipher_suite(&self, suite: CipherSuite) -> Option<&'static SupportedCipherSuite> {
@@ -306,6 +308,14 @@ impl ClientSessionImpl {
     }
 
     pub fn process_msg(&mut self, mut msg: Message) -> Result<(), TLSError> {
+        // TLS1.3: drop CCS at any time during handshaking
+        if self.common.is_tls13()
+            && msg.is_content_type(ContentType::ChangeCipherSpec)
+            && self.is_handshaking() {
+            trace!("Dropping CCS");
+            return Ok(());
+        }
+
         // Decrypt if demanded by current state.
         if self.common.peer_encrypting {
             let dm = self.common.decrypt_incoming(msg)?;
@@ -350,24 +360,21 @@ impl ClientSessionImpl {
         self.common.send_fatal_alert(AlertDescription::UnexpectedMessage);
     }
 
-    /// Detect and drop/reject HelloRequests.  This is needed irrespective
-    /// of the current protocol state, which should illustrate how badly
-    /// TLS renegotiation is designed.
-    fn process_hello_req(&mut self) {
-        // If we're post handshake, send a refusal alert.
-        // Otherwise, drop it silently.
-        if !self.is_handshaking() {
-            self.common.send_warning_alert(AlertDescription::NoRenegotiation);
-        }
+    fn reject_renegotiation_attempt(&mut self) -> Result<(), TLSError> {
+        self.common.send_warning_alert(AlertDescription::NoRenegotiation);
+        Ok(())
     }
 
     /// Process `msg`.  First, we get the current state.  Then we ask what messages
     /// that state expects, enforced via a `Expectation`.  Finally, we ask the handler
     /// to handle the message.
     fn process_main_protocol(&mut self, msg: Message) -> Result<(), TLSError> {
-        if msg.is_handshake_type(HandshakeType::HelloRequest) && !self.common.is_tls13() {
-            self.process_hello_req();
-            return Ok(());
+        // For TLS1.2, outside of the handshake, send rejection alerts for
+        // renegotation requests.  These can occur any time.
+        if msg.is_handshake_type(HandshakeType::HelloRequest) &&
+            !self.common.is_tls13() &&
+            !self.is_handshaking() {
+            return self.reject_renegotiation_attempt();
         }
 
         let state = self.state.take().unwrap();
@@ -424,13 +431,17 @@ impl ClientSessionImpl {
     pub fn get_protocol_version(&self) -> Option<ProtocolVersion> {
         self.common.negotiated_version
     }
+
+    pub fn get_negotiated_ciphersuite(&self) -> Option<&'static SupportedCipherSuite> {
+        self.common.get_suite()
+    }
 }
 
 /// This represents a single TLS client session.
 #[derive(Debug)]
 pub struct ClientSession {
     // We use the pimpl idiom to hide unimportant details.
-    imp: ClientSessionImpl,
+    pub(crate) imp: ClientSessionImpl,
 }
 
 impl ClientSession {
@@ -438,7 +449,9 @@ impl ClientSession {
     /// we behave in the TLS protocol, `hostname` is the
     /// hostname of who we want to talk to.
     pub fn new(config: &Arc<ClientConfig>, hostname: webpki::DNSNameRef) -> ClientSession {
-        ClientSession { imp: ClientSessionImpl::new(config, hostname.into()) }
+        let mut imp = ClientSessionImpl::new(config);
+        imp.start_handshake(hostname.into(), vec![]);
+        ClientSession { imp }
     }
 }
 
@@ -450,6 +463,10 @@ impl Session for ClientSession {
     /// Writes TLS messages to `wr`.
     fn write_tls(&mut self, wr: &mut io::Write) -> io::Result<usize> {
         self.imp.common.write_tls(wr)
+    }
+
+    fn writev_tls(&mut self, wr: &mut WriteV) -> io::Result<usize> {
+        self.imp.common.writev_tls(wr)
     }
 
     fn process_new_packets(&mut self) -> Result<(), TLSError> {
@@ -486,6 +503,17 @@ impl Session for ClientSession {
 
     fn get_protocol_version(&self) -> Option<ProtocolVersion> {
         self.imp.get_protocol_version()
+    }
+
+    fn export_keying_material(&self,
+                              output: &mut [u8],
+                              label: &[u8],
+                              context: Option<&[u8]>) -> Result<(), TLSError> {
+        self.imp.common.export_keying_material(output, label, context)
+    }
+
+    fn get_negotiated_ciphersuite(&self) -> Option<&'static SupportedCipherSuite> {
+        self.imp.get_negotiated_ciphersuite()
     }
 }
 

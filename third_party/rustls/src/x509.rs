@@ -1,6 +1,5 @@
 // Additional x509/asn1 functions to those provided in webpki/ring.
-use std::vec::Vec;
-
+use std::prelude::v1::*;
 use ring::der;
 
 fn wrap_in_asn1_len(bytes: &mut Vec<u8>) {

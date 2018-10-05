@@ -61,12 +61,12 @@ void AbstractNetworkOps::read() {
     this->read_state = MSG_HEADER;
     memset(this->read_buffer_header, '\0', 20);
     boost::asio::async_read(
-        socket_, 
-        boost::asio::buffer(this->read_buffer_header, 20), 
+        socket_,
+        boost::asio::buffer(this->read_buffer_header, 20),
         boost::bind(
-            &AbstractNetworkOps::handle_read, 
-            this, 
-            boost::asio::placeholders::error, 
+            &AbstractNetworkOps::handle_read,
+            this,
+            boost::asio::placeholders::error,
             boost::asio::placeholders::bytes_transferred));
 }
 
@@ -88,19 +88,19 @@ void AbstractNetworkOps::handle_read(const boost::system::error_code& error, siz
     int type = boost::lexical_cast<int>(header[1]);
 
     if (this->read_state == MSG_HEADER) {
-        
+
         this->read_state = MSG_BODY;
         this->read_buffer_message = (char*) malloc(sizeof(char) * msg_size);
         memset(this->read_buffer_message, '\0', sizeof(char) * msg_size);
         boost::asio::async_read(
-            socket_, 
-            boost::asio::buffer(this->read_buffer_message, msg_size), 
+            socket_,
+            boost::asio::buffer(this->read_buffer_message, msg_size),
             boost::bind(
-                &AbstractNetworkOps::handle_read, 
-                this, 
-                boost::asio::placeholders::error, 
+                &AbstractNetworkOps::handle_read,
+                this,
+                boost::asio::placeholders::error,
                 boost::asio::placeholders::bytes_transferred));
-  
+
     } else if (this->read_state == MSG_BODY) {
         process_read(this->read_buffer_message, msg_size, type);
     }
@@ -128,13 +128,13 @@ void AbstractNetworkOps::send(vector<string> v) {
     this->write_state = MSG_HEADER;
 
     boost::asio::async_write(
-        socket_, 
+        socket_,
         boost::asio::buffer(this->write_buffer_header, 20),
         boost::asio::transfer_at_least(20),
         boost::bind(
-            &AbstractNetworkOps::handle_write, 
-            this, 
-            boost::asio::placeholders::error, 
+            &AbstractNetworkOps::handle_write,
+            this,
+            boost::asio::placeholders::error,
             boost::asio::placeholders::bytes_transferred));
 }
 
@@ -159,13 +159,13 @@ void AbstractNetworkOps::handle_write(const boost::system::error_code& error, si
 
         this->write_state = MSG_BODY;
         boost::asio::async_write(
-            socket_, 
+            socket_,
             boost::asio::buffer(this->write_buffer_message, msg_size),
             boost::asio::transfer_at_least(msg_size),
             boost::bind(
-                &AbstractNetworkOps::handle_write, 
-                this, 
-                boost::asio::placeholders::error, 
+                &AbstractNetworkOps::handle_write,
+                this,
+                boost::asio::placeholders::error,
                 boost::asio::placeholders::bytes_transferred));
 
     } else if (this->write_state == MSG_BODY) {

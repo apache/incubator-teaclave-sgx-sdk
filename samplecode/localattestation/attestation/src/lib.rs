@@ -31,7 +31,6 @@
 
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
-#![feature(const_atomic_ptr_new)]
 #![allow(improper_ctypes)]
 #![allow(non_camel_case_types)]
 

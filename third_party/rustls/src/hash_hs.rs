@@ -1,10 +1,9 @@
-use std::vec::Vec;
-use std::option::Option;
-
+use std::prelude::v1::*;
 use ring::digest;
 use std::mem;
 use msgs::codec::Codec;
 use msgs::message::{Message, MessagePayload};
+use msgs::handshake::HandshakeMessagePayload;
 
 /// This deals with keeping a running hash of the handshake
 /// payloads.  This is computed by buffering initially.  Once
@@ -12,7 +11,7 @@ use msgs::message::{Message, MessagePayload};
 /// incremental hashing.
 ///
 /// For client auth, we also need to buffer all the messages.
-/// This is disable in cases where client auth is not possible.
+/// This is disabled in cases where client auth is not possible.
 pub struct HandshakeHash {
     /// None before we know what hash function we're using
     alg: Option<&'static digest::Algorithm>,
@@ -120,6 +119,17 @@ impl HandshakeHash {
         let mut ret = Vec::new();
         ret.extend_from_slice(hash.as_ref());
         ret
+    }
+
+    /// Take the current hash value, and encapsulate it in a
+    /// 'handshake_hash' handshake message.  Start this hash
+    /// again, with that message at the front.
+    pub fn rollup_for_hrr(&mut self) {
+        let old_hash = self.ctx.take().unwrap().finish();
+        let old_handshake_hash_msg = HandshakeMessagePayload::build_handshake_hash(old_hash.as_ref());
+
+        self.ctx = Some(digest::Context::new(self.alg.unwrap()));
+        self.update_raw(&old_handshake_hash_msg.get_encoding());
     }
 
     /// Get the current hash value.

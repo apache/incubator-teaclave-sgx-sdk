@@ -1,5 +1,3 @@
-use std::result::Result;
-
 use msgs::enums::{ContentType, HandshakeType};
 use msgs::message::{Message, MessagePayload};
 use error::TLSError;

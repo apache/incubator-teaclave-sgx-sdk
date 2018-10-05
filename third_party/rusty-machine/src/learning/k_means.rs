@@ -64,7 +64,7 @@ use std::fmt::Debug;
 ///
 /// The model will not check to ensure the data coming in is all valid.
 /// This responsibility lies with the user (for now).
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct KMeansClassifier<InitAlg: Initializer> {
     /// Max iterations of algorithm to run.
     iters: usize,
@@ -271,7 +271,7 @@ pub trait Initializer: Debug {
 }
 
 /// The Forgy initialization scheme.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Forgy;
 
 impl Initializer for Forgy {
@@ -291,7 +291,7 @@ impl Initializer for Forgy {
 }
 
 /// The Random Partition initialization scheme.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RandomPartition;
 
 impl Initializer for RandomPartition {
@@ -319,7 +319,7 @@ impl Initializer for RandomPartition {
 }
 
 /// The K-means ++ initialization scheme.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct KPlusPlus;
 
 impl Initializer for KPlusPlus {

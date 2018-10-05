@@ -34,9 +34,9 @@
 #include <limits.h>
 #include <unistd.h>
 
+#include "enclave_u.h"
 #include "LogBase.h"
 #include "UtilityFunctions.h"
-#include "enclave_u.h"
 
 // Needed to call untrusted key exchange library APIs, i.e. sgx_ra_proc_msg2.
 #include "sgx_ukey_exchange.h"
