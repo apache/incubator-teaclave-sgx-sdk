@@ -36,6 +36,14 @@ To be able to run the above code some external libraries are needed:
 * ```libssl```
 * ```liblog4cpp5-dev```
 
+```
+$ apt-get update && apt-get install -y libprotobuf-c0-dev protobuf-compiler libboost-thread-dev libboost-system-dev curl libcurl4-openssl-dev libjsoncpp-dev liblog4cpp5-dev libprotobuf-dev
+
+# Recompile the protobuf
+$ cd GoogleMessages/
+$ protoc Messages.proto --cpp_out=./
+```
+
 
 After the installation of those dependencies, the code can be compiled with the following commands:<br/>
 ```cd ServiceProvider```<br />

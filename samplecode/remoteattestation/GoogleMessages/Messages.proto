@@ -1,3 +1,5 @@
+syntax = "proto2";
+
 package Messages;
 
 message InitialMessage {
@@ -62,4 +64,9 @@ message AttestationMessage {
 	repeated uint32 reserved = 14 [packed=true];
 	repeated uint32 payload_tag = 15 [packed=true];
 	repeated uint32 payload = 16 [packed=true];
+}
+
+message SecretMessage {
+	required uint32 type = 1;
+	required uint32 size = 2;
 }
