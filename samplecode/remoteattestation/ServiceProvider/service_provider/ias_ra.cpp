@@ -137,6 +137,8 @@ int ias_verify_attestation_evidence(
                 quoteStatus = IAS_QUOTE_SIGRL_VERSION_MISMATCH;
             else if (x.second == "GROUP_OUT_OF_DATE")
                 quoteStatus = IAS_QUOTE_GROUP_OUT_OF_DATE;
+            else if (x.second == "CONFIGURATION_NEEDED")
+                quoteStatus = IAS_QUOTE_CONFIGURATION_NEEDED;
         }
     }
 

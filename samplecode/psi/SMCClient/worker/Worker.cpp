@@ -455,7 +455,7 @@ int PSIWorker::sp_ra_proc_msg3_req(Messages::MessageMSG3 msg, Messages::Attestat
             break;
         }
 
-        Log("Atestation Report:");
+        Log("Attestation Report:");
         Log("\tid: %s", attestation_report.id);
         Log("\tstatus: %d", attestation_report.status);
         Log("\trevocation_reason: %u", attestation_report.revocation_reason);
@@ -463,7 +463,7 @@ int PSIWorker::sp_ra_proc_msg3_req(Messages::MessageMSG3 msg, Messages::Attestat
 
         Log("Enclave Report:");
         Log("\tSignature Type: 0x%x", p_quote->sign_type);
-        Log("\tSignature Basename: %s", ByteArrayToNoHexString(p_quote->basename.name, 32));
+        Log("\tSignature Basename: %s", ByteArrayToString(p_quote->basename.name, 32));
         Log("\tattributes.flags: 0x%0lx", p_quote->report_body.attributes.flags);
         Log("\tattributes.xfrm: 0x%0lx", p_quote->report_body.attributes.xfrm);
         Log("\tmr_enclave: %s", ByteArrayToString(p_quote->report_body.mr_enclave.m, SGX_HASH_SIZE));
@@ -517,9 +517,15 @@ int PSIWorker::sp_ra_proc_msg3_req(Messages::MessageMSG3 msg, Messages::Attestat
         uint8_t aes_gcm_iv[SAMPLE_SP_IV_SIZE] = {0};
         p_att_result_msg->secret.payload_size = MAX_VERIFICATION_RESULT;
 
-        if ((IAS_QUOTE_OK == attestation_report.status) &&
+        if ((IAS_QUOTE_OK == attestation_report.status ||
+             IAS_QUOTE_GROUP_OUT_OF_DATE == attestation_report.status ||
+             IAS_QUOTE_CONFIGURATION_NEEDED == attestation_report.status) &&
                 (IAS_PSE_OK == attestation_report.pse_status) &&
                 (isv_policy_passed == true)) {
+            if (IAS_QUOTE_GROUP_OUT_OF_DATE == attestation_report.status)
+                Log("GROUP_OUT_OF_DATE detected!!! Your CPU is vulnerable to recent CPU BUGs");
+            if (IAS_QUOTE_CONFIGURATION_NEEDED == attestation_report.status)
+                Log("CONFIGURATION_NEEDED detected!!! Your CPU has turned on hyper-threading and is vulnerable to recent CPU BUGs");
             memset(validation_result, '\0', MAX_VERIFICATION_RESULT);
             validation_result[0] = 0;
             validation_result[1] = 1;
