@@ -42,7 +42,7 @@ namespace Settings {
 
     static string spid = ""; //SPID provided by Intel after registration for the IAS service
     static const char *ias_crt = ""; //location of the certificate send to Intel when registring for the IAS
-    static string ias_url = "https://test-as.sgx.trustedservices.intel.com:443/attestation/sgx/v2/";
+    static string ias_url = "https://test-as.sgx.trustedservices.intel.com:443/attestation/sgx/v3/";
 }
 
 #endif
