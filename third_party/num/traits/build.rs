@@ -10,6 +10,7 @@ fn main() {
     }
 }
 
+
 /// Test if a code snippet can be compiled
 fn probe(code: &str) -> bool {
     let rustc = env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
