@@ -233,3 +233,6 @@ pub use cpuid::*;
 pub use self::thread::{rsgx_thread_self, rsgx_thread_equal};
 
 pub use sgx_trts::oom::rust_oom;
+
+#[cfg(debug_assertions)]
+pub mod debug;
