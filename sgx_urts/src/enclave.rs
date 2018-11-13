@@ -231,7 +231,7 @@ pub fn rsgx_create_encrypted_enclave(file_name: &CStr,
                                      launch_token: &mut sgx_launch_token_t,
                                      launch_token_updated: &mut i32,
                                      misc_attr: &mut sgx_misc_attribute_t,
-                                     sealed_key: &sgx_sealed_data_t) -> SgxResult<sgx_enclave_id_t> {
+                                     sealed_key: *const sgx_sealed_data_t) -> SgxResult<sgx_enclave_id_t> {
 
     let mut enclave_id: sgx_enclave_id_t = 0;
     let ret = unsafe {
@@ -241,7 +241,7 @@ pub fn rsgx_create_encrypted_enclave(file_name: &CStr,
                                      launch_token_updated as * mut int32_t,
                                      &mut enclave_id as * mut sgx_enclave_id_t,
                                      misc_attr as * mut sgx_misc_attribute_t,
-                                     sealed_key as * const sgx_sealed_data_t as * const uint8_t)
+                                     sealed_key as * const uint8_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(enclave_id),
@@ -545,7 +545,7 @@ impl SgxEnclave {
                                           launch_token: &mut sgx_launch_token_t,
                                           launch_token_updated: &mut i32,
                                           misc_attr: &mut sgx_misc_attribute_t,
-                                          sealed_key: &sgx_sealed_data_t) -> SgxResult<SgxEnclave> {
+                                          sealed_key: *const sgx_sealed_data_t) -> SgxResult<SgxEnclave> {
 
         let path: CString = cstr(file_name
                                     .as_ref())
