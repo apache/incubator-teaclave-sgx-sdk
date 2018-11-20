@@ -62,7 +62,6 @@ int ServiceProvider::sp_ra_proc_msg0_req(const uint32_t id) {
 
 
 int ServiceProvider::sp_ra_proc_msg1_req(Messages::MessageMSG1 msg1, Messages::MessageMSG2 *msg2) {
-    ra_samp_response_header_t **pp_msg2;
     int ret = 0;
     ra_samp_response_header_t* p_msg2_full = NULL;
     sgx_ra_msg2_t *p_msg2 = NULL;
@@ -274,7 +273,6 @@ int ServiceProvider::sp_ra_proc_msg1_req(Messages::MessageMSG1 msg1, Messages::M
 
 
     if (ret) {
-        *pp_msg2 = NULL;
         SafeFree(p_msg2_full);
     } else {
 

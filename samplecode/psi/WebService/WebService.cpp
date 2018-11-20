@@ -115,12 +115,14 @@ size_t ias_response_header_parser(void *ptr, size_t size, size_t nmemb, void *us
 
     if (parsed_fields == 1) {
         ((ias_response_header_t *) userdata)->response_status = response_status;
+        free(x);
         return ret;
     }
 
     parsed_fields = sscanf( x, "content-length: %d", &content_length );
     if (parsed_fields == 1) {
         ((ias_response_header_t *) userdata)->content_length = content_length;
+        free(x);
         return ret;
     }
 
@@ -130,9 +132,13 @@ size_t ias_response_header_parser(void *ptr, size_t size, size_t nmemb, void *us
     if (parsed_fields == 1) {
         std::string request_id_str( p_request_id );
         ( ( ias_response_header_t * ) userdata )->request_id = request_id_str;
+        free(x);
+        free(p_request_id);
         return ret;
     }
 
+    free(x);
+    free(p_request_id);
     return ret;
 }
 

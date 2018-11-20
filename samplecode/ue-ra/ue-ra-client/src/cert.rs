@@ -87,7 +87,7 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
     let mut ias_ca_stripped = IAS_REPORT_CA.to_vec();
     ias_ca_stripped.retain(|&x| x != 0x0d && x != 0x0a);
     let head_len = "-----BEGIN CERTIFICATE-----".len();
-    let tail_len = "-----BEGIN CERTIFICATE-----".len();
+    let tail_len = "-----END CERTIFICATE-----".len();
     let full_len = ias_ca_stripped.len();
     let ias_ca_core : &[u8] = &ias_ca_stripped[head_len..full_len - tail_len];
     let ias_cert_dec = base64::decode_config(ias_ca_core, base64::MIME).unwrap();
