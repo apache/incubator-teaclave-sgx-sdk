@@ -42,7 +42,7 @@ char * u_env_getenv_ocall(const char * name)
     return getenv(name);
 }
 
-int u_env_setenv_ocall(int * error, const char * name, const char * value, int overwrite)
+int u_setenv_ocall(int * error, const char * name, const char * value, int overwrite)
 {
     int ret = setenv(name, value, overwrite);
     if (error) {
@@ -51,7 +51,7 @@ int u_env_setenv_ocall(int * error, const char * name, const char * value, int o
     return ret;
 }
 
-int u_env_unsetenv_ocall(int * error, const char * name)
+int u_unsetenv_ocall(int * error, const char * name)
 {
     int ret = unsetenv(name);
     if (error) {

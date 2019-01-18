@@ -5,6 +5,17 @@ Rust SGX SDK helps developers write Intel SGX applications in Rust programming l
 
 To achieve better security, we recommend developers to apply [Non-bypassable Security Paradigm (NbSP)](https://github.com/baidu/rust-sgx-sdk/blob/master/documents/nbsp.pdf) to the system design and implementation.
 
+## v1.0.5 Preview
+Only a preview version of v1.0.5 with following major changes:
+
+* support Intel SGX SDK v2.4.100, with this [patch](https://github.com/intel/linux-sgx/pull/359).
+* support Rust nightly-2019-01-17
+* Not supporting Rust stable
+* Removed dependency on `posix_memalign`.
+* New crate: sgx_ucrypto and sgx_crypto_helper.
+
+Still working on an example on the ucrypto and crypto helper crate.
+
 ## v1.0.4 Release
 This version supports Rust nightly build (nightly-2018-10-01) in the master branch and the most recent stable build (stable-2018-09-25) in the rust-stable branch. It supports the latest Intel SGX SDK **v2.3.1** and Ubuntu Linux 18.04. It now contains further third party libraries including: bit-vec, chrono, erased-serde, fxhash, nan-preserving-float, num-bigint, quick-error, raft-rs, time, webpki-roots, and yasna. Some third party libraries, like untrusted, parity-wasm and lazy-static, are removed because they support `no_std` and can be used directly from crates.io. We strongly recommend developers upgrade to v1.0.4 and use the most recent Rust release to build it due to the [Security advisory for the standard library](https://blog.rust-lang.org/2018/09/21/Security-advisory-for-std.html). Please refer to [release_notes](release_notes.md) for further details.
 

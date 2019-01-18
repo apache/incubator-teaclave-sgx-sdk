@@ -1,7 +1,7 @@
 libflate
 ========
 
-[![libflate](http://meritbadge.herokuapp.com/libflate)](https://crates.io/crates/libflate)
+[![libflate](https://img.shields.io/crates/v/libflate.svg)](https://crates.io/crates/libflate)
 [![Documentation](https://docs.rs/libflate/badge.svg)](https://docs.rs/libflate)
 [![Build Status](https://travis-ci.org/sile/libflate.svg?branch=master)](https://travis-ci.org/sile/libflate)
 [![Code Coverage](https://codecov.io/gh/sile/libflate/branch/master/graph/badge.svg)](https://codecov.io/gh/sile/libflate/branch/master)
@@ -59,8 +59,8 @@ $ gzip -d enwiki-latest-all-titles-in-ns0.gz
 
 $ cargo run --release -- enwiki-latest-all-titles-in-ns0
 # ENCODE (input_size=277303937)
-- libflate: elapsed=6.704266s, size=96128630
--   flate2: elapsed=11.437189s, size=74217004
+- libflate: elapsed=8.137013s, size=83259010
+-   flate2: elapsed=9.814607s, size=74692153
 
 # DECODE (input_size=74217004)
 - libflate: elapsed=1.354556s, size=277303937

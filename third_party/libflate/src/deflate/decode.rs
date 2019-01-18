@@ -1,15 +1,15 @@
+use std::prelude::v1::*;
+use byteorder::LittleEndian;
+use byteorder::ReadBytesExt;
+use std::cmp;
 use std::io;
 use std::io::Read;
-use std::cmp;
 use std::ptr;
-use std::vec::Vec;
-use byteorder::ReadBytesExt;
-use byteorder::LittleEndian;
 
+use super::symbol;
 use bit;
 use lz77;
 use util;
-use super::symbol;
 
 /// DEFLATE decoder.
 #[derive(Debug)]
@@ -87,13 +87,13 @@ where
             let old_len = self.buffer.len();
             self.buffer.reserve(len as usize);
             unsafe { self.buffer.set_len(old_len + len as usize) };
-            self.bit_reader.as_inner_mut().read_exact(
-                &mut self.buffer[old_len..],
-            )?;
+            self.bit_reader
+                .as_inner_mut()
+                .read_exact(&mut self.buffer[old_len..])?;
             Ok(())
         }
     }
-    fn read_compressed_block<H>(&mut self, huffman: H) -> io::Result<()>
+    fn read_compressed_block<H>(&mut self, huffman: &H) -> io::Result<()>
     where
         H: symbol::HuffmanCodec,
     {
@@ -170,11 +170,11 @@ where
                     self.read(buf)
                 }
                 0b01 => {
-                    self.read_compressed_block(symbol::FixedHuffmanCodec)?;
+                    self.read_compressed_block(&symbol::FixedHuffmanCodec)?;
                     self.read(buf)
                 }
                 0b10 => {
-                    self.read_compressed_block(symbol::DynamicHuffmanCodec)?;
+                    self.read_compressed_block(&symbol::DynamicHuffmanCodec)?;
                     self.read(buf)
                 }
                 0b11 => Err(invalid_data_error!(
@@ -188,22 +188,21 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::io;
-    use deflate::symbol::{HuffmanCodec, DynamicHuffmanCodec};
     use super::*;
+    use deflate::symbol::{DynamicHuffmanCodec, HuffmanCodec};
+    use std::io;
 
     #[test]
-    #[cfg_attr(rustfmt, rustfmt_skip)]
     fn test_issues_3() {
         // see: https://github.com/sile/libflate/issues/3
-        let input =
-            [180, 253, 73, 143, 28, 201, 150, 46, 8, 254, 150, 184, 139, 75, 18, 69,
-             247, 32, 157, 51, 27, 141, 132, 207, 78, 210, 167, 116, 243, 160, 223,
-             136, 141, 66, 205, 76, 221, 76, 195, 213, 84, 236, 234, 224, 78, 227, 34,
-             145, 221, 139, 126, 232, 69, 173, 170, 208, 192, 219, 245, 67, 3, 15, 149,
-             120, 171, 70, 53, 106, 213, 175, 23, 21, 153, 139, 254, 27, 249, 75, 234,
-             124, 71, 116, 56, 71, 68, 212, 204, 121, 115, 64, 222, 160, 203, 119,
-             142, 170, 169, 138, 202, 112, 228, 140, 38];
+        let input = [
+            180, 253, 73, 143, 28, 201, 150, 46, 8, 254, 150, 184, 139, 75, 18, 69, 247, 32, 157,
+            51, 27, 141, 132, 207, 78, 210, 167, 116, 243, 160, 223, 136, 141, 66, 205, 76, 221,
+            76, 195, 213, 84, 236, 234, 224, 78, 227, 34, 145, 221, 139, 126, 232, 69, 173, 170,
+            208, 192, 219, 245, 67, 3, 15, 149, 120, 171, 70, 53, 106, 213, 175, 23, 21, 153, 139,
+            254, 27, 249, 75, 234, 124, 71, 116, 56, 71, 68, 212, 204, 121, 115, 64, 222, 160, 203,
+            119, 142, 170, 169, 138, 202, 112, 228, 140, 38,
+        ];
         let mut bit_reader = ::bit::BitReader::new(&input[..]);
         assert_eq!(bit_reader.read_bit().unwrap(), false); // not final block
         assert_eq!(bit_reader.read_bits(2).unwrap(), 0b10); // DynamicHuffmanCodec
@@ -211,18 +210,16 @@ mod test {
     }
 
     #[test]
-    #[cfg_attr(rustfmt, rustfmt_skip)]
     fn it_works() {
-        let input =
-            [180, 253, 73, 143, 28, 201, 150, 46, 8, 254, 150, 184, 139, 75, 18,
-             69, 247, 32, 157, 51, 27, 141, 132, 207, 78, 210, 167, 116, 243,
-             160, 223, 136, 141, 66, 205, 76, 221, 76, 195, 213, 84, 236, 234,
-             224, 78, 227, 34, 145, 221, 139, 126, 232, 69, 173, 170, 208, 192,
-             219, 245, 67, 3, 15, 149, 120, 171, 70, 53, 106, 213, 175, 23, 21,
-             153, 139, 254, 27, 249, 75, 234, 124, 71, 116, 56, 71, 68, 212, 204,
-             121, 115, 64, 222, 160, 203, 119, 142, 170, 169, 138, 202, 112, 228,
-             140, 38, 171, 162, 88, 212, 235, 56, 136, 231, 233, 239, 113, 249,
-             163, 252, 16, 42, 138, 49, 226, 108, 73, 28, 153];
+        let input = [
+            180, 253, 73, 143, 28, 201, 150, 46, 8, 254, 150, 184, 139, 75, 18, 69, 247, 32, 157,
+            51, 27, 141, 132, 207, 78, 210, 167, 116, 243, 160, 223, 136, 141, 66, 205, 76, 221,
+            76, 195, 213, 84, 236, 234, 224, 78, 227, 34, 145, 221, 139, 126, 232, 69, 173, 170,
+            208, 192, 219, 245, 67, 3, 15, 149, 120, 171, 70, 53, 106, 213, 175, 23, 21, 153, 139,
+            254, 27, 249, 75, 234, 124, 71, 116, 56, 71, 68, 212, 204, 121, 115, 64, 222, 160, 203,
+            119, 142, 170, 169, 138, 202, 112, 228, 140, 38, 171, 162, 88, 212, 235, 56, 136, 231,
+            233, 239, 113, 249, 163, 252, 16, 42, 138, 49, 226, 108, 73, 28, 153,
+        ];
         let mut decoder = Decoder::new(&input[..]);
 
         let result = io::copy(&mut decoder, &mut io::sink());

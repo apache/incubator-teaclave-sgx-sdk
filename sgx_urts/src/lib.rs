@@ -26,23 +26,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#![feature(tool_lints)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 extern crate libc;
 extern crate sgx_types;
 
 mod enclave;
-pub mod stdio;
-pub mod backtrace;
+pub mod mem;
 pub mod time;
-pub mod fs;
-pub mod net;
+pub mod fd;
+pub mod file;
+pub mod socket;
+pub mod asyncio;
 pub mod env;
+pub mod sys;
 
 pub use enclave::*;
-
-
-
-
 

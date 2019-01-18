@@ -75,7 +75,7 @@ impl<T, C, E> MatrixComparisonResult<T, C, E>
                 }
 
                 // Strip off the last newline from the above
-                formatted_mismatches = formatted_mismatches.trim_right().to_string();
+                formatted_mismatches = formatted_mismatches.trim_end().to_string();
 
                 Some(format!("\n
 Matrices X and Y have {num} mismatched element pairs.

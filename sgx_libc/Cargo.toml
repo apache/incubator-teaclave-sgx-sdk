@@ -1,0 +1,31 @@
+[package]
+name = "sgx_libc"
+version = "1.0.5"
+authors = ["Baidu"]
+repository = "https://github.com/baidu/rust-sgx-sdk"
+license-file = "LICENSE"
+documentation = "https://dingelish.github.io/"
+description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
+
+include = [
+    "LICENSE",
+    "Readme.md",
+    "Cargo.toml",
+    "src/lib.rs",
+    "src/linux/mod.rs",
+    "src/linux/x86_64/mod.rs",
+    "src/linux/x86_64/ocall.rs",
+    "src/android/mod.rs",
+    "src/android/aarch64/mod.rs",
+]
+
+[lib]
+name = "sgx_libc"
+crate-type = ["rlib"]
+
+[features]
+default = ["align"]
+align = []
+
+[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]
+sgx_types = { path = "../sgx_types" }

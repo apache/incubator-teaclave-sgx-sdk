@@ -1,6 +1,6 @@
 [package]
 name = "libflate"
-version = "0.1.10"
+version = "0.1.18"
 authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 description = "A Rust implementation of DEFLATE algorithm and related formats (ZLIB, GZIP)"
 homepage = "https://github.com/sile/libflate"
@@ -10,13 +10,17 @@ keywords = ["deflate", "gzip", "zlib"]
 categories = ["compression"]
 license = "MIT"
 
+[badges]
+travis-ci = {repository = "sile/libflate"}
+codecov = {repository = "sile/libflate"}
+
+[dependencies]
+adler32 = { version = "1", path = "../adler32-rs" }
+byteorder = { version = "1", path = "../byteorder" }
+crc = { version = "1", default-features = false }
+
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_tstd = { path =  "../../sgx_tstd" }
 
-[dependencies]
-adler32 = { path = "../adler32-rs" }
-byteorder = { path = "../byteorder" }
-
-[features]
-default = []
-use_std = []
+[dev-dependencies]
+clap = "2"

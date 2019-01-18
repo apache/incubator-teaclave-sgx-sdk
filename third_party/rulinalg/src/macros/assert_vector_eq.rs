@@ -71,7 +71,7 @@ impl <T, C, E> VectorComparisonResult<T, C, E>
                 }
 
                 // Strip off the last newline from the above
-                formatted_mismatches = formatted_mismatches.trim_right().to_string();
+                formatted_mismatches = formatted_mismatches.trim_start().to_string();
 
                 Some(format!("\n
 Vectors X and Y have {num} mismatched element pairs.

@@ -1,0 +1,43 @@
+[package]
+name = "sgx_crypto_helper"
+version = "1.0.5"
+authors = ["Baidu"]
+repository = "https://github.com/baidu/rust-sgx-sdk"
+license-file = "LICENSE"
+documentation = "https://dingelish.github.io/"
+description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
+
+include = [
+    "LICENSE",
+    "Readme.md",
+    "Cargo.toml",
+    "build.rs",
+    "src/crypto.rs",
+    "src/lib.rs",
+    "src/rsa2048.rs",
+    "src/rsa3072.rs",
+    "src/util.rs",
+    "example/rsa.rs",
+    "example/sha256.rs",
+]
+
+[lib]
+name = "sgx_crypto_helper"
+crate-type = ["staticlib","rlib"]
+
+[features]
+default = []
+enclave_cargo = ["sgx_tcrypto"]
+
+[dependencies]
+sgx_ucrypto = { path = "../sgx_ucrypto" }
+sgx_tcrypto = { path = "../sgx_tcrypto", optional = true }
+libc = "0.2"
+serde = "*"
+serde_derive = "*"
+sgx_types = { path = "../sgx_types" }
+itertools = "*"
+serde-big-array = "0.1"
+
+[dev-dependencies]
+sgx_ucrypto = { path = "../sgx_ucrypto" }

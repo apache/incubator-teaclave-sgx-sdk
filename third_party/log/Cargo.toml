@@ -43,7 +43,7 @@ appveyor = { repository = "alexcrichton/log" }
 sgx_tstd = { path =  "../../sgx_tstd" }
 
 [dependencies]
-cfg-if = { version = "0.1.2", path = "../cfg-if" }
+cfg-if = "0.1.6"
 serde = { version = "1.0", optional = true, default-features = false, path = "../serde-rs/serde/serde" }
 
 [dev-dependencies]

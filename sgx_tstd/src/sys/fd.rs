@@ -26,7 +26,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use sgx_trts::libc::{c_int, ssize_t, c_void};
+use sgx_trts::libc::{c_int, c_void, ssize_t};
 use core::cmp;
 use core::mem;
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -126,6 +126,12 @@ impl FileDesc {
         }
     }
 
+    pub fn get_cloexec(&self) -> io::Result<bool> {
+        unsafe {
+            Ok((cvt(libc::fcntl_arg0(self.fd, libc::F_GETFD))? & libc::FD_CLOEXEC) != 0)
+        }
+    }
+
     pub fn set_cloexec(&self) -> io::Result<()> {
         unsafe {
             cvt(libc::ioctl_arg0(self.fd, libc::FIOCLEX))?;
@@ -204,229 +210,14 @@ impl Drop for FileDesc {
         // reason for this is that if an error occurs we don't actually know if
         // the file descriptor was closed or not, and if we retried (for
         // something like EINTR), we might close another valid file descriptor
-        // (opened after we closed ours.
+        // opened after we closed ours.
         let _ = unsafe { libc::close(self.fd) };
     }
 }
 
 mod libc {
-    use sgx_types::sgx_status_t;
-    use io;
     pub use sgx_trts::libc::*;
-
-    extern "C" {
-        pub fn u_fs_read_ocall(result: * mut ssize_t,
-                               errno: * mut c_int,
-                               fd: c_int,
-                               buf: * mut c_void,
-                               count: size_t) -> sgx_status_t;
-
-        pub fn u_fs_pread64_ocall(result: * mut ssize_t,
-                                  errno: * mut c_int,
-                                  fd: c_int,
-                                  buf: * mut c_void,
-                                  count: size_t,
-                                  offset: off64_t) -> sgx_status_t;
-
-        pub fn u_fs_write_ocall(result: * mut ssize_t,
-                                errno: * mut c_int,
-                                fd: c_int,
-                                buf: * const c_void,
-                                count: size_t) -> sgx_status_t;
-
-        pub fn u_fs_pwrite64_ocall(result: * mut ssize_t,
-                                   errno: * mut c_int,
-                                   fd: c_int,
-                                   buf: * const c_void,
-                                   count: size_t,
-                                   offset: off64_t) -> sgx_status_t;
-
-        pub fn u_fs_close_ocall(result: * mut c_int,
-                                errno: * mut c_int,
-                                fd: c_int) -> sgx_status_t;
-
-        pub fn u_fs_ioctl_arg0_ocall(result: * mut c_int,
-                                     errno: * mut c_int,
-                                     fd: c_int,
-                                     request: c_int) -> sgx_status_t;
-
-        pub fn u_fs_ioctl_arg1_ocall(result: * mut c_int,
-                                     errno: * mut c_int,
-                                     fd: c_int,
-                                     request: c_int,
-                                     arg: * const c_int) -> sgx_status_t;
-
-        pub fn u_fs_fcntl_arg1_ocall(result: * mut c_int,
-                                     errno: * mut c_int,
-                                     fd: c_int,
-                                     cmd: c_int,
-                                     arg: c_int) -> sgx_status_t;
-    }
-
-    pub unsafe fn read(fd: c_int, buf: * mut c_void, count: size_t) -> ssize_t {
-
-        let mut result: ssize_t = 0;
-        let mut error: c_int = 0;
-        let status = u_fs_read_ocall(&mut result as * mut ssize_t,
-                                     &mut error as * mut c_int,
-                                     fd,
-                                     buf,
-                                     count);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(ESGX);
-            result = -1;
-        }
-        result
-    }
-
-    pub unsafe fn pread64(fd: c_int, buf: * mut c_void, count: size_t, offset: off64_t) -> ssize_t {
-
-        let mut result: ssize_t = 0;
-        let mut error: c_int = 0;
-        let status = u_fs_pread64_ocall(&mut result as * mut ssize_t,
-                                        &mut error as * mut c_int,
-                                        fd,
-                                        buf,
-                                        count,
-                                        offset);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(ESGX);
-            result = -1;
-        }
-        result
-    }
-
-    pub unsafe fn write(fd: c_int, buf: * const c_void, count: size_t) -> ssize_t {
-
-        let mut result: ssize_t = 0;
-        let mut error: c_int = 0;
-        let status = u_fs_write_ocall(&mut result as * mut ssize_t,
-                                      &mut error as * mut c_int,
-                                      fd,
-                                      buf,
-                                      count);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(ESGX);
-            result = -1;
-        }
-        result
-    }
-
-    pub unsafe fn pwrite64(fd: c_int, buf: * const c_void, count: size_t, offset: off64_t) -> ssize_t {
-
-        let mut result: ssize_t = 0;
-        let mut error: c_int = 0;
-        let status = u_fs_pwrite64_ocall(&mut result as * mut ssize_t,
-                                         &mut error as * mut c_int,
-                                         fd,
-                                         buf,
-                                         count,
-                                         offset);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(ESGX);
-            result = -1;
-        }
-        result
-    }
-
-    pub unsafe fn close(fd: c_int) -> c_int {
-
-        let mut result: c_int = 0;
-        let mut error: c_int = 0;
-        let status = u_fs_close_ocall(&mut result as * mut c_int,
-                                      &mut error as * mut c_int,
-                                      fd);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(ESGX);
-            result = -1;
-        }
-        result
-    }
-
-    pub unsafe fn ioctl_arg0(fd: c_int, request: c_int) -> c_int {
-
-        let mut result: c_int = 0;
-        let mut error: c_int = 0;
-        let status = u_fs_ioctl_arg0_ocall(&mut result as * mut c_int,
-                                           &mut error as * mut c_int,
-                                           fd,
-                                           request);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(ESGX);
-            result = -1;
-        }
-        result
-    }
-
-    pub unsafe fn ioctl_arg1(fd: c_int, request: c_int, arg: * const c_int) -> c_int {
-
-        let mut result: c_int = 0;
-        let mut error: c_int = 0;
-        let status = u_fs_ioctl_arg1_ocall(&mut result as * mut c_int,
-                                           &mut error as * mut c_int,
-                                           fd,
-                                           request,
-                                           arg);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(ESGX);
-            result = -1;
-        }
-        result
-    }
-
-    pub unsafe fn fcntl_arg1(fd: c_int, cmd: c_int, arg: c_int) -> c_int {
-
-        let mut result: c_int = 0;
-        let mut error: c_int = 0;
-        let status = u_fs_fcntl_arg1_ocall(&mut result as * mut c_int,
-                                           &mut error as * mut c_int,
-                                           fd,
-                                           cmd,
-                                           arg);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(ESGX);
-            result = -1;
-        }
-        result
-    }
+    pub use sgx_trts::libc::ocall::{read, pread64, write, pwrite64, 
+                                    fcntl_arg0, fcntl_arg1, ioctl_arg0, ioctl_arg1,
+                                    close};
 }

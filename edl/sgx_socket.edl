@@ -1,0 +1,97 @@
+/*
+ * Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in
+ *     the documentation and/or other materials provided with the
+ *     distribution.
+ *   * Neither the name of Baidu, Inc., nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+
+enclave {
+
+    include "sys/socket.h"
+
+    trusted {
+        /* define ECALLs here. */
+    };
+
+    untrusted {
+        int u_socket_ocall([out] int *error, int domain, int ty, int protocol);
+        int u_socketpair_ocall([out] int *error, int domain, int ty, int protocol, [out] int sv[2]);
+        int u_bind_ocall([out] int *error, int sockfd, [in, size=addrlen] const struct sockaddr *addr, socklen_t addrlen);
+        int u_listen_ocall([out] int *error, int sockfd, int backlog);
+        int u_accept4_ocall([out] int *error,
+                            int sockfd,
+                            [in, out, size=addrlen_in] struct sockaddr *addr,
+                            socklen_t addrlen_in,
+                            [out] socklen_t *addrlen_out,
+                            int flags);
+        int u_connect_ocall([out] int *error,
+                            int sockfd,
+                            [in, size=addrlen] const struct sockaddr *addr,
+                            socklen_t addrlen);
+        size_t u_recv_ocall([out] int *error, int sockfd, [out, size=len] void *buf, size_t len, int flags);
+        size_t u_recvfrom_ocall([out] int *error,
+                                int sockfd,
+                                [out, size=len] void *buf,
+                                size_t len,
+                                int flags,
+                                [out, size=addrlen_in] struct sockaddr *src_addr,
+                                socklen_t addrlen_in,
+                                [out] socklen_t *addrlen_out);
+        size_t u_send_ocall([out] int *error, int sockfd, [in, size=len] const void *buf, size_t len, int flags);
+        size_t u_sendto_ocall([out] int *error,
+                              int sockfd,
+                              [in, size=len] const void *buf,
+                              size_t len,
+                              int flags,
+                              [in, size=addrlen] const struct sockaddr *dest_addr,
+                              socklen_t addrlen);
+        int u_getsockopt_ocall([out] int *error,
+                               int sockfd,
+                               int level,
+                               int optname,
+                               [out, size=optlen_in] void *optval,
+                               socklen_t optlen_in,
+                               [out] socklen_t *optlen_out);
+        int u_setsockopt_ocall([out] int *error,
+                               int sockfd,
+                               int level,
+                               int optname,
+                               [in, size=optlen] const void *optval,
+                               socklen_t optlen);
+        int u_getsockname_ocall([out] int *error,
+                                int sockfd,
+                                [out, size=addrlen_in] struct sockaddr *addr,
+                                socklen_t addrlen_in,
+                                [out] socklen_t *addrlen_out);
+        int u_getpeername_ocall([out] int *error,
+                                int sockfd,
+                                [out, size=addrlen_in] struct sockaddr *addr,
+                                socklen_t addrlen_in,
+                                [out] socklen_t *addrlen_out);
+        int u_shutdown_ocall([out] int *error, int sockfd, int how);
+    };
+};

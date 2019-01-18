@@ -155,7 +155,7 @@ backtrace_alloc(struct backtrace_state* state,
         pagesize = getpagesize();
         asksize = (size + pagesize - 1) & ~(pagesize - 1);
 
-        uint32_t status = u_backtrace_mmap_ocall(&page, &error, NULL, asksize, PROT_READ | PROT_WRITE,
+        uint32_t status = u_mmap_ocall(&page, &error, NULL, asksize, PROT_READ | PROT_WRITE,
                           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
         if (status != 0) {
@@ -208,7 +208,7 @@ backtrace_free(struct backtrace_state* state, void* addr, size_t size,
             //return;
             int retval = 0;
             int error = 0;
-            uint32_t status = u_backtrace_munmap_ocall(&retval, &error, addr, size);
+            uint32_t status = u_munmap_ocall(&retval, &error, addr, size);
 
             if (status == 0 && retval == 0) {
                 return;

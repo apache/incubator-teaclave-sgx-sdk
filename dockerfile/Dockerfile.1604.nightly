@@ -32,6 +32,11 @@
 FROM ubuntu:16.04
 MAINTAINER Yu Ding
 
+ENV sdk_bin https://download.01.org/intel-sgx/linux-2.4/ubuntu16.04-server/sgx_linux_x64_sdk_2.4.100.48163.bin
+ENV psw_deb https://download.01.org/intel-sgx/linux-2.4/ubuntu16.04-server/libsgx-enclave-common_2.4.100.48163-xenial1_amd64.deb
+ENV psw_dev_deb https://download.01.org/intel-sgx/linux-2.4/ubuntu16.04-server/libsgx-enclave-common-dev_2.4.100.48163-xenial1_amd64.deb
+ENV rust_toolchain nightly-2019-01-17
+
 RUN apt-get update && \
     apt-get install -y build-essential ocaml automake autoconf libtool wget python libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev sudo kmod vim curl git-core libprotobuf-c0-dev libboost-thread-dev libboost-system-dev liblog4cpp5-dev libjsoncpp-dev alien uuid-dev libxml2-dev cmake pkg-config expect && \
     rm -rf /var/lib/apt/lists/* && \
@@ -49,28 +54,33 @@ RUN apt-get update && \
 #    systemctl enable jhi
 
 RUN mkdir /root/sgx && \
-    wget -O /root/sgx/psw.deb https://download.01.org/intel-sgx/linux-2.3.1/ubuntu16.04/libsgx-enclave-common_2.3.101.46683-1_amd64.deb && \
-    wget -O /root/sgx/sdk.bin https://download.01.org/intel-sgx/linux-2.3.1/ubuntu16.04/sgx_linux_x64_sdk_2.3.101.46683.bin && \
+    wget -O /root/sgx/psw.deb ${psw_deb} && \
+    wget -O /root/sgx/psw_dev.deb ${psw_dev_deb} && \
+    wget -O /root/sgx/sdk.bin ${sdk_bin} && \
     cd /root/sgx && \
     dpkg -i /root/sgx/psw.deb && \
+    dpkg -i /root/sgx/psw_dev.deb && \
     chmod +x /root/sgx/sdk.bin && \
     echo -e 'no\n/opt' | /root/sgx/sdk.bin && \
     echo 'source /opt/sgxsdk/environment' >> /root/.bashrc && \
     rm -rf /root/sgx/*
 
-ADD patch /root/
 
-RUN wget -O /root/src.tar.gz https://github.com/intel/linux-sgx/archive/sgx_2.3.1.tar.gz && \
+ENV sdk_src https://github.com/intel/linux-sgx/archive/sgx_2.4.tar.gz
+ENV sdk_dir linux-sgx-sgx_2.4
+ADD patch24 /root/
+
+RUN wget -O /root/src.tar.gz ${sdk_src} && \
     cd /root && tar xzf src.tar.gz && \
-    cd /root/linux-sgx-sgx_2.3.1 && git apply ../patch && \
-    /root/linux-sgx-sgx_2.3.1/download_prebuilt.sh && \
-    cd /root/linux-sgx-sgx_2.3.1 && make -j && \
-    cp /root/linux-sgx-sgx_2.3.1/build/linux/libsgx_tstdc.a /opt/sgxsdk/lib64/libsgx_tstdc.a && \
-    rm /root/src.tar.gz && rm -rf /root/linux-sgx-sgx_2.3.1
+    cd /root/${sdk_dir} && git apply ../patch24 && \
+    /root/${sdk_dir}/download_prebuilt.sh && \
+    cd /root/${sdk_dir} && make -j && \
+    cp /root/${sdk_dir}/build/linux/aesm_service /opt/intel/libsgx-enclave-common/aesm/aesm_service && \
+    rm /root/src.tar.gz && rm -rf /root/${sdk_dir}
 
 RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init && \
     chmod +x /root/rustup-init && \
-    echo '1' | /root/rustup-init --default-toolchain nightly-2018-10-01 && \
+    echo '1' | /root/rustup-init --default-toolchain ${rust_toolchain} && \
     echo 'source /root/.cargo/env' >> /root/.bashrc && \
     /root/.cargo/bin/rustup component add rust-src && \
     /root/.cargo/bin/cargo install xargo && \

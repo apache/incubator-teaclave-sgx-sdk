@@ -1,14 +1,14 @@
-use std::io;
-use std::cmp;
-use std::vec::Vec;
+use std::prelude::v1::*;
 use byteorder::LittleEndian;
 use byteorder::WriteBytesExt;
+use std::cmp;
+use std::io;
 
-use bit;
-use lz77;
-use finish::Finish;
 use super::symbol;
 use super::BlockType;
+use bit;
+use finish::{Complete, Finish};
+use lz77;
 
 /// The default size of a DEFLATE block.
 pub const DEFAULT_BLOCK_SIZE: usize = 1024 * 1024;
@@ -238,6 +238,15 @@ where
         self.writer.as_inner_mut().flush()
     }
 }
+impl<W, E> Complete for Encoder<W, E>
+where
+    W: io::Write,
+    E: lz77::Lz77Encode,
+{
+    fn complete(self) -> io::Result<()> {
+        self.finish().into_result().map(|_| ())
+    }
+}
 
 #[derive(Debug)]
 struct Block<E> {
@@ -336,7 +345,7 @@ impl RawBuf {
         RawBuf { buf: Vec::new() }
     }
     fn append(&mut self, buf: &[u8]) {
-        self.buf.extend(buf);
+        self.buf.extend_from_slice(buf);
     }
     fn len(&self) -> usize {
         self.buf.len()
@@ -347,10 +356,12 @@ impl RawBuf {
     {
         let size = cmp::min(self.buf.len(), MAX_NON_COMPRESSED_BLOCK_SIZE);
         writer.flush()?;
-        writer.as_inner_mut().write_u16::<LittleEndian>(size as u16)?;
-        writer.as_inner_mut().write_u16::<LittleEndian>(
-            !size as u16,
-        )?;
+        writer
+            .as_inner_mut()
+            .write_u16::<LittleEndian>(size as u16)?;
+        writer
+            .as_inner_mut()
+            .write_u16::<LittleEndian>(!size as u16)?;
         writer.as_inner_mut().write_all(&self.buf[..size])?;
         self.buf.drain(0..size);
         Ok(())
@@ -371,8 +382,8 @@ where
 {
     fn new(huffman: H, lz77: E) -> Self {
         CompressBuf {
-            huffman: huffman,
-            lz77: lz77,
+            huffman,
+            lz77,
             buf: Vec::new(),
             original_size: 0,
         }
@@ -390,10 +401,10 @@ where
     {
         self.lz77.flush(&mut self.buf);
         self.buf.push(symbol::Symbol::EndOfBlock);
-        let symbol_encoder = self.huffman.build(&self.buf);
+        let symbol_encoder = self.huffman.build(&self.buf)?;
         self.huffman.save(writer, &symbol_encoder)?;
         for s in self.buf.drain(..) {
-            symbol_encoder.encode(writer, s)?;
+            symbol_encoder.encode(writer, &s)?;
         }
         self.original_size = 0;
         Ok(())
@@ -407,13 +418,11 @@ impl lz77::Sink for Vec<symbol::Symbol> {
             lz77::Code::Pointer {
                 length,
                 backward_distance,
-            } => {
-                symbol::Symbol::Share {
-                    length: length,
-                    distance: backward_distance,
-                }
-            }
+            } => symbol::Symbol::Share {
+                length,
+                distance: backward_distance,
+            },
         };
-        self.push(From::from(symbol));
+        self.push(symbol);
     }
 }

@@ -94,7 +94,7 @@
 #![feature(std_internals)]
 #![feature(panic_info_message)]
 #![feature(unicode_internals)]
-#![feature(panic_implementation)]
+#![feature(alloc_layout_extra)]
 
 #![default_lib_allocator]
 

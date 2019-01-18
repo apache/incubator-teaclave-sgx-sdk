@@ -44,7 +44,7 @@ pub fn test_rand_os_sgxrng(){
 
     let mut rand_arr = [0;1000];
     os_rng.fill_bytes(&mut rand_arr[..]);
-    let x = rand_arr.iter().fold(0, |sum, &x| sum ^ x);
+    let x = rand_arr.iter().fold(0, |sum, &x| sum + x);
     assert_ne!(x, 0);
 }
 

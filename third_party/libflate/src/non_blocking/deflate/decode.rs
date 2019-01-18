@@ -1,14 +1,15 @@
+use byteorder::LittleEndian;
+use byteorder::ReadBytesExt;
+use std::prelude::v1::*;
+use std::cmp;
 use std::io;
 use std::io::Read;
-use std::cmp;
 use std::ptr;
-use byteorder::ReadBytesExt;
-use byteorder::LittleEndian;
 
-use lz77;
-use util;
 use deflate::symbol::{self, HuffmanCodec};
+use lz77;
 use non_blocking::transaction::TransactionalBitReader;
+use util;
 
 /// DEFLATE decoder which supports non-blocking I/O.
 #[derive(Debug)]
@@ -129,27 +130,25 @@ impl<R: Read> Read for Decoder<R> {
                     let buf = &mut buf[..cmp::min(buf_len, *len as usize)];
                     read_size = self.bit_reader.as_inner_mut().read(buf)?;
 
-                    self.block_decoder.buffer.extend(&buf[..read_size]);
+                    self.block_decoder.extend(&buf[..read_size]);
                     *len -= read_size as u16;
                     break;
                 }
                 DecoderState::LoadFixedHuffmanCode => {
-                    let symbol_decoder = self.bit_reader.transaction(
-                        |r| symbol::FixedHuffmanCodec.load(r),
-                    )?;
+                    let symbol_decoder = self
+                        .bit_reader
+                        .transaction(|r| symbol::FixedHuffmanCodec.load(r))?;
                     DecoderState::DecodeBlock(symbol_decoder)
                 }
                 DecoderState::LoadDynamicHuffmanCode => {
-                    let symbol_decoder = self.bit_reader.transaction(
-                        |r| symbol::DynamicHuffmanCodec.load(r),
-                    )?;
+                    let symbol_decoder = self
+                        .bit_reader
+                        .transaction(|r| symbol::DynamicHuffmanCodec.load(r))?;
                     DecoderState::DecodeBlock(symbol_decoder)
                 }
                 DecoderState::DecodeBlock(ref mut symbol_decoder) => {
-                    self.block_decoder.decode(
-                        &mut self.bit_reader,
-                        symbol_decoder,
-                    )?;
+                    self.block_decoder
+                        .decode(&mut self.bit_reader, symbol_decoder)?;
                     read_size = self.block_decoder.read(buf)?;
                     if read_size == 0 && !buf.is_empty() && !self.eos {
                         DecoderState::ReadBlockHeader
@@ -247,6 +246,12 @@ impl BlockDecoder {
             self.offset = new_len;
         }
     }
+
+    fn extend(&mut self, buf: &[u8]) {
+        self.buffer.extend_from_slice(buf);
+        self.offset += buf.len();
+    }
+
     fn decode_symbol<R: Read>(
         &mut self,
         bit_reader: &mut TransactionalBitReader<R>,
@@ -280,10 +285,10 @@ impl Read for BlockDecoder {
 
 #[cfg(test)]
 mod test {
-    use std::io::{self, Read};
-    use deflate::{Encoder, EncodeOptions};
-    use util::{nb_read_to_end, WouldBlockReader};
     use super::*;
+    use deflate::{EncodeOptions, Encoder};
+    use std::io::{self, Read};
+    use util::{nb_read_to_end, WouldBlockReader};
 
     #[test]
     fn it_works() {
@@ -308,6 +313,22 @@ mod test {
         let decoded_data = nb_read_to_end(decoder).unwrap();
 
         assert_eq!(decoded_data, b"Hello World!");
+    }
+
+    #[test]
+    fn non_blocking_io_for_large_text_works() {
+        let text: String = (0..10000)
+            .into_iter()
+            .map(|i| format!("test {}", i))
+            .collect();
+
+        let mut encoder = ::deflate::Encoder::new(Vec::new());
+        io::copy(&mut text.as_bytes(), &mut encoder).unwrap();
+        let encoded_data = encoder.finish().into_result().unwrap();
+
+        let decoder = Decoder::new(WouldBlockReader::new(&encoded_data[..]));
+        let decoded_data = nb_read_to_end(decoder).unwrap();
+        assert_eq!(decoded_data, text.as_bytes());
     }
 
     #[test]

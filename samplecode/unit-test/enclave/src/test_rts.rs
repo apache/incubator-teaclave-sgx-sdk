@@ -39,7 +39,8 @@ use sgx_trts::memchr;
 use sgx_trts::libc;
 use sgx_trts::enclave::*;
 
-use core::mem;
+//Only during dev
+//use core::mem;
 
 global_ctors_object! {
     VARNAME, func_name = {()}
@@ -98,7 +99,7 @@ pub fn test_register_multiple_exception_handler() {
 pub fn test_read_rand(){
     let mut rand_arr = [0; 100];
     assert_eq!(rsgx_read_rand(&mut rand_arr[..]), Ok(()));
-    let x = rand_arr.iter().fold(0, |sum, &x| sum ^ x);
+    let x = rand_arr.iter().fold(0, |sum, &x| sum + x);
     // Cannot all be zero
     assert_ne!(x, 0);
 }

@@ -27,5 +27,5 @@
   "target-endian": "little",
   "target-family": "unix",
   "target-pointer-width": "64",
-  "vendor": "unknown"
+  "vendor": "mesalock"
 }

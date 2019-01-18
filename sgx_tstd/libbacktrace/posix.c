@@ -78,7 +78,7 @@ backtrace_open(const char* filename, backtrace_error_callback error_callback,
         *does_not_exist = 0;
     }
 
-    uint32_t status = u_backtrace_open_ocall(&descriptor, &error, filename,
+    uint32_t status = u_open_ocall(&descriptor, &error, filename,
                       (int)(O_RDONLY | O_BINARY | O_CLOEXEC));
 
     if (status != 0) {
@@ -104,7 +104,7 @@ backtrace_open(const char* filename, backtrace_error_callback error_callback,
        O_CLOEXEC == 0.  */
     //fcntl (descriptor, F_SETFD, FD_CLOEXEC);
     int retval = 0;
-    u_backtrace_fcntl_ocall(&retval, &error, descriptor, F_SETFD, FD_CLOEXEC);
+    u_fcntl_arg1_ocall(&retval, &error, descriptor, F_SETFD, FD_CLOEXEC);
 #endif
 
     return descriptor;
@@ -118,7 +118,7 @@ backtrace_close(int descriptor, backtrace_error_callback error_callback,
 
     int retval = 0;
     int error = 0;
-    uint32_t status = u_backtrace_close_ocall(&retval, &error, descriptor);
+    uint32_t status = u_close_ocall(&retval, &error, descriptor);
 
     if (status != 0) {
         error_callback(data, "sgx ocall failed", status);

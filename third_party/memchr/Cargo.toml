@@ -1,0 +1,36 @@
+[package]
+name = "memchr"
+version = "2.1.2"  #:version
+authors = ["Andrew Gallant <jamslam@gmail.com>", "bluss"]
+description = "Safe interface to memchr."
+documentation = "https://docs.rs/memchr/"
+homepage = "https://github.com/BurntSushi/rust-memchr"
+repository = "https://github.com/BurntSushi/rust-memchr"
+readme = "README.md"
+keywords = ["memchr", "char", "scan", "strchr", "string"]
+license = "Unlicense/MIT"
+exclude = ["/ci/*", "/.travis.yml", "/Makefile", "/appveyor.yml", "/ctags.rust", "/session.vim"]
+
+[badges]
+travis-ci = { repository = "BurntSushi/rust-memchr" }
+appveyor = { repository = "BurntSushi/rust-memchr" }
+
+[lib]
+name = "memchr"
+bench = false
+
+[features]
+
+
+[dependencies]
+cfg-if = { path = "../cfg-if" }
+sgx_libc = { path = "../../sgx_libc", default-features = false, optional = true } 
+
+[build-dependencies]
+version_check = { path = "../version_check" }
+
+[dev-dependencies]
+quickcheck = { version = "0.7", default-features = false }
+
+[profile.test]
+opt-level = 3

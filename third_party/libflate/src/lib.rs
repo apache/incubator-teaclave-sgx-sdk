@@ -1,13 +1,17 @@
 //! A Rust implementation of DEFLATE algorithm and related formats (ZLIB, GZIP).
 #![warn(missing_docs)]
+#![cfg_attr(feature = "cargo-clippy", allow(inline_always))]
+
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
+
 extern crate adler32;
 extern crate byteorder;
+extern crate crc;
 
 pub use finish::Finish;
 
@@ -22,27 +26,19 @@ macro_rules! finish_try {
     ($e:expr) => {
         match $e.unwrap() {
             (inner, None) => inner,
-            (inner, error) => return ::finish::Finish::new(inner, error)
+            (inner, error) => return ::finish::Finish::new(inner, error),
         }
-    }
+    };
 }
 
-#[allow(dead_code)]
-pub mod lz77;
-#[allow(dead_code)]
-pub mod zlib;
-//pub mod gzip;
-#[allow(dead_code)]
 pub mod deflate;
-//pub mod non_blocking;
+pub mod finish;
+pub mod gzip;
+pub mod lz77;
+pub mod non_blocking;
+pub mod zlib;
 
-#[allow(dead_code)]
 mod bit;
-#[allow(dead_code)]
-mod finish;
-#[allow(dead_code)]
-mod huffman;
-#[allow(dead_code)]
 mod checksum;
-#[allow(dead_code)]
+mod huffman;
 mod util;

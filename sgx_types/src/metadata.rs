@@ -1,4 +1,4 @@
-use types::{sgx_attributes_t, sgx_misc_select_t, sgx_measurement_t};
+use types::{sgx_attributes_t, sgx_misc_select_t, sgx_measurement_t, sgx_isvext_prod_id_t, sgx_isvfamily_id_t};
 use core::default::Default;
 
 /* arch .h*/
@@ -28,11 +28,13 @@ pub struct css_key_t {
 pub struct css_body_t {
     pub misc_select     : sgx_misc_select_t,
     pub misc_mask       : sgx_misc_select_t,
-    pub reserved        : [u8;20],
+    pub reserved        : [u8;4],
+    pub isv_family_id   : sgx_isvfamily_id_t,
     pub attributes      : sgx_attributes_t,
     pub attribute_mask  : sgx_attributes_t,
     pub enclave_hash    : sgx_measurement_t,
-    pub reserved2       : [u8;32],
+    pub reserved2       : [u8;16],
+    pub isvext_prod_id  : sgx_isvext_prod_id_t,
     pub isv_prod_id     : u16,
     pub isv_svn         : u16,
 }
@@ -53,9 +55,9 @@ pub struct enclave_css_t {
 }
 
 /* version of metadata */
-/* based on 2.2 */
+/* based on 2.4 */
 pub const MAJOR_VERSION         : u32 = 2;
-pub const MINOR_VERSION         : u32 = 3;
+pub const MINOR_VERSION         : u32 = 4;
 pub const SGX_2_1_MAJOR_VERSION : u32 = 2;   //MAJOR_VERSION should not larger than 0ffffffff
 pub const SGX_2_1_MINOR_VERSION : u32 = 2;   //MINOR_VERSION should not larger than 0ffffffff
 pub const SGX_2_0_MAJOR_VERSION : u32 = 2;   //MAJOR_VERSION should not larger than 0ffffffff
@@ -77,12 +79,14 @@ pub const TCS_NUM_MIN           : u32 = 1;
 pub const SSA_NUM_MIN           : u32 = 2;
 pub const SSA_FRAME_SIZE_MIN    : u32 = 1;
 pub const SSA_FRAME_SIZE_MAX    : u32 = 2;
-pub const STACK_SIZE_MIN        : u32 = 0x1000;
+pub const STACK_SIZE_MIN        : u32 = 0x2000;
 pub const STACK_SIZE_MAX        : u32 = 0x40000;
 pub const HEAP_SIZE_MIN         : u32 = 0x1000;
 pub const HEAP_SIZE_MAX         : u32 = 0x1000000;
 pub const DEFAULT_MISC_SELECT   : u32 = 0;
 pub const DEFAULT_MISC_MASK     : u32 = 0xFFFFFFFF;
+pub const ISVFAMILYID_MAX       : u64 = 0xFFFFFFFFFFFFFFFF;
+pub const ISVEXTPRODID_MAX      : u64 = 0xFFFFFFFFFFFFFFFF;
 
 impl_struct! {
     #[repr(packed)]

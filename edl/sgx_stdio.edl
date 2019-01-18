@@ -30,14 +30,14 @@
  */
  
 enclave {
+
+    from "sgx_fd.edl" import *;
     
 	trusted {
         /* define ECALLs here. */
     };
 
     untrusted {
-        size_t u_stdin_ocall([out, size=nbytes] void *buf, size_t nbytes);
-        size_t u_stdout_ocall([in, size=nbytes] const void *buf, size_t nbytes);
-        size_t u_stderr_ocall([in, size=nbytes] const void *buf, size_t nbytes);
+        /* define OCALLs here. */
     };
 };

@@ -159,6 +159,7 @@ typedef long long int 			__blkcnt64_t;
 typedef unsigned long long int 	__ino64_t;
 #endif
 
+typedef unsigned int            __socklen_t;
 #endif /* !_SYS__TYPES_H_ */
 
 
