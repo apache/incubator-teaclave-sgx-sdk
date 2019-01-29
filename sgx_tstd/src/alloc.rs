@@ -78,10 +78,8 @@ fn default_alloc_error_hook(layout: Layout) {
 }
 
 #[doc(hidden)]
-#[doc(hidden)]
-#[cfg_attr(stage0, lang = "oom")]
-#[cfg_attr(not(stage0), alloc_error_handler)]
-pub extern fn rust_oom(layout: Layout) -> ! {
+#[alloc_error_handler]
+pub fn rust_oom(layout: Layout) -> ! {
     let hook = HOOK.load(Ordering::SeqCst);
     let hook: fn(Layout) = if hook.is_null() {
         default_alloc_error_hook
@@ -102,14 +100,12 @@ pub mod __default_lib_allocator {
     // linkage directives are provided as part of the current compiler allocator
     // ABI
 
-    #[no_mangle]
     #[rustc_std_internal_symbol]
     pub unsafe extern fn __rdl_alloc(size: usize, align: usize) -> *mut u8 {
         let layout = Layout::from_size_align_unchecked(size, align);
         System.alloc(layout)
     }
 
-    #[no_mangle]
     #[rustc_std_internal_symbol]
     pub unsafe extern fn __rdl_dealloc(ptr: *mut u8,
                                        size: usize,
@@ -117,7 +113,6 @@ pub mod __default_lib_allocator {
         System.dealloc(ptr, Layout::from_size_align_unchecked(size, align))
     }
 
-    #[no_mangle]
     #[rustc_std_internal_symbol]
     pub unsafe extern fn __rdl_realloc(ptr: *mut u8,
                                        old_size: usize,
@@ -127,7 +122,6 @@ pub mod __default_lib_allocator {
         System.realloc(ptr, old_layout, new_size)
     }
 
-    #[no_mangle]
     #[rustc_std_internal_symbol]
     pub unsafe extern fn __rdl_alloc_zeroed(size: usize, align: usize) -> *mut u8 {
         let layout = Layout::from_size_align_unchecked(size, align);

@@ -65,7 +65,12 @@ pub trait Error: Debug + Display {
     }
 
     /// The lower-level cause of this error, if any.
-    fn cause(&self) -> Option<&dyn Error> { None }
+    fn cause(&self) -> Option<&dyn Error> {
+        self.source()
+    }
+
+    /// The lower-level source of this error, if any.
+    fn source(&self) -> Option<&(dyn Error + 'static)> { None }
 
     /// Get the `TypeId` of `self`
     fn type_id(&self) -> TypeId where Self: 'static {
@@ -74,18 +79,25 @@ pub trait Error: Debug + Display {
 }
 
 impl<'a, E: Error + 'a> From<E> for Box<dyn Error + 'a> {
+    /// Converts a type of [`Error`] into a box of dyn [`Error`].
+    ///
     fn from(err: E) -> Box<dyn Error + 'a> {
         Box::new(err)
     }
 }
 
 impl<'a, E: Error + Send + Sync + 'a> From<E> for Box<dyn Error + Send + Sync + 'a> {
+    /// Converts a type of [`Error`] + [`Send`] + [`Sync`] into a box of dyn [`Error`] +
+    /// [`Send`] + [`Sync`].
+    ///
     fn from(err: E) -> Box<dyn Error + Send + Sync + 'a> {
         Box::new(err)
     }
 }
 
 impl From<String> for Box<dyn Error + Send + Sync> {
+    /// Converts a [`String`] into a box of dyn [`Error`] + [`Send`] + [`Sync`].
+    ///
     fn from(err: String) -> Box<dyn Error + Send + Sync> {
         #[derive(Debug)]
         struct StringError(String);
@@ -105,6 +117,8 @@ impl From<String> for Box<dyn Error + Send + Sync> {
 }
 
 impl From<String> for Box<dyn Error> {
+    /// Converts a [`String`] into a box of dyn [`Error`].
+    ///
     fn from(str_err: String) -> Box<dyn Error> {
         let err1: Box<dyn Error + Send + Sync> = From::from(str_err);
         let err2: Box<dyn Error> = err1;
@@ -113,24 +127,32 @@ impl From<String> for Box<dyn Error> {
 }
 
 impl<'a, 'b> From<&'b str> for Box<dyn Error + Send + Sync + 'a> {
+    /// Converts a [`str`] into a box of dyn [`Error`] + [`Send`] + [`Sync`].
+    ///
     fn from(err: &'b str) -> Box<dyn Error + Send + Sync + 'a> {
         From::from(String::from(err))
     }
 }
 
 impl<'a> From<&'a str> for Box<dyn Error> {
+    /// Converts a [`str`] into a box of dyn [`Error`].
+    ///
     fn from(err: &'a str) -> Box<dyn Error> {
         From::from(String::from(err))
     }
 }
 
 impl<'a, 'b> From<Cow<'b, str>> for Box<dyn Error + Send + Sync + 'a> {
+    /// Converts a [`Cow`] into a box of dyn [`Error`] + [`Send`] + [`Sync`].
+    ///
     fn from(err: Cow<'b, str>) -> Box<dyn Error + Send + Sync + 'a> {
         From::from(String::from(err))
     }
 }
 
 impl<'a> From<Cow<'a, str>> for Box<dyn Error> {
+    /// Converts a [`Cow`] into a box of dyn [`Error`].
+    ///
     fn from(err: Cow<'a, str>) -> Box<dyn Error> {
         From::from(String::from(err))
     }

@@ -1,16 +1,16 @@
 extern crate clap;
 extern crate libflate;
 
-use std::io;
-use std::io::Read;
-use std::io::Write;
-use std::fs;
-use std::process;
 use clap::App;
 use clap::Arg;
 use clap::SubCommand;
 use libflate::gzip;
 use libflate::zlib;
+use std::fs;
+use std::io;
+use std::io::Read;
+use std::io::Write;
+use std::process;
 
 fn main() {
     let matches = App::new("deflate")
@@ -21,16 +21,14 @@ fn main() {
                 .value_name("FILE")
                 .takes_value(true)
                 .default_value("-"),
-        )
-        .arg(
+        ).arg(
             Arg::with_name("OUTPUT")
                 .short("o")
                 .long("output")
                 .value_name("FILE")
                 .takes_value(true)
                 .default_value("-"),
-        )
-        .arg(Arg::with_name("VERBOSE").short("v").long("verbose"))
+        ).arg(Arg::with_name("VERBOSE").short("v").long("verbose"))
         .subcommand(SubCommand::with_name("copy"))
         .subcommand(
             SubCommand::with_name("byte-read").arg(
@@ -40,8 +38,8 @@ fn main() {
                     .takes_value(true)
                     .default_value("1"),
             ),
-        )
-        .subcommand(SubCommand::with_name("gzip-decode"))
+        ).subcommand(SubCommand::with_name("gzip-decode"))
+        .subcommand(SubCommand::with_name("gzip-decode-multi"))
         .subcommand(SubCommand::with_name("gzip-encode"))
         .subcommand(SubCommand::with_name("zlib-decode"))
         .subcommand(SubCommand::with_name("zlib-encode"))
@@ -51,10 +49,9 @@ fn main() {
     let input: Box<io::Read> = if input_filename == "-" {
         Box::new(io::stdin())
     } else {
-        Box::new(fs::File::open(input_filename).expect(&format!(
-            "Can't open file: {}",
-            input_filename
-        )))
+        Box::new(
+            fs::File::open(input_filename).expect(&format!("Can't open file: {}", input_filename)),
+        )
     };
     let mut input = io::BufReader::new(input);
 
@@ -64,10 +61,10 @@ fn main() {
     } else if output_filename == "/dev/null" {
         Box::new(io::sink())
     } else {
-        Box::new(fs::File::create(output_filename).expect(&format!(
-            "Can't create file: {}",
-            output_filename
-        )))
+        Box::new(
+            fs::File::create(output_filename)
+                .expect(&format!("Can't create file: {}", output_filename)),
+        )
     };
     let mut output = io::BufWriter::new(output);
 
@@ -94,6 +91,9 @@ fn main() {
         if verbose {
             let _ = writeln!(&mut io::stderr(), "HEADER: {:?}", decoder.header());
         }
+        io::copy(&mut decoder, &mut output).expect("Decoding GZIP stream failed");
+    } else if let Some(_matches) = matches.subcommand_matches("gzip-decode-multi") {
+        let mut decoder = gzip::MultiDecoder::new(input).expect("Read GZIP header failed");
         io::copy(&mut decoder, &mut output).expect("Decoding GZIP stream failed");
     } else if let Some(_matches) = matches.subcommand_matches("gzip-encode") {
         let mut encoder = gzip::Encoder::new(output).unwrap();

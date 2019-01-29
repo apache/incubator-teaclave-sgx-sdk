@@ -412,6 +412,9 @@ impl SgxDhResponder {
 
         self.smk_aek = try!(derive_key(&self.shared_key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret)));
 
+        #[cfg(feature = "use_lav2")]
+        try!(self.lav2_verify_message2(msg2).map_err(|ret| self.set_error(ret)));
+        #[cfg(not(feature = "use_lav2"))]
         try!(self.dh_verify_message2(msg2).map_err(|ret| self.set_error(ret)));
 
         initiator_identity.isv_svn = msg2.report.body.isv_svn;
@@ -420,6 +423,9 @@ impl SgxDhResponder {
         initiator_identity.mr_signer = msg2.report.body.mr_signer;
         initiator_identity.mr_enclave = msg2.report.body.mr_enclave;
 
+        #[cfg(feature = "use_lav2")]
+        try!(self.lav2_generate_message3(msg2, msg3).map_err(|ret| self.set_error(ret)));
+        #[cfg(not(feature = "use_lav2"))]
         try!(self.dh_generate_message3(msg2, msg3).map_err(|ret| self.set_error(ret)));
 
         * aek = try!(derive_key(&self.shared_key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret)));
@@ -432,16 +438,14 @@ impl SgxDhResponder {
 
     fn dh_generate_message1(&mut self, msg1: &mut SgxDhMsg1) -> SgxError {
 
-        let target = sgx_target_info_t::default();
+        msg1.target = Default::default();
+        msg1.g_a = Default::default();
+
+        let mut target = sgx_target_info_t::default();
         let report_data = sgx_report_data_t::default();
 
         let report = try!(rsgx_create_report(&target, &report_data));
-
-        msg1.target = Default::default();
-        msg1.g_a = Default::default();
-        msg1.target.mr_enclave = report.body.mr_enclave;
-        msg1.target.attributes = report.body.attributes;
-        msg1.target.misc_select = report.body.misc_select;
+        try!(SGX_LAV2_PROTO_SPEC.make_target_info(&report, &mut target));
 
         let ecc_state = SgxEccHandle::new();
         try!(ecc_state.open());
@@ -450,6 +454,7 @@ impl SgxDhResponder {
         self.prv_key = prv_key;
         self.pub_key = pub_key;
         msg1.g_a = pub_key;
+        msg1.target = target;
 
         Ok(())
     }
@@ -484,6 +489,32 @@ impl SgxDhResponder {
         Ok(())
     }
 
+    fn lav2_verify_message2(&self, msg2: &SgxDhMsg2) -> SgxError {
+
+        let sha_handle = SgxShaHandle::new();
+        try!(sha_handle.init());
+        try!(sha_handle.update_msg(&msg2.report.body.report_data));
+        try!(sha_handle.update_msg(&msg2.g_b));
+        let msg_hash = try!(sha_handle.get_hash());
+
+        let mut report = msg2.report;
+        report.body.report_data = sgx_report_data_t::default();
+        report.body.report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
+
+        try!(rsgx_verify_report(&report));
+        let data_mac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &msg2.g_b));
+        if !data_mac.consttime_memeq(&msg2.cmac) {
+            return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
+        }
+
+        let proto_spec = unsafe { SgxLAv2ProtoSpec::from_report_data(&msg2.report.body.report_data) };
+        if (!proto_spec.signature.eq(&SGX_LAV2_PROTO_SPEC.signature)) || (proto_spec.ver != SGX_LAV2_PROTO_SPEC.ver) {
+            return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
+        }
+
+        Ok(())
+    }
+
     fn dh_generate_message3(&self, msg2: &SgxDhMsg2, msg3: &mut SgxDhMsg3) -> SgxError {
 
         msg3.cmac = Default::default();
@@ -497,11 +528,10 @@ impl SgxDhResponder {
 
         let mut target = sgx_target_info_t::default();
         let mut report_data = sgx_report_data_t::default();
+        let report = msg2.report;
 
         report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
-        target.attributes = msg2.report.body.attributes;
-        target.mr_enclave = msg2.report.body.mr_enclave;
-        target.misc_select = msg2.report.body.misc_select;
+        try!(SGX_LAV2_PROTO_SPEC.make_target_info(&report, &mut target));
         msg3.msg3_body.report = try!(rsgx_create_report(&target, &report_data));
 
         let add_prop_len = msg3.msg3_body.additional_prop.len() as u32;
@@ -512,6 +542,37 @@ impl SgxDhResponder {
         if add_prop_len > 0 {
             try!(cmac_handle.update_slice(&msg3.msg3_body.additional_prop));
         }
+        msg3.cmac = try!(cmac_handle.get_hash());
+
+        Ok(())
+    }
+
+    fn lav2_generate_message3(&self, msg2: &SgxDhMsg2, msg3: &mut SgxDhMsg3) -> SgxError {
+
+        msg3.cmac = Default::default();
+        msg3.msg3_body.report = Default::default();
+
+        let proto_spec = unsafe { SgxLAv2ProtoSpec::from_report_data(&msg2.report.body.report_data) };
+        let mut target = sgx_target_info_t::default();
+        let mut report_data = sgx_report_data_t::default();
+        let report = msg2.report;
+
+        let sha_handle = SgxShaHandle::new();
+        try!(sha_handle.init());
+        try!(sha_handle.update_msg(&self.pub_key));
+        try!(sha_handle.update_msg(&proto_spec));
+        let msg_hash = try!(sha_handle.get_hash());
+
+        report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
+        try!(SGX_LAV2_PROTO_SPEC.make_target_info(&report, &mut target));
+        msg3.msg3_body.report = try!(rsgx_create_report(&target, &report_data));
+
+        let cmac_handle = SgxCmacHandle::new();
+        try!(cmac_handle.init(&self.smk_aek));
+        if msg3.msg3_body.additional_prop.len() > 0 {
+            try!(cmac_handle.update_slice(&msg3.msg3_body.additional_prop));
+        }
+        try!(cmac_handle.update_msg(&self.pub_key));
         msg3.cmac = try!(cmac_handle.get_hash());
 
         Ok(())
@@ -631,6 +692,10 @@ impl SgxDhInitiator {
         prv_key = sgx_ec256_private_t::default();
         self.pub_key = pub_key;
         self.smk_aek = try!(derive_key(&self.shared_key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret)));
+
+        #[cfg(feature = "use_lav2")]
+        try!(self.lav2_generate_message2(msg1, msg2).map_err(|ret| self.set_error(ret)));
+        #[cfg(not(feature = "use_lav2"))]
         try!(self.dh_generate_message2(msg1, msg2).map_err(|ret| self.set_error(ret)));
 
         self.peer_pub_key = msg1.g_a;
@@ -727,7 +792,11 @@ impl SgxDhInitiator {
             return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
         }
 
+        #[cfg(feature = "use_lav2")]
+        try!(self.lav2_verify_message3(msg3).map_err(|ret| self.set_error(ret)));
+        #[cfg(not(feature = "use_lav2"))]
         try!(self.dh_verify_message3(msg3).map_err(|ret| self.set_error(ret)));
+
         * aek = try!(derive_key(&self.shared_key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret)));
 
         *self = Self::default();
@@ -768,6 +837,30 @@ impl SgxDhInitiator {
         Ok(())
     }
 
+    fn lav2_generate_message2(&self, msg1: &SgxDhMsg1, msg2: &mut SgxDhMsg2) -> SgxError {
+
+        msg2.report = Default::default();
+        msg2.cmac = Default::default();
+        msg2.g_b = self.pub_key;
+
+        let sha_handle = SgxShaHandle::new();
+        try!(sha_handle.init());
+        try!(sha_handle.update_msg(&SGX_LAV2_PROTO_SPEC));
+        try!(sha_handle.update_msg(&msg2.g_b));
+        let msg_hash = try!(sha_handle.get_hash());
+
+        let target = msg1.target;
+        let mut report_data = sgx_report_data_t::default();
+        report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
+
+        msg2.report = try!(rsgx_create_report(&target, &report_data));
+        // Replace report_data with proto_spec
+        unsafe {msg2.report.body.report_data = SGX_LAV2_PROTO_SPEC.to_report_data();}
+        msg2.cmac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &msg2.g_b));
+
+        Ok(())
+    }
+
     fn dh_verify_message3(&self, msg3: &SgxDhMsg3) -> SgxError {
 
         let add_prop_len = msg3.msg3_body.additional_prop.len() as u32;
@@ -801,6 +894,39 @@ impl SgxDhInitiator {
         Ok(())
     }
 
+    fn lav2_verify_message3(&self, msg3: &SgxDhMsg3) -> SgxError {
+
+        let sha_handle = SgxShaHandle::new();
+        try!(sha_handle.init());
+        try!(sha_handle.update_msg(&self.peer_pub_key));
+        try!(sha_handle.update_msg(&SGX_LAV2_PROTO_SPEC));
+        let msg_hash = try!(sha_handle.get_hash());
+
+        let mut report = msg3.msg3_body.report;
+        report.body.report_data = sgx_report_data_t::default();
+        report.body.report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
+
+        if !&report.body.report_data.d[..].eq(&msg3.msg3_body.report.body.report_data.d[..]) {
+            return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
+        }
+
+        try!(rsgx_verify_report(&report));
+
+        let cmac_handle = SgxCmacHandle::new();
+        try!(cmac_handle.init(&self.smk_aek));
+        if msg3.msg3_body.additional_prop.len() > 0 {
+            try!(cmac_handle.update_slice(&msg3.msg3_body.additional_prop));
+        }
+        try!(cmac_handle.update_msg(&self.peer_pub_key));
+        let data_mac = try!(cmac_handle.get_hash());
+
+        if !data_mac.consttime_memeq(&msg3.cmac) {
+            return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
+        }
+
+        Ok(())
+    }
+
     fn set_error(&mut self, sgx_ret: sgx_status_t) -> sgx_status_t {
 
         *self = Self::default();
@@ -810,4 +936,95 @@ impl SgxDhInitiator {
             _ => sgx_status_t::SGX_ERROR_UNEXPECTED,
         }
     }
+}
+
+
+#[derive(Copy, Clone, Default)]
+struct SgxLAv2ProtoSpec {
+    signature: [u8; 6],
+    ver: u8,
+    rev: u8,
+    target_spec: [u16; 28],
+}
+
+unsafe impl ContiguousMemory for SgxLAv2ProtoSpec {}
+
+impl SgxLAv2ProtoSpec {
+
+    pub unsafe fn to_report_data(&self) -> sgx_report_data_t {
+        mem::transmute::<SgxLAv2ProtoSpec, sgx_report_data_t>(*self)
+    }
+
+    pub unsafe fn from_report_data(data: &sgx_report_data_t) -> Self {
+        mem::transmute::<sgx_report_data_t, SgxLAv2ProtoSpec>(*data)
+    }
+
+    pub fn ts_count(&self) -> u16 {
+        self.target_spec[0] >> 8
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.ver == 2 && self.rev == 0 && self.target_spec[0] as u8 == 0 && self.ts_count() < 28
+    }
+
+    pub fn make_target_info(&self, rpt: &sgx_report_t, ti: &mut sgx_target_info_t) -> SgxError {
+
+        if !self.is_valid() {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+        }
+
+        let d = ti as * mut sgx_target_info_t as * mut u8;
+        let f = rpt as * const sgx_report_t as * const u8;
+        rsgx_lfence();
+
+        let mut to: i32 = 0;
+        for i in 1..(self.ts_count() + 1) as usize {
+
+            let size: i32 = 1 << (self.target_spec[i] & 0xF);
+            to += size - 1;
+            to &= -size;
+            if (to + size) as usize > mem::size_of::<sgx_target_info_t>()  {
+                return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
+            }
+
+            let from: i32 = (self.target_spec[i] >> 4) as i32;
+            if from >= 0 {
+                if (from + size) as usize > mem::size_of::<sgx_report_t>() {
+                    return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
+                }
+                unsafe {
+                    ptr::copy_nonoverlapping(f.offset(from as isize), d.offset(to as isize), size as usize);
+                }
+            } else {
+                if from == -1 {
+                    break;
+                } else {
+                    return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
+                }
+            }
+            to += size;
+        }
+        Ok(())
+    }
+}
+
+const SGX_LAV2_PROTO_SPEC: SgxLAv2ProtoSpec = SgxLAv2ProtoSpec {
+    signature: [0x53, 0x47, 0x58, 0x20, 0x4C, 0x41], // "SGX LA"
+    ver: 2,
+    rev: 0,
+    target_spec: [0x0600, // target_spec count & revision
+                  0x0405, // MRENCLAVE
+                  0x0304, // ATTRIBUTES
+                  0x0140, // CET_ATTRIBUTES
+                  0x1041, // CONFIGSVN
+                  0x0102, // MISCSELECT
+                  0x0C06, // CONFIGID
+                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+};
+
+pub fn rsgx_self_target() -> SgxResult<sgx_target_info_t> {
+
+    let mut target_info = sgx_target_info_t::default();
+    let report = rsgx_self_report();
+    SGX_LAV2_PROTO_SPEC.make_target_info(&report, &mut target_info).map(|_| target_info)
 }

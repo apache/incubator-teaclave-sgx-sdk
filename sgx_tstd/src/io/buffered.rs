@@ -94,12 +94,6 @@ impl<R: Read> BufReader<R> {
     ///
     pub fn get_mut(&mut self) -> &mut R { &mut self.inner }
 
-    /// Returns `true` if there are no bytes in the internal buffer.
-    ///
-    pub fn is_empty(&self) -> bool {
-        self.buffer().is_empty()
-    }
-
     /// Returns a reference to the internally buffered data.
     ///
     /// Unlike `fill_buf`, this will not attempt to fill the buffer if it is empty.
@@ -505,7 +499,7 @@ impl<W: Write> Write for LineWriter<W> {
 
         // Find the last newline character in the buffer provided. If found then
         // we're going to write all the data up to that point and then flush,
-        // otherewise we just write the whole block to the underlying writer.
+        // otherwise we just write the whole block to the underlying writer.
         let i = match memchr::memrchr(b'\n', buf) {
             Some(i) => i,
             None => return self.inner.write(buf),

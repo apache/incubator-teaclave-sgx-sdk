@@ -61,7 +61,7 @@ pub fn nanosecond(s: &str) -> ParseResult<(&str, i64)> {
     let v = try!(v.checked_mul(SCALE[consumed]).ok_or(OUT_OF_RANGE));
 
     // if there are more than 9 digits, skip next digits.
-    let s = s.trim_left_matches(|c: char| '0' <= c && c <= '9');
+    let s = s.trim_start_matches(|c: char| '0' <= c && c <= '9');
 
     Ok((s, v))
 }
@@ -166,7 +166,7 @@ pub fn char(s: &str, c1: u8) -> ParseResult<&str> {
 
 /// Tries to consume one or more whitespace.
 pub fn space(s: &str) -> ParseResult<&str> {
-    let s_ = s.trim_left();
+    let s_ = s.trim_start();
     if s_.len() < s.len() {
         Ok(s_)
     } else if s.is_empty() {
@@ -178,7 +178,7 @@ pub fn space(s: &str) -> ParseResult<&str> {
 
 /// Consumes any number (including zero) of colon or spaces.
 pub fn colon_or_space(s: &str) -> ParseResult<&str> {
-    Ok(s.trim_left_matches(|c: char| c == ':' || c.is_whitespace()))
+    Ok(s.trim_start_matches(|c: char| c == ':' || c.is_whitespace()))
 }
 
 /// Tries to parse `[-+]\d\d` continued by `\d\d`. Return an offset in seconds if possible.

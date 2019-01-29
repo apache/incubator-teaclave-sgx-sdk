@@ -138,11 +138,8 @@ impl Hash for Timespec {
 }
 
 mod inner {
-    use sgx_types::sgx_status_t;
-    use sgx_trts::libc::{self, c_int};
     use core::fmt;
     use sys::cvt;
-    use io;
     use time::Duration;
 
     use super::Timespec;
@@ -245,35 +242,13 @@ mod inner {
             }
         };
         cvt(unsafe {
-            clock_gettime(clock, &mut t.t)
+            libc::clock_gettime(clock, &mut t.t)
         }).unwrap();
         t
     }
 
-    extern "C" {
-        pub fn u_clock_gettime_ocall(result: * mut c_int,
-                                     errno: * mut c_int,
-                                     clk_id: libc::clockid_t,
-                                     tp: * mut libc::timespec) -> sgx_status_t;
-    }
-
-    unsafe fn clock_gettime(clk_id: libc::clockid_t, tp: &mut libc::timespec) -> c_int {
-
-        let mut result: c_int = 0;
-        let mut error: c_int = 0;
-        let status = u_clock_gettime_ocall(&mut result as * mut c_int,
-                                           &mut error as * mut c_int,
-                                           clk_id,
-                                           tp as * mut libc::timespec);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(libc::ESGX);
-            result = -1;
-        }
-        result
+    mod libc {
+        pub use sgx_trts::libc::*;
+        pub use sgx_trts::libc::ocall::clock_gettime;
     }
 }

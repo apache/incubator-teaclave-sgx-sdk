@@ -238,10 +238,10 @@ pub fn make_hash<T: ?Sized, S>(hash_state: &S, t: &T) -> SafeHash
 // make a RawBucket point to invalid memory using safe code.
 impl<K, V> RawBucket<K, V> {
     unsafe fn hash(&self) -> *mut HashUint {
-        self.hash_start.offset(self.idx as isize)
+        self.hash_start.add(self.idx)
     }
     unsafe fn pair(&self) -> *mut (K, V) {
-        self.pair_start.offset(self.idx as isize) as *mut (K, V)
+        self.pair_start.add(self.idx) as *mut (K, V)
     }
     unsafe fn hash_pair(&self) -> (*mut HashUint, *mut (K, V)) {
         (self.hash(), self.pair())
@@ -746,7 +746,9 @@ impl<K, V> RawTable<K, V> {
     ) -> Result<RawTable<K, V>, CollectionAllocErr> {
         unsafe {
             let ret = RawTable::new_uninitialized_internal(capacity, fallibility)?;
-            ptr::write_bytes(ret.hashes.ptr(), 0, capacity);
+            if capacity > 0 {
+                ptr::write_bytes(ret.hashes.ptr(), 0, capacity);
+            }
             Ok(ret)
         }
     }

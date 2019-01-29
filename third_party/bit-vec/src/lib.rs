@@ -101,20 +101,18 @@ use std::vec::Vec;
 #[macro_use]
 extern crate alloc;
 #[cfg(not(feature="std"))]
-use alloc::vec::Vec;
+use alloc::prelude::Vec;
 
 use core::cmp::Ordering;
 use core::cmp;
 use core::fmt;
 use core::hash;
-//use core::iter::{Chain, Enumerate, Repeat, Skip, Take, repeat};
 use core::iter::repeat;
 use core::iter::FromIterator;
 use core::slice;
 use core::{u8, usize};
 
 type MutBlocks<'a, B> = slice::IterMut<'a, B>;
-//type MatchWords<'a, B> = Chain<Enumerate<Blocks<'a, B>>, Skip<Take<Enumerate<Repeat<B>>>>>;
 
 use core::ops::*;
 
@@ -150,12 +148,12 @@ pub trait BitBlock:
 }
 
 macro_rules! bit_block_impl {
-    ($(($t: ty, $size: expr)),*) => ($(
+    ($(($t: ident, $size: expr)),*) => ($(
         impl BitBlock for $t {
             #[inline]
             fn bits() -> usize { $size }
             #[inline]
-            fn from_byte(byte: u8) -> Self { byte as $t }
+            fn from_byte(byte: u8) -> Self { $t::from(byte) }
             #[inline]
             fn count_ones(self) -> usize { self.count_ones() as usize }
             #[inline]

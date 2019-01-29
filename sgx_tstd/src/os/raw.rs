@@ -26,8 +26,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use core::fmt;
-
 pub type c_char = i8;
 pub type c_schar = i8;
 pub type c_uchar = u8;
@@ -48,28 +46,8 @@ pub type c_ulonglong = u64;
 pub type c_float = f32;
 pub type c_double = f64;
 
-/// Type used to construct void pointers for use with C.
-///
-/// This type is only useful as a pointer target. Do not use it as a
-/// return type for FFI functions which have the `void` return type in
-/// C. Use the unit type `()` or omit the return type instead.
-// NB: For LLVM to recognize the void pointer type and by extension
-//     functions like malloc(), we need to have it represented as i8* in
-//     LLVM bitcode. The enum used here ensures this and prevents misuse
-//     of the "raw" type by only having private variants.. We need two
-//     variants, because the compiler complains about the repr attribute
-//     otherwise.
-#[repr(u8)]
-pub enum c_void {
-    #[doc(hidden)] __variant1,
-    #[doc(hidden)] __variant2,
-}
-
-impl fmt::Debug for c_void {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.pad("c_void")
-    }
-}
+#[doc(no_inline)]
+pub use core::ffi::c_void;
 
 pub type dev_t = u64;
 pub type mode_t = u32;
@@ -82,7 +60,7 @@ mod arch {
     pub type blksize_t = u64;
     pub type ino_t = u64;
     pub type nlink_t = u64;
-    pub type off_t = u64;
+    pub type off_t = i64;
     pub type time_t = i64;
 
     #[repr(C)]

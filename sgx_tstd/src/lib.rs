@@ -55,42 +55,44 @@
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]
 #![feature(allocator_internals)]
-#![feature(allow_internal_unstable)]
+#![feature(alloc_layout_extra)]
 #![feature(allow_internal_unsafe)]
+#![feature(allow_internal_unstable)]
 #![feature(align_offset)]
 #![feature(arbitrary_self_types)]
 #![feature(array_error_internals)]
 #![feature(box_syntax)]
 #![feature(cfg_target_has_atomic)]
 #![feature(char_error_internals)]
-#![feature(collections_range)]
 #![feature(compiler_builtins_lib)]
 #![feature(const_fn)]
+#![feature(const_int_ops)]
+#![feature(const_ip)]
+#![feature(const_raw_ptr_deref)]
+#![feature(const_cstr_unchecked)]
 #![feature(core_intrinsics)]
-#![feature(fixed_size_array)]
 #![feature(dropck_eyepatch)]
+#![feature(duration_as_u128)]
+#![feature(fixed_size_array)]
 #![feature(fn_traits)]
 #![feature(fnbox)]
 #![feature(futures_api)]
 #![feature(generator_trait)]
-#![feature(fused)]
-#![feature(int_error_internals)]
 #![feature(hashmap_internals)]
+#![feature(int_error_internals)]
 #![feature(integer_atomics)]
 #![feature(lang_items)]
-#![feature(macro_vis_matcher)]
-#![feature(nonzero)]
 #![feature(needs_panic_runtime)]
 #![feature(never_type)]
+#![feature(nll)]
 #![feature(optin_builtin_traits)]
 #![feature(pin)]
-#![feature(placement_new_protocol)]
 #![feature(prelude_import)]
 #![feature(ptr_internals)]
-#![feature(rand)]
 #![feature(raw)]
-#![feature(shrink_to)]
 #![feature(rustc_attrs)]
+#![feature(rustc_const_unstable)]
+#![feature(shrink_to)]
 #![feature(slice_concat_ext)]
 #![feature(str_internals)]
 #![feature(thread_local)]
@@ -102,17 +104,12 @@
 #![feature(unwind_attributes)]
 #![feature(slice_patterns)]
 #![feature(panic_internals)]
-#![feature(panic_unwind)]
+#![cfg_attr(feature = "backtrace", feature(panic_unwind))]
 #![feature(libc)]
-#![feature(unique)]
-#![feature(shared)]
 #![feature(std_internals)]
 #![feature(panic_info_message)]
-#![feature(extern_prelude)]
-#![feature(use_extern_macros)]
 #![feature(unicode_internals)]
-#![feature(panic_implementation)]
-
+#![feature(non_exhaustive)]
 #![default_lib_allocator]
 
 #[global_allocator]
@@ -186,6 +183,7 @@ pub use core::u64;
 pub use core::u128;
 pub use core::char;
 pub use core::hint;
+pub use core::pin;
 pub use alloc_crate::boxed;
 pub use alloc_crate::rc;
 pub use alloc_crate::borrow;
@@ -254,5 +252,7 @@ pub mod backtrace;
 pub use cpuid::*;
 pub use self::thread::{rsgx_thread_self, rsgx_thread_equal};
 
+#[cfg(debug_assertions)]
+pub mod debug;
 
 

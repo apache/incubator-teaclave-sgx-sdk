@@ -160,6 +160,9 @@ impl OsString {
 }
 
 impl From<String> for OsString {
+    /// Converts a [`String`] into a [`OsString`].
+    ///
+    /// The conversion copies the data, and includes an allocation on the heap.
     fn from(s: String) -> OsString {
         OsString { inner: Buf::from_string(s) }
     }
@@ -292,7 +295,8 @@ impl OsStr {
 
     /// Converts an `OsStr` to a [`Cow`]`<`[`str`]`>`.
     ///
-    /// Any non-Unicode sequences are replaced with U+FFFD REPLACEMENT CHARACTER.
+    /// Any non-Unicode sequences are replaced with
+    /// [`U+FFFD REPLACEMENT CHARACTER`][U+FFFD].
     ///
     pub fn to_string_lossy(&self) -> Cow<str> {
         self.inner.to_string_lossy()
@@ -346,12 +350,16 @@ impl<'a> From<&'a OsStr> for Box<OsStr> {
 }
 
 impl From<Box<OsStr>> for OsString {
+    /// Converts a `Box<OsStr>` into a `OsString` without copying or allocating.
+    ///
     fn from(boxed: Box<OsStr>) -> OsString {
         boxed.into_os_string()
     }
 }
 
 impl From<OsString> for Box<OsStr> {
+    /// Converts a [`OsString`] into a [`Box`]`<OsStr>` without copying or allocating.
+    ///
     fn from(s: OsString) -> Box<OsStr> {
         s.into_boxed_os_str()
     }
@@ -365,6 +373,8 @@ impl Clone for Box<OsStr> {
 }
 
 impl From<OsString> for Arc<OsStr> {
+    /// Converts a [`OsString`] into a [`Arc`]`<OsStr>` without copying or allocating.
+    ///
     #[inline]
     fn from(s: OsString) -> Arc<OsStr> {
         let arc = s.inner.into_arc();
@@ -381,6 +391,8 @@ impl<'a> From<&'a OsStr> for Arc<OsStr> {
 }
 
 impl From<OsString> for Rc<OsStr> {
+    /// Converts a [`OsString`] into a [`Rc`]`<OsStr>` without copying or allocating.
+    ///
     #[inline]
     fn from(s: OsString) -> Rc<OsStr> {
         let rc = s.inner.into_rc();

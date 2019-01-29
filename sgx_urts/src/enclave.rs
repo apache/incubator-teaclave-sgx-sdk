@@ -231,7 +231,7 @@ pub fn rsgx_create_encrypted_enclave(file_name: &CStr,
                                      launch_token: &mut sgx_launch_token_t,
                                      launch_token_updated: &mut i32,
                                      misc_attr: &mut sgx_misc_attribute_t,
-                                     sealed_key: &sgx_sealed_data_t) -> SgxResult<sgx_enclave_id_t> {
+                                     sealed_key: *const sgx_sealed_data_t) -> SgxResult<sgx_enclave_id_t> {
 
     let mut enclave_id: sgx_enclave_id_t = 0;
     let ret = unsafe {
@@ -241,7 +241,7 @@ pub fn rsgx_create_encrypted_enclave(file_name: &CStr,
                                      launch_token_updated as * mut int32_t,
                                      &mut enclave_id as * mut sgx_enclave_id_t,
                                      misc_attr as * mut sgx_misc_attribute_t,
-                                     sealed_key as * const sgx_sealed_data_t as * const uint8_t)
+                                     sealed_key as * const uint8_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(enclave_id),
@@ -461,6 +461,36 @@ pub fn rsgx_create_enclave_with_workers(file_name: &CStr,
     }
 }
 
+pub fn rsgx_create_enclave_from_buffer_ex(buffer: &[u8],
+                                          debug: i32,
+                                          misc_attr: &mut sgx_misc_attribute_t,
+                                          ex_features: u32,
+                                          ex_features_p: &[*const c_void; 32]) -> SgxResult<sgx_enclave_id_t> {
+
+    if buffer.is_empty() {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    let buf_len = buffer.len();
+    if buf_len == 0 {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+
+    let mut enclave_id: sgx_enclave_id_t = 0;
+    let ret = unsafe {
+        sgx_create_enclave_from_buffer_ex(buffer.as_ptr(),
+                                          buf_len,
+                                          debug,
+                                          &mut enclave_id as * mut sgx_enclave_id_t,
+                                          misc_attr as * mut sgx_misc_attribute_t,
+                                          ex_features,
+                                          ex_features_p as * const [*const c_void ;32])
+    };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(enclave_id),
+        _ => Err(ret),
+    }
+}
+
 ///
 /// The function destroys an enclave and frees its associated resources.
 ///
@@ -499,6 +529,16 @@ pub fn rsgx_destroy_enclave(enclave_id: sgx_enclave_id_t) -> SgxError {
     let ret = unsafe { sgx_destroy_enclave(enclave_id) };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(()),
+        _ => Err(ret),
+    }
+}
+
+pub fn rsgx_get_target_info(enclave_id: sgx_enclave_id_t) -> SgxResult<sgx_target_info_t> {
+
+    let mut target_info = sgx_target_info_t::default();
+    let ret = unsafe { sgx_get_target_info(enclave_id, &mut target_info as * mut sgx_target_info_t) };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(target_info),
         _ => Err(ret),
     }
 }
@@ -545,7 +585,7 @@ impl SgxEnclave {
                                           launch_token: &mut sgx_launch_token_t,
                                           launch_token_updated: &mut i32,
                                           misc_attr: &mut sgx_misc_attribute_t,
-                                          sealed_key: &sgx_sealed_data_t) -> SgxResult<SgxEnclave> {
+                                          sealed_key: *const sgx_sealed_data_t) -> SgxResult<SgxEnclave> {
 
         let path: CString = cstr(file_name
                                     .as_ref())
@@ -594,6 +634,26 @@ impl SgxEnclave {
         Ok(enclave)
     }
 
+    pub fn create_from_buffer(buffer: &[u8],
+                             debug: i32,
+                             misc_attr: &mut sgx_misc_attribute_t,
+                             ex_features: u32,
+                             ex_features_p: &[*const c_void; 32]) -> SgxResult<SgxEnclave> {
+
+        let enclave = rsgx_create_enclave_from_buffer_ex(buffer,
+                                                         debug,
+                                                         misc_attr,
+                                                         ex_features,
+                                                         ex_features_p)
+                        .map(|eid| SgxEnclave {
+                                    id: eid,
+                                    debug,
+                                    path: PathBuf::new()})?;
+
+        enclave.init();
+        Ok(enclave)
+    }
+
     pub fn destroy(self) {
         // destroy takes ownership over self, so it
         // will be dropped (and the enclave destroyed)
@@ -602,6 +662,10 @@ impl SgxEnclave {
 
     pub fn geteid(&self) -> sgx_enclave_id_t {
         self.id
+    }
+
+    pub fn get_target_info(&self) -> SgxResult<sgx_target_info_t> {
+        rsgx_get_target_info(self.id)
     }
 
     fn exit(&self) {

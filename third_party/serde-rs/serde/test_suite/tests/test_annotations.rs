@@ -1,24 +1,13 @@
-// Copyright 2017 Serde Developers
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
+#![allow(clippy::cast_lossless, clippy::trivially_copy_pass_by_ref)]
 
-#![cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
+use serde::de::{self, MapAccess, Unexpected, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[macro_use]
-extern crate serde_derive;
-
-extern crate serde;
-use self::serde::de::{self, Unexpected};
-use self::serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::{BTreeMap, HashMap};
+use std::fmt;
 use std::marker::PhantomData;
 
-extern crate serde_test;
-use self::serde_test::{
+use serde_test::{
     assert_de_tokens, assert_de_tokens_error, assert_ser_tokens, assert_ser_tokens_error,
     assert_tokens, Token,
 };
@@ -73,7 +62,7 @@ impl DeserializeWith for i32 {
     where
         D: Deserializer<'de>,
     {
-        if try!(Deserialize::deserialize(de)) {
+        if Deserialize::deserialize(de)? {
             Ok(123)
         } else {
             Ok(2)
@@ -97,6 +86,15 @@ where
     #[serde(skip_deserializing, default = "MyDefault::my_default")]
     a5: E,
 }
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct DefaultTupleStruct<A, B, C>(
+    A,
+    #[serde(default)] B,
+    #[serde(default = "MyDefault::my_default")] C,
+)
+where
+    C: MyDefault;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct CollectOther {
@@ -191,8 +189,37 @@ fn test_default_struct() {
     );
 }
 
+#[test]
+fn test_default_tuple() {
+    assert_de_tokens(
+        &DefaultTupleStruct(1, 2, 3),
+        &[
+            Token::TupleStruct {
+                name: "DefaultTupleStruct",
+                len: 3,
+            },
+            Token::I32(1),
+            Token::I32(2),
+            Token::I32(3),
+            Token::TupleStructEnd,
+        ],
+    );
+
+    assert_de_tokens(
+        &DefaultTupleStruct(1, 0, 123),
+        &[
+            Token::TupleStruct {
+                name: "DefaultTupleStruct",
+                len: 3,
+            },
+            Token::I32(1),
+            Token::TupleStructEnd,
+        ],
+    );
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-enum DefaultEnum<A, B, C, D, E>
+enum DefaultStructVariant<A, B, C, D, E>
 where
     C: MyDefault,
     E: MyDefault,
@@ -210,10 +237,22 @@ where
     },
 }
 
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+enum DefaultTupleVariant<A, B, C>
+where
+    C: MyDefault,
+{
+    Tuple(
+        A,
+        #[serde(default)] B,
+        #[serde(default = "MyDefault::my_default")] C,
+    ),
+}
+
 #[test]
-fn test_default_enum() {
+fn test_default_struct_variant() {
     assert_de_tokens(
-        &DefaultEnum::Struct {
+        &DefaultStructVariant::Struct {
             a1: 1,
             a2: 2,
             a3: 3,
@@ -222,7 +261,7 @@ fn test_default_enum() {
         },
         &[
             Token::StructVariant {
-                name: "DefaultEnum",
+                name: "DefaultStructVariant",
                 variant: "Struct",
                 len: 3,
             },
@@ -241,7 +280,7 @@ fn test_default_enum() {
     );
 
     assert_de_tokens(
-        &DefaultEnum::Struct {
+        &DefaultStructVariant::Struct {
             a1: 1,
             a2: 0,
             a3: 123,
@@ -250,13 +289,44 @@ fn test_default_enum() {
         },
         &[
             Token::StructVariant {
-                name: "DefaultEnum",
+                name: "DefaultStructVariant",
                 variant: "Struct",
                 len: 3,
             },
             Token::Str("a1"),
             Token::I32(1),
             Token::StructVariantEnd,
+        ],
+    );
+}
+
+#[test]
+fn test_default_tuple_variant() {
+    assert_de_tokens(
+        &DefaultTupleVariant::Tuple(1, 2, 3),
+        &[
+            Token::TupleVariant {
+                name: "DefaultTupleVariant",
+                variant: "Tuple",
+                len: 3,
+            },
+            Token::I32(1),
+            Token::I32(2),
+            Token::I32(3),
+            Token::TupleVariantEnd,
+        ],
+    );
+
+    assert_de_tokens(
+        &DefaultTupleVariant::Tuple(1, 0, 123),
+        &[
+            Token::TupleVariant {
+                name: "DefaultTupleVariant",
+                variant: "Tuple",
+                len: 3,
+            },
+            Token::I32(1),
+            Token::TupleVariantEnd,
         ],
     );
 }
@@ -348,10 +418,7 @@ struct ContainsNotDeserialize<A, B, C: DeserializeWith, E: MyDefault> {
     a: A,
     #[serde(skip_deserializing, default)]
     b: B,
-    #[serde(
-        deserialize_with = "DeserializeWith::deserialize_with",
-        default
-    )]
+    #[serde(deserialize_with = "DeserializeWith::deserialize_with", default)]
     c: C,
     #[serde(skip_deserializing, default = "MyDefault::my_default")]
     e: E,
@@ -2245,4 +2312,130 @@ fn test_transparent_tuple_struct() {
     );
 
     assert_tokens(&Transparent(false, 1, false, PhantomData), &[Token::U32(1)]);
+}
+
+#[test]
+fn test_internally_tagged_unit_enum_with_unknown_fields() {
+    #[derive(Deserialize, PartialEq, Debug)]
+    #[serde(tag = "t")]
+    enum Data {
+        A,
+    }
+
+    let data = Data::A;
+
+    assert_de_tokens(
+        &data,
+        &[
+            Token::Map { len: None },
+            Token::Str("t"),
+            Token::Str("A"),
+            Token::Str("b"),
+            Token::I32(0),
+            Token::MapEnd,
+        ],
+    );
+}
+
+#[test]
+fn test_flattened_internally_tagged_unit_enum_with_unknown_fields() {
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct S {
+        #[serde(flatten)]
+        x: X,
+        #[serde(flatten)]
+        y: Y,
+    }
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    #[serde(tag = "typeX")]
+    enum X {
+        A,
+    }
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    #[serde(tag = "typeY")]
+    enum Y {
+        B { c: u32 },
+    }
+
+    let s = S {
+        x: X::A,
+        y: Y::B { c: 0 },
+    };
+
+    assert_de_tokens(
+        &s,
+        &[
+            Token::Map { len: None },
+            Token::Str("typeX"),
+            Token::Str("A"),
+            Token::Str("typeY"),
+            Token::Str("B"),
+            Token::Str("c"),
+            Token::I32(0),
+            Token::MapEnd,
+        ],
+    );
+}
+
+#[test]
+fn test_flatten_any_after_flatten_struct() {
+    #[derive(PartialEq, Debug)]
+    struct Any;
+
+    impl<'de> Deserialize<'de> for Any {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            struct AnyVisitor;
+
+            impl<'de> Visitor<'de> for AnyVisitor {
+                type Value = Any;
+
+                fn expecting(&self, _formatter: &mut fmt::Formatter) -> fmt::Result {
+                    unimplemented!()
+                }
+
+                fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+                where
+                    M: MapAccess<'de>,
+                {
+                    while let Some((Any, Any)) = map.next_entry()? {}
+                    Ok(Any)
+                }
+            }
+
+            deserializer.deserialize_any(AnyVisitor)
+        }
+    }
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct Outer {
+        #[serde(flatten)]
+        inner: Inner,
+        #[serde(flatten)]
+        extra: Any,
+    }
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct Inner {
+        inner: i32,
+    }
+
+    let s = Outer {
+        inner: Inner { inner: 0 },
+        extra: Any,
+    };
+
+    assert_de_tokens(
+        &s,
+        &[
+            Token::Map { len: None },
+            Token::Str("inner"),
+            Token::I32(0),
+            Token::MapEnd,
+        ],
+    );
 }

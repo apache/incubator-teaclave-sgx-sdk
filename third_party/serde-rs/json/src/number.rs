@@ -1,20 +1,13 @@
-// Copyright 2017 Serde Developers
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
-
+use std::prelude::v1::*;
 use error::Error;
 use serde::de::{self, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug, Display};
 
 #[cfg(feature = "arbitrary_precision")]
-use dtoa;
-#[cfg(feature = "arbitrary_precision")]
 use itoa;
+#[cfg(feature = "arbitrary_precision")]
+use ryu;
 #[cfg(feature = "arbitrary_precision")]
 use serde::de::{IntoDeserializer, MapAccess};
 
@@ -26,12 +19,7 @@ use error::ErrorCode;
 #[cfg(feature = "arbitrary_precision")]
 /// Not public API. Should be pub(crate).
 #[doc(hidden)]
-pub const SERDE_STRUCT_FIELD_NAME: &'static str = "$__serde_private_number";
-
-#[cfg(feature = "arbitrary_precision")]
-/// Not public API. Should be pub(crate).
-#[doc(hidden)]
-pub const SERDE_STRUCT_NAME: &'static str = "$__serde_private_Number";
+pub const TOKEN: &'static str = "$serde_json::private::Number";
 
 /// Represents a JSON number, whether integer or floating point.
 #[derive(Clone, PartialEq)]
@@ -59,11 +47,9 @@ impl Number {
     /// For any Number on which `is_i64` returns true, `as_i64` is guaranteed to
     /// return the integer value.
     ///
-    /// ```rust
-    /// # #[macro_use]
-    /// # extern crate serde_json;
+    /// ```edition2018
+    /// # use serde_json::json;
     /// #
-    /// # fn main() {
     /// let big = i64::max_value() as u64 + 10;
     /// let v = json!({ "a": 64, "b": big, "c": 256.0 });
     ///
@@ -74,7 +60,6 @@ impl Number {
     ///
     /// // Numbers with a decimal point are not considered integers.
     /// assert!(!v["c"].is_i64());
-    /// # }
     /// ```
     #[inline]
     pub fn is_i64(&self) -> bool {
@@ -93,11 +78,9 @@ impl Number {
     /// For any Number on which `is_u64` returns true, `as_u64` is guaranteed to
     /// return the integer value.
     ///
-    /// ```rust
-    /// # #[macro_use]
-    /// # extern crate serde_json;
+    /// ```edition2018
+    /// # use serde_json::json;
     /// #
-    /// # fn main() {
     /// let v = json!({ "a": 64, "b": -64, "c": 256.0 });
     ///
     /// assert!(v["a"].is_u64());
@@ -107,7 +90,6 @@ impl Number {
     ///
     /// // Numbers with a decimal point are not considered integers.
     /// assert!(!v["c"].is_u64());
-    /// # }
     /// ```
     #[inline]
     pub fn is_u64(&self) -> bool {
@@ -128,11 +110,9 @@ impl Number {
     /// Currently this function returns true if and only if both `is_i64` and
     /// `is_u64` return false but this is not a guarantee in the future.
     ///
-    /// ```rust
-    /// # #[macro_use]
-    /// # extern crate serde_json;
+    /// ```edition2018
+    /// # use serde_json::json;
     /// #
-    /// # fn main() {
     /// let v = json!({ "a": 256.0, "b": 64, "c": -64 });
     ///
     /// assert!(v["a"].is_f64());
@@ -140,7 +120,6 @@ impl Number {
     /// // Integers.
     /// assert!(!v["b"].is_f64());
     /// assert!(!v["c"].is_f64());
-    /// # }
     /// ```
     #[inline]
     pub fn is_f64(&self) -> bool {
@@ -163,28 +142,27 @@ impl Number {
     /// If the `Number` is an integer, represent it as i64 if possible. Returns
     /// None otherwise.
     ///
-    /// ```rust
-    /// # #[macro_use]
-    /// # extern crate serde_json;
+    /// ```edition2018
+    /// # use serde_json::json;
     /// #
-    /// # fn main() {
     /// let big = i64::max_value() as u64 + 10;
     /// let v = json!({ "a": 64, "b": big, "c": 256.0 });
     ///
     /// assert_eq!(v["a"].as_i64(), Some(64));
     /// assert_eq!(v["b"].as_i64(), None);
     /// assert_eq!(v["c"].as_i64(), None);
-    /// # }
     /// ```
     #[inline]
     pub fn as_i64(&self) -> Option<i64> {
         #[cfg(not(feature = "arbitrary_precision"))]
         match self.n {
-            N::PosInt(n) => if n <= i64::max_value() as u64 {
-                Some(n as i64)
-            } else {
-                None
-            },
+            N::PosInt(n) => {
+                if n <= i64::max_value() as u64 {
+                    Some(n as i64)
+                } else {
+                    None
+                }
+            }
             N::NegInt(n) => Some(n),
             N::Float(_) => None,
         }
@@ -195,17 +173,14 @@ impl Number {
     /// If the `Number` is an integer, represent it as u64 if possible. Returns
     /// None otherwise.
     ///
-    /// ```rust
-    /// # #[macro_use]
-    /// # extern crate serde_json;
+    /// ```edition2018
+    /// # use serde_json::json;
     /// #
-    /// # fn main() {
     /// let v = json!({ "a": 64, "b": -64, "c": 256.0 });
     ///
     /// assert_eq!(v["a"].as_u64(), Some(64));
     /// assert_eq!(v["b"].as_u64(), None);
     /// assert_eq!(v["c"].as_u64(), None);
-    /// # }
     /// ```
     #[inline]
     pub fn as_u64(&self) -> Option<u64> {
@@ -220,17 +195,14 @@ impl Number {
 
     /// Represents the number as f64 if possible. Returns None otherwise.
     ///
-    /// ```rust
-    /// # #[macro_use]
-    /// # extern crate serde_json;
+    /// ```edition2018
+    /// # use serde_json::json;
     /// #
-    /// # fn main() {
     /// let v = json!({ "a": 256.0, "b": 64, "c": -64 });
     ///
     /// assert_eq!(v["a"].as_f64(), Some(256.0));
     /// assert_eq!(v["b"].as_f64(), Some(64.0));
     /// assert_eq!(v["c"].as_f64(), Some(-64.0));
-    /// # }
     /// ```
     #[inline]
     pub fn as_f64(&self) -> Option<f64> {
@@ -247,7 +219,7 @@ impl Number {
     /// Converts a finite `f64` to a `Number`. Infinite or NaN values are not JSON
     /// numbers.
     ///
-    /// ```rust
+    /// ```edition2018
     /// # use std::f64;
     /// #
     /// # use serde_json::Number;
@@ -266,9 +238,7 @@ impl Number {
                 }
                 #[cfg(feature = "arbitrary_precision")]
                 {
-                    let mut buf = Vec::new();
-                    dtoa::write(&mut buf, f).unwrap();
-                    String::from_utf8(buf).unwrap()
+                    ryu::Buffer::new().format(f).to_owned()
                 }
             };
             Some(Number { n: n })
@@ -348,8 +318,8 @@ impl Serialize for Number {
     {
         use serde::ser::SerializeStruct;
 
-        let mut s = serializer.serialize_struct(SERDE_STRUCT_NAME, 1)?;
-        s.serialize_field(SERDE_STRUCT_FIELD_NAME, &self.n)?;
+        let mut s = serializer.serialize_struct(TOKEN, 1)?;
+        s.serialize_field(TOKEN, &self.n)?;
         s.end()
     }
 }
@@ -428,7 +398,7 @@ impl<'de> de::Deserialize<'de> for NumberKey {
             where
                 E: de::Error,
             {
-                if s == SERDE_STRUCT_FIELD_NAME {
+                if s == TOKEN {
                     Ok(())
                 } else {
                     Err(de::Error::custom("expected field with custom name"))
@@ -640,7 +610,7 @@ impl<'de> Deserializer<'de> for NumberFieldDeserializer {
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_borrowed_str(SERDE_STRUCT_FIELD_NAME)
+        visitor.visit_borrowed_str(TOKEN)
     }
 
     forward_to_deserialize_any! {
@@ -703,9 +673,7 @@ macro_rules! impl_from_unsigned {
                         { N::PosInt(u as u64) }
                         #[cfg(feature = "arbitrary_precision")]
                         {
-                            let mut buf = Vec::new();
-                            itoa::write(&mut buf, u).unwrap();
-                            String::from_utf8(buf).unwrap()
+                            itoa::Buffer::new().format(u).to_owned()
                         }
                     };
                     Number { n: n }
@@ -734,9 +702,7 @@ macro_rules! impl_from_signed {
                         }
                         #[cfg(feature = "arbitrary_precision")]
                         {
-                            let mut buf = Vec::new();
-                            itoa::write(&mut buf, i).unwrap();
-                            String::from_utf8(buf).unwrap()
+                            itoa::Buffer::new().format(i).to_owned()
                         }
                     };
                     Number { n: n }
@@ -748,6 +714,21 @@ macro_rules! impl_from_signed {
 
 impl_from_unsigned!(u8, u16, u32, u64, usize);
 impl_from_signed!(i8, i16, i32, i64, isize);
+
+#[cfg(feature = "arbitrary_precision")]
+serde_if_integer128! {
+    impl From<i128> for Number {
+        fn from(i: i128) -> Self {
+            Number { n: i.to_string() }
+        }
+    }
+
+    impl From<u128> for Number {
+        fn from(u: u128) -> Self {
+            Number { n: u.to_string() }
+        }
+    }
+}
 
 impl Number {
     #[cfg(not(feature = "arbitrary_precision"))]

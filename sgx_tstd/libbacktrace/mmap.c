@@ -37,7 +37,7 @@ POSSIBILITY OF SUCH DAMAGE.  */
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
-//#include <sys/mman.h>
+#include <sys/stat.h>
 
 #include "backtrace.h"
 #include "backtrace_t.h"
@@ -83,12 +83,32 @@ struct backtrace_freelist_struct {
 /* Free memory allocated by backtrace_alloc.  */
 
 static void
-backtrace_free_locked(struct backtrace_state* state, void* addr, size_t size) {
-    /* Just leak small blocks.  We don't have to be perfect.  */
-    if (size >= sizeof(struct backtrace_freelist_struct)) {
-        struct backtrace_freelist_struct* p;
+backtrace_free_locked (struct backtrace_state *state, void *addr, size_t size) {
+  /* Just leak small blocks.  We don't have to be perfect.  Don't put
+     more than 16 entries on the free list, to avoid wasting time
+     searching when allocating a block.  If we have more than 16
+     entries, leak the smallest entry.  */
 
-        p = (struct backtrace_freelist_struct*) addr;
+    if (size >= sizeof (struct backtrace_freelist_struct)) {
+        size_t c = 0;
+        struct backtrace_freelist_struct **ppsmall = NULL;
+        struct backtrace_freelist_struct **pp = NULL;
+        struct backtrace_freelist_struct *p = NULL;
+
+        for (pp = &state->freelist; *pp != NULL; pp = &(*pp)->next) {
+	        if (ppsmall == NULL || (*pp)->size < (*ppsmall)->size) {
+                ppsmall = pp;
+            }
+	        ++c;
+	    }
+        if (c >= 16) {
+	        if (size <= (*ppsmall)->size) {
+                return;
+            }
+	        *ppsmall = (*ppsmall)->next;
+        }
+
+        p = (struct backtrace_freelist_struct *) addr;
         p->next = state->freelist;
         p->size = size;
         state->freelist = p;
@@ -155,7 +175,7 @@ backtrace_alloc(struct backtrace_state* state,
         pagesize = getpagesize();
         asksize = (size + pagesize - 1) & ~(pagesize - 1);
 
-        uint32_t status = u_backtrace_mmap_ocall(&page, &error, NULL, asksize, PROT_READ | PROT_WRITE,
+        uint32_t status = u_mmap_ocall(&page, &error, NULL, asksize, PROT_READ | PROT_WRITE,
                           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
         if (status != 0) {
@@ -208,7 +228,7 @@ backtrace_free(struct backtrace_state* state, void* addr, size_t size,
             //return;
             int retval = 0;
             int error = 0;
-            uint32_t status = u_backtrace_munmap_ocall(&retval, &error, addr, size);
+            uint32_t status = u_munmap_ocall(&retval, &error, addr, size);
 
             if (status == 0 && retval == 0) {
                 return;

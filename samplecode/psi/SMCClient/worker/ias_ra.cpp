@@ -105,7 +105,6 @@ int ias_verify_attestation_evidence(
     vector<pair<string, string>> result;
     bool error = ws->verifyQuote(p_isv_quote, pse_manifest, NULL, &result);
 
-
     if (error || (NULL == p_isv_quote) || (NULL == p_attestation_verification_report)) {
         return -1;
     }
@@ -137,6 +136,8 @@ int ias_verify_attestation_evidence(
                 quoteStatus = IAS_QUOTE_SIGRL_VERSION_MISMATCH;
             else if (x.second == "GROUP_OUT_OF_DATE")
                 quoteStatus = IAS_QUOTE_GROUP_OUT_OF_DATE;
+            else if (x.second == "CONFIGURATION_NEEDED")
+                quoteStatus = IAS_QUOTE_CONFIGURATION_NEEDED;
         }
     }
 

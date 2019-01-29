@@ -30,13 +30,14 @@
 
 use sgx_trts::libc::{c_int, size_t, c_void};
 use core::mem;
+use core::cmp;
 use io;
 use net::{SocketAddr, Shutdown};
 use sys::fd::FileDesc;
 use sys_common::{AsInner, FromInner, IntoInner};
 use sys_common::net::{getsockopt, setsockopt, sockaddr_to_addr};
-use time::Duration;
-
+use time::{Duration, Instant};
+use untrusted::time::InstantEx;
 pub use sys::{cvt, cvt_r};
 
 pub type wrlen_t = size_t;
@@ -49,6 +50,157 @@ impl Socket {
         let fd = FileDesc::new(sockfd);
         fd.set_cloexec()?;
         Ok(Socket(fd))
+    }
+
+    // YU: Added to support net
+    //     TcpListener::bind -> Socket::new
+    //     I renamed new as new_socket_addr_type for better naming
+    pub fn new_socket_addr_type(addr: &SocketAddr, ty: c_int) -> io::Result<Socket> {
+        let fam = match *addr {
+            SocketAddr::V4(..) => libc::AF_INET,
+            SocketAddr::V6(..) => libc::AF_INET6,
+        };
+        Socket::new_raw(fam, ty)
+    }
+
+    // YU: Added to support net
+    //     TcpListener::bind -> Socket::new -> Socket::new_raw
+    //     Naming seems good
+    pub fn new_raw(fam: c_int, ty: c_int) -> io::Result<Socket> {
+        unsafe {
+            // On linux we first attempt to pass the SOCK_CLOEXEC flag to
+            // atomically create the socket and set it as CLOEXEC. Support for
+            // this option, however, was added in 2.6.27, and we still support
+            // 2.6.18 as a kernel, so if the returned error is EINVAL we
+            // fallthrough to the fallback.
+            match cvt(libc::socket(fam, ty | libc::SOCK_CLOEXEC, 0)) {
+                Ok(fd) => return Ok(Socket(FileDesc::new(fd))),
+                Err(ref e) if e.raw_os_error() == Some(libc::EINVAL) => {}
+                Err(e) => return Err(e),
+            }
+
+            let fd = cvt(libc::socket(fam, ty, 0))?;
+            let fd = FileDesc::new(fd);
+            fd.set_cloexec()?;
+            let socket = Socket(fd);
+
+            Ok(socket)
+        }
+    }
+
+    pub fn new_pair(fam: c_int, ty: c_int) -> io::Result<(Socket, Socket)> {
+        unsafe {
+            let mut fds = [0, 0];
+
+            // Like above, see if we can set cloexec atomically
+            match cvt(libc::socketpair(fam, ty | libc::SOCK_CLOEXEC, 0, fds.as_mut_ptr())) {
+                Ok(_) => {
+                    return Ok((Socket(FileDesc::new(fds[0])), Socket(FileDesc::new(fds[1]))));
+                }
+                Err(ref e) if e.raw_os_error() == Some(libc::EINVAL) => {},
+                Err(e) => return Err(e),
+            }
+
+            cvt(libc::socketpair(fam, ty, 0, fds.as_mut_ptr()))?;
+            let a = FileDesc::new(fds[0]);
+            let b = FileDesc::new(fds[1]);
+            a.set_cloexec()?;
+            b.set_cloexec()?;
+            Ok((Socket(a), Socket(b)))
+        }
+    }
+
+    pub fn connect_timeout(&self, addr: &SocketAddr, timeout: Duration) -> io::Result<()> {
+        self.set_nonblocking(true)?;
+        let r = unsafe {
+            let (addrp, len) = addr.into_inner();
+            cvt(libc::connect(self.0.raw(), addrp, len))
+        };
+        self.set_nonblocking(false)?;
+
+        match r {
+            Ok(_) => return Ok(()),
+            // there's no ErrorKind for EINPROGRESS :(
+            Err(ref e) if e.raw_os_error() == Some(libc::EINPROGRESS) => {}
+            Err(e) => return Err(e),
+        }
+
+        let mut pollfd = libc::pollfd {
+            fd: self.0.raw(),
+            events: libc::POLLOUT,
+            revents: 0,
+        };
+
+        if timeout.as_secs() == 0 && timeout.subsec_nanos() == 0 {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                                      "cannot set a 0 duration timeout"));
+        }
+
+        let start = Instant::now();
+
+        loop {
+            let elapsed = start.elapsed();
+            if elapsed >= timeout {
+                return Err(io::Error::new(io::ErrorKind::TimedOut, "connection timed out"));
+            }
+
+            let timeout = timeout - elapsed;
+            let mut timeout = timeout.as_secs()
+                .saturating_mul(1_000)
+                .saturating_add(timeout.subsec_nanos() as u64 / 1_000_000);
+            if timeout == 0 {
+                timeout = 1;
+            }
+
+            let timeout = cmp::min(timeout, c_int::max_value() as u64) as c_int;
+
+            match unsafe { libc::poll(&mut pollfd, 1, timeout) } {
+                -1 => {
+                    let err = io::Error::last_os_error();
+                    if err.kind() != io::ErrorKind::Interrupted {
+                        return Err(err);
+                    }
+                }
+                0 => {}
+                _ => {
+                    // linux returns POLLOUT|POLLERR|POLLHUP for refused connections (!), so look
+                    // for POLLHUP rather than read readiness
+                    if pollfd.revents & libc::POLLHUP != 0 {
+                        let e = self.take_error()?
+                            .unwrap_or_else(|| {
+                                io::Error::new(io::ErrorKind::Other, "no error set after POLLHUP")
+                            });
+                        return Err(e);
+                    }
+
+                    return Ok(());
+                }
+            }
+        }
+    }
+
+    // YU: Added to support net
+    //     TcpListener::accept -> Socket::accept
+    //     Naming seems good
+    //     We don't support linux kernel < 2.6.28.
+    //     So we only use accept4
+    // Attention:
+    //     this function is a blocking function, which make an OCALL
+    //     and block itself **in the untrusted OS**. This is very much
+    //     dangerous and is misleading.
+    //     In SGX programming, execution is by default in enclave and
+    //     cannot leak information by design. Howeverm, this function
+    //     is not. It leaks events.
+    //     This function is guarded by feature `net2` and should only
+    //     be used on demand.
+    pub fn accept(&self, storage: *mut libc::sockaddr, len: *mut libc::socklen_t) -> io::Result<Socket> {
+        let res = cvt_r(|| unsafe {
+            libc::accept4(self.0.raw(), storage, len, libc::SOCK_CLOEXEC)
+        });
+        match res {
+            Ok(fd) => Ok(Socket(FileDesc::new(fd))),
+            Err(e) => Err(e),
+        }
     }
 
     pub fn raw(&self) -> c_int { self.0.raw() }
@@ -169,7 +321,7 @@ impl Socket {
 
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<()> {
         let mut nonblocking = nonblocking as c_int;
-        cvt(unsafe { libc::ioctl(*self.as_inner(), libc::FIONBIO, &mut nonblocking) }).map(|_| ())
+        cvt(unsafe { libc::ioctl_arg1(*self.as_inner(), libc::FIONBIO, &mut nonblocking) }).map(|_| ())
     }
 
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
@@ -195,137 +347,7 @@ impl IntoInner<c_int> for Socket {
 }
 
 mod libc {
-    use sgx_types::sgx_status_t;
-    use io;
     pub use sgx_trts::libc::*;
-
-    extern "C" {
-        pub fn u_net_recv_ocall(result: * mut ssize_t,
-                                errno: * mut c_int,
-                                sockfd: c_int,
-                                buf: * mut c_void,
-                                len: size_t,
-                                flags: c_int) -> sgx_status_t;
-
-        pub fn u_net_recvfrom_ocall(result: * mut ssize_t,
-                                    errno: * mut c_int,
-                                    sockfd: c_int,
-                                    buf: * mut c_void,
-                                    len: size_t,
-                                    flags: c_int,
-                                    addr: * mut sockaddr,
-                                    _in_addrlen: socklen_t,
-                                    addrlen: * mut socklen_t) -> sgx_status_t;
-
-        pub fn u_net_shutdown_ocall(result: * mut c_int,
-                                    errno: * mut c_int,
-                                    sockfd: c_int,
-                                    how: c_int) -> sgx_status_t;
-
-        pub fn u_net_ioctl_ocall(result: * mut c_int,
-                                 errno: * mut c_int,
-                                 fd: c_int,
-                                 request: c_int,
-                                 arg: * mut c_int) -> sgx_status_t;
-
-    }
-
-    pub unsafe fn recv(sockfd: c_int, buf: * mut c_void, len: size_t, flags: c_int) -> ssize_t {
-
-        let mut result: ssize_t = 0;
-        let mut error: c_int = 0;
-        let status = u_net_recv_ocall(&mut result as * mut ssize_t,
-                                      &mut error as * mut c_int,
-                                      sockfd,
-                                      buf,
-                                      len,
-                                      flags);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(ESGX);
-            result = -1;
-        }
-        result
-    }
-
-    pub unsafe fn recvfrom(sockfd: c_int,
-                           buf: * mut c_void,
-                           len: size_t,
-                           flags: c_int,
-                           addr: * mut sockaddr,
-                           addrlen: * mut socklen_t) -> ssize_t {
-
-        let mut result: ssize_t = 0;
-        let mut error: c_int = 0;
-        let in_addrlen: socklen_t = if !addrlen.is_null() {
-            *addrlen
-        } else {
-            0
-        };
-
-        let status = u_net_recvfrom_ocall(&mut result as * mut ssize_t,
-                                          &mut error as * mut c_int,
-                                          sockfd,
-                                          buf,
-                                          len,
-                                          flags,
-                                          addr,
-                                          in_addrlen,
-                                          addrlen);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(ESGX);
-            result = -1;
-        }
-        result
-    }
-
-    pub unsafe fn shutdown(sockfd: c_int, how: c_int) -> c_int {
-
-        let mut result: c_int = 0;
-        let mut error: c_int = 0;
-        let status = u_net_shutdown_ocall(&mut result as * mut c_int,
-                                          &mut error as * mut c_int,
-                                          sockfd,
-                                          how);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(ESGX);
-            result = -1;
-        }
-        result
-    }
-
-    pub unsafe fn ioctl(fd: c_int, request: c_int, arg: * mut c_int) -> c_int {
-
-        let mut result: c_int = 0;
-        let mut error: c_int = 0;
-        let status = u_net_ioctl_ocall(&mut result as * mut c_int,
-                                       &mut error as * mut c_int,
-                                       fd,
-                                       request,
-                                       arg);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(ESGX);
-            result = -1;
-        }
-        result
-    }
+    pub use sgx_trts::libc::ocall::{socket, socketpair, connect, accept4, recv, recvfrom, shutdown,
+                                    ioctl_arg1, poll};
 }

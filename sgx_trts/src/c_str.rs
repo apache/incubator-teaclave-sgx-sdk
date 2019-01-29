@@ -74,7 +74,7 @@ pub struct CString {
 /// converted to a Rust [`&str`] by performing UTF-8 validation, or
 /// into an owned [`CString`].
 ///
-/// `CStr` is to [`CString`] as [`&str`] is to [`String`]: the former
+/// `&CStr` is to [`CString`] as [`&str`] is to [`String`]: the former
 /// in each pair are borrowed references; the latter are owned
 /// strings.
 ///
@@ -326,7 +326,7 @@ impl CString {
         unsafe { Box::from_raw(Box::into_raw(self.into_inner()) as *mut CStr) }
     }
 
-    // Bypass "move out of struct which implements [`Drop`] trait" restriction.
+    /// Bypass "move out of struct which implements [`Drop`] trait" restriction.
     ///
     fn into_inner(self) -> Box<[u8]> {
         unsafe {
@@ -363,6 +363,9 @@ impl fmt::Debug for CString {
 }
 
 impl From<CString> for Vec<u8> {
+    /// Converts a [`CString`] into a [`Vec`]`<u8>`.
+    ///
+    /// The conversion consumes the [`CString`], and removes the terminating NUL byte.
     #[inline]
     fn from(s: CString) -> Vec<u8> {
         s.into_bytes()
@@ -414,6 +417,8 @@ impl<'a> From<&'a CStr> for Box<CStr> {
 }
 
 impl From<Box<CStr>> for CString {
+    /// Converts a [`Box`]`<CStr>` into a [`CString`] without copying or allocating.
+    ///
     #[inline]
     fn from(s: Box<CStr>) -> CString {
         s.into_c_string()
@@ -428,6 +433,8 @@ impl Clone for Box<CStr> {
 }
 
 impl From<CString> for Box<CStr> {
+    /// Converts a [`CString`] into a [`Box`]`<CStr>` without copying or allocating.
+    ///
     #[inline]
     fn from(s: CString) -> Box<CStr> {
         s.into_boxed_c_str()
@@ -456,6 +463,8 @@ impl<'a> From<&'a CString> for Cow<'a, CStr> {
 }
 
 impl From<CString> for Arc<CStr> {
+    /// Converts a [`CString`] into a [`Arc`]`<CStr>` without copying or allocating.
+    ///
     #[inline]
     fn from(s: CString) -> Arc<CStr> {
         let arc: Arc<[u8]> = Arc::from(s.into_inner());
@@ -472,6 +481,8 @@ impl<'a> From<&'a CStr> for Arc<CStr> {
 }
 
 impl From<CString> for Rc<CStr> {
+    /// Converts a [`CString`] into a [`Rc`]`<CStr>` without copying or allocating.
+    ///
     #[inline]
     fn from(s: CString) -> Rc<CStr> {
         let rc: Rc<[u8]> = Rc::from(s.into_inner());
@@ -569,7 +580,8 @@ impl CStr {
     /// performing any sanity checks. The provided slice **must** be nul-terminated
     /// and not contain any interior nul bytes.
     ///
-    pub unsafe fn from_bytes_with_nul_unchecked(bytes: &[u8]) -> &CStr {
+    #[rustc_const_unstable(feature = "const_cstr_unchecked")]
+    pub const unsafe fn from_bytes_with_nul_unchecked(bytes: &[u8]) -> &CStr {
         &*(bytes as *const [u8] as *const CStr)
     }
 
@@ -638,9 +650,9 @@ impl CStr {
     /// If the contents of the `CStr` are valid UTF-8 data, this
     /// function will return a [`Cow`]`::`[`Borrowed`]`(`[`&str`]`)`
     /// with the the corresponding [`&str`] slice. Otherwise, it will
-    /// replace any invalid UTF-8 sequences with `U+FFFD REPLACEMENT
-    /// CHARACTER` and return a [`Cow`]`::`[`Owned`]`(`[`String`]`)`
-    /// with the result.
+    /// replace any invalid UTF-8 sequences with
+    /// [`U+FFFD REPLACEMENT CHARACTER`][U+FFFD] and return a
+    /// [`Cow`]`::`[`Owned`]`(`[`String`]`)` with the result.
     ///
     /// > **Note**: This method is currently implemented to check for validity
     /// > after a constant-time cast, but it is planned to alter its definition
@@ -652,6 +664,7 @@ impl CStr {
     /// [`Owned`]: ../borrow/enum.Cow.html#variant.Owned
     /// [`str`]: ../primitive.str.html
     /// [`String`]: ../string/struct.String.html
+    /// [U+FFFD]: ../char/constant.REPLACEMENT_CHARACTER.html
     ///
     pub fn to_string_lossy(&self) -> Cow<str> {
         String::from_utf8_lossy(self.to_bytes())

@@ -1,11 +1,3 @@
-// Copyright 2017 Serde Developers
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
-
 //! Deserialize JSON data to a Rust data structure.
 
 use std::prelude::v1::*;
@@ -32,7 +24,7 @@ use number::NumberDeserializer;
 /// A structure that deserializes JSON into Rust values.
 pub struct Deserializer<R> {
     read: R,
-    str_buf: Vec<u8>,
+    scratch: Vec<u8>,
     remaining_depth: u8,
 }
 
@@ -51,7 +43,7 @@ where
     pub fn new(read: R) -> Self {
         Deserializer {
             read: read,
-            str_buf: Vec::with_capacity(128),
+            scratch: Vec::new(),
             remaining_depth: 128,
         }
     }
@@ -150,7 +142,7 @@ impl<'de, R: Read<'de>> Deserializer<R> {
     }
 
     fn peek(&mut self) -> Result<Option<u8>> {
-        self.read.peek().map_err(Error::io)
+        self.read.peek()
     }
 
     fn peek_or_null(&mut self) -> Result<u8> {
@@ -162,7 +154,7 @@ impl<'de, R: Read<'de>> Deserializer<R> {
     }
 
     fn next_char(&mut self) -> Result<Option<u8>> {
-        self.read.next().map_err(Error::io)
+        self.read.next()
     }
 
     fn next_char_or_null(&mut self) -> Result<u8> {
@@ -235,8 +227,8 @@ impl<'de, R: Read<'de>> Deserializer<R> {
             },
             b'"' => {
                 self.eat_char();
-                self.str_buf.clear();
-                match self.read.parse_str(&mut self.str_buf) {
+                self.scratch.clear();
+                match self.read.parse_str(&mut self.scratch) {
                     Ok(s) => de::Error::invalid_type(Unexpected::Str(&s), exp),
                     Err(err) => return err,
                 }
@@ -347,13 +339,11 @@ impl<'de, R: Read<'de>> Deserializer<R> {
                             // number as a `u64` until we grow too large. At that point, switch to
                             // parsing the value as a `f64`.
                             if overflow!(res * 10 + digit, u64::max_value()) {
-                                return Ok(ParserNumber::F64(try!(
-                                    self.parse_long_integer(
-                                        positive,
-                                        res,
-                                        1, // res * 10^1
-                                    )
-                                )));
+                                return Ok(ParserNumber::F64(try!(self.parse_long_integer(
+                                    positive,
+                                    res,
+                                    1, // res * 10^1
+                                ))));
                             }
 
                             res = res * 10 + digit;
@@ -677,7 +667,7 @@ impl<'de, R: Read<'de>> Deserializer<R> {
     ) -> Result<f64> {
         let mut f = significand as f64;
         loop {
-            match POW10.get(exponent.abs() as usize) {
+            match POW10.get(exponent.wrapping_abs() as usize) {
                 Some(&pow) => {
                     if exponent >= 0 {
                         f *= pow;
@@ -746,58 +736,117 @@ impl<'de, R: Read<'de>> Deserializer<R> {
     }
 
     fn ignore_value(&mut self) -> Result<()> {
-        let peek = match try!(self.parse_whitespace()) {
-            Some(b) => b,
-            None => {
-                return Err(self.peek_error(ErrorCode::EofWhileParsingValue));
-            }
-        };
+        self.scratch.clear();
+        let mut enclosing = None;
 
-        match peek {
-            b'n' => {
-                self.eat_char();
-                self.parse_ident(b"ull")
-            }
-            b't' => {
-                self.eat_char();
-                self.parse_ident(b"rue")
-            }
-            b'f' => {
-                self.eat_char();
-                self.parse_ident(b"alse")
-            }
-            b'-' => {
-                self.eat_char();
-                self.ignore_integer()
-            }
-            b'0'...b'9' => self.ignore_integer(),
-            b'"' => {
-                self.eat_char();
-                self.read.ignore_str()
-            }
-            b'[' => {
-                self.remaining_depth -= 1;
-                if self.remaining_depth == 0 {
-                    return Err(self.peek_error(ErrorCode::RecursionLimitExceeded));
+        loop {
+            let peek = match try!(self.parse_whitespace()) {
+                Some(b) => b,
+                None => {
+                    return Err(self.peek_error(ErrorCode::EofWhileParsingValue));
+                }
+            };
+
+            let frame = match peek {
+                b'n' => {
+                    self.eat_char();
+                    try!(self.parse_ident(b"ull"));
+                    None
+                }
+                b't' => {
+                    self.eat_char();
+                    try!(self.parse_ident(b"rue"));
+                    None
+                }
+                b'f' => {
+                    self.eat_char();
+                    try!(self.parse_ident(b"alse"));
+                    None
+                }
+                b'-' => {
+                    self.eat_char();
+                    try!(self.ignore_integer());
+                    None
+                }
+                b'0'...b'9' => {
+                    try!(self.ignore_integer());
+                    None
+                }
+                b'"' => {
+                    self.eat_char();
+                    try!(self.read.ignore_str());
+                    None
+                }
+                frame @ b'[' | frame @ b'{' => {
+                    self.scratch.extend(enclosing.take());
+                    self.eat_char();
+                    Some(frame)
+                }
+                _ => return Err(self.peek_error(ErrorCode::ExpectedSomeValue)),
+            };
+
+            let (mut accept_comma, mut frame) = match frame {
+                Some(frame) => (false, frame),
+                None => match enclosing.take() {
+                    Some(frame) => (true, frame),
+                    None => match self.scratch.pop() {
+                        Some(frame) => (true, frame),
+                        None => return Ok(()),
+                    },
+                },
+            };
+
+            loop {
+                match try!(self.parse_whitespace()) {
+                    Some(b',') if accept_comma => {
+                        self.eat_char();
+                        break;
+                    }
+                    Some(b']') if frame == b'[' => {}
+                    Some(b'}') if frame == b'{' => {}
+                    Some(_) => {
+                        if accept_comma {
+                            return Err(self.peek_error(match frame {
+                                b'[' => ErrorCode::ExpectedListCommaOrEnd,
+                                b'{' => ErrorCode::ExpectedObjectCommaOrEnd,
+                                _ => unreachable!(),
+                            }));
+                        } else {
+                            break;
+                        }
+                    }
+                    None => {
+                        return Err(self.peek_error(match frame {
+                            b'[' => ErrorCode::EofWhileParsingList,
+                            b'{' => ErrorCode::EofWhileParsingObject,
+                            _ => unreachable!(),
+                        }));
+                    }
                 }
 
                 self.eat_char();
-                let res = self.ignore_seq();
-                self.remaining_depth += 1;
-                res
+                frame = match self.scratch.pop() {
+                    Some(frame) => frame,
+                    None => return Ok(()),
+                };
+                accept_comma = true;
             }
-            b'{' => {
-                self.remaining_depth -= 1;
-                if self.remaining_depth == 0 {
-                    return Err(self.peek_error(ErrorCode::RecursionLimitExceeded));
-                }
 
-                self.eat_char();
-                let res = self.ignore_map();
-                self.remaining_depth += 1;
-                res
+            if frame == b'{' {
+                match try!(self.parse_whitespace()) {
+                    Some(b'"') => self.eat_char(),
+                    Some(_) => return Err(self.peek_error(ErrorCode::KeyMustBeAString)),
+                    None => return Err(self.peek_error(ErrorCode::EofWhileParsingObject)),
+                }
+                try!(self.read.ignore_str());
+                match try!(self.parse_whitespace()) {
+                    Some(b':') => self.eat_char(),
+                    Some(_) => return Err(self.peek_error(ErrorCode::ExpectedColon)),
+                    None => return Err(self.peek_error(ErrorCode::EofWhileParsingObject)),
+                }
             }
-            _ => Err(self.peek_error(ErrorCode::ExpectedSomeValue)),
+
+            enclosing = Some(frame);
         }
     }
 
@@ -809,9 +858,11 @@ impl<'de, R: Read<'de>> Deserializer<R> {
                     return Err(self.peek_error(ErrorCode::InvalidNumber));
                 }
             }
-            b'1'...b'9' => while let b'0'...b'9' = try!(self.peek_or_null()) {
-                self.eat_char();
-            },
+            b'1'...b'9' => {
+                while let b'0'...b'9' = try!(self.peek_or_null()) {
+                    self.eat_char();
+                }
+            }
             _ => {
                 return Err(self.error(ErrorCode::InvalidNumber));
             }
@@ -866,86 +917,15 @@ impl<'de, R: Read<'de>> Deserializer<R> {
         Ok(())
     }
 
-    fn ignore_seq(&mut self) -> Result<()> {
-        let mut first = true;
-
-        loop {
-            match try!(self.parse_whitespace()) {
-                Some(b']') => {
-                    self.eat_char();
-                    return Ok(());
-                }
-                Some(b',') if !first => {
-                    self.eat_char();
-                }
-                Some(_) => {
-                    if first {
-                        first = false;
-                    } else {
-                        return Err(self.peek_error(ErrorCode::ExpectedListCommaOrEnd));
-                    }
-                }
-                None => {
-                    return Err(self.peek_error(ErrorCode::EofWhileParsingList));
-                }
-            }
-
-            try!(self.ignore_value());
-        }
-    }
-
-    fn ignore_map(&mut self) -> Result<()> {
-        let mut first = true;
-
-        loop {
-            let peek = match try!(self.parse_whitespace()) {
-                Some(b'}') => {
-                    self.eat_char();
-                    return Ok(());
-                }
-                Some(b',') if !first => {
-                    self.eat_char();
-                    try!(self.parse_whitespace())
-                }
-                Some(b) => {
-                    if first {
-                        first = false;
-                        Some(b)
-                    } else {
-                        return Err(self.peek_error(ErrorCode::ExpectedObjectCommaOrEnd));
-                    }
-                }
-                None => {
-                    return Err(self.peek_error(ErrorCode::EofWhileParsingObject));
-                }
-            };
-
-            match peek {
-                Some(b'"') => {
-                    self.eat_char();
-                    try!(self.read.ignore_str());
-                }
-                Some(_) => {
-                    return Err(self.peek_error(ErrorCode::KeyMustBeAString));
-                }
-                None => {
-                    return Err(self.peek_error(ErrorCode::EofWhileParsingObject));
-                }
-            }
-
-            match try!(self.parse_whitespace()) {
-                Some(b':') => {
-                    self.eat_char();
-                    try!(self.ignore_value());
-                }
-                Some(_) => {
-                    return Err(self.peek_error(ErrorCode::ExpectedColon));
-                }
-                None => {
-                    return Err(self.peek_error(ErrorCode::EofWhileParsingObject));
-                }
-            }
-        }
+    #[cfg(feature = "raw_value")]
+    fn deserialize_raw_value<V>(&mut self, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.parse_whitespace()?;
+        self.read.begin_raw_buffering();
+        self.ignore_value()?;
+        self.read.end_raw_buffering(visitor)
     }
 }
 
@@ -959,39 +939,39 @@ impl FromStr for Number {
     }
 }
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-static POW10: [f64; 309] =
-    [1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
-     1e010, 1e011, 1e012, 1e013, 1e014, 1e015, 1e016, 1e017, 1e018, 1e019,
-     1e020, 1e021, 1e022, 1e023, 1e024, 1e025, 1e026, 1e027, 1e028, 1e029,
-     1e030, 1e031, 1e032, 1e033, 1e034, 1e035, 1e036, 1e037, 1e038, 1e039,
-     1e040, 1e041, 1e042, 1e043, 1e044, 1e045, 1e046, 1e047, 1e048, 1e049,
-     1e050, 1e051, 1e052, 1e053, 1e054, 1e055, 1e056, 1e057, 1e058, 1e059,
-     1e060, 1e061, 1e062, 1e063, 1e064, 1e065, 1e066, 1e067, 1e068, 1e069,
-     1e070, 1e071, 1e072, 1e073, 1e074, 1e075, 1e076, 1e077, 1e078, 1e079,
-     1e080, 1e081, 1e082, 1e083, 1e084, 1e085, 1e086, 1e087, 1e088, 1e089,
-     1e090, 1e091, 1e092, 1e093, 1e094, 1e095, 1e096, 1e097, 1e098, 1e099,
-     1e100, 1e101, 1e102, 1e103, 1e104, 1e105, 1e106, 1e107, 1e108, 1e109,
-     1e110, 1e111, 1e112, 1e113, 1e114, 1e115, 1e116, 1e117, 1e118, 1e119,
-     1e120, 1e121, 1e122, 1e123, 1e124, 1e125, 1e126, 1e127, 1e128, 1e129,
-     1e130, 1e131, 1e132, 1e133, 1e134, 1e135, 1e136, 1e137, 1e138, 1e139,
-     1e140, 1e141, 1e142, 1e143, 1e144, 1e145, 1e146, 1e147, 1e148, 1e149,
-     1e150, 1e151, 1e152, 1e153, 1e154, 1e155, 1e156, 1e157, 1e158, 1e159,
-     1e160, 1e161, 1e162, 1e163, 1e164, 1e165, 1e166, 1e167, 1e168, 1e169,
-     1e170, 1e171, 1e172, 1e173, 1e174, 1e175, 1e176, 1e177, 1e178, 1e179,
-     1e180, 1e181, 1e182, 1e183, 1e184, 1e185, 1e186, 1e187, 1e188, 1e189,
-     1e190, 1e191, 1e192, 1e193, 1e194, 1e195, 1e196, 1e197, 1e198, 1e199,
-     1e200, 1e201, 1e202, 1e203, 1e204, 1e205, 1e206, 1e207, 1e208, 1e209,
-     1e210, 1e211, 1e212, 1e213, 1e214, 1e215, 1e216, 1e217, 1e218, 1e219,
-     1e220, 1e221, 1e222, 1e223, 1e224, 1e225, 1e226, 1e227, 1e228, 1e229,
-     1e230, 1e231, 1e232, 1e233, 1e234, 1e235, 1e236, 1e237, 1e238, 1e239,
-     1e240, 1e241, 1e242, 1e243, 1e244, 1e245, 1e246, 1e247, 1e248, 1e249,
-     1e250, 1e251, 1e252, 1e253, 1e254, 1e255, 1e256, 1e257, 1e258, 1e259,
-     1e260, 1e261, 1e262, 1e263, 1e264, 1e265, 1e266, 1e267, 1e268, 1e269,
-     1e270, 1e271, 1e272, 1e273, 1e274, 1e275, 1e276, 1e277, 1e278, 1e279,
-     1e280, 1e281, 1e282, 1e283, 1e284, 1e285, 1e286, 1e287, 1e288, 1e289,
-     1e290, 1e291, 1e292, 1e293, 1e294, 1e295, 1e296, 1e297, 1e298, 1e299,
-     1e300, 1e301, 1e302, 1e303, 1e304, 1e305, 1e306, 1e307, 1e308];
+static POW10: [f64; 309] = [
+    1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009, //
+    1e010, 1e011, 1e012, 1e013, 1e014, 1e015, 1e016, 1e017, 1e018, 1e019, //
+    1e020, 1e021, 1e022, 1e023, 1e024, 1e025, 1e026, 1e027, 1e028, 1e029, //
+    1e030, 1e031, 1e032, 1e033, 1e034, 1e035, 1e036, 1e037, 1e038, 1e039, //
+    1e040, 1e041, 1e042, 1e043, 1e044, 1e045, 1e046, 1e047, 1e048, 1e049, //
+    1e050, 1e051, 1e052, 1e053, 1e054, 1e055, 1e056, 1e057, 1e058, 1e059, //
+    1e060, 1e061, 1e062, 1e063, 1e064, 1e065, 1e066, 1e067, 1e068, 1e069, //
+    1e070, 1e071, 1e072, 1e073, 1e074, 1e075, 1e076, 1e077, 1e078, 1e079, //
+    1e080, 1e081, 1e082, 1e083, 1e084, 1e085, 1e086, 1e087, 1e088, 1e089, //
+    1e090, 1e091, 1e092, 1e093, 1e094, 1e095, 1e096, 1e097, 1e098, 1e099, //
+    1e100, 1e101, 1e102, 1e103, 1e104, 1e105, 1e106, 1e107, 1e108, 1e109, //
+    1e110, 1e111, 1e112, 1e113, 1e114, 1e115, 1e116, 1e117, 1e118, 1e119, //
+    1e120, 1e121, 1e122, 1e123, 1e124, 1e125, 1e126, 1e127, 1e128, 1e129, //
+    1e130, 1e131, 1e132, 1e133, 1e134, 1e135, 1e136, 1e137, 1e138, 1e139, //
+    1e140, 1e141, 1e142, 1e143, 1e144, 1e145, 1e146, 1e147, 1e148, 1e149, //
+    1e150, 1e151, 1e152, 1e153, 1e154, 1e155, 1e156, 1e157, 1e158, 1e159, //
+    1e160, 1e161, 1e162, 1e163, 1e164, 1e165, 1e166, 1e167, 1e168, 1e169, //
+    1e170, 1e171, 1e172, 1e173, 1e174, 1e175, 1e176, 1e177, 1e178, 1e179, //
+    1e180, 1e181, 1e182, 1e183, 1e184, 1e185, 1e186, 1e187, 1e188, 1e189, //
+    1e190, 1e191, 1e192, 1e193, 1e194, 1e195, 1e196, 1e197, 1e198, 1e199, //
+    1e200, 1e201, 1e202, 1e203, 1e204, 1e205, 1e206, 1e207, 1e208, 1e209, //
+    1e210, 1e211, 1e212, 1e213, 1e214, 1e215, 1e216, 1e217, 1e218, 1e219, //
+    1e220, 1e221, 1e222, 1e223, 1e224, 1e225, 1e226, 1e227, 1e228, 1e229, //
+    1e230, 1e231, 1e232, 1e233, 1e234, 1e235, 1e236, 1e237, 1e238, 1e239, //
+    1e240, 1e241, 1e242, 1e243, 1e244, 1e245, 1e246, 1e247, 1e248, 1e249, //
+    1e250, 1e251, 1e252, 1e253, 1e254, 1e255, 1e256, 1e257, 1e258, 1e259, //
+    1e260, 1e261, 1e262, 1e263, 1e264, 1e265, 1e266, 1e267, 1e268, 1e269, //
+    1e270, 1e271, 1e272, 1e273, 1e274, 1e275, 1e276, 1e277, 1e278, 1e279, //
+    1e280, 1e281, 1e282, 1e283, 1e284, 1e285, 1e286, 1e287, 1e288, 1e289, //
+    1e290, 1e291, 1e292, 1e293, 1e294, 1e295, 1e296, 1e297, 1e298, 1e299, //
+    1e300, 1e301, 1e302, 1e303, 1e304, 1e305, 1e306, 1e307, 1e308,
+];
 
 macro_rules! deserialize_prim_number {
     ($method:ident) => {
@@ -1042,8 +1022,8 @@ impl<'de, 'a, R: Read<'de>> de::Deserializer<'de> for &'a mut Deserializer<R> {
             b'0'...b'9' => try!(self.parse_any_number(true)).visit(visitor),
             b'"' => {
                 self.eat_char();
-                self.str_buf.clear();
-                match try!(self.read.parse_str(&mut self.str_buf)) {
+                self.scratch.clear();
+                match try!(self.read.parse_str(&mut self.scratch)) {
                     Reference::Borrowed(s) => visitor.visit_borrowed_str(s),
                     Reference::Copied(s) => visitor.visit_str(s),
                 }
@@ -1221,8 +1201,8 @@ impl<'de, 'a, R: Read<'de>> de::Deserializer<'de> for &'a mut Deserializer<R> {
         let value = match peek {
             b'"' => {
                 self.eat_char();
-                self.str_buf.clear();
-                match try!(self.read.parse_str(&mut self.str_buf)) {
+                self.scratch.clear();
+                match try!(self.read.parse_str(&mut self.scratch)) {
                     Reference::Borrowed(s) => visitor.visit_borrowed_str(s),
                     Reference::Copied(s) => visitor.visit_str(s),
                 }
@@ -1278,10 +1258,7 @@ impl<'de, 'a, R: Read<'de>> de::Deserializer<'de> for &'a mut Deserializer<R> {
     ///
     /// You can use this to parse JSON strings containing invalid UTF-8 bytes.
     ///
-    /// ```rust
-    /// extern crate serde_json;
-    /// extern crate serde_bytes;
-    ///
+    /// ```edition2018
     /// use serde_bytes::ByteBuf;
     ///
     /// fn look_at_bytes() -> Result<(), serde_json::Error> {
@@ -1304,10 +1281,7 @@ impl<'de, 'a, R: Read<'de>> de::Deserializer<'de> for &'a mut Deserializer<R> {
     /// to be valid, and `\u` escape sequences are required to represent valid
     /// Unicode code points.
     ///
-    /// ```rust
-    /// extern crate serde_json;
-    /// extern crate serde_bytes;
-    ///
+    /// ```edition2018
     /// use serde_bytes::ByteBuf;
     ///
     /// fn look_at_bytes() {
@@ -1338,8 +1312,8 @@ impl<'de, 'a, R: Read<'de>> de::Deserializer<'de> for &'a mut Deserializer<R> {
         let value = match peek {
             b'"' => {
                 self.eat_char();
-                self.str_buf.clear();
-                match try!(self.read.parse_str_raw(&mut self.str_buf)) {
+                self.scratch.clear();
+                match try!(self.read.parse_str_raw(&mut self.scratch)) {
                     Reference::Borrowed(b) => visitor.visit_borrowed_bytes(b),
                     Reference::Copied(b) => visitor.visit_bytes(b),
                 }
@@ -1413,10 +1387,18 @@ impl<'de, 'a, R: Read<'de>> de::Deserializer<'de> for &'a mut Deserializer<R> {
 
     /// Parses a newtype struct as the underlying value.
     #[inline]
-    fn deserialize_newtype_struct<V>(self, _name: &str, visitor: V) -> Result<V::Value>
+    fn deserialize_newtype_struct<V>(self, name: &str, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
+        #[cfg(feature = "raw_value")]
+        {
+            if name == ::raw::TOKEN {
+                return self.deserialize_raw_value(visitor);
+            }
+        }
+
+        let _ = name;
         visitor.visit_newtype_struct(self)
     }
 
@@ -1863,8 +1845,8 @@ macro_rules! deserialize_integer_key {
             V: de::Visitor<'de>,
         {
             self.de.eat_char();
-            self.de.str_buf.clear();
-            let string = try!(self.de.read.parse_str(&mut self.de.str_buf));
+            self.de.scratch.clear();
+            let string = try!(self.de.read.parse_str(&mut self.de.scratch));
             match (string.parse(), string) {
                 (Ok(integer), _) => visitor.$visit(integer),
                 (Err(_), Reference::Borrowed(s)) => visitor.visit_borrowed_str(s),
@@ -1886,8 +1868,8 @@ where
         V: de::Visitor<'de>,
     {
         self.de.eat_char();
-        self.de.str_buf.clear();
-        match try!(self.de.read.parse_str(&mut self.de.str_buf)) {
+        self.de.scratch.clear();
+        match try!(self.de.read.parse_str(&mut self.de.scratch)) {
             Reference::Borrowed(s) => visitor.visit_borrowed_str(s),
             Reference::Copied(s) => visitor.visit_str(s),
         }
@@ -1969,9 +1951,7 @@ where
 /// The data can consist of any JSON value. Values need to be a self-delineating value e.g.
 /// arrays, objects, or strings, or be followed by whitespace or a self-delineating value.
 ///
-/// ```rust
-/// extern crate serde_json;
-///
+/// ```edition2018
 /// use serde_json::{Deserializer, Value};
 ///
 /// fn main() {
@@ -2019,7 +1999,7 @@ where
     /// If a stream deserializer returns an EOF error, new data can be joined to
     /// `old_data[stream.byte_offset()..]` to try again.
     ///
-    /// ```rust
+    /// ```edition2018
     /// let data = b"[0] [1] [";
     ///
     /// let de = serde_json::Deserializer::from_slice(data);
@@ -2126,25 +2106,25 @@ where
 
 /// Deserialize an instance of type `T` from an IO stream of JSON.
 ///
-/// # Errors
+/// The content of the IO stream is deserialized directly from the stream
+/// without being buffered in memory by serde_json.
 ///
-/// This conversion can fail if the structure of the input does not match the
-/// structure expected by `T`, for example if `T` is a struct type but the input
-/// contains something other than a JSON map. It can also fail if the structure
-/// is correct but `T`'s implementation of `Deserialize` decides that something
-/// is wrong with the data, for example required struct fields are missing from
-/// the JSON map or some number is too big to fit in the expected primitive
-/// type.
+/// When reading from a source against which short reads are not efficient, such
+/// as a [`File`], you will want to apply your own buffering because serde_json
+/// will not buffer the input. See [`std::io::BufReader`].
 ///
-/// ```rust
-/// #[macro_use]
-/// extern crate serde_derive;
+/// [`File`]: https://doc.rust-lang.org/std/fs/struct.File.html
+/// [`BufReader`]: https://doc.rust-lang.org/std/io/struct.BufReader.html
 ///
-/// extern crate serde;
-/// extern crate serde_json;
+/// # Example
+///
+/// ```edition2018
+/// # use serde_derive::Deserialize;
+/// use serde::Deserialize;
 ///
 /// use std::error::Error;
 /// use std::fs::File;
+/// use std::io::BufReader;
 /// use std::path::Path;
 ///
 /// #[derive(Deserialize, Debug)]
@@ -2154,11 +2134,12 @@ where
 /// }
 ///
 /// fn read_user_from_file<P: AsRef<Path>>(path: P) -> Result<User, Box<Error>> {
-///     // Open the file in read-only mode.
+///     // Open the file in read-only mode with buffer.
 ///     let file = File::open(path)?;
+///     let reader = BufReader::new(file);
 ///
 ///     // Read the JSON contents of the file as an instance of `User`.
-///     let u = serde_json::from_reader(file)?;
+///     let u = serde_json::from_reader(reader)?;
 ///
 ///     // Return the `User`.
 ///     Ok(u)
@@ -2171,6 +2152,16 @@ where
 ///     println!("{:#?}", u);
 /// }
 /// ```
+///
+/// # Errors
+///
+/// This conversion can fail if the structure of the input does not match the
+/// structure expected by `T`, for example if `T` is a struct type but the input
+/// contains something other than a JSON map. It can also fail if the structure
+/// is correct but `T`'s implementation of `Deserialize` decides that something
+/// is wrong with the data, for example required struct fields are missing from
+/// the JSON map or some number is too big to fit in the expected primitive
+/// type.
 pub fn from_reader<R, T>(rdr: R) -> Result<T>
 where
     R: io::Read,
@@ -2181,22 +2172,11 @@ where
 
 /// Deserialize an instance of type `T` from bytes of JSON text.
 ///
-/// # Errors
+/// # Example
 ///
-/// This conversion can fail if the structure of the input does not match the
-/// structure expected by `T`, for example if `T` is a struct type but the input
-/// contains something other than a JSON map. It can also fail if the structure
-/// is correct but `T`'s implementation of `Deserialize` decides that something
-/// is wrong with the data, for example required struct fields are missing from
-/// the JSON map or some number is too big to fit in the expected primitive
-/// type.
-///
-/// ```rust
-/// #[macro_use]
-/// extern crate serde_derive;
-///
-/// extern crate serde;
-/// extern crate serde_json;
+/// ```edition2018
+/// # use serde_derive::Deserialize;
+/// use serde::Deserialize;
 ///
 /// #[derive(Deserialize, Debug)]
 /// struct User {
@@ -2206,23 +2186,16 @@ where
 ///
 /// fn main() {
 ///     // The type of `j` is `&[u8]`
-///     let j = b"{
-///                 \"fingerprint\": \"0xF9BA143B95FF6D82\",
-///                 \"location\": \"Menlo Park, CA\"
-///               }";
+///     let j = b"
+///         {
+///             \"fingerprint\": \"0xF9BA143B95FF6D82\",
+///             \"location\": \"Menlo Park, CA\"
+///         }";
 ///
 ///     let u: User = serde_json::from_slice(j).unwrap();
 ///     println!("{:#?}", u);
 /// }
 /// ```
-pub fn from_slice<'a, T>(v: &'a [u8]) -> Result<T>
-where
-    T: de::Deserialize<'a>,
-{
-    from_trait(read::SliceRead::new(v))
-}
-
-/// Deserialize an instance of type `T` from a string of JSON text.
 ///
 /// # Errors
 ///
@@ -2233,13 +2206,20 @@ where
 /// is wrong with the data, for example required struct fields are missing from
 /// the JSON map or some number is too big to fit in the expected primitive
 /// type.
+pub fn from_slice<'a, T>(v: &'a [u8]) -> Result<T>
+where
+    T: de::Deserialize<'a>,
+{
+    from_trait(read::SliceRead::new(v))
+}
+
+/// Deserialize an instance of type `T` from a string of JSON text.
 ///
-/// ```rust
-/// #[macro_use]
-/// extern crate serde_derive;
+/// # Example
 ///
-/// extern crate serde;
-/// extern crate serde_json;
+/// ```edition2018
+/// # use serde_derive::Deserialize;
+/// use serde::Deserialize;
 ///
 /// #[derive(Deserialize, Debug)]
 /// struct User {
@@ -2249,15 +2229,26 @@ where
 ///
 /// fn main() {
 ///     // The type of `j` is `&str`
-///     let j = "{
-///                \"fingerprint\": \"0xF9BA143B95FF6D82\",
-///                \"location\": \"Menlo Park, CA\"
-///              }";
+///     let j = "
+///         {
+///             \"fingerprint\": \"0xF9BA143B95FF6D82\",
+///             \"location\": \"Menlo Park, CA\"
+///         }";
 ///
 ///     let u: User = serde_json::from_str(j).unwrap();
 ///     println!("{:#?}", u);
 /// }
 /// ```
+///
+/// # Errors
+///
+/// This conversion can fail if the structure of the input does not match the
+/// structure expected by `T`, for example if `T` is a struct type but the input
+/// contains something other than a JSON map. It can also fail if the structure
+/// is correct but `T`'s implementation of `Deserialize` decides that something
+/// is wrong with the data, for example required struct fields are missing from
+/// the JSON map or some number is too big to fit in the expected primitive
+/// type.
 pub fn from_str<'a, T>(s: &'a str) -> Result<T>
 where
     T: de::Deserialize<'a>,

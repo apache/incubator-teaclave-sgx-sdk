@@ -41,6 +41,9 @@ use core::mem;
 /// On success, the total number of bytes that were copied from
 /// `reader` to `writer` is returned.
 ///
+/// If you’re wanting to copy the contents of one file to another and you’re
+/// working with filesystem paths, see the [`fs::copy`] function.
+///
 /// # Errors
 ///
 /// This function will return an error immediately if any call to `read` or

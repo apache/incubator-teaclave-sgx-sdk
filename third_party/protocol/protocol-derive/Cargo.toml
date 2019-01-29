@@ -1,0 +1,20 @@
+[package]
+name = "protocol-derive"
+version = "0.4.3"
+authors = ["Dylan McKay <me@dylanmckay.io>"]
+
+description = "Easy protocol definitions"
+license = "MIT"
+repository = "https://github.com/dylanmckay/protocol"
+documentation = "https://docs.rs/protocol"
+keywords = ["protocol", "tcp", "udp", "connection", "encoding"]
+
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "0.14.2"
+quote = "0.6.3"
+proc-macro2 = "0.4"
+

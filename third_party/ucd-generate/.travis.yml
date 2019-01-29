@@ -1,0 +1,11 @@
+dist: trusty
+language: rust
+rust:
+  - 1.31.1
+  - stable
+  - beta
+  - nightly
+script: ci/script.sh
+branches:
+  only:
+    - master

@@ -98,7 +98,7 @@ void    _TLIBC_CDECL_ free(void *);
 long    _TLIBC_CDECL_ labs(long);
 ldiv_t  _TLIBC_CDECL_ ldiv(long, long);
 void *  _TLIBC_CDECL_ malloc(size_t);
-void *  _TLIBC_CDECL_ memalign(size_t, size_t);
+//void *  _TLIBC_CDECL_ memalign(size_t, size_t);
 void    _TLIBC_CDECL_ qsort(void *, size_t, size_t, int (*)(const void *, const void *));
 void *  _TLIBC_CDECL_ realloc(void *, size_t);
 double  _TLIBC_CDECL_ strtod(const char *, char **);

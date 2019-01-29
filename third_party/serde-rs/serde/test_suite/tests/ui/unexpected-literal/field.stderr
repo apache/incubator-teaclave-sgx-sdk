@@ -1,0 +1,8 @@
+error: unexpected literal in serde field attribute
+ --> $DIR/field.rs:5:13
+  |
+5 |     #[serde("literal")]
+  |             ^^^^^^^^^
+
+error: aborting due to previous error
+

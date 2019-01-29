@@ -1,6 +1,6 @@
 [package]
 name = "sgx_tse"
-version = "1.0.4"
+version = "1.0.5"
 authors = ["Baidu"]
 repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"

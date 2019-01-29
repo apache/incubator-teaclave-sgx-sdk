@@ -1,3 +1,45 @@
+# Rust SGX SDK v1.0.5 Release Notes
+
+**Upgrade Recommended** Intel issued a security advisory [INTEL-SA-00202](https://www.intel.com/content/www/us/en/security-center/advisory/intel-sa-00202.html) and fixed the problem in Intel SGX SDK v2.4.
+
+**Support Intel SGX SDK v2.4**. We add a [patch](https://github.com/intel/linux-sgx/pull/359) to Intel SGX SDK to fix aesm signature verification error.
+
+**Support Rust nightly-2019-01-28** in master branch (rustc 1.34.0).
+
+**Support Rust stable-2019-01-17** in stable branch (rustc 1.32.0).
+
+**Removed dependency of `posix_memalign`**.
+
+**Refactored dockerfiles**.
+
+**New sgx_libc crate** is isolated from `sgx_trts::libc`. It provides a bunch of extra ocalls in this release.
+
+**Renamed vendor name from unknown to mesalock** in every target json file.
+
+**Refactored sgx_trts**.
+
+**The net2 crate** is ported into SGX enclave. Now one can create a socket or start listening on a port in SGX enclave (with built-in ocalls).
+
+**Mesalink support** Now one can establish a remote attestation based TLS connection to enclave using [Mesalink](https://github.com/mesalock-linux/mesalink). A working example is [here](https://github.com/mesalock-linux/mesalink/tree/master/examples/sgx_uera_client).
+
+**New sgx_ucrypto crate** enables using Intel SGX style crypto primitives in untrusted app.
+
+**New sgx_crypto_helper** helps serialize/deserialize RSA keypair in either untrusted app or SGX enclave.
+
+**New code sample: hello-regex** shows how to use regex in SGX enclave.
+
+**New code sample: static_data_distribution** shows how to use sgx_crypto_helper to statically distribute secrets to SGX enclave with dynamic RSA key provisioning.
+
+**New code sample: net2** shows how to create a socket/listen on a port using net2 crate.
+
+**New code sample: pcl** shows how to use Intel's Protected Code Loader to encrypt an enclave binary and launch the encrypted binary.
+
+**Upgrade serde-rs** to 1.0.84.
+
+**New third-party libraries ported** regex, aho-corasick, fst, memchr, memmap-rs, thread_local, ucd-generate, utf8-ranges, version_check.
+
+**Known issue** remoteattestation sample is not working in 18.04 because it depends on old log4cpp v1.0. Please use ue-ra or mutual-ra instead.
+
 # Rust SGX SDK v1.0.4 Release Notes
 
 **Upgrade recommended** Rust community has fixed a [memory bug](https://blog.rust-lang.org/2018/09/21/Security-advisory-for-std.html) in [liballoc](https://github.com/rust-lang/rust/commit/8ac88d375e00c91a3db5d78852048322f88be3c1) recently. We strongly recommend to upgrade to rust-sgx-sdk v1.0.4 and use the most recent Rust releases to build it.

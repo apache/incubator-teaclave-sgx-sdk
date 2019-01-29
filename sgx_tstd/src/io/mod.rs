@@ -27,11 +27,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use memchr;
-use error as std_error;
 use core::cmp;
-use core::str as core_str;
 use core::fmt;
-use core::result;
 use core::ptr;
 use alloc_crate::vec::Vec;
 use alloc_crate::str;
@@ -113,19 +110,26 @@ fn append_to_string<F>(buf: &mut String, f: F) -> Result<usize>
 // avoid paying to allocate and zero a huge chunk of memory if the reader only
 // has 4 bytes while still making large reads if the reader does have a ton
 // of data to return. Simply tacking on an extra DEFAULT_BUF_SIZE space every
-// time is 4,500 times (!) slower than this if the reader has a very small
-// amount of data to return.
+// time is 4,500 times (!) slower than a default reservation size of 32 if the
+// reader has a very small amount of data to return.
 //
 // Because we're extending the buffer with uninitialized data for trusted
 // readers, we need to make sure to truncate that if any of this panics.
 fn read_to_end<R: Read + ?Sized>(r: &mut R, buf: &mut Vec<u8>) -> Result<usize> {
+    read_to_end_with_reservation(r, buf, 32)
+}
+
+fn read_to_end_with_reservation<R: Read + ?Sized>(r: &mut R,
+                                                  buf: &mut Vec<u8>,
+                                                  reservation_size: usize) -> Result<usize>
+{
     let start_len = buf.len();
     let mut g = Guard { len: buf.len(), buf: buf };
     let ret;
     loop {
         if g.len == g.buf.len() {
             unsafe {
-                g.buf.reserve(32);
+                g.buf.reserve(reservation_size);
                 let capacity = g.buf.capacity();
                 g.buf.set_len(capacity);
                 r.initializer().initialize(&mut g.buf[g.len..]);
@@ -334,21 +338,6 @@ pub trait Read {
     ///
     fn bytes(self) -> Bytes<Self> where Self: Sized {
         Bytes { inner: self }
-    }
-
-    /// Transforms this `Read` instance to an [`Iterator`] over [`char`]s.
-    ///
-    /// This adaptor will attempt to interpret this reader as a UTF-8 encoded
-    /// sequence of characters. The returned iterator will return [`None`] once
-    /// EOF is reached for this reader. Otherwise each element yielded will be a
-    /// [`Result`]`<`[`char`]`, E>` where `E` may contain information about what I/O error
-    /// occurred or where decoding failed.
-    ///
-    /// Currently this adaptor will discard intermediate data read, and should
-    /// be avoided if this is not desired.
-    ///
-    fn chars(self) -> Chars<Self> where Self: Sized {
-        Chars { inner: self }
     }
 
     /// Creates an adaptor which will chain this stream with another.
@@ -572,10 +561,10 @@ pub trait Write {
 /// end or the current offset.
 ///
 pub trait Seek {
-    /// Seek to an offset, in bytes, in a stream.
+    // Seek to an offset, in bytes, in a stream.
     ///
-    /// A seek beyond the end of a stream is allowed, but implementation
-    /// defined.
+    /// A seek beyond the end of a stream is allowed, but behavior is defined
+    /// by the implementation.
     ///
     /// If the seek operation completed successfully,
     /// this method returns the new position from the start of the stream.
@@ -651,7 +640,8 @@ fn read_until<R: BufRead + ?Sized>(r: &mut R, delim: u8, buf: &mut Vec<u8>)
 /// [`read_line`] method as well as a [`lines`] iterator.
 ///
 pub trait BufRead: Read {
-    /// Fills the internal buffer of this object, returning the buffer contents.
+    /// Returns the contents of the internal buffer, filling it with more data
+    /// from the inner reader if it is empty.
     ///
     /// This function is a lower-level call. It needs to be paired with the
     /// [`consume`] method to function properly. When calling this
@@ -931,6 +921,12 @@ impl<T: Read> Read for Take<T> {
     unsafe fn initializer(&self) -> Initializer {
         self.inner.initializer()
     }
+
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> Result<usize> {
+        let reservation_size = cmp::min(self.limit, 32) as usize;
+
+        read_to_end_with_reservation(self, buf, reservation_size)
+    }
 }
 
 impl<T: BufRead> BufRead for Take<T> {
@@ -981,90 +977,6 @@ impl<R: Read> Iterator for Bytes<R> {
 
     fn next(&mut self) -> Option<Result<u8>> {
         read_one_byte(&mut self.inner)
-    }
-}
-
-/// An iterator over the `char`s of a reader.
-///
-/// This struct is generally created by calling [`chars`][chars] on a reader.
-/// Please see the documentation of `chars()` for more details.
-///
-/// [chars]: trait.Read.html#method.chars
-#[derive(Debug)]
-#[allow(deprecated)]
-pub struct Chars<R> {
-    inner: R,
-}
-
-/// An enumeration of possible errors that can be generated from the `Chars`
-/// adapter.
-#[derive(Debug)]
-#[allow(deprecated)]
-pub enum CharsError {
-    /// Variant representing that the underlying stream was read successfully
-    /// but it did not contain valid utf8 data.
-    NotUtf8,
-
-    /// Variant representing that an I/O error occurred.
-    Other(Error),
-}
-
-#[allow(deprecated)]
-impl<R: Read> Iterator for Chars<R> {
-    type Item = result::Result<char, CharsError>;
-
-    fn next(&mut self) -> Option<result::Result<char, CharsError>> {
-        let first_byte = match read_one_byte(&mut self.inner)? {
-            Ok(b) => b,
-            Err(e) => return Some(Err(CharsError::Other(e))),
-        };
-        let width = core_str::utf8_char_width(first_byte);
-        if width == 1 { return Some(Ok(first_byte as char)) }
-        if width == 0 { return Some(Err(CharsError::NotUtf8)) }
-        let mut buf = [first_byte, 0, 0, 0];
-        {
-            let mut start = 1;
-            while start < width {
-                match self.inner.read(&mut buf[start..width]) {
-                    Ok(0) => return Some(Err(CharsError::NotUtf8)),
-                    Ok(n) => start += n,
-                    Err(ref e) if e.kind() == ErrorKind::Interrupted => continue,
-                    Err(e) => return Some(Err(CharsError::Other(e))),
-                }
-            }
-        }
-        Some(match str::from_utf8(&buf[..width]).ok() {
-            Some(s) => Ok(s.chars().next().unwrap()),
-            None => Err(CharsError::NotUtf8),
-        })
-    }
-}
-
-#[allow(deprecated)]
-impl std_error::Error for CharsError {
-    fn description(&self) -> &str {
-        match *self {
-            CharsError::NotUtf8 => "invalid utf8 encoding",
-            CharsError::Other(ref e) => std_error::Error::description(e),
-        }
-    }
-    fn cause(&self) -> Option<&dyn std_error::Error> {
-        match *self {
-            CharsError::NotUtf8 => None,
-            CharsError::Other(ref e) => e.cause(),
-        }
-    }
-}
-
-#[allow(deprecated)]
-impl fmt::Display for CharsError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            CharsError::NotUtf8 => {
-                "byte stream did not contain valid utf8".fmt(f)
-            }
-            CharsError::Other(ref e) => e.fmt(f),
-        }
     }
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "sgx_trts"
-version = "1.0.4"
+version = "1.0.5"
 authors = ["Baidu"]
 repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"
@@ -34,3 +34,4 @@ default = []
 
 [dependencies]
 sgx_types = { path = "../sgx_types" }
+sgx_libc = { path = "../sgx_libc" }

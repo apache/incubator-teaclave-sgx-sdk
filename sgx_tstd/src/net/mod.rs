@@ -41,6 +41,8 @@ pub use self::addr::{SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 #[cfg(feature = "net")]
 pub use self::tcp::TcpStream;
 #[cfg(feature = "net")]
+pub use self::tcp::TcpListener;
+#[cfg(feature = "net")]
 pub use self::udp::UdpSocket;
 pub use self::parser::AddrParseError;
 

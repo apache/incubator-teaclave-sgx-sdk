@@ -120,12 +120,7 @@ macro_rules! print {
 macro_rules! println {
     () => (print!("\n"));
     ($($arg:tt)*) => ({
-        #[cfg(not(stage0))] {
-            ($crate::io::_print(format_args_nl!($($arg)*)));
-        }
-        #[cfg(stage0)] {
-            print!("{}\n", format_args!($($arg)*))
-        }
+        $crate::io::_print(format_args_nl!($($arg)*));
     })
 }
 
@@ -174,12 +169,7 @@ macro_rules! eprint {
 macro_rules! eprintln {
     () => (eprint!("\n"));
     ($($arg:tt)*) => ({
-        #[cfg(all(not(stage0), not(stage1)))] {
-            ($crate::io::_eprint(format_args_nl!($($arg)*)));
-        }
-        #[cfg(any(stage0, stage1))] {
-            eprint!("{}\n", format_args!($($arg)*))
-        }
+        $crate::io::_eprint(format_args_nl!($($arg)*));
     })
 }
 
@@ -191,6 +181,124 @@ macro_rules! eprint { ($($arg:tt)*) => ({}) }
 #[macro_export]
 macro_rules! eprintln { ($($arg:tt)*) => ({}) }
 
+/// A macro for quick and dirty debugging with which you can inspect
+/// the value of a given expression. An example:
+///
+/// ```rust
+/// #![feature(dbg_macro)]
+///
+/// let a = 2;
+/// let b = dbg!(a * 2) + 1;
+/// //      ^-- prints: [src/main.rs:4] a * 2 = 4
+/// assert_eq!(b, 5);
+/// ```
+///
+/// The macro works by using the `Debug` implementation of the type of
+/// the given expression to print the value to [stderr] along with the
+/// source location of the macro invocation as well as the source code
+/// of the expression.
+///
+/// Invoking the macro on an expression moves and takes ownership of it
+/// before returning the evaluated expression unchanged. If the type
+/// of the expression does not implement `Copy` and you don't want
+/// to give up ownership, you can instead borrow with `dbg!(&expr)`
+/// for some expression `expr`.
+///
+/// Note that the macro is intended as a debugging tool and therefore you
+/// should avoid having uses of it in version control for longer periods.
+/// Use cases involving debug output that should be added to version control
+/// may be better served by macros such as `debug!` from the `log` crate.
+///
+/// # Stability
+///
+/// The exact output printed by this macro should not be relied upon
+/// and is subject to future changes.
+///
+/// # Panics
+///
+/// Panics if writing to `io::stderr` fails.
+///
+/// # Further examples
+///
+/// With a method call:
+///
+/// ```rust
+/// #![feature(dbg_macro)]
+///
+/// fn foo(n: usize) {
+///     if let Some(_) = dbg!(n.checked_sub(4)) {
+///         // ...
+///     }
+/// }
+///
+/// foo(3)
+/// ```
+///
+/// This prints to [stderr]:
+///
+/// ```text,ignore
+/// [src/main.rs:4] n.checked_sub(4) = None
+/// ```
+///
+/// Naive factorial implementation:
+///
+/// ```rust
+/// #![feature(dbg_macro)]
+///
+/// fn factorial(n: u32) -> u32 {
+///     if dbg!(n <= 1) {
+///         dbg!(1)
+///     } else {
+///         dbg!(n * factorial(n - 1))
+///     }
+/// }
+///
+/// dbg!(factorial(4));
+/// ```
+///
+/// This prints to [stderr]:
+///
+/// ```text,ignore
+/// [src/main.rs:3] n <= 1 = false
+/// [src/main.rs:3] n <= 1 = false
+/// [src/main.rs:3] n <= 1 = false
+/// [src/main.rs:3] n <= 1 = true
+/// [src/main.rs:4] 1 = 1
+/// [src/main.rs:5] n * factorial(n - 1) = 2
+/// [src/main.rs:5] n * factorial(n - 1) = 6
+/// [src/main.rs:5] n * factorial(n - 1) = 24
+/// [src/main.rs:11] factorial(4) = 24
+/// ```
+///
+/// The `dbg!(..)` macro moves the input:
+///
+/// ```compile_fail
+/// #![feature(dbg_macro)]
+///
+/// /// A wrapper around `usize` which importantly is not Copyable.
+/// #[derive(Debug)]
+/// struct NoCopy(usize);
+///
+/// let a = NoCopy(42);
+/// let _ = dbg!(a); // <-- `a` is moved here.
+/// let _ = dbg!(a); // <-- `a` is moved again; error!
+/// ```
+///
+/// [stderr]: https://en.wikipedia.org/wiki/Standard_streams#Standard_error_(stderr)
+#[macro_export]
+macro_rules! dbg {
+    ($val:expr) => {
+        // Use of `match` here is intentional because it affects the lifetimes
+        // of temporaries - https://stackoverflow.com/a/48732525/1063961
+        match $val {
+            tmp => {
+                eprintln!("[{}:{}] {} = {:#?}",
+                    file!(), line!(), stringify!($val), &tmp);
+                tmp
+            }
+        }
+    }
+}
 
 #[macro_export]
 #[allow_internal_unstable]
@@ -198,14 +306,17 @@ macro_rules! eprintln { ($($arg:tt)*) => ({}) }
 macro_rules! await {
     ($e:expr) => { {
         let mut pinned = $e;
-        let mut pinned = unsafe { $crate::mem::PinMut::new_unchecked(&mut pinned) };
         loop {
-            match $crate::future::poll_in_task_cx(&mut pinned) {
-                // FIXME(cramertj) prior to stabilizing await, we have to ensure that this
-                // can't be used to create a generator on stable via `|| await!()`.
-                $crate::task::Poll::Pending => yield,
-                $crate::task::Poll::Ready(x) => break x,
+            if let $crate::task::Poll::Ready(x) =
+                $crate::future::poll_with_tls_waker(unsafe {
+                    $crate::pin::Pin::new_unchecked(&mut pinned)
+                })
+            {
+                break x;
             }
+            // FIXME(cramertj) prior to stabilizing await, we have to ensure that this
+            // can't be used to create a generator on stable via `|| await!()`.
+            yield
         }
     } }
 }

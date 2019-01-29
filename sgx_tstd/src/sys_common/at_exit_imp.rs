@@ -76,6 +76,7 @@ pub fn cleanup() {
             if !queue.is_null() {
                 let queue: Box<Queue> = Box::from_raw(queue);
                 for to_run in *queue {
+                    // We are not holding any lock, so reentrancy is fine.
                     to_run();
                 }
             }
@@ -87,6 +88,8 @@ pub fn push(f: Box<dyn FnBox()>) -> bool {
     unsafe {
         LOCK.lock();
         let ret = if init() {
+            // We are just moving `f` around, not calling it.
+            // There is no possibility of reentrancy here.
             (*QUEUE).push(f);
             true
         } else {

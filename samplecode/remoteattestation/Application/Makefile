@@ -72,8 +72,8 @@ endif
 
 CUSTOM_LIBRARY_PATH := ./lib
 CUSTOM_BIN_PATH := ./bin
-CUSTOM_EDL_PATH := ../../edl
-CUSTOM_COMMON_PATH := ../../common
+CUSTOM_EDL_PATH := ../../../edl
+CUSTOM_COMMON_PATH := ../../../common
 
 ######## App Settings ########
 
@@ -106,7 +106,7 @@ else
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11 -DEnableServer
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread -Wl,-rpath=$(CURDIR)/../sample_libcrypto -Wl,-rpath=$(CURDIR) -llog4cpp -lboost_system -lssl -lcrypto -lboost_thread -lprotobuf -L /usr/local/lib -ljsoncpp -lsgx_ustdc
+App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -L./lib -lsgx_ukey_exchange -lpthread -Wl,-rpath=$(CURDIR)/../sample_libcrypto -Wl,-rpath=$(CURDIR) -llog4cpp -lboost_system -lssl -lcrypto -lboost_thread -lprotobuf -L /usr/local/lib -ljsoncpp -lsgx_ustdc
 
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
@@ -146,8 +146,8 @@ Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++
 # Do NOT move the libraries linked with `--start-group' and `--end-group' within `--whole-archive' and `--no-whole-archive' options.
 # Otherwise, you may get some undesirable errors.
 Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
-	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group -lsgx_tstdc -lsgx_tstdcxx -l$(KeyExchange_Library_Name) -l$(Crypto_Library_Name) -l$(Service_Library_Name) -L./lib -lcompiler-rt-patch -lraenclave -Wl,--end-group \
+	-Wl,--whole-archive -l$(Trts_Library_Name) -l$(Service_Library_Name) -Wl,--no-whole-archive \
+	-Wl,--start-group -lsgx_tstdc -lsgx_tcxx -l$(KeyExchange_Library_Name) -l$(Crypto_Library_Name) -l$(Service_Library_Name) -L./lib -lcompiler-rt-patch -lraenclave -Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 \

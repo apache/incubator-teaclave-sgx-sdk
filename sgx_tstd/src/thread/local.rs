@@ -144,7 +144,6 @@ impl fmt::Display for AccessError {
 }
 
 impl<T: 'static> LocalKey<T> {
-
     pub const unsafe fn new(inner: unsafe fn() -> Option<&'static UnsafeCell<Option<T>>>,
                      init: fn() -> T) -> LocalKey<T> {
         LocalKey {

@@ -1,0 +1,7 @@
+[workspace]
+members = [
+  "protocol",
+  "protocol-derive",
+#  "protocol-derive-tests",
+]
+

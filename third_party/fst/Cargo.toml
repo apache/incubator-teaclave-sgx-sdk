@@ -1,0 +1,52 @@
+[package]
+name = "fst"
+version = "0.3.3"  #:version
+authors = ["Andrew Gallant <jamslam@gmail.com>"]
+description = """
+Use finite state transducers to compactly represents sets or maps of many
+strings (> 1 billion is possible).
+"""
+documentation = "https://docs.rs/fst"
+homepage = "https://github.com/BurntSushi/fst"
+repository = "https://github.com/BurntSushi/fst"
+readme = "README.md"
+keywords = ["search", "information", "retrieval", "dictionary", "map"]
+license = "Unlicense/MIT"
+
+[features]
+mmap = ["memmap"]
+default = ["mmap"]
+
+[[bench]]
+name = "build"
+path = "./benches/build.rs"
+test = false
+bench = true
+
+[[bench]]
+name = "search"
+path = "./benches/search.rs"
+test = false
+bench = true
+
+[dependencies]
+byteorder = { path = "../byteorder" }
+memmap = { path = "../memmap-rs", optional = true }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }
+
+[dev-dependencies]
+fnv = "1.0.5"
+fst-levenshtein = { version = "0.2", path = "fst-levenshtein" }
+fst-regex = { version = "0.2", path = "fst-regex" }
+lazy_static = "0.2.8"
+quickcheck = { version = "0.7", default-features = false }
+rand = "0.5"
+
+[profile.release]
+debug = true
+
+[profile.bench]
+opt-level = 3
+debug = true

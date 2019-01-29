@@ -1,5 +1,5 @@
 /* mmapio.c -- File views using mmap.
-   Copyright (C) 2012-2016 Free Software Foundation, Inc.
+   Copyright (C) 2012-2018 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Google.
 
 Redistribution and use in source and binary forms, with or without
@@ -34,8 +34,8 @@ POSSIBILITY OF SUCH DAMAGE.  */
 
 #include <errno.h>
 #include <sys/types.h>
-//#include <sys/mman.h>
-//#include <unistd.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "backtrace.h"
 #include "backtrace_t.h"
@@ -84,8 +84,8 @@ backtrace_get_view(struct backtrace_state* state ATTRIBUTE_UNUSED,
     size += inpage;
     size = (size + (pagesize - 1)) & ~(pagesize - 1);
 
-    uint32_t status = u_backtrace_mmap_ocall(&map, &error, NULL, size, PROT_READ, MAP_PRIVATE,
-                      descriptor, (int64_t)pageoff);
+    uint32_t status = u_mmap_ocall(&map, &error, NULL, size, PROT_READ, MAP_PRIVATE,
+                      descriptor, pageoff);
 
     if (status != 0) {
         error_callback(data, "sgx ocall failed", status);
@@ -123,7 +123,7 @@ backtrace_release_view(struct backtrace_state* state ATTRIBUTE_UNUSED,
 
     int retval = 0;
     int error = 0;
-    uint32_t status = u_backtrace_munmap_ocall(&retval, &error, const_cast.v, view->len);
+    uint32_t status = u_munmap_ocall(&retval, &error, const_cast.v, view->len);
 
     if (status != 0) {
         error_callback(data, "sgx ocall failed", status);

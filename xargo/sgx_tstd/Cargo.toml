@@ -16,6 +16,7 @@ stdio = []
 net = []
 untrusted_fs = []
 untrusted_time = []
+use_builtin_ocalls = []
 
 [build-dependencies]
 cc = "1.0"
@@ -23,6 +24,7 @@ sgx_build_helper = { path = "../../build_helper" }
 
 [dependencies]
 sgx_types = { path = "../../sgx_types" }
+sgx_libc = { path = "../../sgx_libc" }
 sgx_trts = { path = "../../sgx_trts" }
 sgx_alloc = { path = "../../sgx_alloc" }
 sgx_tprotected_fs = { path = "../../sgx_tprotected_fs" }

@@ -94,6 +94,7 @@ struct Custom {
 /// [`io::Error`]: struct.Error.html
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[allow(deprecated)]
+#[non_exhaustive]
 pub enum ErrorKind {
     /// An entity was not found, often a file.
     NotFound,
@@ -163,11 +164,6 @@ pub enum ErrorKind {
     ///
     /// SGX error status
     SgxError,
-
-    /// A marker variant that tells the compiler that users of this enum cannot
-    /// match it exhaustively.
-    #[doc(hidden)]
-    __Nonexhaustive,
 }
 
 impl ErrorKind {
@@ -192,7 +188,6 @@ impl ErrorKind {
             ErrorKind::Other => "other os error",
             ErrorKind::UnexpectedEof => "unexpected end of file",
             ErrorKind::SgxError => "Sgx error status",
-            ErrorKind::__Nonexhaustive => unreachable!()
         }
     }
 }
@@ -200,6 +195,8 @@ impl ErrorKind {
 /// Intended for use for errors not exposed to the user, where allocating onto
 /// the heap (for normal construction via Error::new) is too costly.
 impl From<ErrorKind> for Error {
+    /// Converts an [`ErrorKind`] into an [`Error`].
+    ///
     #[inline]
     fn from(kind: ErrorKind) -> Error {
         Error {

@@ -121,7 +121,7 @@ pub fn rsgx_sha256_slice<T>(src: &[T]) -> SgxResult<sgx_sha256_hash_t>
 fn rsgx_sha256_init(sha_handle: &mut sgx_sha_state_handle_t) -> sgx_status_t {
 
     unsafe {
-        sgx_sha256_init(sha_handle as * mut _ as * mut sgx_sha_state_handle_t)
+        sgx_sha256_init(sha_handle as * mut sgx_sha_state_handle_t)
     }
 }
 
@@ -164,6 +164,92 @@ fn rsgx_sha256_get_hash(sha_handle: sgx_sha_state_handle_t, hash: &mut sgx_sha25
 fn rsgx_sha256_close(sha_handle: sgx_sha_state_handle_t) -> sgx_status_t {
 
      unsafe { sgx_sha256_close(sha_handle) }
+}
+
+pub fn rsgx_sha1_msg<T>(src: &T) -> SgxResult<sgx_sha1_hash_t>
+    where T: Copy + ContiguousMemory {
+
+    let size = mem::size_of::<T>();
+    if size == 0 {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if size > u32::max_value() as usize {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+
+    let mut hash = sgx_sha1_hash_t::default();
+    let ret = unsafe { sgx_sha1_msg(src as * const _ as * const u8, size as u32, &mut hash as * mut sgx_sha1_hash_t) };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(hash),
+        _ => Err(ret),
+    }
+}
+
+pub fn rsgx_sha1_slice<T>(src: &[T]) -> SgxResult<sgx_sha1_hash_t>
+    where T: Copy + ContiguousMemory {
+
+    let size = mem::size_of_val(src);
+    if size == 0 {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if size > u32::max_value() as usize {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+
+    let mut hash = sgx_sha1_hash_t::default();
+    let ret = unsafe { sgx_sha1_msg(src.as_ptr() as * const u8, size as u32, &mut hash as * mut sgx_sha1_hash_t) };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(hash),
+        _ => Err(ret),
+    }
+}
+
+fn rsgx_sha1_init(sha_handle: &mut sgx_sha_state_handle_t) -> sgx_status_t {
+
+    unsafe {
+        sgx_sha1_init(sha_handle as * mut sgx_sha_state_handle_t)
+    }
+}
+
+fn rsgx_sha1_update_msg<T>(src: &T, sha_handle: sgx_sha_state_handle_t) -> sgx_status_t
+    where T: Copy + ContiguousMemory {
+
+    let size = mem::size_of::<T>();
+    if size == 0 {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if size > u32::max_value() as usize {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    unsafe {
+        sgx_sha1_update(src as * const _ as * const u8, size as u32, sha_handle)
+    }
+}
+
+fn rsgx_sha1_update_slice<T>(src: &[T], sha_handle: sgx_sha_state_handle_t) -> sgx_status_t
+    where T: Copy + ContiguousMemory {
+
+    let size = mem::size_of_val(src);
+    if size == 0 {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if size > u32::max_value() as usize {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    unsafe {
+        sgx_sha1_update(src.as_ptr() as * const u8, size as u32, sha_handle)
+    }
+}
+
+fn rsgx_sha1_get_hash(sha_handle: sgx_sha_state_handle_t, hash: &mut sgx_sha1_hash_t) -> sgx_status_t {
+
+    unsafe { sgx_sha1_get_hash(sha_handle, hash as * mut sgx_sha1_hash_t) }
+}
+
+fn rsgx_sha1_close(sha_handle: sgx_sha_state_handle_t) -> sgx_status_t {
+
+     unsafe { sgx_sha1_close(sha_handle) }
 }
 
 ///
@@ -403,6 +489,120 @@ impl Default for SgxShaHandle {
 }
 
 impl Drop for SgxShaHandle {
+
+    ///
+    /// drop cleans up and deallocates the SHA256 state that was allocated in function init.
+    ///
+    fn drop(&mut self) {
+        let _ = self.close();
+    }
+}
+
+pub struct SgxSha1Handle {
+    handle: RefCell<sgx_sha_state_handle_t>,
+    initflag: Cell<bool>,
+}
+
+impl SgxSha1Handle {
+
+    pub fn new() -> Self {
+        SgxSha1Handle{
+            handle: RefCell::new(ptr::null_mut() as sgx_sha_state_handle_t),
+            initflag: Cell::new(false),
+        }
+    }
+
+    pub fn init(&self) -> SgxError {
+
+        if self.initflag.get() {
+            return Ok(());
+        }
+
+        let ret = rsgx_sha1_init(self.handle.borrow_mut().deref_mut());
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                self.initflag.set(true);
+                Ok(())
+            },
+            _ => Err(ret),
+        }
+    }
+
+    pub fn update_msg<T>(&self, src: &T) -> SgxError
+        where T: Copy + ContiguousMemory {
+
+        if !self.initflag.get() {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+
+        let ret = rsgx_sha1_update_msg(src, *self.handle.borrow());
+        match ret {
+            sgx_status_t::SGX_SUCCESS => Ok(()),
+            _ => Err(ret),
+        }
+    }
+
+    pub fn update_slice<T>(&self, src: &[T]) -> SgxError
+        where T: Copy + ContiguousMemory {
+
+        if !self.initflag.get() {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+
+        let ret = rsgx_sha1_update_slice(src, *self.handle.borrow());
+        match ret {
+            sgx_status_t::SGX_SUCCESS => Ok(()),
+            _ => Err(ret),
+        }
+    }
+
+    pub fn get_hash(&self) -> SgxResult<sgx_sha1_hash_t> {
+
+        if !self.initflag.get() {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+
+        let mut hash = sgx_sha1_hash_t::default();
+        let ret = rsgx_sha1_get_hash(*self.handle.borrow(), &mut hash);
+        match ret {
+            sgx_status_t::SGX_SUCCESS => Ok(hash),
+            _ => Err(ret),
+        }
+    }
+
+    pub fn close(&self) -> SgxError {
+
+        if !self.initflag.get() {
+            return Ok(());
+        }
+
+        let ret = {
+            let handle = *self.handle.borrow();
+            if handle.is_null() {
+                sgx_status_t::SGX_SUCCESS
+            } else {
+                rsgx_sha1_close(handle)
+            }
+        };
+
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                self.initflag.set(false);
+                *self.handle.borrow_mut() = ptr::null_mut();
+                Ok(())
+            },
+            _ => Err(ret),
+        }
+    }
+}
+
+impl Default for SgxSha1Handle {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for SgxSha1Handle {
 
     ///
     /// drop cleans up and deallocates the SHA256 state that was allocated in function init.
@@ -764,7 +964,7 @@ fn rsgx_cmac128_init(key: &sgx_cmac_128bit_key_t, cmac_handle: &mut sgx_cmac_sta
 
     unsafe {
         sgx_cmac128_init(key as * const sgx_cmac_128bit_key_t,
-                         cmac_handle as * mut _ as * mut sgx_cmac_state_handle_t)
+                         cmac_handle as * mut sgx_cmac_state_handle_t)
     }
 }
 
@@ -1061,6 +1261,221 @@ impl Drop for SgxCmacHandle {
     ///
     /// drop cleans up and deallocates the CMAC algorithm context state that was allocated in function init.
     ///
+    fn drop(&mut self) {
+       let _ = self.close();
+    }
+}
+
+pub fn rsgx_hmac_sha256_msg<T>(key: &sgx_hmac_256bit_key_t, src: &T) -> SgxResult<sgx_hmac_256bit_tag_t>
+    where T: Copy + ContiguousMemory {
+
+    let size = mem::size_of::<T>();
+    if size == 0 {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if size > u32::max_value() as usize {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+
+    let mut mac = sgx_hmac_256bit_tag_t::default();
+    let ret = unsafe {
+        sgx_hmac_sha256_msg(src as * const _ as * const u8,
+                            size as i32,
+                            key as * const u8,
+                            SGX_HMAC256_KEY_SIZE as i32,
+                            &mut mac as * mut sgx_hmac_256bit_tag_t as * mut u8,
+                            SGX_HMAC256_MAC_SIZE as i32)
+    };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(mac),
+        _ => Err(ret),
+    }
+}
+
+pub fn rsgx_hmac_sha256_slice<T>(key: &sgx_hmac_256bit_key_t, src: &[T]) -> SgxResult<sgx_hmac_256bit_tag_t>
+    where T: Copy + ContiguousMemory {
+
+    let size = mem::size_of_val(src);
+    if size == 0 {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if size > u32::max_value() as usize {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+
+    let mut mac = sgx_hmac_256bit_tag_t::default();
+    let ret = unsafe {
+        sgx_hmac_sha256_msg(src.as_ptr() as * const u8,
+                            size as i32,
+                            key as * const u8,
+                            SGX_HMAC256_KEY_SIZE as i32,
+                            &mut mac as * mut sgx_hmac_256bit_tag_t as * mut u8,
+                            SGX_HMAC256_MAC_SIZE as i32)
+    };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(mac),
+        _ => Err(ret),
+    }
+}
+
+fn rsgx_hmac256_init(key: &sgx_hmac_256bit_key_t, hmac_handle: &mut sgx_hmac_state_handle_t) -> sgx_status_t {
+
+    unsafe {
+        sgx_hmac256_init(key as * const sgx_hmac_256bit_key_t as * const u8,
+                         SGX_HMAC256_KEY_SIZE as i32,
+                         hmac_handle as * mut sgx_hmac_state_handle_t)
+    }
+}
+
+fn rsgx_hmac256_update_msg<T>(src: &T, hmac_handle: sgx_hmac_state_handle_t) -> sgx_status_t
+    where T: Copy + ContiguousMemory {
+
+    let size = mem::size_of::<T>();
+    if size == 0 {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if size > u32::max_value() as usize {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    unsafe {
+        sgx_hmac256_update(src as * const _ as * const u8, size as i32, hmac_handle)
+    }
+}
+
+fn rsgx_hmac256_update_slice<T>(src: &[T], hmac_handle: sgx_hmac_state_handle_t) -> sgx_status_t
+    where T: Copy + ContiguousMemory {
+
+    let size = mem::size_of_val(src);
+    if size == 0 {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if size > u32::max_value() as usize {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    unsafe {
+        sgx_hmac256_update(src.as_ptr() as * const _ as * const u8, size as i32, hmac_handle)
+    }
+}
+
+fn rsgx_hmac256_final(hmac_handle: sgx_hmac_state_handle_t, hash: &mut sgx_hmac_256bit_tag_t) -> sgx_status_t {
+
+    unsafe {
+        sgx_hmac256_final(hash as * mut sgx_hmac_256bit_tag_t as * mut u8,
+                          SGX_HMAC256_MAC_SIZE as i32,
+                          hmac_handle)
+    }
+}
+
+fn rsgx_hmac256_close(hmac_handle: sgx_hmac_state_handle_t) -> sgx_status_t {
+
+    unsafe { sgx_hmac256_close(hmac_handle) }
+}
+
+pub struct SgxHmacHandle {
+    handle: RefCell<sgx_hmac_state_handle_t>,
+    initflag: Cell<bool>,
+}
+
+impl SgxHmacHandle {
+
+    pub fn new() -> Self {
+        SgxHmacHandle{
+            handle: RefCell::new(ptr::null_mut() as sgx_hmac_state_handle_t),
+            initflag: Cell::new(false),
+            }
+    }
+
+    pub fn init(&self, key: &sgx_hmac_256bit_key_t) -> SgxError {
+
+        if self.initflag.get() {
+            return Ok(());
+        }
+
+        let ret = rsgx_hmac256_init(key, self.handle.borrow_mut().deref_mut());
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                self.initflag.set(true);
+                Ok(())
+            },
+            _ => Err(ret),
+        }
+    }
+
+    pub fn update_msg<T>(&self, src: &T) -> SgxError
+        where T: Copy + ContiguousMemory {
+
+        if !self.initflag.get() {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+
+        let ret = rsgx_hmac256_update_msg(src, *self.handle.borrow());
+        match ret {
+            sgx_status_t::SGX_SUCCESS => Ok(()),
+            _ => Err(ret),
+        }
+    }
+
+    pub fn update_slice<T>(&self, src: &[T]) -> SgxError
+        where T: Copy + ContiguousMemory {
+
+        if !self.initflag.get() {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+
+        let ret = rsgx_hmac256_update_slice(src, *self.handle.borrow());
+        match ret {
+            sgx_status_t::SGX_SUCCESS => Ok(()),
+            _ => Err(ret),
+        }
+    }
+
+    pub fn get_hash(&self) -> SgxResult<sgx_hmac_256bit_tag_t> {
+
+        if !self.initflag.get() {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+
+        let mut hash = sgx_hmac_256bit_tag_t::default();
+        let ret = rsgx_hmac256_final(*self.handle.borrow(), &mut hash);
+        match ret {
+            sgx_status_t::SGX_SUCCESS => Ok(hash),
+            _ => Err(ret),
+        }
+    }
+
+    pub fn close(&self) -> SgxError {
+
+        if !self.initflag.get() {
+            return Ok(());
+        }
+
+        let ret = {
+            let handle = *self.handle.borrow();
+            if handle.is_null() {
+                sgx_status_t::SGX_SUCCESS
+            } else {
+                rsgx_hmac256_close(handle)
+            }
+        };
+
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                self.initflag.set(false);
+                *self.handle.borrow_mut() = ptr::null_mut();
+                Ok(())
+            },
+            _ => Err(ret),
+        }
+    }
+}
+
+impl Default for SgxHmacHandle {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for SgxHmacHandle {
     fn drop(&mut self) {
        let _ = self.close();
     }
@@ -1422,6 +1837,32 @@ fn rsgx_ecdsa_verify_slice<T>(data: &[T],
         ret
     }
 }
+
+fn rsgx_ecdsa_verify_hash(hash: &sgx_sha256_hash_t,
+                          public: &sgx_ec256_public_t,
+                          signature: &sgx_ec256_signature_t,
+                          result: &mut sgx_generic_ecresult_t,
+                          ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t {
+
+    unsafe {
+
+        let mut verify: u8 = 0;
+        let ret = sgx_ecdsa_verify_hash(hash as * const sgx_sha256_hash_t as * const u8,
+                                        public as * const sgx_ec256_public_t,
+                                        signature as * const _ as * mut sgx_ec256_signature_t,
+                                        &mut verify as * mut u8,
+                                        ecc_handle);
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                let ecresult = sgx_generic_ecresult_t::from_repr(u32::from(verify));
+                *result = ecresult.unwrap_or(sgx_generic_ecresult_t::SGX_EC_INVALID_SIGNATURE);
+            },
+            _ => { *result = sgx_generic_ecresult_t::SGX_EC_INVALID_SIGNATURE; },
+        };
+        ret
+    }
+}
+
 
 ///
 /// ECC GF(p) context state.
@@ -1968,6 +2409,28 @@ impl SgxEccHandle {
 
         let mut result = sgx_generic_ecresult_t::default();
         let ret = rsgx_ecdsa_verify_slice(data, public, signature, &mut result, *self.handle.borrow());
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                match result {
+                    sgx_generic_ecresult_t::SGX_EC_VALID => Ok(true),
+                    _ => Ok(false),
+                }
+            },
+            _ => Err(ret),
+        }
+    }
+
+    pub fn ecdsa_verify_hash(&self,
+                             hash: &sgx_sha256_hash_t,
+                             public: &sgx_ec256_public_t,
+                             signature: &sgx_ec256_signature_t) -> SgxResult<bool> {
+
+        if !self.initflag.get() {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+
+        let mut result = sgx_generic_ecresult_t::default();
+        let ret = rsgx_ecdsa_verify_hash(hash, public, signature, &mut result, *self.handle.borrow());
         match ret {
             sgx_status_t::SGX_SUCCESS => {
                 match result {
@@ -2747,5 +3210,159 @@ pub fn rsgx_ecc256_calculate_pub_from_priv(priv_key: &sgx_ec256_private_t,
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(()),
         _ => Err(ret),
+    }
+}
+
+fn rsgx_aes_gcm128_enc_init(key: &sgx_aes_gcm_128bit_key_t,
+                            iv: &[u8],
+                            aad: &[u8],
+                            aes_gcm_state: &mut sgx_aes_state_handle_t) -> SgxError {
+
+    let iv_len = iv.len();
+    if iv_len != SGX_AESGCM_IV_SIZE {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    let aad_len = aad.len();
+    if aad_len > u32::max_value() as usize {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+
+    let ret = unsafe {
+        let mut p_aad = if !aad.is_empty() { aad.as_ptr() } else { ptr::null() };
+        sgx_aes_gcm128_enc_init(key as * const sgx_aes_gcm_128bit_key_t as * const u8,
+                                iv.as_ptr(),
+                                iv_len as u32,
+                                p_aad,
+                                aad_len as u32,
+                                aes_gcm_state as * mut sgx_aes_state_handle_t)
+    };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(()),
+        _ => Err(ret),
+    }
+}
+
+fn rsgx_aes_gcm128_enc_update(src: &[u8],
+                              dst: &mut [u8],
+                              aes_gcm_state: sgx_aes_state_handle_t) -> SgxError {
+
+    let src_len = src.len();
+    if src_len > u32::max_value() as usize {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if src_len == 0 {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    let dst_len = dst.len();
+    if dst_len > u32::max_value() as usize {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if dst_len == 0 || dst_len < src_len {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+
+    let ret = unsafe {
+        sgx_aes_gcm128_enc_update(src.as_ptr(),
+                                  src_len as u32,
+                                  dst.as_mut_ptr(),
+                                  aes_gcm_state)
+    };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(()),
+        _ => Err(ret),
+    }
+}
+
+fn rsgx_aes_gcm128_enc_get_mac(aes_gcm_state: sgx_aes_state_handle_t) -> SgxResult<sgx_aes_gcm_128bit_tag_t> {
+
+    let mut mac = sgx_aes_gcm_128bit_tag_t::default();
+    let ret = unsafe {
+        sgx_aes_gcm128_enc_get_mac(&mut mac as * mut sgx_aes_gcm_128bit_tag_t as * mut u8 , aes_gcm_state)
+    };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(mac),
+        _ => Err(ret),
+    }
+}
+
+fn rsgx_aes_gcm_close(aes_gcm_state: sgx_aes_state_handle_t) -> SgxError {
+
+    let ret = unsafe { sgx_aes_gcm_close(aes_gcm_state) };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(()),
+        _ => Err(ret),
+    }
+}
+
+pub struct SgxAesHandle {
+    handle: RefCell<sgx_aes_state_handle_t>,
+    initflag: Cell<bool>,
+}
+
+impl SgxAesHandle {
+
+    pub fn new() -> Self {
+        SgxAesHandle{
+            handle: RefCell::new(ptr::null_mut() as sgx_aes_state_handle_t),
+            initflag: Cell::new(false),
+            }
+    }
+
+    pub fn init(&self, key: &sgx_aes_gcm_128bit_key_t, iv: &[u8], aad: &[u8]) -> SgxError {
+
+        if self.initflag.get() {
+            return Ok(());
+        }
+        rsgx_aes_gcm128_enc_init(key, iv, aad, self.handle.borrow_mut().deref_mut())
+    }
+
+    pub fn update(&self, src: &[u8], dst: &mut [u8]) -> SgxError {
+
+        if !self.initflag.get() {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+        rsgx_aes_gcm128_enc_update(src, dst, *self.handle.borrow())
+    }
+
+    pub fn get_mac(&self) -> SgxResult<sgx_aes_gcm_128bit_tag_t> {
+
+        if !self.initflag.get() {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+        rsgx_aes_gcm128_enc_get_mac(*self.handle.borrow())
+    }
+
+    pub fn close(&self) -> SgxError {
+
+        if !self.initflag.get() {
+            return Ok(());
+        }
+
+        let ret = {
+            let handle = *self.handle.borrow();
+            if handle.is_null() {
+                Ok(())
+            } else {
+                rsgx_aes_gcm_close(handle)
+            }
+        };
+
+        if ret.is_ok() {
+            self.initflag.set(false);
+            *self.handle.borrow_mut() = ptr::null_mut();
+        }
+        ret
+    }
+}
+
+impl Default for SgxAesHandle {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for SgxAesHandle {
+    fn drop(&mut self) {
+       let _ = self.close();
     }
 }

@@ -2,6 +2,7 @@
 //!
 //! LZ77 is a compression algorithm used in [DEFLATE](https://tools.ietf.org/html/rfc1951).
 pub use self::default::DefaultLz77Encoder;
+use std::prelude::v1::*;
 
 mod default;
 
@@ -9,7 +10,7 @@ mod default;
 pub const MAX_LENGTH: u16 = 258;
 
 /// Maximum backward distance of a pointer.
-pub const MAX_DISTANCE: u16 = 32768;
+pub const MAX_DISTANCE: u16 = 32_768;
 
 /// Maximum size of a sliding window.
 pub const MAX_WINDOW_SIZE: u16 = MAX_DISTANCE;
@@ -90,7 +91,7 @@ pub trait Lz77Encode {
 }
 
 /// A no compression implementation of `LZ77Encode` trait.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NoCompressionLz77Encoder;
 impl NoCompressionLz77Encoder {
     /// Makes a new encoder instance.

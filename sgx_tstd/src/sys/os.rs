@@ -143,13 +143,8 @@ pub fn env() -> Env {
     unsafe {
         ENV_LOCK.lock();
         let mut environ = environ();
-        if environ == ptr::null() {
-            ENV_LOCK.unlock();
-            panic!("os::env() failure getting env string from OS: {}",
-                   io::Error::last_os_error());
-        }
         let mut result = Vec::new();
-        while *environ != ptr::null() {
+        while environ != ptr::null() && *environ != ptr::null() {
             if let Some(key_value) = parse(CStr::from_ptr(*environ).to_bytes()) {
                 result.push(key_value);
             }
@@ -220,88 +215,6 @@ pub fn unsetenv(n: &OsStr) -> io::Result<()> {
 }
 
 mod libc {
-    use sgx_types::sgx_status_t;
-    use io;
-    use core::ptr;
     pub use sgx_trts::libc::*;
-
-    extern "C" {
-
-        pub fn u_env_environ_ocall(result: * mut * const * const c_char) -> sgx_status_t;
-
-        pub fn u_env_getenv_ocall(result: * mut * const c_char,
-                                  name: * const c_char) -> sgx_status_t;
-
-        pub fn u_env_setenv_ocall(result: * mut c_int,
-                                  error: * mut c_int,
-                                  name: * const c_char,
-                                  value: * const c_char,
-                                  overwrite: c_int) -> sgx_status_t;
-
-        pub fn u_env_unsetenv_ocall(result: * mut c_int,
-                                    error: * mut c_int,
-                                    name: * const c_char) -> sgx_status_t;
-    }
-
-    pub unsafe fn environ() -> * const * const c_char {
-
-        let mut result: * const * const c_char = ptr::null();
-        let status = u_env_environ_ocall(&mut result as * mut * const * const c_char);
-
-        if status != sgx_status_t::SGX_SUCCESS {
-            result = ptr::null();
-        }
-        result
-    }
-
-    pub unsafe fn getenv(name: * const c_char) -> * const c_char {
-
-        let mut result: * const c_char = ptr::null();
-        let status = u_env_getenv_ocall(&mut result as * mut * const c_char, name);
-
-        if status != sgx_status_t::SGX_SUCCESS {
-            result = ptr::null();
-        }
-        result
-    }
-
-    pub unsafe fn setenv(name: * const c_char, value: * const c_char, overwrite: c_int) -> c_int {
-
-        let mut result: c_int = 0;
-        let mut error: c_int = 0;
-        let status = u_env_setenv_ocall(&mut result as * mut c_int,
-                                        &mut error as * mut c_int,
-                                        name,
-                                        value,
-                                        overwrite);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(ESGX);
-            result = -1;
-        }
-        result
-    }
-
-    pub unsafe fn unsetenv(name: * const c_char) -> c_int {
-
-        let mut result: c_int = 0;
-        let mut error: c_int = 0;
-        let status = u_env_unsetenv_ocall(&mut result as * mut c_int,
-                                         &mut error as * mut c_int,
-                                         name);
-
-        if status == sgx_status_t::SGX_SUCCESS {
-            if result == -1 {
-                io::set_errno(error);
-            }
-        } else {
-            io::set_errno(ESGX);
-            result = -1;
-        }
-        result
-    }
+    pub use sgx_trts::libc::ocall::{environ, getenv, setenv, unsetenv};
 }

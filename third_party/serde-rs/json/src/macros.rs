@@ -1,18 +1,8 @@
-// Copyright 2017 Serde Developers
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
-
 /// Construct a `serde_json::Value` from a JSON literal.
 ///
-/// ```rust
-/// # #[macro_use]
-/// # extern crate serde_json;
+/// ```edition2018
+/// # use serde_json::json;
 /// #
-/// # fn main() {
 /// let value = json!({
 ///     "code": 200,
 ///     "success": true,
@@ -23,7 +13,6 @@
 ///         ]
 ///     }
 /// });
-/// # }
 /// ```
 ///
 /// Variables or expressions can be interpolated into the JSON literal. Any type
@@ -33,40 +22,35 @@
 /// interpolated type decides to fail, or if the interpolated type contains a
 /// map with non-string keys, the `json!` macro will panic.
 ///
-/// ```rust
-/// # #[macro_use]
-/// # extern crate serde_json;
+/// ```edition2018
+/// # use serde_json::json;
 /// #
-/// # fn main() {
 /// let code = 200;
 /// let features = vec!["serde", "json"];
 ///
 /// let value = json!({
-///    "code": code,
-///    "success": code == 200,
-///    "payload": {
-///        features[0]: features[1]
-///    }
+///     "code": code,
+///     "success": code == 200,
+///     "payload": {
+///         features[0]: features[1]
+///     }
 /// });
-/// # }
 /// ```
 ///
 /// Trailing commas are allowed inside both arrays and objects.
 ///
-/// ```rust
-/// # #[macro_use]
-/// # extern crate serde_json;
+/// ```edition2018
+/// # use serde_json::json;
 /// #
-/// # fn main() {
 /// let value = json!([
 ///     "notice",
 ///     "the",
 ///     "trailing",
 ///     "comma -->",
 /// ]);
-/// # }
 /// ```
-#[macro_export]
+
+#[macro_export(local_inner_macros)]
 macro_rules! json {
     // Hide distracting implementation details from the generated rustdoc.
     ($($json:tt)+) => {
@@ -81,7 +65,7 @@ macro_rules! json {
 //
 // Changes are fine as long as `json_internal!` does not call any new helper
 // macros and can still be invoked as `json_internal!($($json)+)`.
-#[macro_export]
+#[macro_export(local_inner_macros)]
 #[doc(hidden)]
 macro_rules! json_internal {
     //////////////////////////////////////////////////////////////////////////
@@ -93,12 +77,12 @@ macro_rules! json_internal {
 
     // Done with trailing comma.
     (@array [$($elems:expr,)*]) => {
-        vec![$($elems,)*]
+        json_internal_vec![$($elems,)*]
     };
 
     // Done without trailing comma.
     (@array [$($elems:expr),*]) => {
-        vec![$($elems),*]
+        json_internal_vec![$($elems),*]
     };
 
     // Next element is `null`.
@@ -265,7 +249,7 @@ macro_rules! json_internal {
     };
 
     ([]) => {
-        $crate::Value::Array(vec![])
+        $crate::Value::Array(json_internal_vec![])
     };
 
     ([ $($tt:tt)+ ]) => {
@@ -288,6 +272,17 @@ macro_rules! json_internal {
     // Must be below every other rule.
     ($other:expr) => {
         $crate::to_value(&$other).unwrap()
+    };
+}
+
+// The json_internal macro above cannot invoke vec directly because it uses
+// local_inner_macros. A vec invocation there would resolve to $crate::vec.
+// Instead invoke vec here outside of local_inner_macros.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! json_internal_vec {
+    ($($content:tt)*) => {
+        vec![$($content)*]
     };
 }
 

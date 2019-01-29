@@ -10,6 +10,7 @@ extern crate serde_json;
 extern crate tempdir;
 extern crate toml;
 extern crate walkdir;
+extern crate dirs;
 
 use std::hash::{Hash, Hasher};
 use std::io::Write;

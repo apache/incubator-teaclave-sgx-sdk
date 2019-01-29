@@ -1,6 +1,6 @@
 [package]
 name = "sgx_tdh"
-version = "1.0.4"
+version = "1.0.5"
 authors = ["Baidu"]
 repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"
@@ -23,6 +23,7 @@ crate-type = ["rlib"]
 
 [features]
 default = []
+use_lav2 = []
 
 [dependencies]
 sgx_types = { path = "../sgx_types" }

@@ -201,13 +201,9 @@ void MessageHandler::assembleMSG2(Messages::MessageMSG2 msg, sgx_ra_msg2_t **pp_
     memcpy(&p_msg2->mac, &smac, sizeof(smac));
 
     p_msg2->sig_rl_size = msg.size_sigrl();
-    uint8_t *sigrl = (uint8_t*) malloc(sizeof(uint8_t) * msg.size_sigrl());
 
     for (int i=0; i<msg.size_sigrl(); i++)
-        sigrl[i] = msg.sigrl(i);
-
-    memcpy(&p_msg2->sig_rl, &sigrl, msg.size_sigrl());
-    free(sigrl);
+        p_msg2->sig_rl[i] = msg.sigrl(i);
 
     *pp_msg2 = p_msg2;
 }

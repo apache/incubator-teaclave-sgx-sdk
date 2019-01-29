@@ -36,13 +36,14 @@ impl_enum! {
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
     pub enum sgx_status_t {
-        SGX_SUCCESS                  = 0x0000_0000,
+        SGX_SUCCESS                         = 0x0000_0000,
 
-        SGX_ERROR_UNEXPECTED         = 0x0000_0001,      /* Unexpected error */
-        SGX_ERROR_INVALID_PARAMETER  = 0x0000_0002,      /* The parameter is incorrect */
-        SGX_ERROR_OUT_OF_MEMORY      = 0x0000_0003,      /* Not enough memory is available to complete this operation */
-        SGX_ERROR_ENCLAVE_LOST       = 0x0000_0004,      /* Enclave lost after power transition or used in child process created by linux:fork() */
-        SGX_ERROR_INVALID_STATE      = 0x0000_0005,      /* SGX API is invoked in incorrect order or state */
+        SGX_ERROR_UNEXPECTED                 = 0x0000_0001,      /* Unexpected error */
+        SGX_ERROR_INVALID_PARAMETER         = 0x0000_0002,      /* The parameter is incorrect */
+        SGX_ERROR_OUT_OF_MEMORY             = 0x0000_0003,      /* Not enough memory is available to complete this operation */
+        SGX_ERROR_ENCLAVE_LOST              = 0x0000_0004,      /* Enclave lost after power transition or used in child process created by linux:fork() */
+        SGX_ERROR_INVALID_STATE             = 0x0000_0005,      /* SGX API is invoked in incorrect order or state */
+        SGX_ERROR_FEATURE_NOT_SUPPORTED     = 0x0000_0008,      /* Feature is not supported on this platform */
 
         SGX_ERROR_INVALID_FUNCTION   = 0x0000_1001,      /* The ecall/ocall index is invalid */
         SGX_ERROR_OUT_OF_TCS         = 0x0000_1003,      /* The enclave is out of TCS */
@@ -130,6 +131,7 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_OUT_OF_MEMORY => "Not enough memory is available to complete this operation.",
             sgx_status_t::SGX_ERROR_ENCLAVE_LOST => "Enclave lost after power transition or used in child process created.",
             sgx_status_t::SGX_ERROR_INVALID_STATE => "SGX API is invoked in incorrect order or state.",
+            sgx_status_t::SGX_ERROR_FEATURE_NOT_SUPPORTED => "Feature is not supported on this platform.",
 
             sgx_status_t::SGX_ERROR_INVALID_FUNCTION => "The ecall/ocall index is invalid.",
             sgx_status_t::SGX_ERROR_OUT_OF_TCS => "The enclave is out of TCS.",
@@ -213,6 +215,7 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_OUT_OF_MEMORY => "SGX_ERROR_OUT_OF_MEMORY",
             sgx_status_t::SGX_ERROR_ENCLAVE_LOST => "SGX_ERROR_ENCLAVE_LOST",
             sgx_status_t::SGX_ERROR_INVALID_STATE => "SGX_ERROR_INVALID_STATE",
+            sgx_status_t::SGX_ERROR_FEATURE_NOT_SUPPORTED => "SGX_ERROR_FEATURE_NOT_SUPPORTED",
 
             sgx_status_t::SGX_ERROR_INVALID_FUNCTION => "SGX_ERROR_INVALID_FUNCTION",
             sgx_status_t::SGX_ERROR_OUT_OF_TCS => "SGX_ERROR_OUT_OF_TCS",

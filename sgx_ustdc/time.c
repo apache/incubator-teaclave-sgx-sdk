@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdio.h>
-#include<time.h>
+#include <time.h>
 #include <errno.h>
 
 int u_clock_gettime_ocall(int * error, clockid_t clk_id, struct timespec * tp)

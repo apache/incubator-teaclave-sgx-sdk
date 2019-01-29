@@ -1,6 +1,6 @@
 [package]
 name = "sgx_tstd"
-version = "1.0.4"
+version = "1.0.5"
 authors = ["Baidu"]
 build = "build.rs"
 repository = "https://github.com/baidu/rust-sgx-sdk"
@@ -160,6 +160,7 @@ include = [
     "src/enclave.rs",
     "src/f32.rs",
     "src/future.rs",
+    "src/debug.rs",
     "build.rs",
 ]
 
@@ -181,6 +182,7 @@ sgx_build_helper = { path = "../build_helper" }
 
 [dependencies]
 sgx_types = { path = "../sgx_types" }
+sgx_libc = { path = "../sgx_libc" }
 sgx_trts = { path = "../sgx_trts" }
 sgx_alloc = { path = "../sgx_alloc" }
 sgx_tprotected_fs = { path = "../sgx_tprotected_fs" }

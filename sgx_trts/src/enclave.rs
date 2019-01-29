@@ -282,6 +282,10 @@ impl SgxThreadData {
     pub fn exception_flag(&self) -> usize {
         self.exception_flag
     }
+
+    pub fn get_tcs(&self) -> usize {
+        self.stack_base() + STATIC_STACK_SIZE + SE_GUARD_PAGE_SIZE
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]

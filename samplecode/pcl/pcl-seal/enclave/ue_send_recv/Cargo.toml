@@ -1,0 +1,20 @@
+[package]
+name = "ue_send_recv"
+version = "0.1.0"
+authors = ["Yu Ding <dingyu02@baidu.com>"]
+
+[lib]
+name = "ue_send_recv"
+path = "../../../pcl-user/ue_send_recv/src/lib.rs"
+crate-type = ["rlib"]
+
+[features]
+default = ["enclave"]
+enclave = []
+
+[dependencies]
+rustls = { path = "../../../../../third_party/rustls" }
+cfg-if = "*"
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd    = { path = "../../../../../sgx_tstd" }
