@@ -49,13 +49,35 @@ impl UdpSocket {
         net_imp::UdpSocket::new(sockfd).map(UdpSocket)
     }
 
+    pub fn new_v4() -> io::Result<UdpSocket> {
+        net_imp::UdpSocket::new_v4().map(UdpSocket)
+    }
+
+    pub fn new_v6() -> io::Result<UdpSocket> {
+        net_imp::UdpSocket::new_v6().map(UdpSocket)
+    }
+
     pub fn raw(&self) -> c_int { self.0.raw() }
 
     pub fn into_raw(self) -> c_int { self.0.into_raw() }
 
+    /// Creates a UDP socket from the given address.
+    ///
+    /// The address type can be any implementor of [`ToSocketAddrs`] trait. See
+    /// its documentation for concrete examples.
+    ///
+    /// If `addr` yields multiple addresses, `bind` will be attempted with
+    /// each of the addresses until one succeeds and returns the socket. If none
+    /// of the addresses succeed in creating a socket, the error returned from
+    /// the last attempt (the last address) is returned.
+    ///
+    pub fn bind<A: ToSocketAddrs>(addr: A) -> io::Result<UdpSocket> {
+        super::each_addr(addr, net_imp::UdpSocket::bind).map(UdpSocket)
+    }
+
     /// Bound this UDP socket to a the specified address.
-    pub fn bind<A: ToSocketAddrs>(&self, addr: A) -> io::Result<()> {
-        super::each_addr(addr, |addr| self.0.bind(addr))
+    pub fn bind_socket<A: ToSocketAddrs>(&self, addr: A) -> io::Result<()> {
+        super::each_addr(addr, |addr| self.0.bind_socket(addr))
     }
 
     /// Receives a single datagram message on the socket. On success, returns the number

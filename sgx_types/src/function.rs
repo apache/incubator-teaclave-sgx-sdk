@@ -166,6 +166,9 @@ extern {
     pub fn sgx_create_report(target_info : * const sgx_target_info_t,
                              report_data: * const sgx_report_data_t,
                              report: * mut sgx_report_t) -> sgx_status_t;
+    /* intel sgx sdk 2.4 */
+    pub fn sgx_self_report() -> * const sgx_report_t;
+    pub fn sgx_self_target(target_info: * mut sgx_target_info_t) -> sgx_status_t;
 
     pub fn sgx_verify_report(report: * const sgx_report_t) -> sgx_status_t;
     pub fn sgx_get_key(key_request: * const sgx_key_request_t, key: * mut sgx_key_128bit_t) -> sgx_status_t;
@@ -183,6 +186,13 @@ extern {
     pub fn sgx_sha256_update(p_src: * const ::uint8_t, src_len: ::uint32_t, sha_handle: sgx_sha_state_handle_t) -> sgx_status_t;
     pub fn sgx_sha256_get_hash(sha_handle: sgx_sha_state_handle_t, p_hash: * mut sgx_sha256_hash_t) -> sgx_status_t;
     pub fn sgx_sha256_close(sha_handle: sgx_sha_state_handle_t) -> sgx_status_t;
+
+    /* instel sgx sdk 2.4 */
+    pub fn sgx_sha1_msg(p_src: * const ::uint8_t, src_len: ::uint32_t, p_hash: * mut sgx_sha1_hash_t) -> sgx_status_t;
+    pub fn sgx_sha1_init(p_sha_handle: * mut sgx_sha_state_handle_t) -> sgx_status_t;
+    pub fn sgx_sha1_update(p_src: * const ::uint8_t, src_len: ::uint32_t, sha_handle: sgx_sha_state_handle_t) -> sgx_status_t;
+    pub fn sgx_sha1_get_hash(sha_handle: sgx_sha_state_handle_t, p_hash: * mut sgx_sha1_hash_t) -> sgx_status_t;
+    pub fn sgx_sha1_close(sha_handle: sgx_sha_state_handle_t) -> sgx_status_t;
 
     pub fn sgx_rijndael128GCM_encrypt(p_key: * const sgx_aes_gcm_128bit_key_t,
                                       p_src: * const ::uint8_t,
@@ -209,6 +219,19 @@ extern {
     pub fn sgx_cmac128_update(p_src: * const ::uint8_t, src_len: ::uint32_t, cmac_handle: sgx_cmac_state_handle_t) -> sgx_status_t;
     pub fn sgx_cmac128_final(cmac_handle: sgx_cmac_state_handle_t, p_hash: * mut sgx_cmac_128bit_tag_t) -> sgx_status_t;
     pub fn sgx_cmac128_close(cmac_handle: sgx_cmac_state_handle_t) -> sgx_status_t;
+
+    /* intel sgx sdk 2.4 */
+    pub fn sgx_hmac_sha256_msg(p_src: * const ::uint8_t,
+                               src_len: ::int32_t,
+                               p_key: * const ::uint8_t,
+                               key_len: ::int32_t,
+                               p_mac: * mut ::uint8_t,
+                               mac_len: ::int32_t) -> sgx_status_t;
+
+    pub fn sgx_hmac256_init(p_key: * const ::uint8_t, key_len: ::int32_t, p_hmac_handle: * mut sgx_hmac_state_handle_t) -> sgx_status_t;
+    pub fn sgx_hmac256_update(p_src: * const ::uint8_t, src_len: ::int32_t, hmac_handle: sgx_hmac_state_handle_t) -> sgx_status_t;
+    pub fn sgx_hmac256_final(p_hash: * mut ::uint8_t, hash_len: ::int32_t, hmac_handle: sgx_hmac_state_handle_t) -> sgx_status_t;
+    pub fn sgx_hmac256_close(hmac_handle: sgx_hmac_state_handle_t) -> sgx_status_t;
 
     pub fn sgx_aes_ctr_encrypt(p_key: * const sgx_aes_ctr_128bit_key_t,
                                p_src: * const ::uint8_t,
@@ -254,6 +277,13 @@ extern {
                             p_signature: * mut sgx_ec256_signature_t,
                             p_result: * mut ::uint8_t,
                             ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
+
+    /* intel sgx sdk 2.4 */
+    pub fn sgx_ecdsa_verify_hash(hash: * const ::uint8_t,
+                                 p_public: * const sgx_ec256_public_t,
+                                 p_signature: * mut sgx_ec256_signature_t,
+                                 p_result: * mut ::uint8_t,
+                                 ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
 
     /* intel sgx sdk 1.9 */
     /*
@@ -330,6 +360,21 @@ extern {
     /* intel sgx sdk 2.3 */
     pub fn sgx_ecc256_calculate_pub_from_priv(p_att_priv_key: * const sgx_ec256_private_t,
                                               p_att_pub_key: * mut sgx_ec256_public_t) -> sgx_status_t;
+
+
+    /* intel sgx sdk 2.4 */
+    pub fn sgx_aes_gcm128_enc_init(p_key: * const ::uint8_t,
+                                   p_iv: * const ::uint8_t,
+                                   iv_len: ::uint32_t,
+                                   p_aad: * const ::uint8_t,
+                                   aad_len: ::uint32_t,
+                                   aes_gcm_state: * mut sgx_aes_state_handle_t) -> sgx_status_t;
+    pub fn sgx_aes_gcm128_enc_get_mac(mac: * mut ::uint8_t, aes_gcm_state: sgx_aes_state_handle_t) -> sgx_status_t;
+    pub fn sgx_aes_gcm_close(aes_gcm_state: sgx_aes_state_handle_t) -> sgx_status_t;
+    pub fn sgx_aes_gcm128_enc_update(p_src: * const ::uint8_t,
+                                     src_len: ::uint32_t,
+                                     p_dst: * mut ::uint8_t,
+                                     aes_gcm_state: sgx_aes_state_handle_t) -> sgx_status_t;
 }
 
 
@@ -475,7 +520,19 @@ extern {
                                  ex_features: ::uint32_t,
                                  ex_features_p: * const [* const ::c_void; 32]) -> sgx_status_t;
 
+    /* intel sgx sdk 2.4 */
+    pub fn sgx_create_enclave_from_buffer_ex(buffer: * const ::uint8_t,
+                                             buffer_size: ::size_t,
+                                             debug: ::int32_t,
+                                             enclave_id: * mut sgx_enclave_id_t,
+                                             misc_attr: * mut sgx_misc_attribute_t,
+                                             ex_features: ::uint32_t,
+                                             ex_features_p: * const [* const ::c_void; 32]) -> sgx_status_t;
+
     pub fn sgx_destroy_enclave(enclave_id: sgx_enclave_id_t) -> sgx_status_t;
+
+    /* intel sgx sdk 2.4 */
+    pub fn sgx_get_target_info(enclave_id: sgx_enclave_id_t, target_info: * mut sgx_target_info_t) -> sgx_status_t;
 }
 
 /* intel sgx sdk 1.9 */

@@ -1,6 +1,6 @@
 [package]
 name = "sgx_urts"
-version = "1.0.4"
+version = "1.0.5"
 authors = ["Baidu"]
 repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"
@@ -11,11 +11,12 @@ include = [
     "LICENSE",
     "Readme.md",
     "Cargo.toml",
-    "src/net.rs",
-    "src/stdio.rs",
+    "src/socket.rs",
     "src/time.rs",
-    "src/fs.rs",
-    "src/backtrace.rs",
+    "src/file.rs",
+    "src/fd.rs",
+    "src/asyncio.rs",
+    "src/mem.rs",
     "src/env.rs",
     "src/lib.rs",
     "src/enclave.rs",

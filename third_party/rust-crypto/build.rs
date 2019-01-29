@@ -4,7 +4,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-extern crate gcc;
+extern crate cc;
 
 use std::env;
 use std::path::Path;
@@ -13,7 +13,7 @@ fn main() {
     let target = env::var("TARGET").unwrap();
     let host = env::var("HOST").unwrap();
     if target.contains("msvc") && host.contains("windows") {
-        let mut config = gcc::Build::new();
+        let mut config = cc::Build::new();
         config.file("src/util_helpers.asm");
         config.file("src/aesni_helpers.asm");
         if target.contains("x86_64") {
@@ -22,7 +22,7 @@ fn main() {
         config.compile("lib_rust_crypto_helpers.a");
     }
     else {
-        let mut cfg = gcc::Build::new();
+        let mut cfg = cc::Build::new();
         cfg.file("src/util_helpers.c");
         cfg.file("src/aesni_helpers.c");
         if env::var_os("CC").is_none() {

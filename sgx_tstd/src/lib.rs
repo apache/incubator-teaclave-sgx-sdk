@@ -69,7 +69,6 @@
 #![feature(fnbox)]
 #![feature(int_error_internals)]
 #![feature(hashmap_internals)]
-#![feature(integer_atomics)]
 #![feature(lang_items)]
 #![feature(needs_panic_runtime)]
 #![feature(never_type)]
@@ -94,7 +93,7 @@
 #![feature(std_internals)]
 #![feature(panic_info_message)]
 #![feature(unicode_internals)]
-#![feature(panic_implementation)]
+#![feature(alloc_layout_extra)]
 
 #![default_lib_allocator]
 

@@ -1,11 +1,3 @@
-// Copyright 2017 Serde Developers
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
-
 //! When serializing or deserializing JSON goes wrong.
 
 use std::prelude::v1::*;
@@ -145,7 +137,7 @@ impl From<Error> for io::Error {
     /// JSON syntax and data errors are turned into `InvalidData` IO errors.
     /// EOF errors are turned into `UnexpectedEof` IO errors.
     ///
-    /// ```rust
+    /// ```edition2018
     /// use std::io;
     ///
     /// enum MyError {

@@ -1,7 +1,8 @@
-use std::io;
 use byteorder::LittleEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
+use std::prelude::v1::*;
+use std::io;
 
 #[derive(Debug)]
 pub struct BitWriter<W> {
@@ -15,7 +16,7 @@ where
 {
     pub fn new(inner: W) -> Self {
         BitWriter {
-            inner: inner,
+            inner,
             buf: 0,
             end: 0,
         }
@@ -28,7 +29,7 @@ where
     pub fn write_bits(&mut self, bitwidth: u8, bits: u16) -> io::Result<()> {
         debug_assert!(bitwidth < 16);
         debug_assert!(self.end + bitwidth <= 32);
-        self.buf |= (bits as u32) << self.end;
+        self.buf |= u32::from(bits) << self.end;
         self.end += bitwidth;
         self.flush_if_needed()
     }
@@ -112,7 +113,7 @@ where
     #[inline(always)]
     pub fn peek_bits_unchecked(&mut self, bitwidth: u8) -> u16 {
         debug_assert!(bitwidth <= 16);
-        while (32 - self.offset) < bitwidth {
+        while 32 < self.offset + bitwidth {
             if self.last_error.is_some() {
                 return 0;
             }
@@ -122,12 +123,12 @@ where
             }
         }
         debug_assert!(self.offset < 32 || bitwidth == 0);
-        let bits = self.last_read.wrapping_shr(self.offset as u32) as u16;
+        let bits = self.last_read.wrapping_shr(u32::from(self.offset)) as u16;
         bits & ((1 << bitwidth) - 1)
     }
     #[inline(always)]
     pub fn skip_bits(&mut self, bitwidth: u8) {
-        debug_assert!(32 - self.offset >= bitwidth);
+        debug_assert!(self.last_error.is_some() || 32 - self.offset >= bitwidth);
         self.offset += bitwidth;
     }
     #[inline(always)]
@@ -135,7 +136,7 @@ where
         self.offset -= 8;
         self.last_read >>= 8;
 
-        let next = self.inner.read_u8()? as u32;
+        let next = u32::from(self.inner.read_u8()?);
         self.last_read |= next << (32 - 8);
         Ok(())
     }
@@ -175,8 +176,8 @@ pub(crate) struct BitReaderState {
 
 #[cfg(test)]
 mod test {
-    use std::io;
     use super::*;
+    use std::io;
 
     #[test]
     fn writer_works() {

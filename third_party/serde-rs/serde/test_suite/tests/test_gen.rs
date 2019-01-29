@@ -1,24 +1,13 @@
-// Copyright 2017 Serde Developer
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
-
-// These just test that serde_codegen is able to produce code that compiles
+// These just test that serde_derive is able to produce code that compiles
 // successfully when there are a variety of generics and non-(de)serializable
 // types involved.
 
 #![deny(warnings)]
 #![cfg_attr(feature = "unstable", feature(non_ascii_idents))]
+#![allow(clippy::trivially_copy_pass_by_ref)]
 
-#[macro_use]
-extern crate serde_derive;
-
-extern crate serde;
-use self::serde::de::{DeserializeOwned, Deserializer};
-use self::serde::ser::{Serialize, Serializer};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use std::borrow::Cow;
 use std::marker::PhantomData;
@@ -198,12 +187,7 @@ fn test_gen() {
     assert::<WithTraits1<X, X>>();
 
     #[derive(Serialize, Deserialize)]
-    #[serde(
-        bound(
-            serialize = "D: SerializeWith",
-            deserialize = "D: DeserializeWith"
-        )
-    )]
+    #[serde(bound(serialize = "D: SerializeWith", deserialize = "D: DeserializeWith"))]
     struct WithTraits2<D, E> {
         #[serde(
             serialize_with = "SerializeWith::serialize_with",
@@ -240,12 +224,7 @@ fn test_gen() {
     assert::<VariantWithTraits1<X, X>>();
 
     #[derive(Serialize, Deserialize)]
-    #[serde(
-        bound(
-            serialize = "D: SerializeWith",
-            deserialize = "D: DeserializeWith"
-        )
-    )]
+    #[serde(bound(serialize = "D: SerializeWith", deserialize = "D: DeserializeWith"))]
     enum VariantWithTraits2<D, E> {
         #[serde(
             serialize_with = "SerializeWith::serialize_with",
@@ -402,6 +381,8 @@ fn test_gen() {
     }
 
     mod vis {
+        use serde::{Deserialize, Serialize};
+
         pub struct S;
 
         #[derive(Serialize, Deserialize)]
@@ -625,6 +606,8 @@ fn test_gen() {
 
     mod restricted {
         mod inner {
+            use serde::{Deserialize, Serialize};
+
             #[derive(Serialize, Deserialize)]
             struct Restricted {
                 pub(super) a: usize,
@@ -668,6 +651,19 @@ fn test_gen() {
         #[serde(serialize_with = "ser_x")]
         #[serde(deserialize_with = "de_x")]
         x: X,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum UntaggedWithBorrow<'a> {
+        Single(#[serde(borrow)] RelObject<'a>),
+        Many(#[serde(borrow)] Vec<RelObject<'a>>),
+    }
+
+    #[derive(Deserialize)]
+    struct RelObject<'a> {
+        ty: &'a str,
+        id: String,
     }
 }
 

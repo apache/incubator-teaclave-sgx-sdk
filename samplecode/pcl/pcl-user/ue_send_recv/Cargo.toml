@@ -1,0 +1,12 @@
+[package]
+name = "ue_send_recv"
+version = "0.1.0"
+authors = ["Yu Ding <dingyu02@baidu.com>"]
+
+[features]
+default = []
+enclave = []
+
+[dependencies]
+rustls = "^0.13.0"
+cfg-if = "0.1.6"

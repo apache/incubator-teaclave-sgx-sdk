@@ -1,0 +1,12 @@
+language: rust
+
+matrix:
+  include:
+    - rust: stable
+    - rust: beta
+    - rust: nightly
+    - rust: 1.20.0
+script:
+  - cargo build
+  - cargo test
+  - cargo doc

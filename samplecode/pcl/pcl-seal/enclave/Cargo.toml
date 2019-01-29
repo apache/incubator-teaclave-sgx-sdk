@@ -1,0 +1,32 @@
+[package]
+name = "pcl_seal"
+version = "1.0.0"
+authors = ["Baidu"]
+
+[lib]
+name = "pcl_seal"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types       = { path = "../../../../sgx_types" }
+sgx_tstd        = { path = "../../../../sgx_tstd", features = ["net"] }
+sgx_tcrypto     = { path = "../../../../sgx_tcrypto" }
+sgx_tse         = { path = "../../../../sgx_tse"}
+sgx_rand        = { path = "../../../../sgx_rand"}
+sgx_tseal       = { path = "../../../../sgx_tseal"}
+
+[dependencies]
+chrono          = { path = "../../../../third_party/chrono" }
+webpki          = { path = "../../../../third_party/webpki" }
+base64          = { path = "../../../../third_party/rust-base64" }
+yasna           = { path = "../../../../third_party/yasna.rs" }
+num-bigint      = { path = "../../../../third_party/num/bigint" }
+bit-vec         = { path = "../../../../third_party/bit-vec", default-features = false}
+httparse        = { version = "1.3.2", default-features=false }
+itertools       = { version = "0.7.8" , default-features = false, features = []}
+rustls          = { path = "../../../../third_party/rustls" }
+webpki-roots    = { path = "../../../../third_party/webpki-roots" }
+ue_send_recv    = { path = "ue_send_recv" }

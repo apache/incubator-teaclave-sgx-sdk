@@ -5,6 +5,9 @@ Rust SGX SDK helps developers write Intel SGX applications in Rust programming l
 
 To achieve better security, we recommend developers to apply [Non-bypassable Security Paradigm (NbSP)](https://github.com/baidu/rust-sgx-sdk/blob/master/documents/nbsp.pdf) to the system design and implementation.
 
+## v1.0.5 Release
+This version supports Rust nightly build (nightly-2019-01-28, v1.34.0) in the master branch and the most recent stable build (stable-2019-01-16, v1.32.0) in the rust-stable branch. It supports the latest Intel SGX SDK **v2.4.0** and Ubuntu Linux 16.04+18.04. We provide support to Intel's Protected Code Loader. We provide sgx_ucrypto and sgx_crypto_helper for using SGX-style crypto primitives in untrusted app and RSA keypair serialization/deserialization in both trusted and untrusted programs. We re-organize ocall related interfaces and provide them in a new crate sgx_libc with a bunch of new ocall functions. In addition, we port net2 to SGX. Please refer to [release_notes](release_notes.md) for further details.
+
 ## v1.0.4 Release
 This version supports Rust nightly build (nightly-2018-10-01) in the master branch and the most recent stable build (stable-2018-09-25) in the rust-stable branch. It supports the latest Intel SGX SDK **v2.3.1** and Ubuntu Linux 18.04. It now contains further third party libraries including: bit-vec, chrono, erased-serde, fxhash, nan-preserving-float, num-bigint, quick-error, raft-rs, time, webpki-roots, and yasna. Some third party libraries, like untrusted, parity-wasm and lazy-static, are removed because they support `no_std` and can be used directly from crates.io. We strongly recommend developers upgrade to v1.0.4 and use the most recent Rust release to build it due to the [Security advisory for the standard library](https://blog.rust-lang.org/2018/09/21/Security-advisory-for-std.html). Please refer to [release_notes](release_notes.md) for further details.
 
@@ -27,7 +30,7 @@ This version provides a new namespace: `sgx_tstd::untrusted`, including `sgx_tst
 
 Ubuntu 16.04 or 18.04
 
-[Intel SGX SDK 2.3.1 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
+[Intel SGX SDK 2.4 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
 
 Docker (Recommended)
 
@@ -42,9 +45,9 @@ Install Intel SGX driver and SDK first. And refer to [Dockerfile](dockerfile/Doc
 
 ### Using docker (Recommended) without ME support
 
-* As of v1.0.4, we provide 4 docker images: `baiduxlab/sgx-rust:1604` `baiduxlab/sgx-rust:1804` `baiduxlab/sgx-rust-stable:1604` `baiduxlab/sgx-rust-stable:1804`. The `latest` tag pins on `baiduxlab/sgx-rust:1604`.
+* As of v1.0.5, we provide 4 docker images: `baiduxlab/sgx-rust:1604-1.0.5` `baiduxlab/sgx-rust:1804-1.0.5` `baiduxlab/sgx-rust-stable:1604-1.0.5` `baiduxlab/sgx-rust-stable:1804-1.0.5`. The `latest` tag pins on `baiduxlab/sgx-rust:1604-1.0.5`.
 
-First, make sure Intel SGX Driver 2.3.1 is installed and functions well. `/dev/isgx` should appear.
+First, make sure Intel SGX Driver 2.4 is installed and functions well. `/dev/isgx` should appear.
 
 Second, pull the docker image. If you'd like to work on stable branch of Rust and `rust-stable` branch of this SDK, please pull `baiduxlab/sgx-rust-stable` instead.
 

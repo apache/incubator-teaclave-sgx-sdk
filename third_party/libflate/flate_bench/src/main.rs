@@ -38,7 +38,7 @@ fn main() {
         bench(
             "-   flate2",
             &plain[..],
-            flate2::write::DeflateEncoder::new(BenchWriter::new(), flate2::Compression::Default),
+            flate2::write::DeflateEncoder::new(BenchWriter::new(), flate2::Compression::default()),
         );
     }
     println!("");
@@ -46,7 +46,7 @@ fn main() {
     let compressed = {
         let mut input_file = fs::File::open(input_file_path).unwrap();
         let mut writer =
-            flate2::write::DeflateEncoder::new(Vec::new(), flate2::Compression::Default);
+            flate2::write::DeflateEncoder::new(Vec::new(), flate2::Compression::default());
         io::copy(&mut input_file, &mut writer).unwrap();
         writer.finish().unwrap()
     };
@@ -164,9 +164,8 @@ where
         }
         if !self.output_buf.is_empty() {
             let len = std::cmp::min(buf.len(), self.output_buf.len() - self.output_offset);
-            buf[0..len].copy_from_slice(
-                &self.output_buf[self.output_offset..self.output_offset + len],
-            );
+            buf[0..len]
+                .copy_from_slice(&self.output_buf[self.output_offset..self.output_offset + len]);
             self.output_offset += len;
             if self.output_offset == self.output_buf.len() {
                 self.output_buf.clear();
@@ -182,6 +181,10 @@ where
             self.output_buf.extend_from_slice(output);
             size
         };
-        if size == 0 { Ok(0) } else { self.read(buf) }
+        if size == 0 {
+            Ok(0)
+        } else {
+            self.read(buf)
+        }
     }
 }

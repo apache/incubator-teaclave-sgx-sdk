@@ -19,15 +19,16 @@
 //!
 //! assert_eq!(decoded_data, b"Hello World!");
 //! ```
-use std::io;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
+use std::prelude::v1::*;
+use std::io;
 
-use lz77;
-use deflate;
 use checksum;
-use finish::Finish;
+use deflate;
+use finish::{Complete, Finish};
+use lz77;
 
 const COMPRESSION_METHOD_DEFLATE: u8 = 8;
 
@@ -133,7 +134,7 @@ impl Lz77WindowSize {
     /// ```
     pub fn from_u16(size: u16) -> Self {
         use self::Lz77WindowSize::*;
-        if 16384 < size {
+        if 16_384 < size {
             KB32
         } else if 8192 < size {
             KB16
@@ -169,8 +170,8 @@ impl Lz77WindowSize {
             KB2 => 2048,
             KB4 => 4096,
             KB8 => 8192,
-            KB16 => 16384,
-            KB32 => 32768,
+            KB16 => 16_384,
+            KB32 => 32_768,
         }
     }
 }
@@ -205,11 +206,11 @@ impl Header {
     {
         let cmf = reader.read_u8()?;
         let flg = reader.read_u8()?;
-        let check = ((cmf as u16) << 8) + flg as u16;
+        let check = (u16::from(cmf) << 8) + u16::from(flg);
         if check % 31 != 0 {
             return Err(invalid_data_error!(
                 "Inconsistent ZLIB check bits: `CMF({}) * 256 + \
-                                            FLG({})` must be a multiple of 31",
+                 FLG({})` must be a multiple of 31",
                 cmf,
                 flg
             ));
@@ -220,7 +221,7 @@ impl Header {
         if compression_method != COMPRESSION_METHOD_DEFLATE {
             return Err(invalid_data_error!(
                 "Compression methods other than DEFLATE(8) are \
-                                            unsupported: method={}",
+                 unsupported: method={}",
                 compression_method
             ));
         }
@@ -228,19 +229,19 @@ impl Header {
             invalid_data_error!("CINFO above 7 are not allowed: value={}", compression_info)
         })?;
 
-        let dict_flag = (flg & 0b100000) != 0;
+        let dict_flag = (flg & 0b100_000) != 0;
         if dict_flag {
             let dictionary_id = reader.read_u32::<BigEndian>()?;
             return Err(invalid_data_error!(
                 "Preset dictionaries are not supported: \
-                                            dictionary_id=0x{:X}",
+                 dictionary_id=0x{:X}",
                 dictionary_id
             ));
         }
         let compression_level = CompressionLevel::from_u2(flg >> 6);
         Ok(Header {
-            window_size: window_size,
-            compression_level: compression_level,
+            window_size,
+            compression_level,
         })
     }
     fn write_to<W>(&self, mut writer: W) -> io::Result<()>
@@ -249,7 +250,7 @@ impl Header {
     {
         let cmf = (self.window_size.as_u4() << 4) | COMPRESSION_METHOD_DEFLATE;
         let mut flg = self.compression_level.as_u2() << 6;
-        let check = ((cmf as u16) << 8) + flg as u16;
+        let check = (u16::from(cmf) << 8) + u16::from(flg);
         if check % 31 != 0 {
             flg += (31 - check % 31) as u8;
         }
@@ -292,7 +293,7 @@ where
     pub fn new(mut inner: R) -> io::Result<Self> {
         let header = Header::read_from(&mut inner)?;
         Ok(Decoder {
-            header: header,
+            header,
             reader: deflate::Decoder::new(inner),
             adler32: checksum::Adler32::new(),
             eos: false,
@@ -314,6 +315,16 @@ where
     /// ```
     pub fn header(&self) -> &Header {
         &self.header
+    }
+
+    /// Returns the immutable reference to the inner stream.
+    pub fn as_inner_ref(&self) -> &R {
+        self.reader.as_inner_ref()
+    }
+
+    /// Returns the mutable reference to the inner stream.
+    pub fn as_inner_mut(&mut self) -> &mut R {
+        self.reader.as_inner_mut()
     }
 
     /// Unwraps this `Decoder`, returning the underlying reader.
@@ -345,7 +356,10 @@ where
             if read_size == 0 {
                 self.eos = true;
                 let adler32 = self.reader.as_inner_mut().read_u32::<BigEndian>()?;
-                if adler32 != self.adler32.value() {
+                // checksum verification is skipped during fuzzing
+                // so that random data from fuzzer can reach actually interesting code
+                // Compilation flag 'fuzzing' is automatically set by all 3 Rust fuzzers.
+                if cfg!(not(fuzzing)) && adler32 != self.adler32.value() {
                     Err(invalid_data_error!(
                         "Adler32 checksum mismatched: value={}, expected={}",
                         self.adler32.value(),
@@ -550,19 +564,52 @@ where
     ///            [120, 156, 5, 128, 65, 9, 0, 0, 8, 3, 171, 104, 27, 27, 88, 64, 127,
     ///             7, 131, 245, 127, 140, 121, 80, 173, 204, 117, 0, 28, 73, 4, 62]);
     /// ```
+    ///
+    /// # Note
+    ///
+    /// If you are not concerned the result of this encoding,
+    /// it may be convenient to use `AutoFinishUnchecked` instead of the explicit invocation of this method.
+    ///
+    /// ```
+    /// use std::io;
+    /// use libflate::finish::AutoFinishUnchecked;
+    /// use libflate::zlib::Encoder;
+    ///
+    /// let plain = b"Hello World!";
+    /// let mut buf = Vec::new();
+    /// let mut encoder = AutoFinishUnchecked::new(Encoder::new(&mut buf).unwrap());
+    /// io::copy(&mut &plain[..], &mut encoder).unwrap();
+    /// ```
     pub fn finish(self) -> Finish<W, io::Error> {
         let mut inner = finish_try!(self.writer.finish());
         match inner
             .write_u32::<BigEndian>(self.adler32.value())
-            .and_then(|_| inner.flush()) {
+            .and_then(|_| inner.flush())
+        {
             Ok(_) => Finish::new(inner, None),
             Err(e) => Finish::new(inner, Some(e)),
         }
     }
+
+    /// Returns the immutable reference to the inner stream.
+    pub fn as_inner_ref(&self) -> &W {
+        self.writer.as_inner_ref()
+    }
+
+    /// Returns the mutable reference to the inner stream.
+    pub fn as_inner_mut(&mut self) -> &mut W {
+        self.writer.as_inner_mut()
+    }
+
+    /// Unwraps the `Encoder`, returning the inner stream.
+    pub fn into_inner(self) -> W {
+        self.writer.into_inner()
+    }
 }
-impl<W> io::Write for Encoder<W>
+impl<W, E> io::Write for Encoder<W, E>
 where
     W: io::Write,
+    E: lz77::Lz77Encode,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let written_size = self.writer.write(buf)?;
@@ -573,11 +620,21 @@ where
         self.writer.flush()
     }
 }
+impl<W, E> Complete for Encoder<W, E>
+where
+    W: io::Write,
+    E: lz77::Lz77Encode,
+{
+    fn complete(self) -> io::Result<()> {
+        self.finish().into_result().map(|_| ())
+    }
+}
 
 #[cfg(test)]
 mod test {
-    use std::io;
     use super::*;
+    use finish::AutoFinish;
+    use std::io;
 
     fn decode_all(buf: &[u8]) -> io::Result<Vec<u8>> {
         let mut decoder = Decoder::new(buf).unwrap();
@@ -591,17 +648,14 @@ mod test {
         encoder.finish().into_result()
     }
     macro_rules! assert_encode_decode {
-        ($input:expr) => {
-            {
-                let encoded = default_encode(&$input[..]).unwrap();
-                assert_eq!(decode_all(&encoded).unwrap(), &$input[..]);
-            }
-        }
+        ($input:expr) => {{
+            let encoded = default_encode(&$input[..]).unwrap();
+            assert_eq!(decode_all(&encoded).unwrap(), &$input[..]);
+        }};
     }
 
-    #[cfg_attr(rustfmt, rustfmt_skip)]
     const DECODE_WORKS_TESTDATA: [u8; 20] = [
-        120, 156, 243, 72, 205, 201, 201, 87, 8, 207, 47, 202, 73, 81, 4, 0, 28, 73, 4, 62
+        120, 156, 243, 72, 205, 201, 201, 87, 8, 207, 47, 202, 73, 81, 4, 0, 28, 73, 4, 62,
     ];
     #[test]
     fn decode_works() {
@@ -642,15 +696,15 @@ mod test {
         assert_eq!(decode_all(&encoded).unwrap(), plain);
     }
 
-    #[cfg_attr(rustfmt, rustfmt_skip)]
     const RAW_ENCODE_WORKS_EXPECTED: [u8; 23] = [
-        120, 1, 1, 12, 0, 243, 255, 72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33, 28, 73, 4, 62
+        120, 1, 1, 12, 0, 243, 255, 72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33, 28, 73,
+        4, 62,
     ];
     #[test]
     fn raw_encode_works() {
         let plain = b"Hello World!";
-        let mut encoder = Encoder::with_options(Vec::new(), EncodeOptions::new().no_compression())
-            .unwrap();
+        let mut encoder =
+            Encoder::with_options(Vec::new(), EncodeOptions::new().no_compression()).unwrap();
         io::copy(&mut &plain[..], &mut encoder).unwrap();
         let encoded = encoder.finish().into_result().unwrap();
         let expected = RAW_ENCODE_WORKS_EXPECTED;
@@ -659,24 +713,60 @@ mod test {
     }
 
     #[test]
-    #[cfg_attr(rustfmt, rustfmt_skip)]
+    fn encoder_auto_finish_works() {
+        let plain = b"Hello World! Hello ZLIB!!";
+        let mut buf = Vec::new();
+        {
+            let mut encoder = AutoFinish::new(Encoder::new(&mut buf).unwrap());
+            io::copy(&mut &plain[..], &mut encoder).unwrap();
+        }
+        assert_eq!(decode_all(&buf).unwrap(), plain);
+    }
+
+    #[test]
     fn test_issue_2() {
         // See: https://github.com/sile/libflate/issues/2
-        assert_encode_decode!(
-            [163, 181, 167, 40, 62, 239, 41, 125, 189, 217, 61, 122, 20,
-             136, 160, 178, 119, 217, 217, 41, 125, 189, 97, 195, 101, 47, 170]
+        assert_encode_decode!([
+            163, 181, 167, 40, 62, 239, 41, 125, 189, 217, 61, 122, 20, 136, 160, 178, 119, 217,
+            217, 41, 125, 189, 97, 195, 101, 47, 170,
+        ]);
+        assert_encode_decode!([
+            162, 58, 99, 211, 7, 64, 96, 36, 57, 155, 53, 166, 76, 14, 238, 66, 66, 148, 154, 124,
+            162, 58, 99, 188, 138, 131, 171, 189, 54, 229, 192, 38, 29, 240, 122, 28,
+        ]);
+        assert_encode_decode!([
+            239, 238, 212, 42, 5, 46, 186, 67, 122, 247, 30, 61, 219, 62, 228, 202, 164, 205, 139,
+            109, 99, 181, 99, 181, 99, 122, 30, 12, 62, 46, 27, 145, 241, 183, 137,
+        ]);
+        assert_encode_decode!([
+            88, 202, 64, 12, 125, 108, 153, 49, 164, 250, 71, 19, 4, 108, 111, 108, 237, 205, 208,
+            77, 217, 100, 118, 49, 10, 64, 12, 125, 51, 202, 69, 67, 181, 146, 86,
+        ]);
+    }
+
+    #[test]
+    fn test_issues_16() {
+        // See: https://github.com/sile/libflate/issues/16
+
+        let encoded =
+            include_bytes!("../data/issues_16/crash-1bb6d408475a5bd57247ee40f290830adfe2086e");
+        assert_eq!(
+            decode_all(&encoded[..]).err().map(|e| e.to_string()),
+            Some("The value of HDIST is too big: max=30, actual=32".to_owned())
         );
-        assert_encode_decode!(
-            [162, 58, 99, 211, 7, 64, 96, 36, 57, 155, 53, 166, 76, 14, 238, 66, 66, 148, 154, 124,
-             162, 58, 99, 188, 138, 131, 171, 189, 54, 229, 192, 38, 29, 240, 122, 28]
+
+        let encoded =
+            include_bytes!("../data/issues_16/crash-369e8509a0e76356f4549c292ceedee429cfe125");
+        assert_eq!(
+            decode_all(&encoded[..]).err().map(|e| e.to_string()),
+            Some("The value of HDIST is too big: max=30, actual=32".to_owned())
         );
-        assert_encode_decode!(
-            [239, 238, 212, 42, 5, 46, 186, 67, 122, 247, 30, 61, 219, 62, 228, 202, 164, 205,
-             139, 109, 99, 181, 99, 181, 99, 122, 30, 12, 62, 46, 27, 145, 241, 183, 137]
-        );
-        assert_encode_decode!(
-            [88, 202, 64, 12, 125, 108, 153, 49, 164, 250, 71, 19, 4, 108, 111, 108, 237, 205,
-             208, 77, 217, 100, 118, 49, 10, 64, 12, 125, 51, 202, 69, 67, 181, 146, 86]
+
+        let encoded =
+            include_bytes!("../data/issues_16/crash-e75959d935650306881140df7f6d1d73e33425cb");
+        assert_eq!(
+            decode_all(&encoded[..]).err().map(|e| e.to_string()),
+            Some("The value of HDIST is too big: max=30, actual=32".to_owned())
         );
     }
 }

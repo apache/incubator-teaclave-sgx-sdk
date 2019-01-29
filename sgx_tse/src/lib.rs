@@ -216,4 +216,8 @@ pub fn rsgx_get_key(key_request: &sgx_key_request_t) -> SgxResult<sgx_key_128bit
     }
 }
 
+pub fn rsgx_self_report() -> sgx_report_t {
+
+    unsafe { * sgx_self_report() }
+}
 

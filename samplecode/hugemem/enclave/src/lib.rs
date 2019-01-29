@@ -89,7 +89,7 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
     let mut vv:Vec<Vec<u8>> = Vec::new();
     let mut onev:Vec<u8>; // 1Mbyte
     let testblocksize:usize = 128 * 1024 * 1024; // 128Mbyte
-    let total = 0x7E8000000 ; // 31.625 GB = rounddown (31.75 GB - essential costs)
+    let total = 0xB78000000 ; // 46GB - 0.5GB
 
     for i in 0..total / testblocksize{
         onev = Vec::with_capacity(testblocksize); // 128Mbyte

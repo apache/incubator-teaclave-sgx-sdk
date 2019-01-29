@@ -79,14 +79,14 @@
 #![feature(allocator_api)]
 #![feature(asm)]
 #![feature(lang_items)]
-#![feature(tool_lints)]
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 #![allow(overflowing_literals)]
+#![allow(non_snake_case)]
 
 extern crate alloc;
-#[macro_use]
 extern crate sgx_types;
+extern crate sgx_libc;
 
 #[macro_use]
 mod macros;

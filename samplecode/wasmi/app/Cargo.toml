@@ -8,8 +8,8 @@ build = "build.rs"
 sgx_types = { path = "../../../sgx_types" }
 sgx_urts = { path = "../../../sgx_urts" }
 wabt = "0.4.0"
-serde = {version = "=1.0.71"}
-serde_json = {version = "=1.0.24"}
-serde_derive = {version = "=1.0.71"}
+serde = {version = "=1.0.84"}
+serde_json = {version = "=1.0.36"}
+serde_derive = {version = "=1.0.84"}
 dirs = "1.0.2"
 nan-preserving-float = "0.1.0"

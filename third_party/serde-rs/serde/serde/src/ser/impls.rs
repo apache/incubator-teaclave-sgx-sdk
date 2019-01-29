@@ -1,11 +1,3 @@
-// Copyright 2017 Serde Developers
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
-
 use lib::*;
 
 use ser::{Error, Serialize, SerializeTuple, Serializer};
@@ -469,8 +461,15 @@ nonzero_integers! {
     NonZeroU16,
     NonZeroU32,
     NonZeroU64,
-    // FIXME: https://github.com/serde-rs/serde/issues/1136 NonZeroU128,
     NonZeroUsize,
+}
+
+// Currently 128-bit integers do not work on Emscripten targets so we need an
+// additional `#[cfg]`
+serde_if_integer128! {
+    nonzero_integers! {
+        NonZeroU128,
+    }
 }
 
 impl<T> Serialize for Cell<T>

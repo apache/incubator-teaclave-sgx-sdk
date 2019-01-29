@@ -26,33 +26,4 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use sgx_types::*;
-
-#[link(name = "sgx_tstdc")]
-extern {
-    #[cfg_attr(target_os = "linux", link_name = "__errno_location")]
-    fn errno_location() -> * mut c_int;
-
-    fn strerror_r(errnum: c_int, buf: * mut c_char, buflen: size_t) -> c_int;
-}
-
-/// Get the last error number.
-pub fn errno() -> i32 {
-    unsafe {
-        (*errno_location()) as i32
-    }
-}
-
-/// Set the last error number.
-pub fn set_errno(e: i32) {
-    unsafe {
-        *errno_location() = e as c_int
-    }
-}
-
-/// Gets a detailed string description for the given error number.
-pub unsafe fn error_string(errno: i32, buf: &mut [i8]) -> i32 {
-
-    let p = buf.as_mut_ptr();
-    strerror_r(errno as c_int, p as * mut c_char, buf.len()) as i32
-}
+pub use sgx_libc::{errno, set_errno, error_string};

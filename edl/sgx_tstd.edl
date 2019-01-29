@@ -30,6 +30,7 @@
  */
  
 enclave {
+
 	trusted {
         /* define ECALLs here. */
         public void t_global_init_ecall(uint64_t id, [in, size=len] const uint8_t *path, size_t len);

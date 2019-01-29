@@ -1,8 +1,8 @@
+use std::prelude::v1::*;
+use std::cmp;
 /// Length-limited Huffman Codes
 ///
 use std::io;
-use std::cmp;
-use std::vec::Vec;
 
 use bit;
 
@@ -16,10 +16,7 @@ pub struct Code {
 impl Code {
     pub fn new(width: u8, bits: u16) -> Self {
         debug_assert!(width <= MAX_BITWIDTH);
-        Code {
-            width: width,
-            bits: bits,
-        }
+        Code { width, bits }
     }
     fn inverse_endian(&self) -> Self {
         let mut f = self.bits;
@@ -35,10 +32,10 @@ impl Code {
 
 pub trait Builder: Sized {
     type Instance;
-    fn set_mapping(&mut self, symbol: u16, code: Code);
+    fn set_mapping(&mut self, symbol: u16, code: Code) -> io::Result<()>;
     fn finish(self) -> Self::Instance;
-    fn restore_canonical_huffman_codes(mut self, bitwidthes: &[u8]) -> Self::Instance {
-        debug_assert!(bitwidthes.len() > 0);
+    fn restore_canonical_huffman_codes(mut self, bitwidthes: &[u8]) -> io::Result<Self::Instance> {
+        debug_assert!(!bitwidthes.is_empty());
 
         let mut symbols = bitwidthes
             .iter()
@@ -52,11 +49,11 @@ pub trait Builder: Sized {
         let mut prev_width = 0;
         for (symbol, bitwidth) in symbols {
             code <<= bitwidth - prev_width;
-            self.set_mapping(symbol, Code::new(bitwidth, code));
+            self.set_mapping(symbol, Code::new(bitwidth, code))?;
             code += 1;
             prev_width = bitwidth;
         }
-        self.finish()
+        Ok(self.finish())
     }
 }
 
@@ -70,37 +67,44 @@ impl DecoderBuilder {
     pub fn new(max_bitwidth: u8, eob_symbol: Option<u16>) -> Self {
         debug_assert!(max_bitwidth <= MAX_BITWIDTH);
         DecoderBuilder {
-            table: vec![MAX_BITWIDTH as u16 + 1; 1 << max_bitwidth],
-            eob_symbol: eob_symbol,
+            table: vec![u16::from(MAX_BITWIDTH) + 1; 1 << max_bitwidth],
+            eob_symbol,
             eob_bitwidth: max_bitwidth,
-            max_bitwidth: max_bitwidth,
+            max_bitwidth,
         }
     }
-    pub fn from_bitwidthes(bitwidthes: &[u8], eob_symbol: Option<u16>) -> Decoder {
+    pub fn from_bitwidthes(bitwidthes: &[u8], eob_symbol: Option<u16>) -> io::Result<Decoder> {
         let builder = Self::new(bitwidthes.iter().cloned().max().unwrap_or(0), eob_symbol);
         builder.restore_canonical_huffman_codes(bitwidthes)
     }
 }
 impl Builder for DecoderBuilder {
     type Instance = Decoder;
-    fn set_mapping(&mut self, symbol: u16, code: Code) {
+    fn set_mapping(&mut self, symbol: u16, code: Code) -> io::Result<()> {
         debug_assert!(code.width <= self.max_bitwidth);
         if Some(symbol) == self.eob_symbol {
             self.eob_bitwidth = code.width;
         }
 
         // `bitwidth` encoded `to` value
-        let value = (symbol << 5) | code.width as u16;
+        let value = (symbol << 5) | u16::from(code.width);
 
         // Sets the mapping to all possible indices
         let code_be = code.inverse_endian();
         for padding in 0..(1 << (self.max_bitwidth - code.width)) {
             let i = ((padding << code.width) | code_be.bits) as usize;
-            debug_assert_eq!(self.table[i], MAX_BITWIDTH as u16 + 1);
+            if self.table[i] != u16::from(MAX_BITWIDTH) + 1 {
+                let message = format!(
+                    "Bit region conflict: i={}, old_value={}, new_value={}, symbol={}, code={:?}",
+                    i, self.table[i], value, symbol, code
+                );
+                return Err(io::Error::new(io::ErrorKind::InvalidData, message));
+            }
             unsafe {
                 *self.table.get_unchecked_mut(i) = value;
             }
         }
+        Ok(())
     }
     fn finish(self) -> Self::Instance {
         Decoder {
@@ -135,18 +139,17 @@ impl Decoder {
     {
         let code = reader.peek_bits_unchecked(self.eob_bitwidth);
         let mut value = unsafe { *self.table.get_unchecked(code as usize) };
-        let mut bitwidth = (value & 0b11111) as u8;
+        let mut bitwidth = (value & 0b1_1111) as u8;
         if bitwidth > self.eob_bitwidth {
             let code = reader.peek_bits_unchecked(self.max_bitwidth);
             value = unsafe { *self.table.get_unchecked(code as usize) };
-            bitwidth = (value & 0b11111) as u8;
+            bitwidth = (value & 0b1_1111) as u8;
             if bitwidth > self.max_bitwidth {
                 reader.set_last_error(invalid_data_error!("Invalid huffman coded stream"));
             }
         }
         reader.skip_bits(bitwidth as u8);
-        let symbol = value >> 5;
-        symbol
+        value >> 5
     }
 }
 
@@ -156,19 +159,22 @@ pub struct EncoderBuilder {
 }
 impl EncoderBuilder {
     pub fn new(symbol_count: usize) -> Self {
-        EncoderBuilder { table: vec![Code::new(0, 0); symbol_count] }
+        EncoderBuilder {
+            table: vec![Code::new(0, 0); symbol_count],
+        }
     }
-    pub fn from_bitwidthes(bitwidthes: &[u8]) -> Encoder {
+    pub fn from_bitwidthes(bitwidthes: &[u8]) -> io::Result<Encoder> {
         let symbol_count = bitwidthes
             .iter()
             .enumerate()
             .filter(|e| *e.1 > 0)
             .last()
-            .map_or(0, |e| e.0) + 1;
+            .map_or(0, |e| e.0)
+            + 1;
         let builder = Self::new(symbol_count);
         builder.restore_canonical_huffman_codes(bitwidthes)
     }
-    pub fn from_frequencies(symbol_frequencies: &[usize], max_bitwidth: u8) -> Encoder {
+    pub fn from_frequencies(symbol_frequencies: &[usize], max_bitwidth: u8) -> io::Result<Encoder> {
         let max_bitwidth = cmp::min(
             max_bitwidth,
             ordinary_huffman_codes::calc_optimal_max_bitwidth(symbol_frequencies),
@@ -179,9 +185,10 @@ impl EncoderBuilder {
 }
 impl Builder for EncoderBuilder {
     type Instance = Encoder;
-    fn set_mapping(&mut self, symbol: u16, code: Code) {
+    fn set_mapping(&mut self, symbol: u16, code: Code) -> io::Result<()> {
         debug_assert_eq!(self.table[symbol as usize], Code::new(0, 0));
         self.table[symbol as usize] = code.inverse_endian();
+        Ok(())
     }
     fn finish(self) -> Self::Instance {
         Encoder { table: self.table }
@@ -199,7 +206,7 @@ impl Encoder {
         W: io::Write,
     {
         let code = self.lookup(symbol);
-        debug_assert!(code != Code::new(0, 0));
+        debug_assert_ne!(code, Code::new(0, 0));
         writer.write_bits(code.width, code.bits)
     }
     #[inline(always)]
@@ -213,14 +220,17 @@ impl Encoder {
         unsafe { self.table.get_unchecked(symbol as usize) }.clone()
     }
     pub fn used_max_symbol(&self) -> Option<u16> {
-        self.table.iter().rev().position(|x| x.width > 0).map(
-            |trailing_zeros| (self.table.len() - 1 - trailing_zeros) as u16,
-        )
+        self.table
+            .iter()
+            .rev()
+            .position(|x| x.width > 0)
+            .map(|trailing_zeros| (self.table.len() - 1 - trailing_zeros) as u16)
     }
 }
 
 #[allow(dead_code)]
 mod ordinary_huffman_codes {
+    use std::prelude::v1::*;
     use std::cmp;
     use std::collections::BinaryHeap;
 
@@ -241,7 +251,8 @@ mod ordinary_huffman_codes {
 }
 mod length_limited_huffman_codes {
     use std::mem;
-    use std::vec::Vec;
+    use std::prelude::v1::*;
+
     #[derive(Debug, Clone)]
     struct Node {
         symbols: Vec<u16>,
@@ -257,7 +268,7 @@ mod length_limited_huffman_codes {
         pub fn single(symbol: u16, weight: usize) -> Self {
             Node {
                 symbols: vec![symbol],
-                weight: weight,
+                weight,
             }
         }
         pub fn merge(&mut self, other: Self) {
@@ -266,7 +277,9 @@ mod length_limited_huffman_codes {
         }
     }
 
-    /// Reference: https://www.ics.uci.edu/~dan/pubs/LenLimHuff.pdf
+    /// Reference: [A Fast Algorithm for Optimal Length-Limited Huffman Codes][LenLimHuff.pdf]
+    ///
+    /// [LenLimHuff.pdf]: https://www.ics.uci.edu/~dan/pubs/LenLimHuff.pdf
     pub fn calc(max_bitwidth: u8, frequencies: &[usize]) -> Vec<u8> {
         // NOTE: unoptimized implementation
         let mut source = frequencies
@@ -281,9 +294,9 @@ mod length_limited_huffman_codes {
             (0..max_bitwidth - 1).fold(source.clone(), |w, _| merge(package(w), source.clone()));
 
         let mut code_bitwidthes = vec![0; frequencies.len()];
-        for symbol in package(weighted).into_iter().flat_map(
-            |n| n.symbols.into_iter(),
-        )
+        for symbol in package(weighted)
+            .into_iter()
+            .flat_map(|n| n.symbols.into_iter())
         {
             code_bitwidthes[symbol as usize] += 1;
         }
@@ -313,8 +326,10 @@ mod length_limited_huffman_codes {
     fn package(mut nodes: Vec<Node>) -> Vec<Node> {
         if nodes.len() >= 2 {
             let new_len = nodes.len() / 2;
+
+            #[cfg_attr(feature = "cargo-clippy", allow(needless_range_loop))]
             for i in 0..new_len {
-                nodes[i] = mem::replace(&mut nodes[i * 2 + 0], Node::empty());
+                nodes[i] = mem::replace(&mut nodes[i * 2], Node::empty());
                 let other = mem::replace(&mut nodes[i * 2 + 1], Node::empty());
                 nodes[i].merge(other);
             }

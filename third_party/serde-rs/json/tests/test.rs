@@ -1,16 +1,5 @@
-// Copyright 2017 Serde Developers
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
-
 #![cfg(not(feature = "preserve_order"))]
-#![cfg_attr(
-    feature = "cargo-clippy",
-    allow(float_cmp, unreadable_literal)
-)]
+#![cfg_attr(feature = "cargo-clippy", allow(float_cmp, unreadable_literal))]
 #![cfg_attr(feature = "trace-macros", feature(trace_macros))]
 #[cfg(feature = "trace-macros")]
 trace_macros!(true);
@@ -620,7 +609,7 @@ where
         // Make sure every prefix is an EOF error, except that a prefix of a
         // number may be a valid number.
         if !json_value.is_number() {
-            for (i, _) in s.trim_right().char_indices() {
+            for (i, _) in s.trim_end().char_indices() {
                 assert!(from_str::<Value>(&s[..i]).unwrap_err().is_eof());
                 assert!(from_str::<IgnoredAny>(&s[..i]).unwrap_err().is_eof());
             }
@@ -860,6 +849,7 @@ fn test_parse_f64() {
         ("0.00e00", 0.0),
         ("0.00e+00", 0.0),
         ("0.00e-00", 0.0),
+        ("3.5E-2147483647", 0.0),
         (
             &format!("{}", (i64::MIN as f64) - 1.0),
             (i64::MIN as f64) - 1.0,
@@ -938,9 +928,9 @@ fn test_serialize_char() {
 #[test]
 fn test_malicious_number() {
     #[derive(Serialize)]
-    #[serde(rename = "$__serde_private_Number")]
+    #[serde(rename = "$serde_json::private::Number")]
     struct S {
-        #[serde(rename = "$__serde_private_number")]
+        #[serde(rename = "$serde_json::private::Number")]
         f: &'static str,
     }
 
@@ -995,11 +985,11 @@ fn test_parse_string() {
         ),
         (
             "\"\n\"",
-            "control character (\\u0000-\\u001F) found while parsing a string at line 1 column 1",
+            "control character (\\u0000-\\u001F) found while parsing a string at line 2 column 0",
         ),
         (
             "\"\x1F\"",
-            "control character (\\u0000-\\u001F) found while parsing a string at line 1 column 1",
+            "control character (\\u0000-\\u001F) found while parsing a string at line 1 column 2",
         ),
     ]);
 
@@ -1013,12 +1003,32 @@ fn test_parse_string() {
             "invalid unicode code point at line 1 column 7",
         ),
         (
+            &[b'"', b'\\', b'u', 48, 48, 51],
+            "EOF while parsing a string at line 1 column 6",
+        ),
+        (
+            &[b'"', b'\\', b'u', 250, 48, 51, 48, b'"'],
+            "invalid escape at line 1 column 4",
+        ),
+        (
+            &[b'"', b'\\', b'u', 48, 250, 51, 48, b'"'],
+            "invalid escape at line 1 column 5",
+        ),
+        (
+            &[b'"', b'\\', b'u', 48, 48, 250, 48, b'"'],
+            "invalid escape at line 1 column 6",
+        ),
+        (
+            &[b'"', b'\\', b'u', 48, 48, 51, 250, b'"'],
+            "invalid escape at line 1 column 7",
+        ),
+        (
             &[b'"', b'\n', b'"'],
-            "control character (\\u0000-\\u001F) found while parsing a string at line 1 column 1",
+            "control character (\\u0000-\\u001F) found while parsing a string at line 2 column 0",
         ),
         (
             &[b'"', b'\x1F', b'"'],
-            "control character (\\u0000-\\u001F) found while parsing a string at line 1 column 1",
+            "control character (\\u0000-\\u001F) found while parsing a string at line 1 column 2",
         ),
     ]);
 
@@ -1171,7 +1181,8 @@ fn test_parse_struct() {
                 [ null, 2, [\"abc\", \"xyz\"] ]
             ]
         ]",
-    ).unwrap();
+    )
+    .unwrap();
 
     assert_eq!(
         v,
@@ -1659,7 +1670,8 @@ fn test_json_pointer() {
         " ": 7,
         "m~n": 8
     }"#,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(data.pointer("").unwrap(), &data);
     assert_eq!(data.pointer("/foo").unwrap(), &json!(["bar", "baz"]));
     assert_eq!(data.pointer("/foo/0").unwrap(), &json!("bar"));
@@ -1697,7 +1709,8 @@ fn test_json_pointer_mut() {
         " ": 7,
         "m~n": 8
     }"#,
-    ).unwrap();
+    )
+    .unwrap();
 
     // Basic pointer checks
     assert_eq!(data.pointer_mut("/foo").unwrap(), &json!(["bar", "baz"]));
@@ -1767,6 +1780,16 @@ fn test_integer_key() {
         j,
         "invalid type: string \"x\", expected i32 at line 1 column 4",
     )]);
+}
+
+#[test]
+fn test_integer128_key() {
+    let map = treemap! {
+        100000000000000000000000000000000000000u128 => ()
+    };
+    let j = r#"{"100000000000000000000000000000000000000":null}"#;
+    assert_eq!(to_string(&map).unwrap(), j);
+    assert_eq!(from_str::<BTreeMap<u128, ()>>(j).unwrap(), map);
 }
 
 #[test]
@@ -1889,6 +1912,13 @@ fn test_partialeq_number() {
 }
 
 #[test]
+#[cfg(integer128)]
+#[cfg(feature = "arbitrary_precision")]
+fn test_partialeq_integer128() {
+    number_partialeq_ok!(i128::MIN i128::MAX u128::MIN u128::MAX)
+}
+
+#[test]
 fn test_partialeq_string() {
     let v = to_value("42").unwrap();
     assert_eq!(v, "42");
@@ -1935,31 +1965,21 @@ fn test_category() {
     assert!(from_str::<Vec<usize>>("[0").unwrap_err().is_eof());
     assert!(from_str::<Vec<usize>>("[0,").unwrap_err().is_eof());
 
-    assert!(
-        from_str::<BTreeMap<String, usize>>("{")
-            .unwrap_err()
-            .is_eof()
-    );
-    assert!(
-        from_str::<BTreeMap<String, usize>>("{\"k\"")
-            .unwrap_err()
-            .is_eof()
-    );
-    assert!(
-        from_str::<BTreeMap<String, usize>>("{\"k\":")
-            .unwrap_err()
-            .is_eof()
-    );
-    assert!(
-        from_str::<BTreeMap<String, usize>>("{\"k\":0")
-            .unwrap_err()
-            .is_eof()
-    );
-    assert!(
-        from_str::<BTreeMap<String, usize>>("{\"k\":0,")
-            .unwrap_err()
-            .is_eof()
-    );
+    assert!(from_str::<BTreeMap<String, usize>>("{")
+        .unwrap_err()
+        .is_eof());
+    assert!(from_str::<BTreeMap<String, usize>>("{\"k\"")
+        .unwrap_err()
+        .is_eof());
+    assert!(from_str::<BTreeMap<String, usize>>("{\"k\":")
+        .unwrap_err()
+        .is_eof());
+    assert!(from_str::<BTreeMap<String, usize>>("{\"k\":0")
+        .unwrap_err()
+        .is_eof());
+    assert!(from_str::<BTreeMap<String, usize>>("{\"k\":0,")
+        .unwrap_err()
+        .is_eof());
 
     let fail = FailReader(io::ErrorKind::NotConnected);
     assert!(from_reader::<_, String>(fail).unwrap_err().is_io());
@@ -2038,4 +2058,111 @@ fn test_integer128() {
             "number out of range at line 1 column 39",
         ),
     ]);
+}
+
+#[cfg(feature = "raw_value")]
+#[test]
+fn test_borrowed_raw_value() {
+    use serde_json::value::RawValue;
+
+    #[derive(Serialize, Deserialize)]
+    struct Wrapper<'a> {
+        a: i8,
+        #[serde(borrow)]
+        b: &'a RawValue,
+        c: i8,
+    };
+
+    let wrapper_from_str: Wrapper =
+        serde_json::from_str(r#"{"a": 1, "b": {"foo": 2}, "c": 3}"#).unwrap();
+    assert_eq!(r#"{"foo": 2}"#, wrapper_from_str.b.get());
+
+    let wrapper_to_string = serde_json::to_string(&wrapper_from_str).unwrap();
+    assert_eq!(r#"{"a":1,"b":{"foo": 2},"c":3}"#, wrapper_to_string);
+
+    let wrapper_to_value = serde_json::to_value(&wrapper_from_str).unwrap();
+    assert_eq!(json!({"a": 1, "b": {"foo": 2}, "c": 3}), wrapper_to_value);
+
+    let array_from_str: Vec<&RawValue> =
+        serde_json::from_str(r#"["a", 42, {"foo": "bar"}, null]"#).unwrap();
+    assert_eq!(r#""a""#, array_from_str[0].get());
+    assert_eq!(r#"42"#, array_from_str[1].get());
+    assert_eq!(r#"{"foo": "bar"}"#, array_from_str[2].get());
+    assert_eq!(r#"null"#, array_from_str[3].get());
+
+    let array_to_string = serde_json::to_string(&array_from_str).unwrap();
+    assert_eq!(r#"["a",42,{"foo": "bar"},null]"#, array_to_string);
+}
+
+#[cfg(feature = "raw_value")]
+#[test]
+fn test_boxed_raw_value() {
+    use serde_json::value::RawValue;
+
+    #[derive(Serialize, Deserialize)]
+    struct Wrapper {
+        a: i8,
+        b: Box<RawValue>,
+        c: i8,
+    };
+
+    let wrapper_from_str: Wrapper =
+        serde_json::from_str(r#"{"a": 1, "b": {"foo": 2}, "c": 3}"#).unwrap();
+    assert_eq!(r#"{"foo": 2}"#, wrapper_from_str.b.get());
+
+    let wrapper_from_reader: Wrapper =
+        serde_json::from_reader(br#"{"a": 1, "b": {"foo": 2}, "c": 3}"#.as_ref()).unwrap();
+    assert_eq!(r#"{"foo": 2}"#, wrapper_from_reader.b.get());
+
+    let wrapper_from_value: Wrapper =
+        serde_json::from_value(json!({"a": 1, "b": {"foo": 2}, "c": 3})).unwrap();
+    assert_eq!(r#"{"foo":2}"#, wrapper_from_value.b.get());
+
+    let wrapper_to_string = serde_json::to_string(&wrapper_from_str).unwrap();
+    assert_eq!(r#"{"a":1,"b":{"foo": 2},"c":3}"#, wrapper_to_string);
+
+    let wrapper_to_value = serde_json::to_value(&wrapper_from_str).unwrap();
+    assert_eq!(json!({"a": 1, "b": {"foo": 2}, "c": 3}), wrapper_to_value);
+
+    let array_from_str: Vec<Box<RawValue>> =
+        serde_json::from_str(r#"["a", 42, {"foo": "bar"}, null]"#).unwrap();
+    assert_eq!(r#""a""#, array_from_str[0].get());
+    assert_eq!(r#"42"#, array_from_str[1].get());
+    assert_eq!(r#"{"foo": "bar"}"#, array_from_str[2].get());
+    assert_eq!(r#"null"#, array_from_str[3].get());
+
+    let array_from_reader: Vec<Box<RawValue>> =
+        serde_json::from_reader(br#"["a", 42, {"foo": "bar"}, null]"#.as_ref()).unwrap();
+    assert_eq!(r#""a""#, array_from_reader[0].get());
+    assert_eq!(r#"42"#, array_from_reader[1].get());
+    assert_eq!(r#"{"foo": "bar"}"#, array_from_reader[2].get());
+    assert_eq!(r#"null"#, array_from_reader[3].get());
+
+    let array_to_string = serde_json::to_string(&array_from_str).unwrap();
+    assert_eq!(r#"["a",42,{"foo": "bar"},null]"#, array_to_string);
+}
+
+#[test]
+fn test_borrow_in_map_key() {
+    #[derive(Deserialize, Debug)]
+    struct Outer {
+        map: BTreeMap<MyMapKey, ()>,
+    }
+
+    #[derive(Ord, PartialOrd, Eq, PartialEq, Debug)]
+    struct MyMapKey(usize);
+
+    impl<'de> Deserialize<'de> for MyMapKey {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: de::Deserializer<'de>,
+        {
+            let s = <&str>::deserialize(deserializer)?;
+            let n = s.parse().map_err(de::Error::custom)?;
+            Ok(MyMapKey(n))
+        }
+    }
+
+    let value = json!({ "map": { "1": null } });
+    Outer::deserialize(&value).unwrap();
 }

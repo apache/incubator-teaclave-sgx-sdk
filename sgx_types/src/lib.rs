@@ -27,7 +27,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #![no_std]
-#![feature(tool_lints)]
 
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]

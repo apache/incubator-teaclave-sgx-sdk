@@ -1,0 +1,11 @@
+[package]
+name = "protocol-derive-tests"
+version = "1.0.0" # do not change this, no point, it never gets published.
+authors = ["Dylan McKay <me@dylanmckay.io>"]
+
+publish = false
+
+[dependencies]
+protocol = { path = "../protocol" }
+protocol-derive = { path = "../protocol-derive" }
+

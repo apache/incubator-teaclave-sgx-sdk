@@ -1,3 +1,4 @@
+use std::prelude::v1::*;
 use std::cmp;
 use std::io::{self, Read};
 
@@ -100,7 +101,7 @@ impl<R: Read> Read for TransactionalReader<R> {
 
         let size = self.inner.read(buf)?;
         if self.in_transaction {
-            self.buffer.extend(&buf[0..size]);
+            self.buffer.extend_from_slice(&buf[0..size]);
             self.offset += size;
         }
         Ok(size)

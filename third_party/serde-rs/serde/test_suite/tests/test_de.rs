@@ -1,19 +1,5 @@
-// Copyright 2017 Serde Developers
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
-
-#![cfg_attr(
-    feature = "cargo-clippy",
-    allow(decimal_literal_representation)
-)]
+#![allow(clippy::decimal_literal_representation)]
 #![cfg_attr(feature = "unstable", feature(never_type))]
-
-#[macro_use]
-extern crate serde_derive;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::default::Default;
@@ -25,14 +11,9 @@ use std::rc::{Rc, Weak as RcWeak};
 use std::sync::{Arc, Weak as ArcWeak};
 use std::time::{Duration, UNIX_EPOCH};
 
-extern crate serde;
+use fnv::FnvHasher;
 use serde::{Deserialize, Deserializer};
-
-extern crate fnv;
-use self::fnv::FnvHasher;
-
-extern crate serde_test;
-use self::serde_test::{assert_de_tokens, assert_de_tokens_error, Configure, Token};
+use serde_test::{assert_de_tokens, assert_de_tokens_error, Configure, Token};
 
 #[macro_use]
 mod macros;
@@ -135,6 +116,13 @@ enum EnumSkipAll {
     Skipped,
 }
 
+#[derive(PartialEq, Debug, Deserialize)]
+enum EnumOther {
+    Unit,
+    #[serde(other)]
+    Other,
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 macro_rules! declare_tests {
@@ -156,8 +144,12 @@ macro_rules! declare_tests {
         )+
     };
 
-    ($($name:ident { $($value:expr => $tokens:expr,)+ })+) => {
+    ($(
+        $(#[$cfg:meta])*
+        $name:ident { $($value:expr => $tokens:expr,)+ }
+    )+) => {
         $(
+            $(#[$cfg])*
             #[test]
             fn $name() {
                 $(
@@ -217,7 +209,8 @@ fn assert_de_tokens_ignore(ignorable_tokens: &[Token]) {
         Token::Str("a"),
         Token::I32(1),
         Token::Str("ignored"),
-    ].into_iter()
+    ]
+    .into_iter()
     .chain(ignorable_tokens.to_vec().into_iter())
     .chain(vec![Token::MapEnd].into_iter())
     .collect();
@@ -260,6 +253,7 @@ declare_tests! {
         0f32 => &[Token::F32(0.)],
         0f64 => &[Token::F64(0.)],
     }
+    #[cfg(not(any(target_arch = "asmjs", target_arch = "wasm32")))]
     test_small_int_to_128 {
         1i128 => &[Token::I8(1)],
         1i128 => &[Token::I16(1)],
@@ -745,6 +739,20 @@ declare_tests! {
         Enum::Unit => &[
             Token::Enum { name: "Enum" },
             Token::Bytes(b"Unit"),
+            Token::Unit,
+        ],
+    }
+    test_enum_other_unit {
+        EnumOther::Unit => &[
+            Token::Enum { name: "EnumOther" },
+            Token::Str("Unit"),
+            Token::Unit,
+        ],
+    }
+    test_enum_other {
+        EnumOther::Other => &[
+            Token::Enum { name: "EnumOther" },
+            Token::Str("Foo"),
             Token::Unit,
         ],
     }

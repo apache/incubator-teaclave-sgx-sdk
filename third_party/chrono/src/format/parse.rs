@@ -82,7 +82,7 @@ fn parse_rfc2822<'a>(parsed: &mut Parsed, mut s: &'a str) -> ParseResult<(&'a st
     //   since we do not directly go to a `DateTime` so one can recover
     //   the offset information from `Parsed` anyway.
 
-    s = s.trim_left();
+    s = s.trim_start();
 
     if let Ok((s_, weekday)) = scan::short_weekday(s) {
         if !s_.starts_with(',') { return Err(INVALID); }
@@ -90,7 +90,7 @@ fn parse_rfc2822<'a>(parsed: &mut Parsed, mut s: &'a str) -> ParseResult<(&'a st
         try!(parsed.set_weekday(weekday));
     }
 
-    s = s.trim_left();
+    s = s.trim_start();
     try!(parsed.set_day(try_consume!(scan::number(s, 1, 2))));
     s = try!(scan::space(s)); // mandatory
     try!(parsed.set_month(1 + i64::from(try_consume!(scan::short_month0(s)))));
@@ -110,9 +110,9 @@ fn parse_rfc2822<'a>(parsed: &mut Parsed, mut s: &'a str) -> ParseResult<(&'a st
 
     s = try!(scan::space(s)); // mandatory
     try!(parsed.set_hour(try_consume!(scan::number(s, 2, 2))));
-    s = try!(scan::char(s.trim_left(), b':')).trim_left(); // *S ":" *S
+    s = try!(scan::char(s.trim_start(), b':')).trim_start(); // *S ":" *S
     try!(parsed.set_minute(try_consume!(scan::number(s, 2, 2))));
-    if let Ok(s_) = scan::char(s.trim_left(), b':') { // [ ":" *S 2DIGIT ]
+    if let Ok(s_) = scan::char(s.trim_start(), b':') { // [ ":" *S 2DIGIT ]
         try!(parsed.set_second(try_consume!(scan::number(s_, 2, 2))));
     }
 
@@ -223,7 +223,7 @@ pub fn parse<'a, I>(parsed: &mut Parsed, mut s: &str, items: I) -> ParseResult<(
             }
 
             Item::Space(_) | Item::OwnedSpace(_) => {
-                s = s.trim_left();
+                s = s.trim_start();
             }
 
             Item::Numeric(spec, _pad) => {
@@ -256,7 +256,7 @@ pub fn parse<'a, I>(parsed: &mut Parsed, mut s: &str, items: I) -> ParseResult<(
                     Internal(ref int) => match int._dummy {},
                 };
 
-                s = s.trim_left();
+                s = s.trim_start();
                 let v = if signed {
                     if s.starts_with('-') {
                         let v = try_consume!(scan::number(&s[1..], 1, usize::MAX));
@@ -336,19 +336,19 @@ pub fn parse<'a, I>(parsed: &mut Parsed, mut s: &str, items: I) -> ParseResult<(
                     TimezoneName => return Err(BAD_FORMAT),
 
                     TimezoneOffsetColon | TimezoneOffset => {
-                        let offset = try_consume!(scan::timezone_offset(s.trim_left(),
+                        let offset = try_consume!(scan::timezone_offset(s.trim_start(),
                                                                         scan::colon_or_space));
                         try!(parsed.set_offset(i64::from(offset)));
                     }
 
                     TimezoneOffsetColonZ | TimezoneOffsetZ => {
-                        let offset = try_consume!(scan::timezone_offset_zulu(s.trim_left(),
+                        let offset = try_consume!(scan::timezone_offset_zulu(s.trim_start(),
                                                                              scan::colon_or_space));
                         try!(parsed.set_offset(i64::from(offset)));
                     }
                     Internal(InternalFixed { val: InternalInternal::TimezoneOffsetPermissive }) => {
                         let offset = try_consume!(scan::timezone_offset_permissive(
-                            s.trim_left(), scan::colon_or_space));
+                            s.trim_start(), scan::colon_or_space));
                         try!(parsed.set_offset(i64::from(offset)));
                     }
 

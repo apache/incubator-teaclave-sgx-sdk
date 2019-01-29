@@ -20,8 +20,8 @@
 //! assert_eq!(decoded_data, b"Hello World!");
 //! ```
 pub use self::decode::Decoder;
-pub use self::encode::Encoder;
 pub use self::encode::EncodeOptions;
+pub use self::encode::Encoder;
 pub use self::encode::DEFAULT_BLOCK_SIZE;
 
 mod decode;
@@ -39,8 +39,8 @@ enum BlockType {
 mod test {
     use std::io::{Read, Write};
 
-    use lz77;
     use super::*;
+    use lz77;
 
     #[test]
     fn encode_and_decode_works() {

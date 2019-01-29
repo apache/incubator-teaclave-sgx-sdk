@@ -19,17 +19,19 @@
 //!
 //! assert_eq!(decoded_data, b"Hello World!");
 //! ```
-use std::io;
-use std::time;
-use std::ffi::CString;
+use byteorder::LittleEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
-use byteorder::LittleEndian;
+use std::prelude::v1::*;
+use std::ffi::CString;
+use std::io;
+use std::mem;
+//use std::time;
 
-use lz77;
-use deflate;
 use checksum;
-use finish::Finish;
+use deflate;
+use finish::{Complete, Finish};
+use lz77;
 
 const GZIP_ID: [u8; 2] = [31, 139];
 const COMPRESSION_METHOD_DEFLATE: u8 = 8;
@@ -50,11 +52,11 @@ const OS_QDOS: u8 = 12;
 const OS_ACORN_RISCOS: u8 = 13;
 const OS_UNKNOWN: u8 = 255;
 
-const F_TEXT: u8 = 0b000001;
-const F_HCRC: u8 = 0b000010;
-const F_EXTRA: u8 = 0b000100;
-const F_NAME: u8 = 0b001000;
-const F_COMMENT: u8 = 0b010000;
+const F_TEXT: u8 = 0b00_0001;
+const F_HCRC: u8 = 0b00_0010;
+const F_EXTRA: u8 = 0b00_0100;
+const F_NAME: u8 = 0b00_1000;
+const F_COMMENT: u8 = 0b01_0000;
 
 /// Compression levels defined by the GZIP format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -144,12 +146,13 @@ impl HeaderBuilder {
     /// assert_eq!(header.comment(), None);
     /// ```
     pub fn new() -> Self {
-        let modification_time = time::UNIX_EPOCH
-            .elapsed()
-            .map(|d| d.as_secs() as u32)
-            .unwrap_or(0);
+        //let modification_time = time::UNIX_EPOCH
+            //.elapsed()
+            //.map(|d| d.as_secs() as u32)
+            //.unwrap_or(0);
+        let modification_time = 0u32; // In SGX, we don't have accurate time and we cannot verify time.
         let header = Header {
-            modification_time: modification_time,
+            modification_time,
             compression_level: CompressionLevel::Unknown,
             os: Os::Unix,
             is_text: false,
@@ -158,7 +161,7 @@ impl HeaderBuilder {
             filename: None,
             comment: None,
         };
-        HeaderBuilder { header: header }
+        HeaderBuilder { header }
     }
 
     /// Sets the modification time (UNIX timestamp).
@@ -266,6 +269,11 @@ impl HeaderBuilder {
         self.header.clone()
     }
 }
+impl Default for HeaderBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// GZIP Header.
 #[derive(Debug, Clone)]
@@ -327,7 +335,8 @@ impl Header {
             (F_EXTRA, self.extra_field.is_some()),
             (F_NAME, self.filename.is_some()),
             (F_COMMENT, self.comment.is_some()),
-        ].iter()
+        ]
+            .iter()
             .filter(|e| e.1)
             .map(|e| e.0)
             .sum()
@@ -339,7 +348,7 @@ impl Header {
             is_verified: false,
             ..self.clone()
         }.write_to(&mut buf)
-            .unwrap();
+        .unwrap();
         crc.update(&buf);
         crc.value() as u16
     }
@@ -377,7 +386,7 @@ impl Header {
         if id != GZIP_ID {
             return Err(invalid_data_error!(
                 "Unexpected GZIP ID: value={:?}, \
-                                                    expected={:?}",
+                 expected={:?}",
                 id,
                 GZIP_ID
             ));
@@ -386,7 +395,7 @@ impl Header {
         if compression_method != COMPRESSION_METHOD_DEFLATE {
             return Err(invalid_data_error!(
                 "Compression methods other than DEFLATE(8) are \
-                                            unsupported: method={}",
+                 unsupported: method={}",
                 compression_method
             ));
         }
@@ -403,13 +412,16 @@ impl Header {
         if flags & F_COMMENT != 0 {
             this.comment = Some(read_cstring(&mut reader)?);
         }
-        if flags & F_HCRC != 0 {
+        // Checksum verification is skipped during fuzzing
+        // so that random data from fuzzer can reach actually interesting code.
+        // Compilation flag 'fuzzing' is automatically set by all 3 Rust fuzzers.
+        if flags & F_HCRC != 0 && cfg!(not(fuzzing)) {
             let crc = reader.read_u16::<LittleEndian>()?;
             let expected = this.crc16();
             if crc != expected {
                 return Err(invalid_data_error!(
                     "CRC16 of GZIP header mismatched: value={}, \
-                                                expected={}",
+                     expected={}",
                     crc,
                     expected
                 ));
@@ -572,7 +584,6 @@ impl Os {
     }
 }
 
-
 /// Options for a GZIP encoder.
 #[derive(Debug)]
 pub struct EncodeOptions<E>
@@ -622,7 +633,7 @@ where
         let mut header = HeaderBuilder::new().finish();
         header.compression_level = From::from(lz77.compression_level());
         EncodeOptions {
-            header: header,
+            header,
             options: deflate::EncodeOptions::with_lz77(lz77),
         }
     }
@@ -775,6 +786,22 @@ where
     ///
     /// assert!(encoder.finish().as_result().is_ok())
     /// ```
+    ///
+    /// # Note
+    ///
+    /// If you are not concerned the result of this encoding,
+    /// it may be convenient to use `AutoFinishUnchecked` instead of the explicit invocation of this method.
+    ///
+    /// ```
+    /// use std::io;
+    /// use libflate::finish::AutoFinishUnchecked;
+    /// use libflate::gzip::Encoder;
+    ///
+    /// let plain = b"Hello World!";
+    /// let mut buf = Vec::new();
+    /// let mut encoder = AutoFinishUnchecked::new(Encoder::new(&mut buf).unwrap());
+    /// io::copy(&mut &plain[..], &mut encoder).unwrap();
+    /// ```
     pub fn finish(self) -> Finish<W, io::Error> {
         let trailer = Trailer {
             crc32: self.crc32.value(),
@@ -786,10 +813,26 @@ where
             Err(e) => Finish::new(inner, Some(e)),
         }
     }
+
+    /// Returns the immutable reference to the inner stream.
+    pub fn as_inner_ref(&self) -> &W {
+        self.writer.as_inner_ref()
+    }
+
+    /// Returns the mutable reference to the inner stream.
+    pub fn as_inner_mut(&mut self) -> &mut W {
+        self.writer.as_inner_mut()
+    }
+
+    /// Unwraps the `Encoder`, returning the inner stream.
+    pub fn into_inner(self) -> W {
+        self.writer.into_inner()
+    }
 }
-impl<W> io::Write for Encoder<W>
+impl<W, E> io::Write for Encoder<W, E>
 where
     W: io::Write,
+    E: lz77::Lz77Encode,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let written_size = self.writer.write(buf)?;
@@ -799,6 +842,15 @@ where
     }
     fn flush(&mut self) -> io::Result<()> {
         self.writer.flush()
+    }
+}
+impl<W, E> Complete for Encoder<W, E>
+where
+    W: io::Write,
+    E: lz77::Lz77Encode,
+{
+    fn complete(self) -> io::Result<()> {
+        self.finish().into_result().map(|_| ())
     }
 }
 
@@ -835,12 +887,7 @@ where
     /// ```
     pub fn new(mut inner: R) -> io::Result<Self> {
         let header = Header::read_from(&mut inner)?;
-        Ok(Decoder {
-            header: header,
-            reader: deflate::Decoder::new(inner),
-            crc32: checksum::Crc32::new(),
-            eos: false,
-        })
+        Ok(Self::with_header(inner, header))
     }
 
     /// Returns the header of the GZIP stream.
@@ -860,6 +907,16 @@ where
         &self.header
     }
 
+    /// Returns the immutable reference to the inner stream.
+    pub fn as_inner_ref(&self) -> &R {
+        self.reader.as_inner_ref()
+    }
+
+    /// Returns the mutable reference to the inner stream.
+    pub fn as_inner_mut(&mut self) -> &mut R {
+        self.reader.as_inner_mut()
+    }
+
     /// Unwraps this `Decoder`, returning the underlying reader.
     ///
     /// # Examples
@@ -877,6 +934,15 @@ where
     pub fn into_inner(self) -> R {
         self.reader.into_inner()
     }
+
+    fn with_header(inner: R, header: Header) -> Self {
+        Decoder {
+            header,
+            reader: deflate::Decoder::new(inner),
+            crc32: checksum::Crc32::new(),
+            eos: false,
+        }
+    }
 }
 impl<R> io::Read for Decoder<R>
 where
@@ -891,7 +957,10 @@ where
             if read_size == 0 {
                 self.eos = true;
                 let trailer = Trailer::read_from(self.reader.as_inner_mut())?;
-                if trailer.crc32 != self.crc32.value() {
+                // checksum verification is skipped during fuzzing
+                // so that random data from fuzzer can reach actually interesting code
+                // Compilation flag 'fuzzing' is automatically set by all 3 Rust fuzzers.
+                if cfg!(not(fuzzing)) && trailer.crc32 != self.crc32.value() {
                     Err(invalid_data_error!(
                         "CRC32 mismatched: value={}, expected={}",
                         self.crc32.value(),
@@ -907,16 +976,166 @@ where
     }
 }
 
+/// A decoder that decodes all members in a GZIP stream.
+#[derive(Debug)]
+pub struct MultiDecoder<R> {
+    header: Header,
+    decoder: Result<Decoder<R>, R>,
+}
+impl<R> MultiDecoder<R>
+where
+    R: io::Read,
+{
+    /// Makes a new decoder instance.
+    ///
+    /// `inner` is to be decoded GZIP stream.
+    ///
+    /// # Examples
+    /// ```
+    /// use std::io::Read;
+    /// use libflate::gzip::MultiDecoder;
+    ///
+    /// let mut encoded_data = Vec::new();
+    ///
+    /// // Add a member (a GZIP binary that represents "Hello ")
+    /// encoded_data.extend(&[31, 139, 8, 0, 51, 206, 75, 90, 0, 3, 5, 128, 49, 9, 0, 0, 0, 194, 170, 24,
+    ///                       199, 34, 126, 3, 251, 127, 163, 131, 71, 192, 252, 45, 234, 6, 0, 0, 0][..]);
+    ///
+    /// // Add another member (a GZIP binary that represents "World!")
+    /// encoded_data.extend(&[31, 139, 8, 0, 227, 207, 75, 90, 0, 3, 5, 128, 49, 9, 0, 0, 0, 194, 178, 152,
+    ///                       202, 2, 158, 130, 96, 255, 99, 120, 111, 4, 222, 157, 40, 118, 6, 0, 0, 0][..]);
+    ///
+    /// let mut decoder = MultiDecoder::new(&encoded_data[..]).unwrap();
+    /// let mut buf = Vec::new();
+    /// decoder.read_to_end(&mut buf).unwrap();
+    ///
+    /// assert_eq!(buf, b"Hello World!");
+    /// ```
+    pub fn new(inner: R) -> io::Result<Self> {
+        let decoder = Decoder::new(inner)?;
+        Ok(MultiDecoder {
+            header: decoder.header().clone(),
+            decoder: Ok(decoder),
+        })
+    }
+
+    /// Returns the header of the current member in the GZIP stream.
+    ///
+    /// # Examples
+    /// ```
+    /// use libflate::gzip::{MultiDecoder, Os};
+    ///
+    /// let encoded_data = [31, 139, 8, 0, 123, 0, 0, 0, 0, 3, 1, 12, 0, 243, 255,
+    ///                     72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33,
+    ///                     163, 28, 41, 28, 12, 0, 0, 0];
+    ///
+    /// let decoder = MultiDecoder::new(&encoded_data[..]).unwrap();
+    /// assert_eq!(decoder.header().os(), Os::Unix);
+    /// ```
+    pub fn header(&self) -> &Header {
+        &self.header
+    }
+
+    /// Returns the immutable reference to the inner stream.
+    pub fn as_inner_ref(&self) -> &R {
+        match self.decoder {
+            Err(ref reader) => reader,
+            Ok(ref decoder) => decoder.as_inner_ref(),
+        }
+    }
+
+    /// Returns the mutable reference to the inner stream.
+    pub fn as_inner_mut(&mut self) -> &mut R {
+        match self.decoder {
+            Err(ref mut reader) => reader,
+            Ok(ref mut decoder) => decoder.as_inner_mut(),
+        }
+    }
+
+    /// Unwraps this `MultiDecoder`, returning the underlying reader.
+    ///
+    /// # Examples
+    /// ```
+    /// use std::io::Cursor;
+    /// use libflate::gzip::MultiDecoder;
+    ///
+    /// let encoded_data = [31, 139, 8, 0, 123, 0, 0, 0, 0, 3, 1, 12, 0, 243, 255,
+    ///                     72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33,
+    ///                     163, 28, 41, 28, 12, 0, 0, 0];
+    ///
+    /// let decoder = MultiDecoder::new(Cursor::new(&encoded_data[..])).unwrap();
+    /// assert_eq!(decoder.into_inner().into_inner(), &encoded_data[..]);
+    /// ```
+    pub fn into_inner(self) -> R {
+        match self.decoder {
+            Err(reader) => reader,
+            Ok(decoder) => decoder.into_inner(),
+        }
+    }
+}
+impl<R> io::Read for MultiDecoder<R>
+where
+    R: io::Read,
+{
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let read_size = match self.decoder {
+            Err(_) => return Ok(0),
+            Ok(ref mut decoder) => decoder.read(buf)?,
+        };
+        if read_size == 0 {
+            let mut reader = mem::replace(&mut self.decoder, Err(unsafe { mem::uninitialized() }))
+                .ok()
+                .take()
+                .expect("Never fails")
+                .into_inner();
+            match Header::read_from(&mut reader) {
+                Err(e) => {
+                    mem::forget(mem::replace(&mut self.decoder, Err(reader)));
+                    if e.kind() == io::ErrorKind::UnexpectedEof {
+                        Ok(0)
+                    } else {
+                        Err(e)
+                    }
+                }
+                Ok(header) => {
+                    self.header = header.clone();
+                    mem::forget(mem::replace(
+                        &mut self.decoder,
+                        Ok(Decoder::with_header(reader, header)),
+                    ));
+                    self.read(buf)
+                }
+            }
+        } else {
+            Ok(read_size)
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use std::io;
     use super::*;
+    use finish::AutoFinish;
+    use std::io;
 
-    fn decode_all(buf: &[u8]) -> io::Result<Vec<u8>> {
+    fn decode(buf: &[u8]) -> io::Result<Vec<u8>> {
         let mut decoder = Decoder::new(buf).unwrap();
         let mut buf = Vec::with_capacity(buf.len());
         io::copy(&mut decoder, &mut buf)?;
         Ok(buf)
+    }
+
+    fn decode_multi(buf: &[u8]) -> io::Result<Vec<u8>> {
+        let mut decoder = MultiDecoder::new(buf).unwrap();
+        let mut buf = Vec::with_capacity(buf.len());
+        io::copy(&mut decoder, &mut buf)?;
+        Ok(buf)
+    }
+
+    fn encode(text: &[u8]) -> io::Result<Vec<u8>> {
+        let mut encoder = Encoder::new(Vec::new()).unwrap();
+        io::copy(&mut &text[..], &mut encoder).unwrap();
+        encoder.finish().into_result()
     }
 
     #[test]
@@ -925,6 +1144,50 @@ mod test {
         let mut encoder = Encoder::new(Vec::new()).unwrap();
         io::copy(&mut &plain[..], &mut encoder).unwrap();
         let encoded = encoder.finish().into_result().unwrap();
-        assert_eq!(decode_all(&encoded).unwrap(), plain);
+        assert_eq!(decode(&encoded).unwrap(), plain);
+    }
+
+    #[test]
+    fn encoder_auto_finish_works() {
+        let plain = b"Hello World! Hello GZIP!!";
+        let mut buf = Vec::new();
+        {
+            let mut encoder = AutoFinish::new(Encoder::new(&mut buf).unwrap());
+            io::copy(&mut &plain[..], &mut encoder).unwrap();
+        }
+        assert_eq!(decode(&buf).unwrap(), plain);
+    }
+
+    #[test]
+    fn multi_decode_works() {
+        use std::iter;
+        let text = b"Hello World!";
+        let encoded: Vec<u8> = iter::repeat(encode(text).unwrap())
+            .take(2)
+            .flat_map(|b| b)
+            .collect();
+        assert_eq!(decode(&encoded).unwrap(), b"Hello World!");
+        assert_eq!(decode_multi(&encoded).unwrap(), b"Hello World!Hello World!");
+    }
+
+    #[test]
+    /// See: https://github.com/sile/libflate/issues/15 and https://github.com/RazrFalcon/usvg/issues/20
+    fn issue_15_1() {
+        let data = b"\x1F\x8B\x08\xC1\x7B\x7B\x7B\x7B\x7B\x7B\x7B\x7B\x7B\x7B\x7B\x7B\x7B\x7B\x7B\x7B\x7B\x7B\x80\x80\x80\x80\x7B\x7B\x7B\x7B\x7B\x7B\x97\x7B\x7B\x7B\x86\x27\xEB\x60\xA7\xA8\x46\x6E\x1F\x33\x51\x5C\x34\xE0\xD2\x2E\xE8\x0C\x19\x1D\x3D\x3C\xFD\x3B\x6A\xFA\x63\xDF\x28\x87\x86\xF2\xA6\xAC\x87\x86\xF2\xA6\xAC\xD5";
+        assert!(decode(&data[..]).is_err());
+    }
+
+    #[test]
+    /// See: https://github.com/sile/libflate/issues/15 and https://github.com/RazrFalcon/usvg/issues/21
+    fn issue_15_2() {
+        let data = b"\x1F\x8B\x08\xC1\x7B\x7B\x7B\x7B\x7B\xFC\x5D\x2D\xDC\x08\xC1\x7B\x7B\x7B\x7B\x7B\xFC\x5D\x2D\xDC\x08\xC1\x7B\x7F\x7B\x7B\x7B\xFC\x5D\x2D\xDC\x69\x32\x48\x22\x5A\x81\x81\x42\x42\x81\x7E\x81\x81\x81\x81\xF2\x17";
+        assert!(decode(&data[..]).is_err());
+    }
+
+    #[test]
+    /// See: https://github.com/sile/libflate/issues/15 and https://github.com/RazrFalcon/usvg/issues/22
+    fn issue_15_3() {
+        let data = b"\x1F\x8B\x08\xC1\x91\x28\x71\xDC\xF2\x2D\x34\x35\x31\x35\x34\x30\x70\x6E\x60\x35\x31\x32\x32\x33\x32\x33\x37\x32\x36\x38\xDD\x1C\xE5\x2A\xDD\xDD\xDD\x22\xDD\xDD\xDD\xDC\x88\x13\xC9\x40\x60\xA7";
+        assert!(decode(&data[..]).is_err());
     }
 }

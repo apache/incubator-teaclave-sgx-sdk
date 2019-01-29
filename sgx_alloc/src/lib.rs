@@ -114,11 +114,7 @@ mod platform {
     unsafe impl GlobalAlloc for System {
         #[inline]
         unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-            if layout.align() <= MIN_ALIGN && layout.align() <= layout.size() {
-                libc::malloc(layout.size()) as *mut u8
-            } else {
-                aligned_malloc(&layout)
-            }
+            libc::malloc(layout.size()) as *mut u8
         }
 
         #[inline]
@@ -151,17 +147,6 @@ mod platform {
             } else {
                 self.realloc_fallback(ptr, layout, new_size)
             }
-        }
-    }
-
-    #[inline]
-    unsafe fn aligned_malloc(layout: &Layout) -> *mut u8 {
-        let mut out = ptr::null_mut();
-        let ret = libc::posix_memalign(&mut out, layout.align(), layout.size());
-        if ret != 0 {
-            ptr::null_mut()
-        } else {
-            out as *mut u8
         }
     }
 }

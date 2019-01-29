@@ -1,11 +1,4 @@
-// Copyright 2017 Serde Developers
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
-
+use std::prelude::v1::*;
 use lib::*;
 
 use de::{
@@ -696,7 +689,6 @@ macro_rules! seq_impl {
     (
         $ty:ident < T $(: $tbound1:ident $(+ $tbound2:ident)*)* $(, $typaram:ident : $bound1:ident $(+ $bound2:ident)*)* >,
         $access:ident,
-        $ctor:expr,
         $clear:expr,
         $with_capacity:expr,
         $reserve:expr,
@@ -793,7 +785,6 @@ fn nop_reserve<T>(_seq: T, _n: usize) {}
 seq_impl!(
     BinaryHeap<T: Ord>,
     seq,
-    BinaryHeap::new(),
     BinaryHeap::clear,
     BinaryHeap::with_capacity(size_hint::cautious(seq.size_hint())),
     BinaryHeap::reserve,
@@ -803,7 +794,6 @@ seq_impl!(
 seq_impl!(
     BTreeSet<T: Eq + Ord>,
     seq,
-    BTreeSet::new(),
     BTreeSet::clear,
     BTreeSet::new(),
     nop_reserve,
@@ -813,7 +803,6 @@ seq_impl!(
 seq_impl!(
     LinkedList<T>,
     seq,
-    LinkedList::new(),
     LinkedList::clear,
     LinkedList::new(),
     nop_reserve,
@@ -824,7 +813,6 @@ seq_impl!(
 seq_impl!(
     HashSet<T: Eq + Hash, S: BuildHasher + Default>,
     seq,
-    HashSet::with_hasher(S::default()),
     HashSet::clear,
     HashSet::with_capacity_and_hasher(size_hint::cautious(seq.size_hint()), S::default()),
     HashSet::reserve,
@@ -832,25 +820,106 @@ seq_impl!(
 
 #[cfg(any(feature = "std", feature = "alloc"))]
 seq_impl!(
-    Vec<T>,
-    seq,
-    Vec::new(),
-    Vec::clear,
-    Vec::with_capacity(size_hint::cautious(seq.size_hint())),
-    Vec::reserve,
-    Vec::push
-);
-
-#[cfg(any(feature = "std", feature = "alloc"))]
-seq_impl!(
     VecDeque<T>,
     seq,
-    VecDeque::new(),
     VecDeque::clear,
     VecDeque::with_capacity(size_hint::cautious(seq.size_hint())),
     VecDeque::reserve,
     VecDeque::push_back
 );
+
+////////////////////////////////////////////////////////////////////////////////
+
+#[cfg(any(feature = "std", feature = "alloc"))]
+impl<'de, T> Deserialize<'de> for Vec<T>
+where
+    T: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct VecVisitor<T> {
+            marker: PhantomData<T>,
+        }
+
+        impl<'de, T> Visitor<'de> for VecVisitor<T>
+        where
+            T: Deserialize<'de>,
+        {
+            type Value = Vec<T>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a sequence")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let mut values = Vec::with_capacity(size_hint::cautious(seq.size_hint()));
+
+                while let Some(value) = try!(seq.next_element()) {
+                    values.push(value);
+                }
+
+                Ok(values)
+            }
+        }
+
+        let visitor = VecVisitor {
+            marker: PhantomData,
+        };
+        deserializer.deserialize_seq(visitor)
+    }
+
+    fn deserialize_in_place<D>(deserializer: D, place: &mut Self) -> Result<(), D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct VecInPlaceVisitor<'a, T: 'a>(&'a mut Vec<T>);
+
+        impl<'a, 'de, T> Visitor<'de> for VecInPlaceVisitor<'a, T>
+        where
+            T: Deserialize<'de>,
+        {
+            type Value = ();
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a sequence")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let hint = size_hint::cautious(seq.size_hint());
+                if let Some(additional) = hint.checked_sub(self.0.len()) {
+                    self.0.reserve(additional);
+                }
+
+                for i in 0..self.0.len() {
+                    let next = {
+                        let next_place = InPlaceSeed(&mut self.0[i]);
+                        try!(seq.next_element_seed(next_place))
+                    };
+                    if next.is_none() {
+                        self.0.truncate(i);
+                        return Ok(());
+                    }
+                }
+
+                while let Some(value) = try!(seq.next_element()) {
+                    self.0.push(value);
+                }
+
+                Ok(())
+            }
+        }
+
+        deserializer.deserialize_seq(VecInPlaceVisitor(place))
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1113,7 +1182,6 @@ macro_rules! map_impl {
     (
         $ty:ident < K $(: $kbound1:ident $(+ $kbound2:ident)*)*, V $(, $typaram:ident : $bound1:ident $(+ $bound2:ident)*)* >,
         $access:ident,
-        $ctor:expr,
         $with_capacity:expr
     ) => {
         impl<'de, K, V $(, $typaram)*> Deserialize<'de> for $ty<K, V $(, $typaram)*>
@@ -1168,14 +1236,12 @@ macro_rules! map_impl {
 map_impl!(
     BTreeMap<K: Ord, V>,
     map,
-    BTreeMap::new(),
     BTreeMap::new());
 
 #[cfg(feature = "std")]
 map_impl!(
     HashMap<K: Eq + Hash, V, S: BuildHasher + Default>,
     map,
-    HashMap::with_hasher(S::default()),
     HashMap::with_capacity_and_hasher(size_hint::cautious(map.size_hint()), S::default()));
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1354,7 +1420,7 @@ impl<'de> Deserialize<'de> for net::IpAddr {
             deserializer.deserialize_str(IpAddrVisitor)
         } else {
             use lib::net::IpAddr;
-            deserialize_enum!{
+            deserialize_enum! {
                 IpAddr IpAddrKind (V4; b"V4"; 0, V6; b"V6"; 1)
                 "`V4` or `V6`",
                 deserializer
@@ -1431,7 +1497,7 @@ impl<'de> Deserialize<'de> for net::SocketAddr {
             deserializer.deserialize_str(SocketAddrVisitor)
         } else {
             use lib::net::SocketAddr;
-            deserialize_enum!{
+            deserialize_enum! {
                 SocketAddr SocketAddrKind (V4; b"V4"; 0, V6; b"V6"; 1)
                 "`V4` or `V6`",
                 deserializer
@@ -1531,7 +1597,7 @@ impl<'de> Deserialize<'de> for PathBuf {
 //    #[derive(Deserialize)]
 //    #[serde(variant_identifier)]
 #[cfg(all(feature = "std", any(unix, windows)))]
-variant_identifier!{
+variant_identifier! {
     OsStringKind (Unix; b"Unix"; 0, Windows; b"Windows"; 1)
     "`Unix` or `Windows`",
     OSSTR_VARIANTS
@@ -1602,13 +1668,11 @@ forwarded_impl!((T), Box<[T]>, Vec::into_boxed_slice);
 #[cfg(any(feature = "std", feature = "alloc"))]
 forwarded_impl!((), Box<str>, String::into_boxed_str);
 
-#[cfg(
-    all(
-        not(de_rc_dst),
-        feature = "rc",
-        any(feature = "std", feature = "alloc")
-    )
-)]
+#[cfg(all(
+    not(de_rc_dst),
+    feature = "rc",
+    any(feature = "std", feature = "alloc")
+))]
 forwarded_impl! {
     /// This impl requires the [`"rc"`] Cargo feature of Serde.
     ///
@@ -1620,13 +1684,11 @@ forwarded_impl! {
     (T), Arc<T>, Arc::new
 }
 
-#[cfg(
-    all(
-        not(de_rc_dst),
-        feature = "rc",
-        any(feature = "std", feature = "alloc")
-    )
-)]
+#[cfg(all(
+    not(de_rc_dst),
+    feature = "rc",
+    any(feature = "std", feature = "alloc")
+))]
 forwarded_impl! {
     /// This impl requires the [`"rc"`] Cargo feature of Serde.
     ///
@@ -1693,13 +1755,7 @@ where
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[cfg(
-    all(
-        de_rc_dst,
-        feature = "rc",
-        any(feature = "std", feature = "alloc")
-    )
-)]
+#[cfg(all(de_rc_dst, feature = "rc", any(feature = "std", feature = "alloc")))]
 macro_rules! box_forwarded_impl {
     (
         $(#[doc = $doc:tt])*
@@ -1720,13 +1776,7 @@ macro_rules! box_forwarded_impl {
     };
 }
 
-#[cfg(
-    all(
-        de_rc_dst,
-        feature = "rc",
-        any(feature = "std", feature = "alloc")
-    )
-)]
+#[cfg(all(de_rc_dst, feature = "rc", any(feature = "std", feature = "alloc")))]
 box_forwarded_impl! {
     /// This impl requires the [`"rc"`] Cargo feature of Serde.
     ///
@@ -1738,13 +1788,7 @@ box_forwarded_impl! {
     Rc
 }
 
-#[cfg(
-    all(
-        de_rc_dst,
-        feature = "rc",
-        any(feature = "std", feature = "alloc")
-    )
-)]
+#[cfg(all(de_rc_dst, feature = "rc", any(feature = "std", feature = "alloc")))]
 box_forwarded_impl! {
     /// This impl requires the [`"rc"`] Cargo feature of Serde.
     ///
@@ -2252,8 +2296,15 @@ nonzero_integers! {
     NonZeroU16,
     NonZeroU32,
     NonZeroU64,
-    // FIXME: https://github.com/serde-rs/serde/issues/1136 NonZeroU128,
     NonZeroUsize,
+}
+
+// Currently 128-bit integers do not work on Emscripten targets so we need an
+// additional `#[cfg]`
+serde_if_integer128! {
+    nonzero_integers! {
+        NonZeroU128,
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

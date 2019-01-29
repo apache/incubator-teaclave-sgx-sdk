@@ -8,7 +8,7 @@ You may be looking for:
 
 - [An overview of Serde](https://serde.rs/)
 - [Data formats supported by Serde](https://serde.rs/#data-formats)
-- [Setting up `#[derive(Serialize, Deserialize)]`](https://serde.rs/codegen.html)
+- [Setting up `#[derive(Serialize, Deserialize)]`](https://serde.rs/derive.html)
 - [Examples](https://serde.rs/examples.html)
 - [API documentation](https://docs.serde.rs/serde/)
 - [Release notes](https://github.com/serde-rs/serde/releases)
@@ -16,11 +16,7 @@ You may be looking for:
 ## Serde in action
 
 ```rust
-#[macro_use]
-extern crate serde_derive;
-
-extern crate serde;
-extern crate serde_json;
+use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Point {

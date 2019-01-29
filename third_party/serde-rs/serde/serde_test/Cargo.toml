@@ -1,6 +1,6 @@
 [package]
 name = "serde_test"
-version = "1.0.71" # remember to update html_root_url
+version = "1.0.84" # remember to update html_root_url
 authors = ["Erick Tryzelaar <erick.tryzelaar@gmail.com>", "David Tolnay <dtolnay@gmail.com>"]
 license = "MIT/Apache-2.0"
 description = "Token De/Serializer for testing De/Serialize implementations"
@@ -15,8 +15,9 @@ include = ["Cargo.toml", "src/**/*.rs", "crates-io.md", "README.md", "LICENSE-AP
 serde = { version = "1.0.60", path = "../serde" }
 
 [dev-dependencies]
-serde = { version = "1.0", path = "../serde", features = ["rc"] }
+serde = { version = "1.0", path = "../serde" }
 serde_derive = { version = "1.0", path = "../serde_derive" }
 
 [badges]
 travis-ci = { repository = "serde-rs/serde" }
+appveyor = { repository = "serde-rs/serde" }

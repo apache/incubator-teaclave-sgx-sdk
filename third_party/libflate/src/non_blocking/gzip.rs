@@ -20,6 +20,7 @@
 //!
 //! assert_eq!(decoded_data, b"Hello World!");
 //! ```
+use std::prelude::v1::*;
 use std::io::{self, Read};
 
 use checksum;
@@ -81,12 +82,23 @@ impl<R: Read> Decoder<R> {
         if let Some(ref header) = self.header {
             Ok(header)
         } else {
-            let header = self.reader.bit_reader_mut().transaction(|r| {
-                Header::read_from(r.as_inner_mut())
-            })?;
+            let header = self
+                .reader
+                .bit_reader_mut()
+                .transaction(|r| Header::read_from(r.as_inner_mut()))?;
             self.header = Some(header);
             self.header()
         }
+    }
+
+    /// Returns the immutable reference to the inner stream.
+    pub fn as_inner_ref(&self) -> &R {
+        self.reader.as_inner_ref()
+    }
+
+    /// Returns the mutable reference to the inner stream.
+    pub fn as_inner_mut(&mut self) -> &mut R {
+        self.reader.as_inner_mut()
     }
 
     /// Unwraps this `Decoder`, returning the underlying reader.
@@ -116,13 +128,16 @@ impl<R: Read> Read for Decoder<R> {
             Ok(0)
         } else {
             let read_size = self.reader.read(buf)?;
-            self.crc32.update(&buf[..read_size]);
             if read_size == 0 {
-                let trailer = self.reader.bit_reader_mut().transaction(|r| {
-                    Trailer::read_from(r.as_inner_mut())
-                })?;
+                let trailer = self
+                    .reader
+                    .bit_reader_mut()
+                    .transaction(|r| Trailer::read_from(r.as_inner_mut()))?;
                 self.eos = true;
-                if trailer.crc32() != self.crc32.value() {
+                // checksum verification is skipped during fuzzing
+                // so that random data from fuzzer can reach actually interesting code
+                // Compilation flag 'fuzzing' is automatically set by all 3 Rust fuzzers.
+                if cfg!(not(fuzzing)) && trailer.crc32() != self.crc32.value() {
                     Err(invalid_data_error!(
                         "CRC32 mismatched: value={}, expected={}",
                         self.crc32.value(),
@@ -132,6 +147,7 @@ impl<R: Read> Read for Decoder<R> {
                     Ok(0)
                 }
             } else {
+                self.crc32.update(&buf[..read_size]);
                 Ok(read_size)
             }
         }
@@ -140,10 +156,10 @@ impl<R: Read> Read for Decoder<R> {
 
 #[cfg(test)]
 mod test {
-    use std::io;
-    use gzip::Encoder;
-    use util::{nb_read_to_end, WouldBlockReader};
     use super::*;
+    use gzip::Encoder;
+    use std::io;
+    use util::{nb_read_to_end, WouldBlockReader};
 
     fn decode_all(buf: &[u8]) -> io::Result<Vec<u8>> {
         let decoder = Decoder::new(WouldBlockReader::new(buf));
@@ -158,4 +174,13 @@ mod test {
         let encoded = encoder.finish().into_result().unwrap();
         assert_eq!(decode_all(&encoded).unwrap(), plain);
     }
+
+    #[test]
+    fn decode_works_noncompressed_block_offset_sync() {
+        let encoded = include_bytes!("../../data/noncompressed_block_offset_sync/offset.gz");
+        let decoded = include_bytes!("../../data/noncompressed_block_offset_sync/offset");
+        // decode_all(encoded).unwrap();
+        assert_eq!(decode_all(encoded).unwrap(), decoded.to_vec());
+    }
+
 }

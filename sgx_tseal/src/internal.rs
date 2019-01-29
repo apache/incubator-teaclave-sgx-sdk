@@ -51,6 +51,9 @@ const TSEAL_DEFAULT_FLAGSMASK: uint64_t = (!FLAGS_NON_SECURITY_BITS);
 const MISC_NON_SECURITY_BITS: uint32_t =  0x0FFF_FFFF;  /* bit[27:0]: have no security implications */
 const TSEAL_DEFAULT_MISCMASK: uint32_t =  (!MISC_NON_SECURITY_BITS);
 
+/* intel sgx sdk 2.4 */
+const KEY_POLICY_KSS: uint16_t = (SGX_KEYPOLICY_CONFIGID | SGX_KEYPOLICY_ISVFAMILYID | SGX_KEYPOLICY_ISVEXTPRODID);
+
 #[derive(Clone, Default)]
 pub struct SgxInternalUnsealedData {
     pub payload_size: u32,
@@ -275,7 +278,14 @@ impl SgxInternalSealedData {
         //let attribute_mask = sgx_attributes_t{flags: SGX_FLAGS_RESERVED | SGX_FLAGS_INITTED | SGX_FLAGS_DEBUG, xfrm: 0};
         /* intel sgx sdk 1.8 */
         let attribute_mask = sgx_attributes_t{flags: TSEAL_DEFAULT_FLAGSMASK, xfrm: 0};
-        Self::seal_data_ex(SGX_KEYPOLICY_MRSIGNER,
+        /* intel sgx sdk 2.4 */
+        let mut key_policy = SGX_KEYPOLICY_MRSIGNER;
+        let report = rsgx_self_report();
+        if (report.body.attributes.flags & SGX_FLAGS_KSS) != 0 {
+            key_policy = SGX_KEYPOLICY_MRSIGNER | KEY_POLICY_KSS;
+        }
+
+        Self::seal_data_ex(key_policy,
                            attribute_mask,
                            TSEAL_DEFAULT_MISCMASK,
                            additional_text,
@@ -301,7 +311,7 @@ impl SgxInternalSealedData {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
-        if (key_policy & (!(SGX_KEYPOLICY_MRENCLAVE | SGX_KEYPOLICY_MRSIGNER)) != 0) ||
+        if (key_policy & (!(SGX_KEYPOLICY_MRENCLAVE | SGX_KEYPOLICY_MRSIGNER | KEY_POLICY_KSS)) != 0) ||
            ((key_policy &  (SGX_KEYPOLICY_MRENCLAVE | SGX_KEYPOLICY_MRSIGNER)) == 0) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
@@ -320,11 +330,13 @@ impl SgxInternalSealedData {
                 return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
-        let target_info = sgx_target_info_t::default();
-        let report_data = sgx_report_data_t::default();
+        //let target_info = sgx_target_info_t::default();
+        //let report_data = sgx_report_data_t::default();
         let mut key_id = sgx_key_id_t::default();
 
-        let mut report = try!(rsgx_create_report(&target_info, &report_data));
+        /* intel sgx sdk 2.4 */
+        let mut report = rsgx_self_report();
+        //let mut report = try!(rsgx_create_report(&target_info, &report_data));
 
         let error = rsgx_read_rand(&mut key_id.id);
         if error.is_err() {
@@ -341,6 +353,7 @@ impl SgxInternalSealedData {
                                             attribute_mask,
                                             key_id,
                                             misc_mask,
+                                            config_svn: report.body.config_svn,
                                             reserved2: [0_u8; SGX_KEY_REQUEST_RESERVED2_BYTES]};
 
         let payload_iv = [0_u8; SGX_SEAL_IV_SIZE];
@@ -424,11 +437,13 @@ impl SgxInternalSealedData {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
-        let target_info = sgx_target_info_t::default();
-        let report_data = sgx_report_data_t::default();
+        //let target_info = sgx_target_info_t::default();
+        //let report_data = sgx_report_data_t::default();
         let mut key_id = sgx_key_id_t::default();
 
-        let mut report = try!(rsgx_create_report(&target_info, &report_data));
+        /* intel sgx sdk 2.4 */
+        let mut report = rsgx_self_report();
+        //let mut report = try!(rsgx_create_report(&target_info, &report_data));
 
         let error = rsgx_read_rand(&mut key_id.id);
         if error.is_err() {
@@ -445,6 +460,7 @@ impl SgxInternalSealedData {
                                             attribute_mask,
                                             key_id,
                                             misc_mask,
+                                            config_svn: report.body.config_svn,
                                             reserved2: [0_u8; SGX_KEY_REQUEST_RESERVED2_BYTES]};
 
         let payload_iv = [0_u8; SGX_SEAL_IV_SIZE];

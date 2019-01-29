@@ -1,9 +1,8 @@
-use std::io;
+use std::prelude::v1::*;
 use std::cmp;
+use std::io;
 use std::iter;
 use std::ops::Range;
-use std::vec::Vec;
-use std::boxed::Box;
 
 use bit;
 use huffman;
@@ -17,25 +16,7 @@ const FIXED_LITERAL_OR_LENGTH_CODE_TABLE: [(u8, Range<u16>, u16); 4] = [
 ];
 
 const BITWIDTH_CODE_ORDER: [usize; 19] = [
-    16,
-    17,
-    18,
-    0,
-    8,
-    7,
-    9,
-    6,
-    10,
-    5,
-    11,
-    4,
-    12,
-    3,
-    13,
-    2,
-    14,
-    1,
-    15,
+    16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15,
 ];
 
 const END_OF_BLOCK: u16 = 256;
@@ -72,6 +53,8 @@ const LENGTH_TABLE: [(u16, u8); 29] = [
     (258, 0),
 ];
 
+const MAX_DISTANCE_CODE_COUNT: usize = 30;
+
 const DISTANCE_TABLE: [(u16, u8); 30] = [
     (1, 0),
     (2, 0),
@@ -100,9 +83,9 @@ const DISTANCE_TABLE: [(u16, u8); 30] = [
     (4097, 11),
     (6145, 11),
     (8193, 12),
-    (12289, 12),
-    (16385, 13),
-    (24577, 13),
+    (12_289, 12),
+    (16_385, 13),
+    (24_577, 13),
 ];
 
 #[derive(Debug)]
@@ -114,32 +97,29 @@ pub enum Symbol {
 impl Symbol {
     pub fn code(&self) -> u16 {
         match *self {
-            Symbol::Literal(b) => b as u16,
+            Symbol::Literal(b) => u16::from(b),
             Symbol::EndOfBlock => 256,
-            Symbol::Share { length, .. } => {
-                match length {
-                    3...10 => 257 + length - 3,
-                    11...18 => 265 + (length - 11) / 2,
-                    19...34 => 269 + (length - 19) / 4,
-                    35...66 => 273 + (length - 35) / 8,
-                    67...130 => 277 + (length - 67) / 16,
-                    131...257 => 281 + (length - 131) / 32,
-                    258 => 285,
-                    _ => unreachable!(),
-                }
-            }
+            Symbol::Share { length, .. } => match length {
+                3...10 => 257 + length - 3,
+                11...18 => 265 + (length - 11) / 2,
+                19...34 => 269 + (length - 19) / 4,
+                35...66 => 273 + (length - 35) / 8,
+                67...130 => 277 + (length - 67) / 16,
+                131...257 => 281 + (length - 131) / 32,
+                258 => 285,
+                _ => unreachable!(),
+            },
         }
     }
     pub fn extra_lengh(&self) -> Option<(u8, u16)> {
         if let Symbol::Share { length, .. } = *self {
             match length {
-                3...10 => None,
+                3...10 | 258 => None,
                 11...18 => Some((1, (length - 11) % 2)),
                 19...34 => Some((2, (length - 19) % 4)),
                 35...66 => Some((3, (length - 35) % 8)),
                 67...130 => Some((4, (length - 67) % 16)),
                 131...257 => Some((5, (length - 131) % 32)),
-                258 => None,
                 _ => unreachable!(),
             }
         } else {
@@ -179,7 +159,7 @@ pub struct Encoder {
     distance: huffman::Encoder,
 }
 impl Encoder {
-    pub fn encode<W>(&self, writer: &mut bit::BitWriter<W>, symbol: Symbol) -> io::Result<()>
+    pub fn encode<W>(&self, writer: &mut bit::BitWriter<W>, symbol: &Symbol) -> io::Result<()>
     where
         W: io::Write,
     {
@@ -188,7 +168,7 @@ impl Encoder {
             writer.write_bits(bits, extra)?;
         }
         if let Some((code, bits, extra)) = symbol.distance() {
-            self.distance.encode(writer, code as u16)?;
+            self.distance.encode(writer, u16::from(code))?;
             if bits > 0 {
                 writer.write_bits(bits, extra)?;
             }
@@ -209,7 +189,10 @@ impl Decoder {
         R: io::Read,
     {
         let mut symbol = self.decode_literal_or_length(reader);
-        if let Symbol::Share { ref mut distance, .. } = symbol {
+        if let Symbol::Share {
+            ref mut distance, ..
+        } = symbol
+        {
             *distance = self.decode_distance(reader);
         }
         symbol
@@ -223,6 +206,11 @@ impl Decoder {
         match decoded {
             0...255 => Symbol::Literal(decoded as u8),
             256 => Symbol::EndOfBlock,
+            286 | 287 => {
+                let message = format!("The value {} must not occur in compressed data", decoded);
+                reader.set_last_error(io::Error::new(io::ErrorKind::InvalidData, message));
+                Symbol::EndOfBlock // dummy value
+            }
             length_code => {
                 let (base, extra_bits) =
                     unsafe { *LENGTH_TABLE.get_unchecked(length_code as usize - 257) };
@@ -242,13 +230,12 @@ impl Decoder {
         let decoded = self.distance.decode_unchecked(reader) as usize;
         let (base, extra_bits) = unsafe { *DISTANCE_TABLE.get_unchecked(decoded) };
         let extra = reader.read_bits_unchecked(extra_bits);
-        let distance = base + extra;
-        distance
+        base + extra
     }
 }
 
 pub trait HuffmanCodec {
-    fn build(&self, symbols: &[Symbol]) -> Encoder;
+    fn build(&self, symbols: &[Symbol]) -> io::Result<Encoder>;
     fn save<W>(&self, writer: &mut bit::BitWriter<W>, codec: &Encoder) -> io::Result<()>
     where
         W: io::Write;
@@ -261,26 +248,27 @@ pub trait HuffmanCodec {
 pub struct FixedHuffmanCodec;
 impl HuffmanCodec for FixedHuffmanCodec {
     #[allow(unused_variables)]
-    fn build(&self, symbols: &[Symbol]) -> Encoder {
+    fn build(&self, symbols: &[Symbol]) -> io::Result<Encoder> {
         let mut literal_builder = huffman::EncoderBuilder::new(288);
         for &(bitwidth, ref symbols, code_base) in &FIXED_LITERAL_OR_LENGTH_CODE_TABLE {
-            for (code, symbol) in symbols.clone().enumerate().map(|(i, s)| {
-                (code_base + i as u16, s)
-            })
+            for (code, symbol) in symbols
+                .clone()
+                .enumerate()
+                .map(|(i, s)| (code_base + i as u16, s))
             {
-                literal_builder.set_mapping(symbol, huffman::Code::new(bitwidth, code));
+                literal_builder.set_mapping(symbol, huffman::Code::new(bitwidth, code))?;
             }
         }
 
         let mut distance_builder = huffman::EncoderBuilder::new(30);
         for i in 0..30 {
-            distance_builder.set_mapping(i, huffman::Code::new(5, i));
+            distance_builder.set_mapping(i, huffman::Code::new(5, i))?;
         }
 
-        Encoder {
+        Ok(Encoder {
             literal: literal_builder.finish(),
             distance: distance_builder.finish(),
-        }
+        })
     }
     #[allow(unused_variables)]
     fn save<W>(&self, writer: &mut bit::BitWriter<W>, codec: &Encoder) -> io::Result<()>
@@ -296,17 +284,18 @@ impl HuffmanCodec for FixedHuffmanCodec {
     {
         let mut literal_builder = huffman::DecoderBuilder::new(9, Some(END_OF_BLOCK));
         for &(bitwidth, ref symbols, code_base) in &FIXED_LITERAL_OR_LENGTH_CODE_TABLE {
-            for (code, symbol) in symbols.clone().enumerate().map(|(i, s)| {
-                (code_base + i as u16, s)
-            })
+            for (code, symbol) in symbols
+                .clone()
+                .enumerate()
+                .map(|(i, s)| (code_base + i as u16, s))
             {
-                literal_builder.set_mapping(symbol, huffman::Code::new(bitwidth, code));
+                literal_builder.set_mapping(symbol, huffman::Code::new(bitwidth, code))?;
             }
         }
 
         let mut distance_builder = huffman::DecoderBuilder::new(5, None);
         for i in 0..30 {
-            distance_builder.set_mapping(i, huffman::Code::new(5, i));
+            distance_builder.set_mapping(i, huffman::Code::new(5, i))?;
         }
 
         Ok(Decoder {
@@ -319,7 +308,7 @@ impl HuffmanCodec for FixedHuffmanCodec {
 #[derive(Debug)]
 pub struct DynamicHuffmanCodec;
 impl HuffmanCodec for DynamicHuffmanCodec {
-    fn build(&self, symbols: &[Symbol]) -> Encoder {
+    fn build(&self, symbols: &[Symbol]) -> io::Result<Encoder> {
         let mut literal_counts = [0; 286];
         let mut distance_counts = [0; 30];
         for s in symbols {
@@ -328,10 +317,10 @@ impl HuffmanCodec for DynamicHuffmanCodec {
                 distance_counts[d as usize] += 1;
             }
         }
-        Encoder {
-            literal: huffman::EncoderBuilder::from_frequencies(&literal_counts, 15),
-            distance: huffman::EncoderBuilder::from_frequencies(&distance_counts, 15),
-        }
+        Ok(Encoder {
+            literal: huffman::EncoderBuilder::from_frequencies(&literal_counts, 15)?,
+            distance: huffman::EncoderBuilder::from_frequencies(&distance_counts, 15)?,
+        })
     }
     fn save<W>(&self, writer: &mut bit::BitWriter<W>, codec: &Encoder) -> io::Result<()>
     where
@@ -345,7 +334,7 @@ impl HuffmanCodec for DynamicHuffmanCodec {
         for x in &codes {
             code_counts[x.0 as usize] += 1;
         }
-        let bitwidth_encoder = huffman::EncoderBuilder::from_frequencies(&code_counts, 7);
+        let bitwidth_encoder = huffman::EncoderBuilder::from_frequencies(&code_counts, 7)?;
 
         let bitwidth_code_count = cmp::max(
             4,
@@ -358,21 +347,21 @@ impl HuffmanCodec for DynamicHuffmanCodec {
         writer.write_bits(5, literal_code_count - 257)?;
         writer.write_bits(5, distance_code_count - 1)?;
         writer.write_bits(4, bitwidth_code_count - 4)?;
-        for &i in BITWIDTH_CODE_ORDER.iter().take(
-            bitwidth_code_count as usize,
-        )
+        for &i in BITWIDTH_CODE_ORDER
+            .iter()
+            .take(bitwidth_code_count as usize)
         {
             let width = if code_counts[i] == 0 {
                 0
             } else {
-                bitwidth_encoder.lookup(i as u16).width as u16
+                u16::from(bitwidth_encoder.lookup(i as u16).width)
             };
             writer.write_bits(3, width)?;
         }
         for &(code, bits, extra) in &codes {
-            bitwidth_encoder.encode(writer, code as u16)?;
+            bitwidth_encoder.encode(writer, u16::from(code))?;
             if bits > 0 {
-                writer.write_bits(bits, extra as u16)?;
+                writer.write_bits(bits, u16::from(extra))?;
             }
         }
         Ok(())
@@ -385,15 +374,23 @@ impl HuffmanCodec for DynamicHuffmanCodec {
         let distance_code_count = reader.read_bits(5)? + 1;
         let bitwidth_code_count = reader.read_bits(4)? + 4;
 
+        if distance_code_count as usize > MAX_DISTANCE_CODE_COUNT {
+            let message = format!(
+                "The value of HDIST is too big: max={}, actual={}",
+                MAX_DISTANCE_CODE_COUNT, distance_code_count
+            );
+            return Err(io::Error::new(io::ErrorKind::InvalidData, message));
+        }
+
         let mut bitwidth_code_bitwidthes = [0; 19];
-        for &i in BITWIDTH_CODE_ORDER.iter().take(
-            bitwidth_code_count as usize,
-        )
+        for &i in BITWIDTH_CODE_ORDER
+            .iter()
+            .take(bitwidth_code_count as usize)
         {
             bitwidth_code_bitwidthes[i] = reader.read_bits(3)? as u8;
         }
         let bitwidth_decoder =
-            huffman::DecoderBuilder::from_bitwidthes(&bitwidth_code_bitwidthes, None);
+            huffman::DecoderBuilder::from_bitwidthes(&bitwidth_code_bitwidthes, None)?;
 
         let mut literal_code_bitwidthes = Vec::with_capacity(literal_code_count as usize);
         while literal_code_bitwidthes.len() < literal_code_count as usize {
@@ -407,17 +404,27 @@ impl HuffmanCodec for DynamicHuffmanCodec {
             .collect::<Vec<_>>();
         while distance_code_bitwidthes.len() < distance_code_count as usize {
             let c = bitwidth_decoder.decode(reader)?;
-            let last = distance_code_bitwidthes.last().cloned();
+            let last = distance_code_bitwidthes
+                .last()
+                .cloned()
+                .or_else(|| literal_code_bitwidthes.last().cloned());
             distance_code_bitwidthes.extend(load_bitwidthes(reader, c, last)?);
         }
-        debug_assert_eq!(distance_code_bitwidthes.len(), distance_code_count as usize);
+        if distance_code_bitwidthes.len() > distance_code_count as usize {
+            let message = format!(
+                "The length of `distance_code_bitwidthes` is too large: actual={}, expected={}",
+                distance_code_bitwidthes.len(),
+                distance_code_count
+            );
+            return Err(io::Error::new(io::ErrorKind::InvalidData, message));
+        }
 
         Ok(Decoder {
             literal: huffman::DecoderBuilder::from_bitwidthes(
                 &literal_code_bitwidthes,
                 Some(END_OF_BLOCK),
-            ),
-            distance: huffman::DecoderBuilder::from_bitwidthes(&distance_code_bitwidthes, None),
+            )?,
+            distance: huffman::DecoderBuilder::from_bitwidthes(&distance_code_bitwidthes, None)?,
         })
     }
 }
@@ -434,9 +441,7 @@ where
         0...15 => Box::new(iter::once(code as u8)),
         16 => {
             let count = reader.read_bits(2)? + 3;
-            let last = last.ok_or_else(
-                || invalid_data_error!("No preceeding value"),
-            )?;
+            let last = last.ok_or_else(|| invalid_data_error!("No preceding value"))?;
             Box::new(iter::repeat(last).take(count as usize))
         }
         17 => {
@@ -465,8 +470,7 @@ fn build_bitwidth_codes(
     for &(e, size) in &[
         (&codec.literal, literal_code_count),
         (&codec.distance, distance_code_count),
-    ]
-    {
+    ] {
         for (i, c) in (0..size).map(|x| e.lookup(x as u16).width).enumerate() {
             if i > 0 && run_lens.last().map_or(false, |s| s.value == c) {
                 run_lens.last_mut().unwrap().count += 1;

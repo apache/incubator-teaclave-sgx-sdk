@@ -31,7 +31,6 @@ use libc::{self, c_int, clockid_t, timespec};
 
 #[no_mangle]
 pub extern "C" fn u_clock_gettime_ocall(error: * mut c_int, clk_id: clockid_t, tp: * mut timespec) -> c_int {
-
     let mut errno = 0;
     let ret = unsafe { libc::clock_gettime(clk_id, tp) };
     if ret < 0 {

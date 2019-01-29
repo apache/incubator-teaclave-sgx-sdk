@@ -26,43 +26,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use sgx_types::sgx_status_t;
-use sgx_trts::libc::{self, c_void};
-use io::{self, Error};
-use core::cmp;
+use io;
+use sgx_trts::libc;
+use sys::fd::FileDesc;
 
 pub struct Stdin(());
 pub struct Stdout(());
 pub struct Stderr(());
 
-extern "C" {
-    pub fn u_stdin_ocall(result: * mut usize, buf: * mut c_void, nbytes: usize) -> sgx_status_t;
-    pub fn u_stdout_ocall(result: * mut usize, buf: * const c_void, nbytes: usize) -> sgx_status_t;
-    pub fn u_stderr_ocall(result: * mut usize, buf: * const c_void, nbytes: usize) -> sgx_status_t;
-}
-
-fn max_len() -> usize {
-    u32::max_value() as usize
-}
-
 impl Stdin {
     pub fn new() -> io::Result<Stdin> { Ok(Stdin(())) }
 
     pub fn read(&self, data: &mut [u8]) -> io::Result<usize> {
-
-        let mut result: isize = 0;
-        let status = unsafe {
-            u_stdin_ocall(&mut result as * mut isize as * mut usize,
-                          data.as_mut_ptr() as * mut c_void,
-                          cmp::min(data.len(), max_len()))
-        };
-        if status != sgx_status_t::SGX_SUCCESS {
-            return Err(Error::from_sgx_error(status));
-        } else if result == -1 {
-            return Err(Error::from_raw_os_error(libc::EIO));
-        }
-
-        Ok(result as usize)
+        let fd = FileDesc::new(libc::STDIN_FILENO);
+        let ret = fd.read(data);
+        fd.into_raw();
+        ret
     }
 }
 
@@ -70,20 +49,10 @@ impl Stdout {
     pub fn new() -> io::Result<Stdout> { Ok(Stdout(())) }
 
     pub fn write(&self, data: &[u8]) -> io::Result<usize> {
-
-        let mut result: isize = 0;
-        let status = unsafe {
-            u_stdout_ocall(&mut result as * mut isize as * mut usize,
-                           data.as_ptr() as * const c_void,
-                           cmp::min(data.len(), max_len()))
-        };
-        if status != sgx_status_t::SGX_SUCCESS {
-            return Err(Error::from_sgx_error(status));
-        } else if result == -1 {
-            return Err(Error::from_raw_os_error(libc::EIO));
-        }
-
-        Ok(result as usize)
+        let fd = FileDesc::new(libc::STDOUT_FILENO);
+        let ret = fd.write(data);
+        fd.into_raw();
+        ret
     }
 
     pub fn flush(&self) -> io::Result<()> {
@@ -95,20 +64,10 @@ impl Stderr {
     pub fn new() -> io::Result<Stderr> { Ok(Stderr(())) }
 
     pub fn write(&self, data: &[u8]) -> io::Result<usize> {
-
-        let mut result: isize = 0;
-        let status = unsafe {
-            u_stderr_ocall(&mut result as * mut isize as * mut usize,
-                           data.as_ptr() as * const c_void,
-                           cmp::min(data.len(), max_len()))
-        };
-        if status != sgx_status_t::SGX_SUCCESS {
-            return Err(Error::from_sgx_error(status));
-        } else if result == -1 {
-            return Err(Error::from_raw_os_error(libc::EIO));
-        }
-
-        Ok(result as usize)
+        let fd = FileDesc::new(libc::STDERR_FILENO);
+        let ret = fd.write(data);
+        fd.into_raw();
+        ret
     }
 
     pub fn flush(&self) -> io::Result<()> {
@@ -134,3 +93,7 @@ pub fn is_ebadf(err: &io::Error) -> bool {
 }
 
 pub const STDIN_BUF_SIZE: usize = ::sys_common::io::DEFAULT_BUF_SIZE;
+
+pub fn stderr_prints_nothing() -> bool {
+    false
+}
