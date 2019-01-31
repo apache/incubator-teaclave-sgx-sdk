@@ -119,7 +119,7 @@ pub struct Repeat { byte: u8 }
 ///
 /// All reads from this reader will succeed by filling the specified buffer with
 /// the given byte.
-pub fn repeat(byte: u8) -> Repeat { Repeat { byte: byte } }
+pub fn repeat(byte: u8) -> Repeat { Repeat { byte } }
 
 impl Read for Repeat {
     #[inline]

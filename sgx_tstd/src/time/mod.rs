@@ -226,6 +226,13 @@ impl SystemTime {
         SystemTime::now().duration_since(*self)
     }
 
+    /// Returns `Some(t)` where `t` is the time `self + duration` if `t` can be represented as
+    /// `SystemTime` (which means it's inside the bounds of the underlying data structure), `None`
+    /// otherwise.
+    pub fn checked_add(&self, duration: Duration) -> Option<SystemTime> {
+        self.0.checked_add_duration(&duration).map(|t| SystemTime(t))
+    }
+
     /// Return a tup (sec, nsec)
     ///
     pub fn get_tup(&self) -> (i64, i64) {

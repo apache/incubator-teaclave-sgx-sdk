@@ -139,7 +139,7 @@ impl<T> PoisonError<T> {
     /// This is generally created by methods like [`SgxMutex::lock`] or [`SgxRwLock::read`].
     ///
     pub fn new(guard: T) -> PoisonError<T> {
-        PoisonError { guard: guard }
+        PoisonError { guard }
     }
 
     /// Consumes this error indicating that a lock is poisoned, returning the

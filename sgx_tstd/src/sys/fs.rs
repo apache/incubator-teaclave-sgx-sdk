@@ -256,7 +256,7 @@ impl File {
         cvt(unsafe {
             libc::fstat64(self.0.raw(), &mut stat)
         })?;
-        Ok(FileAttr { stat: stat })
+        Ok(FileAttr { stat })
     }
 
     pub fn fsync(&self) -> io::Result<()> {
@@ -431,7 +431,7 @@ pub fn stat(p: &Path) -> io::Result<FileAttr> {
     cvt(unsafe {
         libc::stat64(p.as_ptr(), &mut stat as *mut _)
     })?;
-    Ok(FileAttr { stat: stat })
+    Ok(FileAttr { stat })
 }
 
 pub fn lstat(p: &Path) -> io::Result<FileAttr> {
@@ -440,7 +440,7 @@ pub fn lstat(p: &Path) -> io::Result<FileAttr> {
     cvt(unsafe {
         libc::lstat64(p.as_ptr(), &mut stat as *mut _)
     })?;
-    Ok(FileAttr { stat: stat })
+    Ok(FileAttr { stat })
 }
 
 pub fn canonicalize(p: &Path) -> io::Result<PathBuf> {

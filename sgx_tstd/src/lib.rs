@@ -62,6 +62,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(array_error_internals)]
 #![feature(box_syntax)]
+#![feature(c_variadic)]
 #![feature(cfg_target_has_atomic)]
 #![feature(char_error_internals)]
 #![feature(compiler_builtins_lib)]

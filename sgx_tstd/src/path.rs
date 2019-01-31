@@ -50,6 +50,8 @@ use sys::path::{is_sep_byte, is_verbatim_sep, MAIN_SEP_STR, parse_prefix};
 use alloc_crate::borrow::{Borrow, Cow};
 use alloc_crate::rc::Rc;
 use alloc_crate::sync::Arc;
+use alloc_crate::str::FromStr;
+use alloc_crate::string::ParseError;
 use core::cmp;
 use core::fmt;
 use core::hash::{Hash, Hasher};
@@ -1055,6 +1057,14 @@ impl From<PathBuf> for OsString {
 impl From<String> for PathBuf {
     fn from(s: String) -> PathBuf {
         PathBuf::from(OsString::from(s))
+    }
+}
+
+impl FromStr for PathBuf {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(PathBuf::from(s))
     }
 }
 

@@ -187,6 +187,8 @@ impl RefUnwindSafe for atomic::AtomicI16 {}
 impl RefUnwindSafe for atomic::AtomicI32 {}
 #[cfg(target_has_atomic = "64")]
 impl RefUnwindSafe for atomic::AtomicI64 {}
+#[cfg(target_has_atomic = "128")]
+impl RefUnwindSafe for atomic::AtomicI128 {}
 
 #[cfg(target_has_atomic = "ptr")]
 impl RefUnwindSafe for atomic::AtomicUsize {}
@@ -198,6 +200,8 @@ impl RefUnwindSafe for atomic::AtomicU16 {}
 impl RefUnwindSafe for atomic::AtomicU32 {}
 #[cfg(target_has_atomic = "64")]
 impl RefUnwindSafe for atomic::AtomicU64 {}
+#[cfg(target_has_atomic = "128")]
+impl RefUnwindSafe for atomic::AtomicU128 {}
 
 #[cfg(target_has_atomic = "8")]
 impl RefUnwindSafe for atomic::AtomicBool {}

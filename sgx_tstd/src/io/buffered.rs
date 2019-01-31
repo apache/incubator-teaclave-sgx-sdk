@@ -323,6 +323,12 @@ impl<W: Write> BufWriter<W> {
     ///
     pub fn get_ref(&self) -> &W { self.inner.as_ref().unwrap() }
 
+    /// Returns a reference to the internally buffered data.
+    ///
+    pub fn buffer(&self) -> &[u8] {
+        &self.buf
+    }
+
     /// Gets a mutable reference to the underlying writer.
     ///
     /// It is inadvisable to directly write to the underlying writer.

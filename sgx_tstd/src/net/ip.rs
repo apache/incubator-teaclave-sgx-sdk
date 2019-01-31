@@ -213,7 +213,7 @@ impl Ipv4Addr {
     /// This property is defined in _UNIX Network Programming, Second Edition_,
     /// W. Richard Stevens, p. 891; see also [ip7].
     ///
-    pub fn is_unspecified(&self) -> bool {
+    pub const fn is_unspecified(&self) -> bool {
         self.inner.s_addr == 0
     }
 
@@ -647,7 +647,7 @@ impl Ipv6Addr {
 
     /// Returns the sixteen eight-bit integers the IPv6 address consists of.
     ///
-    pub fn octets(&self) -> [u8; 16] {
+    pub const fn octets(&self) -> [u8; 16] {
         self.inner.s6_addr
     }
 }
