@@ -159,7 +159,7 @@ macro_rules! should_panic {
 #[macro_export]
 macro_rules! rsgx_unit_tests {
     (
-        $($f : ident),*
+        $($f : path),*
     ) => {
         rsgx_unit_test_start();
         let mut ntestcases : u64 = 0u64;
