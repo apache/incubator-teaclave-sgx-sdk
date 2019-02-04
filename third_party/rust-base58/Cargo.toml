@@ -1,0 +1,20 @@
+[package]
+name = "rust-base58"
+version = "0.0.4"
+authors = ["Nick Hamann <nick@wabbo.org>"]
+license = "MIT/Apache-2.0"
+homepage = "https://github.com/nham/rust-base58"
+repository = "https://github.com/nham/rust-base58"
+description = """
+Simple library for converting to and from base-58 strings.
+"""
+
+[dependencies]
+num = { path = "../num" }
+num-bigint = { path = "../num/bigint"} 
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path = "../../sgx_tstd" }
+
+[dev-dependencies]
+rand = "*"
