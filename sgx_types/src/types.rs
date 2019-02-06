@@ -27,7 +27,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use core::default::Default;
-use core::mem::transmute;
 use error::*;
 use marker::ContiguousMemory;
 
@@ -1145,7 +1144,7 @@ pub struct sgx_uswitchless_config_t {
 
 impl Default for sgx_uswitchless_config_t {
     fn default() -> sgx_uswitchless_config_t {
-        let mut config: sgx_uswitchless_config_t = unsafe{ transmute([0u8; 56]) };
+        let mut config: sgx_uswitchless_config_t = unsafe{ core::mem::zeroed() };
         config.num_uworkers = 1;
         config.num_tworkers = 1;
         config
