@@ -164,7 +164,7 @@ macro_rules! rsgx_unit_tests {
         rsgx_unit_test_start();
         let mut ntestcases : u64 = 0u64;
         let mut failurecases : Vec<String> = Vec::new();
-        $(rsgx_unit_test(&mut ntestcases, &mut failurecases, &$f,stringify!($f));)*
+        $(rsgx_unit_test(&mut ntestcases, &mut failurecases, $f,stringify!($f));)*
         rsgx_unit_test_end(ntestcases, failurecases);
     }
 }
@@ -212,7 +212,8 @@ pub fn rsgx_unit_test_end(ntestcases : u64, failurecases : Vec<String>) {
 /// and on test fails, it records the failed test.
 /// Required test function must be `Fn()`, taking nothing as input and returns
 /// nothing.
-pub fn rsgx_unit_test(ncases: &mut u64, failurecases: &mut Vec<String>, f:&'static Fn(), name: &str ) {
+pub fn rsgx_unit_test<F, R>(ncases: &mut u64, failurecases: &mut Vec<String>, f:F, name: &str)
+    where F: FnOnce() -> R + std::panic::UnwindSafe {
     *ncases = *ncases + 1;
     match std::panic::catch_unwind (|| { f(); } ).is_ok() {
         true => {
