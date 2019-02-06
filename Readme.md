@@ -5,6 +5,9 @@ Rust SGX SDK helps developers write Intel SGX applications in Rust programming l
 
 To achieve better security, we recommend developers to apply [Non-bypassable Security Paradigm (NbSP)](https://github.com/baidu/rust-sgx-sdk/blob/master/documents/nbsp.pdf) to the system design and implementation.
 
+## v1.0.6 Release
+Fix bugs in sgx_alloc, sgx_types, ucd-generate and improve sgx_ttunittest. Added rust-base58. Thanks to @elichai, @cbeck88, @brenzi and @nhynes.
+
 ## v1.0.5 Release
 This version supports Rust nightly build (nightly-2019-01-28, v1.34.0) in the master branch and the most recent stable build (stable-2019-01-16, v1.32.0) in the rust-stable branch. It supports the latest Intel SGX SDK **v2.4.0** and Ubuntu Linux 16.04+18.04. We provide support to Intel's Protected Code Loader. We provide sgx_ucrypto and sgx_crypto_helper for using SGX-style crypto primitives in untrusted app and RSA keypair serialization/deserialization in both trusted and untrusted programs. We re-organize ocall related interfaces and provide them in a new crate sgx_libc with a bunch of new ocall functions. In addition, we port net2 to SGX. Please refer to [release_notes](release_notes.md) for further details.
 

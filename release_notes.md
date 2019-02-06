@@ -1,3 +1,15 @@
+# Rust SGX SDK v1.0.6 Release Notes
+
+**Add proper support to memalign in sgx_alloc** Thanks to @cbeck88.
+
+**Use `core::mem::zeroed` to get a zero-initialized struct** Thanks to @cbeck88.
+
+**Fix ucd-generate lazy_static dep** Thanks to @nhynes.
+
+**Added support for closures in sgx_tunittest** Thanks to @elichai.
+
+**Added rust-base58** Thanks to @brenzi.
+
 # Rust SGX SDK v1.0.5 Release Notes
 
 **Upgrade Recommended** Intel issued a security advisory [INTEL-SA-00202](https://www.intel.com/content/www/us/en/security-center/advisory/intel-sa-00202.html) and fixed the problem in Intel SGX SDK v2.4.
