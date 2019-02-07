@@ -39,18 +39,35 @@ extern crate sgx_tseal;
 extern crate sgx_tstd as std;
 extern crate sgx_rand;
 
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_cbor;
+
 use sgx_types::{sgx_status_t, sgx_sealed_data_t};
 use sgx_types::marker::ContiguousMemory;
 use sgx_tseal::{SgxSealedData};
 use sgx_rand::{Rng, StdRng};
+use std::vec::Vec;
 
-#[derive(Copy, Clone, Default, Debug)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
 struct RandData {
     key: u32,
     rand: [u8; 16],
+    vec: Vec<u8>,
 }
 
 unsafe impl ContiguousMemory for RandData {}
+
+#[derive(Clone, Copy)]
+struct EncodedData<'a> (pub &'a [u8]);
+
+unsafe impl<'a> ContiguousMemory for EncodedData<'a> {}
+
+impl<'a> From<&'a[u8]> for EncodedData<'a> {
+    fn from(data: &'a[u8]) -> Self {
+        EncodedData(data)
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn create_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) -> sgx_status_t {
@@ -64,8 +81,16 @@ pub extern "C" fn create_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) 
     };
     rand.fill_bytes(&mut data.rand);
 
+    data.vec.extend(data.rand.iter());
+
+    let encoded_vec = serde_cbor::to_vec(&data).unwrap();
+    let encoded_slice = encoded_vec.as_slice();
+    println!("Length of encoded slice: {}", encoded_slice.len());
+    println!("Encoded slice: {:?}", encoded_slice);
+    let encoded: EncodedData = EncodedData::from(encoded_slice);
+
     let aad: [u8; 0] = [0_u8; 0];
-    let result = SgxSealedData::<RandData>::seal_data(&aad, &data);
+    let result = SgxSealedData::<EncodedData>::seal_data(&aad, &encoded);
     let sealed_data = match result {
         Ok(x) => x,
         Err(ret) => { return ret; },
@@ -84,7 +109,7 @@ pub extern "C" fn create_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) 
 #[no_mangle]
 pub extern "C" fn verify_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) -> sgx_status_t {
 
-    let opt = from_sealed_log::<RandData>(sealed_log, sealed_log_size);
+    let opt = from_sealed_log::<EncodedData>(sealed_log, sealed_log_size);
     let sealed_data = match opt {
         Some(x) => x,
         None => {
@@ -100,7 +125,11 @@ pub extern "C" fn verify_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) 
         },
     };
 
-    let data = unsealed_data.get_decrypt_txt();
+    let encoded_data: &EncodedData = unsealed_data.get_decrypt_txt();
+    let encoded_slice = encoded_data.0;
+    println!("Length of encoded slice: {}", encoded_slice.len());
+    println!("Encoded slice: {:?}", encoded_slice);
+    let data: RandData = serde_cbor::from_slice(encoded_slice).unwrap();
 
     println!("{:?}", data);
 
