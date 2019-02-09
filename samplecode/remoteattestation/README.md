@@ -6,7 +6,31 @@ For users' convenience, we simply add `SGX_MODE=HW SGX_PRERELEASE=1` into Makefi
 
 btw. Dependencies include `libjsoncpp-dev` which is missing from below.
 
-#Linux SGX remote attestation (Original Readme below)
+# Certificate configuration in GeneralSettings.h
+
+There are **two** set of crt/keys in GeneralSettings.h.
+
+* `server_crt` and `server_key` is for the connection between Service Provider and Application. This is **not** used in IAS connection.
+
+* `static const char *ias_crt = "";` This is the path of the client cert generated for IAS registration. During the IAS registration, one always generates two files: `client.crt` and `client.key`. Use the following commands to combine them into one PEM file and place it here:
+
+```
+$ openssl pkcs12 -export -in ./client.crt -inkey client.key > client.p12
+Enter Export Password:
+Verifying - Enter Export Password:
+
+$ openssl pkcs12 -in client.p12 -out client.pem -clcerts
+Enter Import Password:
+MAC verified OK
+Enter PEM pass phrase:
+Verifying - Enter PEM pass phrase:
+```
+
+# Signature policy definition in ServiceProvider.cpp
+
+Please check your [signature policy](https://software.intel.com/en-us/articles/signature-policy) and set it up [here](https://github.com/baidu/rust-sgx-sdk/blob/3ac5a21c3720bd819c938d28df11cbae499f3bc5/samplecode/remoteattestation/ServiceProvider/service_provider/ServiceProvider.cpp#L222). Wrong signature policy would trigger IAS HTTP error code 400 in MSG3.
+
+# Linux SGX remote attestation (Original Readme below)
 Example of a remote attestation with Intel's SGX including the communication with IAS.
 
 The code requires the installation of Intel SGX [here](https://github.com/01org/linux-sgx) and
