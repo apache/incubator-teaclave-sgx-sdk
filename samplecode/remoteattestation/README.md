@@ -26,6 +26,16 @@ Enter PEM pass phrase:
 Verifying - Enter PEM pass phrase:
 ```
 
+Then the settings should be:
+
+```
+static const char *ias_crt = "client.pem"
+```
+
+During Remote attestation, the PEM pass phrase would be required.
+
+As the most simple setup, one can just use IAS client crt/key for `server_crt` and `server_key`. It works.
+
 # Signature policy definition in ServiceProvider.cpp
 
 Please check your [signature policy](https://software.intel.com/en-us/articles/signature-policy) and set it up [here](https://github.com/baidu/rust-sgx-sdk/blob/3ac5a21c3720bd819c938d28df11cbae499f3bc5/samplecode/remoteattestation/ServiceProvider/service_provider/ServiceProvider.cpp#L222). Wrong signature policy would trigger IAS HTTP error code 400 in MSG3.
