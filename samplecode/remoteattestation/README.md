@@ -38,7 +38,7 @@ As the most simple setup, one can just use IAS client crt/key for `server_crt` a
 
 # Signature policy definition in ServiceProvider.cpp
 
-Please check your [signature policy](https://software.intel.com/en-us/articles/signature-policy) and set it up [here](https://github.com/baidu/rust-sgx-sdk/blob/3ac5a21c3720bd819c938d28df11cbae499f3bc5/samplecode/remoteattestation/ServiceProvider/service_provider/ServiceProvider.cpp#L222). Wrong signature policy would trigger IAS HTTP error code 400 in MSG3.
+Please check your [signature policy](https://software.intel.com/en-us/articles/signature-policy) and set it up [here](https://github.com/baidu/rust-sgx-sdk/blob/3ac5a21c3720bd819c938d28df11cbae499f3bc5/samplecode/remoteattestation/ServiceProvider/service_provider/ServiceProvider.cpp#L222) and [here](https://github.com/baidu/rust-sgx-sdk/blob/c1bf3775e4abbd79a26450f91655d3f67f9e0083/samplecode/remoteattestation/ServiceProvider/service_provider/ServiceProvider.cpp#L291). Wrong signature policy would trigger IAS HTTP error code 400 in MSG3.
 
 # Linux SGX remote attestation (Original Readme below)
 Example of a remote attestation with Intel's SGX including the communication with IAS.
