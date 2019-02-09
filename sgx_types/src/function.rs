@@ -396,6 +396,9 @@ extern {
                            p_key: * mut sgx_ra_key_128_t) -> sgx_status_t;
 
     pub fn sgx_ra_close(context: sgx_ra_context_t) -> sgx_status_t;
+
+    pub fn sgx_ra_get_ga(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
+                         context: sgx_ra_context_t, g_a: *mut sgx_ec256_public_t) -> sgx_status_t;
 }
 
 
