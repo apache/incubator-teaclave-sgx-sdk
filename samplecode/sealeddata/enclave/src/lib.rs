@@ -58,17 +58,6 @@ struct RandData {
 
 unsafe impl ContiguousMemory for RandData {}
 
-#[derive(Clone, Copy)]
-struct EncodedData<'a> (pub &'a [u8]);
-
-unsafe impl<'a> ContiguousMemory for EncodedData<'a> {}
-
-impl<'a> From<&'a[u8]> for EncodedData<'a> {
-    fn from(data: &'a[u8]) -> Self {
-        EncodedData(data)
-    }
-}
-
 #[no_mangle]
 pub extern "C" fn create_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) -> sgx_status_t {
 
@@ -87,10 +76,9 @@ pub extern "C" fn create_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) 
     let encoded_slice = encoded_vec.as_slice();
     println!("Length of encoded slice: {}", encoded_slice.len());
     println!("Encoded slice: {:?}", encoded_slice);
-    let encoded: EncodedData = EncodedData::from(encoded_slice);
 
     let aad: [u8; 0] = [0_u8; 0];
-    let result = SgxSealedData::<EncodedData>::seal_data(&aad, &encoded);
+    let result = SgxSealedData::<&[u8]>::seal_data(&aad, &encoded_slice);
     let sealed_data = match result {
         Ok(x) => x,
         Err(ret) => { return ret; },
@@ -109,7 +97,7 @@ pub extern "C" fn create_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) 
 #[no_mangle]
 pub extern "C" fn verify_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) -> sgx_status_t {
 
-    let opt = from_sealed_log::<EncodedData>(sealed_log, sealed_log_size);
+    let opt = from_sealed_log::<&[u8]>(sealed_log, sealed_log_size);
     let sealed_data = match opt {
         Some(x) => x,
         None => {
@@ -125,8 +113,7 @@ pub extern "C" fn verify_sealeddata(sealed_log: * mut u8, sealed_log_size: u32) 
         },
     };
 
-    let encoded_data: &EncodedData = unsealed_data.get_decrypt_txt();
-    let encoded_slice = encoded_data.0;
+    let encoded_slice = unsealed_data.get_decrypt_txt();
     println!("Length of encoded slice: {}", encoded_slice.len());
     println!("Encoded slice: {:?}", encoded_slice);
     let data: RandData = serde_cbor::from_slice(encoded_slice).unwrap();
