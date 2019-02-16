@@ -42,7 +42,10 @@ use core::char;
 /// Base functionality for all errors in Rust.
 pub trait Error: Debug + Display {
     /// A short description of the error.
-    fn description(&self) -> &str;
+    #[deprecated]
+    fn description(&self) -> &str {
+        "description() is deprecated; use Display"
+    }
 
     /// The lower-level cause of this error, if any.
     fn cause(&self) -> Option<&Error> { None }
