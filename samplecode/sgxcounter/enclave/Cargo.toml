@@ -1,0 +1,20 @@
+[package]
+name = "Sgxcounterenclave"
+version = "1.0.0"
+authors = ["Baidu"]
+
+[lib]
+name = "sgxcounterenclave"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[dependencies]
+itertools = { version = "*", default-features = false }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types = { path = "../../../sgx_types" }
+sgx_tstd = { path = "../../../sgx_tstd" }
+sgx_tservice = { path = "../../../sgx_tservice" }
+
