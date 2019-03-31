@@ -40,7 +40,7 @@ static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
 
 extern {
-    fn test_main_entrance(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
+    fn test_main_entrance(eid: sgx_enclave_id_t, retval: *mut size_t) -> sgx_status_t;
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
@@ -124,7 +124,7 @@ fn main() {
         },
     };
 
-    let mut retval = sgx_status_t::SGX_SUCCESS;
+    let mut retval = 0usize;
 
     let result = unsafe {
         test_main_entrance(enclave.geteid(),
@@ -138,6 +138,7 @@ fn main() {
             return;
         }
     }
+    assert_eq!(retval, 0);
 
     println!("[+] unit_test ended!");
 
