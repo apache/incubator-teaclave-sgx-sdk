@@ -134,7 +134,8 @@ macro_rules! should_panic {
 ///
 /// `rsgx_unit_tests!` works as a variadic function. It takes a list of test
 /// case function as arguments and then execute them sequentially. It prints
-/// the statistics on the test result at the end.
+/// the statistics on the test result at the end, and returns the amount of
+/// failed tests. meaning if everything works the return vlaue will be 0.
 ///
 /// One test fails if and only if it panics. For fail test (similar to
 /// `#[should_panic]` in Rust, one should wrap the line which would panic with
@@ -161,11 +162,13 @@ macro_rules! rsgx_unit_tests {
     (
         $($f : path),*
     ) => {
-        rsgx_unit_test_start();
-        let mut ntestcases : u64 = 0u64;
-        let mut failurecases : Vec<String> = Vec::new();
-        $(rsgx_unit_test(&mut ntestcases, &mut failurecases, $f,stringify!($f));)*
-        rsgx_unit_test_end(ntestcases, failurecases);
+        {
+            rsgx_unit_test_start();
+            let mut ntestcases : u64 = 0u64;
+            let mut failurecases : Vec<String> = Vec::new();
+            $(rsgx_unit_test(&mut ntestcases, &mut failurecases, $f,stringify!($f));)*
+            rsgx_unit_test_end(ntestcases, failurecases)
+        }
     }
 }
 
@@ -182,15 +185,15 @@ pub fn rsgx_unit_test_start () {
 ///
 /// `rsgx_unit_test_end` prints the statistics on test result, including
 /// a list of failed tests and the statistics.
-pub fn rsgx_unit_test_end(ntestcases : u64, failurecases : Vec<String>) {
+/// It will return the amount of failed tests. (success == 0)
+pub fn rsgx_unit_test_end(ntestcases : u64, failurecases : Vec<String>) -> usize {
     let ntotal = ntestcases as usize;
     let nsucc  = ntestcases as usize - failurecases.len();
 
     if failurecases.len() != 0{
-        let vfailures = failurecases;
         print!("\nfailures: ");
         println!("    {}",
-                 vfailures.iter()
+                 failurecases.iter()
                           .fold(
                               String::new(),
                               |s, per| s + "\n    " + per));
@@ -203,6 +206,7 @@ pub fn rsgx_unit_test_end(ntestcases : u64, failurecases : Vec<String>) {
     }
 
     println!("{} tested, {} passed, {} failed", ntotal, nsucc, ntotal - nsucc);
+    failurecases.len()
 }
 
 /// Perform one test case at a time.
