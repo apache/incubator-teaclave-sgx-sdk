@@ -5,6 +5,8 @@ Rust SGX SDK helps developers write Intel SGX applications in Rust programming l
 
 To achieve better security, we recommend developers to apply [Non-bypassable Security Paradigm (NbSP)](https://github.com/baidu/rust-sgx-sdk/blob/master/documents/nbsp.pdf) to the system design and implementation.
 
+To help understand this project and know how to use it, we are writing some [wiki](https://github.com/baidu/rust-sgx-sdk/wiki) articles. Please [send me an email](mailto:rustsgx@gmail.com?subject=Wiki%20page%20needed:) if you'd like to see other topics. We'll add it as soon as possible.
+
 ## v1.0.6 Release
 Fix bugs in sgx_alloc, sgx_types, ucd-generate and improve sgx_ttunittest. Added rust-base58. Thanks to @elichai, @cbeck88, @brenzi and @nhynes.
 
