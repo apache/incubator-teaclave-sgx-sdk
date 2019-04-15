@@ -1,4 +1,3 @@
-haha
 ![Rust SGX Logo](rustsgx.png)
 
 # Rust SGX SDK
