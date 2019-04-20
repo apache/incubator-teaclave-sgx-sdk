@@ -627,7 +627,7 @@ pub extern "C" fn run_server(socket_fd : c_int, sign_type: sgx_quote_sign_type_t
     let _result = ecc_handle.open();
     let (prv_k, pub_k) = ecc_handle.create_key_pair().unwrap();
 
-    let (attn_report, sig, cert) = match create_attestation_report(&pub_k) {
+    let (attn_report, sig, cert) = match create_attestation_report(&pub_k, sign_type) {
         Ok(r) => r,
         Err(e) => {
             println!("Error in create_attestation_report: {:?}", e);
@@ -681,7 +681,7 @@ pub extern "C" fn run_client(socket_fd : c_int, sign_type: sgx_quote_sign_type_t
     ecc_handle.open().unwrap();
     let (prv_k, pub_k) = ecc_handle.create_key_pair().unwrap();
 
-    let (attn_report, sig, cert) = match create_attestation_report(&pub_k) {
+    let (attn_report, sig, cert) = match create_attestation_report(&pub_k, sign_type) {
         Ok(r) => r,
         Err(e) => {
             println!("Error in create_attestation_report: {:?}", e);

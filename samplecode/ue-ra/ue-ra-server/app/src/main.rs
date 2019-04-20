@@ -39,6 +39,7 @@ extern crate mio;
 
 use std::os::unix::io::{IntoRawFd, AsRawFd};
 use std::fs;
+use std::env;
 use std::path;
 use std::net::{TcpListener, TcpStream, SocketAddr};
 use std::str;
