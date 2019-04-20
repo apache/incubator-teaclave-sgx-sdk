@@ -52,7 +52,7 @@ static ENCRYPTED_ENCLAVE_TOKEN: &'static str = "payload.token";
 
 extern {
     fn key_provision(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
-        socket_fd: c_int) -> sgx_status_t;
+        socket_fd: c_int, sign_type: sgx_quote_sign_type_t) -> sgx_status_t;
     fn get_sealed_pcl_key_len(eid: sgx_enclave_id_t, retval: *mut u32) -> sgx_status_t;
     fn get_sealed_pcl_key(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
         key_buf : *mut u8, key_len: u32) -> sgx_status_t;
@@ -299,6 +299,18 @@ fn init_encrypted_enclave(payload_file: &str,
 }
 
 fn main() {
+    let mut args: Vec<_> = env::args().collect();
+    let mut sign_type = sgx_quote_sign_type_t::SGX_LINKABLE_SIGNATURE;
+    args.remove(0);
+    while !args.is_empty() {
+        match args.remove(0).as_ref() {
+            "--unlink" => sign_type = sgx_quote_sign_type_t::SGX_UNLINKABLE_SIGNATURE,
+            _ => {
+                panic!("Only --unlink is accepted");
+            }
+        }
+    }
+
     let enclave = match init_enclave() {
         Ok(r) => {
             println!("[+] Init Enclave Successful {}!", r.geteid());
@@ -317,7 +329,7 @@ fn main() {
             println!("[+] new client from {:?}", addr);
             let mut retval = sgx_status_t::SGX_SUCCESS;
             let result = unsafe {
-                key_provision(enclave.geteid(), &mut retval, socket.as_raw_fd())
+                key_provision(enclave.geteid(), &mut retval, socket.as_raw_fd(), sign_type)
             };
             match result {
                 sgx_status_t::SGX_SUCCESS => {

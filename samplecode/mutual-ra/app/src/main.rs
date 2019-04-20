@@ -236,7 +236,7 @@ fn main() {
             "--server" => mode = Mode::Server,
             "--unlink" => sign_type = sgx_quote_sign_type_t::SGX_UNLINKABLE_SIGNATURE,
             _ => {
-                panic!("Only --client/server is accepted");
+                panic!("Only --client/server/unlink is accepted");
             }
         }
     }

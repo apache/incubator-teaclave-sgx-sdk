@@ -42,7 +42,7 @@ enclave {
 
 
     trusted {
-        public sgx_status_t key_provision(int fd);
+        public sgx_status_t key_provision(int fd, sgx_quote_sign_type_t quote_type);
         public sgx_status_t get_sealed_pcl_key([out, size = keylen] uint8_t *key_buf,
                                                uint32_t keylen);
         public uint32_t get_sealed_pcl_key_len();
