@@ -39,6 +39,7 @@ extern crate mio;
 
 use std::os::unix::io::{IntoRawFd, AsRawFd};
 use std::fs;
+use std::env;
 use std::path;
 use std::net::{TcpListener, TcpStream, SocketAddr};
 use std::str;
@@ -49,7 +50,7 @@ static ENCLAVE_TOKEN: &'static str = "enclave.token";
 
 extern {
     fn run_server(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
-        socket_fd: c_int) -> sgx_status_t;
+        socket_fd: c_int, sign_type: sgx_quote_sign_type_t) -> sgx_status_t;
 }
 
 #[no_mangle]
@@ -215,6 +216,18 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
 }
 
 fn main() {
+    let mut args: Vec<_> = env::args().collect();
+    let mut sign_type = sgx_quote_sign_type_t::SGX_LINKABLE_SIGNATURE;
+    args.remove(0);
+    while !args.is_empty() {
+        match args.remove(0).as_ref() {
+            "--unlink" => sign_type = sgx_quote_sign_type_t::SGX_UNLINKABLE_SIGNATURE,
+            _ => {
+                panic!("Only --unlink is accepted");
+            }
+        }
+    }
+
     let enclave = match init_enclave() {
         Ok(r) => {
             println!("[+] Init Enclave Successful {}!", r.geteid());
@@ -233,7 +246,7 @@ fn main() {
             println!("new client from {:?}", addr);
             let mut retval = sgx_status_t::SGX_SUCCESS;
             let result = unsafe {
-                run_server(enclave.geteid(), &mut retval, socket.as_raw_fd())
+                run_server(enclave.geteid(), &mut retval, socket.as_raw_fd(), sign_type)
             };
             match result {
                 sgx_status_t::SGX_SUCCESS => {

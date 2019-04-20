@@ -55,7 +55,7 @@ Start server
 cd ue-ra-server
 make
 cd bin
-./app
+./app (add --unlink if your spid's type is unlinkable)
 ```
 
 Start client 

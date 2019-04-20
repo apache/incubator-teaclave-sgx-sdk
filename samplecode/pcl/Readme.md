@@ -16,7 +16,7 @@ To run, please put your IAS registration files (client.key, client.crt and spid.
 
 ```
 $ cd pcl-seal/bin
-$ ./app
+$ ./app (add --unlink if your spid's type is unlinkable)
 ```
 
 In another terminal, start the pcl-user app:

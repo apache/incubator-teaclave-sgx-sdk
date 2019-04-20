@@ -42,8 +42,8 @@ enclave {
 
 
     trusted {
-	public sgx_status_t run_server(int fd);
-	public sgx_status_t run_client(int fd);
+	public sgx_status_t run_server(int fd,sgx_quote_sign_type_t quote_type);
+	public sgx_status_t run_client(int fd,sgx_quote_sign_type_t quote_type);
     };
 
     untrusted {
