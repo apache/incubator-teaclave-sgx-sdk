@@ -52,9 +52,9 @@ static ENCLAVE_TOKEN: &'static str = "enclave.token";
 
 extern {
     fn run_server(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
-        socket_fd: c_int) -> sgx_status_t;
+        socket_fd: c_int, sign_type: sgx_quote_sign_type_t) -> sgx_status_t;
     fn run_client(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
-        socket_fd: c_int) -> sgx_status_t;
+        socket_fd: c_int, sign_type: sgx_quote_sign_type_t) -> sgx_status_t;
 }
 
 #[no_mangle]
@@ -228,11 +228,13 @@ enum Mode {
 fn main() {
     let mut mode:Mode = Mode::Server;
     let mut args: Vec<_> = env::args().collect();
+    let mut sign_type = sgx_quote_sign_type_t::SGX_LINKABLE_SIGNATURE;
     args.remove(0);
     while !args.is_empty() {
         match args.remove(0).as_ref() {
             "--client" => mode = Mode::Client,
             "--server" => mode = Mode::Server,
+            "--unlink" => sign_type = sgx_quote_sign_type_t::SGX_UNLINKABLE_SIGNATURE,
             _ => {
                 panic!("Only --client/server is accepted");
             }
@@ -260,7 +262,7 @@ fn main() {
                     println!("new client from {:?}", addr);
                     let mut retval = sgx_status_t::SGX_SUCCESS;
                     let result = unsafe {
-                        run_server(enclave.geteid(), &mut retval, socket.as_raw_fd())
+                        run_server(enclave.geteid(), &mut retval, socket.as_raw_fd(), sign_type)
                     };
                     match result {
                         sgx_status_t::SGX_SUCCESS => {
@@ -281,7 +283,7 @@ fn main() {
             let mut socket = TcpStream::connect("localhost:3443").unwrap();
             let mut retval = sgx_status_t::SGX_SUCCESS;
             let result = unsafe {
-                run_client(enclave.geteid(), &mut retval, socket.as_raw_fd())
+                run_client(enclave.geteid(), &mut retval, socket.as_raw_fd(), sign_type)
             };
             match result {
                 sgx_status_t::SGX_SUCCESS => {
