@@ -3,7 +3,8 @@ use std::ptr;
 use std::time::*;
 use std::fs::OpenOptions;
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{self, Write, Read, BufReader};
+use std::io::prelude::*;
 
 use sgx_types::*;
 
@@ -37,7 +38,7 @@ static SUPPORTED_SIG_ALGS: SignatureAlgorithms = &[
 
 pub const IAS_REPORT_CA : &[u8] = include_bytes!("../../cert/AttestationReportSigningCACert.pem");
 
-pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
+pub fn verify_mra_cert(cert_der: &[u8], mr_enclave_flag: bool) -> Result<(), sgx_status_t> {
     // Before we reach here, Webpki already verifed the cert is properly signed
 
     // Search for Public Key prime256v1 OID
@@ -187,13 +188,24 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
             println!("sgx quote mr_signer = {:02x}", sgx_quote.report_body.mr_signer.m.iter().format(""));
         }
 
-        // we are writing the mr_enclave into file
-        let mut output:File = OpenOptions::new().create(true).append(true).open(super::MSFILE).unwrap();
+        let mut output:File = OpenOptions::new().append(true).create(true).open(super::MSFILE).unwrap();
         write!(output, "{}\n", sgx_quote.report_body.mr_enclave.m.iter().format(""));
+
+        if mr_enclave_flag {
+            // we are writing the mr_enclave into file
+            if !verify_mr_enclave() {
+                return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
+            }
+        }
 
         println!("Anticipated public key = {:02x}", pub_k.iter().format(""));
         if sgx_quote.report_body.report_data.d.to_vec() == pub_k.to_vec() {
-            println!("tr mpc done!");
+            if mr_enclave_flag {
+                println!("tr mpc done!");
+            } else {
+                println!("success to get mr_enclavement\n\n\n");
+            }
+
         }
     } else {
         println!("Failed to fetch isvEnclaveQuoteBody from attestation report");
@@ -201,4 +213,31 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
     }
 
     Ok(())
+}
+
+fn verify_mr_enclave() -> bool {
+    //we are trying to vefity the measurement of remote server
+    let file = File::open(super::MSFILE).unwrap();
+    let mut fin = BufReader::new(file);
+    let mut i = 0;
+
+    let mut ms_str_server = String::new();
+    let mut ms_str_verifyserver = String::new();
+
+    for line in fin.lines() {
+        if i==0 {
+            ms_str_server = line.unwrap()
+        }else{
+            ms_str_verifyserver = line.unwrap()
+        }
+        i = i+1;
+    }
+
+    if ms_str_server == ms_str_verifyserver {
+        println!("verify successd");
+        true
+    }else{
+        println!("failed to verify mr_enclave");
+        false
+    }
 }

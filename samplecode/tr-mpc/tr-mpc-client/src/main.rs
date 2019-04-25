@@ -28,24 +28,26 @@ const VERIFYMSADDR: &str = "localhost:3444";
 const MSFILE: &str = "./measurement.txt";
 
 struct ServerAuth {
-    outdated_ok: bool
+    outdated_ok: bool,
+    //whether to verify mr_enclave
+    mr_enclave_flag: bool
 }
 
 impl ServerAuth {
-    fn new(outdated_ok: bool) -> ServerAuth {
-        ServerAuth{ outdated_ok }
+    fn new(outdated_ok: bool, mr_enclave_flag: bool) -> ServerAuth {
+        ServerAuth{ outdated_ok, mr_enclave_flag}
     }
 }
 
 impl rustls::ServerCertVerifier for ServerAuth {
     fn verify_server_cert(&self,
-              _roots: &rustls::RootCertStore,
-              _certs: &[rustls::Certificate],
-              _hostname: webpki::DNSNameRef,
-              _ocsp: &[u8]) -> Result<rustls::ServerCertVerified, rustls::TLSError> {
+                          _roots: &rustls::RootCertStore,
+                          _certs: &[rustls::Certificate],
+                          _hostname: webpki::DNSNameRef,
+                          _ocsp: &[u8]) -> Result<rustls::ServerCertVerified, rustls::TLSError> {
         println!("--received-server cert: {:?}", _certs);
         // This call will automatically verify cert is properly signed
-        match cert::verify_mra_cert(&_certs[0].0) {
+        match cert::verify_mra_cert(&_certs[0].0, self.mr_enclave_flag) {
             Ok(()) => {
                 Ok(rustls::ServerCertVerified::assertion())
             }
@@ -64,7 +66,7 @@ impl rustls::ServerCertVerifier for ServerAuth {
     }
 }
 
-fn make_config() -> rustls::ClientConfig {
+fn make_config(mr_enclave_flag: bool) -> rustls::ClientConfig {
     let mut config = rustls::ClientConfig::new();
 
     let client_cert = include_bytes!("../../cert/client.crt");
@@ -78,12 +80,14 @@ fn make_config() -> rustls::ClientConfig {
 
     config.set_single_client_cert(certs, privk.unwrap()[0].clone());
 
-    config.dangerous().set_certificate_verifier(Arc::new(ServerAuth::new(true)));
+    config.dangerous().set_certificate_verifier(Arc::new(ServerAuth::new(true,mr_enclave_flag)));
     config.versions.clear();
     config.versions.push(rustls::ProtocolVersion::TLSv1_2);
 
     config
 }
+
+
 
 fn main() {
     println!("Starting tr-mpc-client");
@@ -92,7 +96,7 @@ fn main() {
 
     let mut result =  fs::remove_file(MSFILE);
 
-    let client_config = make_config();
+    let client_config = make_config(false);
     let dns_name = webpki::DNSNameRef::try_from_ascii_str("localhost").unwrap();
     let mut sess = rustls::ClientSession::new(&Arc::new(client_config), dns_name);
 
@@ -116,37 +120,13 @@ fn main() {
 
     println!("Connecting to server: {}", SERVERADDR);
 
-    let client_config = make_config();
+    let client_config = make_config(true);
     let dns_name = webpki::DNSNameRef::try_from_ascii_str("localhost").unwrap();
     let mut sess = rustls::ClientSession::new(&Arc::new(client_config), dns_name);
 
     let mut conn = TcpStream::connect(SERVERADDR).unwrap();
 
     let mut tls = rustls::Stream::new(&mut sess, &mut conn);
-
-    //we are trying to vefity the measurement of remote server
-    let file = File::open(MSFILE).unwrap();
-    let mut fin = BufReader::new(file);
-    let mut i = 0;
-
-    let mut ms_str_server = String::new();
-    let mut ms_str_verifyserver = String::new();
-
-    for line in fin.lines() {
-        if i==0 {
-            ms_str_server = line.unwrap()
-        }else{
-            ms_str_verifyserver = line.unwrap()
-        }
-        i = i+1;
-    }
-
-    if ms_str_server == ms_str_verifyserver {
-        println!("verify successd");
-    }else{
-        println!("failed to verify ms");
-        return
-    }
 
     tls.write_all(b"hello").unwrap();
 
