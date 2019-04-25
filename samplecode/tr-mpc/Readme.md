@@ -6,7 +6,7 @@ This code sample contains an implementation of [Integrating Remote Attestation w
 ## Design
 Same hareware and same enviroment, same context will result the same `mr_enclave` hash. And `mr_enclave` of enclave from `quote_report` which is nearly impossible to counterfeit it.
 
-So it's a way to achieve trust computing and data privacy based this special feature.
+we could achieve trust computing and data privacy based this special feature.
 
 Assume there existed two player Alice and Bob:
 - Alice want to get data  of bob and compute its hash.
@@ -81,6 +81,7 @@ Start Alice's server
 
 ```
 cd tr-mpc-server
+cd bin
 ./app (add --unlink if your spid's type is unlinkable)
 ```
 
