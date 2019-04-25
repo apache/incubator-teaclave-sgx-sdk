@@ -68,6 +68,8 @@ use std::io::{Write, Read, BufReader};
 use std::untrusted::fs;
 use std::vec::Vec;
 use itertools::Itertools;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 mod cert;
 mod hex;
@@ -583,7 +585,11 @@ pub extern "C" fn run_server(socket_fd : c_int, sign_type: sgx_quote_sign_type_t
     let mut tls = rustls::Stream::new(&mut sess, &mut conn);
     let mut plaintext = [0u8;1024]; //Vec::new();
     match tls.read(&mut plaintext) {
-        Ok(_) => println!("Client said: {}", str::from_utf8(&plaintext).unwrap()),
+        Ok(_) => {
+            let mut hasher = DefaultHasher::new();
+            Hash::hash_slice(&plaintext, &mut hasher);
+            println!("hash of data we get is : {:x}!", hasher.finish());
+        },
         Err(e) => {
             println!("Error in read_to_end: {:?}", e);
             panic!("");

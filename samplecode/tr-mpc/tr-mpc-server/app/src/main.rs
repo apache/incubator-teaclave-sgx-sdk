@@ -227,7 +227,7 @@ fn main() {
             },
             "--unlink" => sign_type = sgx_quote_sign_type_t::SGX_UNLINKABLE_SIGNATURE,
             _ => {
-                panic!("Only --unlink is accepted");
+                panic!("Only --verify/unlink is accepted");
             }
         }
     }
@@ -245,7 +245,7 @@ fn main() {
 
     println!("Running as server...");
     let listener;
-    if !server_msenclave {
+    if !server_verify {
         listener = TcpListener::bind("0.0.0.0:3443").unwrap();
     }else{
         listener = TcpListener::bind("0.0.0.0:3444").unwrap();
