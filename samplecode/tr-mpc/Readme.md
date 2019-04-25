@@ -1,6 +1,25 @@
-# Untrusted-Enclave Remote Attestation code sample
+# Trusted Multi-player computing that use sgx as trust-computing base
+This code is trying to implement the trusted mpc use sgx as trust-computing base.
 
 This code sample contains an implementation of [Integrating Remote Attestation with Transport Layer Security](https://github.com/cloud-security-research/sgx-ra-tls/blob/master/whitepaper.pdf), with the modification of the untrusted side.
+
+## Design
+Same hareware and same enviroment, same context will result the same `mr_enclave` hash. And `mr_enclave` of enclave from `quote_report` which is nearly impossible to counterfeit it.
+
+So it's a way to achieve trust computing and data privacy based this special feature.
+
+Assume there existed two player Alice and Bob:
+- Alice want to get data  of bob and compute its hash.
+- Bob didnt want to let Alice know the origin data.
+
+With intel-sgx, baiduxlab/sgx-rust image, we could do this in the following ways:
+- Alice shares the hash-computing code which will be run in enclave with Bob.
+- Bob checks whether there exists any security risk in this code.
+- Alice tells Bob the context of compiling enviroment and builds her enclave.signed.so.
+- Bob compiles the code and runs his enclave and gets the corresoponding mr-enclave.
+- Bod tries to connect with Alice's enclave and gets the mr_enclave from report and compares it with his.
+- If passed, Bob sends data to Alice's enclave through tls.
+- Alice's enclave gets the data and computs hash of it.
 
 ## Requirements
 
@@ -49,18 +68,31 @@ https://software.intel.com/sites/default/files/managed/7b/de/RK_PUB.zip
 
 ## Run
 
-Start server
+Start Bob's verify server
 
 ```
-cd ue-ra-server
+cd tr-mpc-server
 make
 cd bin
+./app --verify(add --unlink if your spid's type is unlinkable)
+```
+
+Start Alice's server 
+
+```
+cd tr-mpc-server
 ./app (add --unlink if your spid's type is unlinkable)
 ```
 
-Start client 
-
+Start Bob's client
 ```
-cd ue-ra-client
+cd tr-mpc-client
 cargo run
 ```
+
+## Tips
+
+This could be used in data privacy and trust-computing.
+
+It is better to use cloud-sgx iaas service when you want to support more than 2 participants.
+
