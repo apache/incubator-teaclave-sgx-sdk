@@ -184,9 +184,14 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
             println!("sgx quote mr_enclave = {:02x}", sgx_quote.report_body.mr_enclave.m.iter().format(""));
             println!("sgx quote mr_signer = {:02x}", sgx_quote.report_body.mr_signer.m.iter().format(""));
         }
+
+        // we are writing the mr_enclave into file
+        let mut output:File = OpenOptions::new().create(true).append(true).open(super::MSFILE).unwrap();
+        write!(output, "{}\n", sgx_quote.report_body.mr_enclave.m.iter().format(""));
+
         println!("Anticipated public key = {:02x}", pub_k.iter().format(""));
         if sgx_quote.report_body.report_data.d.to_vec() == pub_k.to_vec() {
-            println!("ue RA done!");
+            println!("tr mpc done!");
         }
     } else {
         println!("Failed to fetch isvEnclaveQuoteBody from attestation report");

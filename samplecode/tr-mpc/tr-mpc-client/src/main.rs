@@ -21,6 +21,8 @@ mod cert;
 mod pib;
 
 const SERVERADDR: &str = "localhost:3443";
+const VERIFYMSADDR: &str = "localhost:3444";
+const MSFILE: &str = "./measurement.txt";
 
 struct ServerAuth {
     outdated_ok: bool
@@ -83,7 +85,33 @@ fn make_config() -> rustls::ClientConfig {
 fn main() {
     println!("Starting tr-mpc-client");
 
-    println!("Connecting to {}", SERVERADDR);
+    println!("Connecting to verify server: {}", VERIFYMSADDR);
+
+    let mut result =  fs::remove_file(MSFILE);
+
+    let client_config = make_config();
+    let dns_name = webpki::DNSNameRef::try_from_ascii_str("localhost").unwrap();
+    let mut sess = rustls::ClientSession::new(&Arc::new(client_config), dns_name);
+
+    let mut conn = TcpStream::connect(CLIENTADDR).unwrap();
+
+    let mut tls = rustls::Stream::new(&mut sess, &mut conn);
+
+    tls.write_all(b"hello").unwrap();
+
+    let mut plaintext = Vec::new();
+    match tls.read_to_end(&mut plaintext) {
+        Ok(_) => {
+            println!("Server replied: {}", str::from_utf8(&plaintext).unwrap());
+        }
+        Err(ref err) if err.kind() == io::ErrorKind::ConnectionAborted => {
+            println!("EOF (tls)");
+        }
+        Err(e) => println!("Error in read_to_end: {:?}", e),
+    }
+
+
+    println!("Connecting to server: {}", SERVERADDR);
 
     let client_config = make_config();
     let dns_name = webpki::DNSNameRef::try_from_ascii_str("localhost").unwrap();
@@ -92,6 +120,30 @@ fn main() {
     let mut conn = TcpStream::connect(SERVERADDR).unwrap();
 
     let mut tls = rustls::Stream::new(&mut sess, &mut conn);
+
+    //we are trying to vefity the measurement of remote server
+    let file = File::open(MSFILE).unwrap();
+    let mut fin = BufReader::new(file);
+    let mut i = 0;
+
+    let mut ms_str_server = String::new();
+    let mut ms_str_verifyserver = String::new();
+
+    for line in fin.lines() {
+        if i==0 {
+            ms_str_server = line.unwrap()
+        }else{
+            ms_str_verifyserver = line.unwrap()
+        }
+        i = i+1;
+    }
+
+    if ms_str_server == ms_str_verifyserver {
+        println!("verify successd");
+    }else{
+        println!("failed to verify ms");
+        return
+    }
 
     tls.write_all(b"hello").unwrap();
 

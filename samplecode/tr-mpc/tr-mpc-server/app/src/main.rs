@@ -218,9 +218,13 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
 fn main() {
     let mut args: Vec<_> = env::args().collect();
     let mut sign_type = sgx_quote_sign_type_t::SGX_LINKABLE_SIGNATURE;
+    let mut server_verify = false;
     args.remove(0);
     while !args.is_empty() {
         match args.remove(0).as_ref() {
+            "--verify" => {
+                server_verify = true;
+            },
             "--unlink" => sign_type = sgx_quote_sign_type_t::SGX_UNLINKABLE_SIGNATURE,
             _ => {
                 panic!("Only --unlink is accepted");
@@ -240,7 +244,13 @@ fn main() {
     };
 
     println!("Running as server...");
-    let listener = TcpListener::bind("0.0.0.0:3443").unwrap();
+    let listener;
+    if !server_msenclave {
+        listener = TcpListener::bind("0.0.0.0:3443").unwrap();
+    }else{
+        listener = TcpListener::bind("0.0.0.0:3444").unwrap();
+    }
+
     match listener.accept() {
         Ok((socket, addr)) => {
             println!("new client from {:?}", addr);
