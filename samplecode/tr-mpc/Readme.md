@@ -90,9 +90,3 @@ cd tr-mpc-client
 cargo run
 ```
 
-## Tips
-
-This could be used in data privacy and trust-computing.
-
-It is better to use cloud-sgx iaas service when you want to support more than 2 participants.
-
