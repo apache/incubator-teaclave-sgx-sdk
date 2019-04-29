@@ -84,7 +84,7 @@ fn make_config() -> rustls::ClientConfig {
 }
 
 fn main() {
-    println!("Starting tr-mpc-client");
+    println!("Starting ue-ra-client");
     println!("Connecting to {}", SERVERADDR);
 
     let client_config = make_config();
