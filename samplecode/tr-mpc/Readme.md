@@ -1,24 +1,26 @@
 # Trusted Multi-player computing that use sgx as trust-computing base
-This code is trying to implement the trusted mpc use sgx as trust-computing base.
+
+This code implements the trusted mpc use sgx as trust-computing base.
 
 This code sample contains an implementation of [Integrating Remote Attestation with Transport Layer Security](https://github.com/cloud-security-research/sgx-ra-tls/blob/master/whitepaper.pdf), with the modification of the untrusted side.
 
 ## Design
-Same hareware and same enviroment, same context will result the same `mr_enclave` hash. And `mr_enclave` of enclave from `quote_report` which is nearly impossible to counterfeit it.
 
-we could achieve trust computing and data privacy based this special feature.
+The same combination of (hardware,enviroment,context) will generates the same `mr_enclave` measurement. And it is almost impossible to counterfeit it.
 
-Assume there existed two player Alice and Bob:
-- Alice want to get data  of bob and compute its hash.
-- Bob didnt want to let Alice know the origin data.
+We could achieve trust computing and data privacy based on this feature.
 
-With intel-sgx, baiduxlab/sgx-rust image, we could do this in the following ways:
-- Alice shares the hash-computing code which will be run in enclave with Bob.
+Assuming that there are two players: Alice and Bob.
+- Alice wants to get data from bob and compute its hash.
+- Bob does not want to let Alice know the origin data.
+
+With Intel SGX, and baiduxlab/sgx-rust image, we could do this in the following steps:
+- Alice shares the hash-computing code which will be run in SGX enclave with Bob.
 - Bob checks whether there exists any security risk in this code.
 - Alice tells Bob the context of compiling enviroment and builds her enclave.signed.so.
-- Bob compiles the code and runs his enclave and gets the corresoponding mr-enclave.
-- Bod tries to connect with Alice's enclave and gets the mr_enclave from report and compares it with his.
-- If passed, Bob sends data to Alice's enclave through tls.
+- Bob compiles the code and runs his enclave and gets the corresoponding `mr_enclave`.
+- Bod tries to connect with Alice's enclave and gets the `mr_enclave` from report and compares it with his.
+- If passed, Bob sends data to Alice's enclave through TLS.
 - Alice's enclave gets the data and computs hash of it.
 
 ## Requirements
@@ -62,7 +64,7 @@ openssl x509 -req -extfile <(printf "subjectAltName=DNS:localhost,DNS:www.exampl
 7. Intel CA report signing pem. Download and uncompress:
 https://software.intel.com/sites/default/files/managed/7b/de/RK_PUB.zip
 
-## Embedding IAS credentials to ue-ra-server
+## Embedding IAS credentials to tr-mpc-server
 
 `enclave/src/lib.rs` contains three funcs `load_certs` `load_private_key` and `load_spid`. These three functions are configured to load cert/key/spid from `client.crt` `client.key` `spid.txt` from `bin` directory respectively. One can either adjust the file paths/names or copy the cert/key/spid to `bin`. `spid.txt` should only contain one line of 32 chars such as `DEADBEAFDEADBEAFDEADBEAFDEADBEAF`.
 
