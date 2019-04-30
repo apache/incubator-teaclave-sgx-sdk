@@ -377,6 +377,7 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match self.repr {
             Repr::Os(..) | Repr::Simple(..) => self.kind().as_str(),

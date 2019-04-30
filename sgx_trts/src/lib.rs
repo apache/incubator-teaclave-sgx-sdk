@@ -75,7 +75,6 @@
 
 #![no_std]
 
-#![feature(alloc)]
 #![feature(allocator_api)]
 #![feature(asm)]
 #![feature(lang_items)]

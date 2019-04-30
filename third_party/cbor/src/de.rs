@@ -610,7 +610,7 @@ where
             0xff => Err(self.error(ErrorCode::UnexpectedCode)),
 
             // https://github.com/rust-lang/rust/issues/12483
-            _ => unreachable!(),
+            //_ => unreachable!(),
         }
     }
 }

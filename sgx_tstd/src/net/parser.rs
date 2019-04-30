@@ -384,6 +384,7 @@ impl FromStr for SocketAddr {
 pub struct AddrParseError(());
 
 impl fmt::Display for AddrParseError {
+    #[allow(deprecated)]
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.write_str(self.description())
     }

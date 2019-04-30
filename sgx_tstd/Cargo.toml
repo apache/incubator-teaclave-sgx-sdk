@@ -1,6 +1,6 @@
 [package]
 name = "sgx_tstd"
-version = "1.0.6"
+version = "1.0.7"
 authors = ["Baidu"]
 build = "build.rs"
 repository = "https://github.com/baidu/rust-sgx-sdk"
@@ -82,6 +82,7 @@ include = [
     "src/sys/net.rs",
     "src/sys/mod.rs",
     "src/sys/path.rs",
+    "src/sys/pipe.rs",
     "src/sys/stdio.rs",
     "src/sys/time.rs",
     "src/sys/os.rs",
@@ -166,6 +167,7 @@ default = ["stdio"]
 backtrace = ["stdio"]
 stdio = []
 net = []
+pipe = []
 untrusted_fs = []
 untrusted_time = []
 

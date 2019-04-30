@@ -16,7 +16,7 @@ pub const GENERAL_CATEGORY_ENUM: &'static [&'static str] = &[
 ];
 
 lazy_static! {
-  pub static ref GENERAL_CATEGORY: ::fst::Map = 
+  pub static ref GENERAL_CATEGORY: ::fst::Map =
     ::fst::Map::from(::fst::raw::Fst::from_static_slice(
       include_bytes!("general_category.fst")).unwrap());
 }

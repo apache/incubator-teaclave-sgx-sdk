@@ -49,9 +49,8 @@
 #![allow(unused_features)]
 #![allow(unused_imports)]
 #![allow(dead_code)]
-
+#![allow(unused_assignments)]
 #![cfg_attr(feature = "backtrace", feature(panic_unwind))]
-#![feature(alloc)]
 #![feature(allocator_api)]
 #![feature(allocator_internals)]
 #![feature(allow_internal_unstable)]
@@ -82,7 +81,6 @@
 #![feature(str_internals)]
 #![feature(thread_local)]
 #![feature(toowned_clone_into)]
-#![feature(try_from)]
 #![feature(try_reserve)]
 #![feature(unboxed_closures)]
 #![feature(untagged_unions)]
@@ -94,7 +92,8 @@
 #![feature(panic_info_message)]
 #![feature(unicode_internals)]
 #![feature(alloc_layout_extra)]
-
+#![feature(const_vec_new)]
+#![feature(vec_remove_item)]
 #![default_lib_allocator]
 
 #[global_allocator]

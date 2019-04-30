@@ -89,7 +89,7 @@ fn version_and_date_from_rustc_version(s: &str) -> (Option<String>, Option<Strin
     let last_line = s.lines().last().unwrap_or(s);
     let mut components = last_line.trim().split(" ");
     let version = components.nth(1);
-    let date = components.nth(1).map(|s| s.trim_right().trim_right_matches(")"));
+    let date = components.nth(1).map(|s| s.trim_end().trim_end_matches(")"));
     (version.map(|s| s.to_string()), date.map(|s| s.to_string()))
 }
 

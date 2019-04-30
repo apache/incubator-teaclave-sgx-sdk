@@ -31,6 +31,6 @@ cfg_if! {
         mod aarch64;
         pub use self::aarch64::*;
     } else {
-        
+
     }
 }

@@ -43,12 +43,14 @@ struct Context<'a> {
 struct UnwindError(uw::_Unwind_Reason_Code);
 
 impl Error for UnwindError {
+    #[allow(deprecated)]
     fn description(&self) -> &'static str {
         "unexpected return value while unwinding"
     }
 }
 
 impl ::fmt::Display for UnwindError {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut ::fmt::Formatter) -> ::fmt::Result {
         write!(f, "{}: {:?}", self.description(), self.0)
     }

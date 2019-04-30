@@ -645,20 +645,20 @@ impl<T: NumCast> NumCast for Wrapping<T> {
 /// let three: i32 = (3.14159265f32).as_();
 /// assert_eq!(three, 3);
 /// ```
-/// 
+///
 /// # Safety
-/// 
+///
 /// Currently, some uses of the `as` operator are not entirely safe.
 /// In particular, it is undefined behavior if:
-/// 
+///
 /// - A truncated floating point value cannot fit in the target integer
 ///   type ([#10184](https://github.com/rust-lang/rust/issues/10184));
-/// 
+///
 /// ```ignore
 /// # use num_traits::AsPrimitive;
 /// let x: u8 = (1.04E+17).as_(); // UB
 /// ```
-/// 
+///
 /// - Or a floating point value does not fit in another floating
 ///   point type ([#15536](https://github.com/rust-lang/rust/issues/15536)).
 ///
@@ -666,7 +666,7 @@ impl<T: NumCast> NumCast for Wrapping<T> {
 /// # use num_traits::AsPrimitive;
 /// let x: f32 = (1e300f64).as_(); // UB
 /// ```
-/// 
+///
 pub trait AsPrimitive<T>: 'static + Copy
 where
     T: 'static + Copy

@@ -20,7 +20,7 @@ pub struct Value(i64);
 /// Actual values show not exceed the u32 or i32 ranges as multiplication
 /// are performed "naively".
 ///
-/// The mais purpose of this struct is to serve as a test reference to the 
+/// The mais purpose of this struct is to serve as a test reference to the
 /// more challenging implementations.
 pub struct NativeField(i64);
 

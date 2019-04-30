@@ -84,7 +84,6 @@
 //! ```
 
 #![no_std]
-#![cfg_attr(not(feature="std"), feature(alloc))]
 
 #![cfg_attr(all(test, feature = "nightly"), feature(test))]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
@@ -101,7 +100,7 @@ use std::vec::Vec;
 #[macro_use]
 extern crate alloc;
 #[cfg(not(feature="std"))]
-use alloc::prelude::Vec;
+use alloc::vec::Vec;
 
 use core::cmp::Ordering;
 use core::cmp;

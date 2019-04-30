@@ -1006,7 +1006,7 @@ impl UdpSocketExt for UdpSocket {
         set_opt(self.as_sock(), IPPROTO_IP, IP_MULTICAST_TTL,
                multicast_ttl_v4 as c_int)
     }
-    
+
     fn multicast_ttl_v4(&self) -> io::Result<u32> {
         get_opt::<c_int>(self.as_sock(), IPPROTO_IP, IP_MULTICAST_TTL)
             .map(|b| b as u32)
@@ -1318,7 +1318,7 @@ fn ip2in_addr(ip: &Ipv4Addr) -> in_addr {
 
 fn in_addr2ip(ip: &in_addr) -> Ipv4Addr {
     let h_addr = c::in_addr_to_u32(ip);
-    
+
     let a: u8 = (h_addr >> 24) as u8;
     let b: u8 = (h_addr >> 16) as u8;
     let c: u8 = (h_addr >> 8) as u8;

@@ -609,7 +609,7 @@ pub extern "C" fn key_provision(socket_fd : c_int, sign_type: sgx_quote_sign_typ
             return sgx_status_t::SGX_ERROR_UNEXPECTED;
         },
     }
-    
+
     tls_send_vec(&mut tls, b"RECV complete".to_vec()).unwrap();
 
     println!("Provision complete");

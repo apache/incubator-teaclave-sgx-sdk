@@ -83,7 +83,6 @@
 //!
 
 #![no_std]
-#![feature(alloc)]
 
 #![allow(non_camel_case_types)]
 #![allow(unused_assignments)]

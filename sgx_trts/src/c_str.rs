@@ -480,7 +480,7 @@ impl CStr {
     /// to a contiguous region of memory terminated with a 0 byte to represent
     /// the end of the string.
     ///
-    pub fn as_ptr(&self) -> *const c_char {
+    pub const fn as_ptr(&self) -> *const c_char {
         self.inner.as_ptr()
     }
 
@@ -538,7 +538,7 @@ impl CStr {
     ///
     /// If the contents of the `CStr` are valid UTF-8 data, this
     /// function will return a [`Cow`]`::`[`Borrowed`]`(`[`&str`]`)`
-    /// with the the corresponding [`&str`] slice. Otherwise, it will
+    /// with the corresponding [`&str`] slice. Otherwise, it will
     /// replace any invalid UTF-8 sequences with `U+FFFD REPLACEMENT
     /// CHARACTER` and return a [`Cow`]`::`[`Owned`]`(`[`String`]`)`
     /// with the result.

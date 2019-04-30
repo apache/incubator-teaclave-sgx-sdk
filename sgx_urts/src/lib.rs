@@ -40,6 +40,8 @@ pub mod socket;
 pub mod asyncio;
 pub mod env;
 pub mod sys;
+pub mod pipe;
+pub mod event;
 
 pub use enclave::*;
 

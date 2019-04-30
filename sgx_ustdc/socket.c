@@ -70,6 +70,20 @@ int u_listen_ocall(int * error, int sockfd, int backlog)
     return ret;
 }
 
+int u_accept_ocall(int * error,
+                   int sockfd,
+                   struct sockaddr * addr,
+                   socklen_t addrlen_in,
+                   socklen_t * addrlen_out)
+{
+    *addrlen_out = addrlen_in;
+    int ret = accept(sockfd, addr, addrlen_out);
+     if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
 int u_accept4_ocall(int * error,
                     int sockfd,
                     struct sockaddr * addr,
@@ -120,6 +134,15 @@ ssize_t u_recvfrom_ocall(int * error,
     return ret;
 }
 
+ssize_t u_recvmsg_ocall(int * error, int sockfd, struct msghdr * msg, int flags)
+{
+    ssize_t ret = recvmsg(sockfd, msg, flags);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
 ssize_t u_send_ocall(int * error, int sockfd, const void * buf, size_t len, int flags)
 {
     ssize_t ret = send(sockfd, buf, len, flags);
@@ -138,6 +161,15 @@ ssize_t u_sendto_ocall(int * error,
                        socklen_t addrlen)
 {
     ssize_t ret = sendto(sockfd, buf, len, flags, dest_addr, addrlen);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+ssize_t u_sendmsg_ocall(int * error, int sockfd, const struct msghdr * msg, int flags)
+{
+    ssize_t ret = sendmsg(sockfd, msg, flags);
     if (error) {
         *error = ret == -1 ? errno : 0;
     }

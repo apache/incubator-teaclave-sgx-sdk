@@ -125,7 +125,7 @@ use core;
 use std;
 use std::string::String;
 use std::vec::Vec;
-//use std::io::BufRead;
+use std::io::BufRead;
 
 
 /// `compile_time_assert_clone::<T>();` fails to compile if `T` doesn't
@@ -306,52 +306,51 @@ pub fn ring_src_path() -> std::path::PathBuf {
 /// `test_data_relative_file_path`, calling `f` on each vector until `f` fails
 /// or until all the test vectors have been read. `f` can indicate failure
 /// either by returning `Err()` or by panicking.
-pub fn from_file<F>(_test_data_relative_file_path: &str, mut _f: F)
+pub fn from_file<F>(test_data_relative_file_path: &str, mut f: F)
                     where F: FnMut(&str, &mut TestCase)
                                    -> Result<(), error::Unspecified> {
-    unimplemented!();
-//    let path = ring_src_path().join(test_data_relative_file_path);
-//    let file = std::fs::File::open(path).unwrap();
-//    let mut lines = std::io::BufReader::new(&file).lines();
-//
-//    let mut current_section = String::from("");
-//    let mut failed = false;
-//
-//    #[allow(box_pointers)]
-//    while let Some(mut test_case) = parse_test_case(&mut current_section,
-//                                                    &mut lines) {
-//        let result =
-//            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-//                f(&current_section, &mut test_case)
-//            }));
-//        let result = match result {
-//            Ok(Ok(())) => {
-//                if !test_case.attributes.iter().any(
-//                        |&(_, _, consumed)| !consumed) {
-//                    Ok(())
-//                } else {
-//                    failed = true;
-//                    Err("Test didn't consume all attributes.")
-//                }
-//            },
-//            Ok(Err(_)) => Err("Test returned Err(error::Unspecified)."),
-//            Err(_) => Err("Test panicked."),
-//        };
-//
-//        if let Err(msg) = result {
-//            failed = true;
-//
-//            println!("{}: {}", test_data_relative_file_path, msg);
-//            for (name, value, consumed) in test_case.attributes {
-//                let consumed_str = if consumed { "" } else { " (unconsumed)" };
-//                println!("{}{} = {}", name, consumed_str, value);
-//            }
-//        };
-//    }
-//
-//    if failed {
-//        panic!("Test failed.")
-//    }
+    let path = ring_src_path().join(test_data_relative_file_path);
+    let file = std::untrusted::fs::File::open(path).unwrap();
+    let mut lines = std::io::BufReader::new(&file).lines();
+
+    let mut current_section = String::from("");
+    let mut failed = false;
+
+    #[allow(box_pointers)]
+    while let Some(mut test_case) = parse_test_case(&mut current_section,
+                                                    &mut lines) {
+        let result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                f(&current_section, &mut test_case)
+            }));
+        let result = match result {
+            Ok(Ok(())) => {
+                if !test_case.attributes.iter().any(
+                        |&(_, _, consumed)| !consumed) {
+                    Ok(())
+                } else {
+                    failed = true;
+                    Err("Test didn't consume all attributes.")
+                }
+            },
+            Ok(Err(_)) => Err("Test returned Err(error::Unspecified)."),
+            Err(_) => Err("Test panicked."),
+        };
+
+        if let Err(msg) = result {
+            failed = true;
+
+            println!("{}: {}", test_data_relative_file_path, msg);
+            for (name, value, consumed) in test_case.attributes {
+                let consumed_str = if consumed { "" } else { " (unconsumed)" };
+                println!("{}{} = {}", name, consumed_str, value);
+            }
+        };
+    }
+
+    if failed {
+        panic!("Test failed.")
+    }
 }
 
 /// Decode an string of hex digits into a sequence of bytes. The input must
@@ -383,78 +382,78 @@ fn from_hex_digit(d: u8) -> Result<u8, String> {
     }
 }
 
-//type FileLines<'a> = std::io::Lines<std::io::BufReader<&'a std::fs::File>>;
-//
-//fn parse_test_case(current_section: &mut String, lines: &mut FileLines)
-//                   -> Option<TestCase> {
-//    let mut attributes = Vec::new();
-//
-//    let mut is_first_line = true;
-//    loop {
-//        let line = match lines.next() {
-//            None => None,
-//            Some(result) => Some(result.unwrap()),
-//        };
-//
-//        if cfg!(feature = "test_logging") {
-//            if let Some(text) = &line {
-//                println!("Line: {}", text);
-//            }
-//        }
-//
-//        match line {
-//            // If we get to EOF when we're not in the middle of a test case,
-//            // then we're done.
-//            None if is_first_line => {
-//                return None;
-//            },
-//
-//            // End of the file on a non-empty test cases ends the test case.
-//            None => {
-//                return Some(TestCase { attributes });
-//            },
-//
-//            // A blank line ends a test case if the test case isn't empty.
-//            Some(ref line) if line.is_empty() => {
-//                if !is_first_line {
-//                    return Some(TestCase { attributes });
-//                }
-//                // Ignore leading blank lines.
-//            },
-//
-//            // Comments start with '#'; ignore them.
-//            Some(ref line) if line.starts_with('#') => {},
-//
-//            Some(ref line) if line.starts_with('[') => {
-//                assert!(is_first_line);
-//                assert!(line.ends_with(']'));
-//                current_section.truncate(0);
-//                current_section.push_str(line);
-//                let _ = current_section.pop();
-//                let _ = current_section.remove(0);
-//            },
-//
-//            Some(ref line) => {
-//                is_first_line = false;
-//
-//                let parts: Vec<&str> = line.splitn(2, " = ").collect();
-//                if parts.len() != 2 {
-//                    panic!("Syntax error: Expected Key = Value.");
-//                };
-//
-//                let key = parts[0].trim();
-//                let value = parts[1].trim();
-//
-//                // Don't allow the value to be ommitted. An empty value can be
-//                // represented as an empty quoted string.
-//                assert_ne!(value.len(), 0);
-//
-//                // Checking is_none() ensures we don't accept duplicate keys.
-//                attributes.push((String::from(key), String::from(value), false));
-//            },
-//        }
-//    }
-//}
+type FileLines<'a> = std::io::Lines<std::io::BufReader<&'a std::untrusted::fs::File>>;
+
+fn parse_test_case(current_section: &mut String, lines: &mut FileLines)
+                   -> Option<TestCase> {
+    let mut attributes = Vec::new();
+
+    let mut is_first_line = true;
+    loop {
+        let line = match lines.next() {
+            None => None,
+            Some(result) => Some(result.unwrap()),
+        };
+
+        if cfg!(feature = "test_logging") {
+            if let Some(text) = &line {
+                println!("Line: {}", text);
+            }
+        }
+
+        match line {
+            // If we get to EOF when we're not in the middle of a test case,
+            // then we're done.
+            None if is_first_line => {
+                return None;
+            },
+
+            // End of the file on a non-empty test cases ends the test case.
+            None => {
+                return Some(TestCase { attributes });
+            },
+
+            // A blank line ends a test case if the test case isn't empty.
+            Some(ref line) if line.is_empty() => {
+                if !is_first_line {
+                    return Some(TestCase { attributes });
+                }
+                // Ignore leading blank lines.
+            },
+
+            // Comments start with '#'; ignore them.
+            Some(ref line) if line.starts_with('#') => {},
+
+            Some(ref line) if line.starts_with('[') => {
+                assert!(is_first_line);
+                assert!(line.ends_with(']'));
+                current_section.truncate(0);
+                current_section.push_str(line);
+                let _ = current_section.pop();
+                let _ = current_section.remove(0);
+            },
+
+            Some(ref line) => {
+                is_first_line = false;
+
+                let parts: Vec<&str> = line.splitn(2, " = ").collect();
+                if parts.len() != 2 {
+                    panic!("Syntax error: Expected Key = Value.");
+                };
+
+                let key = parts[0].trim();
+                let value = parts[1].trim();
+
+                // Don't allow the value to be ommitted. An empty value can be
+                // represented as an empty quoted string.
+                assert_ne!(value.len(), 0);
+
+                // Checking is_none() ensures we don't accept duplicate keys.
+                attributes.push((String::from(key), String::from(value), false));
+            },
+        }
+    }
+}
 
 /// Deterministic implementations of `ring::rand::SecureRandom`.
 ///

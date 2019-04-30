@@ -171,7 +171,7 @@ impl_Integer!(
     I16_MAX_LEN => i16,
     U16_MAX_LEN => u16,
     I32_MAX_LEN => i32,
-    U32_MAX_LEN => u32 
+    U32_MAX_LEN => u32
     as u32);
 
 impl_Integer!(I64_MAX_LEN => i64, U64_MAX_LEN => u64 as u64);

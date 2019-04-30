@@ -35,6 +35,7 @@ use sync::{SgxMutex, SgxCondvar};
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
 use alloc::sync::Arc;
+use time::Duration;
 
 #[macro_use] mod local;
 pub use self::local::{LocalKey, LocalKeyInner, AccessError};
@@ -162,7 +163,17 @@ pub fn park() {
     let mut m = thread.inner.lock.lock().unwrap();
     match thread.inner.state.compare_exchange(EMPTY, PARKED, SeqCst, SeqCst) {
         Ok(_) => {}
-        Err(NOTIFIED) => return, // notified after we locked
+        Err(NOTIFIED) => {
+            // We must read here, even though we know it will be `NOTIFIED`.
+            // This is because `unpark` may have been called again since we read
+            // `NOTIFIED` in the `compare_exchange` above. We must perform an
+            // acquire operation that synchronizes with that `unpark` to observe
+            // any writes it made before the call to unpark. To do that we must
+            // read from the write it made to `state`.
+            let old = thread.inner.state.swap(EMPTY, SeqCst);
+            assert_eq!(old, NOTIFIED, "park state changed unexpectedly");
+            return;
+        } // should consume this notification, so prohibit spurious wakeups in next park.
         Err(_) => panic!("inconsistent park state"),
     }
     loop {
@@ -171,6 +182,98 @@ pub fn park() {
             Ok(_) => return, // got a notification
             Err(_) => {} // spurious wakeup, go back to sleep
         }
+    }
+}
+
+/// Use [`park_timeout`].
+///
+/// Blocks unless or until the current thread's token is made available or
+/// the specified duration has been reached (may wake spuriously).
+///
+/// The semantics of this function are equivalent to [`park`] except
+/// that the thread will be blocked for roughly no longer than `dur`. This
+/// method should not be used for precise timing due to anomalies such as
+/// preemption or platform differences that may not cause the maximum
+/// amount of time waited to be precisely `ms` long.
+///
+/// See the [park documentation][`park`] for more detail.
+///
+/// [`park_timeout`]: fn.park_timeout.html
+/// [`park`]: ../../std/thread/fn.park.html
+pub fn park_timeout_ms(ms: u32) {
+    park_timeout(Duration::from_millis(ms as u64))
+}
+
+/// Blocks unless or until the current thread's token is made available or
+/// the specified duration has been reached (may wake spuriously).
+///
+/// The semantics of this function are equivalent to [`park`][park] except
+/// that the thread will be blocked for roughly no longer than `dur`. This
+/// method should not be used for precise timing due to anomalies such as
+/// preemption or platform differences that may not cause the maximum
+/// amount of time waited to be precisely `dur` long.
+///
+/// See the [park documentation][park] for more details.
+///
+/// # Platform-specific behavior
+///
+/// Platforms which do not support nanosecond precision for sleeping will have
+/// `dur` rounded up to the nearest granularity of time they can sleep for.
+///
+/// # Examples
+///
+/// Waiting for the complete expiration of the timeout:
+///
+/// ```rust,no_run
+/// use std::thread::park_timeout;
+/// use std::time::{Instant, Duration};
+///
+/// let timeout = Duration::from_secs(2);
+/// let beginning_park = Instant::now();
+///
+/// let mut timeout_remaining = timeout;
+/// loop {
+///     park_timeout(timeout_remaining);
+///     let elapsed = beginning_park.elapsed();
+///     if elapsed >= timeout {
+///         break;
+///     }
+///     println!("restarting park_timeout after {:?}", elapsed);
+///     timeout_remaining = timeout - elapsed;
+/// }
+/// ```
+///
+/// [park]: fn.park.html
+pub fn park_timeout(dur: Duration) {
+    let thread = current();
+
+    // Like `park` above we have a fast path for an already-notified thread, and
+    // afterwards we start coordinating for a sleep.
+    // return quickly.
+    if thread.inner.state.compare_exchange(NOTIFIED, EMPTY, SeqCst, SeqCst).is_ok() {
+        return
+    }
+    let m = thread.inner.lock.lock().unwrap();
+    match thread.inner.state.compare_exchange(EMPTY, PARKED, SeqCst, SeqCst) {
+        Ok(_) => {}
+        Err(NOTIFIED) => {
+            // We must read again here, see `park`.
+            let old = thread.inner.state.swap(EMPTY, SeqCst);
+            assert_eq!(old, NOTIFIED, "park state changed unexpectedly");
+            return;
+        } // should consume this notification, so prohibit spurious wakeups in next park.
+        Err(_) => panic!("inconsistent park_timeout state"),
+    }
+
+    // Wait with a timeout, and if we spuriously wake up or otherwise wake up
+    // from a notification we just want to unconditionally set the state back to
+    // empty, either consuming a notification or un-flagging ourselves as
+    // parked.
+    let (_m, _result) = thread.inner.cvar.wait_timeout(m, dur).unwrap();
+    match thread.inner.state.swap(EMPTY, SeqCst) {
+        NOTIFIED => {} // got a notification, hurray!
+        PARKED => {} // no notification, alas
+        n => panic!("inconsistent park_timeout state: {}", n),
     }
 }
 

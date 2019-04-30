@@ -7,8 +7,16 @@ To achieve better security, we recommend developers to apply [Non-bypassable Sec
 
 To help understand this project and know how to use it, we are writing some [wiki](https://github.com/baidu/rust-sgx-sdk/wiki) articles. Please [send me an email](mailto:rustsgx@gmail.com?subject=Wiki%20page%20needed:) if you'd like to see other topics. We'll add it as soon as possible.
 
+## v1.0.7 Release
+
+Supports Intel SGX SDK v2.5. Master branch supports Rust nightly build (nightly-2019-04-26) and stable branch supports Rust stable build (stable-2019-04-25).  Refactored `sgx_tstd` to support `mio`. More sample codes added. And we are maintaining forks of popular crates on Github organization [mesalock-linux](https://github.com/mesalock-linux). The ported crates are syncing with the original crates with the help of [Pull](https://pull.now.sh) bot and we manually port almost all tests from the original crates to test if the ported crate works well in SGX. Please refer to [release_notes](release_notes.md) for further details.
+
+We changed the built-in EDL files. Please carefully upgrade your EDL files on `import` statements. If you encountered any problems during compilation, please create issue and let me know. Thanks!
+
+This is not the final release of v1.0.7 and I haven't tagged it yet. I'll remove this line after the release of v1.0.7. We welcome bug reports!
+
 ## v1.0.6 Release
-Fix bugs in sgx_alloc, sgx_types, ucd-generate and improve sgx_ttunittest. Added rust-base58. Thanks to @elichai, @cbeck88, @brenzi and @nhynes.
+Fix bugs in sgx_alloc, sgx_types, ucd-generate and improve sgx_tunittest. Added rust-base58. Thanks to @elichai, @cbeck88, @brenzi and @nhynes.
 
 ## v1.0.5 Release
 This version supports Rust nightly build (nightly-2019-01-28, v1.34.0) in the master branch and the most recent stable build (stable-2019-01-16, v1.32.0) in the rust-stable branch. It supports the latest Intel SGX SDK **v2.4.0** and Ubuntu Linux 16.04+18.04. We provide support to Intel's Protected Code Loader. We provide sgx_ucrypto and sgx_crypto_helper for using SGX-style crypto primitives in untrusted app and RSA keypair serialization/deserialization in both trusted and untrusted programs. We re-organize ocall related interfaces and provide them in a new crate sgx_libc with a bunch of new ocall functions. In addition, we port net2 to SGX. Please refer to [release_notes](release_notes.md) for further details.

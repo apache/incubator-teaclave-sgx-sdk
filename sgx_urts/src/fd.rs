@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use std::io::Error;
-use libc::{self, c_int, c_void, size_t, ssize_t, off64_t, c_ulong};
+use libc::{self, c_int, c_void, size_t, ssize_t, off64_t, c_ulong, iovec};
 
 #[no_mangle]
 pub extern "C" fn u_read_ocall(error: * mut c_int,
@@ -63,6 +63,39 @@ pub extern "C" fn u_pread64_ocall(error: * mut c_int,
 }
 
 #[no_mangle]
+pub extern "C" fn u_readv_ocall(error: * mut c_int,
+                                fd: c_int,
+                                iov: * const iovec,
+                                iovcnt: c_int) -> ssize_t {
+    let mut errno = 0;
+    let ret = unsafe { libc::readv(fd, iov, iovcnt) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_preadv64_ocall(error: * mut c_int,
+                                   fd: c_int,
+                                   iov: * const iovec,
+                                   iovcnt: c_int,
+                                   offset: off64_t) -> ssize_t {
+    let mut errno = 0;
+    let ret = unsafe { libc::preadv64(fd, iov, iovcnt, offset) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
 pub extern "C" fn u_write_ocall(error: * mut c_int,
                                 fd: c_int,
                                 buf: * const c_void,
@@ -86,6 +119,39 @@ pub extern "C" fn u_pwrite64_ocall(error: * mut c_int,
                                    offset: off64_t) -> ssize_t {
     let mut errno = 0;
     let ret = unsafe { libc::pwrite64(fd, buf, count, offset) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_writev_ocall(error: * mut c_int,
+                                 fd: c_int,
+                                 iov: * const iovec,
+                                 iovcnt: c_int) -> ssize_t {
+    let mut errno = 0;
+    let ret = unsafe { libc::writev(fd, iov, iovcnt) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_pwritev64_ocall(error: * mut c_int,
+                                    fd: c_int,
+                                    iov: * const iovec,
+                                    iovcnt: c_int,
+                                    offset: off64_t) -> ssize_t {
+    let mut errno = 0;
+    let ret = unsafe { libc::pwritev64(fd, iov, iovcnt, offset) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }

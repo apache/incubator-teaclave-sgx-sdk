@@ -311,8 +311,8 @@ impl SgxInternalSealedData {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
-        if (key_policy & (!(SGX_KEYPOLICY_MRENCLAVE | SGX_KEYPOLICY_MRSIGNER | KEY_POLICY_KSS)) != 0) ||
-           ((key_policy &  (SGX_KEYPOLICY_MRENCLAVE | SGX_KEYPOLICY_MRSIGNER)) == 0) {
+        if (key_policy & (!(SGX_KEYPOLICY_MRENCLAVE | SGX_KEYPOLICY_MRSIGNER | KEY_POLICY_KSS | SGX_KEYPOLICY_NOISVPRODID)) != 0) ||
+           ((key_policy & (SGX_KEYPOLICY_MRENCLAVE | SGX_KEYPOLICY_MRSIGNER)) == 0) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
         if ((attribute_mask.flags & SGX_FLAGS_INITTED) == 0) ||
@@ -401,8 +401,14 @@ impl SgxInternalSealedData {
     pub fn mac_aadata(additional_text: &[u8]) -> SgxResult<Self> {
 
         let attribute_mask = sgx_attributes_t{flags: TSEAL_DEFAULT_FLAGSMASK, xfrm: 0};
+        let mut key_policy: u16 = SGX_KEYPOLICY_MRSIGNER;
+        let report = rsgx_self_report();
 
-        Self::mac_aadata_ex(SGX_KEYPOLICY_MRSIGNER,
+        if (report.body.attributes.flags & SGX_FLAGS_KSS) != 0 {
+            key_policy = SGX_KEYPOLICY_MRSIGNER | KEY_POLICY_KSS;
+        }
+
+        Self::mac_aadata_ex(key_policy,
                             attribute_mask,
                             TSEAL_DEFAULT_MISCMASK,
                             additional_text)
@@ -424,11 +430,12 @@ impl SgxInternalSealedData {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
-        if (key_policy & (!(SGX_KEYPOLICY_MRENCLAVE | SGX_KEYPOLICY_MRSIGNER)) != 0) ||
-           ((key_policy &  (SGX_KEYPOLICY_MRENCLAVE | SGX_KEYPOLICY_MRSIGNER)) == 0) {
+        if (key_policy & (!(SGX_KEYPOLICY_MRENCLAVE | SGX_KEYPOLICY_MRSIGNER | KEY_POLICY_KSS | SGX_KEYPOLICY_NOISVPRODID)) != 0) ||
+           ((key_policy & (SGX_KEYPOLICY_MRENCLAVE | SGX_KEYPOLICY_MRSIGNER)) == 0) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if (attribute_mask.flags & 0x3) != 0x3 {
+        if ((attribute_mask.flags & SGX_FLAGS_INITTED) == 0) ||
+           ((attribute_mask.flags & SGX_FLAGS_DEBUG) == 0) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 

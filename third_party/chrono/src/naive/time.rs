@@ -1431,7 +1431,7 @@ mod serde {
     impl<'de> de::Visitor<'de> for NaiveTimeVisitor {
         type Value = NaiveTime;
 
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result 
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result
         {
             write!(formatter, "a formatted time string")
         }

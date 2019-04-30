@@ -1042,6 +1042,7 @@ impl<R: Read> Iterator for Chars<R> {
 }
 
 impl std_error::Error for CharsError {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match *self {
             CharsError::NotUtf8 => "invalid utf8 encoding",

@@ -34,9 +34,7 @@ use error::Error;
 use sys::time;
 use sys_common::FromInner;
 
-pub use self::duration::Duration;
-
-mod duration;
+pub use core::time::Duration;
 
 /// A measurement of a monotonically nondecreasing clock.
 /// Opaque and useful only with `Duration`.

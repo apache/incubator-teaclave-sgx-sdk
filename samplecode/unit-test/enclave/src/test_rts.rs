@@ -379,7 +379,6 @@ pub fn test_cstr(){
     assert_eq!(c_str.to_string_lossy(), Cow::Borrowed("Hello World"));
 
     use std::borrow::Cow;
-    use std::ffi::CStr;
 
     let c_str = CStr::from_bytes_with_nul(b"Hello \xF0\x90\x80World\0").unwrap();
     assert_eq!(

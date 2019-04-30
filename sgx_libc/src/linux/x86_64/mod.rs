@@ -148,7 +148,6 @@ pub type ino64_t = u64;
 pub type nfds_t = c_ulong;
 
 s! {
-
     pub struct stat {
         pub st_dev: dev_t,
         pub st_ino: ino_t,
@@ -360,6 +359,25 @@ s! {
         // Actually a union of an int and a void*
         pub sival_ptr: *mut c_void
     }
+
+    pub struct msghdr {
+        pub msg_name: *mut c_void,
+        pub msg_namelen: socklen_t,
+        pub msg_iov: *mut iovec,
+        pub msg_iovlen: c_int,
+        __pad1: c_int,
+        pub msg_control: *mut c_void,
+        pub msg_controllen: socklen_t,
+        __pad2: socklen_t,
+        pub msg_flags: c_int,
+    }
+
+    pub struct cmsghdr {
+        pub cmsg_len: socklen_t,
+        pub __pad1: c_int,
+        pub cmsg_level: c_int,
+        pub cmsg_type: c_int,
+    }
 }
 
 pub const CLOCK_REALTIME: clockid_t = 0;
@@ -391,6 +409,10 @@ pub const O_PATH: c_int = 0o10_000_000;
 
 pub const O_ASYNC: c_int = 0x2000;
 pub const O_NDELAY: c_int = 0x800;
+
+pub const O_DIRECT: c_int = 0x4000;
+pub const O_DIRECTORY: c_int = 0x10000;
+pub const O_NOFOLLOW: c_int = 0x20000;
 
 pub const EFD_NONBLOCK: c_int = 0x800;
 

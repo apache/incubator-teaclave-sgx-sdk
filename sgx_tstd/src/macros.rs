@@ -48,7 +48,7 @@
 /// program with code `101`.
 ///
 #[macro_export]
-#[allow_internal_unstable]
+#[allow_internal_unstable(__rust_unstable_column, libstd_sys_internals)]
 macro_rules! panic {
     () => ({
         panic!("explicit panic")
@@ -82,7 +82,7 @@ macro_rules! panic {
 /// Panics if writing to `io::stdout()` fails.
 #[cfg(feature = "stdio")]
 #[macro_export]
-#[allow_internal_unstable]
+#[allow_internal_unstable(print_internals)]
 macro_rules! print {
     ($($arg:tt)*) => ($crate::io::_print(format_args!($($arg)*)));
 }
@@ -130,7 +130,7 @@ macro_rules! println { ($($arg:tt)*) => ({}) }
 /// Panics if writing to `io::stderr` fails.
 #[cfg(feature = "stdio")]
 #[macro_export]
-#[allow_internal_unstable]
+#[allow_internal_unstable(print_internals, format_args_nl)]
 macro_rules! eprint {
     ($($arg:tt)*) => ($crate::io::_eprint(format_args!($($arg)*)));
 }

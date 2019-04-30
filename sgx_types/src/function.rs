@@ -427,7 +427,7 @@ extern {
     // sgx_edger8r.h
     //
     pub fn sgx_ocalloc(size: ::size_t) -> * mut ::c_void;
-    pub fn sgx_sgx_ocfree();
+    pub fn sgx_ocfree();
 }
 
 
@@ -465,6 +465,25 @@ extern {
     /* intel sgx sdk 2.1 */
     pub fn sgx_register_wl_cert_chain(p_wl_cert_chain: * const ::uint8_t,
                                       wl_cert_chain_size: ::uint32_t) -> sgx_status_t;
+
+    /* intel sgx sdk 2.5 */
+    pub fn sgx_select_att_key_id(p_att_key_id_list: * const ::uint8_t,
+                                 att_key_id_list_size: ::uint32_t,
+                                 pp_selected_key_id: * mut * mut sgx_att_key_id_t) -> sgx_status_t;
+
+    pub fn sgx_init_quote_ex(p_att_key_id: * const sgx_att_key_id_t,
+                             p_qe_target_info: * mut sgx_target_info_t,
+                             refresh_att_key: bool,
+                             p_pub_key_id_size: * mut ::size_t,
+                             p_pub_key_id: * mut ::uint8_t) -> sgx_status_t;
+
+    pub fn sgx_get_quote_size_ex(p_att_key_id: * const sgx_att_key_id_t, p_quote_size: * mut ::uint32_t) -> sgx_status_t;
+
+    pub fn sgx_get_quote_ex(p_app_report: * const sgx_report_t,
+                            p_att_key_id: * const sgx_att_key_id_t,
+                            p_qe_report_info: * mut sgx_qe_report_info_t,
+                            p_quote: * mut ::uint8_t,
+                            quote_size: ::uint32_t) -> sgx_status_t;
 }
 
 
@@ -477,8 +496,7 @@ extern {
     pub fn sgx_ra_get_msg1(context: sgx_ra_context_t,
                            eid: sgx_enclave_id_t,
                            p_get_ga: sgx_ecall_get_ga_trusted_t,
-                           p_msg1: * mut sgx_ra_msg1_t
-                           ) -> sgx_status_t;
+                           p_msg1: * mut sgx_ra_msg1_t) -> sgx_status_t;
 
     pub fn sgx_ra_proc_msg2(context: sgx_ra_context_t,
                             eid: sgx_enclave_id_t,
@@ -486,8 +504,25 @@ extern {
                             p_get_msg3: sgx_ecall_get_msg3_trusted_t,
                             p_msg2: * const sgx_ra_msg2_t,
                             msg2_size: ::uint32_t,
-                            pp_msg3: * mut &sgx_ra_msg3_t,
-                            p_msg3_size: ::uint32_t) -> sgx_status_t;
+                            pp_msg3: * mut * mut sgx_ra_msg3_t,
+                            p_msg3_size: * mut ::uint32_t) -> sgx_status_t;
+
+    /* intel sgx sdk 2.5 */
+    pub fn sgx_ra_get_msg1_ex(p_att_key_id: * const sgx_att_key_id_t,
+                              context: sgx_ra_context_t,
+                              eid: sgx_enclave_id_t,
+                              p_get_ga: sgx_ecall_get_ga_trusted_t,
+                              p_msg1: * mut sgx_ra_msg1_t) -> sgx_status_t;
+
+    pub fn sgx_ra_proc_msg2_ex(p_att_key_id: * const sgx_att_key_id_t,
+                               context: sgx_ra_context_t,
+                               eid: sgx_enclave_id_t,
+                               p_proc_msg2: sgx_ecall_proc_msg2_trusted_t,
+                               p_get_msg3: sgx_ecall_get_msg3_trusted_t,
+                               p_msg2: * const sgx_ra_msg2_t,
+                               msg2_size: ::uint32_t,
+                               pp_msg3: * mut * mut sgx_ra_msg3_t,
+                               p_msg3_size: * mut ::uint32_t) -> sgx_status_t;
 }
 
 

@@ -26,8 +26,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use sgx_types::sgx_status_t;
+use sgx_types::{self, sgx_status_t};
 use super::*;
+use alloc::slice;
+use alloc::vec::Vec;
+use core::ptr;
+use core::mem;
 
 extern "C" {
     // memory
@@ -78,7 +82,7 @@ extern "C" {
                           error: * mut c_int,
                           path: * const c_char,
                           oflag: c_int,
-                          mode: c_int) -> sgx_status_t;            
+                          mode: c_int) -> sgx_status_t;
     pub fn u_fstat_ocall(result: * mut c_int,
                          error: * mut c_int,
                          fd: c_int,
@@ -178,6 +182,17 @@ extern "C" {
                            buf: * mut c_void,
                            count: size_t,
                            offset: off64_t) -> sgx_status_t;
+    pub fn u_readv_ocall(result: * mut ssize_t,
+                         errno: * mut c_int,
+                         fd: c_int,
+                         iov: * const iovec,
+                         iovcnt: c_int) -> sgx_status_t;
+    pub fn u_preadv64_ocall(result: * mut ssize_t,
+                            errno: * mut c_int,
+                            fd: c_int,
+                            iov: * const iovec,
+                            iovcnt: c_int,
+                            offset: off64_t) -> sgx_status_t;
     pub fn u_write_ocall(result: * mut ssize_t,
                          errno: * mut c_int,
                          fd: c_int,
@@ -189,11 +204,22 @@ extern "C" {
                             buf: * const c_void,
                             count: size_t,
                             offset: off64_t) -> sgx_status_t;
+    pub fn u_writev_ocall(result: * mut ssize_t,
+                          errno: * mut c_int,
+                          fd: c_int,
+                          iov: * const iovec,
+                          iovcnt: c_int) -> sgx_status_t;
+    pub fn u_pwritev64_ocall(result: * mut ssize_t,
+                             errno: * mut c_int,
+                             fd: c_int,
+                             iov: * const iovec,
+                             iovcnt: c_int,
+                             offset: off64_t) -> sgx_status_t;
     pub fn u_fcntl_arg0_ocall(result: * mut c_int,
                               errno: * mut c_int,
                               fd: c_int,
                               cmd: c_int) -> sgx_status_t;
-    
+
     pub fn u_fcntl_arg1_ocall(result: * mut c_int,
                               errno: * mut c_int,
                               fd: c_int,
@@ -237,6 +263,12 @@ extern "C" {
                           error: *mut c_int,
                           sockfd: c_int,
                           backlog: c_int) -> sgx_status_t;
+    pub fn u_accept_ocall(result: *mut c_int,
+                          errno: *mut c_int,
+                          sockfd: c_int,
+                          addr: *mut sockaddr,
+                          addrlen_in: socklen_t,
+                          addrlen_out: *mut socklen_t) -> sgx_status_t;
     pub fn u_accept4_ocall(result: *mut c_int,
                            errno: *mut c_int,
                            sockfd: c_int,
@@ -263,6 +295,11 @@ extern "C" {
                           flags: c_int,
                           addr: * const sockaddr,
                           addrlen: socklen_t) -> sgx_status_t;
+    pub fn u_sendmsg_ocall(result: * mut ssize_t,
+                           error: * mut c_int,
+                           sockfd: c_int,
+                           msg: * const msghdr,
+                           flags: c_int) -> sgx_status_t;
     pub fn u_recv_ocall(result: * mut ssize_t,
                         errno: * mut c_int,
                         sockfd: c_int,
@@ -278,6 +315,11 @@ extern "C" {
                             addr: * mut sockaddr,
                             addrlen_in: socklen_t,
                             addrlen_out: * mut socklen_t) -> sgx_status_t;
+    pub fn u_recvmsg_ocall(result: * mut ssize_t,
+                           error: * mut c_int,
+                           sockfd: c_int,
+                           msg: * mut msghdr,
+                           flags: c_int) -> sgx_status_t;
     pub fn u_setsockopt_ocall(result: * mut c_int,
                               errno: * mut c_int,
                               sockfd: c_int,
@@ -335,6 +377,16 @@ extern "C" {
     pub fn u_sysconf_ocall(result: * mut c_long,
                            error: * mut c_int,
                            name: c_int) -> sgx_status_t;
+
+    // pipe
+    pub fn u_pipe_ocall(result: * mut c_int,
+                        error: * mut c_int,
+                        fds: * mut c_int) -> sgx_status_t;
+
+    pub fn u_pipe2_ocall(result: * mut c_int,
+                         error: * mut c_int,
+                         fds: * mut c_int,
+                         flags: c_int) -> sgx_status_t;
 }
 
 pub unsafe fn malloc(size: size_t) -> * mut c_void {
@@ -517,6 +569,7 @@ pub unsafe fn open(path: * const c_char, flags: c_int) -> c_int {
     }
     result
 }
+
 pub unsafe fn open64(path: * const c_char, oflag: c_int, mode: c_int) -> c_int {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
@@ -995,6 +1048,135 @@ pub unsafe fn pread64(fd: c_int, buf: * mut c_void, count: size_t, offset: off64
     result
 }
 
+pub unsafe fn readv(fd: c_int, iov: * const iovec, iovcnt: c_int) -> ssize_t {
+    let mut result: ssize_t = 0;
+    let mut error: c_int = 0;
+    let mut ptr: * mut u8 = ptr::null_mut();
+    let mut iosize: usize = 0;
+
+    if iov.is_null() || iovcnt <= 0 ||
+       sgx_types::sgx_is_within_enclave(iov as * const c_void, iovcnt as usize * mem::size_of::<iovec>()) == 0 {
+        set_errno(EINVAL);
+        return -1;
+    }
+
+    let v = slice::from_raw_parts(iov, iovcnt as usize);
+    for io in v {
+        if !io.iov_base.is_null() && io.iov_len > 0 &&
+            sgx_types::sgx_is_within_enclave(io.iov_base, io.iov_len as usize) != 0 {
+            iosize += io.iov_len as usize;
+        } else {
+            set_errno(EINVAL);
+            return -1;
+        }
+    }
+
+    let iobase = malloc(iosize) as * mut u8;
+    if iobase.is_null() {
+        set_errno(ENOMEM );
+        return -1;
+    }
+    iobase.write_bytes(0_u8, iosize);
+
+    let mut tmpiovec: Vec<iovec> = Vec::with_capacity(iovcnt as usize);
+    ptr = iobase;
+    for io in v {
+        let tmpiov = iovec{iov_base: ptr as * mut c_void,
+                           iov_len: io.iov_len};
+        tmpiovec.push(tmpiov);
+        ptr = ptr.add(io.iov_len as usize);
+    }
+
+    let status = u_readv_ocall(&mut result as * mut ssize_t,
+                               &mut error as * mut c_int,
+                               fd,
+                               tmpiovec.as_slice().as_ptr(),
+                               iovcnt);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+
+    if result != -1 {
+        for i in 0..v.len() {
+            ptr::copy_nonoverlapping(tmpiovec[i].iov_base as * mut u8, v[i].iov_base as * mut u8, v[i].iov_len as usize);
+        }
+    }
+
+    free(iobase as * mut c_void);
+    result
+}
+
+pub unsafe fn preadv64(fd: c_int, iov: * const iovec, iovcnt: c_int, offset: off64_t) -> ssize_t {
+    let mut result: ssize_t = 0;
+    let mut error: c_int = 0;
+    let mut ptr: * mut u8 = ptr::null_mut();
+    let mut iosize: usize = 0;
+
+    if iov.is_null() || iovcnt <= 0 ||
+       sgx_types::sgx_is_within_enclave(iov as * const c_void, iovcnt as usize * mem::size_of::<iovec>()) == 0 {
+        set_errno(EINVAL);
+        return -1;
+    }
+
+    let v = slice::from_raw_parts(iov, iovcnt as usize);
+    for io in v {
+        if !io.iov_base.is_null() && io.iov_len > 0 &&
+            sgx_types::sgx_is_within_enclave(io.iov_base, io.iov_len as usize) != 0 {
+            iosize += io.iov_len as usize;
+        } else {
+            set_errno(EINVAL);
+            return -1;
+        }
+    }
+
+    let iobase = malloc(iosize) as * mut u8;
+    if iobase.is_null() {
+        set_errno(ENOMEM );
+        return -1;
+    }
+    iobase.write_bytes(0_u8, iosize);
+
+    let mut tmpiovec: Vec<iovec> = Vec::with_capacity(iovcnt as usize);
+    ptr = iobase;
+    for io in v {
+        let tmpiov = iovec{iov_base: ptr as * mut c_void,
+                           iov_len: io.iov_len};
+        tmpiovec.push(tmpiov);
+        ptr = ptr.add(io.iov_len as usize);
+    }
+
+    let status = u_preadv64_ocall(&mut result as * mut ssize_t,
+                               &mut error as * mut c_int,
+                               fd,
+                               tmpiovec.as_slice().as_ptr(),
+                               iovcnt,
+                               offset);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+
+    if result != -1 {
+        for i in 0..v.len() {
+            ptr::copy_nonoverlapping(tmpiovec[i].iov_base as * mut u8, v[i].iov_base as * mut u8, v[i].iov_len as usize);
+        }
+    }
+
+    free(iobase as * mut c_void);
+    result
+}
+
 pub unsafe fn write(fd: c_int, buf: * const c_void, count: size_t) -> ssize_t {
     let mut result: ssize_t = 0;
     let mut error: c_int = 0;
@@ -1033,6 +1215,125 @@ pub unsafe fn pwrite64(fd: c_int, buf: * const c_void, count: size_t, offset: of
         set_errno(ESGX);
         result = -1;
     }
+    result
+}
+
+pub unsafe fn writev(fd: c_int, iov: * const iovec, iovcnt: c_int) -> ssize_t {
+    let mut result: ssize_t = 0;
+    let mut error: c_int = 0;
+    let mut ptr: * mut u8 = ptr::null_mut();
+    let mut iosize: usize = 0;
+
+    if iov.is_null() || iovcnt <= 0 ||
+       sgx_types::sgx_is_within_enclave(iov as * const c_void, iovcnt as usize * mem::size_of::<iovec>()) == 0 {
+        set_errno(EINVAL);
+        return -1;
+    }
+
+    let v = slice::from_raw_parts(iov, iovcnt as usize);
+    for io in v {
+        if !io.iov_base.is_null() && io.iov_len > 0 &&
+            sgx_types::sgx_is_within_enclave(io.iov_base, io.iov_len as usize) != 0 {
+            iosize += io.iov_len as usize;
+        } else {
+            set_errno(EINVAL);
+            return -1;
+        }
+    }
+
+    let iobase = malloc(iosize) as * mut u8;
+    if iobase.is_null() {
+        set_errno(ENOMEM );
+        return -1;
+    }
+    iobase.write_bytes(0_u8, iosize);
+
+    let mut tmpiovec: Vec<iovec> = Vec::with_capacity(iovcnt as usize);
+    ptr = iobase;
+    for io in v {
+        let tmpiov = iovec{iov_base: ptr as * mut c_void,
+                           iov_len: io.iov_len};
+        ptr::copy_nonoverlapping(tmpiov.iov_base as * mut u8, io.iov_base as * mut u8, io.iov_len as usize);
+        tmpiovec.push(tmpiov);
+        ptr = ptr.add(io.iov_len as usize);
+    }
+
+    let status = u_writev_ocall(&mut result as * mut ssize_t,
+                                &mut error as * mut c_int,
+                                fd,
+                                tmpiovec.as_slice().as_ptr(),
+                                iovcnt);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+
+    free(iobase as * mut c_void);
+    result
+}
+
+pub unsafe fn pwritev64(fd: c_int, iov: * const iovec, iovcnt: c_int, offset: off64_t) -> ssize_t {
+    let mut result: ssize_t = 0;
+    let mut error: c_int = 0;
+    let mut ptr: * mut u8 = ptr::null_mut();
+    let mut iosize: usize = 0;
+
+    if iov.is_null() || iovcnt <= 0 ||
+       sgx_types::sgx_is_within_enclave(iov as * const c_void, iovcnt as usize * mem::size_of::<iovec>()) ==0 {
+        set_errno(EINVAL);
+        return -1;
+    }
+
+    let v = slice::from_raw_parts(iov, iovcnt as usize);
+    for io in v {
+        if !io.iov_base.is_null() && io.iov_len > 0 &&
+            sgx_types::sgx_is_within_enclave(io.iov_base, io.iov_len as usize) != 0 {
+            iosize += io.iov_len as usize;
+        } else {
+            set_errno(EINVAL);
+            return -1;
+        }
+    }
+
+    let iobase = malloc(iosize) as * mut u8;
+    if iobase.is_null() {
+        set_errno(ENOMEM );
+        return -1;
+    }
+    iobase.write_bytes(0_u8, iosize);
+
+    let mut tmpiovec: Vec<iovec> = Vec::with_capacity(iovcnt as usize);
+    ptr = iobase;
+    for io in v {
+        let tmpiov = iovec{iov_base: ptr as * mut c_void,
+                           iov_len: io.iov_len};
+        ptr::copy_nonoverlapping(tmpiov.iov_base as * mut u8, io.iov_base as * mut u8, io.iov_len as usize);
+        tmpiovec.push(tmpiov);
+        ptr = ptr.add(io.iov_len as usize);
+    }
+
+    let status = u_pwritev64_ocall(&mut result as * mut ssize_t,
+                                   &mut error as * mut c_int,
+                                   fd,
+                                   tmpiovec.as_slice().as_ptr(),
+                                   iovcnt,
+                                   offset);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+
+    free(iobase as * mut c_void);
     result
 }
 
@@ -1231,6 +1532,33 @@ pub unsafe fn listen(sockfd: c_int, backlog: c_int) -> c_int {
     result
 }
 
+pub unsafe fn accept(sockfd: c_int, addr: *mut sockaddr, addrlen: *mut socklen_t) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let len_in: socklen_t = if !addrlen.is_null() { *addrlen } else { 0 };
+    let mut len_out: socklen_t = 0 as socklen_t;
+    let status = u_accept_ocall(&mut result as *mut c_int,
+                                &mut error as *mut c_int,
+                                sockfd,
+                                addr,
+                                len_in, // This additional arg is just for EDL
+                                &mut len_out as * mut socklen_t);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+
+    if !addrlen.is_null() {
+        *addrlen = len_out;
+    }
+    result
+}
+
 pub unsafe fn accept4(sockfd: c_int, addr: *mut sockaddr, addrlen: *mut socklen_t, flags: c_int) -> c_int {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
@@ -1328,6 +1656,98 @@ pub unsafe fn sendto(sockfd: c_int,
     result
 }
 
+pub unsafe fn sendmsg(sockfd: c_int, msg: * const msghdr, flags: c_int) -> ssize_t {
+    let mut result: ssize_t = 0;
+    let mut error: c_int = 0;
+    let mut hdrsize: usize = 0;
+    let mut ptr: * mut u8 = ptr::null_mut();
+
+    if msg.is_null() || sgx_types::sgx_is_within_enclave(msg as * const c_void, mem::size_of::<msghdr>()) == 0 {
+        set_errno(EINVAL);
+        return -1;
+    }
+
+    let mhdr: &msghdr = &*msg;
+    if !mhdr.msg_name.is_null() && mhdr.msg_namelen > 0 &&
+        sgx_types::sgx_is_within_enclave(mhdr.msg_name, mhdr.msg_namelen as usize) != 0 {
+        hdrsize += mhdr.msg_namelen as usize;
+    }
+
+    if !mhdr.msg_iov.is_null() && mhdr.msg_iovlen > 0 &&
+       sgx_types::sgx_is_within_enclave(mhdr.msg_iov as * const c_void, mhdr.msg_iovlen as usize * mem::size_of::<iovec>()) != 0 {
+
+        hdrsize += mhdr.msg_iovlen as usize * mem::size_of::<iovec>();
+        let v = slice::from_raw_parts(mhdr.msg_iov, mhdr.msg_iovlen as usize);
+        for io in v {
+            if !io.iov_base.is_null() && io.iov_len > 0 &&
+                sgx_types::sgx_is_within_enclave(io.iov_base, io.iov_len as usize) != 0 {
+                hdrsize += io.iov_len as usize;
+            } else {
+                set_errno(EINVAL);
+                return -1;
+            }
+        }
+    }
+
+    if !mhdr.msg_control.is_null() &&  mhdr.msg_controllen > 0 &&
+        sgx_types::sgx_is_within_enclave(mhdr.msg_control, mhdr.msg_controllen as usize) != 0 {
+        hdrsize += mhdr.msg_controllen as usize;
+    }
+
+    let hdrbase = malloc(hdrsize) as * mut u8;
+    if hdrbase.is_null() {
+        set_errno(ENOMEM );
+        return -1;
+    }
+    hdrbase.write_bytes(0_u8, hdrsize);
+
+    let mut tmpmsg: msghdr = mem::zeroed();
+    ptr = hdrbase;
+    if !mhdr.msg_name.is_null() && mhdr.msg_namelen > 0 {
+        tmpmsg.msg_name = ptr as * mut c_void;
+        tmpmsg.msg_namelen = mhdr.msg_namelen;
+        ptr::copy_nonoverlapping(mhdr.msg_name as * mut u8, tmpmsg.msg_name as * mut u8, mhdr.msg_namelen as usize);
+        ptr = ptr.add(mhdr.msg_namelen as usize);
+    }
+
+    if !mhdr.msg_iov.is_null() && mhdr.msg_iovlen > 0 {
+        let tmpiov = slice::from_raw_parts_mut(ptr as * mut iovec, mhdr.msg_iovlen as usize);
+        ptr = ptr.add(mhdr.msg_iovlen as usize * mem::size_of::<iovec>());
+
+        let v = slice::from_raw_parts(mhdr.msg_iov, mhdr.msg_iovlen as usize);
+        for i in 0..v.len() {
+            tmpiov[i].iov_base = ptr as * mut c_void;
+            tmpiov[i].iov_len = v[i].iov_len;
+            ptr::copy_nonoverlapping(v[i].iov_base as * mut u8, tmpiov[i].iov_base as * mut u8, v[i].iov_len as usize);
+            ptr = ptr.add(v[i].iov_len as usize);
+        }
+    }
+
+    if !mhdr.msg_control.is_null() &&  mhdr.msg_controllen > 0 {
+        tmpmsg.msg_control = ptr as * mut c_void;
+        tmpmsg.msg_controllen = mhdr.msg_controllen;
+        ptr::copy_nonoverlapping(mhdr.msg_control as * mut u8, tmpmsg.msg_control as * mut u8, mhdr.msg_controllen as usize);
+    }
+
+    let status = u_sendmsg_ocall(&mut result as * mut ssize_t,
+                                 &mut error as * mut c_int,
+                                 sockfd,
+                                 &tmpmsg as * const msghdr,
+                                 flags);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+
+    free(hdrbase as * mut c_void);
+    result
+}
+
 pub unsafe fn recv(sockfd: c_int, buf: * mut c_void, len: size_t, flags: c_int) -> ssize_t {
     let mut result: ssize_t = 0;
     let mut error: c_int = 0;
@@ -1381,6 +1801,117 @@ pub unsafe fn recvfrom(sockfd: c_int,
     if !addrlen.is_null() {
         *addrlen = len_out;
     }
+    result
+}
+
+pub unsafe fn recvmsg(sockfd: c_int, msg: * mut msghdr, flags: c_int) -> ssize_t {
+    let mut result: ssize_t = 0;
+    let mut error: c_int = 0;
+    let mut hdrsize: usize = 0;
+    let mut ptr: * mut u8 = ptr::null_mut();
+
+    if msg.is_null() || sgx_types::sgx_is_within_enclave(msg as * const c_void, mem::size_of::<msghdr>()) == 0 {
+        set_errno(EINVAL);
+        return -1;
+    }
+
+    let mhdr: &mut msghdr = &mut *msg;
+    if !mhdr.msg_name.is_null() && mhdr.msg_namelen > 0 &&
+        sgx_types::sgx_is_within_enclave(mhdr.msg_name, mhdr.msg_namelen as usize) != 0 {
+        hdrsize += mhdr.msg_namelen as usize;
+    }
+
+    if !mhdr.msg_iov.is_null() && mhdr.msg_iovlen > 0 &&
+       sgx_types::sgx_is_within_enclave(mhdr.msg_iov as * const c_void, mhdr.msg_iovlen as usize * mem::size_of::<iovec>()) != 0 {
+
+        hdrsize += mhdr.msg_iovlen as usize * mem::size_of::<iovec>();
+        let v = slice::from_raw_parts(mhdr.msg_iov, mhdr.msg_iovlen as usize);
+        for io in v {
+            if !io.iov_base.is_null() && io.iov_len > 0 &&
+                sgx_types::sgx_is_within_enclave(io.iov_base, io.iov_len as usize) != 0 {
+                hdrsize += io.iov_len as usize;
+            } else {
+                set_errno(EINVAL);
+                return -1;
+            }
+        }
+    }
+
+    if !mhdr.msg_control.is_null() &&  mhdr.msg_controllen > 0 &&
+        sgx_types::sgx_is_within_enclave(mhdr.msg_control, mhdr.msg_controllen as usize) != 0 {
+        hdrsize += mhdr.msg_controllen as usize;
+    }
+
+    let hdrbase = malloc(hdrsize) as * mut u8;
+    if hdrbase.is_null() {
+        set_errno(ENOMEM );
+        return -1;
+    }
+    hdrbase.write_bytes(0_u8, hdrsize);
+
+    let mut tmpmsg: msghdr = mem::zeroed();
+    ptr = hdrbase;
+    if !mhdr.msg_name.is_null() && mhdr.msg_namelen > 0 {
+        tmpmsg.msg_name = ptr as * mut c_void;
+        tmpmsg.msg_namelen = mhdr.msg_namelen;
+        ptr::copy_nonoverlapping(mhdr.msg_name as * mut u8, tmpmsg.msg_name as * mut u8, mhdr.msg_namelen as usize);
+        ptr = ptr.add(mhdr.msg_namelen as usize);
+    }
+
+    if !mhdr.msg_iov.is_null() && mhdr.msg_iovlen > 0 {
+        let tmpiov = slice::from_raw_parts_mut(ptr as * mut iovec, mhdr.msg_iovlen as usize);
+        ptr = ptr.add(mhdr.msg_iovlen as usize * mem::size_of::<iovec>());
+
+        let v = slice::from_raw_parts(mhdr.msg_iov, mhdr.msg_iovlen as usize);
+        for i in 0..v.len() {
+            tmpiov[i].iov_base = ptr as * mut c_void;
+            tmpiov[i].iov_len = v[i].iov_len;
+            ptr = ptr.add(v[i].iov_len as usize);
+        }
+    }
+
+    if !mhdr.msg_control.is_null() &&  mhdr.msg_controllen > 0 {
+        tmpmsg.msg_control = ptr as * mut c_void;
+        tmpmsg.msg_controllen = mhdr.msg_controllen;
+        ptr::copy_nonoverlapping(mhdr.msg_control as * mut u8, tmpmsg.msg_control as * mut u8, mhdr.msg_controllen as usize);
+    }
+
+    let status = u_recvmsg_ocall(&mut result as * mut ssize_t,
+                                 &mut error as * mut c_int,
+                                 sockfd,
+                                 &mut tmpmsg as * mut msghdr,
+                                 flags);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+
+    ptr = hdrbase;
+    if !mhdr.msg_name.is_null() && mhdr.msg_namelen > 0 {
+        ptr = ptr.add(mhdr.msg_namelen as usize);
+    }
+
+    if !mhdr.msg_iov.is_null() && mhdr.msg_iovlen > 0 {
+        let tmpiov = slice::from_raw_parts_mut(ptr as * mut iovec, mhdr.msg_iovlen as usize);
+        ptr = ptr.add(mhdr.msg_iovlen as usize * mem::size_of::<iovec>());
+
+        let v = slice::from_raw_parts(mhdr.msg_iov, mhdr.msg_iovlen as usize);
+        for i in 0..v.len() {
+            ptr::copy_nonoverlapping(tmpiov[i].iov_base as * mut u8, v[i].iov_base as * mut u8, v[i].iov_len as usize);
+            ptr = ptr.add(v[i].iov_len as usize);
+        }
+    }
+
+    if !mhdr.msg_control.is_null() &&  mhdr.msg_controllen > 0 {
+        ptr::copy_nonoverlapping(tmpmsg.msg_control as * mut u8, mhdr.msg_control as * mut u8, mhdr.msg_controllen as usize);
+    }
+
+    free(hdrbase as * mut c_void);
     result
 }
 
@@ -1601,6 +2132,41 @@ pub unsafe fn sysconf(name: c_int) -> c_long {
                                  &mut error as * mut c_int,
                                  name);
 
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn pipe(fds: * mut c_int) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_pipe_ocall(&mut result as * mut c_int,
+                              &mut error as * mut c_int,
+                              fds);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn pipe2(fds: * mut c_int, flags: c_int) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_pipe2_ocall(&mut result as * mut c_int,
+                               &mut error as * mut c_int,
+                               fds,
+                               flags);
     if status == sgx_status_t::SGX_SUCCESS {
         if result == -1 {
             set_errno(error);

@@ -32,13 +32,13 @@
 FROM ubuntu:16.04
 MAINTAINER Yu Ding
 
-ENV sdk_bin https://download.01.org/intel-sgx/linux-2.4/ubuntu16.04-server/sgx_linux_x64_sdk_2.4.100.48163.bin
-ENV psw_deb https://download.01.org/intel-sgx/linux-2.4/ubuntu16.04-server/libsgx-enclave-common_2.4.100.48163-xenial1_amd64.deb
-ENV psw_dev_deb https://download.01.org/intel-sgx/linux-2.4/ubuntu16.04-server/libsgx-enclave-common-dev_2.4.100.48163-xenial1_amd64.deb
-ENV rust_toolchain nightly-2019-01-28
+ENV sdk_bin https://download.01.org/intel-sgx/linux-2.5/ubuntu16.04-server/sgx_linux_x64_sdk_2.5.100.49891.bin
+ENV psw_deb https://download.01.org/intel-sgx/linux-2.5/ubuntu16.04-server/libsgx-enclave-common_2.5.101.50123-xenial1_amd64.deb
+ENV psw_dev_deb https://download.01.org/intel-sgx/linux-2.5/ubuntu16.04-server/libsgx-enclave-common-dev_2.5.101.50123-xenial1_amd64.deb
+ENV rust_toolchain nightly-2019-04-26
 
 RUN apt-get update && \
-    apt-get install -y build-essential ocaml automake autoconf libtool wget python libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev sudo kmod vim curl git-core libprotobuf-c0-dev libboost-thread-dev libboost-system-dev liblog4cpp5-dev libjsoncpp-dev alien uuid-dev libxml2-dev cmake pkg-config expect && \
+    apt-get install -y build-essential ocaml automake autoconf libtool wget python libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev sudo kmod vim curl git-core libprotobuf-c0-dev libboost-thread-dev libboost-system-dev liblog4cpp5-dev libjsoncpp-dev alien uuid-dev libxml2-dev cmake pkg-config expect gdb && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /var/cache/apt/archives/*
 
@@ -66,23 +66,11 @@ RUN mkdir /root/sgx && \
     rm -rf /root/sgx/*
 
 
-ENV sdk_src https://github.com/intel/linux-sgx/archive/sgx_2.4.tar.gz
-ENV sdk_dir linux-sgx-sgx_2.4
-ADD patch24 /root/
-
-RUN wget -O /root/src.tar.gz ${sdk_src} && \
-    cd /root && tar xzf src.tar.gz && \
-    cd /root/${sdk_dir} && git apply ../patch24 && \
-    /root/${sdk_dir}/download_prebuilt.sh && \
-    cd /root/${sdk_dir} && make -j && \
-    cp /root/${sdk_dir}/build/linux/aesm_service /opt/intel/libsgx-enclave-common/aesm/aesm_service && \
-    rm /root/src.tar.gz && rm -rf /root/${sdk_dir}
-
 RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init && \
     chmod +x /root/rustup-init && \
     echo '1' | /root/rustup-init --default-toolchain ${rust_toolchain} && \
     echo 'source /root/.cargo/env' >> /root/.bashrc && \
-    /root/.cargo/bin/rustup component add rust-src && \
+    /root/.cargo/bin/rustup component add rust-src rls rust-analysis clippy && \
     /root/.cargo/bin/cargo install xargo && \
     rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git
 WORKDIR /root

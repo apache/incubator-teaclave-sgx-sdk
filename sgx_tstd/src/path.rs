@@ -1861,6 +1861,7 @@ impl_cmp_os_str!(Cow<'a, Path>, &'b OsStr);
 impl_cmp_os_str!(Cow<'a, Path>, OsString);
 
 impl fmt::Display for StripPrefixError {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.description().fmt(f)
     }

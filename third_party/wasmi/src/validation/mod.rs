@@ -142,7 +142,6 @@ pub fn deny_floating_point(module: &Module) -> Result<(), Error> {
 	}
 
 	if let (Some(sec), Some(types)) = (module.function_section(), module.type_section()) {
-		use parity_wasm::elements::{Type, ValueType};
 
 		let types = types.types();
 

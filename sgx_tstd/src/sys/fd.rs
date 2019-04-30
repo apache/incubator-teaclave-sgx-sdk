@@ -217,7 +217,7 @@ impl Drop for FileDesc {
 
 mod libc {
     pub use sgx_trts::libc::*;
-    pub use sgx_trts::libc::ocall::{read, pread64, write, pwrite64, 
+    pub use sgx_trts::libc::ocall::{read, pread64, write, pwrite64,
                                     fcntl_arg0, fcntl_arg1, ioctl_arg0, ioctl_arg1,
                                     close};
 }

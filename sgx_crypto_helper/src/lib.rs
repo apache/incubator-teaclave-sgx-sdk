@@ -78,7 +78,6 @@ pub trait RsaKeyPair {
     fn decrypt_buffer(self, ciphertext: &[u8], plaintext: &mut Vec<u8>) -> SgxResult<usize>;
 }
 
-
 extern crate serde;
 extern crate serde_derive;
 extern crate itertools;

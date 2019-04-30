@@ -276,6 +276,7 @@ impl fmt::Display for JoinPathsError {
 }
 
 impl Error for JoinPathsError {
+    #[allow(deprecated)]
     fn description(&self) -> &str { self.inner.description() }
 }
 

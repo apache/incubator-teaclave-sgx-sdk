@@ -31,6 +31,8 @@
  
 enclave {
 
+    from "sgx_time.edl" import *;
+
 	trusted {
         /* define ECALLs here. */
         public void t_global_init_ecall(uint64_t id, [in, size=len] const uint8_t *path, size_t len);
@@ -39,5 +41,9 @@ enclave {
 
     untrusted {
         /* define OCALLs here. */
+        int u_thread_set_event_ocall([out] int *error, [user_check] const void *tcs);
+        int u_thread_wait_event_ocall([out] int *error, [user_check] const void *tcs, int timeout);
+        int u_thread_set_multiple_events_ocall([out]int *error, [in, count=total]const void ** tcss, int total);
+        int u_thread_setwait_events_ocall([out]int *error, [user_check]const void * waiter_tcs, [user_check]const void * self_tcs, int timeout);
     };
 };

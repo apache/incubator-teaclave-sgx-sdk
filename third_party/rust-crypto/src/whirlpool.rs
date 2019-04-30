@@ -80,7 +80,7 @@ impl Digest for Whirlpool {
         let mut carry = false;
         for i in 0..32 {
             let mut x = self.bit_length[self.bit_length.len() - i - 1] as u16;
-            
+
             if i < len_bits.len() {
                 x += len_bits[len_bits.len() - i - 1] as u16;
             } else if !carry {
@@ -90,7 +90,7 @@ impl Digest for Whirlpool {
             if carry {
                 x += 1;
             }
-            
+
             carry = x > 0xff;
             let pos = self.bit_length.len() -i - 1;
             self.bit_length[pos] = (x & 0xff) as u8;
@@ -137,7 +137,7 @@ impl Digest for Whirlpool {
         self.bit_length = [0; 32];
         self.buffer.reset();
         self.finalized = false;
-        self.hash = [0; 8];    
+        self.hash = [0; 8];
     }
 
     fn output_bits(&self) -> usize {

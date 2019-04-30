@@ -194,6 +194,7 @@ impl Error for char::DecodeUtf16Error {
 }
 
 impl<T: Error> Error for Box<T> {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         Error::description(&**self)
     }

@@ -379,7 +379,7 @@ fn main() {
     }
 
     println!("get_sealed_pcl_key {:02X}", sealed_key_vec.iter().format(""));
-    
+
     let result = init_encrypted_enclave(ENCRYPTED_ENCLAVE_FILE,
                                         ENCRYPTED_ENCLAVE_TOKEN,
                                         &sealed_key_vec);

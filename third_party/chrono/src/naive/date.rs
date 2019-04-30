@@ -1387,7 +1387,7 @@ impl SubAssign<OldDuration> for NaiveDate {
 
 /// Subtracts another `NaiveDate` from the current date.
 /// Returns a `Duration` of integral numbers.
-/// 
+///
 /// This does not overflow or underflow at all,
 /// as all possible output fits in the range of `Duration`.
 ///
@@ -1629,7 +1629,7 @@ mod serde {
     impl<'de> de::Visitor<'de> for NaiveDateVisitor {
         type Value = NaiveDate;
 
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result 
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result
         {
             write!(formatter, "a formatted date string")
         }

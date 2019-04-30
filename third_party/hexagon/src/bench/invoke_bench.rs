@@ -24,7 +24,7 @@ fn run(b: &mut Bencher) {
         handle.get_object_pool().get_direct_typed::<Function>(entry_obj_id).unwrap()
             .to_virtual_info().unwrap()
     );
-    
+
 
     let entry = Value::Object(entry_obj_id);
     let mut ret = Value::Null;

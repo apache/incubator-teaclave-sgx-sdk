@@ -30,6 +30,7 @@
  */
 
 enclave {
+    from "sgx_tstd.edl" import *;
     from "sgx_stdio.edl" import *;
     from "sgx_backtrace.edl" import *;
     from "sgx_tstdc.edl" import *;
@@ -37,10 +38,16 @@ enclave {
 	trusted {
         /* define ECALLs here. */
 
-        public sgx_status_t create_sealeddata([out, size=sealed_log_size]
+        public sgx_status_t create_sealeddata_for_serializable([out, size=sealed_log_size]
             uint8_t* sealed_log, uint32_t sealed_log_size );
 
-        public sgx_status_t verify_sealeddata([in, size=sealed_log_size]
+        public sgx_status_t verify_sealeddata_for_serializable([in, size=sealed_log_size]
+            uint8_t* sealed_log, uint32_t sealed_log_size);
+
+        public sgx_status_t create_sealeddata_for_fixed([out, size=sealed_log_size]
+            uint8_t* sealed_log, uint32_t sealed_log_size );
+
+        public sgx_status_t verify_sealeddata_for_fixed([in, size=sealed_log_size]
             uint8_t* sealed_log, uint32_t sealed_log_size);
     };
 

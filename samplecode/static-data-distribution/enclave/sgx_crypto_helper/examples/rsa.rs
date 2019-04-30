@@ -156,7 +156,7 @@ fn rsa2048() -> sgx_status_t {
     pubkey.free().unwrap();
 
     sgx_status_t::SGX_SUCCESS
-    
+
 }
 
 fn rsa3072() -> sgx_status_t {
@@ -211,7 +211,7 @@ fn rsa3072() -> sgx_status_t {
     pubkey.free().unwrap();
 
     sgx_status_t::SGX_SUCCESS
-    
+
 }
 fn main() {
     rsa_key();

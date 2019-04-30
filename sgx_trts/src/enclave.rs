@@ -223,6 +223,25 @@ impl SgxThreadData {
         }
     }
 
+    pub unsafe fn from_raw(raw: usize) -> Self {
+        let p = raw as * const thread_data_t;
+        let td = &*p;
+        SgxThreadData {
+            td_addr: td.self_addr,
+            last_sp: td.last_sp,
+            stack_base_addr: td.stack_base_addr,
+            stack_limit_addr: td.stack_limit_addr,
+            first_ssa_gpr: td.first_ssa_gpr,
+            stack_guard: td.stack_guard,
+            xsave_size: td.xsave_size,
+            last_error: td.last_error,
+            tls_addr: td.tls_addr,
+            tls_array: td.tls_array,
+            exception_flag: td.exception_flag,
+            cxx_thread_info: td.cxx_thread_info,
+        }
+    }
+
     ///
     /// td_base is to get TD base address per thread.
     ///

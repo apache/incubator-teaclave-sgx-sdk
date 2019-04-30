@@ -715,7 +715,7 @@ pub fn rsgx_rijndael128GCM_encrypt(key: &sgx_aes_gcm_128bit_key_t,
     let ret = unsafe {
         let p_aad = if aad_len != 0 { aad.as_ptr() } else { ptr::null() };
 
-        let (mut p_src, mut p_dst) = if src_len != 0 {
+        let (p_src, p_dst) = if src_len != 0 {
             (src.as_ptr(), dst.as_mut_ptr())
         } else {
             (ptr::null(), ptr::null_mut())
@@ -841,9 +841,9 @@ pub fn rsgx_rijndael128GCM_decrypt(key: &sgx_aes_gcm_128bit_key_t,
     }
 
     let ret = unsafe {
-        let mut p_aad = if !aad.is_empty() { aad.as_ptr() } else { ptr::null() };
+        let p_aad = if !aad.is_empty() { aad.as_ptr() } else { ptr::null() };
 
-        let (mut p_src, mut p_dst) = if src_len != 0 {
+        let (p_src, p_dst) = if src_len != 0 {
             (src.as_ptr(), dst.as_mut_ptr())
         } else {
             (ptr::null(), ptr::null_mut())
@@ -3229,7 +3229,7 @@ fn rsgx_aes_gcm128_enc_init(key: &sgx_aes_gcm_128bit_key_t,
     }
 
     let ret = unsafe {
-        let mut p_aad = if !aad.is_empty() { aad.as_ptr() } else { ptr::null() };
+        let p_aad = if !aad.is_empty() { aad.as_ptr() } else { ptr::null() };
         sgx_aes_gcm128_enc_init(key as * const sgx_aes_gcm_128bit_key_t as * const u8,
                                 iv.as_ptr(),
                                 iv_len as u32,

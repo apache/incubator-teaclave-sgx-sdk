@@ -406,6 +406,7 @@ impl<W> From<IntoInnerError<W>> for Error {
 }
 
 impl<W: Send + fmt::Debug> error::Error for IntoInnerError<W> {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         error::Error::description(self.error())
     }

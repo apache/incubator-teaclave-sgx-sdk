@@ -39,7 +39,7 @@ use std::io::{Read, Write};
 use std::path;
 
 use sgx_crypto_helper::RsaKeyPair;
-use sgx_crypto_helper::rsa3072::Rsa3072KeyPair;
+use sgx_crypto_helper::rsa3072::{Rsa3072KeyPair, Rsa3072PubKey};
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
@@ -176,7 +176,18 @@ fn main() {
     let text_slice = &text.into_bytes();
 
     let mut ciphertext = Vec::new();
-    match rsa_keypair.encrypt_buffer(text_slice, &mut ciphertext) {
+    //match rsa_keypair.encrypt_buffer(text_slice, &mut ciphertext) {
+    //    Ok(n) => println!("Generated payload {} bytes", n),
+    //    Err(x) => println!("Error occured during encryption {}", x),
+    //}
+
+    let exported_pubkey: Rsa3072PubKey = rsa_keypair.export_pubkey().unwrap();
+    let serialized_pubkey = serde_json::to_string(&exported_pubkey).unwrap();
+    println!("exported pubkey = {}", serialized_pubkey);
+
+    let imported_pubkey: Rsa3072PubKey = serde_json::from_str(&serialized_pubkey).unwrap();
+    println!("imported pubkey = {:?}", imported_pubkey);
+    match imported_pubkey.encrypt_buffer(text_slice, &mut ciphertext) {
         Ok(n) => println!("Generated payload {} bytes", n),
         Err(x) => println!("Error occured during encryption {}", x),
     }

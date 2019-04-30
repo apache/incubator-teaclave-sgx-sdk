@@ -15,6 +15,8 @@
 //! currently Chrono supports [one built-in syntax closely resembling
 //! C's `strftime` format](./strftime/index.html).
 
+#![allow(deprecated)]
+
 use std::prelude::v1::*;
 use std::fmt;
 use std::str::FromStr;

@@ -469,7 +469,6 @@ pub fn test_rand_reseeding() {
     use std::prelude::v1::*;
 
     use sgx_rand::reseeding::{ReseedWithDefault, ReseedingRng};
-    use sgx_rand::{Rng, SeedableRng};
 
     struct Counter {
         i: u32,

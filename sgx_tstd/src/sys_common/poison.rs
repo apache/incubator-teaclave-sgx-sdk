@@ -183,6 +183,7 @@ impl<T> fmt::Display for TryLockError<T> {
 }
 
 impl<T> Error for TryLockError<T> {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match *self {
             TryLockError::Poisoned(ref p) => p.description(),

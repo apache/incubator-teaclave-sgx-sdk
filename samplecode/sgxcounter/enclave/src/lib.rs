@@ -74,8 +74,8 @@ pub extern "C" fn sgx_counter_sample() -> sgx_status_t {
             return sgx_status_t::SGX_ERROR_UNEXPECTED;
         }
     }
-   
-    // Emulate the 2nd session 
+
+    // Emulate the 2nd session
     match rsgx_create_pse_session() {
         Ok(_) => println!("Create PSE session done"),
         _ => {

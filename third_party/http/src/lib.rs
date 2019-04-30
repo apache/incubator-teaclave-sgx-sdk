@@ -157,7 +157,7 @@
 //! assert_eq!(uri.query(), None);
 //! ```
 
-#![deny(warnings, missing_docs, missing_debug_implementations)]
+#![deny(missing_docs, missing_debug_implementations)]
 
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![feature(rustc_private)]

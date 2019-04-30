@@ -283,7 +283,7 @@ use std::boxed::Box;
 use std::fmt;
 use std::mem;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[macro_use]
 mod macros;
@@ -292,7 +292,7 @@ mod serde;
 // The LOGGER static holds a pointer to the global logger. It is protected by
 // the STATE static which determines whether LOGGER has been initialized yet.
 static mut LOGGER: &'static Log = &NopLogger;
-static STATE: AtomicUsize = ATOMIC_USIZE_INIT;
+static STATE: AtomicUsize = AtomicUsize::new(0);
 
 // There are three different states that we care about: the logger's
 // uninitialized, the logger's initializing (set_logger's been called but
@@ -301,7 +301,7 @@ const UNINITIALIZED: usize = 0;
 const INITIALIZING: usize = 1;
 const INITIALIZED: usize = 2;
 
-static MAX_LOG_LEVEL_FILTER: AtomicUsize = ATOMIC_USIZE_INIT;
+static MAX_LOG_LEVEL_FILTER: AtomicUsize = AtomicUsize::new(0);
 
 static LOG_LEVEL_NAMES: [&'static str; 6] = ["OFF", "ERROR", "WARN", "INFO", "DEBUG", "TRACE"];
 
