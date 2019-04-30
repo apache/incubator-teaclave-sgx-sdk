@@ -94,7 +94,7 @@ use test_types::*;
 
 #[no_mangle]
 pub extern "C"
-fn test_main_entrance() -> sgx_status_t {
+fn test_main_entrance() -> size_t {
     rsgx_unit_tests!(
                      // tcrypto
                      test_rsgx_sha256_slice,
@@ -159,7 +159,6 @@ fn test_main_entrance() -> sgx_status_t {
                      // types
                      check_metadata_size,
                      check_version
-                     );
-    sgx_status_t::SGX_SUCCESS
+                     )
 }
 

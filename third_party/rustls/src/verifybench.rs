@@ -52,7 +52,7 @@ fn test_reddit_cert() {
     let chain = [ cert0, cert1 ];
     let mut anchors = anchors::RootCertStore::empty();
     anchors.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-    bench(100, "verify_server_cert(reddit)", 
+    bench(100, "verify_server_cert(reddit)",
           || (),
           |_| {
         let dns_name = webpki::DNSNameRef::try_from_ascii_str("reddit.com")
@@ -68,7 +68,7 @@ fn test_github_cert() {
     let chain = [ cert0, cert1 ];
     let mut anchors = anchors::RootCertStore::empty();
     anchors.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-    bench(100, "verify_server_cert(github)", 
+    bench(100, "verify_server_cert(github)",
           || (),
           |_| {
         let dns_name = webpki::DNSNameRef::try_from_ascii_str("github.com")
@@ -85,7 +85,7 @@ fn test_arstechnica_cert() {
     let chain = [ cert0, cert1, cert2 ];
     let mut anchors = anchors::RootCertStore::empty();
     anchors.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-    bench(100, "verify_server_cert(arstechnica)", 
+    bench(100, "verify_server_cert(arstechnica)",
           || (),
           |_| {
         let dns_name = webpki::DNSNameRef::try_from_ascii_str("arstechnica.com")
@@ -102,7 +102,7 @@ fn test_servo_cert() {
     let chain = [ cert0, cert1, cert2 ];
     let mut anchors = anchors::RootCertStore::empty();
     anchors.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-    bench(100, "verify_server_cert(servo)", 
+    bench(100, "verify_server_cert(servo)",
           || (),
           |_| {
         let dns_name = webpki::DNSNameRef::try_from_ascii_str("servo.org")
@@ -118,7 +118,7 @@ fn test_twitter_cert() {
     let chain = [ cert0, cert1 ];
     let mut anchors = anchors::RootCertStore::empty();
     anchors.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-    bench(100, "verify_server_cert(twitter)", 
+    bench(100, "verify_server_cert(twitter)",
           || (),
           |_| {
         let dns_name = webpki::DNSNameRef::try_from_ascii_str("twitter.com")
@@ -133,7 +133,7 @@ fn test_wikipedia_cert() {
     let chain = [ cert0, cert1 ];
     let mut anchors = anchors::RootCertStore::empty();
     anchors.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-    bench(100, "verify_server_cert(wikipedia)", 
+    bench(100, "verify_server_cert(wikipedia)",
           || (),
           |_| {
         let dns_name = webpki::DNSNameRef::try_from_ascii_str("wikipedia.org")
@@ -150,7 +150,7 @@ fn test_google_cert() {
     let chain = [ cert0, cert1, cert2 ];
     let mut anchors = anchors::RootCertStore::empty();
     anchors.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-    bench(100, "verify_server_cert(google)", 
+    bench(100, "verify_server_cert(google)",
           || (),
           |_| {
         let dns_name = webpki::DNSNameRef::try_from_ascii_str("www.google.com")
@@ -167,7 +167,7 @@ fn test_hn_cert() {
     let chain = [ cert0, cert1, cert2 ];
     let mut anchors = anchors::RootCertStore::empty();
     anchors.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-    bench(100, "verify_server_cert(hn)", 
+    bench(100, "verify_server_cert(hn)",
           || (),
           |_| {
         let dns_name = webpki::DNSNameRef::try_from_ascii_str("news.ycombinator.com")
@@ -183,7 +183,7 @@ fn test_stackoverflow_cert() {
     let chain = [ cert0, cert1 ];
     let mut anchors = anchors::RootCertStore::empty();
     anchors.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-    bench(100, "verify_server_cert(stackoverflow)", 
+    bench(100, "verify_server_cert(stackoverflow)",
           || (),
           |_| {
         let dns_name = webpki::DNSNameRef::try_from_ascii_str("stackoverflow.com")
@@ -199,7 +199,7 @@ fn test_duckduckgo_cert() {
     let chain = [ cert0, cert1 ];
     let mut anchors = anchors::RootCertStore::empty();
     anchors.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-    bench(100, "verify_server_cert(duckduckgo)", 
+    bench(100, "verify_server_cert(duckduckgo)",
           || (),
           |_| {
         let dns_name = webpki::DNSNameRef::try_from_ascii_str("duckduckgo.com")
@@ -216,7 +216,7 @@ fn test_rustlang_cert() {
     let chain = [ cert0, cert1, cert2 ];
     let mut anchors = anchors::RootCertStore::empty();
     anchors.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-    bench(100, "verify_server_cert(rustlang)", 
+    bench(100, "verify_server_cert(rustlang)",
           || (),
           |_| {
         let dns_name = webpki::DNSNameRef::try_from_ascii_str("www.rust-lang.org")
@@ -233,7 +233,7 @@ fn test_wapo_cert() {
     let chain = [ cert0, cert1, cert2 ];
     let mut anchors = anchors::RootCertStore::empty();
     anchors.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-    bench(100, "verify_server_cert(wapo)", 
+    bench(100, "verify_server_cert(wapo)",
           || (),
           |_| {
         let dns_name = webpki::DNSNameRef::try_from_ascii_str("www.washingtonpost.com")

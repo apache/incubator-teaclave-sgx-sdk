@@ -41,9 +41,6 @@ use core::mem;
 /// On success, the total number of bytes that were copied from
 /// `reader` to `writer` is returned.
 ///
-/// If you’re wanting to copy the contents of one file to another and you’re
-/// working with filesystem paths, see the [`fs::copy`] function.
-///
 /// # Errors
 ///
 /// This function will return an error immediately if any call to `read` or
@@ -119,7 +116,7 @@ pub struct Repeat { byte: u8 }
 ///
 /// All reads from this reader will succeed by filling the specified buffer with
 /// the given byte.
-pub fn repeat(byte: u8) -> Repeat { Repeat { byte } }
+pub fn repeat(byte: u8) -> Repeat { Repeat { byte: byte } }
 
 impl Read for Repeat {
     #[inline]

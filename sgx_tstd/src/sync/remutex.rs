@@ -34,18 +34,15 @@ use core::cell::UnsafeCell;
 use core::fmt;
 use core::ops::Deref;
 use core::marker;
-use alloc_crate::boxed::Box;
+use alloc::boxed::Box;
 
 /// The structure of sgx mutex.
 pub struct SgxReentrantThreadMutex {
-    lock: UnsafeCell<sgx_thread_mutex_t>,
+    lock: UnsafeCell<SgxThreadMutexInner>,
 }
 
 unsafe impl Send for SgxReentrantThreadMutex {}
 unsafe impl Sync for SgxReentrantThreadMutex {}
-
-impl UnwindSafe for SgxReentrantThreadMutex {}
-impl RefUnwindSafe for SgxReentrantThreadMutex {}
 
 impl SgxReentrantThreadMutex {
 
@@ -73,7 +70,9 @@ impl SgxReentrantThreadMutex {
     /// The trusted mutex object to be initialized.
     ///
     pub const fn new() -> Self {
-        SgxReentrantThreadMutex{ lock: UnsafeCell::new(sgx_types::SGX_THREAD_RECURSIVE_MUTEX_INITIALIZER) }
+        SgxReentrantThreadMutex{
+            lock: UnsafeCell::new(super::mutex::SgxThreadMutexInner::new(super::mutex::SgxThreadMutexControl::SGX_THREAD_MUTEX_RECURSIVE))
+        }
     }
 
     ///
@@ -113,7 +112,8 @@ impl SgxReentrantThreadMutex {
     ///
     #[inline]
     pub unsafe fn lock(&self) -> SysError {
-        rsgx_thread_mutex_lock(&mut *self.lock.get())
+        let remutex: &mut super::mutex::SgxThreadMutexInner = &mut *self.lock.get();
+        remutex.lock()
     }
 
     ///
@@ -150,7 +150,8 @@ impl SgxReentrantThreadMutex {
     ///
     #[inline]
     pub unsafe fn try_lock(&self) -> SysError {
-        rsgx_thread_mutex_trylock(&mut *self.lock.get())
+        let remutex: &mut super::mutex::SgxThreadMutexInner = &mut *self.lock.get();
+        remutex.try_lock()
     }
 
     ///
@@ -181,7 +182,8 @@ impl SgxReentrantThreadMutex {
     ///
     #[inline]
     pub unsafe fn unlock(&self) -> SysError {
-        rsgx_thread_mutex_unlock(&mut *self.lock.get())
+        let remutex: &mut super::mutex::SgxThreadMutexInner = &mut *self.lock.get();
+        remutex.unlock()
     }
 
     ///
@@ -215,13 +217,8 @@ impl SgxReentrantThreadMutex {
     ///
     #[inline]
     pub unsafe fn destroy(&self) -> SysError {
-        rsgx_thread_mutex_destroy(&mut *self.lock.get())
-    }
-
-    /// Get the pointer of sgx_thread_mutex_t in SgxThreadMutex.
-    #[inline]
-    pub unsafe fn get_raw(&self) -> &mut sgx_thread_mutex_t {
-        &mut *self.lock.get()
+        let remutex: &mut super::mutex::SgxThreadMutexInner = &mut *self.lock.get();
+        remutex.destroy()
     }
 }
 

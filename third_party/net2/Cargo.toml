@@ -30,7 +30,7 @@ duration = []
 nightly = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_tstd = { path =  "../../sgx_tstd", features = ["net", "untrusted_fs"] }
+sgx_tstd = { path =  "../../sgx_tstd", features = ["net"] }
 sgx_trts = { path =  "../../sgx_trts" }
 sgx_libc = { path =  "../../sgx_libc" }
 sgx_types = { path =  "../../sgx_types" }

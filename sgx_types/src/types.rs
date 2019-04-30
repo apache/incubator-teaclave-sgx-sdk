@@ -77,16 +77,13 @@ impl_struct! {
 pub const SGX_DH_MAC_SIZE: ::size_t           = 16;
 pub const SGX_DH_SESSION_DATA_SIZE: ::size_t  = 200;
 
-impl_struct! {
+impl_copy_clone! {
 
     #[repr(packed)]
     pub struct sgx_dh_msg1_t {
         pub g_a: sgx_ec256_public_t,
         pub target: sgx_target_info_t,
     }
-}
-
-impl_copy_clone! {
 
     #[repr(packed)]
     pub struct sgx_dh_msg2_t {
@@ -129,6 +126,7 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
+    sgx_dh_msg1_t, 576;
     sgx_dh_msg2_t, 512;
     sgx_dh_msg3_body_t, 436;
     sgx_dh_msg3_t, 452;
@@ -137,6 +135,7 @@ impl_struct_default! {
 }
 
 impl_struct_ContiguousMemory! {
+    sgx_dh_msg1_t;
     sgx_dh_msg2_t;
     sgx_dh_msg3_body_t;
     sgx_dh_msg3_t;
@@ -314,17 +313,17 @@ impl_struct! {
 
     #[repr(packed)]
     pub struct sgx_spid_t {
-        pub id: [::uint8_t ; 16],
+        pub id: [::uint8_t; 16],
     }
 
     #[repr(packed)]
     pub struct sgx_basename_t {
-        pub name: [::uint8_t ; 32],
+        pub name: [::uint8_t; 32],
     }
 
     #[repr(packed)]
     pub struct sgx_quote_nonce_t {
-        pub rand: [::uint8_t ; 16],
+        pub rand: [::uint8_t; 16],
     }
 
     #[repr(packed)]
@@ -365,16 +364,33 @@ impl_copy_clone! {
     pub struct sgx_platform_info_t {
         pub platform_info: [::uint8_t; SGX_PLATFORM_INFO_SIZE],
     }
+
+    /* intel sgx sdk 2.5 */
+    #[repr(packed)]
+    pub struct sgx_att_key_id_t {
+        pub att_key_id: [::uint8_t; 158],
+    }
+
+    #[repr(packed)]
+    pub struct sgx_qe_report_info_t {
+        pub nonce: sgx_quote_nonce_t,
+        pub app_enclave_target_info: sgx_target_info_t,
+        pub qe_report: sgx_report_t,
+    }
 }
 
 impl_struct_default! {
     sgx_quote_t, 436;
     sgx_platform_info_t, 101;
+    sgx_att_key_id_t, 158;
+    sgx_qe_report_info_t, 960;
 }
 
 impl_struct_ContiguousMemory! {
     sgx_quote_t;
     sgx_platform_info_t;
+    sgx_att_key_id_t;
+    sgx_qe_report_info_t;
 }
 
 //
@@ -967,26 +983,26 @@ impl_struct! {
 //
 
 
-pub type sgx_ecall_get_ga_trusted_t = extern "C" fn(eid: sgx_enclave_id_t,
-                                                    retval: * mut sgx_status_t,
-                                                    context: sgx_ra_context_t,
-                                                    g_a: * mut sgx_ec256_public_t) -> sgx_status_t;
+pub type sgx_ecall_get_ga_trusted_t = unsafe extern "C" fn(eid: sgx_enclave_id_t,
+                                                           retval: * mut sgx_status_t,
+                                                           context: sgx_ra_context_t,
+                                                           g_a: * mut sgx_ec256_public_t) -> sgx_status_t;
 
-pub type sgx_ecall_proc_msg2_trusted_t = extern "C" fn(eid: sgx_enclave_id_t,
-                                                       retval: * mut sgx_status_t,
-                                                       context: sgx_ra_context_t,
-                                                       p_msg2: * const sgx_ra_msg2_t,
-                                                       p_qe_target: * const sgx_target_info_t,
-                                                       p_report: * mut sgx_report_t,
-                                                       nonce: * mut sgx_quote_nonce_t) -> sgx_status_t;
+pub type sgx_ecall_proc_msg2_trusted_t = unsafe extern "C" fn(eid: sgx_enclave_id_t,
+                                                              retval: * mut sgx_status_t,
+                                                              context: sgx_ra_context_t,
+                                                              p_msg2: * const sgx_ra_msg2_t,
+                                                              p_qe_target: * const sgx_target_info_t,
+                                                              p_report: * mut sgx_report_t,
+                                                              nonce: * mut sgx_quote_nonce_t) -> sgx_status_t;
 
-pub type sgx_ecall_get_msg3_trusted_t = extern "C" fn(eid: sgx_enclave_id_t,
-                                                      retval: * mut sgx_status_t,
-                                                      context: sgx_ra_context_t,
-                                                      quote_size: ::uint32_t,
-                                                      qe_report: * mut sgx_report_t,
-                                                      p_msg3: * mut sgx_ra_msg3_t,
-                                                      msg3_size: ::uint32_t) -> sgx_status_t;
+pub type sgx_ecall_get_msg3_trusted_t = unsafe extern "C" fn(eid: sgx_enclave_id_t,
+                                                             retval: * mut sgx_status_t,
+                                                             context: sgx_ra_context_t,
+                                                             quote_size: ::uint32_t,
+                                                             qe_report: * mut sgx_report_t,
+                                                             p_msg3: * mut sgx_ra_msg3_t,
+                                                             msg3_size: ::uint32_t) -> sgx_status_t;
 
 //
 // sgx_urts.h

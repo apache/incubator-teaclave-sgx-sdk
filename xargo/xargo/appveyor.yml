@@ -1,0 +1,76 @@
+environment:
+  global:
+    CRATE_NAME: xargo
+    RUST_VERSION: stable
+
+  matrix:
+    # MinGW
+    - TARGET: i686-pc-windows-gnu
+    - TARGET: x86_64-pc-windows-gnu
+
+    # MSVC
+    - TARGET: i686-pc-windows-msvc
+    - TARGET: x86_64-pc-windows-msvc
+
+    - TARGET: i686-pc-windows-gnu
+      RUST_VERSION: nightly
+    - TARGET: x86_64-pc-windows-gnu
+      RUST_VERSION: nightly
+    - TARGET: i686-pc-windows-msvc
+      RUST_VERSION: nightly
+    - TARGET: x86_64-pc-windows-msvc
+      RUST_VERSION: nightly
+
+install:
+  - ps: >-
+      If ($Env:TARGET -eq 'x86_64-pc-windows-gnu') {
+        $Env:PATH += ';C:\msys64\mingw64\bin'
+      } ElseIf ($Env:TARGET -eq 'i686-pc-windows-gnu') {
+        $Env:PATH += ';C:\msys64\mingw32\bin'
+      }
+  - curl -sSf -o rustup-init.exe https://win.rustup.rs/
+  - rustup-init.exe -y --default-host %TARGET% --default-toolchain %RUST_VERSION%
+  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
+  - rustup component add rust-src
+  - rustc -Vv
+  - cargo -V
+
+test_script:
+  - if [%APPVEYOR_REPO_TAG%]==[false] (
+      cargo build --target %TARGET% &&
+      cargo run --target %TARGET% -- -V &&
+      if [%RUST_VERSION%]==[nightly] (
+        cargo test --target %TARGET% --features dev &&
+        cargo test --target %TARGET%
+      )
+    )
+
+before_deploy:
+  - cargo rustc --target %TARGET% --release --bin xargo -- -C lto
+  - ps: ci\before_deploy.ps1
+
+deploy:
+  artifact: /.*\.zip/
+  auth_token:
+    secure: eKL1bZzuKQzvnpQZhujz1FJaeBp7Y9fHDbDeumve4lyREn68CTsusQDezg0lB4Bv
+  description: ''
+  on:
+    RUST_VERSION: stable
+    appveyor_repo_tag: true
+  provider: GitHub
+
+cache:
+  - C:\Users\appveyor\.cargo\registry
+  - target
+
+branches:
+  only:
+    - /^v\d+\.\d+\.\d+.*$/
+    - auto
+    - try
+
+notifications:
+  - provider: Email
+    on_build_success: false
+
+build: false

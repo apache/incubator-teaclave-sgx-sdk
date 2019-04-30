@@ -47,16 +47,15 @@ use fs;
 use io;
 use ffi::{OsStr, OsString};
 use sys::path::{is_sep_byte, is_verbatim_sep, MAIN_SEP_STR, parse_prefix};
-use alloc_crate::borrow::{Borrow, Cow};
-use alloc_crate::rc::Rc;
-use alloc_crate::sync::Arc;
-use alloc_crate::str::FromStr;
-use alloc_crate::string::ParseError;
+use alloc::borrow::{Borrow, Cow};
+use alloc::rc::Rc;
+use alloc::sync::Arc;
 use core::cmp;
 use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::iter::{self, FusedIterator};
 use core::ops::{self, Deref};
+use core::str::FromStr;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -198,9 +197,10 @@ pub const MAIN_SEPARATOR: char = ::sys::path::MAIN_SEP;
 // Iterate through `iter` while it matches `prefix`; return `None` if `prefix`
 // is not a prefix of `iter`, otherwise return `Some(iter_after_prefix)` giving
 // `iter` after having exhausted `prefix`.
-fn iter_after<'a, 'b, I, J>(mut iter: I, mut prefix: J) -> Option<I>
-    where I: Iterator<Item = Component<'a>> + Clone,
-          J: Iterator<Item = Component<'b>>,
+fn iter_after<A, I, J>(mut iter: I, mut prefix: J) -> Option<I>
+    where I: Iterator<Item = A> + Clone,
+          J: Iterator<Item = A>,
+          A: PartialEq
 {
     loop {
         let mut iter_next = iter.clone();
@@ -345,7 +345,7 @@ impl<'a> Hash for PrefixComponent<'a> {
 
 /// A single component of a path.
 ///
-/// A `Component` roughly corresponds to a substring between path separators
+/// A `Component` roughtly corresponds to a substring between path separators
 /// (`/` or `\`).
 ///
 /// This `enum` is created by iterating over [`Components`], which in turn is
@@ -408,7 +408,7 @@ impl<'a> AsRef<Path> for Component<'a> {
     }
 }
 
-/// An iterator over the [`Component`]s of a [`Path`].
+/// An interator over the [`Component`]s of a [`Path`].
 ///
 /// This `struct` is created by the [`components`] method on [`Path`].
 /// See its documentation for more.
@@ -818,7 +818,10 @@ impl<'a> Iterator for Ancestors<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.next;
-        self.next = next.and_then(Path::parent);
+        self.next = match next {
+            Some(path) => path.parent(),
+            None => None,
+        };
         next
     }
 }
@@ -912,7 +915,7 @@ impl PathBuf {
         self.inner.push(path);
     }
 
-    /// Truncates `self` to [`self.parent`].
+    /// Truncate `self` to [`self.parent`].
     ///
     /// Returns `false` and does nothing if [`self.file_name`] is [`None`].
     /// Otherwise, returns `true`.
@@ -1029,13 +1032,6 @@ impl From<PathBuf> for Box<Path> {
     }
 }
 
-impl Clone for Box<Path> {
-    #[inline]
-    fn clone(&self) -> Self {
-        self.to_path_buf().into_boxed_path()
-    }
-}
-
 impl<'a, T: ?Sized + AsRef<OsStr>> From<&'a T> for PathBuf {
     fn from(s: &'a T) -> PathBuf {
         PathBuf::from(s.as_ref().to_os_string())
@@ -1060,8 +1056,22 @@ impl From<String> for PathBuf {
     }
 }
 
+/// Error returned from [`PathBuf::from_str`][`from_str`].
+///
+/// Note that parsing a path will never fail. This error is just a placeholder
+/// for implementing `FromStr` for `PathBuf`.
+///
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParsePathError {}
+
+impl fmt::Display for ParsePathError {
+    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
+        match *self {}
+    }
+}
+
 impl FromStr for PathBuf {
-    type Err = ParseError;
+    type Err = ParsePathError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(PathBuf::from(s))
@@ -1085,7 +1095,7 @@ impl<P: AsRef<Path>> iter::Extend<P> for PathBuf {
 }
 
 impl fmt::Debug for PathBuf {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         fmt::Debug::fmt(&**self, formatter)
     }
 }
@@ -1121,20 +1131,6 @@ impl<'a> From<PathBuf> for Cow<'a, Path> {
     #[inline]
     fn from(s: PathBuf) -> Cow<'a, Path> {
         Cow::Owned(s)
-    }
-}
-
-impl<'a> From<&'a PathBuf> for Cow<'a, Path> {
-    #[inline]
-    fn from(p: &'a PathBuf) -> Cow<'a, Path> {
-        Cow::Borrowed(p.as_path())
-    }
-}
-
-impl<'a> From<Cow<'a, Path>> for PathBuf {
-    #[inline]
-    fn from(p: Cow<'a, Path>) -> Self {
-        p.into_owned()
     }
 }
 
@@ -1215,9 +1211,9 @@ impl AsRef<OsStr> for PathBuf {
 /// A slice of a path (akin to [`str`]).
 ///
 /// This type supports a number of operations for inspecting a path, including
-/// breaking the path into its components (separated by `/` on Unix and by either
-/// `/` or `\` on Windows), extracting the file name, determining whether the path
-/// is absolute, and so on.
+/// breaking the path into its components (separated by `/` or `\`, depending on
+/// the platform), extracting the file name, determining whether the path is
+/// absolute, and so on.
 ///
 /// This is an *unsized* type, meaning that it must always be used behind a
 /// pointer like `&` or [`Box`]. For an owned version of this type,
@@ -1332,7 +1328,7 @@ impl Path {
     /// * On Unix, a path has a root if it begins with `/`.
     ///
     /// * On Windows, a path has a root if it:
-    ///     * has no prefix and begins with a separator, e.g. `\windows`
+    ///     * has no prefix and begins with a separator, e.g. `\\windows`
     ///     * has a prefix followed by a separator, e.g. `c:\windows` but not `c:windows`
     ///     * has any non-disk prefix, e.g. `\\server\share`
     ///
@@ -1378,7 +1374,7 @@ impl Path {
     /// If the path is a normal file, this is the file name. If it's the path of a directory, this
     /// is the directory name.
     ///
-    /// Returns [`None`] if the path terminates in `..`.
+    /// Returns [`None`] If the path terminates in `..`.
     ///
     /// [`None`]: ../../std/option/enum.Option.html#variant.None
     ///
@@ -1401,15 +1397,15 @@ impl Path {
     /// [`starts_with`]: #method.starts_with
     /// [`Err`]: ../../std/result/enum.Result.html#variant.Err
     ///
-    pub fn strip_prefix<P>(&self, base: P)
-                           -> Result<&Path, StripPrefixError>
+    pub fn strip_prefix<'a, P: ?Sized>(&'a self, base: &'a P)
+                                       -> Result<&'a Path, StripPrefixError>
         where P: AsRef<Path>
     {
         self._strip_prefix(base.as_ref())
     }
 
-    fn _strip_prefix(&self, base: &Path)
-                     -> Result<&Path, StripPrefixError> {
+    fn _strip_prefix<'a>(&'a self, base: &'a Path)
+                         -> Result<&'a Path, StripPrefixError> {
         iter_after(self.components(), base.components())
             .map(|c| c.as_path())
             .ok_or(StripPrefixError(()))
@@ -1530,7 +1526,7 @@ impl Path {
     /// * Repeated separators are ignored, so `a/b` and `a//b` both have
     ///   `a` and `b` as components.
     ///
-    /// * Occurrences of `.` are normalized away, except if they are at the
+    /// * Occurentces of `.` are normalized away, exept if they are at the
     ///   beginning of the path. For example, `a/./b`, `a/b/`, `a/b/.` and
     ///   `a/b` all have `a` and `b` as components, but `./a/b` starts with
     ///   an additional [`CurDir`] component.
@@ -1543,7 +1539,7 @@ impl Path {
         let prefix = parse_prefix(self.as_os_str());
         Components {
             path: self.as_u8_slice(),
-            prefix,
+            prefix: prefix,
             has_physical_root: has_physical_root(self.as_u8_slice(), prefix),
             front: State::Prefix,
             back: State::Body,
@@ -1597,8 +1593,8 @@ impl Path {
         fs::symlink_metadata(self)
     }
 
-    /// Returns the canonical, absolute form of the path with all intermediate
-    /// components normalized and symbolic links resolved.
+    /// Returns the canonical form of the path with all intermediate components
+    /// normalized and symbolic links resolved.
     ///
     /// This is an alias to [`fs::canonicalize`].
     ///
@@ -1865,6 +1861,7 @@ impl_cmp_os_str!(Cow<'a, Path>, &'b OsStr);
 impl_cmp_os_str!(Cow<'a, Path>, OsString);
 
 impl fmt::Display for StripPrefixError {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.description().fmt(f)
     }

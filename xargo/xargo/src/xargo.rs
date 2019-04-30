@@ -13,7 +13,6 @@ use errors::*;
 use extensions::CommandExt;
 use flock::{FileLock, Filesystem};
 use {cargo, util};
-use dirs;
 
 pub fn run(
     args: &Args,

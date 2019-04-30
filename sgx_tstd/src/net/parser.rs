@@ -67,12 +67,15 @@ impl<'a> Parser<'a> {
         F: FnOnce(&mut Parser) -> Option<T>,
     {
         self.read_atomically(move |p| {
-            cb(p).filter(|_| p.is_eof())
+            match cb(p) {
+                Some(x) => if p.is_eof() {Some(x)} else {None},
+                None => None,
+            }
         })
     }
 
     // Return result of first successful parser
-    fn read_or<T>(&mut self, parsers: &mut [Box<dyn FnMut(&mut Parser) -> Option<T> + 'static>])
+    fn read_or<T>(&mut self, parsers: &mut [Box<FnMut(&mut Parser) -> Option<T> + 'static>])
                -> Option<T> {
         for pf in parsers {
             if let Some(r) = self.read_atomically(|p: &mut Parser| pf(p)) {
@@ -381,6 +384,7 @@ impl FromStr for SocketAddr {
 pub struct AddrParseError(());
 
 impl fmt::Display for AddrParseError {
+    #[allow(deprecated)]
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.write_str(self.description())
     }

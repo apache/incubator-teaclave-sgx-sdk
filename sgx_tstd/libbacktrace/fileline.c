@@ -37,7 +37,6 @@ POSSIBILITY OF SUCH DAMAGE.  */
 #include <errno.h>
 //#include <fcntl.h>
 #include <stdlib.h>
-//#include <unistd.h>
 
 #include "backtrace.h"
 #include "internal.h"
@@ -57,7 +56,6 @@ fileline_initialize(struct backtrace_state* state,
     int pass = 0;
     int called_error_callback = 0;
     int descriptor = 0;
-    const char* filename = NULL;
 
     if (!state->threaded) {
         failed = state->fileline_initialization_failed;
@@ -86,6 +84,7 @@ fileline_initialize(struct backtrace_state* state,
     called_error_callback = 0;
 
     for (pass = 0; pass < 4; ++pass) {
+        const char* filename = NULL;
         int does_not_exist = 0;
 
         switch (pass) {
@@ -139,7 +138,7 @@ fileline_initialize(struct backtrace_state* state,
     }
 
     if (!failed) {
-        if (!backtrace_initialize(state, filename, descriptor, error_callback, data, &fileline_fn)) {
+        if (!backtrace_initialize(state, descriptor, error_callback, data, &fileline_fn)) {
             failed = 1;
         }
     }

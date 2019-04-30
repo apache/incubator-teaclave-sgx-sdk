@@ -26,15 +26,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use alloc::{Global, Alloc, Layout, LayoutErr, handle_alloc_error};
-use collections::CollectionAllocErr;
-use core::hash::{BuildHasher, Hash, Hasher};
-use core::marker;
-use core::mem::{size_of, needs_drop};
-use core::mem;
-use core::ops::{Deref, DerefMut};
-use core::ptr::{self, Unique, NonNull};
-use hint;
+use alloc::alloc::{Global, Alloc, Layout, LayoutErr, handle_alloc_error};
+use alloc::collections::CollectionAllocErr;
+use hash::{BuildHasher, Hash, Hasher};
+use marker;
+use mem::{size_of, needs_drop};
+use mem;
+use ops::{Deref, DerefMut};
+use ptr::{self, Unique, NonNull};
+use core::hint;
 
 use self::BucketState::*;
 
@@ -234,14 +234,28 @@ pub fn make_hash<T: ?Sized, S>(hash_state: &S, t: &T) -> SafeHash
     SafeHash::new(state.finish())
 }
 
+// `replace` casts a `*HashUint` to a `*SafeHash`. Since we statically
+// ensure that a `FullBucket` points to an index with a non-zero hash,
+// and a `SafeHash` is just a `HashUint` with a different name, this is
+// safe.
+//
+// This test ensures that a `SafeHash` really IS the same size as a
+// `HashUint`. If you need to change the size of `SafeHash` (and
+// consequently made this test fail), `replace` needs to be
+// modified to no longer assume this.
+#[test]
+fn can_alias_safehash_as_hash() {
+    assert_eq!(size_of::<SafeHash>(), size_of::<HashUint>())
+}
+
 // RawBucket methods are unsafe as it's possible to
 // make a RawBucket point to invalid memory using safe code.
 impl<K, V> RawBucket<K, V> {
     unsafe fn hash(&self) -> *mut HashUint {
-        self.hash_start.add(self.idx)
+        self.hash_start.offset(self.idx as isize)
     }
     unsafe fn pair(&self) -> *mut (K, V) {
-        self.pair_start.add(self.idx) as *mut (K, V)
+        self.pair_start.offset(self.idx as isize) as *mut (K, V)
     }
     unsafe fn hash_pair(&self) -> (*mut HashUint, *mut (K, V)) {
         (self.hash(), self.pair())
@@ -333,7 +347,6 @@ impl<K, V, M> Put<K, V> for FullBucket<K, V, M>
 }
 
 impl<K, V, M: Deref<Target = RawTable<K, V>>> Bucket<K, V, M> {
-    #[inline]
     pub fn new(table: M, hash: SafeHash) -> Bucket<K, V, M> {
         Bucket::at_index(table, hash.inspect() as usize)
     }
@@ -347,7 +360,6 @@ impl<K, V, M: Deref<Target = RawTable<K, V>>> Bucket<K, V, M> {
         }
     }
 
-    #[inline]
     pub fn at_index(table: M, ib_index: usize) -> Bucket<K, V, M> {
         // if capacity is 0, then the RawBucket will be populated with bogus pointers.
         // This is an uncommon case though, so avoid it in release builds.
@@ -660,7 +672,6 @@ impl<K, V, M> GapThenFull<K, V, M>
 
 // Returns a Layout which describes the allocation required for a hash table,
 // and the offset of the array of (key, value) pairs in the allocation.
-#[inline(always)]
 fn calculate_layout<K, V>(capacity: usize) -> Result<(Layout, usize), LayoutErr> {
     let hashes = Layout::array::<HashUint>(capacity)?;
     let pairs = Layout::array::<(K, V)>(capacity)?;
@@ -729,7 +740,6 @@ impl<K, V> RawTable<K, V> {
         }
     }
 
-    #[inline(always)]
     fn raw_bucket_at(&self, index: usize) -> RawBucket<K, V> {
         let (_, pairs_offset) = calculate_layout::<K, V>(self.capacity())
             .unwrap_or_else(|_| unsafe { hint::unreachable_unchecked() });
@@ -750,9 +760,7 @@ impl<K, V> RawTable<K, V> {
     ) -> Result<RawTable<K, V>, CollectionAllocErr> {
         unsafe {
             let ret = RawTable::new_uninitialized_internal(capacity, fallibility)?;
-            if capacity > 0 {
-                ptr::write_bytes(ret.hashes.ptr(), 0, capacity);
-            }
+            ptr::write_bytes(ret.hashes.ptr(), 0, capacity);
             Ok(ret)
         }
     }

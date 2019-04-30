@@ -5,7 +5,7 @@
 // ucd-generate is available on crates.io.
 
 lazy_static! {
-  pub static ref NAMES: ::fst::Map = 
+  pub static ref NAMES: ::fst::Map =
     ::fst::Map::from(::fst::raw::Fst::from_static_slice(
       include_bytes!("names.fst")).unwrap());
 }

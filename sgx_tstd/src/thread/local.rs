@@ -31,7 +31,6 @@
 use sgx_trts::enclave::{SgxGlobalData, SgxThreadPolicy};
 use core::cell::UnsafeCell;
 use core::mem;
-use core::hint;
 use core::fmt;
 use core::intrinsics;
 
@@ -62,7 +61,7 @@ impl<T: 'static> fmt::Debug for LocalKey<T> {
     }
 }
 
-/// Declare a new thread local storage key of type [`std::thread::LocalKey`].
+/// Declare a new thread local storage key of type [`sgx_trts::LocalKey`].
 ///
 /// # Syntax
 ///
@@ -81,25 +80,25 @@ impl<T: 'static> fmt::Debug for LocalKey<T> {
 /// ```
 ///
 #[macro_export]
-#[allow_internal_unstable]
+#[allow_internal_unstable(thread_local_internals)]
 macro_rules! thread_local {
     // empty (base case for the recursion)
     () => {};
 
     // process multiple declarations
     ($(#[$attr:meta])* $vis:vis static $name:ident: $t:ty = $init:expr; $($rest:tt)*) => (
-        $crate::__thread_local_inner!($(#[$attr])* $vis $name, $t, $init);
-        $crate::thread_local!($($rest)*);
+        __thread_local_inner!($(#[$attr])* $vis $name, $t, $init);
+        thread_local!($($rest)*);
     );
 
     // handle a single declaration
     ($(#[$attr:meta])* $vis:vis static $name:ident: $t:ty = $init:expr) => (
-        $crate::__thread_local_inner!($(#[$attr])* $vis $name, $t, $init);
+        __thread_local_inner!($(#[$attr])* $vis $name, $t, $init);
     );
 }
 
 #[macro_export]
-#[allow_internal_unstable]
+#[allow_internal_unstable(thread_local_internals, cfg_target_thread_local, thread_local)]
 macro_rules! __thread_local_inner {
     (@key $(#[$attr:meta])* $vis:vis $name:ident, $t:ty, $init:expr) => {
         {
@@ -123,12 +122,11 @@ macro_rules! __thread_local_inner {
         }
     };
     ($(#[$attr:meta])* $vis:vis $name:ident, $t:ty, $init:expr) => {
-        $(#[$attr])* $vis const $name: $crate::thread::LocalKey<$t> =
-            $crate::__thread_local_inner!(@key $(#[$attr])* $vis $name, $t, $init);
+        $(#[$attr])* $vis static $name: $crate::thread::LocalKey<$t> =
+            __thread_local_inner!(@key $(#[$attr])* $vis $name, $t, $init);
     }
 }
 
-/// An error returned by [`LocalKey::try_with`](struct.LocalKey.html#method.try_with).
 pub struct AccessError {
     _private: (),
 }
@@ -146,11 +144,12 @@ impl fmt::Display for AccessError {
 }
 
 impl<T: 'static> LocalKey<T> {
+
     pub const unsafe fn new(inner: unsafe fn() -> Option<&'static UnsafeCell<Option<T>>>,
-                            init: fn() -> T) -> LocalKey<T> {
+                     init: fn() -> T) -> LocalKey<T> {
         LocalKey {
-            inner,
-            init,
+            inner: inner,
+            init: init,
         }
     }
 
@@ -169,34 +168,13 @@ impl<T: 'static> LocalKey<T> {
     }
 
     unsafe fn init(&self, slot: &UnsafeCell<Option<T>>) -> &T {
-        // Execute the initialization up front, *then* move it into our slot,
-        // just in case initialization fails.
+
         let value = (self.init)();
         let ptr = slot.get();
 
-        // note that this can in theory just be `*ptr = Some(value)`, but due to
-        // the compiler will currently codegen that pattern with something like:
-        //
-        //      ptr::drop_in_place(ptr)
-        //      ptr::write(ptr, Some(value))
-        //
-        // Due to this pattern it's possible for the destructor of the value in
-        // `ptr` (e.g. if this is being recursively initialized) to re-access
-        // TLS, in which case there will be a `&` and `&mut` pointer to the same
-        // value (an aliasing violation). To avoid setting the "I'm running a
-        // destructor" flag we just use `mem::replace` which should sequence the
-        // operations a little differently and make this safe to call.
         mem::replace(&mut *ptr, Some(value));
 
-        // After storing `Some` we want to get a reference to the contents of
-        // what we just stored. While we could use `unwrap` here and it should
-        // always work it empirically doesn't seem to always get optimized away,
-        // which means that using something like `try_with` can pull in
-        // panicking code and cause a large size bloat.
-        match *ptr {
-            Some(ref x) => x,
-            None => hint::unreachable_unchecked(),
-        }
+        (*ptr).as_ref().unwrap()
     }
 
     /// Acquires a reference to the value in this TLS key.

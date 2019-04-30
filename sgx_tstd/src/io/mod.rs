@@ -27,12 +27,15 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use memchr;
+use error as std_error;
 use core::cmp;
+use core::str as core_str;
 use core::fmt;
+use core::result;
 use core::ptr;
-use alloc_crate::vec::Vec;
-use alloc_crate::str;
-use alloc_crate::string::String;
+use alloc::vec::Vec;
+use alloc::str;
+use alloc::string::String;
 
 pub use self::buffered::{BufReader, BufWriter, LineWriter};
 pub use self::buffered::IntoInnerError;
@@ -43,19 +46,18 @@ pub use self::lazy::{Lazy};
 
 pub use sys::os::{errno, set_errno, error_string};
 #[cfg(feature = "stdio")]
-pub use self::stdio::{stdin, stdout, stderr, Stdin, Stdout, Stderr};
+pub use self::stdio::{stdin, stdout, stderr, _print, Stdin, Stdout, Stderr};
 #[cfg(feature = "stdio")]
 pub use self::stdio::{StdoutLock, StderrLock, StdinLock};
-#[cfg(feature = "stdio")]
-pub use self::stdio::{_print, _eprint};
+//#[doc(no_inline, hidden)]
 //pub use self::stdio::{set_panic, set_print};
 
 pub mod prelude;
+mod lazy;
 mod buffered;
 mod cursor;
 mod error;
 mod impls;
-mod lazy;
 mod util;
 #[cfg(feature = "stdio")]
 mod stdio;
@@ -110,26 +112,19 @@ fn append_to_string<F>(buf: &mut String, f: F) -> Result<usize>
 // avoid paying to allocate and zero a huge chunk of memory if the reader only
 // has 4 bytes while still making large reads if the reader does have a ton
 // of data to return. Simply tacking on an extra DEFAULT_BUF_SIZE space every
-// time is 4,500 times (!) slower than a default reservation size of 32 if the
-// reader has a very small amount of data to return.
+// time is 4,500 times (!) slower than this if the reader has a very small
+// amount of data to return.
 //
 // Because we're extending the buffer with uninitialized data for trusted
 // readers, we need to make sure to truncate that if any of this panics.
 fn read_to_end<R: Read + ?Sized>(r: &mut R, buf: &mut Vec<u8>) -> Result<usize> {
-    read_to_end_with_reservation(r, buf, 32)
-}
-
-fn read_to_end_with_reservation<R: Read + ?Sized>(r: &mut R,
-                                                  buf: &mut Vec<u8>,
-                                                  reservation_size: usize) -> Result<usize>
-{
     let start_len = buf.len();
     let mut g = Guard { len: buf.len(), buf: buf };
     let ret;
     loop {
         if g.len == g.buf.len() {
             unsafe {
-                g.buf.reserve(reservation_size);
+                g.buf.reserve(32);
                 let capacity = g.buf.capacity();
                 g.buf.set_len(capacity);
                 r.initializer().initialize(&mut g.buf[g.len..]);
@@ -157,19 +152,22 @@ fn read_to_end_with_reservation<R: Read + ?Sized>(r: &mut R,
 ///
 /// Implementors of the `Read` trait are called 'readers'.
 ///
-/// Readers are defined by one required method, [`read()`]. Each call to [`read()`]
+/// Readers are defined by one required method, `read()`. Each call to `read`
 /// will attempt to pull bytes from this source into a provided buffer. A
-/// number of other methods are implemented in terms of [`read()`], giving
+/// number of other methods are implemented in terms of `read()`, giving
 /// implementors a number of ways to read bytes while only needing to implement
 /// a single method.
 ///
 /// Readers are intended to be composable with one another. Many implementors
-/// throughout [`std::io`] take and provide types which implement the `Read`
+/// throughout `std::io` take and provide types which implement the `Read`
 /// trait.
 ///
-/// Please note that each call to [`read()`] may involve a system call, and
-/// therefore, using something that implements [`BufRead`], such as
-/// [`BufReader`], will be more efficient.
+/// Please note that each call to `read` may involve a system call, and
+/// therefore, using something that implements [`BufRead`][bufread], such as
+/// [`BufReader`][bufreader], will be more efficient.
+///
+/// [bufread]: trait.BufRead.html
+/// [bufreader]: struct.BufReader.html
 ///
 pub trait Read {
     /// Pull some bytes from this source into the specified buffer, returning
@@ -177,9 +175,9 @@ pub trait Read {
     ///
     /// This function does not provide any guarantees about whether it blocks
     /// waiting for data, but if an object needs to block for a read but cannot
-    /// it will typically signal this via an [`Err`] return value.
+    /// it will typically signal this via an `Err` return value.
     ///
-    /// If the return value of this method is [`Ok(n)`], then it must be
+    /// If the return value of this method is `Ok(n)`, then it must be
     /// guaranteed that `0 <= n <= buf.len()`. A nonzero `n` value indicates
     /// that the buffer `buf` has been filled in with `n` bytes of data from this
     /// source. If `n` is `0`, then it can indicate one of two scenarios:
@@ -200,7 +198,7 @@ pub trait Read {
     /// variant will be returned. If an error is returned then it must be
     /// guaranteed that no bytes were read.
     ///
-    /// An error of the [`ErrorKind::Interrupted`] kind is non-fatal and the read
+    /// An error of the `ErrorKind::Interrupted` kind is non-fatal and the read
     /// operation should be retried if there is nothing else to do.
     ///
     fn read(&mut self, buf: &mut [u8]) -> Result<usize>;
@@ -211,14 +209,14 @@ pub trait Read {
     /// buffers.
     ///
     /// If a `Read`er guarantees that it can work properly with uninitialized
-    /// memory, it should call [`Initializer::nop()`]. See the documentation for
-    /// [`Initializer`] for details.
+    /// memory, it should call `Initializer::nop()`. See the documentation for
+    /// `Initializer` for details.
     ///
     /// The behavior of this method must be independent of the state of the
     /// `Read`er - the method only takes `&self` so that it can be used through
     /// trait objects.
     ///
-    /// # Safety
+    /// # Unsafety
     ///
     /// This method is unsafe because a `Read`er could otherwise return a
     /// non-zeroing `Initializer` from another `Read` type without an `unsafe`
@@ -231,16 +229,16 @@ pub trait Read {
     /// Read all bytes until EOF in this source, placing them into `buf`.
     ///
     /// All bytes read from this source will be appended to the specified buffer
-    /// `buf`. This function will continuously call [`read()`] to append more data to
-    /// `buf` until [`read()`] returns either [`Ok(0)`] or an error of
-    /// non-[`ErrorKind::Interrupted`] kind.
+    /// `buf`. This function will continuously call `read` to append more data to
+    /// `buf` until `read` returns either `Ok(0)` or an error of
+    /// non-`ErrorKind::Interrupted` kind.
     ///
     /// If successful, this function will return the total number of bytes read.
     ///
     /// # Errors
     ///
     /// If this function encounters an error of the kind
-    /// [`ErrorKind::Interrupted`] then the error is ignored and the operation
+    /// `ErrorKind::Interrupted` then the error is ignored and the operation
     /// will continue.
     ///
     /// If any other read error is encountered then this function immediately
@@ -291,11 +289,11 @@ pub trait Read {
     /// # Errors
     ///
     /// If this function encounters an error of the kind
-    /// [`ErrorKind::Interrupted`] then the error is ignored and the operation
+    /// `ErrorKind::Interrupted` then the error is ignored and the operation
     /// will continue.
     ///
     /// If this function encounters an "end of file" before completely filling
-    /// the buffer, it returns an error of the kind [`ErrorKind::UnexpectedEof`].
+    /// the buffer, it returns an error of the kind `ErrorKind::UnexpectedEof`.
     /// The contents of `buf` are unspecified in this case.
     ///
     /// If any other read error is encountered then this function immediately
@@ -329,15 +327,30 @@ pub trait Read {
     ///
     fn by_ref(&mut self) -> &mut Self where Self: Sized { self }
 
-    /// Transforms this `Read` instance to an [`Iterator`] over its bytes.
+    /// Transforms this `Read` instance to an `Iterator` over its bytes.
     ///
-    /// The returned type implements [`Iterator`] where the `Item` is
-    /// [`Result`]`<`[`u8`]`, `[`io::Error`]`>`.
-    /// The yielded item is [`Ok`] if a byte was successfully read and [`Err`]
-    /// otherwise. EOF is mapped to returning [`None`] from this iterator.
+    /// The returned type implements `Iterator` where the `Item` is `Result<u8,
+    /// R::Err>`.  The yielded item is `Ok` if a byte was successfully read and
+    /// `Err` otherwise for I/O errors. EOF is mapped to returning `None` from
+    /// this iterator.
     ///
     fn bytes(self) -> Bytes<Self> where Self: Sized {
         Bytes { inner: self }
+    }
+
+    /// Transforms this `Read` instance to an `Iterator` over `char`s.
+    ///
+    /// This adaptor will attempt to interpret this reader as a UTF-8 encoded
+    /// sequence of characters. The returned iterator will return `None` once
+    /// EOF is reached for this reader. Otherwise each element yielded will be a
+    /// `Result<char, E>` where `E` may contain information about what I/O error
+    /// occurred or where decoding failed.
+    ///
+    /// Currently this adaptor will discard intermediate data read, and should
+    /// be avoided if this is not desired.
+    ///
+    fn chars(self) -> Chars<Self> where Self: Sized {
+        Chars { inner: self }
     }
 
     /// Creates an adaptor which will chain this stream with another.
@@ -353,9 +366,9 @@ pub trait Read {
     /// Creates an adaptor which will read at most `limit` bytes from it.
     ///
     /// This function returns a new instance of `Read` which will read at most
-    /// `limit` bytes, after which it will always return EOF ([`Ok(0)`]). Any
+    /// `limit` bytes, after which it will always return EOF (`Ok(0)`). Any
     /// read errors will not count towards the number of bytes read and future
-    /// calls to [`read()`] may succeed.
+    /// calls to `read` may succeed.
     ///
     fn take(self, limit: u64) -> Take<Self> where Self: Sized {
         Take { inner: self, limit: limit }
@@ -375,7 +388,7 @@ impl Initializer {
 
     /// Returns a new `Initializer` which will not zero out buffers.
     ///
-    /// # Safety
+    /// # Unsafety
     ///
     /// This may only be called by `Read`ers which guarantee that they will not
     /// read from buffers passed to `Read` methods, and that the return value of
@@ -432,9 +445,9 @@ pub trait Write {
     ///
     /// Calls to `write` are not guaranteed to block waiting for data to be
     /// written, and a write which would otherwise block can be indicated through
-    /// an [`Err`] variant.
+    /// an `Err` variant.
     ///
-    /// If the return value is [`Ok(n)`] then it must be guaranteed that
+    /// If the return value is `Ok(n)` then it must be guaranteed that
     /// `0 <= n <= buf.len()`. A return value of `0` typically means that the
     /// underlying object is no longer able to accept bytes and will likely not
     /// be able to in the future as well, or that the buffer provided is empty.
@@ -448,7 +461,7 @@ pub trait Write {
     /// It is **not** considered an error if the entire buffer could not be
     /// written to this writer.
     ///
-    /// An error of the [`ErrorKind::Interrupted`] kind is non-fatal and the
+    /// An error of the `ErrorKind::Interrupted` kind is non-fatal and the
     /// write operation should be retried if there is nothing else to do.
     ///
     fn write(&mut self, buf: &[u8]) -> Result<usize>;
@@ -465,11 +478,11 @@ pub trait Write {
 
     /// Attempts to write an entire buffer into this write.
     ///
-    /// This method will continuously call [`write`] until there is no more data
-    /// to be written or an error of non-[`ErrorKind::Interrupted`] kind is
+    /// This method will continuously call `write` until there is no more data
+    /// to be written or an error of non-`ErrorKind::Interrupted` kind is
     /// returned. This method will not return until the entire buffer has been
     /// successfully written or such an error occurs. The first error that is
-    /// not of [`ErrorKind::Interrupted`] kind generated from this method will be
+    /// not of `ErrorKind::Interrupted` kind generated from this method will be
     /// returned.
     ///
     /// # Errors
@@ -561,10 +574,10 @@ pub trait Write {
 /// end or the current offset.
 ///
 pub trait Seek {
-    // Seek to an offset, in bytes, in a stream.
+    /// Seek to an offset, in bytes, in a stream.
     ///
-    /// A seek beyond the end of a stream is allowed, but behavior is defined
-    /// by the implementation.
+    /// A seek beyond the end of a stream is allowed, but implementation
+    /// defined.
     ///
     /// If the seek operation completed successfully,
     /// this method returns the new position from the start of the stream.
@@ -640,8 +653,7 @@ fn read_until<R: BufRead + ?Sized>(r: &mut R, delim: u8, buf: &mut Vec<u8>)
 /// [`read_line`] method as well as a [`lines`] iterator.
 ///
 pub trait BufRead: Read {
-    /// Returns the contents of the internal buffer, filling it with more data
-    /// from the inner reader if it is empty.
+    /// Fills the internal buffer of this object, returning the buffer contents.
     ///
     /// This function is a lower-level call. It needs to be paired with the
     /// [`consume`] method to function properly. When calling this
@@ -683,6 +695,8 @@ pub trait BufRead: Read {
     /// the delimiter (if found) will be appended to `buf`.
     ///
     /// If successful, this function will return the total number of bytes read.
+    ///
+    /// An empty buffer returned indicates that the stream has reached EOF.
     ///
     /// # Errors
     ///
@@ -921,12 +935,6 @@ impl<T: Read> Read for Take<T> {
     unsafe fn initializer(&self) -> Initializer {
         self.inner.initializer()
     }
-
-    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> Result<usize> {
-        let reservation_size = cmp::min(self.limit, 32) as usize;
-
-        read_to_end_with_reservation(self, buf, reservation_size)
-    }
 }
 
 impl<T: BufRead> BufRead for Take<T> {
@@ -949,7 +957,7 @@ impl<T: BufRead> BufRead for Take<T> {
     }
 }
 
-fn read_one_byte(reader: &mut dyn Read) -> Option<Result<u8>> {
+fn read_one_byte(reader: &mut Read) -> Option<Result<u8>> {
     let mut buf = [0];
     loop {
         return match reader.read(&mut buf) {
@@ -977,6 +985,86 @@ impl<R: Read> Iterator for Bytes<R> {
 
     fn next(&mut self) -> Option<Result<u8>> {
         read_one_byte(&mut self.inner)
+    }
+}
+
+/// An iterator over the `char`s of a reader.
+///
+/// This struct is generally created by calling [`chars`][chars] on a reader.
+/// Please see the documentation of `chars()` for more details.
+///
+/// [chars]: trait.Read.html#method.chars
+#[derive(Debug)]
+pub struct Chars<R> {
+    inner: R,
+}
+
+/// An enumeration of possible errors that can be generated from the `Chars`
+/// adapter.
+#[derive(Debug)]
+pub enum CharsError {
+    /// Variant representing that the underlying stream was read successfully
+    /// but it did not contain valid utf8 data.
+    NotUtf8,
+
+    /// Variant representing that an I/O error occurred.
+    Other(Error),
+}
+
+impl<R: Read> Iterator for Chars<R> {
+    type Item = result::Result<char, CharsError>;
+
+    fn next(&mut self) -> Option<result::Result<char, CharsError>> {
+        let first_byte = match read_one_byte(&mut self.inner)? {
+            Ok(b) => b,
+            Err(e) => return Some(Err(CharsError::Other(e))),
+        };
+        let width = core_str::utf8_char_width(first_byte);
+        if width == 1 { return Some(Ok(first_byte as char)) }
+        if width == 0 { return Some(Err(CharsError::NotUtf8)) }
+        let mut buf = [first_byte, 0, 0, 0];
+        {
+            let mut start = 1;
+            while start < width {
+                match self.inner.read(&mut buf[start..width]) {
+                    Ok(0) => return Some(Err(CharsError::NotUtf8)),
+                    Ok(n) => start += n,
+                    Err(ref e) if e.kind() == ErrorKind::Interrupted => continue,
+                    Err(e) => return Some(Err(CharsError::Other(e))),
+                }
+            }
+        }
+        Some(match str::from_utf8(&buf[..width]).ok() {
+            Some(s) => Ok(s.chars().next().unwrap()),
+            None => Err(CharsError::NotUtf8),
+        })
+    }
+}
+
+impl std_error::Error for CharsError {
+    #[allow(deprecated)]
+    fn description(&self) -> &str {
+        match *self {
+            CharsError::NotUtf8 => "invalid utf8 encoding",
+            CharsError::Other(ref e) => std_error::Error::description(e),
+        }
+    }
+    fn cause(&self) -> Option<&std_error::Error> {
+        match *self {
+            CharsError::NotUtf8 => None,
+            CharsError::Other(ref e) => e.cause(),
+        }
+    }
+}
+
+impl fmt::Display for CharsError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            CharsError::NotUtf8 => {
+                "byte stream did not contain valid utf8".fmt(f)
+            }
+            CharsError::Other(ref e) => e.fmt(f),
+        }
     }
 }
 

@@ -29,7 +29,7 @@ Start server
 ```
 make
 cd bin
-./app --server
+./app --server (add --unlink if your spid's type is unlinkable)
 ```
 
 Start client 
@@ -37,5 +37,5 @@ Start client
 ```
 make
 cd bin
-./app --client
+./app --client (add --unlink if your spid's type is unlinkable)
 ```

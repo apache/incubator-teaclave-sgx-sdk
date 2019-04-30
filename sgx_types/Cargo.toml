@@ -1,7 +1,7 @@
 [package]
 authors = ["Baidu"]
 name = "sgx_types"
-version = "1.0.6"
+version = "1.0.7"
 repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"
 documentation = "https://dingelish.github.io/"
@@ -16,7 +16,8 @@ include = [
     "src/types.rs",
     "src/error.rs",
     "src/macros.rs",
-    "src/lib.rs"
+    "src/lib.rs",
+    "src/metadata.rs",
 ]
 
 [lib]

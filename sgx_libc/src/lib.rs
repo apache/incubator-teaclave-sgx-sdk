@@ -28,13 +28,17 @@
 
 #![no_std]
 
+#![feature(alloc)]
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 #![allow(overflowing_literals)]
 #![allow(non_snake_case)]
 #![allow(unused_macros)]
+#![allow(unused_assignments)]
 
-#[cfg(all(target_os = "linux", target_arch = "x86_64"))] 
+extern crate alloc;
+
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 extern crate sgx_types;
 
 #[macro_use]

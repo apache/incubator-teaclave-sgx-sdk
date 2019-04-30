@@ -403,7 +403,7 @@ impl Executor {
                 }
             }
         }));
-        
+
         self.call_stack_depth.replace(self.call_stack_depth.get() - 1);
 
         if let Err(e) = result {

@@ -37,7 +37,7 @@ pub fn fft2_inverse<F: Field>(zp: &F, data: &mut [F::U], omega: F::U) {
     let len = data.len();
     let len_inv = zp.inv(zp.from_u64(len as u64));
     fft2(zp, data, omega_inv);
-    for mut x in data {
+    for x in data {
         *x = zp.mul(*x, len_inv);
     }
 }
@@ -167,7 +167,7 @@ pub fn fft3_inverse<F: Field>(zp: &F, data: &mut [F::U], omega: F::U) {
     let omega_inv = zp.inv(omega);
     let len_inv = zp.inv(zp.from_u64(data.len() as u64));
     fft3(zp, data, omega_inv);
-    for mut x in data {
+    for x in data {
         *x = zp.mul(*x, len_inv);
     }
 }

@@ -30,19 +30,16 @@
  */
 
 enclave {
-    //from "sgx_tstd.edl" import *;
-    from "sgx_stdio.edl" import *;
+    from "sgx_tstd.edl" import u_thread_setwait_events_ocall, u_thread_wait_event_ocall, u_thread_set_event_ocall;
     from "sgx_fs.edl" import *;
     from "sgx_net.edl" import *;
-    from "sgx_time.edl" import *;
     from "sgx_tprotected_fs.edl" import *;
-    from "sgx_tstdc.edl" import *;
 
     include "sgx_quote.h"
 
 
     trusted {
-        public sgx_status_t key_provision(int fd);
+        public sgx_status_t key_provision(int fd, sgx_quote_sign_type_t quote_type);
         public sgx_status_t get_sealed_pcl_key([out, size = keylen] uint8_t *key_buf,
                                                uint32_t keylen);
         public uint32_t get_sealed_pcl_key_len();

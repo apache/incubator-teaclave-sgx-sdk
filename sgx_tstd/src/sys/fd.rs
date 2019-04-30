@@ -30,7 +30,7 @@ use sgx_trts::libc::{c_int, c_void, ssize_t};
 use core::cmp;
 use core::mem;
 use core::sync::atomic::{AtomicBool, Ordering};
-use io::{self, Read, Initializer};
+use io::{self, Read};
 use sys::cvt;
 use sys_common::AsInner;
 
@@ -57,7 +57,7 @@ fn max_len() -> usize {
 
 impl FileDesc {
     pub fn new(fd: c_int) -> FileDesc {
-        FileDesc { fd }
+        FileDesc { fd: fd }
     }
 
     pub fn raw(&self) -> c_int { self.fd }
@@ -198,11 +198,6 @@ impl<'a> Read for &'a FileDesc {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         (**self).read(buf)
     }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        Initializer::nop()
-    }
 }
 
 impl AsInner<c_int> for FileDesc {
@@ -222,7 +217,7 @@ impl Drop for FileDesc {
 
 mod libc {
     pub use sgx_trts::libc::*;
-    pub use sgx_trts::libc::ocall::{read, pread64, write, pwrite64, 
+    pub use sgx_trts::libc::ocall::{read, pread64, write, pwrite64,
                                     fcntl_arg0, fcntl_arg1, ioctl_arg0, ioctl_arg1,
                                     close};
 }

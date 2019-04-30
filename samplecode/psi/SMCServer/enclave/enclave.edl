@@ -30,11 +30,11 @@
  */
 
 enclave {
-
-    from "sgx_tkey_exchange.edl" import *;
-
     include "sgx_key_exchange.h"
     include "sgx_trts.h"
+
+    from "sgx_tkey_exchange.edl" import *;
+    from "sgx_tstd.edl" import *;
     from "sgx_stdio.edl" import *;
     from "sgx_backtrace.edl" import *;
 

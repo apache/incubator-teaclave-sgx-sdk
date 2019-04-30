@@ -11,7 +11,7 @@ use step_by::RangeExt;
 fn setup(cost: u32, salt: &[u8], key: &[u8]) -> Blowfish {
     assert!(cost < 32);
     let mut state = Blowfish::init_state();
-    
+
     state.salted_expand_key(salt, key);
     for _ in 0..1u32 << cost {
         state.expand_key(key);

@@ -42,12 +42,6 @@ use core::fmt;
 /// results in a system call. A `BufReader` performs large, infrequent reads on
 /// the underlying [`Read`] and maintains an in-memory buffer of the results.
 ///
-/// `BufReader` can improve the speed of programs that make *small* and
-/// *repeated* read calls to the same file or network socket.  It does not
-/// help when reading very large amounts at once, or reading just one or a few
-/// times.  It also provides no advantage when reading from a source that is
-/// already in memory, like a `Vec<u8>`.
-///
 /// [`Read`]: ../../std/io/trait.Read.html
 /// [`TcpStream::read`]: ../../std/net/struct.TcpStream.html#method.read
 /// [`TcpStream`]: ../../std/net/struct.TcpStream.html
@@ -74,7 +68,7 @@ impl<R: Read> BufReader<R> {
             buffer.set_len(cap);
             inner.initializer().initialize(&mut buffer);
             BufReader {
-                inner,
+                inner: inner,
                 buf: buffer.into_boxed_slice(),
                 pos: 0,
                 cap: 0,
@@ -93,6 +87,12 @@ impl<R: Read> BufReader<R> {
     /// It is inadvisable to directly read from the underlying reader.
     ///
     pub fn get_mut(&mut self) -> &mut R { &mut self.inner }
+
+    /// Returns `true` if there are no bytes in the internal buffer.
+    ///
+    pub fn is_empty(&self) -> bool {
+        self.buffer().is_empty()
+    }
 
     /// Returns a reference to the internally buffered data.
     ///
@@ -206,6 +206,7 @@ impl<R: Seek> Seek for BufReader<R> {
     /// have if you called `seek` with `SeekFrom::Current(0)`.
     ///
     /// [`seek_relative`]: #method.seek_relative
+    ///
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         let result: u64;
         if let SeekFrom::Current(n) = pos {
@@ -239,12 +240,6 @@ impl<R: Seek> Seek for BufReader<R> {
 /// [`write`][`Tcpstream::write`] on [`TcpStream`] results in a system call. A
 /// `BufWriter` keeps an in-memory buffer of data and writes it to an underlying
 /// writer in large, infrequent batches.
-///
-/// `BufWriter` can improve the speed of programs that make *small* and
-/// *repeated* write calls to the same file or network socket.  It does not
-/// help when writing very large amounts at once, or writing just one or a few
-/// times.  It also provides no advantage when writing to a destination that is
-/// in memory, like a `Vec<u8>`.
 ///
 /// When the `BufWriter` is dropped, the contents of its buffer will be written
 /// out. However, any errors that happen in the process of flushing the buffer
@@ -322,12 +317,6 @@ impl<W: Write> BufWriter<W> {
     /// Gets a reference to the underlying writer.
     ///
     pub fn get_ref(&self) -> &W { self.inner.as_ref().unwrap() }
-
-    /// Returns a reference to the internally buffered data.
-    ///
-    pub fn buffer(&self) -> &[u8] {
-        &self.buf
-    }
 
     /// Gets a mutable reference to the underlying writer.
     ///
@@ -417,6 +406,7 @@ impl<W> From<IntoInnerError<W>> for Error {
 }
 
 impl<W: Send + fmt::Debug> error::Error for IntoInnerError<W> {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         error::Error::description(self.error())
     }
@@ -436,9 +426,6 @@ impl<W> fmt::Display for IntoInnerError<W> {
 /// internal buffer is full. Sometimes, you'd prefer to write each line as it's
 /// completed, rather than the entire buffer at once. Enter `LineWriter`. It
 /// does exactly that.
-///
-/// Like [`BufWriter`], a `LineWriter`’s buffer will also be flushed when the
-/// `LineWriter` goes out of scope or when its internal buffer is full.
 ///
 /// [bufwriter]: struct.BufWriter.html
 ///
@@ -505,7 +492,7 @@ impl<W: Write> Write for LineWriter<W> {
 
         // Find the last newline character in the buffer provided. If found then
         // we're going to write all the data up to that point and then flush,
-        // otherwise we just write the whole block to the underlying writer.
+        // otherewise we just write the whole block to the underlying writer.
         let i = match memchr::memrchr(b'\n', buf) {
             Some(i) => i,
             None => return self.inner.write(buf),

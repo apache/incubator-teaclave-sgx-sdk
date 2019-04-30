@@ -49,6 +49,8 @@ pub mod time;
 pub mod memchr;
 pub mod cmath;
 pub mod env;
+#[cfg(feature = "pipe")]
+pub mod pipe;
 
 pub fn decode_error_kind(errno: i32) -> ErrorKind {
 

@@ -145,7 +145,7 @@ impl RsaKeyPair for Rsa3072KeyPair {
         ciphertext.resize(bs * count, 0);
 
         for i in 0..count {
-            let mut cipher_slice = &mut ciphertext[i * bs..i * bs + bs];
+            let cipher_slice = &mut ciphertext[i * bs..i * bs + bs];
             let mut out_len = bs;
             let plain_slice =
                 &plaintext[i * bs_plain..std::cmp::min(i * bs_plain + bs_plain, plaintext.len())];
@@ -170,7 +170,7 @@ impl RsaKeyPair for Rsa3072KeyPair {
 
         for i in 0..count {
             let cipher_slice = &ciphertext[i * bs..i * bs + bs];
-            let mut plain_slice = &mut vec![0;bs_plain];
+            let plain_slice = &mut vec![0;bs_plain];
             let mut plain_len = bs_plain;
 
             privkey.decrypt_sha256(plain_slice, &mut plain_len, cipher_slice)?;
@@ -179,6 +179,74 @@ impl RsaKeyPair for Rsa3072KeyPair {
         }
 
         Ok(plaintext.len())
+    }
+}
+
+impl Rsa3072KeyPair {
+    pub fn export_pubkey(self) -> SgxResult<Rsa3072PubKey> {
+        Ok(Rsa3072PubKey {
+            n: self.n,
+            e: self.e,
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy)]
+pub struct Rsa3072PubKey {
+    #[serde(with = "BigArray")]
+    n: [u8; SGX_RSA3072_KEY_SIZE],
+    e: [u8; SGX_RSA3072_PUB_EXP_SIZE],
+}
+
+impl Default for Rsa3072PubKey {
+    fn default() -> Self {
+        Rsa3072PubKey {
+            n: [0; SGX_RSA3072_KEY_SIZE],
+            e: SGX_RSA3072_DEFAULT_E,
+        }
+    }
+}
+
+impl Rsa3072PubKey {
+    fn to_pubkey(self) -> SgxResult<SgxRsaPubKey> {
+        let result = SgxRsaPubKey::new();
+        match result.create(
+            SGX_RSA3072_KEY_SIZE as i32,
+            SGX_RSA3072_PUB_EXP_SIZE as i32,
+            &self.n,
+            &self.e,
+        ) {
+            Ok(()) => Ok(result),
+            Err(x) => Err(x),
+        }
+    }
+
+    pub fn encrypt_buffer(self, plaintext: &[u8], ciphertext: &mut Vec<u8>) -> SgxResult<usize> {
+        let pubkey = self.to_pubkey()?;
+        let bs = 384;
+
+        let bs_plain = bs - 2 * 256 / 8 - 2;
+        let count = (plaintext.len() + bs_plain - 1) / bs_plain;
+        ciphertext.resize(bs * count, 0);
+
+        for i in 0..count {
+            let cipher_slice = &mut ciphertext[i * bs..i * bs + bs];
+            let mut out_len = bs;
+            let plain_slice =
+                &plaintext[i * bs_plain..std::cmp::min(i * bs_plain + bs_plain, plaintext.len())];
+
+            pubkey.encrypt_sha256(cipher_slice, &mut out_len, plain_slice)?;
+        }
+
+        Ok(ciphertext.len())
+    }
+}
+
+impl fmt::Debug for Rsa3072PubKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, r#"Rsa3072KeyPair: {{ n:{:02X}, e:{:02X} }}"#,
+            self.n.iter().format(""),
+            self.e.iter().format(""))
     }
 }
 
@@ -193,6 +261,7 @@ mod tests {
     use self::rand_core::RngCore;
     use crate::RsaKeyPair;
     use crate::rsa3072::Rsa3072KeyPair;
+    use crate::rsa3072::Rsa3072PubKey;
     use crate::rsa3072::SgxRsaPrivKey;
     use crate::rsa3072::SgxRsaPubKey;
     use crypto::rsgx_create_rsa_key_pair;
@@ -318,6 +387,24 @@ mod tests {
         let mut decrypted: Vec<u8> = Vec::new();
         assert!(kp.decrypt_buffer(&ciphertext, &mut decrypted).is_ok());
         assert_eq!("A".repeat(1000), String::from_utf8(decrypted).unwrap());
+    }
+
+    #[test]
+    fn export_test() {
+        let plaintext: Vec<u8> = "T".repeat(1000).into_bytes();
+        let mut ciphertext: Vec<u8> = Vec::new();
+        let kp = Rsa3072KeyPair::new().unwrap();
+        let exported_pub_key = kp.export_pubkey();
+        assert!(exported_pub_key.is_ok());
+
+        let exported_pub_key = exported_pub_key.unwrap();
+        let serialized_pub_key = serde_json::to_string(&exported_pub_key).unwrap();
+        let deserialized_pub_key: Rsa3072PubKey = serde_json::from_str(&serialized_pub_key).unwrap();
+
+        assert!(deserialized_pub_key.encrypt_buffer(&plaintext, &mut ciphertext).is_ok());
+        let mut decrypted: Vec<u8> = Vec::new();
+        assert!(kp.decrypt_buffer(&ciphertext, &mut decrypted).is_ok());
+        assert_eq!("T".repeat(1000), String::from_utf8(decrypted).unwrap());
     }
 
     #[bench]

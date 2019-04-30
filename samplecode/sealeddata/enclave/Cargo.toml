@@ -15,3 +15,8 @@ sgx_types = { path = "../../../sgx_types" }
 sgx_tseal = { path = "../../../sgx_tseal" }
 sgx_tstd = { path = "../../../sgx_tstd" }
 sgx_rand = { path = "../../../sgx_rand" }
+
+[dependencies]
+serde = { path = "../../../third_party/serde-rs/serde/serde" }
+serde_derive = { path = "../../../third_party/serde-rs/serde/serde_derive" }
+serde_cbor = { path = "../../../third_party/cbor" }

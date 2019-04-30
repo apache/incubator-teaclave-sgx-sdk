@@ -294,7 +294,7 @@ fn as_u32_le(array: &[u8; 4]) -> u32 {
 }
 
 #[allow(const_err)]
-pub fn create_attestation_report(pub_k: &sgx_ec256_public_t) -> Result<(String, String, String), sgx_status_t> {
+pub fn create_attestation_report(pub_k: &sgx_ec256_public_t, sign_type: sgx_quote_sign_type_t) -> Result<(String, String, String), sgx_status_t> {
     // Workflow:
     // (1) ocall to get the target_info structure (ti) and epid group id (eg)
     // (1.5) get sigrl
@@ -393,7 +393,7 @@ pub fn create_attestation_report(pub_k: &sgx_ec256_public_t) -> Result<(String, 
             (sigrl_vec.as_ptr(), sigrl_vec.len() as u32)
         };
     let p_report = (&rep.unwrap()) as * const sgx_report_t;
-    let quote_type = sgx_quote_sign_type_t::SGX_LINKABLE_SIGNATURE;
+    let quote_type = sign_type;
 
     let spid : sgx_spid_t = load_spid("spid.txt");
 
@@ -538,13 +538,13 @@ fn load_private_key(filename: &str) -> rustls::PrivateKey {
 }
 
 #[no_mangle]
-pub extern "C" fn run_server(socket_fd : c_int) -> sgx_status_t {
+pub extern "C" fn run_server(socket_fd : c_int, sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
     // Generate Keypair
     let ecc_handle = SgxEccHandle::new();
     let _result = ecc_handle.open();
     let (prv_k, pub_k) = ecc_handle.create_key_pair().unwrap();
 
-    let (attn_report, sig, cert) = match create_attestation_report(&pub_k) {
+    let (attn_report, sig, cert) = match create_attestation_report(&pub_k, sign_type) {
         Ok(r) => r,
         Err(e) => {
             println!("Error in create_attestation_report: {:?}", e);

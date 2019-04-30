@@ -262,7 +262,7 @@ impl FromRuntimeValue for bool {
 }
 
 ///  This conversion assumes that `i8` is represented as an [`I32`].
-/// 
+///
 /// [`I32`]: enum.RuntimeValue.html#variant.I32
 impl FromRuntimeValue for i8 {
 	fn from_runtime_value(val: RuntimeValue) -> Option<Self> {
@@ -276,7 +276,7 @@ impl FromRuntimeValue for i8 {
 }
 
 ///  This conversion assumes that `i16` is represented as an [`I32`].
-/// 
+///
 /// [`I32`]: enum.RuntimeValue.html#variant.I32
 impl FromRuntimeValue for i16 {
 	fn from_runtime_value(val: RuntimeValue) -> Option<Self> {
@@ -290,7 +290,7 @@ impl FromRuntimeValue for i16 {
 }
 
 ///  This conversion assumes that `u8` is represented as an [`I32`].
-/// 
+///
 /// [`I32`]: enum.RuntimeValue.html#variant.I32
 impl FromRuntimeValue for u8 {
 	fn from_runtime_value(val: RuntimeValue) -> Option<Self> {
@@ -304,7 +304,7 @@ impl FromRuntimeValue for u8 {
 }
 
 ///  This conversion assumes that `u16` is represented as an [`I32`].
-/// 
+///
 /// [`I32`]: enum.RuntimeValue.html#variant.I32
 impl FromRuntimeValue for u16 {
 	fn from_runtime_value(val: RuntimeValue) -> Option<Self> {

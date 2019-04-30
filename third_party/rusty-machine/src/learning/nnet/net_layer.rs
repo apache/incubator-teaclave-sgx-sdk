@@ -21,7 +21,7 @@ pub trait NetLayer : Debug + erased_serde::Serialize  {
 
     /// The gradient of the output of this layer with respect to its input
     fn back_input(&self, out_grad: &Matrix<f64>, input: &Matrix<f64>, output: &Matrix<f64>, params: MatrixSlice<f64>) -> Matrix<f64>;
-    
+
     /// The gradient of the output of this layer with respect to its parameters
     fn back_params(&self, out_grad: &Matrix<f64>, input: &Matrix<f64>, output: &Matrix<f64>, params: MatrixSlice<f64>) -> Matrix<f64>;
 
@@ -45,7 +45,7 @@ pub trait NetLayer : Debug + erased_serde::Serialize  {
 /// The parameters are a matrix of weights of size I x N
 /// where N is the dimensionality of the output and I the dimensionality of the input
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct Linear { 
+pub struct Linear {
     /// The number of dimensions of the input
     input_size: usize,
     /// The number of dimensions of the output
@@ -58,7 +58,7 @@ impl Linear {
     /// Construct a new Linear layer
     pub fn new(input_size: usize, output_size: usize) -> Linear {
         Linear {
-            input_size: input_size + 1, 
+            input_size: input_size + 1,
             output_size: output_size,
             has_bias: true
         }
@@ -67,7 +67,7 @@ impl Linear {
     /// Construct a Linear layer without a bias term
     pub fn without_bias(input_size: usize, output_size: usize) -> Linear {
         Linear {
-            input_size: input_size, 
+            input_size: input_size,
             output_size: output_size,
             has_bias: false
         }
@@ -119,7 +119,7 @@ impl NetLayer for Linear {
             }
         }
     }
-    
+
     fn back_input(&self, out_grad: &Matrix<f64>, _: &Matrix<f64>, _: &Matrix<f64>, params: MatrixSlice<f64>) -> Matrix<f64> {
         debug_assert_eq!(out_grad.cols(), params.cols());
         let gradient = out_grad * &params.transpose();
@@ -129,7 +129,7 @@ impl NetLayer for Linear {
             gradient
         }
     }
-    
+
     fn back_params(&self, out_grad: &Matrix<f64>, input: &Matrix<f64>, _: &Matrix<f64>, _: MatrixSlice<f64>) -> Matrix<f64> {
         debug_assert_eq!(input.rows(), out_grad.rows());
         if self.has_bias {
@@ -155,7 +155,7 @@ impl NetLayer for Linear {
     }
 }
 
-impl<T: ActivationFunc> NetLayer for T 
+impl<T: ActivationFunc> NetLayer for T
     where T: serde::Serialize {
     /// Applies the activation function to each element of the input
     fn forward(&self, input: &Matrix<f64>, _: MatrixSlice<f64>) -> LearningResult<Matrix<f64>> {
@@ -173,7 +173,7 @@ impl<T: ActivationFunc> NetLayer for T
         }
         Matrix::new(output.rows(), output.cols(), in_grad)
     }
-    
+
     fn back_params(&self, _: &Matrix<f64>, _: &Matrix<f64>, _: &Matrix<f64>, _: MatrixSlice<f64>) -> Matrix<f64> {
         Matrix::new(0, 0, Vec::new())
     }

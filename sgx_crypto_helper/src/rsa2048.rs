@@ -151,7 +151,7 @@ impl RsaKeyPair for Rsa2048KeyPair {
         ciphertext.resize(bs * count, 0);
 
         for i in 0..count {
-            let mut cipher_slice = &mut ciphertext[i * bs..i * bs + bs];
+            let cipher_slice = &mut ciphertext[i * bs..i * bs + bs];
             let mut out_len = bs;
             let plain_slice =
                 &plaintext[i * bs_plain..std::cmp::min(i * bs_plain + bs_plain, plaintext.len())];
@@ -176,21 +176,95 @@ impl RsaKeyPair for Rsa2048KeyPair {
         let bs_plain = 256 - 2 * 256 / 8 - 2;
         let count = ciphertext.len() / bs;
         plaintext.clear();
-    
+
         for i in 0..count {
             let cipher_slice = &ciphertext[i * bs..i * bs + bs];
-            let mut plain_slice = &mut vec![0;bs_plain];
+            let plain_slice = &mut vec![0;bs_plain];
             let mut plain_len = bs_plain;
-    
+
             privkey.decrypt_sha256(plain_slice, &mut plain_len, cipher_slice)?;
             let mut decoded_vec = plain_slice[..plain_len].to_vec();
             plaintext.append(&mut decoded_vec);
         }
-    
+
         Ok(plaintext.len())
     }
 
 }
+
+impl Rsa2048KeyPair {
+    pub fn export_pubkey(self) -> SgxResult<Rsa2048PubKey> {
+        Ok(Rsa2048PubKey {
+            n: self.n,
+            e: self.e,
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy)]
+pub struct Rsa2048PubKey {
+    #[serde(with = "BigArray")]
+    n: [u8; SGX_RSA2048_KEY_SIZE],
+    e: [u8; SGX_RSA2048_PUB_EXP_SIZE],
+}
+
+impl Default for Rsa2048PubKey {
+    fn default() -> Self {
+        Rsa2048PubKey {
+            n: [0; SGX_RSA2048_KEY_SIZE],
+            e: SGX_RSA2048_DEFAULT_E,
+        }
+    }
+}
+
+impl Rsa2048PubKey {
+    pub fn to_pubkey(self) -> SgxResult<SgxRsaPubKey> {
+        let result = SgxRsaPubKey::new();
+        match result.create(
+            SGX_RSA2048_KEY_SIZE as i32,
+            SGX_RSA2048_PUB_EXP_SIZE as i32,
+            &self.n,
+            &self.e,
+        ) {
+            Ok(()) => Ok(result),
+            Err(x) => Err(x),
+        }
+    }
+
+    pub fn encrypt_buffer(self, plaintext: &[u8], ciphertext: &mut Vec<u8>) -> SgxResult<usize> {
+        let pubkey = self.to_pubkey()?;
+        let bs = 256;
+
+        // The magic number 190 comes from RSA-OAEP:
+        // #define RSA_2048_KEY_BYTE    256
+        // #define SHA_SIZE_BIT         256
+        // #define RSAOAEP_ENCRYPT_MAXLEN RSA_2048_KEY_BYTE - 2*SHA_SIZE_BIT/8 - 2 /* 190 */
+        // RSA_2048_KEY_BYTE - 2*SHA_SIZE_BIT/8 - 2
+        let bs_plain = bs - 2 * 256 / 8 - 2;
+        let count = (plaintext.len() + bs_plain - 1) / bs_plain;
+        ciphertext.resize(bs * count, 0);
+
+        for i in 0..count {
+            let cipher_slice = &mut ciphertext[i * bs..i * bs + bs];
+            let mut out_len = bs;
+            let plain_slice =
+                &plaintext[i * bs_plain..std::cmp::min(i * bs_plain + bs_plain, plaintext.len())];
+
+            pubkey.encrypt_sha256(cipher_slice, &mut out_len, plain_slice)?;
+        }
+
+        Ok(ciphertext.len())
+    }
+}
+
+impl fmt::Debug for Rsa2048PubKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, r#"Rsa2048KeyPair: {{ n:{:02X}, e:{:02X} }}"#,
+            self.n.iter().format(""),
+            self.e.iter().format(""))
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -202,6 +276,7 @@ mod tests {
     use self::rand_core::RngCore;
     use crate::RsaKeyPair;
     use crate::rsa2048::Rsa2048KeyPair;
+    use crate::rsa2048::Rsa2048PubKey;
     use crate::rsa2048::SgxRsaPrivKey;
     use crate::rsa2048::SgxRsaPubKey;
     use crypto::rsgx_create_rsa_key_pair;
@@ -327,6 +402,24 @@ mod tests {
         let mut decrypted: Vec<u8> = Vec::new();
         assert!(kp.decrypt_buffer(&ciphertext, &mut decrypted).is_ok());
         assert_eq!("A".repeat(1000), String::from_utf8(decrypted).unwrap());
+    }
+
+    #[test]
+    fn export_test() {
+        let plaintext: Vec<u8> = "T".repeat(1000).into_bytes();
+        let mut ciphertext: Vec<u8> = Vec::new();
+        let kp = Rsa2048KeyPair::new().unwrap();
+        let exported_pub_key = kp.export_pubkey();
+        assert!(exported_pub_key.is_ok());
+
+        let exported_pub_key = exported_pub_key.unwrap();
+        let serialized_pub_key = serde_json::to_string(&exported_pub_key).unwrap();
+        let deserialized_pub_key: Rsa2048PubKey = serde_json::from_str(&serialized_pub_key).unwrap();
+
+        assert!(deserialized_pub_key.encrypt_buffer(&plaintext, &mut ciphertext).is_ok());
+        let mut decrypted: Vec<u8> = Vec::new();
+        assert!(kp.decrypt_buffer(&ciphertext, &mut decrypted).is_ok());
+        assert_eq!("T".repeat(1000), String::from_utf8(decrypted).unwrap());
     }
 
     #[bench]

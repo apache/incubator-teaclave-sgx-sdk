@@ -36,4 +36,8 @@
 pub use core::num::{FpCategory, ParseIntError, ParseFloatError, TryFromIntError};
 pub use core::num::Wrapping;
 
-pub use core::num::{NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize};
+#[allow(deprecated)]
+pub use core::num::{
+    NonZeroU8, NonZeroU16, NonZeroU32,
+    NonZeroU64, NonZeroU128, NonZeroUsize,
+};

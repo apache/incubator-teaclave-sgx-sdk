@@ -30,6 +30,7 @@ use sgx_rand::*;
 use sgx_tseal::*;
 use sgx_types::*;
 use sgx_types::marker::*;
+use std::prelude::v1::*;
 
 fn to_sealed_log<T: Copy + ContiguousMemory>(sealed_data: &SgxSealedData<T>,
                                              sealed_log: * mut u8,
@@ -93,7 +94,6 @@ pub fn test_array_sealing() {
 }
 
 pub fn test_mac_aadata_number() {
-    use std::boxed::Box;
     let aad_data  : u64 = 123456789;
     let mmac = SgxMacAadata::<u64>::mac_aadata(&aad_data).expect("error while mac data");
     let unsealed_mac = mmac.unmac_aadata().expect("error when unmac data");
@@ -104,7 +104,6 @@ pub fn test_mac_aadata_number() {
 
 pub fn test_mac_aadata_slice() {
     use std::slice;
-    use std::boxed::Box;
     let aad_data  : [u8;10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let mmac = SgxMacAadata::<[u8]>::mac_aadata(&aad_data).expect("error while mac data");
     let unsealed_mac = mmac.unmac_aadata().expect("error when unmac data");

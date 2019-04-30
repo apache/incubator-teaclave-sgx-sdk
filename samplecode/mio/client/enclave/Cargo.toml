@@ -1,0 +1,20 @@
+[package]
+name = "client"
+version = "1.0.0"
+authors = ["Baidu"]
+
+[lib]
+name = "client"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path = "../../../../sgx_tstd", features = ["net"] }
+
+[dependencies]
+mio = { path = "../../../../third_party/mio" }
+rustls = { path = "../../../../third_party/rustls" }
+webpki = { path = "../../../../third_party/webpki" }
+log = { path = "../../../../third_party/log", features = ["std"] }

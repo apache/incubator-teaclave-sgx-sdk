@@ -1,6 +1,6 @@
 [package]
 name = "sgx_tstd"
-version = "1.0.6"
+version = "1.0.7"
 authors = ["Baidu"]
 build = "build.rs"
 repository = "https://github.com/baidu/rust-sgx-sdk"
@@ -11,55 +11,49 @@ description = "Rust SGX SDK provides the ability to write Intel SGX applications
 include = [
     "LICENSE",
     "Readme.md",
-    "Cargo.toml",
-    "libbacktrace/arinclude.m4",
-    "libbacktrace/aclocal.m4",
-    "libbacktrace/alloc.c",
-    "libbacktrace/atomic.c",
-    "libbacktrace/backtrace_t.h",
-    "libbacktrace/backtrace-supported.h.in",
-    "libbacktrace/backtrace.c",
-    "libbacktrace/backtrace.h",
-    "libbacktrace/btest.c",
-    "libbacktrace/config.guess",
-    "libbacktrace/config.h.in",
-    "libbacktrace/config.sub",
-    "libbacktrace/configure",
-    "libbacktrace/configure.ac",
-    "libbacktrace/dwarf.c",
-    "libbacktrace/e.am",
-    "libbacktrace/edtest.c",
-    "libbacktrace/edtest2.c",
-    "libbacktrace/elf.c",
-    "libbacktrace/fileline.c",
-    "libbacktrace/filenames.h",
+    "libbacktrace/simple.c",
     "libbacktrace/filetype.awk",
-    "libbacktrace/install-sh",
     "libbacktrace/internal.h",
     "libbacktrace/ltmain.sh",
-    "libbacktrace/macho.c",
-    "libbacktrace/Makefile.in",
-    "libbacktrace/Mark.Twain-Tom.Sawyer.txt",
-    "libbacktrace/missing",
-    "libbacktrace/mmap.c",
-    "libbacktrace/mmapio.c",
-    "libbacktrace/move-if-change",
-    "libbacktrace/nounwind.c",
-    "libbacktrace/pecoff.c",
-    "libbacktrace/posix.c",
+    "libbacktrace/backtrace_t.h",
     "libbacktrace/print.c",
-    "libbacktrace/read.c",
-    "libbacktrace/README.md",
-    "libbacktrace/simple.c",
-    "libbacktrace/sort.c",
-    "libbacktrace/state.c",
-    "libbacktrace/stest.c",
-    "libbacktrace/testlib.c",
-    "libbacktrace/testlib.h",
-    "libbacktrace/ttest.c",
+    "libbacktrace/config.sub",
+    "libbacktrace/posix.c",
+    "libbacktrace/dwarf2.h",
+    "libbacktrace/aclocal.m4",
+    "libbacktrace/hashtab.h",
+    "libbacktrace/pecoff.c",
+    "libbacktrace/Makefile.in",
     "libbacktrace/unknown.c",
-    "libbacktrace/xcoff.c",
-    "libbacktrace/ztest.c",
+    "libbacktrace/mmap.c",
+    "libbacktrace/install-sh",
+    "libbacktrace/ChangeLog",
+    "libbacktrace/README",
+    "libbacktrace/ChangeLog.jit",
+    "libbacktrace/Makefile.am",
+    "libbacktrace/fileline.c",
+    "libbacktrace/stest.c",
+    "libbacktrace/backtrace.c",
+    "libbacktrace/macho.c",
+    "libbacktrace/configure.ac",
+    "libbacktrace/nounwind.c",
+    "libbacktrace/config.h.in",
+    "libbacktrace/alloc.c",
+    "libbacktrace/configure",
+    "libbacktrace/state.c",
+    "libbacktrace/mmapio.c",
+    "libbacktrace/elf.c",
+    "libbacktrace/dwarf2.def",
+    "libbacktrace/btest.c",
+    "libbacktrace/backtrace-supported.h.in",
+    "libbacktrace/dwarf.c",
+    "libbacktrace/read.c",
+    "libbacktrace/ansidecl.h",
+    "libbacktrace/sort.c",
+    "libbacktrace/backtrace.h",
+    "libbacktrace/filenames.h",
+    "libbacktrace/atomic.c",
+    "Cargo.toml",
     "src/panicking.rs",
     "src/sys_common/net.rs",
     "src/sys_common/mod.rs",
@@ -88,6 +82,7 @@ include = [
     "src/sys/net.rs",
     "src/sys/mod.rs",
     "src/sys/path.rs",
+    "src/sys/pipe.rs",
     "src/sys/stdio.rs",
     "src/sys/time.rs",
     "src/sys/os.rs",
@@ -159,7 +154,6 @@ include = [
     "src/sync/remutex.rs",
     "src/enclave.rs",
     "src/f32.rs",
-    "src/future.rs",
     "src/debug.rs",
     "build.rs",
 ]
@@ -173,11 +167,11 @@ default = ["stdio"]
 backtrace = ["stdio"]
 stdio = []
 net = []
+pipe = []
 untrusted_fs = []
 untrusted_time = []
 
 [build-dependencies]
-cc = "1.0"
 sgx_build_helper = { path = "../build_helper" }
 
 [dependencies]

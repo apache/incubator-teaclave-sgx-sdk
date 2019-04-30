@@ -1,6 +1,6 @@
 [package]
 name = "sgx_libc"
-version = "1.0.6"
+version = "1.0.7"
 authors = ["Baidu"]
 repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"
@@ -12,6 +12,7 @@ include = [
     "Readme.md",
     "Cargo.toml",
     "src/lib.rs",
+    "src/macros.rs",
     "src/linux/mod.rs",
     "src/linux/x86_64/mod.rs",
     "src/linux/x86_64/ocall.rs",

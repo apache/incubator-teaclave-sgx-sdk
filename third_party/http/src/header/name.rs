@@ -1597,11 +1597,11 @@ impl HeaderName {
     /// Converts a static string to a HTTP header name.
     ///
     /// This function panics when the static string is a invalid header.
-    /// 
-    /// This function requires the static string to only contain lowercase 
-    /// characters, numerals and symbols, as per the HTTP/2.0 specification 
+    ///
+    /// This function requires the static string to only contain lowercase
+    /// characters, numerals and symbols, as per the HTTP/2.0 specification
     /// and header names internal representation within this library.
-    /// 
+    ///
     ///
     /// # Examples
     ///
@@ -1610,21 +1610,21 @@ impl HeaderName {
     /// // Parsing a standard header
     /// let hdr = HeaderName::from_static("content-length");
     /// assert_eq!(CONTENT_LENGTH, hdr);
-    /// 
+    ///
     /// // Parsing a custom header
     /// let CUSTOM_HEADER: &'static str = "custom-header";
-    /// 
+    ///
     /// let a = HeaderName::from_lowercase(b"custom-header").unwrap();
     /// let b = HeaderName::from_static(CUSTOM_HEADER);
     /// assert_eq!(a, b);
     /// ```
-    /// 
+    ///
     /// ```should_panic
     /// # use http::header::*;
     /// #
     /// // Parsing a header that contains invalid symbols(s):
     /// HeaderName::from_static("content{}{}length"); // This line panics!
-    /// 
+    ///
     /// // Parsing a header that contains invalid uppercase characters.
     /// let a = HeaderName::from_static("foobar");
     /// let b = HeaderName::from_static("FOOBAR"); // This line panics!
@@ -2096,7 +2096,7 @@ mod tests {
     #[test]
     fn test_from_static_std() {
         let a = HeaderName { inner: Repr::Standard(Vary) };
-        
+
         let b = HeaderName::from_static("vary");
         assert_eq!(a, b);
 
@@ -2108,13 +2108,13 @@ mod tests {
     #[should_panic]
     fn test_from_static_std_uppercase() {
         HeaderName::from_static("Vary");
-    } 
+    }
 
     #[test]
     #[should_panic]
     fn test_from_static_std_symbol() {
         HeaderName::from_static("vary{}");
-    } 
+    }
 
     // MaybeLower { lower: true }
     #[test]
@@ -2175,5 +2175,5 @@ mod tests {
     #[should_panic]
     fn test_from_static_empty() {
         HeaderName::from_static("");
-    }   
+    }
 }

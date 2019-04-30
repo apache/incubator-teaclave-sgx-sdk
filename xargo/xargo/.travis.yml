@@ -1,0 +1,58 @@
+dist: trusty
+language: rust
+services: docker
+sudo: required
+
+matrix:
+  include:
+    # Tests
+    - env: TARGET=x86_64-unknown-linux-gnu
+      rust: nightly
+    - env: TARGET=x86_64-unknown-linux-gnu
+      rust: nightly-2018-12-01
+
+    # Linux (build only)
+    - env: TARGET=i686-unknown-linux-gnu
+    - env: TARGET=i686-unknown-linux-musl
+    - env: TARGET=x86_64-unknown-linux-gnu
+    - env: TARGET=x86_64-unknown-linux-musl
+
+    # OSX (build only)
+    - env: TARGET=i686-apple-darwin
+      os: osx
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+
+install:
+  - bash ci/install.sh
+
+script:
+  - bash ci/script.sh
+
+before_deploy:
+  - bash ci/before_deploy.sh
+
+deploy:
+  api_key:
+    secure: w4e9h16zrRR7Mhnon7vYxUSmU8rdglHfSpG+Rsgml95M0uoiaa9lVhMI9DInLz2nJW5bJbu2Oi94xJ+qbCrzq8Kw7G0nEICIQlbZFtk9AgGgOCK0y0F0FimjZvAjo7J6sy04ZaeeQUrydKZZqrq91HrBOmT4jpcsnAWOybGL3mD2MOlkuBztmGqd1+R3YnvVuINGyuOUmTdSt+ne94Xl0LBgy3eSHoURP7c5Jr/8cUFKHOEPYzAEg/sqahEzMfSGZ5BbcWZhfbfOEmcGYjSEq6UTiy4j2J8jTnf/ID9CWUjRMSXf3wZgQrFyOms8SVq8eRni5CigVMwDU0BGgcw5plmMIzC75Na2jebsv5VL4XVeFn9GCPdjmzE/bs9qEChxeQUqTMt5A/69iA5R10wW4SZAYCQtokgtflXolA9VCEqxy15XBUaCBX/TJr1+EBGqzVMdLa3TOM24eFeky0aLvh5rpF6VT1dUvTEn1rhFMNOANsqQ3UIa85WeoW80Q94z/du6G4n7t6YFTSYpYme5wrb++uIOXU23KE+XrPgRHDkAf8GD3jRabZKE2Cz9IX961+P6D9ual5O4BjAI+3xad1F7K/XF0k33z8fEbPMibZE3IVMrN7sk0EwAOmMDGjsRSCfHlkVgbrxB0XGcc99ndzqFRSul9tIVLVIpZNzuAeo=
+  file_glob: true
+  file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
+  on:
+    condition: $TRAVIS_RUST_VERSION = stable
+    tags: true
+  provider: releases
+  skip_cleanup: true
+
+cache: cargo
+before_cache:
+  - chmod -R a+r $HOME/.cargo
+
+branches:
+  only:
+    - /^v\d+\.\d+\.\d+.*$/
+    - staging
+    - trying
+
+notifications:
+  email:
+    on_success: never

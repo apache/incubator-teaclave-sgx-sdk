@@ -5,6 +5,31 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.13] - 2018-12-18
+
+### Fixed
+
+- Xargo now works again with recent nightlies.
+
+### Added
+
+- When the `XARGO_KEEP_TEMP` env variable is set Xargo will keep the temporary
+  directory used to build the sysroot. This is useful for debugging problems in
+  Xargo.
+
+## [v0.3.12] - 2018-04-08
+
+### Changed
+
+- The `core` and `compiler_builtins` crates are built when no Xargo.toml is present.
+
+## [v0.3.11] - 2018-03-09
+
+### Added
+
+- Xargo now copies the `bin` directory from the original sysroot, the host sysroot, into its own.
+  This lets you use binaries shipped with the Rust toolchain, like LLD.
+
 ## [v0.3.10] - 2017-12-28
 
 ### Added
@@ -309,7 +334,10 @@ stage = 1
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.10...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.13...HEAD
+[v0.3.13]: https://github.com/japaric/xargo/compare/v0.3.12...v0.3.13
+[v0.3.12]: https://github.com/japaric/xargo/compare/v0.3.11...v0.3.12
+[v0.3.11]: https://github.com/japaric/xargo/compare/v0.3.10...v0.3.11
 [v0.3.10]: https://github.com/japaric/xargo/compare/v0.3.9...v0.3.10
 [v0.3.9]: https://github.com/japaric/xargo/compare/v0.3.8...v0.3.9
 [v0.3.8]: https://github.com/japaric/xargo/compare/v0.3.7...v0.3.8

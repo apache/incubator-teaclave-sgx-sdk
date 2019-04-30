@@ -37,10 +37,6 @@ extern crate sgx_types;
 #[macro_use]
 extern crate sgx_tstd as std;
 use sgx_types::*;
-use std::string::String;
-use std::vec::Vec;
-use std::slice;
-use std::io::{self, Write};
 
 extern crate regex;
 use regex::Regex;
@@ -67,6 +63,6 @@ pub extern "C" fn test_regex() -> sgx_status_t {
                  caps.get(2).unwrap().as_str(),
                  caps.get(3).unwrap().as_str());
     }
-    
+
     sgx_status_t::SGX_SUCCESS
 }

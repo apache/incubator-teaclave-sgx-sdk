@@ -44,6 +44,7 @@
 
 #![cfg_attr(all(feature = "enclave_cargo", not(target_env = "sgx")), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
+#![cfg_attr(test, feature(test))]
 
 #[cfg(all(feature = "enclave_cargo", not(target_env = "sgx")))]
 #[macro_use]
@@ -76,7 +77,6 @@ pub trait RsaKeyPair {
     /// Decrypt a u8 slice to a Vec<u8>. Returns the length of plaintext if OK.
     fn decrypt_buffer(self, ciphertext: &[u8], plaintext: &mut Vec<u8>) -> SgxResult<usize>;
 }
-
 
 extern crate serde;
 extern crate serde_derive;

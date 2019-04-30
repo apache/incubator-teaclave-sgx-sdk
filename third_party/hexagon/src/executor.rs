@@ -499,7 +499,7 @@ impl ExecutorImpl {
     fn _and_impl(&mut self) {
         let frame = self.stack.top();
         let pool = &self.object_pool;
-        
+
         let (left, right) = (frame.pop_exec(), frame.pop_exec());
 
         let left_ctx = ValueContext::new(

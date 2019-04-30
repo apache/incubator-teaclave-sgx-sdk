@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::Command;
-use std::io::{self, Write};
 use std::{env, fs};
 
 use rustc_version::VersionMeta;
@@ -54,7 +54,8 @@ version = "0.0.0"
     util::mkdir(&dst)?;
 
     if cmode.triple().contains("pc-windows-gnu") {
-        let src = &sysroot.path()
+        let src = &sysroot
+            .path()
             .join("lib")
             .join("rustlib")
             .join(cmode.triple())
@@ -64,20 +65,37 @@ version = "0.0.0"
         for file in ["rsbegin.o", "rsend.o", "crt2.o", "dllcrt2.o"].iter() {
             let file_src = src.join(file);
             let file_dst = dst.join(file);
-            fs::copy(&file_src, &file_dst)
-                .chain_err(|| format!("couldn't copy {} to {}", file_src.display(), file_dst.display()))?;
+            fs::copy(&file_src, &file_dst).chain_err(|| {
+                format!(
+                    "couldn't copy {} to {}",
+                    file_src.display(),
+                    file_dst.display()
+                )
+            })?;
         }
     }
 
     for (_, stage) in blueprint.stages {
         let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
-        let td = td.path();
+        let tdp;
+        let td = if env::var_os("XARGO_KEEP_TEMP").is_some() {
+            tdp = td.into_path();
+            &tdp
+        } else {
+            td.path()
+        };
 
         let mut stoml = TOML.to_owned();
+        {
+            let mut map = Table::new();
 
-        let mut map = Table::new();
-        map.insert("dependencies".to_owned(), Value::Table(stage.toml));
-        stoml.push_str(&Value::Table(map).to_string());
+            map.insert("dependencies".to_owned(), Value::Table(stage.dependencies));
+            if let Some(patch) = stage.patch {
+                map.insert("patch".to_owned(), Value::Table(patch));
+            }
+
+            stoml.push_str(&Value::Table(map).to_string());
+        }
 
         if let Some(profile) = ctoml.profile() {
             stoml.push_str(&profile.to_string())
@@ -218,7 +236,16 @@ pub fn update(
     let hash = hash(cmode, &blueprint, rustflags, &ctoml, meta)?;
 
     if old_hash(cmode, home)? != Some(hash) {
-        build(cmode, blueprint, &ctoml, home, rustflags, sysroot, hash, verbose)?;
+        build(
+            cmode,
+            blueprint,
+            &ctoml,
+            home,
+            rustflags,
+            sysroot,
+            hash,
+            verbose,
+        )?;
     }
 
     // copy host artifacts into the sysroot, if necessary
@@ -249,6 +276,17 @@ pub fn update(
         &dst,
     )?;
 
+    let bin_dst = lock.parent().join("bin");
+    util::mkdir(&bin_dst)?;
+    util::cp_r(
+        &sysroot
+            .path()
+            .join("lib/rustlib")
+            .join(&meta.host)
+            .join("bin"),
+        &bin_dst,
+    )?;
+
     util::write(&hfile, hash)?;
 
     Ok(())
@@ -258,7 +296,8 @@ pub fn update(
 #[derive(Debug)]
 pub struct Stage {
     crates: Vec<String>,
-    toml: Table,
+    dependencies: Table,
+    patch: Option<Table>,
 }
 
 /// A sysroot that will be built in "stages"
@@ -315,10 +354,22 @@ impl Blueprint {
                 ))?
             },
             (None, None) => {
-                // If no dependencies were listed, we assume `core` as the
-                // only dependency
+                // If no dependencies were listed, we assume `core` and `compiler_builtins` as the
+                // dependencies
                 let mut t = BTreeMap::new();
-                t.insert("core".to_owned(), Value::Table(BTreeMap::new()));
+                let mut core = BTreeMap::new();
+                core.insert("stage".to_owned(), Value::Integer(0));
+                t.insert("core".to_owned(), Value::Table(core));
+                let mut cb = BTreeMap::new();
+                cb.insert(
+                    "features".to_owned(),
+                    Value::Array(vec![Value::String("mem".to_owned())]),
+                );
+                cb.insert("stage".to_owned(), Value::Integer(1));
+                t.insert(
+                    "compiler_builtins".to_owned(),
+                    Value::Table(cb),
+                );
                 t
             }
         };
@@ -351,18 +402,19 @@ impl Blueprint {
                 }
 
                 if !map.contains_key("path") && !map.contains_key("git") {
-                    let path = src.path().join(format!("lib{}", k)).display().to_string();
-
-                    map.insert("path".to_owned(), Value::String(path));
+                    // No path and no git given.  This might be in the sysroot, but if we don't find it there we assume it comes from crates.io.
+                    let path = src.path().join(format!("lib{}", k));
+                    if path.exists() {
+                        map.insert("path".to_owned(), Value::String(path.display().to_string()));
+                    }
                 }
 
-                blueprint.push(stage, k, map);
+                blueprint.push(stage, k, map, src);
             } else {
                 Err(format!(
                     "Xargo.toml: target.{}.dependencies.{} must be \
                      a table",
-                    target,
-                    k
+                    target, k
                 ))?
             }
         }
@@ -370,15 +422,34 @@ impl Blueprint {
         Ok(blueprint)
     }
 
-    fn push(&mut self, stage: i64, krate: String, toml: Table) {
-        let stage = self.stages.entry(stage).or_insert_with(|| {
-            Stage {
-                crates: vec![],
-                toml: Table::new(),
+    fn push(&mut self, stage: i64, krate: String, toml: Table, src: &Src) {
+        let stage = self.stages.entry(stage).or_insert_with(|| Stage {
+            crates: vec![],
+            dependencies: Table::new(),
+            patch: {
+                let rustc_std_workspace_core = src.path().join("tools/rustc-std-workspace-core");
+                if rustc_std_workspace_core.exists() {
+                    // For a new stage, we also need to compute the patch section of the toml
+                    fn make_singleton_map(key: &str, val: Value) -> Table {
+                        let mut map = Table::new();
+                        map.insert(key.to_owned(), val);
+                        map
+                    }
+                    Some(make_singleton_map("crates-io", Value::Table(
+                        make_singleton_map("rustc-std-workspace-core", Value::Table(
+                            make_singleton_map("path", Value::String(
+                                rustc_std_workspace_core.display().to_string()
+                            ))
+                        ))
+                    )))
+                } else {
+                    // an old rustc, doesn't need a rustc_std_workspace_core
+                    None
+                }
             }
         });
 
-        stage.toml.insert(krate.clone(), Value::Table(toml));
+        stage.dependencies.insert(krate.clone(), Value::Table(toml));
         stage.crates.push(krate);
     }
 
@@ -387,7 +458,7 @@ impl Blueprint {
         H: Hasher,
     {
         for stage in self.stages.values() {
-            for (k, v) in stage.toml.iter() {
+            for (k, v) in stage.dependencies.iter() {
                 k.hash(hasher);
                 v.to_string().hash(hasher);
             }

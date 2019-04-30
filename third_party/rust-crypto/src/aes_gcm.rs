@@ -50,7 +50,7 @@ impl<'a> AesGcm<'a> {
             end_tag: final_block
         }
     }
-    
+
 }
 
 impl<'a> AeadEncryptor for AesGcm<'static> {
@@ -149,7 +149,7 @@ mod test {
 }
     #[test]
     fn aes_gcm_test() {
-            
+
         for item in get_test_vectors().iter() {
             let key_size = match item.key.len() {
                 16 => KeySize::KeySize128,
@@ -159,9 +159,9 @@ mod test {
             };
             let mut cipher = AesGcm::new(key_size, &item.key[..], &item.iv[..], &item.aad[..]);
             let mut out: Vec<u8> = repeat(0).take(item.plain_text.len()).collect();
-            
+
             let mut out_tag: Vec<u8> = repeat(0).take(16).collect();
-            
+
             cipher.encrypt(&item.plain_text[..], &mut out[..],&mut out_tag[..]);
             assert_eq!(out, item.cipher_text);
             assert_eq!(out_tag, item.tag);
@@ -170,7 +170,7 @@ mod test {
 
     #[test]
     fn aes_gcm_decrypt_test() {
-            
+
         for item in get_test_vectors().iter() {
             let key_size = match item.key.len() {
                 16 => KeySize::KeySize128,
@@ -180,7 +180,7 @@ mod test {
             };
             let mut decipher = AesGcm::new(key_size, &item.key[..], &item.iv[..], &item.aad[..]);
             let mut out: Vec<u8> = repeat(0).take(item.plain_text.len()).collect();
-                        
+
             let result = decipher.decrypt(&item.cipher_text[..], &mut out[..], &item.tag[..]);
             assert_eq!(out, item.plain_text);
             assert!(result);
@@ -188,7 +188,7 @@ mod test {
     }
     #[test]
     fn aes_gcm_decrypt_fail_test() {
-            
+
         for item in get_test_vectors().iter() {
             let key_size = match item.key.len() {
                 16 => KeySize::KeySize128,
@@ -222,17 +222,17 @@ mod bench {
     	bh.iter( || {
 	        let mut cipher = AesGcm::new(KeySize::KeySize256, &[0; 32], &[0; 12], &aad);
 	        let mut decipher = AesGcm::new(KeySize::KeySize256, &[0; 32], &[0; 12], &aad);
-	        
+
 	        let mut output = [0u8; 10];
 	        let mut tag = [0u8; 16];
 	        let mut output2 = [0u8; 10];
             cipher.encrypt(&input, &mut output, &mut tag);
             decipher.decrypt(&output, &mut output2, &tag);
-            
+
         });
         bh.bytes = 10u64;
     }
-        
+
 
     #[bench]
     pub fn gsm_1k(bh: & mut Bencher) {
@@ -241,16 +241,16 @@ mod bench {
     	bh.iter( || {
         let mut cipher = AesGcm::new(KeySize::KeySize256, &[0; 32], &[0; 12], &aad);
         let mut decipher = AesGcm::new(KeySize::KeySize256, &[0; 32], &[0; 12], &aad);
-        
+
         let mut output = [0u8; 1024];
         let mut tag = [0u8; 16];
         let mut output2 = [0u8; 1024];
-        
+
             cipher.encrypt(&input, &mut output, &mut tag);
             decipher.decrypt(&output, &mut output2, &tag);
         });
     	bh.bytes = 1024u64;
-        
+
     }
 
     #[bench]
@@ -260,16 +260,16 @@ mod bench {
     	  bh.iter( || {
         let mut cipher = AesGcm::new(KeySize::KeySize256, &[0; 32], &[0; 12], &aad);
         let mut decipher = AesGcm::new(KeySize::KeySize256, &[0; 32], &[0; 12], &aad);
-        
+
         let mut output = [0u8; 65536];
         let mut tag = [0u8; 16];
         let mut output2 = [0u8; 65536];
-      
+
             cipher.encrypt(&input, &mut output, &mut tag);
             decipher.decrypt(&output, &mut output2, &tag);
 
         });
     	   bh.bytes = 65536u64;
-        
+
     }
 }

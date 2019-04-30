@@ -38,6 +38,27 @@ pub struct SgxMonotonicCounter {
 impl SgxMonotonicCounter {
 
     ///
+    /// Rebuild a SgxMonotonicCounter from an existing uuid. Caller is responsible for the uuid.
+    ///
+    pub fn from_uuid(id: sgx_mc_uuid_t) -> Self {
+        SgxMonotonicCounter {
+            counter_uuid: id,
+            initflag: Cell::new(true),
+        }
+    }
+
+    ///
+    /// Dump the uuid of an existing SGX monotonic counter
+    ///
+    pub fn get_uuid(&self) -> Option<sgx_mc_uuid_t> {
+        if self.initflag.get() {
+            Some(self.counter_uuid)
+        } else {
+            None
+        }
+    }
+
+    ///
     /// creates a monotonic counter with default owner policy and default user attribute mask.
     ///
     /// # Description

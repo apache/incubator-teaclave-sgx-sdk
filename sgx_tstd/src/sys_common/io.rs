@@ -29,8 +29,8 @@
 use io;
 use io::ErrorKind;
 use io::Read;
-use alloc_crate::slice::from_raw_parts_mut;
-use alloc_crate::vec::Vec;
+use alloc::slice::from_raw_parts_mut;
+use alloc::vec::Vec;
 
 pub const DEFAULT_BUF_SIZE: usize = 8 * 1024;
 

@@ -162,7 +162,7 @@ impl<T, A> NeuralNet<T, A>
     /// let layers = &[3; 4];
     /// let mut net = NeuralNet::mlp(layers, BCECriterion::default(), StochasticGD::default(), Sigmoid);
     /// ```
-    pub fn mlp<U>(layer_sizes: &[usize], criterion: T, alg: A, activ_fn: U) -> NeuralNet<T, A> 
+    pub fn mlp<U>(layer_sizes: &[usize], criterion: T, alg: A, activ_fn: U) -> NeuralNet<T, A>
         where U: ActivationFunc + 'static + serde::Serialize {
         NeuralNet {
             base: BaseNeuralNet::mlp(layer_sizes, criterion, activ_fn),
@@ -181,7 +181,7 @@ impl<T, A> NeuralNet<T, A>
     /// use rusty_machine::learning::nnet::net_layer::Linear;
     /// use rusty_machine::learning::optim::grad_desc::StochasticGD;
     ///
-    /// // Create a new neural net 
+    /// // Create a new neural net
     /// let mut net = NeuralNet::new(BCECriterion::default(), StochasticGD::default());
     ///
     /// // Give net an input layer of size 3, hidden layer of size 4, and output layer of size 5
@@ -206,7 +206,7 @@ impl<T, A> NeuralNet<T, A>
     /// use rusty_machine::learning::toolkit::activ_fn::Sigmoid;
     /// use rusty_machine::learning::optim::grad_desc::StochasticGD;
     ///
-    /// // Create a new neural net 
+    /// // Create a new neural net
     /// let mut net = NeuralNet::new(BCECriterion::default(), StochasticGD::default());
     ///
     /// let linear_sig: Vec<Box<NetLayer>> = vec![Box::new(Linear::new(5, 5)), Box::new(Sigmoid)];
@@ -271,10 +271,10 @@ impl<T: Criterion> BaseNeuralNet<T> {
             weights: Vec::new(),
             criterion: criterion
         }
-    } 
+    }
 
     /// Create a multilayer perceptron with the specified layer sizes.
-    fn mlp<U>(layer_sizes: &[usize], criterion: T, activ_fn: U) -> BaseNeuralNet<T> 
+    fn mlp<U>(layer_sizes: &[usize], criterion: T, activ_fn: U) -> BaseNeuralNet<T>
         where U: ActivationFunc + 'static + serde::Serialize {
         let mut mlp = BaseNeuralNet {
             layers: Vec::with_capacity(2*(layer_sizes.len()-1)),
@@ -297,7 +297,7 @@ impl<T: Criterion> BaseNeuralNet<T> {
 
     /// Adds multiple layers to the end of the network
     fn add_layers<'a, U>(&'a mut self, layers: U) -> &'a mut BaseNeuralNet<T>
-        where U: IntoIterator<Item = Box<NetLayer>> 
+        where U: IntoIterator<Item = Box<NetLayer>>
     {
         for layer in layers {
             self.add(layer);
@@ -341,7 +341,7 @@ impl<T: Criterion> BaseNeuralNet<T> {
         let mut params = Vec::with_capacity(self.layers.len());
 
         // Forward propagation
-        
+
         let mut index = 0;
         for (i, layer) in self.layers.iter().enumerate() {
             let shape = layer.param_shape();
@@ -366,7 +366,7 @@ impl<T: Criterion> BaseNeuralNet<T> {
         let output = activations.last().unwrap();
 
         // Backward propagation
-        
+
         // The gradient with respect to the current layer's output
         let mut out_grad = self.criterion.cost_grad(output, targets);
         // at this point index == weights.len()
@@ -377,7 +377,7 @@ impl<T: Criterion> BaseNeuralNet<T> {
 
             let grad_params = &mut gradients[index..index+layer.num_params()];
             grad_params.copy_from_slice(layer.back_params(&out_grad, activation, result, params[i]).data());
-            
+
             out_grad = layer.back_input(&out_grad, activation, result, params[i]);
         }
 
@@ -419,7 +419,7 @@ impl<T: Criterion> BaseNeuralNet<T> {
                                             shape.1,
                                             shape.1)
             };
-            
+
             outputs = match layer.forward(&outputs, slice) {
                 Ok(act) => act,
                 Err(_) => {return Err(Error::new(ErrorKind::InvalidParameters,

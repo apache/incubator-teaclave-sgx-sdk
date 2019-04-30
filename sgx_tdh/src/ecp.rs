@@ -35,6 +35,7 @@ pub const EC_SMK_LABEL: [u8; EC_LABEL_LENGTH] = [0x53, 0x4D, 0x4B];
 pub const EC_AEK_LABEL: [u8; EC_LABEL_LENGTH] = [0x41, 0x45, 0x4B];
 pub const EC_DERIVATION_BUFFER_SIZE: usize = 7;
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 pub fn derive_key(shared_key: &sgx_ec256_dh_shared_t,
                   label: &[u8; EC_LABEL_LENGTH]) -> SgxResult<sgx_ec_key_128bit_t> {
 

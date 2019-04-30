@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use std::io::Error;
-use libc::{self, c_int, c_void, size_t, ssize_t, sockaddr, socklen_t};
+use libc::{self, c_int, c_void, size_t, ssize_t, sockaddr, socklen_t, msghdr};
 
 #[no_mangle]
 pub extern "C" fn u_socket_ocall(error: *mut c_int, domain: c_int, ty: c_int, protocol: c_int) -> c_int {
@@ -75,6 +75,24 @@ pub extern "C" fn u_bind_ocall(error: * mut c_int,
 pub extern "C" fn u_listen_ocall(error: *mut c_int, sockfd: c_int, backlog: c_int) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::listen(sockfd, backlog) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_accept_ocall(error: *mut c_int,
+                                 sockfd: c_int,
+                                 addr: *mut sockaddr,
+                                 addrlen_in: socklen_t,
+                                 addrlen_out: *mut socklen_t) -> c_int {
+    let mut errno = 0;
+    unsafe { *addrlen_out = addrlen_in };
+    let ret = unsafe { libc::accept(sockfd, addr, addrlen_out) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
@@ -158,6 +176,22 @@ pub extern "C" fn u_recvfrom_ocall(error: * mut c_int,
 }
 
 #[no_mangle]
+pub extern "C" fn u_recvmsg_ocall(error: * mut c_int,
+                                  sockfd: c_int,
+                                  msg: * mut msghdr,
+                                  flags: c_int) -> ssize_t {
+    let mut errno = 0;
+    let ret = unsafe { libc::recvmsg(sockfd, msg, flags) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
 pub extern "C" fn u_send_ocall(error: * mut c_int,
                                sockfd: c_int,
                                buf: * const c_void,
@@ -184,6 +218,22 @@ pub extern "C" fn u_sendto_ocall(error: * mut c_int,
                                  addrlen: socklen_t) -> ssize_t {
     let mut errno = 0;
     let ret = unsafe { libc::sendto(sockfd, buf, len, flags, dest_addr, addrlen) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_sendmsg_ocall(error: * mut c_int,
+                                  sockfd: c_int,
+                                  msg: * const msghdr,
+                                  flags: c_int) -> ssize_t {
+    let mut errno = 0;
+    let ret = unsafe { libc::sendmsg(sockfd, msg, flags) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }

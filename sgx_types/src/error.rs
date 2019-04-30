@@ -64,9 +64,9 @@ impl_enum! {
         SGX_ERROR_DEVICE_BUSY           = 0x0000_200c,      /* Device is busy, mostly EINIT failed. */
         SGX_ERROR_INVALID_VERSION       = 0x0000_200d,      /* Metadata version is inconsistent between uRTS and sgx_sign or uRTS is incompatible with current platform. */
         SGX_ERROR_MODE_INCOMPATIBLE     = 0x0000_200e,      /* The target enclave 32/64 bit mode or sim/hw mode is incompatible with the mode of current uRTS. */
-        SGX_ERROR_ENCLAVE_FILE_ACCESS   = 0x0000_200f,     /* Can't open enclave file. */
-        SGX_ERROR_INVALID_MISC          = 0x0000_2010,     /* The MiscSelct/MiscMask settings are not correct.*/
-        SGX_ERROR_INVALID_LAUNCH_TOKEN  = 0x0000_2011,    /* The launch token is not correct.*/
+        SGX_ERROR_ENCLAVE_FILE_ACCESS   = 0x0000_200f,      /* Can't open enclave file. */
+        SGX_ERROR_INVALID_MISC          = 0x0000_2010,      /* The MiscSelct/MiscMask settings are not correct.*/
+        SGX_ERROR_INVALID_LAUNCH_TOKEN  = 0x0000_2011,      /* The launch token is not correct.*/
 
         SGX_ERROR_MAC_MISMATCH       = 0x0000_3001,      /* Indicates verification error for reports, sealed datas, etc */
         SGX_ERROR_INVALID_ATTRIBUTE  = 0x0000_3002,      /* The enclave is not authorized */
@@ -103,12 +103,17 @@ impl_enum! {
         SGX_ERROR_FILE_BAD_STATUS               = 0x0000_7001,	/* The file is in bad status, run sgx_clearerr to try and fix it */
         SGX_ERROR_FILE_NO_KEY_ID                = 0x0000_7002,	/* The Key ID field is all zeros, can't re-generate the encryption key */
         SGX_ERROR_FILE_NAME_MISMATCH            = 0x0000_7003,	/* The current file name is different then the original file name (not allowed, substitution attack) */
-        SGX_ERROR_FILE_NOT_SGX_FILE             = 0x0000_7004,   /* The file is not an SGX file */
+        SGX_ERROR_FILE_NOT_SGX_FILE             = 0x0000_7004,  /* The file is not an SGX file */
         SGX_ERROR_FILE_CANT_OPEN_RECOVERY_FILE  = 0x0000_7005,	/* A recovery file can't be opened, so flush operation can't continue (only used when no EXXX is returned)  */
-        SGX_ERROR_FILE_CANT_WRITE_RECOVERY_FILE = 0x0000_7006,   /* A recovery file can't be written, so flush operation can't continue (only used when no EXXX is returned)  */
+        SGX_ERROR_FILE_CANT_WRITE_RECOVERY_FILE = 0x0000_7006,  /* A recovery file can't be written, so flush operation can't continue (only used when no EXXX is returned)  */
         SGX_ERROR_FILE_RECOVERY_NEEDED          = 0x0000_7007,	/* When openeing the file, recovery is needed, but the recovery process failed */
         SGX_ERROR_FILE_FLUSH_FAILED             = 0x0000_7008,	/* fflush operation (to disk) failed (only used when no EXXX is returned) */
         SGX_ERROR_FILE_CLOSE_FAILED             = 0x0000_7009,	/* fclose operation (to disk) failed (only used when no EXXX is returned) */
+
+        SGX_ERROR_UNSUPPORTED_ATT_KEY_ID        = 0x0000_8001,    /* platform quoting infrastructure does not support the key.*/
+        SGX_ERROR_ATT_KEY_CERTIFICATION_FAILURE = 0x0000_8002,    /* Failed to generate and certify the attestation key.*/
+        SGX_ERROR_ATT_KEY_UNINITIALIZED         = 0x0000_8003,    /* The platform quoting infrastructure does not have the attestation key available to generate quote.*/
+        SGX_ERROR_INVALID_ATT_KEY_CERT_DATA     = 0x0000_8004,    /* TThe data returned by the platform library's sgx_get_quote_config() is invalid.*/
 
         SGX_INTERNAL_ERROR_ENCLAVE_CREATE_INTERRUPTED = 0x0000_F001, /* The ioctl for enclave_create unexpectedly failed with EINTR. */
 
@@ -195,6 +200,11 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_FILE_FLUSH_FAILED => "fflush operation failed.",
             sgx_status_t::SGX_ERROR_FILE_CLOSE_FAILED => "fclose operation failed.",
 
+            sgx_status_t::SGX_ERROR_UNSUPPORTED_ATT_KEY_ID => "platform quoting infrastructure does not support the key.",
+            sgx_status_t::SGX_ERROR_ATT_KEY_CERTIFICATION_FAILURE => "Failed to generate and certify the attestation key.",
+            sgx_status_t::SGX_ERROR_ATT_KEY_UNINITIALIZED => "The platform quoting infrastructure does not have the attestation key available to generate quote.",
+            sgx_status_t::SGX_ERROR_INVALID_ATT_KEY_CERT_DATA => "The data returned by the platform library is invalid.",
+
             sgx_status_t::SGX_INTERNAL_ERROR_ENCLAVE_CREATE_INTERRUPTED => "The ioctl for enclave_create unexpectedly failed with EINTR.",
 
             sgx_status_t::SGX_ERROR_WASM_BUFFER_TOO_SHORT => "sgx wasm output buffer too small.",
@@ -278,6 +288,11 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_FILE_RECOVERY_NEEDED => "SGX_ERROR_FILE_RECOVERY_NEEDED",
             sgx_status_t::SGX_ERROR_FILE_FLUSH_FAILED => "SGX_ERROR_FILE_FLUSH_FAILED",
             sgx_status_t::SGX_ERROR_FILE_CLOSE_FAILED => "SGX_ERROR_FILE_CLOSE_FAILED",
+
+            sgx_status_t::SGX_ERROR_UNSUPPORTED_ATT_KEY_ID => "SGX_ERROR_UNSUPPORTED_ATT_KEY_ID",
+            sgx_status_t::SGX_ERROR_ATT_KEY_CERTIFICATION_FAILURE => "SGX_ERROR_ATT_KEY_CERTIFICATION_FAILURE",
+            sgx_status_t::SGX_ERROR_ATT_KEY_UNINITIALIZED => "SGX_ERROR_ATT_KEY_UNINITIALIZED",
+            sgx_status_t::SGX_ERROR_INVALID_ATT_KEY_CERT_DATA => "SGX_ERROR_INVALID_ATT_KEY_CERT_DATA",
 
             sgx_status_t::SGX_INTERNAL_ERROR_ENCLAVE_CREATE_INTERRUPTED => "SGX_INTERNAL_ERROR_ENCLAVE_CREATE_INTERRUPTED",
 

@@ -30,6 +30,7 @@
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <sys/uio.h>
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -52,6 +53,24 @@ ssize_t u_pread64_ocall(int * error, int fd, void * buf, size_t count, off64_t o
     return ret;
 }
 
+ssize_t u_readv_ocall(int * error, int fd, const struct iovec * iov, int iovcnt)
+{
+    ssize_t ret = readv(fd, iov, iovcnt);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+ssize_t u_preadv64_ocall(int * error, int fd, const struct iovec * iov, int iovcnt, off64_t offset)
+{
+    ssize_t ret = preadv64(fd, iov, iovcnt, offset);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
 ssize_t u_write_ocall(int * error, int fd, const void * buf, size_t count)
 {
     ssize_t ret = write(fd, buf, count);
@@ -64,6 +83,24 @@ ssize_t u_write_ocall(int * error, int fd, const void * buf, size_t count)
 ssize_t u_pwrite64_ocall(int * error, int fd, const void * buf, size_t count, off64_t offset)
 {
     ssize_t ret = pwrite64(fd, buf, count, offset);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+ssize_t u_writev_ocall(int * error, int fd, const struct iovec * iov, int iovcnt)
+{
+    ssize_t ret = writev(fd, iov, iovcnt);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+ssize_t u_pwritev64_ocall(int * error, int fd, const struct iovec * iov, int iovcnt, off64_t offset)
+{
+    ssize_t ret = pwritev64(fd, iov, iovcnt, offset);
     if (error) {
         *error = ret == -1 ? errno : 0;
     }

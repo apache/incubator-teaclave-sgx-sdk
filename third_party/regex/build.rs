@@ -9,12 +9,13 @@ fn main() {
         .output()
         .unwrap()
         .stdout;
-    let version = String::from_utf8(output).unwrap();
+    let _version = String::from_utf8(output).unwrap();
 
     // disabled avx2 | ssse3
     // enable_simd_optimizations(&version);
 }
 
+#[allow(unused)]
 fn enable_simd_optimizations(version: &str) {
     // We don't activate SIMD optimizations these if we've explicitly disabled
     // them. Disabling auto optimizations is intended for use in tests, so that
@@ -44,6 +45,7 @@ struct Version {
 }
 
 impl Version {
+    #[allow(unused)]
     fn parse(mut s: &str) -> Result<Version, String> {
         if !s.starts_with("rustc ") {
             return Err(format!("unrecognized version string: {}", s));

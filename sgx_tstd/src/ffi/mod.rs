@@ -38,8 +38,5 @@ pub use self::c_str::{CString, CStr, NulError, IntoStringError};
 pub use self::c_str::{FromBytesWithNulError};
 pub use self::os_str::{OsString, OsStr};
 
-pub use core::ffi::c_void;
-pub use core::ffi::VaList;
-
 mod c_str;
 mod os_str;

@@ -190,7 +190,7 @@
         unused_import_braces,
         unused_extern_crates,
         unused_qualifications)]
-
+#![allow(deprecated)]
 #![crate_name = "rustls"]
 #![crate_type = "rlib"]
 

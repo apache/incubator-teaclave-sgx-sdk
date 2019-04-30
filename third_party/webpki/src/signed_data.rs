@@ -542,7 +542,7 @@ mod tests {
                              "rsa-pss-sha256-salt10.pem",
                              Err(Error::UnsupportedSignatureAlgorithm));
 
-    /// Our PSS tests that should work.
+    // Our PSS tests that should work.
     test_verify_signed_data!(
         test_rsa_pss_sha256_salt32,
         "ours/rsa-pss-sha256-salt32.pem",

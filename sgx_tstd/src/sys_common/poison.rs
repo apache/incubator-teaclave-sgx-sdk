@@ -139,7 +139,7 @@ impl<T> PoisonError<T> {
     /// This is generally created by methods like [`SgxMutex::lock`] or [`SgxRwLock::read`].
     ///
     pub fn new(guard: T) -> PoisonError<T> {
-        PoisonError { guard }
+        PoisonError { guard: guard }
     }
 
     /// Consumes this error indicating that a lock is poisoned, returning the
@@ -183,6 +183,7 @@ impl<T> fmt::Display for TryLockError<T> {
 }
 
 impl<T> Error for TryLockError<T> {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match *self {
             TryLockError::Poisoned(ref p) => p.description(),
@@ -190,7 +191,7 @@ impl<T> Error for TryLockError<T> {
         }
     }
 
-    fn cause(&self) -> Option<&dyn Error> {
+    fn cause(&self) -> Option<&Error> {
         match *self {
             TryLockError::Poisoned(ref p) => Some(p),
             _ => None

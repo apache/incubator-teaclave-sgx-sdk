@@ -13,7 +13,7 @@ keywords = ["unicode", "database", "character", "property"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-lazy_static = { path = "../../lazy-static.rs" }
+lazy_static = { version = "1.1.0", features = ["spin_no_std"] }
 regex = { path = "../../regex" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]

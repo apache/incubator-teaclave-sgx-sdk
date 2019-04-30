@@ -1,7 +1,7 @@
 //! The norm module
 //!
 //! This module contains implementations of various linear algebra norms.
-//! The implementations are contained within the `VectorNorm` and 
+//! The implementations are contained within the `VectorNorm` and
 //! `MatrixNorm` traits. This module also contains `VectorMetric` and
 //! `MatrixMetric` traits which are used to compute the metric distance.
 //!
@@ -12,7 +12,7 @@
 //!
 //! In general you should use the least generic norm that fits your purpose.
 //! For example you would choose to use a `Euclidean` norm instead of an
-//! `Lp(2.0)` norm - despite them being mathematically equivalent. 
+//! `Lp(2.0)` norm - despite them being mathematically equivalent.
 //!
 //! # Defining your own norm
 //!

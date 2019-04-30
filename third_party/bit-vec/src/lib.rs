@@ -101,7 +101,7 @@ use std::vec::Vec;
 #[macro_use]
 extern crate alloc;
 #[cfg(not(feature="std"))]
-use alloc::prelude::Vec;
+use alloc::vec::Vec;
 
 use core::cmp::Ordering;
 use core::cmp;

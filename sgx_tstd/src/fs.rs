@@ -398,7 +398,7 @@ impl OpenOptions {
     /// If a file is opened with both read and append access, beware that after
     /// opening, and after every write, the position for reading may be set at the
     /// end of the file. So, before writing, save the current position (using
-    /// [`seek`]`(`[`SeekFrom`]`::`[`Current`]`(0))`), and restore it before the next read.
+    /// [`seek`]`(`[`SeekFrom`]`::`[`Current`]`(0))`, and restore it before the next read.
     ///
     /// ## Note
     ///
@@ -500,7 +500,7 @@ impl OpenOptions {
 
     fn _open(&self, path: &Path) -> io::Result<File> {
         let inner = fs_imp::File::open(path, &self.0)?;
-        Ok(File { inner })
+        Ok(File { inner: inner })
     }
 }
 
@@ -862,8 +862,8 @@ pub fn read_link<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     fs_imp::readlink(path.as_ref())
 }
 
-/// Returns the canonical, absolute form of a path with all intermediate
-/// components normalized and symbolic links resolved.
+/// Returns the canonical form of a path with all intermediate components
+/// normalized and symbolic links resolved.
 ///
 /// # Platform-specific behavior
 ///
@@ -871,14 +871,7 @@ pub fn read_link<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
 /// and the `CreateFile` and `GetFinalPathNameByHandle` functions on Windows.
 /// Note that, this [may change in the future][changes].
 ///
-/// On Windows, this converts the path to use [extended length path][path]
-/// syntax, which allows your program to use longer path names, but means you
-/// can only join backslash-delimited paths to it, and it may be incompatible
-/// with other applications (if passed to the application on the command-line,
-/// or written to a file another application may read).
-///
 /// [changes]: ../io/index.html#platform-specific-behavior
-/// [path]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath
 ///
 /// # Errors
 ///

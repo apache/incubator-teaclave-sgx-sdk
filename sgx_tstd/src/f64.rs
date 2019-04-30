@@ -29,12 +29,13 @@
 //! This module provides constants which are specific to the implementation
 //! of the `f64` floating point data type.
 //!
-//! Mathematically significant numbers are provided in the `consts` sub-module.
+//! *[See also the `f64` primitive type](../../std/primitive.f64.html).*
 //!
+//! Mathematically significant numbers are provided in the `consts` sub-module.
 
 #![allow(missing_docs)]
 
-use core::intrinsics;
+use intrinsics;
 use sys::cmath;
 
 pub use core::f64::{RADIX, MANTISSA_DIGITS, DIGITS, EPSILON};
@@ -177,19 +178,6 @@ impl f64 {
         }
     }
 
-    /// Returns a number composed of the magnitude of `self` and the sign of
-    /// `y`.
-    ///
-    /// Equal to `self` if the sign of `self` and `y` are the same, otherwise
-    /// equal to `-self`. If `self` is a `NAN`, then a `NAN` with the sign of
-    /// `y` is returned.
-    ///
-    #[inline]
-    #[must_use]
-    pub fn copysign(self, y: f64) -> f64 {
-        unsafe { intrinsics::copysignf64(self, y) }
-    }
-
     /// Fused multiply-add. Computes `(self * a) + b` with only one rounding
     /// error, yielding a more accurate result than an unfused multiply-add.
     ///
@@ -242,14 +230,7 @@ impl f64 {
 
     /// Calculates the Euclidean modulo (self mod rhs), which is never negative.
     ///
-    /// In particular, the return value `r` satisfies `0.0 <= r < rhs.abs()` in
-    /// most cases.  However, due to a floating point round-off error it can
-    /// result in `r == rhs.abs()`, violating the mathematical definition, if
-    /// `self` is much smaller than `rhs.abs()` in magnitude and `self < 0.0`.
-    /// This result is not an element of the function's codomain, but it is the
-    /// closest floating point number in the real numbers and thus fulfills the
-    /// property `self == self.div_euc(rhs) * rhs + self.mod_euc(rhs)`
-    /// approximatively.
+    /// In particular, the result `n` satisfies `0 <= n < rhs.abs()`.
     ///
     /// # Examples
     ///
@@ -261,8 +242,6 @@ impl f64 {
     /// assert_eq!((-a).mod_euc(b), 1.0);
     /// assert_eq!(a.mod_euc(-b), 3.0);
     /// assert_eq!((-a).mod_euc(-b), 1.0);
-    /// // limitation due to round-off error
-    /// assert!((-std::f64::EPSILON).mod_euc(3.0) != 0.0);
     /// ```
     #[inline]
     pub fn mod_euc(self, rhs: f64) -> f64 {
@@ -442,28 +421,6 @@ impl f64 {
     pub fn log10(self) -> f64 {
         self.log_wrapper(|n| { unsafe { intrinsics::log10f64(n) } })
     }
-
-    /// The positive difference of two numbers.
-    ///
-    /// * If `self <= other`: `0:0`
-    /// * Else: `self - other`
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let x = 3.0_f64;
-    /// let y = -3.0_f64;
-    ///
-    /// let abs_difference_x = (x.abs_sub(1.0) - 2.0).abs();
-    /// let abs_difference_y = (y.abs_sub(1.0) - 0.0).abs();
-    ///
-    /// assert!(abs_difference_x < 1e-10);
-    /// assert!(abs_difference_y < 1e-10);
-    /// ```
-    #[inline]
-     pub fn abs_sub(self, other: f64) -> f64 {
-         unsafe { cmath::fdim(self, other) }
-     }
 
     /// Takes the cubic root of a number.
     ///

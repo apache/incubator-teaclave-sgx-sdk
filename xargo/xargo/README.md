@@ -223,7 +223,7 @@ $ rustc -Z unstable-options --print target-spec-json --target powerpc-unknown-li
   "target-endian": "big",
   "target-family": "unix",
   "target-pointer-width": "32",
-  "vendor": "mesalock"
+  "vendor": "unknown"
 }
 ```
 

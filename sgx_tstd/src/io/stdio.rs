@@ -33,7 +33,7 @@ use sync::{SgxMutex, SgxMutexGuard, SgxReentrantMutex, SgxReentrantMutexGuard};
 use sys::stdio;
 use core::cell::RefCell;
 use core::fmt;
-use alloc_crate::sync::Arc;
+use alloc::sync::Arc;
 
 /// A handle to a raw instance of the standard input stream of this process.
 ///
@@ -175,15 +175,12 @@ pub struct StdinLock<'a> {
 /// [lock]: struct.Stdin.html#method.lock
 ///
 pub fn stdin() -> Stdin {
-    static INSTANCE: LazyStatic<SgxMutex<BufReader<Maybe<StdinRaw>>>> = LazyStatic::new();
+    static INSTANCE: LazyStatic<SgxMutex<BufReader<Maybe<StdinRaw>>>> = LazyStatic::new(stdin_init);
     return Stdin {
-        inner: unsafe {
-            INSTANCE.get(stdin_init).expect("cannot access stdin during shutdown")
-        },
+        inner: INSTANCE.get().expect("cannot access stdin during shutdown"),
     };
 
     fn stdin_init() -> Arc<SgxMutex<BufReader<Maybe<StdinRaw>>>> {
-        // This must not reentrantly access `INSTANCE`
         let stdin = match stdin_raw() {
             Ok(stdin) => Maybe::Real(stdin),
             _ => Maybe::Fake
@@ -303,15 +300,13 @@ pub struct StdoutLock<'a> {
 /// [Stdout::lock]: struct.Stdout.html#method.lock
 ///
 pub fn stdout() -> Stdout {
-    static INSTANCE: LazyStatic<SgxReentrantMutex<RefCell<LineWriter<Maybe<StdoutRaw>>>>> = LazyStatic::new();
+    static INSTANCE: LazyStatic<SgxReentrantMutex<RefCell<LineWriter<Maybe<StdoutRaw>>>>>
+        = LazyStatic::new(stdout_init);
     return Stdout {
-        inner: unsafe {
-            INSTANCE.get(stdout_init).expect("cannot access stdout during shutdown")
-        },
+        inner: INSTANCE.get().expect("cannot access stdout during shutdown"),
     };
 
     fn stdout_init() -> Arc<SgxReentrantMutex<RefCell<LineWriter<Maybe<StdoutRaw>>>>> {
-        // This must not reentrantly access `INSTANCE`
         let stdout = match stdout_raw() {
             Ok(stdout) => Maybe::Real(stdout),
             _ => Maybe::Fake,
@@ -392,15 +387,12 @@ pub struct StderrLock<'a> {
 /// This handle is not buffered.
 ///
 pub fn stderr() -> Stderr {
-    static INSTANCE: LazyStatic<SgxReentrantMutex<RefCell<Maybe<StderrRaw>>>> = LazyStatic::new();
+    static INSTANCE: LazyStatic<SgxReentrantMutex<RefCell<Maybe<StderrRaw>>>> = LazyStatic::new(stderr_init);
     return Stderr {
-        inner: unsafe {
-            INSTANCE.get(stderr_init).expect("cannot access stderr during shutdown")
-        },
+        inner: INSTANCE.get().expect("cannot access stderr during shutdown"),
     };
 
     fn stderr_init() -> Arc<SgxReentrantMutex<RefCell<Maybe<StderrRaw>>>> {
-        // This must not reentrantly access `INSTANCE`
         let stderr = match stderr_raw() {
             Ok(stderr) => Maybe::Real(stderr),
             _ => Maybe::Fake,

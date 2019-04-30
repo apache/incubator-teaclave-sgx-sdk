@@ -26,6 +26,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
+
 extern crate libc;
 extern crate sgx_types;
 
@@ -38,6 +40,8 @@ pub mod socket;
 pub mod asyncio;
 pub mod env;
 pub mod sys;
+pub mod pipe;
+pub mod event;
 
 pub use enclave::*;
 

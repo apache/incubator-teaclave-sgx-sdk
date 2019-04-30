@@ -8,7 +8,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![allow(nonstandard_style)]
+#![allow(bad_style)]
 
 macro_rules! cfg_if {
     ( $( if #[cfg( $meta:meta )] { $($it1:item)* } else { $($it2:item)* } )* ) =>
@@ -93,7 +93,7 @@ extern "C" {
 }
 
 cfg_if! {
-if #[cfg(all(any(target_os = "ios", target_os = "netbsd", not(target_arch = "arm"))))] {
+if #[cfg(all(any(target_os = "ios", not(target_arch = "arm"))))] {
     // Not ARM EHABI
     #[repr(C)]
     #[derive(Copy, Clone, PartialEq)]

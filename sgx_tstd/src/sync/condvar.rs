@@ -37,221 +37,210 @@
 //! The table below illustrates the primitives that the Intel(R) SGX Thread
 //! Synchronization library supports, as well as the OCALLs that each API function needs.
 //!
-use sgx_types::{self, SysError, sgx_thread_mutex_t, sgx_thread_cond_t, sgx_thread_condattr_t};
+
+
+
+use sgx_types::{self, SysError, sgx_thread_t, SGX_THREAD_T_NULL};
+use sgx_trts::enclave::SgxThreadData;
+use sgx_types::{c_void, c_int, c_long};
 use sgx_trts::libc;
 use sgx_trts::oom;
 use super::mutex::{self, SgxThreadMutex, SgxMutexGuard};
-use sys_common::poison::{LockResult, PoisonError};
+use sys_common::poison::{self, LockResult, PoisonError};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use core::cell::UnsafeCell;
 use core::fmt;
 use core::mem;
 use core::alloc::AllocErr;
-use alloc_crate::boxed::Box;
+use alloc::boxed::Box;
+use sync::SgxThreadSpinlock;
+use io::{self, Error, ErrorKind};
+use time::Duration;
+use time::Instant;
+use untrusted::time::InstantEx;
+use thread::{self, rsgx_thread_self};
 
-pub unsafe fn raw_cond(lock: &mut sgx_thread_cond_t) -> * mut sgx_thread_cond_t {
-    lock as * mut _
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+
+pub struct WaitTimeoutResult(bool);
+
+impl WaitTimeoutResult {
+    pub fn timed_out(&self) -> bool {
+        self.0
+    }
 }
 
-#[allow(dead_code)]
-unsafe fn rsgx_thread_cond_init(cond: &mut sgx_thread_cond_t, unused: &sgx_thread_condattr_t ) -> SysError {
-
-    let ret = sgx_types::sgx_thread_cond_init(raw_cond(cond), unused as * const sgx_thread_condattr_t);
-    if ret == 0 { Ok(()) } else { Err(ret) }
+struct SgxThreadCondvarInner {
+    spinlock: SgxThreadSpinlock,
+    thread_vec: Vec<sgx_thread_t>,
 }
 
-unsafe fn rsgx_thread_cond_destroy(cond: &mut sgx_thread_cond_t) -> SysError {
-
-    let ret = sgx_types::sgx_thread_cond_destroy(raw_cond(cond));
-    if ret == 0 { Ok(()) } else { Err(ret) }
+impl SgxThreadCondvarInner {
+    const fn new() -> Self {
+        SgxThreadCondvarInner {
+            spinlock: SgxThreadSpinlock::new(),
+            thread_vec: Vec::new(),
+        }
+    }
 }
 
-unsafe fn rsgx_thread_cond_wait(cond: &mut sgx_thread_cond_t, mutex: &mut sgx_thread_mutex_t) -> SysError {
-
-    let ret = sgx_types::sgx_thread_cond_wait(raw_cond(cond), mutex::raw_mutex(mutex));
-    if ret == 0 { Ok(()) } else { Err(ret) }
-}
-
-unsafe fn rsgx_thread_cond_signal(cond: &mut sgx_thread_cond_t) -> SysError {
-
-    let ret = sgx_types::sgx_thread_cond_signal(raw_cond(cond));
-    if ret == 0 { Ok(()) } else { Err(ret) }
-}
-
-unsafe fn rsgx_thread_cond_broadcast(cond: &mut sgx_thread_cond_t) -> SysError {
-
-    let ret = sgx_types::sgx_thread_cond_broadcast(raw_cond(cond));
-    if ret == 0 { Ok(()) } else { Err(ret) }
-}
-
-/// The structure of sgx condition.
 pub struct SgxThreadCondvar {
-    cond: UnsafeCell<sgx_thread_cond_t>,
+    inner: UnsafeCell<SgxThreadCondvarInner>,
 }
 
 unsafe impl Send for SgxThreadCondvar {}
 unsafe impl Sync for SgxThreadCondvar {}
 
 impl SgxThreadCondvar {
-    ///
-    /// The function initializes a trusted condition variable within the enclave.
-    ///
-    /// # Description
-    ///
-    /// When a thread creates a condition variable within an enclave, it simply initializes the various
-    /// fields of the object to indicate that the condition variable is available. The results of using
-    /// a condition variable in a wait, signal or broadcast operation before it has been fully initialized
-    /// are undefined. To avoid race conditions in the initialization of a condition variable, it is
-    /// recommended statically initializing the condition variable with the macro SGX_THREAD_COND_INITIALIZER.
-    ///
-    /// # Requirements
-    ///
-    /// Library: libsgx_tstdc.a
-    ///
+
     pub const fn new() -> Self {
-        SgxThreadCondvar{ cond: UnsafeCell::new(sgx_types::SGX_THREAD_COND_INITIALIZER) }
+        SgxThreadCondvar { inner: UnsafeCell::new(SgxThreadCondvarInner::new()) }
     }
 
-    ///
-    /// The function waits on a condition variable within an enclave.
-    ///
-    /// # Description
-    ///
-    /// A condition variable is always used in conjunction with a mutex. To wait on a
-    /// condition variable, a thread first needs to acquire the condition variable spin
-    /// lock. After the spin lock is acquired, the thread updates the condition variable
-    /// waiting queue. To avoid the lost wake-up signal problem, the condition variable
-    /// spin lock is released after the mutex. This order ensures the function atomically
-    /// releases the mutex and causes the calling thread to block on the condition variable,
-    /// with respect to other threads accessing the mutex and the condition variable.
-    /// After releasing the condition variable spin lock, the thread makes an OCALL to
-    /// get suspended. When the thread is awakened, it acquires the condition variable
-    /// spin lock. The thread then searches the condition variable queue. If the thread
-    /// is in the queue, it means that the thread was already waiting on the condition
-    /// variable outside the enclave, and it has been awakened unexpectedly. When this
-    /// happens, the thread releases the condition variable spin lock, makes an OCALL
-    /// and simply goes back to sleep. Otherwise, another thread has signaled or broadcasted
-    /// the condition variable and this thread may proceed. Before returning, the thread
-    /// releases the condition variable spin lock and acquires the mutex, ensuring that
-    /// upon returning from the function call the thread still owns the mutex.
-    ///
-    /// # Requirements
-    ///
-    /// Library: libsgx_tstdc.a
-    ///
-    /// # Parameters
-    ///
-    /// **mutex**
-    ///
-    /// The trusted mutex object that will be unlocked when the thread is blocked inthe condition variable
-    ///
-    /// # Errors
-    ///
-    /// **EINVAL**
-    ///
-    /// The trusted condition variable or mutex object is invalid or the mutex is not locked.
-    ///
-    /// **EPERM**
-    ///
-    /// The trusted mutex is locked by another thread.
-    ///
-    #[inline]
     pub unsafe fn wait(&self, mutex: &SgxThreadMutex) -> SysError {
-        rsgx_thread_cond_wait(&mut *self.cond.get(), mutex.get_raw())
+
+        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
+        condvar.spinlock.lock();
+        condvar.thread_vec.push(rsgx_thread_self());
+        let mut waiter: sgx_thread_t = SGX_THREAD_T_NULL;
+
+        try!(mutex.unlock_lazy(&mut waiter).map_err(|ret| {
+            condvar.thread_vec.pop();
+            condvar.spinlock.unlock();
+            ret
+        }));
+
+        loop {
+            condvar.spinlock.unlock();
+            if waiter == SGX_THREAD_T_NULL {
+                mutex::thread_wait_event(SgxThreadData::new().get_tcs(), Duration::from_secs(0));
+            } else {
+                mutex::thread_setwait_events(SgxThreadData::from_raw(waiter).get_tcs(),
+                                                          SgxThreadData::new().get_tcs(),
+                                                          Duration::new(0, 0));
+                waiter = SGX_THREAD_T_NULL;
+            }
+            condvar.spinlock.lock();
+            let mut thread_waiter: sgx_thread_t = SGX_THREAD_T_NULL;
+            for tmp in &condvar.thread_vec {
+                if thread::rsgx_thread_equal(*tmp, rsgx_thread_self()) {
+                    thread_waiter = *tmp;
+                    break;
+                }
+            }
+            if thread_waiter == SGX_THREAD_T_NULL {
+                break;
+            }
+        }
+        condvar.spinlock.unlock();
+        mutex.lock();
+        Ok(())
     }
 
-    ///
-    /// The function wakes a pending thread waiting on the condition variable.
-    ///
-    /// # Description
-    ///
-    /// To signal a condition variable, a thread starts acquiring the condition variable
-    /// spin-lock. Then it inspects the status of the condition variable queue. If the
-    /// queue is empty it means that there are not any threads waiting on the condition
-    /// variable. When that happens, the thread releases the condition variable and returns.
-    /// However, if the queue is not empty, the thread removes the first thread waiting
-    /// in the queue. The thread then makes an OCALL to wake up the thread that is suspended
-    /// outside the enclave, but first the thread releases the condition variable spin-lock.
-    /// Upon returning from the OCALL, the thread continues normal execution.
-    ///
-    /// # Requirements
-    ///
-    /// Library: libsgx_tstdc.a
-    ///
-    /// # Errors
-    ///
-    /// **EINVAL**
-    ///
-    /// The trusted condition variable is invalid.
-    ///
-    #[inline]
+    pub unsafe fn wait_timeout(&self, mutex: &SgxThreadMutex, dur: Duration) -> SysError {
+
+        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
+        condvar.spinlock.lock();
+        condvar.thread_vec.push(rsgx_thread_self());
+        let mut waiter: sgx_thread_t = SGX_THREAD_T_NULL;
+
+        try!(mutex.unlock_lazy(&mut waiter).map_err(|ret| {
+            condvar.thread_vec.pop();
+            condvar.spinlock.unlock();
+            ret
+        }));
+        let mut ret = Ok(());
+        loop {
+            condvar.spinlock.unlock();
+            let mut result = 0;
+            if waiter == SGX_THREAD_T_NULL {
+                result = mutex::thread_wait_event(SgxThreadData::new().get_tcs(), dur);
+            } else {
+                result = mutex::thread_setwait_events(SgxThreadData::from_raw(waiter as usize).get_tcs(),
+                                                      SgxThreadData::new().get_tcs(),
+                                                      dur);
+                waiter = SGX_THREAD_T_NULL;
+            }
+
+            condvar.spinlock.lock();
+            let mut thread_waiter: sgx_thread_t = SGX_THREAD_T_NULL;
+            for tmp in &condvar.thread_vec {
+                if thread::rsgx_thread_equal(*tmp, rsgx_thread_self()) {
+                    thread_waiter = *tmp;
+                    break;
+                }
+            }
+
+            if thread_waiter != SGX_THREAD_T_NULL && result < 0 {
+                if Error::last_os_error().kind() == io::ErrorKind::TimedOut {
+                    condvar.thread_vec.remove_item(&thread_waiter);
+                    ret = Err(libc::ETIMEDOUT);
+                    break;
+                }
+            }
+
+            if thread_waiter == SGX_THREAD_T_NULL {
+                break;
+            }
+        }
+        condvar.spinlock.unlock();
+        mutex.lock();
+        ret
+    }
+
     pub unsafe fn signal(&self) -> SysError {
-        rsgx_thread_cond_signal(&mut *self.cond.get())
+
+        let mut waiter: sgx_thread_t = SGX_THREAD_T_NULL;
+        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
+        condvar.spinlock.lock();
+        if condvar.thread_vec.is_empty() {
+            condvar.spinlock.unlock();
+            return Ok(());
+        }
+
+        waiter = *condvar.thread_vec.first().unwrap();
+        condvar.thread_vec.remove(0);
+        condvar.spinlock.unlock();
+        mutex::thread_set_event(SgxThreadData::from_raw(waiter).get_tcs());
+        Ok(())
     }
 
-    ///
-    /// The function wakes all pending threads waiting on the condition variable.
-    ///
-    /// # Description
-    ///
-    /// Broadcast and signal operations on a condition variable are analogous. The
-    /// only difference is that during a broadcast operation, the thread removes all
-    /// the threads waiting on the condition variable queue and wakes up all the
-    /// threads suspended outside the enclave in a single OCALL.
-    ///
-    /// # Requirements
-    ///
-    /// Library: libsgx_tstdc.a
-    ///
-    /// # Errors
-    ///
-    /// **EINVAL**
-    ///
-    /// The trusted condition variable is invalid.
-    ///
-    /// **ENOMEM**
-    ///
-    /// Internal memory allocation failed.
-    ///
-    #[inline]
     pub unsafe fn broadcast(&self) -> SysError {
-        rsgx_thread_cond_broadcast(&mut *self.cond.get())
+
+        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
+        let mut tcs_vec: Vec<usize> = Vec::new();
+        condvar.spinlock.lock();
+        if condvar.thread_vec.is_empty() {
+            condvar.spinlock.unlock();
+            return Ok(());
+        }
+
+        while let Some(waiter) = condvar.thread_vec.pop() {
+           tcs_vec.push(SgxThreadData::from_raw(waiter).get_tcs())
+        }
+        condvar.spinlock.unlock();
+        mutex::thread_set_multiple_events(tcs_vec.as_slice());
+        Ok(())
     }
 
-    ///
-    /// The function destroys a trusted condition variable within an enclave.
-    ///
-    /// # Description
-    ///
-    /// The procedure first confirms that there are no threads waiting on the condition
-    /// variable before it is destroyed. The destroy operation acquires the spin lock at
-    /// the beginning of the operation to prevent other threads from signaling to or
-    /// waiting on the condition variable.
-    ///
-    /// # Requirements
-    ///
-    /// Library: libsgx_tstdc.a
-    ///
-    /// # Errors
-    ///
-    /// **EINVAL**
-    ///
-    /// The trusted condition variable is invalid.
-    ///
-    /// **EBUSY**
-    ///
-    /// The condition variable has pending threads waiting on it.
-    ///
-    #[inline]
+    pub unsafe fn notify_one(&self) -> SysError {
+        self.signal()
+    }
+
+    pub unsafe fn notify_all(&self) -> SysError {
+        self.broadcast()
+    }
+
     pub unsafe fn destroy(&self) -> SysError {
-        rsgx_thread_cond_destroy(&mut *self.cond.get())
-    }
 
-    /// Get the pointer of sgx_thread_cond_t in SgxThreadCondvar.
-    #[allow(dead_code)]
-    #[inline]
-    pub unsafe fn get_raw(&self) -> &mut sgx_thread_cond_t {
-        &mut *self.cond.get()
+        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
+        condvar.spinlock.lock();
+        if condvar.thread_vec.first() != Some(&SGX_THREAD_T_NULL) {
+            condvar.spinlock.unlock();
+            return Err(libc::EBUSY);
+        }
+        condvar.spinlock.unlock();
+        Ok(())
     }
 }
 
@@ -314,7 +303,6 @@ impl SgxCondvar {
     /// mutex to ensure defined behavior across platforms. If this functionality
     /// is not desired, then unsafe primitives in `sys` are provided.
     pub fn wait<'a, T>(&self, guard: SgxMutexGuard<'a, T>) -> LockResult<SgxMutexGuard<'a, T>> {
-
         let poisoned = unsafe {
             let lock = mutex::guard_lock(&guard);
             self.verify(lock);
@@ -354,6 +342,159 @@ impl SgxCondvar {
         }
         Ok(guard)
     }
+    /// Waits on this condition variable for a notification, timing out after a
+    /// specified duration.
+    ///
+    /// The semantics of this function are equivalent to [`wait`]
+    /// except that the thread will be blocked for roughly no longer
+    /// than `ms` milliseconds. This method should not be used for
+    /// precise timing due to anomalies such as preemption or platform
+    /// differences that may not cause the maximum amount of time
+    /// waited to be precisely `ms`.
+    ///
+    /// Note that the best effort is made to ensure that the time waited is
+    /// measured with a monotonic clock, and not affected by the changes made to
+    /// the system time.
+    ///
+    /// The returned boolean is `false` only if the timeout is known
+    /// to have elapsed.
+    ///
+    /// Like [`wait`], the lock specified will be re-acquired when this function
+    /// returns, regardless of whether the timeout elapsed or not.
+    ///
+    /// [`wait`]: #method.wait
+    ///
+    pub fn wait_timeout_ms<'a, T>(&self, guard: SgxMutexGuard<'a, T>, ms: u32)
+                                  -> LockResult<(SgxMutexGuard<'a, T>, bool)> {
+        let res = self.wait_timeout(guard, Duration::from_millis(ms as u64));
+        poison::map_result(res, |(a, b)| {
+            (a, !b.timed_out())
+        })
+    }
+    /// Waits on this condition variable for a notification, timing out after a
+    /// specified duration.
+    ///
+    /// The semantics of this function are equivalent to [`wait`] except that
+    /// the thread will be blocked for roughly no longer than `dur`. This
+    /// method should not be used for precise timing due to anomalies such as
+    /// preemption or platform differences that may not cause the maximum
+    /// amount of time waited to be precisely `dur`.
+    ///
+    /// Note that the best effort is made to ensure that the time waited is
+    /// measured with a monotonic clock, and not affected by the changes made to
+    /// the system time.  This function is susceptible to spurious wakeups.
+    /// Condition variables normally have a boolean predicate associated with
+    /// them, and the predicate must always be checked each time this function
+    /// returns to protect against spurious wakeups.  Additionally, it is
+    /// typically desirable for the time-out to not exceed some duration in
+    /// spite of spurious wakes, thus the sleep-duration is decremented by the
+    /// amount slept.  Alternatively, use the `wait_timeout_until` method
+    /// to wait until a condition is met with a total time-out regardless
+    /// of spurious wakes.
+    ///
+    /// The returned [`WaitTimeoutResult`] value indicates if the timeout is
+    /// known to have elapsed.
+    ///
+    /// Like [`wait`], the lock specified will be re-acquired when this function
+    /// returns, regardless of whether the timeout elapsed or not.
+    ///
+    /// [`wait`]: #method.wait
+    /// [`wait_timeout_until`]: #method.wait_timeout_until
+    /// [`WaitTimeoutResult`]: struct.WaitTimeoutResult.html
+    ///
+    pub fn wait_timeout<'a, T>(&self, guard: SgxMutexGuard<'a, T>,
+                            dur: Duration)
+                            -> LockResult<(SgxMutexGuard<'a, T>, WaitTimeoutResult)> {
+
+        let (poisoned, result) = unsafe {
+
+            let lock = mutex::guard_lock(&guard);
+            self.verify(lock);
+            let _result = self.inner.wait_timeout(lock, dur);
+
+            (mutex::guard_poison(&guard).get(), WaitTimeoutResult(_result.err() == Some(libc::ETIMEDOUT)))
+        };
+        if poisoned {
+            Err(PoisonError::new((guard, result)))
+        } else {
+            Ok((guard, result))
+        }
+    }
+
+    /// Waits on this condition variable for a notification, timing out after a
+    /// specified duration.  Spurious wakes will not cause this function to
+    /// return.
+    ///
+    /// The semantics of this function are equivalent to [`wait_until`] except
+    /// that the thread will be blocked for roughly no longer than `dur`. This
+    /// method should not be used for precise timing due to anomalies such as
+    /// preemption or platform differences that may not cause the maximum
+    /// amount of time waited to be precisely `dur`.
+    ///
+    /// Note that the best effort is made to ensure that the time waited is
+    /// measured with a monotonic clock, and not affected by the changes made to
+    /// the system time.
+    ///
+    /// The returned [`WaitTimeoutResult`] value indicates if the timeout is
+    /// known to have elapsed without the condition being met.
+    ///
+    /// Like [`wait_until`], the lock specified will be re-acquired when this
+    /// function returns, regardless of whether the timeout elapsed or not.
+    ///
+    /// [`wait_until`]: #method.wait_until
+    /// [`wait_timeout`]: #method.wait_timeout
+    /// [`WaitTimeoutResult`]: struct.WaitTimeoutResult.html
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(wait_timeout_until)]
+    ///
+    /// use std::sync::{Arc, Mutex, Condvar};
+    /// use std::thread;
+    /// use std::time::Duration;
+    ///
+    /// let pair = Arc::new((Mutex::new(false), Condvar::new()));
+    /// let pair2 = pair.clone();
+    ///
+    /// thread::spawn(move|| {
+    ///     let &(ref lock, ref cvar) = &*pair2;
+    ///     let mut started = lock.lock().unwrap();
+    ///     *started = true;
+    ///     // We notify the condvar that the value has changed.
+    ///     cvar.notify_one();
+    /// });
+    ///
+    /// // wait for the thread to start up
+    /// let &(ref lock, ref cvar) = &*pair;
+    /// let result = cvar.wait_timeout_until(
+    ///     lock.lock().unwrap(),
+    ///     Duration::from_millis(100),
+    ///     |&mut started| started,
+    /// ).unwrap();
+    /// if result.1.timed_out() {
+    ///     // timed-out without the condition ever evaluating to true.
+    /// }
+    /// // access the locked mutex via result.0
+    /// ```
+
+    pub fn wait_timeout_until<'a, T, F>(&self, mut guard: SgxMutexGuard<'a, T>,
+                                        dur: Duration, mut condition: F)
+                                        -> LockResult<(SgxMutexGuard<'a, T>, WaitTimeoutResult)>
+                                        where F: FnMut(&mut T) -> bool {
+        let start = Instant::now();
+        loop {
+            if condition(&mut *guard) {
+                return Ok((guard, WaitTimeoutResult(false)));
+            }
+
+            let timeout = match dur.checked_sub(start.elapsed()) {
+                Some(timeout) => timeout,
+                None => return Ok((guard, WaitTimeoutResult(true))),
+            };
+            guard = self.wait_timeout(guard, timeout)?.0;
+        }
+    }
 
     /// Wakes up one blocked thread on this condvar.
     ///
@@ -374,16 +515,24 @@ impl SgxCondvar {
     ///
     /// To wake up only one thread, see [`signal`].
     pub fn broadcast(&self) {
-
         unsafe {
             let ret = self.inner.broadcast();
             match ret {
                 Err(r) if r == libc::ENOMEM => {
+                    //let _layout = Layout::from_size_align(mem::size_of::<usize>(), 1).unwrap();
                     oom::rsgx_oom(AllocErr)
                 },
                 _ => {},
             }
         }
+    }
+
+    pub fn notify_one(&self) {
+        self.signal()
+    }
+
+    pub fn notify_all(&self) {
+        self.broadcast()
     }
 
     fn verify(&self, mutex: &SgxThreadMutex) {
@@ -402,6 +551,7 @@ impl SgxCondvar {
         }
     }
 }
+
 
 impl fmt::Debug for SgxCondvar {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

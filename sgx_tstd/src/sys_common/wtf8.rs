@@ -33,6 +33,7 @@
 // unix (it's mostly used on windows), so don't worry about dead code here.
 #![allow(dead_code)]
 
+use alloc::borrow::Cow;
 use core::char;
 use core::str::next_code_point;
 use core::fmt;
@@ -41,10 +42,9 @@ use core::iter::FromIterator;
 use core::mem;
 use core::ops;
 use core::str;
-use alloc_crate::slice;
-use alloc_crate::rc::Rc;
-use alloc_crate::sync::Arc;
-use alloc_crate::borrow::Cow;
+use alloc::slice;
+use alloc::rc::Rc;
+use alloc::sync::Arc;
 use sys_common::AsInner;
 
 const UTF8_REPLACEMENT_CHARACTER: &'static str = "\u{FFFD}";
@@ -63,7 +63,7 @@ pub struct CodePoint {
 /// Example: `U+1F4A9`
 impl fmt::Debug for CodePoint {
     #[inline]
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(formatter, "U+{:04X}", self.value)
     }
 }
@@ -74,7 +74,7 @@ impl CodePoint {
     /// Only use when `value` is known to be less than or equal to 0x10FFFF.
     #[inline]
     pub unsafe fn from_u32_unchecked(value: u32) -> CodePoint {
-        CodePoint { value }
+        CodePoint { value: value }
     }
 
     /// Creates a new `CodePoint` if the value is a valid code point.
@@ -83,7 +83,7 @@ impl CodePoint {
     #[inline]
     pub fn from_u32(value: u32) -> Option<CodePoint> {
         match value {
-            0 ..= 0x10FFFF => Some(CodePoint { value }),
+            0 ... 0x10FFFF => Some(CodePoint { value: value }),
             _ => None
         }
     }
@@ -108,7 +108,7 @@ impl CodePoint {
     #[inline]
     pub fn to_char(&self) -> Option<char> {
         match self.value {
-            0xD800 ..= 0xDFFF => None,
+            0xD800 ... 0xDFFF => None,
             _ => Some(unsafe { char::from_u32_unchecked(self.value) })
         }
     }
@@ -151,7 +151,7 @@ impl ops::DerefMut for Wtf8Buf {
 /// Example: `"a\u{D800}"` for a string with code points [U+0061, U+D800]
 impl fmt::Debug for Wtf8Buf {
     #[inline]
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         fmt::Debug::fmt(&**self, formatter)
     }
 }
@@ -312,7 +312,7 @@ impl Wtf8Buf {
     /// like concatenating ill-formed UTF-16 strings effectively would.
     #[inline]
     pub fn push(&mut self, code_point: CodePoint) {
-        if let trail @ 0xDC00..=0xDFFF = code_point.to_u32() {
+        if let trail @ 0xDC00...0xDFFF = code_point.to_u32() {
             if let Some(lead) = (&*self).final_lead_surrogate() {
                 let len_without_lead_surrogate = self.len() - 3;
                 self.bytes.truncate(len_without_lead_surrogate);
@@ -533,7 +533,7 @@ impl Wtf8 {
     #[inline]
     pub fn ascii_byte_at(&self, position: usize) -> u8 {
         match self.bytes[position] {
-            ascii_byte @ 0x00 ..= 0x7F => ascii_byte,
+            ascii_byte @ 0x00 ... 0x7F => ascii_byte,
             _ => 0xFF
         }
     }
@@ -638,7 +638,7 @@ impl Wtf8 {
             return None
         }
         match &self.bytes[(len - 3)..] {
-            &[0xED, b2 @ 0xA0..=0xAF, b3] => Some(decode_surrogate(b2, b3)),
+            &[0xED, b2 @ 0xA0...0xAF, b3] => Some(decode_surrogate(b2, b3)),
             _ => None
         }
     }
@@ -650,7 +650,7 @@ impl Wtf8 {
             return None
         }
         match &self.bytes[..3] {
-            &[0xED, b2 @ 0xB0..=0xBF, b3] => Some(decode_surrogate(b2, b3)),
+            &[0xED, b2 @ 0xB0...0xBF, b3] => Some(decode_surrogate(b2, b3)),
             _ => None
         }
     }
@@ -780,7 +780,7 @@ pub fn is_code_point_boundary(slice: &Wtf8, index: usize) -> bool {
 pub unsafe fn slice_unchecked(s: &Wtf8, begin: usize, end: usize) -> &Wtf8 {
     // memory layout of an &[u8] and &Wtf8 are the same
     Wtf8::from_bytes_unchecked(slice::from_raw_parts(
-        s.bytes.as_ptr().add(begin),
+        s.bytes.as_ptr().offset(begin as isize),
         end - begin
     ))
 }
@@ -882,5 +882,19 @@ impl Hash for Wtf8 {
 }
 
 impl Wtf8 {
+    pub fn is_ascii(&self) -> bool {
+        self.bytes.is_ascii()
+    }
+    pub fn to_ascii_uppercase(&self) -> Wtf8Buf {
+        Wtf8Buf { bytes: self.bytes.to_ascii_uppercase() }
+    }
+    pub fn to_ascii_lowercase(&self) -> Wtf8Buf {
+        Wtf8Buf { bytes: self.bytes.to_ascii_lowercase() }
+    }
+    pub fn eq_ignore_ascii_case(&self, other: &Wtf8) -> bool {
+        self.bytes.eq_ignore_ascii_case(&other.bytes)
+    }
+
     pub fn make_ascii_uppercase(&mut self) { self.bytes.make_ascii_uppercase() }
+    pub fn make_ascii_lowercase(&mut self) { self.bytes.make_ascii_lowercase() }
 }

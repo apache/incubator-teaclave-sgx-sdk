@@ -30,9 +30,11 @@ use trts;
 use core::sync::atomic::{AtomicPtr, Ordering};
 use core::mem;
 use core::alloc::AllocErr;
+use core::alloc::Layout;
 
 static SGX_OOM_HANDLER: AtomicPtr<()> = AtomicPtr::new(default_oom_handler as * mut ());
 
+#[allow(clippy::needless_pass_by_value)]
 fn default_oom_handler( _err: AllocErr) -> ! {
     trts::rsgx_abort()
 }
@@ -41,6 +43,11 @@ pub fn rsgx_oom(err: AllocErr) -> ! {
     let value = SGX_OOM_HANDLER.load(Ordering::SeqCst);
     let handler: fn(AllocErr) -> ! = unsafe { mem::transmute(value) };
     handler(err);
+}
+
+#[lang = "oom"]
+pub extern fn rust_oom(_layout: Layout) -> ! {
+    trts::rsgx_abort()
 }
 
 /// Set a custom handler for out-of-memory conditions

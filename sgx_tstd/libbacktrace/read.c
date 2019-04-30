@@ -1,5 +1,5 @@
 /* read.c -- File views without mmap.
-   Copyright (C) 2012-2018 Free Software Foundation, Inc.
+   Copyright (C) 2012-2016 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Google.
 
 Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@ POSSIBILITY OF SUCH DAMAGE.  */
 #include <unistd.h>
 
 #include "backtrace.h"
-#include "backtrace_t.h"
 #include "internal.h"
 
 /* This file implements file views when mmap is not available.  */
@@ -51,18 +50,9 @@ backtrace_get_view(struct backtrace_state* state, int descriptor,
                    backtrace_error_callback error_callback,
                    void* data, struct backtrace_view* view) {
     ssize_t got = 0;
-    int error = 0;
-    off_t retval = 0;
-    uint32_t status = 0;
 
-
-    status = u_lseek_ocall((uint64_t *)&retval, &error, descriptor, offset, SEEK_SET);
-    if (status != 0) {
-        error_callback(data, "sgx ocall failed", status);
-        return 0;
-    }
-    if (retval < 0) {
-        error_callback(data, "lseek", error);
+    if (lseek(descriptor, offset, SEEK_SET) < 0) {
+        error_callback(data, "lseek", errno);
         return 0;
     }
 
@@ -75,14 +65,10 @@ backtrace_get_view(struct backtrace_state* state, int descriptor,
     view->data = view->base;
     view->len = size;
 
-    status = u_read_ocall((size_t *)&got, &error, descriptor, view->base, size);
-    if (status != 0) {
-        error_callback(data, "sgx ocall failed", status);
-        free(view->base);
-        return 0;
-    }
+    got = read(descriptor, view->base, size);
+
     if (got < 0) {
-        error_callback(data, "read", error);
+        error_callback(data, "read", errno);
         free(view->base);
         return 0;
     }

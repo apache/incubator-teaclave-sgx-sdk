@@ -32,6 +32,7 @@
 #![allow(non_snake_case)]
 #![allow(improper_ctypes)]
 #![allow(unused_macros)]
+#![allow(clippy::wrong_self_convention)]
 
 #[macro_use]
 mod macros;

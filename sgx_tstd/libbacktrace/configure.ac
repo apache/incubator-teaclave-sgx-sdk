@@ -1,18 +1,18 @@
 # configure.ac -- Backtrace configure script.
-# Copyright (C) 2012-2018 Free Software Foundation, Inc.
+# Copyright (C) 2012-2016 Free Software Foundation, Inc.
 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
 
 #     (1) Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
+#     notice, this list of conditions and the following disclaimer. 
 
 #     (2) Redistributions in binary form must reproduce the above copyright
 #     notice, this list of conditions and the following disclaimer in
 #     the documentation and/or other materials provided with the
-#     distribution.
-
+#     distribution.  
+    
 #     (3) The name of the author may not be used to
 #     endorse or promote products derived from this software without
 #     specific prior written permission.
@@ -33,9 +33,7 @@ AC_PREREQ(2.64)
 AC_INIT(package-unused, version-unused,, libbacktrace)
 AC_CONFIG_SRCDIR(backtrace.h)
 AC_CONFIG_HEADER(config.h)
-AC_CONFIG_MACRO_DIR(config)
 
-# with_target_subdir is used when configured as part of a GCC tree.
 if test -n "${with_target_subdir}"; then
   AM_ENABLE_MULTILIB(, ..)
 fi
@@ -74,6 +72,8 @@ m4_rename_force([backtrace_PRECIOUS],[_AC_ARG_VAR_PRECIOUS])
 
 AC_SUBST(CFLAGS)
 
+AC_PROG_RANLIB
+
 AC_PROG_AWK
 case "$AWK" in
 "") AC_MSG_ERROR([can't build without awk]) ;;
@@ -81,8 +81,6 @@ esac
 
 LT_INIT
 AM_PROG_LIBTOOL
-
-AC_SYS_LARGEFILE
 
 backtrace_supported=yes
 
@@ -233,9 +231,6 @@ elf*) FORMAT_FILE="elf.lo" ;;
 pecoff) FORMAT_FILE="pecoff.lo"
         backtrace_supports_data=no
 	;;
-xcoff*) FORMAT_FILE="xcoff.lo"
-        backtrace_supports_data=no
-        ;;
 macho*) FORMAT_FILE="macho.lo"
         backtrace_supports_data=no
         ;;
@@ -255,15 +250,6 @@ elf64) elfsize=64 ;;
 esac
 AC_DEFINE_UNQUOTED([BACKTRACE_ELF_SIZE], [$elfsize], [ELF size: 32 or 64])
 
-# XCOFF defines.
-xcoffsize=
-case "$libbacktrace_cv_sys_filetype" in
-xcoff32) xcoffsize=32 ;;
-xcoff64) xcoffsize=64 ;;
-*)       xcoffsize=unused
-esac
-AC_DEFINE_UNQUOTED([BACKTRACE_XCOFF_SIZE], [$xcoffsize], [XCOFF size: 32 or 64])
-
 BACKTRACE_SUPPORTED=0
 if test "$backtrace_supported" = "yes"; then
   BACKTRACE_SUPPORTED=1
@@ -275,6 +261,8 @@ if test "$backtrace_supports_data" = "yes"; then
   BACKTRACE_SUPPORTS_DATA=1
 fi
 AC_SUBST(BACKTRACE_SUPPORTS_DATA)
+
+GCC_HEADER_STDINT(gstdint.h)
 
 AC_CHECK_HEADERS(sys/mman.h)
 if test "$ac_cv_header_sys_mman_h" = "no"; then
@@ -346,24 +334,6 @@ if test "$have_dl_iterate_phdr" = "yes"; then
   AC_DEFINE(HAVE_DL_ITERATE_PHDR, 1, [Define if dl_iterate_phdr is available.])
 fi
 
-# Check for loadquery.
-AC_CHECK_HEADERS(sys/ldr.h)
-if test "$ac_cv_header_sys_ldr_h" = "no"; then
-  have_loadquery=no
-else
-  if test -n "${with_target_subdir}"; then
-    # When built as a GCC target library, we can't do a link test.
-    AC_EGREP_HEADER([loadquery], [sys/ldr.h], [have_loadquery=yes],
-		    [have_loadquery=no])
-  else
-    AC_CHECK_FUNC([loadquery], [have_loadquery=yes],
-		  [have_loadquery=no])
-  fi
-fi
-if test "$have_loadquery" = "yes"; then
-  AC_DEFINE(HAVE_LOADQUERY, 1, [Define if AIX loadquery is available.])
-fi
-
 # Check for the fcntl function.
 if test -n "${with_target_subdir}"; then
    case "${host}" in
@@ -380,7 +350,6 @@ if test "$have_fcntl" = "yes"; then
 fi
 
 AC_CHECK_DECLS(strnlen)
-AC_CHECK_FUNCS(lstat readlink)
 
 # Check for getexecname function.
 if test -n "${with_target_subdir}"; then
@@ -394,69 +363,6 @@ fi
 if test "$have_getexecname" = "yes"; then
   AC_DEFINE(HAVE_GETEXECNAME, 1, [Define if getexecname is available.])
 fi
-
-# Check for the clock_gettime function.
-AC_CHECK_FUNCS(clock_gettime)
-clock_gettime_link=
-# At least for glibc, clock_gettime is in librt.  But don't
-# pull that in if it still doesn't give us the function we want.  This
-# test is copied from libgomp, and modified to not link in -lrt as
-# we're using this for test timing only.
-if test "$ac_cv_func_clock_gettime" = no; then
-  AC_CHECK_LIB(rt, clock_gettime,
-    [CLOCK_GETTIME_LINK=-lrt
-     AC_DEFINE(HAVE_CLOCK_GETTIME, 1,
-	       [Define to 1 if you have the `clock_gettime' function.])])
-fi
-AC_SUBST(CLOCK_GETTIME_LINK)
-
-dnl Test whether the compiler supports the -pthread option.
-AC_CACHE_CHECK([whether -pthread is supported],
-[libgo_cv_lib_pthread],
-[CFLAGS_hold=$CFLAGS
-CFLAGS="$CFLAGS -pthread"
-AC_COMPILE_IFELSE([[int i;]],
-[libgo_cv_lib_pthread=yes],
-[libgo_cv_lib_pthread=no])
-CFLAGS=$CFLAGS_hold])
-PTHREAD_CFLAGS=
-if test "$libgo_cv_lib_pthread" = yes; then
-  PTHREAD_CFLAGS=-pthread
-fi
-AC_SUBST(PTHREAD_CFLAGS)
-
-AM_CONDITIONAL(HAVE_PTHREAD, test "$libgo_cv_lib_pthread" = yes)
-
-AC_CHECK_LIB([z], [compress], [])
-if test $ac_cv_lib_z_compress = "yes"; then
-  AC_DEFINE(HAVE_ZLIB, 1, [Define if -lz is available.])
-fi
-AM_CONDITIONAL(HAVE_ZLIB, test "$ac_cv_lib_z_compress" = yes)
-
-dnl Test whether the linker supports the --compress_debug_sections option.
-AC_CACHE_CHECK([whether --compress-debug-sections is supported],
-[libgo_cv_ld_compress],
-[LDFLAGS_hold=$LDFLAGS
-LDFLAGS="$LDFLAGS -Wl,--compress-debug-sections=zlib-gnu"
-AC_LINK_IFELSE([AC_LANG_PROGRAM(,)],
-[libgo_cv_ld_compress=yes],
-[libgo_cv_ld_compress=no])
-LDFLAGS=$LDFLAGS_hold])
-AM_CONDITIONAL(HAVE_COMPRESSED_DEBUG, test "$libgo_cv_ld_compress" = yes)
-
-AC_ARG_VAR(OBJCOPY, [location of objcopy])
-AC_CHECK_PROG(OBJCOPY, objcopy, objcopy,)
-AC_CACHE_CHECK([whether objcopy supports debuglink],
-[libbacktrace_cv_objcopy_debuglink],
-[if test -n "${with_target_subdir}"; then
-  libbacktrace_cv_objcopy_debuglink=no
-elif ${OBJCOPY} --add-gnu-debuglink=x /bin/ls /tmp/ls$$; then
-  rm -f /tmp/ls$$
-  libbacktrace_cv_objcopy_debuglink=yes
-else
-  libbacktrace_cv_objcopy_debuglink=no
-fi])
-AM_CONDITIONAL(HAVE_OBJCOPY_DEBUGLINK, test "$libbacktrace_cv_objcopy_debuglink" = yes)
 
 AC_CACHE_CHECK([whether tests can run],
   [libbacktrace_cv_sys_native],
