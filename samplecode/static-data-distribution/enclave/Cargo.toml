@@ -13,10 +13,10 @@ default = []
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../../../sgx_types" }
 sgx_tstd = { path = "../../../sgx_tstd" }
-sgx_crypto_helper = { path = "./sgx_crypto_helper", default-features = false, features = ["enclave_cargo"] }
+sgx_crypto_helper_trusted = { path = "./sgx_crypto_helper_trusted", default-features = false, features = ["enclave_cargo"] }
 
 [target.'cfg(target_env = "sgx")'.dependencies]
-sgx_crypto_helper = { path = "./sgx_crypto_helper", default-features = false }
+sgx_crypto_helper_trusted = { path = "./sgx_crypto_helper_trusted", default-features = false }
 
 [dependencies]
 serde_json = { path = "../../../third_party/serde-rs/json" }

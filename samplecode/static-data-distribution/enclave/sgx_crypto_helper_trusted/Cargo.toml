@@ -1,5 +1,5 @@
 [package]
-name = "sgx_crypto_helper"
+name = "sgx_crypto_helper_trusted"
 version = "1.0.0"
 authors = ["Baidu"]
 repository = "https://github.com/baidu/rust-sgx-sdk"
@@ -8,7 +8,7 @@ documentation = "https://dingelish.github.io/"
 description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
 
 [lib]
-name = "sgx_crypto_helper"
+name = "sgx_crypto_helper_trusted"
 path = "../../../../sgx_crypto_helper/src/lib.rs"
 crate-type = ["staticlib","rlib"]
 

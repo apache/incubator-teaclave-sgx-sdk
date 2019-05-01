@@ -36,7 +36,7 @@ extern crate sgx_types;
 #[macro_use]
 extern crate sgx_tstd as std;
 extern crate serde_json;
-extern crate sgx_crypto_helper;
+extern crate sgx_crypto_helper_trusted as sgx_crypto_helper;
 
 pub const KEYFILE: &'static str = "prov_key.bin";
 
