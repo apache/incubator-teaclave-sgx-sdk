@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -32,8 +32,8 @@ use core::hash;
 use core::mem;
 use core::option;
 use core::iter;
-use alloc::vec;
-use alloc::slice;
+use alloc_crate::vec;
+use alloc_crate::slice;
 use io;
 use net::{ntoh, hton, IpAddr, Ipv4Addr, Ipv6Addr};
 use sys_common::{FromInner, AsInner, IntoInner};
@@ -266,7 +266,7 @@ impl SocketAddrV6 {
         self.inner.sin6_scope_id
     }
 
-    /// Change the scope ID associated with this socket address.
+    /// Changes the scope ID associated with this socket address.
     ///
     /// See the [`scope_id`] method's documentation for more details.
     ///
@@ -290,18 +290,26 @@ impl FromInner<c::sockaddr_in6> for SocketAddrV6 {
 }
 
 impl From<SocketAddrV4> for SocketAddr {
+    /// Converts a [`SocketAddrV4`] into a [`SocketAddr::V4`].
     fn from(sock4: SocketAddrV4) -> SocketAddr {
         SocketAddr::V4(sock4)
     }
 }
 
 impl From<SocketAddrV6> for SocketAddr {
+    /// Converts a [`SocketAddrV6`] into a [`SocketAddr::V6`].
     fn from(sock6: SocketAddrV6) -> SocketAddr {
         SocketAddr::V6(sock6)
     }
 }
 
 impl<I: Into<IpAddr>> From<(I, u16)> for SocketAddr {
+    /// Converts a tuple struct (Into<[`IpAddr`]>, `u16`) into a [`SocketAddr`].
+    ///
+    /// This conversion creates a [`SocketAddr::V4`] for a [`IpAddr::V4`]
+    /// and creates a [`SocketAddr::V6`] for a [`IpAddr::V6`].
+    ///
+    /// `u16` is treated as port of the newly created [`SocketAddr`].
     fn from(pieces: (I, u16)) -> SocketAddr {
         SocketAddr::new(pieces.0.into(), pieces.1)
     }
@@ -398,7 +406,7 @@ impl hash::Hash for SocketAddrV6 {
 /// [`SocketAddr`] values.
 ///
 /// This trait is used for generic address resolution when constructing network
-/// objects.  By default it is implemented for the following types:
+/// objects. By default it is implemented for the following types:
 ///
 ///  * [`SocketAddr`]: [`to_socket_addrs`] is the identity function.
 ///
@@ -420,7 +428,7 @@ impl hash::Hash for SocketAddrV6 {
 /// the other: for simple uses a string like `"localhost:12345"` is much nicer
 /// than manual construction of the corresponding [`SocketAddr`], but sometimes
 /// [`SocketAddr`] value is *the* main source of the address, and converting it to
-/// some other type (e.g. a string) just for it to be converted back to
+/// some other type (e.g., a string) just for it to be converted back to
 /// [`SocketAddr`] in constructor methods is pointless.
 ///
 /// Addresses returned by the operating system that are not IP addresses are
@@ -489,7 +497,7 @@ impl ToSocketAddrs for (Ipv6Addr, u16) {
     }
 }
 
-impl<'a> ToSocketAddrs for (&'a str, u16) {
+impl ToSocketAddrs for (&str, u16) {
     type Iter = vec::IntoIter<SocketAddr>;
     fn to_socket_addrs(&self) -> io::Result<vec::IntoIter<SocketAddr>> {
         let (host, port) = *self;
@@ -505,7 +513,6 @@ impl<'a> ToSocketAddrs for (&'a str, u16) {
         }
 
         Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid socket address"))
-        //resolve_socket_addr(host, port)
     }
 }
 
@@ -535,7 +542,6 @@ impl ToSocketAddrs for str {
         let host = try_opt!(parts_iter.next(), "invalid socket address");
         let port: u16 = try_opt!(port_str.parse().ok(), "invalid port value");
         Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid socket address"))
-        //resolve_socket_addr(host, port)
     }
 }
 
@@ -547,7 +553,7 @@ impl<'a> ToSocketAddrs for &'a [SocketAddr] {
     }
 }
 
-impl<'a, T: ToSocketAddrs + ?Sized> ToSocketAddrs for &'a T {
+impl<T: ToSocketAddrs + ?Sized> ToSocketAddrs for &T {
     type Iter = T::Iter;
     fn to_socket_addrs(&self) -> io::Result<T::Iter> {
         (**self).to_socket_addrs()

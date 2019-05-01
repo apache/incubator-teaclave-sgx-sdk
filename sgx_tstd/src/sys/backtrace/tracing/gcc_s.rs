@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -43,14 +43,12 @@ struct Context<'a> {
 struct UnwindError(uw::_Unwind_Reason_Code);
 
 impl Error for UnwindError {
-    #[allow(deprecated)]
     fn description(&self) -> &'static str {
         "unexpected return value while unwinding"
     }
 }
 
 impl ::fmt::Display for UnwindError {
-    #[allow(deprecated)]
     fn fmt(&self, f: &mut ::fmt::Formatter) -> ::fmt::Result {
         write!(f, "{}: {:?}", self.description(), self.0)
     }
@@ -88,6 +86,10 @@ pub fn unwind_backtrace(frames: &mut [Frame])
 extern fn trace_fn(ctx: *mut uw::_Unwind_Context,
                    arg: *mut c_void) -> uw::_Unwind_Reason_Code {
     let cx = unsafe { &mut *(arg as *mut Context) };
+    if cx.idx >= cx.frames.len() {
+        return uw::_URC_NORMAL_STOP;
+    }
+
     let mut ip_before_insn = 0;
     let mut ip = unsafe {
         uw::_Unwind_GetIPInfo(ctx, &mut ip_before_insn) as *mut c_void
@@ -108,16 +110,18 @@ extern fn trace_fn(ctx: *mut uw::_Unwind_Context,
     // instructions after it. This means that the return instruction
     // pointer points *outside* of the calling function, and by
     // unwinding it we go back to the original function.
-    let symaddr = unsafe { uw::_Unwind_FindEnclosingFunction(ip) };
+    let symaddr = if cfg!(target_os = "macos") || cfg!(target_os = "ios") {
+        ip
+    } else {
+        unsafe { uw::_Unwind_FindEnclosingFunction(ip) }
+    };
 
-    if cx.idx < cx.frames.len() {
-        cx.frames[cx.idx] = Frame {
-            symbol_addr: symaddr as *mut u8,
-            exact_position: ip as *mut u8,
-            inline_context: 0,
-        };
-        cx.idx += 1;
-    }
+    cx.frames[cx.idx] = Frame {
+        symbol_addr: symaddr as *mut u8,
+        exact_position: ip as *mut u8,
+        inline_context: 0,
+    };
+    cx.idx += 1;
 
     uw::_URC_NO_REASON
 }

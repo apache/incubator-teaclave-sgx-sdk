@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -30,12 +30,15 @@ pub use sgx_trts::c_str::*;
 
 use error::Error;
 use io;
+use core::fmt;
 
 impl Error for NulError {
     fn description(&self) -> &str { "nul byte found in data" }
 }
 
 impl From<NulError> for io::Error {
+    /// Converts a [`NulError`] into a [`io::Error`].
+    ///
     fn from(_: NulError) -> io::Error {
         io::Error::new(io::ErrorKind::InvalidInput,
                        "data provided contains a nul byte")
@@ -50,11 +53,10 @@ impl Error for FromBytesWithNulError {
 
 impl Error for IntoStringError {
     fn description(&self) -> &str {
-        //"C string contained non-utf8 bytes"
         self.__description()
     }
 
-    fn cause(&self) -> Option<&Error> {
-        self.__cause().map(|e| e as &Error)
+    fn cause(&self) -> Option<&dyn Error> {
+        Some(self.__cause())
     }
 }

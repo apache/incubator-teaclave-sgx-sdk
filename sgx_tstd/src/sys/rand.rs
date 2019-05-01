@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use core::mem;
-use alloc::slice;
+use alloc_crate::slice;
 
 pub fn hashmap_random_keys() -> (u64, u64) {
     let mut v = (0, 0);

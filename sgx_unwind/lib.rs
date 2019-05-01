@@ -10,9 +10,10 @@
 
 #![no_std]
 #![unstable(feature = "panic_unwind", issue = "32837")]
-#![deny(warnings)]
 
+#![cfg_attr(stage0, feature(cfg_target_vendor))]
 #![feature(link_cfg)]
+#![feature(nll)]
 #![feature(staged_api)]
 #![feature(unwind_attributes)]
 #![feature(static_nobundle)]

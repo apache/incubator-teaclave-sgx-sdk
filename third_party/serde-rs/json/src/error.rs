@@ -1,5 +1,7 @@
 //! When serializing or deserializing JSON goes wrong.
 
+#![allow(deprecated)]
+
 use std::prelude::v1::*;
 use std::error;
 use std::fmt::{self, Debug, Display};

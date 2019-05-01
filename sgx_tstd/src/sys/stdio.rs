@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -36,55 +36,48 @@ pub struct Stderr(());
 
 impl Stdin {
     pub fn new() -> io::Result<Stdin> { Ok(Stdin(())) }
+}
 
-    pub fn read(&self, data: &mut [u8]) -> io::Result<usize> {
+impl io::Read for Stdin {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let fd = FileDesc::new(libc::STDIN_FILENO);
-        let ret = fd.read(data);
-        fd.into_raw();
+        let ret = fd.read(buf);
+        fd.into_raw(); // do not close this FD
         ret
     }
 }
 
 impl Stdout {
     pub fn new() -> io::Result<Stdout> { Ok(Stdout(())) }
+}
 
-    pub fn write(&self, data: &[u8]) -> io::Result<usize> {
+impl io::Write for Stdout {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let fd = FileDesc::new(libc::STDOUT_FILENO);
-        let ret = fd.write(data);
-        fd.into_raw();
+        let ret = fd.write(buf);
+        fd.into_raw(); // do not close this FD
         ret
     }
 
-    pub fn flush(&self) -> io::Result<()> {
+    fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
 }
 
 impl Stderr {
     pub fn new() -> io::Result<Stderr> { Ok(Stderr(())) }
+}
 
-    pub fn write(&self, data: &[u8]) -> io::Result<usize> {
+impl io::Write for Stderr {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let fd = FileDesc::new(libc::STDERR_FILENO);
-        let ret = fd.write(data);
-        fd.into_raw();
+        let ret = fd.write(buf);
+        fd.into_raw(); // do not close this FD
         ret
     }
 
-    pub fn flush(&self) -> io::Result<()> {
-        Ok(())
-    }
-}
-
-// FIXME: right now this raw stderr handle is used in a few places because
-//        std::io::stderr_raw isn't exposed, but once that's exposed this impl
-//        should go away
-impl io::Write for Stderr {
-    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
-        Stderr::write(self, data)
-    }
-
     fn flush(&mut self) -> io::Result<()> {
-        Stderr::flush(self)
+        Ok(())
     }
 }
 
@@ -94,6 +87,6 @@ pub fn is_ebadf(err: &io::Error) -> bool {
 
 pub const STDIN_BUF_SIZE: usize = ::sys_common::io::DEFAULT_BUF_SIZE;
 
-pub fn stderr_prints_nothing() -> bool {
-    false
+pub fn panic_output() -> Option<impl io::Write> {
+    Stderr::new().ok()
 }

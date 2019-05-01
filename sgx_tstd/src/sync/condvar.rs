@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -52,7 +52,7 @@ use core::cell::UnsafeCell;
 use core::fmt;
 use core::mem;
 use core::alloc::AllocErr;
-use alloc::boxed::Box;
+use alloc_crate::boxed::Box;
 use sync::SgxThreadSpinlock;
 use io::{self, Error, ErrorKind};
 use time::Duration;
@@ -62,9 +62,17 @@ use thread::{self, rsgx_thread_self};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 
+/// A type indicating whether a timed wait on a condition variable returned
+/// due to a time out or not.
+///
+/// It is returned by the [`wait_timeout`] method.
+///
+/// [`wait_timeout`]: struct.Condvar.html#method.wait_timeout
 pub struct WaitTimeoutResult(bool);
 
 impl WaitTimeoutResult {
+    /// Returns `true` if the wait was known to have timed out.
+    ///
     pub fn timed_out(&self) -> bool {
         self.0
     }

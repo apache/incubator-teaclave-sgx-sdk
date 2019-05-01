@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -204,7 +204,6 @@ impl SgxInternalSealedData {
         Some(p)
     }
 
-    #[allow(clippy::cast_ptr_alignment)]
     pub unsafe fn from_raw_sealed_data_t(p: * mut sgx_sealed_data_t, len: u32) -> Option<Self> {
 
         if p.is_null() {

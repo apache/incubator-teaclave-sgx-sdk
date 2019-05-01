@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -67,7 +67,7 @@ pub struct Frame {
 const MAX_NB_FRAMES: usize = 100;
 
 /// Prints the current backtrace.
-pub fn print(w: &mut Write, format: PrintFormat) -> io::Result<()> {
+pub fn print(w: &mut dyn Write, format: PrintFormat) -> io::Result<()> {
     static LOCK: SgxThreadMutex = SgxThreadMutex::new();
 
     // Use a lock to prevent mixed output in multithreading context.
@@ -80,7 +80,7 @@ pub fn print(w: &mut Write, format: PrintFormat) -> io::Result<()> {
     }
 }
 
-fn _print(w: &mut Write, format: PrintFormat) -> io::Result<()> {
+fn _print(w: &mut dyn Write, format: PrintFormat) -> io::Result<()> {
 
     let state = init_state();
     if state.is_err() {
@@ -172,10 +172,10 @@ pub fn __rust_begin_short_backtrace<F, T>(f: F) -> T
 /// Controls how the backtrace should be formatted.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum PrintFormat {
-    /// Show all the frames with absolute path for files.
-    Full = 2,
     /// Show only relevant data from the backtrace.
-    Short = 3,
+    Short = 2,
+    /// Show all the frames with absolute path for files.
+    Full = 3,
 }
 
 static ENABLED: atomic::AtomicIsize = atomic::AtomicIsize::new(1);
@@ -185,11 +185,10 @@ static ENABLED: atomic::AtomicIsize = atomic::AtomicIsize::new(1);
 pub fn log_enabled() -> Option<PrintFormat> {
     /*
     match ENABLED.load(Ordering::SeqCst) {
-        0 => {},
+        0 => {}
         1 => return None,
-        2 => return Some(PrintFormat::Full),
-        3 => return Some(PrintFormat::Short),
-        _ => unreachable!(),
+        2 => return Some(PrintFormat::Short),
+        _ => return Some(PrintFormat::Full),
     }
 
     let val: Option<PrintFormat>;
@@ -210,16 +209,16 @@ pub fn log_enabled() -> Option<PrintFormat> {
     match ENABLED.load(Ordering::SeqCst) {
         0 => None,
         1 => None,
-        2 => Some(PrintFormat::Full),
-        3 => Some(PrintFormat::Short),
+        2 => Some(PrintFormat::Short),
+        3 => Some(PrintFormat::Full),
         _ => unreachable!(),
     }
 }
 
 pub fn set_enabled(backtrace: PrintFormat) {
     ENABLED.store(match backtrace {
-        PrintFormat::Full => 2,
-        PrintFormat::Short => 3,
+        PrintFormat::Short => 2,
+        PrintFormat::Full => 3,
     }, Ordering::SeqCst);
 }
 
@@ -227,7 +226,7 @@ pub fn set_enabled(backtrace: PrintFormat) {
 ///
 /// These output functions should now be used everywhere to ensure consistency.
 /// You may want to also use `output_fileline`.
-fn output(w: &mut Write, idx: usize, frame: Frame,
+fn output(w: &mut dyn Write, idx: usize, frame: Frame,
               s: Option<&str>, format: PrintFormat) -> io::Result<()> {
     // Remove the `17: 0x0 - <unknown>` line.
     if format == PrintFormat::Short && frame.exact_position == ptr::null() {
@@ -252,7 +251,7 @@ fn output(w: &mut Write, idx: usize, frame: Frame,
 ///
 /// See also `output`.
 #[allow(dead_code)]
-fn output_fileline(w: &mut Write,
+fn output_fileline(w: &mut dyn Write,
                    file: &[u8],
                    line: u32,
                    format: PrintFormat) -> io::Result<()> {
@@ -309,7 +308,7 @@ fn output_fileline(w: &mut Write,
 // Note that this demangler isn't quite as fancy as it could be. We have lots
 // of other information in our symbols like hashes, version, type information,
 // etc. Additionally, this doesn't handle glue symbols at all.
-pub fn demangle(writer: &mut Write, mut s: &str, format: PrintFormat) -> io::Result<()> {
+pub fn demangle(writer: &mut dyn Write, mut s: &str, format: PrintFormat) -> io::Result<()> {
     // During ThinLTO LLVM may import and rename internal symbols, so strip out
     // those endings first as they're one of the last manglings applied to
     // symbol names.
@@ -318,7 +317,7 @@ pub fn demangle(writer: &mut Write, mut s: &str, format: PrintFormat) -> io::Res
         let candidate = &s[i + llvm.len()..];
         let all_hex = candidate.chars().all(|c| {
             match c {
-                'A' ... 'F' | '0' ... '9' => true,
+                'A' ..= 'F' | '0' ..= '9' => true,
                 _ => false,
             }
         });

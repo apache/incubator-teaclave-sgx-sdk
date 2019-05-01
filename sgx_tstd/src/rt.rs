@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -30,7 +30,7 @@
 
 use sgx_types::sgx_enclave_id_t;
 use enclave;
-use alloc::slice;
+use alloc_crate::slice;
 use core::str;
 // Reexport some of our utilities which are expected by other crates.
 pub use panicking::{begin_panic, begin_panic_fmt, update_panic_count};

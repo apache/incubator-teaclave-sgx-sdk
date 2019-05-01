@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -139,7 +139,7 @@ impl<T> PoisonError<T> {
     /// This is generally created by methods like [`SgxMutex::lock`] or [`SgxRwLock::read`].
     ///
     pub fn new(guard: T) -> PoisonError<T> {
-        PoisonError { guard: guard }
+        PoisonError { guard }
     }
 
     /// Consumes this error indicating that a lock is poisoned, returning the
@@ -183,7 +183,6 @@ impl<T> fmt::Display for TryLockError<T> {
 }
 
 impl<T> Error for TryLockError<T> {
-    #[allow(deprecated)]
     fn description(&self) -> &str {
         match *self {
             TryLockError::Poisoned(ref p) => p.description(),
@@ -191,7 +190,7 @@ impl<T> Error for TryLockError<T> {
         }
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         match *self {
             TryLockError::Poisoned(ref p) => Some(p),
             _ => None

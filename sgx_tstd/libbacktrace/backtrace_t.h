@@ -16,6 +16,12 @@ uint32_t u_mmap_ocall(void** retval, int* error, void* start, size_t length, int
                                 int flags, int fd, int64_t offset);
 uint32_t u_munmap_ocall(int* retval, int* error, void* start, size_t length);
 
+uint32_t u_fstat_ocall(int* retval, int* error, int fd, struct stat* buf);
+uint32_t u_lstat_ocall(int* retval, int* error, const char* path, struct stat* buf);
+
+uint32_t u_read_ocall(size_t* retval, int* error, int fd, void* buf, size_t count);
+uint32_t u_lseek_ocall(uint64_t* retval, int* error, int fd, int64_t offset, int whence);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -47,6 +47,9 @@ struct BarrierState {
 /// A `BarrierWaitResult` is returned by [`wait`] when all threads in the [`Barrier`]
 /// have rendezvoused.
 ///
+/// [`wait`]: struct.Barrier.html#method.wait
+/// [`Barrier`]: struct.Barrier.html
+///
 pub struct BarrierWaitResult(bool);
 
 impl fmt::Debug for Barrier {
@@ -60,6 +63,8 @@ impl Barrier {
     ///
     /// A barrier will block `n`-1 threads which call [`wait`] and then wake up
     /// all threads at once when the `n`th thread calls [`wait`].
+    ///
+    /// [`wait`]: #method.wait
     ///
     pub fn new(n: usize) -> Barrier {
         Barrier {
@@ -82,12 +87,16 @@ impl Barrier {
     /// all other threads will receive a result that will return `false` from
     /// [`is_leader`].
     ///
+    /// [`BarrierWaitResult`]: struct.BarrierWaitResult.html
+    /// [`is_leader`]: struct.BarrierWaitResult.html#method.is_leader
+    ///
     pub fn wait(&self) -> BarrierWaitResult {
         let mut lock = self.lock.lock().unwrap();
         let local_gen = lock.generation_id;
         lock.count += 1;
         if lock.count < self.num_threads {
             // We need a while loop to guard against spurious wakeups.
+            // http://en.wikipedia.org/wiki/Spurious_wakeup
             while local_gen == lock.generation_id &&
                   lock.count < self.num_threads {
                 lock = self.cvar.wait(lock).unwrap();
@@ -111,10 +120,12 @@ impl fmt::Debug for BarrierWaitResult {
 }
 
 impl BarrierWaitResult {
-    /// Returns whether this thread from [`wait`] is the "leader thread".
+    /// Returns `true` if this thread from [`wait`] is the "leader thread".
     ///
     /// Only one thread will have `true` returned from their result, all other
     /// threads will have `false` returned.
+    ///
+    /// [`wait`]: struct.Barrier.html#method.wait
     ///
     pub fn is_leader(&self) -> bool { self.0 }
 }

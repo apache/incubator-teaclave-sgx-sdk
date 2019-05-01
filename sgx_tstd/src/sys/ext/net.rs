@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
 use ascii;
 use ffi::OsStr;
 use fmt;
-use io::{self, Initializer};
+use io::{self, Initializer, IoVec, IoVecMut};
 use mem;
 use net::{self, Shutdown};
 use os::unix::ffi::OsStrExt;
@@ -107,7 +107,7 @@ impl SocketAddr {
         if len == 0 {
             // When there is a datagram from unnamed unix socket
             // linux returns zero bytes of address
-            len = sun_path_offset() as libc::socklen_t;  // i.e. zero-length address
+            len = sun_path_offset() as libc::socklen_t;  // i.e., zero-length address
         } else if addr.sun_family != libc::AF_UNIX as libc::sa_family_t {
             return Err(io::Error::new(io::ErrorKind::InvalidInput,
                                       "file descriptor did not correspond to a Unix socket"));
@@ -119,7 +119,7 @@ impl SocketAddr {
         })
     }
 
-    /// Returns true if and only if the address is unnamed.
+    /// Returns `true` if the address is unnamed.
     ///
     pub fn is_unnamed(&self) -> bool {
         if let AddressKind::Unnamed = self.address() {
@@ -249,6 +249,11 @@ impl UnixStream {
     /// indefinitely. An [`Err`] is returned if the zero [`Duration`] is passed to this
     /// method.
     ///
+    /// [`None`]: ../../../../std/option/enum.Option.html#variant.None
+    /// [`Err`]: ../../../../std/result/enum.Result.html#variant.Err
+    /// [`read`]: ../../../../std/io/trait.Read.html#tymethod.read
+    /// [`Duration`]: ../../../../std/time/struct.Duration.html
+    ///
     pub fn set_read_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
         self.0.set_timeout(timeout, libc::SO_RCVTIMEO)
     }
@@ -258,6 +263,11 @@ impl UnixStream {
     /// If the provided value is [`None`], then [`write`] calls will block
     /// indefinitely. An [`Err`] is returned if the zero [`Duration`] is
     /// passed to this method.
+    ///
+    /// [`None`]: ../../../../std/option/enum.Option.html#variant.None
+    /// [`Err`]: ../../../../std/result/enum.Result.html#variant.Err
+    /// [`write`]: ../../../../std/io/trait.Write.html#tymethod.write
+    /// [`Duration`]: ../../../../std/time/struct.Duration.html
     ///
     pub fn set_write_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
         self.0.set_timeout(timeout, libc::SO_SNDTIMEO)
@@ -293,6 +303,8 @@ impl UnixStream {
     /// specified portions to immediately return with an appropriate value
     /// (see the documentation of [`Shutdown`]).
     ///
+    /// [`Shutdown`]: ../../../../std/net/enum.Shutdown.html
+    ///
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
         self.0.shutdown(how)
     }
@@ -301,6 +313,10 @@ impl UnixStream {
 impl io::Read for UnixStream {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         io::Read::read(&mut &*self, buf)
+    }
+
+    fn read_vectored(&mut self, bufs: &mut [IoVecMut<'_>]) -> io::Result<usize> {
+        io::Read::read_vectored(&mut &*self, bufs)
     }
 
     #[inline]
@@ -314,6 +330,10 @@ impl<'a> io::Read for &'a UnixStream {
         self.0.read(buf)
     }
 
+    fn read_vectored(&mut self, bufs: &mut [IoVecMut<'_>]) -> io::Result<usize> {
+        self.0.read_vectored(bufs)
+    }
+
     #[inline]
     unsafe fn initializer(&self) -> Initializer {
         Initializer::nop()
@@ -325,6 +345,10 @@ impl io::Write for UnixStream {
         io::Write::write(&mut &*self, buf)
     }
 
+    fn write_vectored(&mut self, bufs: &[IoVec<'_>]) -> io::Result<usize> {
+        io::Write::write_vectored(&mut &*self, bufs)
+    }
+
     fn flush(&mut self) -> io::Result<()> {
         io::Write::flush(&mut &*self)
     }
@@ -333,6 +357,10 @@ impl io::Write for UnixStream {
 impl<'a> io::Write for &'a UnixStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.0.write(buf)
+    }
+
+    fn write_vectored(&mut self, bufs: &[IoVec<'_>]) -> io::Result<usize> {
+        self.0.write_vectored(bufs)
     }
 
     fn flush(&mut self) -> io::Result<()> {
@@ -489,6 +517,9 @@ impl UnixListener {
     /// The iterator will never return [`None`] and will also not yield the
     /// peer's [`SocketAddr`] structure.
     ///
+    /// [`None`]: ../../../../std/option/enum.Option.html#variant.None
+    /// [`SocketAddr`]: struct.SocketAddr.html
+    ///
     pub fn incoming<'a>(&'a self) -> Incoming<'a> {
         Incoming { listener: self }
     }
@@ -524,6 +555,9 @@ impl<'a> IntoIterator for &'a UnixListener {
 /// An iterator over incoming connections to a [`UnixListener`].
 ///
 /// It will never return [`None`].
+///
+/// [`None`]: ../../../../std/option/enum.Option.html#variant.None
+/// [`UnixListener`]: struct.UnixListener.html
 ///
 #[derive(Debug)]
 pub struct Incoming<'a> {
@@ -584,7 +618,7 @@ impl UnixDatagram {
         Ok(UnixDatagram(inner))
     }
 
-    /// Create an unnamed pair of connected sockets.
+    /// Creates an unnamed pair of connected sockets.
     ///
     /// Returns two `UnixDatagrams`s which are connected to each other.
     ///
@@ -597,6 +631,10 @@ impl UnixDatagram {
     ///
     /// The [`send`] method may be used to send data to the specified address.
     /// [`recv`] and [`recv_from`] will only receive data from that address.
+    ///
+    /// [`send`]: #method.send
+    /// [`recv`]: #method.recv
+    /// [`recv_from`]: #method.recv_from
     ///
     pub fn connect<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
         fn inner(d: &UnixDatagram, path: &Path) -> io::Result<()> {
@@ -630,6 +668,8 @@ impl UnixDatagram {
     /// Returns the address of this socket's peer.
     ///
     /// The [`connect`] method will connect the socket to a peer.
+    ///
+    /// [`connect`]: #method.connect
     ///
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
         SocketAddr::new(|addr, len| unsafe { libc::getpeername(*self.0.as_inner(), addr, len) })
@@ -709,6 +749,12 @@ impl UnixDatagram {
     /// block indefinitely. An [`Err`] is returned if the zero [`Duration`]
     /// is passed to this method.
     ///
+    /// [`None`]: ../../../../std/option/enum.Option.html#variant.None
+    /// [`Err`]: ../../../../std/result/enum.Result.html#variant.Err
+    /// [`recv`]: #method.recv
+    /// [`recv_from`]: #method.recv_from
+    /// [`Duration`]: ../../../../std/time/struct.Duration.html
+    ///
     pub fn set_read_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
         self.0.set_timeout(timeout, libc::SO_RCVTIMEO)
     }
@@ -718,6 +764,11 @@ impl UnixDatagram {
     /// If the provided value is [`None`], then [`send`] and [`send_to`] calls will
     /// block indefinitely. An [`Err`] is returned if the zero [`Duration`] is passed to this
     /// method.
+    ///
+    /// [`None`]: ../../../../std/option/enum.Option.html#variant.None
+    /// [`send`]: #method.send
+    /// [`send_to`]: #method.send_to
+    /// [`Duration`]: ../../../../std/time/struct.Duration.html
     ///
     pub fn set_write_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
         self.0.set_timeout(timeout, libc::SO_SNDTIMEO)

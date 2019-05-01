@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -36,8 +36,5 @@
 pub use core::num::{FpCategory, ParseIntError, ParseFloatError, TryFromIntError};
 pub use core::num::Wrapping;
 
-#[allow(deprecated)]
-pub use core::num::{
-    NonZeroU8, NonZeroU16, NonZeroU32,
-    NonZeroU64, NonZeroU128, NonZeroUsize,
-};
+pub use core::num::{NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize};
+pub use core::num::{NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize};

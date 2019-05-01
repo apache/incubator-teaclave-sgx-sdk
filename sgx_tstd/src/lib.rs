@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -49,35 +49,52 @@
 #![allow(unused_features)]
 #![allow(unused_imports)]
 #![allow(dead_code)]
+#![allow(deprecated)]
 #![allow(unused_assignments)]
-#![cfg_attr(feature = "backtrace", feature(panic_unwind))]
+
+#![feature(align_offset)]
+#![feature(alloc_error_handler)]
+#![feature(alloc_layout_extra)]
 #![feature(alloc)]
 #![feature(allocator_api)]
 #![feature(allocator_internals)]
+#![feature(allow_internal_unsafe)]
 #![feature(allow_internal_unstable)]
-#![feature(align_offset)]
+#![feature(arbitrary_self_types)]
 #![feature(array_error_internals)]
+#![feature(bind_by_move_pattern_guards)]
 #![feature(box_syntax)]
+#![feature(c_variadic)]
 #![feature(cfg_target_has_atomic)]
 #![feature(char_error_internals)]
 #![feature(compiler_builtins_lib)]
 #![feature(const_fn)]
+#![cfg_attr(stage0, feature(const_int_ops))]
+#![cfg_attr(stage0, feature(const_ip))]
+#![feature(const_raw_ptr_deref)]
+#![feature(const_cstr_unchecked)]
 #![feature(core_intrinsics)]
-#![feature(fixed_size_array)]
 #![feature(dropck_eyepatch)]
+#![feature(duration_constants)]
+#![feature(fixed_size_array)]
 #![feature(fn_traits)]
 #![feature(fnbox)]
-#![feature(int_error_internals)]
+#![feature(futures_api)]
+#![feature(generator_trait)]
 #![feature(hashmap_internals)]
+#![feature(int_error_internals)]
+#![feature(integer_atomics)]
 #![feature(lang_items)]
 #![feature(needs_panic_runtime)]
 #![feature(never_type)]
+#![feature(nll)]
 #![feature(optin_builtin_traits)]
 #![feature(prelude_import)]
 #![feature(ptr_internals)]
 #![feature(raw)]
-#![feature(shrink_to)]
 #![feature(rustc_attrs)]
+#![feature(rustc_const_unstable)]
+#![feature(shrink_to)]
 #![feature(slice_concat_ext)]
 #![feature(str_internals)]
 #![feature(thread_local)]
@@ -87,44 +104,37 @@
 #![feature(untagged_unions)]
 #![feature(unwind_attributes)]
 #![feature(slice_patterns)]
-#![feature(libc)]
 #![feature(panic_internals)]
+#![cfg_attr(feature = "backtrace", feature(panic_unwind))]
+#![feature(libc)]
 #![feature(std_internals)]
 #![feature(panic_info_message)]
 #![feature(unicode_internals)]
-#![feature(alloc_layout_extra)]
+#![feature(non_exhaustive)]
 #![feature(const_vec_new)]
 #![feature(vec_remove_item)]
 #![default_lib_allocator]
 
 #[global_allocator]
 static ALLOC: sgx_alloc::System = sgx_alloc::System;
+
 // Explicitly import the prelude. The compiler uses this same unstable attribute
 // to import the prelude implicitly when building crates that depend on std.
 #[prelude_import]
 #[allow(unused)]
 use prelude::v1::*;
 
-// We want to reexport a few macros from core but libcore has already been
-// imported by the compiler (via our #[no_std] attribute) In this case we just
-// add a new crate name so we can attach the reexports to it.
-pub use core::{assert_eq, assert_ne, debug_assert, debug_assert_eq,debug_assert_ne, unreachable, unimplemented, write, writeln, try};
+// Re-export a few macros from core
+pub use core::{assert_eq, assert_ne, debug_assert, debug_assert_eq, debug_assert_ne};
+pub use core::{unreachable, unimplemented, write, writeln, try};
 
+#[allow(unused_imports)] // macros from `alloc` are not used on all platforms
 #[macro_use]
-extern crate core as __core;
-
-#[macro_use]
-extern crate alloc;
-
-pub use core::unicode::*;
+extern crate alloc as alloc_crate;
 
 // We always need an unwinder currently for backtraces
 #[cfg(feature = "backtrace")]
 extern crate sgx_unwind;
-
-// compiler-rt intrinsics
-#[cfg(stage0)]
-extern crate compiler_builtins;
 
 extern crate sgx_alloc;
 #[macro_use]
@@ -147,6 +157,8 @@ pub mod prelude;
 // Public module declarations and reexports
 
 pub use core::any;
+#[doc(no_inline)]
+pub use core::arch;
 pub use core::cell;
 pub use core::clone;
 pub use core::cmp;
@@ -175,15 +187,17 @@ pub use core::u32;
 pub use core::u64;
 pub use core::u128;
 pub use core::char;
-pub use alloc::boxed;
-pub use alloc::rc;
-pub use alloc::borrow;
-pub use alloc::fmt;
-pub use alloc::slice;
-pub use alloc::str;
-pub use alloc::string;
-pub use alloc::vec;
-pub use alloc::format;
+pub use core::hint;
+pub use core::pin;
+pub use alloc_crate::boxed;
+pub use alloc_crate::rc;
+pub use alloc_crate::borrow;
+pub use alloc_crate::fmt;
+pub use alloc_crate::format;
+pub use alloc_crate::slice;
+pub use alloc_crate::str;
+pub use alloc_crate::string;
+pub use alloc_crate::vec;
 
 pub mod f32;
 pub mod f64;
@@ -206,13 +220,23 @@ pub mod panic;
 pub mod path;
 pub mod sync;
 pub mod time;
-//pub mod heap;
 pub mod enclave;
 pub mod untrusted;
 
+pub mod task {
+    //! Types and Traits for working with asynchronous tasks.
+    #[doc(inline)]
+    pub use core::task::*;
+}
+
+pub mod future;
+
 // Platform-abstraction modules
+#[macro_use]
 mod sys_common;
 mod sys;
+
+pub mod alloc;
 
 // Private support modules
 mod panicking;
@@ -231,7 +255,7 @@ pub mod backtrace;
 pub use cpuid::*;
 pub use self::thread::{rsgx_thread_self, rsgx_thread_equal};
 
-pub use sgx_trts::oom::rust_oom;
-
 #[cfg(debug_assertions)]
 pub mod debug;
+
+

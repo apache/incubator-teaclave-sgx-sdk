@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -27,13 +27,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_trts::libc;
-use io::{self, ErrorKind};
+use io::ErrorKind;
 
 pub use self::rand::hashmap_random_keys;
 
 pub mod fd;
 pub mod fs;
 pub mod sgxfs;
+pub mod io;
 #[cfg(feature = "net")]
 pub mod net;
 pub mod os_str;
@@ -53,7 +54,6 @@ pub mod env;
 pub mod pipe;
 
 pub fn decode_error_kind(errno: i32) -> ErrorKind {
-
     match errno as libc::c_int {
         libc::ECONNREFUSED => ErrorKind::ConnectionRefused,
         libc::ECONNRESET => ErrorKind::ConnectionReset,
@@ -93,15 +93,15 @@ macro_rules! impl_is_minus_one {
 
 impl_is_minus_one! { i8 i16 i32 i64 isize }
 
-pub fn cvt<T: IsMinusOne>(t: T) -> io::Result<T> {
+pub fn cvt<T: IsMinusOne>(t: T) -> ::io::Result<T> {
     if t.is_minus_one() {
-        Err(io::Error::last_os_error())
+        Err(::io::Error::last_os_error())
     } else {
         Ok(t)
     }
 }
 
-pub fn cvt_r<T, F>(mut f: F) -> io::Result<T>
+pub fn cvt_r<T, F>(mut f: F) -> ::io::Result<T>
     where T: IsMinusOne,
           F: FnMut() -> T
 {

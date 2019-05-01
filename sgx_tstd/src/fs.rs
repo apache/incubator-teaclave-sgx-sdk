@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -87,9 +87,10 @@ pub struct OpenOptions(fs_imp::OpenOptions);
 /// This module only currently provides one bit of information, [`readonly`],
 /// which is exposed on all currently supported platforms. Unix-specific
 /// functionality, such as mode bits, is available through the
-/// `os::unix::PermissionsExt` trait.
+/// [`PermissionsExt`] trait.
 ///
 /// [`readonly`]: struct.Permissions.html#method.readonly
+/// [`PermissionsExt`]: ../os/unix/fs/trait.PermissionsExt.html
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Permissions(fs_imp::FilePermissions);
 
@@ -111,7 +112,7 @@ fn initial_buffer_size(file: &File) -> usize {
 /// Read the entire contents of a file into a bytes vector.
 ///
 /// This is a convenience function for using [`File::open`] and [`read_to_end`]
-/// with fewer imports and without an intermediate variable.  It pre-allocates a
+/// with fewer imports and without an intermediate variable. It pre-allocates a
 /// buffer based on the file size when available, so it is generally faster than
 /// reading into a vector created with `Vec::new()`.
 ///
@@ -131,16 +132,19 @@ fn initial_buffer_size(file: &File) -> usize {
 /// [`ErrorKind::Interrupted`]: ../../std/io/enum.ErrorKind.html#variant.Interrupted
 ///
 pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
-    let mut file = File::open(path)?;
-    let mut bytes = Vec::with_capacity(initial_buffer_size(&file));
-    file.read_to_end(&mut bytes)?;
-    Ok(bytes)
+    fn inner(path: &Path) -> io::Result<Vec<u8>> {
+        let mut file = File::open(path)?;
+        let mut bytes = Vec::with_capacity(initial_buffer_size(&file));
+        file.read_to_end(&mut bytes)?;
+        Ok(bytes)
+    }
+    inner(path.as_ref())
 }
 
 /// Read the entire contents of a file into a string.
 ///
 /// This is a convenience function for using [`File::open`] and [`read_to_string`]
-/// with fewer imports and without an intermediate variable.  It pre-allocates a
+/// with fewer imports and without an intermediate variable. It pre-allocates a
 /// buffer based on the file size when available, so it is generally faster than
 /// reading into a string created with `String::new()`.
 ///
@@ -161,10 +165,13 @@ pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
 /// [`ErrorKind::Interrupted`]: ../../std/io/enum.ErrorKind.html#variant.Interrupted
 ///
 pub fn read_to_string<P: AsRef<Path>>(path: P) -> io::Result<String> {
-    let mut file = File::open(path)?;
-    let mut string = String::with_capacity(initial_buffer_size(&file));
-    file.read_to_string(&mut string)?;
-    Ok(string)
+    fn inner(path: &Path) -> io::Result<String> {
+        let mut file = File::open(path)?;
+        let mut string = String::with_capacity(initial_buffer_size(&file));
+        file.read_to_string(&mut string)?;
+        Ok(string)
+    }
+    inner(path.as_ref())
 }
 
 /// Write a slice as the entire contents of a file.
@@ -179,11 +186,23 @@ pub fn read_to_string<P: AsRef<Path>>(path: P) -> io::Result<String> {
 /// [`write_all`]: ../io/trait.Write.html#method.write_all
 ///
 pub fn write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, contents: C) -> io::Result<()> {
-    File::create(path)?.write_all(contents.as_ref())
+    fn inner(path: &Path, contents: &[u8]) -> io::Result<()> {
+        File::create(path)?.write_all(contents)
+    }
+    inner(path.as_ref(), contents.as_ref())
 }
 
 impl File {
     /// Attempts to open a file in read-only mode.
+    ///
+    /// See the [`OpenOptions::open`] method for more details.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if `path` does not already exist.
+    /// Other errors may also be returned according to [`OpenOptions::open`].
+    ///
+    /// [`OpenOptions::open`]: struct.OpenOptions.html#method.open
     ///
     pub fn open<P: AsRef<Path>>(path: P) -> io::Result<File> {
         OpenOptions::new().read(true).open(path.as_ref())
@@ -193,6 +212,10 @@ impl File {
     ///
     /// This function will create a file if it does not exist,
     /// and will truncate it if it does.
+    ///
+    /// See the [`OpenOptions::open`] function for more details.
+    ///
+    /// [`OpenOptions::open`]: struct.OpenOptions.html#method.open
     ///
     pub fn create<P: AsRef<Path>>(path: P) -> io::Result<File> {
         OpenOptions::new().write(true).create(true).truncate(true).open(path.as_ref())
@@ -249,7 +272,7 @@ impl File {
         self.inner.file_attr().map(Metadata)
     }
 
-    /// Create a new `File` instance that shares the same underlying file handle
+    /// Creates a new `File` instance that shares the same underlying file handle
     /// as the existing `File` instance. Reads, writes, and seeks will affect
     /// both `File` instances simultaneously.
     ///
@@ -324,7 +347,7 @@ impl Seek for File {
     }
 }
 
-impl<'a> Read for &'a File {
+impl Read for &File {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
     }
@@ -335,14 +358,14 @@ impl<'a> Read for &'a File {
     }
 }
 
-impl<'a> Write for &'a File {
+impl Write for &File {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.inner.write(buf)
     }
     fn flush(&mut self) -> io::Result<()> { self.inner.flush() }
 }
 
-impl<'a> Seek for &'a File {
+impl Seek for &File {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         self.inner.seek(pos)
     }
@@ -398,7 +421,7 @@ impl OpenOptions {
     /// If a file is opened with both read and append access, beware that after
     /// opening, and after every write, the position for reading may be set at the
     /// end of the file. So, before writing, save the current position (using
-    /// [`seek`]`(`[`SeekFrom`]`::`[`Current`]`(0))`, and restore it before the next read.
+    /// [`seek`]`(`[`SeekFrom`]`::`[`Current`]`(0))`), and restore it before the next read.
     ///
     /// ## Note
     ///
@@ -500,7 +523,7 @@ impl OpenOptions {
 
     fn _open(&self, path: &Path) -> io::Result<File> {
         let inner = fs_imp::File::open(path, &self.0)?;
-        Ok(File { inner: inner })
+        Ok(File { inner })
     }
 }
 
@@ -515,17 +538,23 @@ impl Metadata {
         FileType(self.0.file_type())
     }
 
-    /// Returns whether this metadata is for a directory. The
+    /// Returns `true` if this metadata is for a directory. The
     /// result is mutually exclusive to the result of
     /// [`is_file`], and will be false for symlink metadata
     /// obtained from [`symlink_metadata`].
     ///
+    /// [`is_file`]: struct.Metadata.html#method.is_file
+    /// [`symlink_metadata`]: fn.symlink_metadata.html
+    ///
     pub fn is_dir(&self) -> bool { self.file_type().is_dir() }
 
-    /// Returns whether this metadata is for a regular file. The
+    /// Returns `true` if this metadata is for a regular file. The
     /// result is mutually exclusive to the result of
     /// [`is_dir`], and will be false for symlink metadata
     /// obtained from [`symlink_metadata`].
+    ///
+    /// [`is_dir`]: struct.Metadata.html#method.is_dir
+    /// [`symlink_metadata`]: fn.symlink_metadata.html
     ///
     pub fn is_file(&self) -> bool { self.file_type().is_file() }
 
@@ -571,7 +600,7 @@ impl Metadata {
         self.0.accessed().map(FromInner::from_inner)
     }
 
-    /// Returns the creation time listed in the this metadata.
+    /// Returns the creation time listed in this metadata.
     ///
     /// The returned value corresponds to the `birthtime` field of `stat` on
     /// Unix platforms and the `ftCreationTime` field on Windows platforms.
@@ -605,7 +634,7 @@ impl AsInner<fs_imp::FileAttr> for Metadata {
 }
 
 impl Permissions {
-    /// Returns whether these permissions describe a readonly (unwritable) file.
+    /// Returns `true` if these permissions describe a readonly (unwritable) file.
     ///
     pub fn readonly(&self) -> bool { self.0.readonly() }
 
@@ -616,7 +645,9 @@ impl Permissions {
     /// writing.
     ///
     /// This operation does **not** modify the filesystem. To modify the
-    /// filesystem use the `fs::set_permissions` function.
+    /// filesystem use the [`fs::set_permissions`] function.
+    ///
+    /// [`fs::set_permissions`]: fn.set_permissions.html
     ///
     pub fn set_readonly(&mut self, readonly: bool) {
         self.0.set_readonly(readonly)
@@ -624,24 +655,43 @@ impl Permissions {
 }
 
 impl FileType {
-    /// Test whether this file type represents a directory. The
+    /// Tests whether this file type represents a directory. The
     /// result is mutually exclusive to the results of
     /// [`is_file`] and [`is_symlink`]; only zero or one of these
     /// tests may pass.
     ///
+    /// [`is_file`]: struct.FileType.html#method.is_file
+    /// [`is_symlink`]: struct.FileType.html#method.is_symlink
+    ///
     pub fn is_dir(&self) -> bool { self.0.is_dir() }
 
-    /// Test whether this file type represents a regular file.
+    /// Tests whether this file type represents a regular file.
     /// The result is  mutually exclusive to the results of
     /// [`is_dir`] and [`is_symlink`]; only zero or one of these
     /// tests may pass.
     ///
+    /// [`is_dir`]: struct.FileType.html#method.is_dir
+    /// [`is_symlink`]: struct.FileType.html#method.is_symlink
+    ///
     pub fn is_file(&self) -> bool { self.0.is_file() }
 
-    /// Test whether this file type represents a symbolic link.
+    /// Tests whether this file type represents a symbolic link.
     /// The result is mutually exclusive to the results of
     /// [`is_dir`] and [`is_file`]; only zero or one of these
     /// tests may pass.
+    ///
+    /// The underlying [`Metadata`] struct needs to be retrieved
+    /// with the [`fs::symlink_metadata`] function and not the
+    /// [`fs::metadata`] function. The [`fs::metadata`] function
+    /// follows symbolic links, so [`is_symlink`] would always
+    /// return `false` for the target file.
+    ///
+    /// [`Metadata`]: struct.Metadata.html
+    /// [`fs::metadata`]: fn.metadata.html
+    /// [`fs::symlink_metadata`]: fn.symlink_metadata.html
+    /// [`is_dir`]: struct.FileType.html#method.is_dir
+    /// [`is_file`]: struct.FileType.html#method.is_file
+    /// [`is_symlink`]: struct.FileType.html#method.is_symlink
     ///
     pub fn is_symlink(&self) -> bool { self.0.is_symlink() }
 }
@@ -663,7 +713,7 @@ impl AsInner<fs_imp::FilePermissions> for Permissions {
 /// Removes a file from the filesystem.
 ///
 /// Note that there is no
-/// guarantee that the file is immediately deleted (e.g. depending on
+/// guarantee that the file is immediately deleted (e.g., depending on
 /// platform, other open file descriptors may prevent immediate removal).
 ///
 /// # Platform-specific behavior
@@ -831,9 +881,14 @@ pub fn hard_link<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<(
 ///
 /// The `dst` path will be a symbolic link pointing to the `src` path.
 /// On Windows, this will be a file symlink, not a directory symlink;
-/// for this reason, the platform-specific `std::os::unix::fs::symlink`
-/// and `std::os::windows::fs::{symlink_file, symlink_dir}` should be
+/// for this reason, the platform-specific [`std::os::unix::fs::symlink`]
+/// and [`std::os::windows::fs::symlink_file`] or [`symlink_dir`] should be
 /// used instead to make the intent explicit.
+///
+/// [`std::os::unix::fs::symlink`]: ../os/unix/fs/fn.symlink.html
+/// [`std::os::windows::fs::symlink_file`]: ../os/windows/fs/fn.symlink_file.html
+/// [`symlink_dir`]: ../os/windows/fs/fn.symlink_dir.html
+///
 ///
 pub fn soft_link<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()> {
     fs_imp::symlink(src.as_ref(), dst.as_ref())
@@ -862,8 +917,8 @@ pub fn read_link<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     fs_imp::readlink(path.as_ref())
 }
 
-/// Returns the canonical form of a path with all intermediate components
-/// normalized and symbolic links resolved.
+/// Returns the canonical, absolute form of a path with all intermediate
+/// components normalized and symbolic links resolved.
 ///
 /// # Platform-specific behavior
 ///
@@ -871,7 +926,14 @@ pub fn read_link<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
 /// and the `CreateFile` and `GetFinalPathNameByHandle` functions on Windows.
 /// Note that, this [may change in the future][changes].
 ///
+/// On Windows, this converts the path to use [extended length path][path]
+/// syntax, which allows your program to use longer path names, but means you
+/// can only join backslash-delimited paths to it, and it may be incompatible
+/// with other applications (if passed to the application on the command-line,
+/// or written to a file another application may read).
+///
 /// [changes]: ../io/index.html#platform-specific-behavior
+/// [path]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath
 ///
 /// # Errors
 ///
@@ -879,7 +941,7 @@ pub fn read_link<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
 /// limited to just these cases:
 ///
 /// * `path` does not exist.
-/// * A component in path is not a directory.
+/// * A non-final component in path is not a directory.
 ///
 pub fn canonicalize<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     fs_imp::canonicalize(path.as_ref())

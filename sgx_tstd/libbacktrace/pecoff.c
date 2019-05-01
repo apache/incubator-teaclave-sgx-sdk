@@ -1,5 +1,5 @@
 /* pecoff.c -- Get debug data from a PE/COFFF file for backtraces.
-   Copyright (C) 2015-2016 Free Software Foundation, Inc.
+   Copyright (C) 2015-2018 Free Software Foundation, Inc.
    Adapted from elf.c by Tristan Gingold, AdaCore.
 
 Redistribution and use in source and binary forms, with or without
@@ -191,7 +191,8 @@ static int
 coff_nodebug(struct backtrace_state* state ATTRIBUTE_UNUSED,
              uintptr_t pc ATTRIBUTE_UNUSED,
              backtrace_full_callback callback ATTRIBUTE_UNUSED,
-             backtrace_error_callback error_callback, void* data) {
+             backtrace_error_callback error_callback, void* data)
+{
     error_callback(data, "no debug info in PE/COFF executable", -1);
     return 0;
 }
@@ -203,14 +204,16 @@ static void
 coff_nosyms(struct backtrace_state* state ATTRIBUTE_UNUSED,
             uintptr_t addr ATTRIBUTE_UNUSED,
             backtrace_syminfo_callback callback ATTRIBUTE_UNUSED,
-            backtrace_error_callback error_callback, void* data) {
+            backtrace_error_callback error_callback, void* data)
+{
     error_callback(data, "no symbol table in PE/COFF executable", -1);
 }
 
 /* Read a potentially unaligned 4 byte word at P, using native endianness.  */
 
 static uint32_t
-coff_read4(const unsigned char* p) {
+coff_read4(const unsigned char* p)
+{
     uint32_t res;
 
     memcpy(&res, p, 4);
@@ -222,7 +225,8 @@ coff_read4(const unsigned char* p) {
    fields are declared as char arrays.  */
 
 static uint16_t
-coff_read2(const unsigned char* p) {
+coff_read2(const unsigned char* p)
+{
     uint16_t res;
 
     memcpy(&res, p, sizeof(res));
@@ -232,7 +236,8 @@ coff_read2(const unsigned char* p) {
 /* Return the length (without the trailing 0) of a COFF short name.  */
 
 static size_t
-coff_short_name_len(const char* name) {
+coff_short_name_len(const char* name)
+{
     int i = 0;
 
     for (i = 0; i < 8; i++) {
@@ -248,7 +253,8 @@ coff_short_name_len(const char* name) {
    string).  */
 
 static int
-coff_short_name_eq(const char* name, const char* cname) {
+coff_short_name_eq(const char* name, const char* cname)
+{
     int i = 0;
 
     for (i = 0; i < 8; i++) {
@@ -268,7 +274,8 @@ coff_short_name_eq(const char* name, const char* cname) {
 
 static int
 coff_long_name_eq(const char* name, unsigned int off,
-                  struct backtrace_view* str_view) {
+                  struct backtrace_view* str_view)
+{
     if (off >= str_view->len) {
         return 0;
     }
@@ -279,7 +286,8 @@ coff_long_name_eq(const char* name, unsigned int off,
 /* Compare struct coff_symbol for qsort.  */
 
 static int
-coff_symbol_compare(const void* v1, const void* v2) {
+coff_symbol_compare(const void* v1, const void* v2)
+{
     const struct coff_symbol* e1 = (const struct coff_symbol*) v1;
     const struct coff_symbol* e2 = (const struct coff_symbol*) v2;
 
@@ -300,7 +308,8 @@ static int
 coff_expand_symbol(b_coff_internal_symbol* isym,
                    const b_coff_external_symbol* sym,
                    uint16_t sects_num,
-                   const unsigned char* strtab, size_t strtab_size) {
+                   const unsigned char* strtab, size_t strtab_size)
+{
     isym->type = coff_read2(sym->type);
     isym->sec = coff_read2(sym->section_number);
     isym->sc = sym->storage_class;
@@ -329,7 +338,8 @@ coff_expand_symbol(b_coff_internal_symbol* isym,
    section names, presence of symbols defined by the linker script).  */
 
 static int
-coff_is_function_symbol(const b_coff_internal_symbol* isym) {
+coff_is_function_symbol(const b_coff_internal_symbol* isym)
+{
     return (isym->type >> N_TBSHFT) == IMAGE_SYM_DTYPE_FUNCTION
            && isym->sec > 0;
 }
@@ -343,7 +353,8 @@ coff_initialize_syminfo(struct backtrace_state* state,
                         const b_coff_external_symbol* syms, size_t syms_size,
                         const unsigned char* strtab, size_t strtab_size,
                         backtrace_error_callback error_callback,
-                        void* data, struct coff_syminfo_data* sdata) {
+                        void* data, struct coff_syminfo_data* sdata)
+{
     size_t syms_count = 0;
     char* coff_symstr = NULL;
     size_t coff_symstr_len = 0;
@@ -470,13 +481,14 @@ coff_initialize_syminfo(struct backtrace_state* state,
 
 static void
 coff_add_syminfo_data(struct backtrace_state* state,
-                      struct coff_syminfo_data* sdata) {
+                      struct coff_syminfo_data* sdata)
+{
     if (!state->threaded) {
         struct coff_syminfo_data** pp;
 
         for (pp = (struct coff_syminfo_data**)(void*) &state->syminfo_data;
-                *pp != NULL;
-                pp = &(*pp)->next) {
+             *pp != NULL;
+             pp = &(*pp)->next) {
             ;
         }
         *pp = sdata;
@@ -510,7 +522,8 @@ coff_add_syminfo_data(struct backtrace_state* state,
    entry.  */
 
 static int
-coff_symbol_search(const void* vkey, const void* ventry) {
+coff_symbol_search(const void* vkey, const void* ventry)
+{
     const uintptr_t* key = (const uintptr_t*) vkey;
     const struct coff_symbol* entry = (const struct coff_symbol*) ventry;
     uintptr_t addr = 0;
@@ -532,14 +545,15 @@ static void
 coff_syminfo(struct backtrace_state* state, uintptr_t addr,
              backtrace_syminfo_callback callback,
              backtrace_error_callback error_callback ATTRIBUTE_UNUSED,
-             void* data) {
+             void* data)
+{
     struct coff_syminfo_data* sdata;
     struct coff_symbol* sym = NULL;
 
     if (!state->threaded) {
         for (sdata = (struct coff_syminfo_data*) state->syminfo_data;
-                sdata != NULL;
-                sdata = sdata->next) {
+             sdata != NULL;
+             sdata = sdata->next) {
             sym = ((struct coff_symbol*)
                    bsearch(&addr, sdata->symbols, sdata->count,
                            sizeof(struct coff_symbol), coff_symbol_search));
@@ -585,7 +599,8 @@ coff_syminfo(struct backtrace_state* state, uintptr_t addr,
 static int
 coff_add(struct backtrace_state* state, int descriptor,
          backtrace_error_callback error_callback, void* data,
-         fileline* fileline_fn, int* found_sym, int* found_dwarf) {
+         fileline* fileline_fn, int* found_sym, int* found_dwarf)
+{
     struct backtrace_view fhdr_view;
     off_t fhdr_off;
     int magic_ok = 0;
@@ -599,9 +614,6 @@ coff_add(struct backtrace_state* state, int descriptor,
     const b_coff_section_header* sects = NULL;
     struct backtrace_view str_view;
     int str_view_valid = 0;
-    // NOTE: upstream this is a `size_t` but this was fixed in Rust commit
-    //       55e2b7e1b, see #33729 for more info. If you see this in a diff
-    //       against the upstream libbacktrace, that's what's going on.
     uint32_t str_size = 0;
     off_t str_off;
     // NOTE: upstream doesn't have `{0}`, this is a fix for Rust issue #39468.
@@ -634,10 +646,10 @@ coff_add(struct backtrace_state* state, int descriptor,
     }
 
     {
-        const char* vptr = (const char*)fhdr_view.data;
+        const unsigned char *vptr = fhdr_view.data;
 
         if (vptr[0] == 'M' && vptr[1] == 'Z') {
-            memcpy(&fhdr_off, vptr + 0x3c, 4);
+            fhdr_off = coff_read4 (vptr + 0x3c);
         } else {
             fhdr_off = 0;
         }
@@ -728,7 +740,7 @@ coff_add(struct backtrace_state* state, int descriptor,
 
         syms_view_valid = 1;
 
-        memcpy(&str_size, syms_view.data + syms_size, 4);
+        str_size = coff_read4(syms_view.data + syms_size);
 
         str_off = syms_off + syms_size;
 
@@ -804,8 +816,10 @@ coff_add(struct backtrace_state* state, int descriptor,
 
     backtrace_release_view(state, &sects_view, error_callback, data);
     sects_view_valid = 0;
-    backtrace_release_view(state, &syms_view, error_callback, data);
-    syms_view_valid = 0;
+    if (syms_view_valid) {
+        backtrace_release_view(state, &syms_view, error_callback, data);
+        syms_view_valid = 0;
+    }
 
     /* Read all the debug sections in a single view, since they are
        probably adjacent in the file.  We never release this view.  */
@@ -913,9 +927,12 @@ fail:
    sections.  */
 
 int
-backtrace_initialize(struct backtrace_state* state, int descriptor,
+backtrace_initialize(struct backtrace_state *state,
+                     const char *filename ATTRIBUTE_UNUSED,
+                     int descriptor,
                      backtrace_error_callback error_callback,
-                     void* data, fileline* fileline_fn) {
+                     void* data, fileline* fileline_fn)
+{
     int ret = 0;
     int found_sym = 0;
     int found_dwarf = 0;

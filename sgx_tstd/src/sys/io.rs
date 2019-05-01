@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,11 +26,64 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use std::env;
+use sgx_trts::libc::{iovec, c_void};
+use core::marker::PhantomData;
+use alloc_crate::slice;
 
-fn main() {
-    let sdk_dir = env::var("SGX_SDK").unwrap_or_else(|_| "/opt/intel/sgxsdk".to_string());
+#[repr(transparent)]
+pub struct IoVec<'a> {
+    vec: iovec,
+    _p: PhantomData<&'a [u8]>,
+}
 
-    println!("cargo:rustc-link-search=native={}/lib64", sdk_dir);
-    println!("cargo:rustc-link-lib=static=sgx_tcrypto");
+impl<'a> IoVec<'a> {
+    #[inline]
+    pub fn new(buf: &'a [u8]) -> IoVec<'a> {
+        IoVec {
+            vec: iovec {
+                iov_base: buf.as_ptr() as *mut u8 as *mut c_void,
+                iov_len: buf.len()
+            },
+            _p: PhantomData,
+        }
+    }
+
+    #[inline]
+    pub fn as_slice(&self) -> &[u8] {
+        unsafe {
+            slice::from_raw_parts(self.vec.iov_base as *mut u8, self.vec.iov_len)
+        }
+    }
+}
+
+pub struct IoVecMut<'a> {
+    vec: iovec,
+    _p: PhantomData<&'a mut [u8]>,
+}
+
+impl<'a> IoVecMut<'a> {
+    #[inline]
+    pub fn new(buf: &'a mut [u8]) -> IoVecMut<'a> {
+        IoVecMut {
+            vec: iovec {
+                iov_base: buf.as_mut_ptr() as *mut c_void,
+                iov_len: buf.len()
+            },
+            _p: PhantomData,
+        }
+    }
+
+    #[inline]
+    pub fn as_slice(&self) -> &[u8] {
+        unsafe {
+            slice::from_raw_parts(self.vec.iov_base as *mut u8, self.vec.iov_len)
+        }
+    }
+
+    #[inline]
+    pub fn as_mut_slice(&mut self) -> &mut [u8] {
+        unsafe {
+            slice::from_raw_parts_mut(self.vec.iov_base as *mut u8, self.vec.iov_len)
+        }
+    }
 }

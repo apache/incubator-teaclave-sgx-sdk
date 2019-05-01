@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
 
 #![allow(missing_copy_implementations)]
 
-use io::{self, Read, Initializer, Write, ErrorKind, BufRead};
+use io::{self, Read, Initializer, Write, ErrorKind, BufRead, IoVec, IoVecMut};
 use core::fmt;
 use core::mem;
 
@@ -40,6 +40,11 @@ use core::mem;
 ///
 /// On success, the total number of bytes that were copied from
 /// `reader` to `writer` is returned.
+///
+/// If you’re wanting to copy the contents of one file to another and you’re
+/// working with filesystem paths, see the [`fs::copy`] function.
+///
+/// [`fs::copy`]: ../fs/fn.copy.html
 ///
 /// # Errors
 ///
@@ -78,7 +83,10 @@ pub struct Empty { _priv: () }
 
 /// Constructs a new handle to an empty reader.
 ///
-/// All reads from the returned reader will return `Ok(0)`.
+/// All reads from the returned reader will return [`Ok`]`(0)`.
+///
+/// [`Ok`]: ../result/enum.Result.html#variant.Ok
+///
 pub fn empty() -> Empty { Empty { _priv: () } }
 
 impl Read for Empty {
@@ -116,7 +124,7 @@ pub struct Repeat { byte: u8 }
 ///
 /// All reads from this reader will succeed by filling the specified buffer with
 /// the given byte.
-pub fn repeat(byte: u8) -> Repeat { Repeat { byte: byte } }
+pub fn repeat(byte: u8) -> Repeat { Repeat { byte } }
 
 impl Read for Repeat {
     #[inline]
@@ -125,6 +133,15 @@ impl Read for Repeat {
             *slot = self.byte;
         }
         Ok(buf.len())
+    }
+
+    #[inline]
+    fn read_vectored(&mut self, bufs: &mut [IoVecMut<'_>]) -> io::Result<usize> {
+        let mut nwritten = 0;
+        for buf in bufs {
+            nwritten += self.read(buf)?;
+        }
+        Ok(nwritten)
     }
 
     #[inline]
@@ -156,6 +173,13 @@ pub fn sink() -> Sink { Sink { _priv: () } }
 impl Write for Sink {
     #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> { Ok(buf.len()) }
+
+    #[inline]
+    fn write_vectored(&mut self, bufs: &[IoVec<'_>]) -> io::Result<usize> {
+        let total_len = bufs.iter().map(|b| b.len()).sum();
+        Ok(total_len)
+    }
+
     #[inline]
     fn flush(&mut self) -> io::Result<()> { Ok(()) }
 }

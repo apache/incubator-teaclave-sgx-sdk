@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -39,10 +39,10 @@ use core::marker::PhantomData;
 use core::fmt;
 use core::iter;
 use core::ptr;
-use alloc::slice;
-use alloc::string::String;
-use alloc::str;
-use alloc::vec::{self, Vec};
+use alloc_crate::slice;
+use alloc_crate::string::String;
+use alloc_crate::str;
+use alloc_crate::vec::{self, Vec};
 
 const TMPBUF_SZ: usize = 128;
 static ENV_LOCK: SgxThreadMutex = SgxThreadMutex::new();
@@ -143,13 +143,8 @@ pub fn env() -> Env {
     unsafe {
         ENV_LOCK.lock();
         let mut environ = environ();
-        if environ == ptr::null() {
-            ENV_LOCK.unlock();
-            panic!("os::env() failure getting env string from OS: {}",
-                   io::Error::last_os_error());
-        }
         let mut result = Vec::new();
-        while *environ != ptr::null() {
+        while environ != ptr::null() && *environ != ptr::null() {
             if let Some(key_value) = parse(CStr::from_ptr(*environ).to_bytes()) {
                 result.push(key_value);
             }
@@ -192,7 +187,7 @@ pub fn getenv(k: &OsStr) -> io::Result<Option<OsString>> {
             Some(OsStringExt::from_vec(CStr::from_ptr(s).to_bytes().to_vec()))
         };
         ENV_LOCK.unlock();
-        return Ok(ret)
+        Ok(ret)
     }
 }
 
@@ -204,7 +199,7 @@ pub fn setenv(k: &OsStr, v: &OsStr) -> io::Result<()> {
         ENV_LOCK.lock();
         let ret = cvt(libc::setenv(k.as_ptr(), v.as_ptr(), 1)).map(|_| ());
         ENV_LOCK.unlock();
-        return ret
+        ret
     }
 }
 
@@ -215,7 +210,7 @@ pub fn unsetenv(n: &OsStr) -> io::Result<()> {
         ENV_LOCK.lock();
         let ret = cvt(libc::unsetenv(nbuf.as_ptr())).map(|_| ());
         ENV_LOCK.unlock();
-        return ret
+        ret
     }
 }
 

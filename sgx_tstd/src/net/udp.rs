@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
 
 use sgx_trts::libc::c_int;
 use core::fmt;
-use io::{self, Error, ErrorKind};
+use io::{self, Initializer, IoVec, IoVecMut};
 use net::{ToSocketAddrs, SocketAddr, Ipv4Addr, Ipv6Addr};
 use sys_common::net as net_imp;
 use sys_common::{AsInner, FromInner, IntoInner};
@@ -70,6 +70,8 @@ impl UdpSocket {
     /// each of the addresses until one succeeds and returns the socket. If none
     /// of the addresses succeed in creating a socket, the error returned from
     /// the last attempt (the last address) is returned.
+    ///
+    /// [`ToSocketAddrs`]: ../../std/net/trait.ToSocketAddrs.html
     ///
     pub fn bind<A: ToSocketAddrs>(addr: A) -> io::Result<UdpSocket> {
         super::each_addr(addr, net_imp::UdpSocket::bind).map(UdpSocket)
@@ -120,6 +122,10 @@ impl UdpSocket {
     /// This will return an error when the IP version of the local socket
     /// does not match that returned from [`ToSocketAddrs`].
     ///
+    /// See issue #34202 for more details.
+    ///
+    /// [`ToSocketAddrs`]: ../../std/net/trait.ToSocketAddrs.html
+    ///
     pub fn send_to<A: ToSocketAddrs>(&self, buf: &[u8], addr: A)
                                      -> io::Result<usize> {
         match addr.to_socket_addrs()?.next() {
@@ -157,6 +163,13 @@ impl UdpSocket {
     /// a result of setting this option. For example Unix typically returns an
     /// error of the kind [`WouldBlock`], but Windows may return [`TimedOut`].
     ///
+    /// [`None`]: ../../std/option/enum.Option.html#variant.None
+    /// [`Err`]: ../../std/result/enum.Result.html#variant.Err
+    /// [`read`]: ../../std/io/trait.Read.html#tymethod.read
+    /// [`Duration`]: ../../std/time/struct.Duration.html
+    /// [`WouldBlock`]: ../../std/io/enum.ErrorKind.html#variant.WouldBlock
+    /// [`TimedOut`]: ../../std/io/enum.ErrorKind.html#variant.TimedOut
+    ///
     pub fn set_read_timeout(&self, dur: Option<Duration>) -> io::Result<()> {
         self.0.set_read_timeout(dur)
     }
@@ -173,6 +186,13 @@ impl UdpSocket {
     /// as a result of setting this option. For example Unix typically returns
     /// an error of the kind [`WouldBlock`], but Windows may return [`TimedOut`].
     ///
+    /// [`None`]: ../../std/option/enum.Option.html#variant.None
+    /// [`Err`]: ../../std/result/enum.Result.html#variant.Err
+    /// [`write`]: ../../std/io/trait.Write.html#tymethod.write
+    /// [`Duration`]: ../../std/time/struct.Duration.html
+    /// [`WouldBlock`]: ../../std/io/enum.ErrorKind.html#variant.WouldBlock
+    /// [`TimedOut`]: ../../std/io/enum.ErrorKind.html#variant.TimedOut
+    ///
     pub fn set_write_timeout(&self, dur: Option<Duration>) -> io::Result<()> {
         self.0.set_write_timeout(dur)
     }
@@ -181,6 +201,9 @@ impl UdpSocket {
     ///
     /// If the timeout is [`None`], then [`read`] calls will block indefinitely.
     ///
+    /// [`None`]: ../../std/option/enum.Option.html#variant.None
+    /// [`read`]: ../../std/io/trait.Read.html#tymethod.read
+    ///
     pub fn read_timeout(&self) -> io::Result<Option<Duration>> {
         self.0.read_timeout()
     }
@@ -188,6 +211,9 @@ impl UdpSocket {
     /// Returns the write timeout of this socket.
     ///
     /// If the timeout is [`None`], then [`write`] calls will block indefinitely.
+    ///
+    /// [`None`]: ../../std/option/enum.Option.html#variant.None
+    /// [`write`]: ../../std/io/trait.Write.html#tymethod.write
     ///
     pub fn write_timeout(&self) -> io::Result<Option<Duration>> {
         self.0.write_timeout()
@@ -207,6 +233,8 @@ impl UdpSocket {
     /// For more information about this option, see
     /// [`set_broadcast`][link].
     ///
+    /// [link]: #method.set_broadcast
+    ///
     pub fn broadcast(&self) -> io::Result<bool> {
         self.0.broadcast()
     }
@@ -221,6 +249,11 @@ impl UdpSocket {
     }
 
     /// Gets the value of the `IP_MULTICAST_LOOP` option for this socket.
+    ///
+    /// For more information about this option, see
+    /// [`set_multicast_loop_v4`][link].
+    ///
+    /// [link]: #method.set_multicast_loop_v4
     ///
     pub fn multicast_loop_v4(&self) -> io::Result<bool> {
         self.0.multicast_loop_v4()
@@ -240,6 +273,11 @@ impl UdpSocket {
 
     /// Gets the value of the `IP_MULTICAST_TTL` option for this socket.
     ///
+    /// For more information about this option, see
+    /// [`set_multicast_ttl_v4`][link].
+    ///
+    /// [link]: #method.set_multicast_ttl_v4
+    ///
     pub fn multicast_ttl_v4(&self) -> io::Result<u32> {
         self.0.multicast_ttl_v4()
     }
@@ -255,6 +293,11 @@ impl UdpSocket {
 
     /// Gets the value of the `IPV6_MULTICAST_LOOP` option for this socket.
     ///
+    /// For more information about this option, see
+    /// [`set_multicast_loop_v6`][link].
+    ///
+    /// [link]: #method.set_multicast_loop_v6
+    ///
     pub fn multicast_loop_v6(&self) -> io::Result<bool> {
         self.0.multicast_loop_v6()
     }
@@ -269,6 +312,9 @@ impl UdpSocket {
     }
 
     /// Gets the value of the `IP_TTL` option for this socket.
+    ///
+    ///
+    /// [link]: #method.set_ttl
     ///
     pub fn ttl(&self) -> io::Result<u32> {
         self.0.ttl()
@@ -296,17 +342,25 @@ impl UdpSocket {
 
     /// Executes an operation of the `IP_DROP_MEMBERSHIP` type.
     ///
+    /// For more information about this option, see
+    /// [`join_multicast_v4`][link].
+    ///
+    /// [link]: #method.join_multicast_v4
     pub fn leave_multicast_v4(&self, multiaddr: &Ipv4Addr, interface: &Ipv4Addr) -> io::Result<()> {
         self.0.leave_multicast_v4(multiaddr, interface)
     }
 
     /// Executes an operation of the `IPV6_DROP_MEMBERSHIP` type.
     ///
+    /// For more information about this option, see
+    /// [`join_multicast_v6`][link].
+    ///
+    /// [link]: #method.join_multicast_v6
     pub fn leave_multicast_v6(&self, multiaddr: &Ipv6Addr, interface: u32) -> io::Result<()> {
         self.0.leave_multicast_v6(multiaddr, interface)
     }
 
-    /// Get the value of the `SO_ERROR` option on this socket.
+    /// Gets the value of the `SO_ERROR` option on this socket.
     ///
     /// This will retrieve the stored error in the underlying socket, clearing
     /// the field in the process. This can be useful for checking errors between
@@ -351,6 +405,8 @@ impl UdpSocket {
     /// The [`connect`] method will connect this socket to a remote address. This
     /// method will fail if the socket is not connected.
     ///
+    /// [`connect`]: #method.connect
+    ///
     pub fn recv(&self, buf: &mut [u8]) -> io::Result<usize> {
         self.0.recv(buf)
     }
@@ -372,6 +428,8 @@ impl UdpSocket {
     /// The [`connect`] method will connect this socket to a remote address. This
     /// method will fail if the socket is not connected.
     ///
+    /// [`connect`]: #method.connect
+    ///
     /// # Errors
     ///
     /// This method will fail if the socket is not connected. The `connect` method
@@ -384,7 +442,7 @@ impl UdpSocket {
     /// Moves this UDP socket into or out of nonblocking mode.
     ///
     /// This will result in `recv`, `recv_from`, `send`, and `send_to`
-    /// operations becoming nonblocking, i.e. immediately returning from their
+    /// operations becoming nonblocking, i.e., immediately returning from their
     /// calls. If the IO operation is successful, `Ok` is returned and no
     /// further action is required. If the IO operation could not be completed
     /// and needs to be retried, an error with kind

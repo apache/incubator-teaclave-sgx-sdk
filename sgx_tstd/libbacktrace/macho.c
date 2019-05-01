@@ -1337,7 +1337,9 @@ macho_nosyms (struct backtrace_state *state ATTRIBUTE_UNUSED,
 }
 
 int
-backtrace_initialize (struct backtrace_state *state, int descriptor,
+backtrace_initialize (struct backtrace_state *state,
+                      const char *filename,
+                      int descriptor,
                       backtrace_error_callback error_callback,
                       void *data, fileline *fileline_fn)
 {

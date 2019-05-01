@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -46,7 +46,7 @@ use core::ptr;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 use core::marker;
-use alloc::boxed::Box;
+use alloc_crate::boxed::Box;
 use sgx_trts::libc;
 use sync::SgxThreadSpinlock;
 use thread::{self, rsgx_thread_self};
@@ -690,12 +690,13 @@ impl<T: ?Sized> SgxMutex<T> {
     /// Returns a mutable reference to the underlying data.
     ///
     /// Since this call borrows the `Mutex` mutably, no actual locking needs to
-    /// take place---the mutable borrow statically guarantees no locks exist.
+    /// take place -- the mutable borrow statically guarantees no locks exist.
     ///
     /// # Errors
     ///
     /// If another user of this mutex panicked while holding the mutex, then
     /// this call will return an error instead.
+    ///
     pub fn get_mut(&mut self) -> LockResult<&mut T> {
         let data = unsafe { &mut *self.data.get() };
         poison::map_result(self.poison.borrow(), |_| data)
@@ -761,8 +762,8 @@ pub struct SgxMutexGuard<'a, T: ?Sized + 'a> {
     __poison: poison::Guard,
 }
 
-impl<'a, T: ?Sized> !marker::Send for SgxMutexGuard<'a, T> {}
-unsafe impl<'a, T: ?Sized + Sync> Sync for SgxMutexGuard<'a, T> {}
+impl<T: ?Sized> !Send for SgxMutexGuard<'_, T> { }
+unsafe impl<T: ?Sized + Sync> Sync for SgxMutexGuard<'_, T> { }
 
 impl<'mutex, T: ?Sized> SgxMutexGuard<'mutex, T> {
 
@@ -776,7 +777,7 @@ impl<'mutex, T: ?Sized> SgxMutexGuard<'mutex, T> {
     }
 }
 
-impl<'mutex, T: ?Sized> Deref for SgxMutexGuard<'mutex, T> {
+impl<T: ?Sized> Deref for SgxMutexGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -784,13 +785,13 @@ impl<'mutex, T: ?Sized> Deref for SgxMutexGuard<'mutex, T> {
     }
 }
 
-impl<'mutex, T: ?Sized> DerefMut for SgxMutexGuard<'mutex, T> {
+impl<T: ?Sized> DerefMut for SgxMutexGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.__lock.data.get() }
     }
 }
 
-impl<'a, T: ?Sized> Drop for SgxMutexGuard<'a, T> {
+impl<T: ?Sized> Drop for SgxMutexGuard<'_, T> {
     #[inline]
     fn drop(&mut self) {
         unsafe {
@@ -800,19 +801,18 @@ impl<'a, T: ?Sized> Drop for SgxMutexGuard<'a, T> {
     }
 }
 
-impl<'a, T: ?Sized + fmt::Debug> fmt::Debug for SgxMutexGuard<'a, T> {
+impl<T: ?Sized + fmt::Debug> fmt::Debug for SgxMutexGuard<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("MutexGuard")
-            .field("lock", &self.__lock)
-            .finish()
+        fmt::Debug::fmt(&**self, f)
     }
 }
 
-impl<'a, T: ?Sized + fmt::Display> fmt::Display for SgxMutexGuard<'a, T> {
+impl<T: ?Sized + fmt::Display> fmt::Display for SgxMutexGuard<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         (**self).fmt(f)
     }
 }
+
 pub fn guard_lock<'a, T: ?Sized>(guard: &SgxMutexGuard<'a, T>) -> &'a SgxThreadMutex {
     &guard.__lock.inner
 }

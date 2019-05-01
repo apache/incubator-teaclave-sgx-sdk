@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -201,7 +201,6 @@ impl SgxThreadData {
     ///
     /// This API is only an experimental funtion.
     ///
-    #[allow(clippy::cast_ptr_alignment)]
     pub fn new() -> Self {
         let td = unsafe {
             let p = rsgx_get_thread_data() as * const thread_data_t;

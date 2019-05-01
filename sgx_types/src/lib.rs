@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -32,7 +32,6 @@
 #![allow(non_snake_case)]
 #![allow(improper_ctypes)]
 #![allow(unused_macros)]
-#![allow(clippy::wrong_self_convention)]
 
 #[macro_use]
 mod macros;

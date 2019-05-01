@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -89,11 +89,15 @@ fn hton<I: NetInt>(i: I) -> I { i.to_be() }
 fn ntoh<I: NetInt>(i: I) -> I { I::from_be(i) }
 
 fn each_addr<A: ToSocketAddrs, F, T>(addr: A, mut f: F) -> io::Result<T>
-    where F: FnMut(&SocketAddr) -> io::Result<T>
+    where F: FnMut(io::Result<&SocketAddr>) -> io::Result<T>
 {
+    let addrs = match addr.to_socket_addrs() {
+        Ok(addrs) => addrs,
+        Err(e) => return f(Err(e))
+    };
     let mut last_err = None;
-    for addr in addr.to_socket_addrs()? {
-        match f(&addr) {
+    for addr in addrs {
+        match f(Ok(&addr)) {
             Ok(l) => return Ok(l),
             Err(e) => last_err = Some(e),
         }

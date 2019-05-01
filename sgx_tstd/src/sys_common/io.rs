@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -29,8 +29,8 @@
 use io;
 use io::ErrorKind;
 use io::Read;
-use alloc::slice::from_raw_parts_mut;
-use alloc::vec::Vec;
+use alloc_crate::slice::from_raw_parts_mut;
+use alloc_crate::vec::Vec;
 
 pub const DEFAULT_BUF_SIZE: usize = 8 * 1024;
 

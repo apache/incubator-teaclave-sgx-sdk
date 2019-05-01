@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -38,7 +38,7 @@
 //! Synchronization library supports, as well as the OCALLs that each API function needs.
 //!
 
-pub use alloc::sync::{Arc, Weak};
+pub use alloc_crate::sync::{Arc, Weak};
 pub use core::sync::atomic;
 
 pub use self::barrier::{Barrier, BarrierWaitResult};

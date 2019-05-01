@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -31,7 +31,6 @@
 //! This crate equals to the `liballoc_system` crate in Rust.
 //! It connects Rust memory allocation to Intel SGX's sgx_tstd library.
 //! It is essential, because we depends on Intel SGX's SDK.
-//! 2018-06-22 Add liballoc components here
 
 #![no_std]
 
@@ -39,17 +38,42 @@
 
 extern crate sgx_trts;
 
-use core::alloc::{GlobalAlloc, Alloc, AllocErr, Layout};
-use core::ptr::NonNull;
-
 // The minimum alignment guaranteed by the architecture. This value is used to
-// add fast paths for low alignment values. In practice, the alignment is a
-// constant at the call site and the branch will be optimized out.
+// add fast paths for low alignment values.
 #[cfg(target_arch = "x86")]
+#[allow(dead_code)]
 const MIN_ALIGN: usize = 8;
 #[cfg(target_arch = "x86_64")]
+#[allow(dead_code)]
 const MIN_ALIGN: usize = 16;
 
+use core::alloc::{Alloc, GlobalAlloc, AllocErr, Layout};
+use core::ptr::NonNull;
+
+/// The default memory allocator provided by the operating system.
+///
+/// This is based on `malloc` on Unix platforms and `HeapAlloc` on Windows,
+/// plus related functions.
+///
+/// This type can be used in a `static` item
+/// with the `#[global_allocator]` attribute
+/// to force the global allocator to be the system’s one.
+/// (The default is jemalloc for executables, on some platforms.)
+///
+/// ```rust
+/// use std::alloc::System;
+///
+/// #[global_allocator]
+/// static A: System = System;
+///
+/// fn main() {
+///     let a = Box::new(4); // Allocates from the system allocator.
+///     println!("{}", a);
+/// }
+/// ```
+///
+/// It can also be used directly to allocate memory
+/// independently of the standard library’s global allocator.
 pub struct System;
 
 unsafe impl Alloc for System {
@@ -59,26 +83,23 @@ unsafe impl Alloc for System {
     }
 
     #[inline]
-    unsafe fn alloc_zeroed(&mut self, layout: Layout)
-        -> Result<NonNull<u8>, AllocErr>
-    {
+    unsafe fn alloc_zeroed(&mut self, layout: Layout) -> Result<NonNull<u8>, AllocErr> {
         NonNull::new(GlobalAlloc::alloc_zeroed(self, layout)).ok_or(AllocErr)
     }
 
     #[inline]
-    unsafe fn dealloc(&mut self, ptr: core::ptr::NonNull<u8>, layout: Layout) {
+    unsafe fn dealloc(&mut self, ptr: NonNull<u8>, layout: Layout) {
         GlobalAlloc::dealloc(self, ptr.as_ptr(), layout)
     }
 
     #[inline]
     unsafe fn realloc(&mut self,
-                      ptr: core::ptr::NonNull<u8>,
+                      ptr: NonNull<u8>,
                       layout: Layout,
                       new_size: usize) -> Result<NonNull<u8>, AllocErr> {
         NonNull::new(GlobalAlloc::realloc(self, ptr.as_ptr(), layout, new_size)).ok_or(AllocErr)
     }
 }
-
 
 mod realloc_fallback {
     use core::alloc::{GlobalAlloc, Layout};
@@ -103,8 +124,8 @@ mod realloc_fallback {
 }
 
 mod platform {
+    use sgx_trts::libc;
 
-    use sgx_trts::libc::{self, c_void};
     use core::ptr;
 
     use MIN_ALIGN;
@@ -122,13 +143,11 @@ mod platform {
         }
 
         #[inline]
-        unsafe fn alloc_zeroed(&self, layout: Layout)
-            -> *mut u8
-        {
+        unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
             if layout.align() <= MIN_ALIGN && layout.align() <= layout.size() {
                 libc::calloc(layout.size(), 1) as *mut u8
             } else {
-                let ptr = self.alloc(layout);
+                let ptr = self.alloc(layout.clone());
                 if !ptr.is_null() {
                     ptr::write_bytes(ptr, 0, layout.size());
                 }
@@ -138,14 +157,11 @@ mod platform {
 
         #[inline]
         unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
-            libc::free(ptr as *mut c_void)
+            libc::free(ptr as *mut libc::c_void)
         }
 
         #[inline]
-        unsafe fn realloc(&self,
-                          ptr: *mut u8,
-                          layout: Layout,
-                          new_size: usize) -> *mut u8 {
+        unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
             if layout.align() <= MIN_ALIGN && layout.align() <= new_size {
                 libc::realloc(ptr as *mut libc::c_void, new_size) as *mut u8
             } else {

@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -37,6 +37,9 @@
 pub use self::c_str::{CString, CStr, NulError, IntoStringError};
 pub use self::c_str::{FromBytesWithNulError};
 pub use self::os_str::{OsString, OsStr};
+
+pub use core::ffi::c_void;
+pub use core::ffi::VaList;
 
 mod c_str;
 mod os_str;

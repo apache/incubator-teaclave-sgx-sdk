@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -140,140 +140,6 @@ pub trait AsciiExt {
     /// inherent methods on `u8`, `char`, `[u8]` and `str`.
     ///
     fn make_ascii_lowercase(&mut self);
-
-    /// Checks if the value is an ASCII alphabetic character:
-    /// U+0041 'A' ... U+005A 'Z' or U+0061 'a' ... U+007A 'z'.
-    /// For strings, true if all characters in the string are
-    /// ASCII alphabetic.
-    ///
-    /// # Note
-    ///
-    /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
-    fn is_ascii_alphabetic(&self) -> bool { unimplemented!(); }
-
-    /// Checks if the value is an ASCII uppercase character:
-    /// U+0041 'A' ... U+005A 'Z'.
-    /// For strings, true if all characters in the string are
-    /// ASCII uppercase.
-    ///
-    /// # Note
-    ///
-    /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
-    fn is_ascii_uppercase(&self) -> bool { unimplemented!(); }
-
-    /// Checks if the value is an ASCII lowercase character:
-    /// U+0061 'a' ... U+007A 'z'.
-    /// For strings, true if all characters in the string are
-    /// ASCII lowercase.
-    ///
-    /// # Note
-    ///
-    /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
-    fn is_ascii_lowercase(&self) -> bool { unimplemented!(); }
-
-    /// Checks if the value is an ASCII alphanumeric character:
-    /// U+0041 'A' ... U+005A 'Z', U+0061 'a' ... U+007A 'z', or
-    /// U+0030 '0' ... U+0039 '9'.
-    /// For strings, true if all characters in the string are
-    /// ASCII alphanumeric.
-    ///
-    /// # Note
-    ///
-    /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
-    fn is_ascii_alphanumeric(&self) -> bool { unimplemented!(); }
-
-    /// Checks if the value is an ASCII decimal digit:
-    /// U+0030 '0' ... U+0039 '9'.
-    /// For strings, true if all characters in the string are
-    /// ASCII digits.
-    ///
-    /// # Note
-    ///
-    /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
-    fn is_ascii_digit(&self) -> bool { unimplemented!(); }
-
-    /// Checks if the value is an ASCII hexadecimal digit:
-    /// U+0030 '0' ... U+0039 '9', U+0041 'A' ... U+0046 'F', or
-    /// U+0061 'a' ... U+0066 'f'.
-    /// For strings, true if all characters in the string are
-    /// ASCII hex digits.
-    ///
-    /// # Note
-    ///
-    /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
-    fn is_ascii_hexdigit(&self) -> bool { unimplemented!(); }
-
-    /// Checks if the value is an ASCII punctuation character:
-    ///
-    /// U+0021 ... U+002F `! " # $ % & ' ( ) * + , - . /`
-    /// U+003A ... U+0040 `: ; < = > ? @`
-    /// U+005B ... U+0060 ``[ \\ ] ^ _ ` ``
-    /// U+007B ... U+007E `{ | } ~`
-    ///
-    /// For strings, true if all characters in the string are
-    /// ASCII punctuation.
-    ///
-    /// # Note
-    ///
-    /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
-    fn is_ascii_punctuation(&self) -> bool { unimplemented!(); }
-
-    /// Checks if the value is an ASCII graphic character:
-    /// U+0021 '!' ... U+007E '~'.
-    /// For strings, true if all characters in the string are
-    /// ASCII graphic characters.
-    ///
-    /// # Note
-    ///
-    /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
-    fn is_ascii_graphic(&self) -> bool { unimplemented!(); }
-
-    /// Checks if the value is an ASCII whitespace character:
-    /// U+0020 SPACE, U+0009 HORIZONTAL TAB, U+000A LINE FEED,
-    /// U+000C FORM FEED, or U+000D CARRIAGE RETURN.
-    /// For strings, true if all characters in the string are
-    /// ASCII whitespace.
-    ///
-    /// Rust uses the WhatWG Infra Standard's [definition of ASCII
-    /// whitespace][infra-aw].  There are several other definitions in
-    /// wide use.  For instance, [the POSIX locale][pct] includes
-    /// U+000B VERTICAL TAB as well as all the above characters,
-    /// but—from the very same specification—[the default rule for
-    /// "field splitting" in the Bourne shell][bfs] considers *only*
-    /// SPACE, HORIZONTAL TAB, and LINE FEED as whitespace.
-    ///
-    /// If you are writing a program that will process an existing
-    /// file format, check what that format's definition of whitespace is
-    /// before using this function.
-    ///
-    /// [infra-aw]: https://infra.spec.whatwg.org/#ascii-whitespace
-    /// [pct]: http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap07.html#tag_07_03_01
-    /// [bfs]: http://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_06_05
-    ///
-    /// # Note
-    ///
-    /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
-    fn is_ascii_whitespace(&self) -> bool { unimplemented!(); }
-
-    /// Checks if the value is an ASCII control character:
-    /// U+0000 NUL ... U+001F UNIT SEPARATOR, or U+007F DELETE.
-    /// Note that most ASCII whitespace characters are control
-    /// characters, but SPACE is not.
-    ///
-    /// # Note
-    ///
-    /// This method will be deprecated in favor of the identically-named
-    /// inherent methods on `u8`, `char`, `[u8]` and `str`.
-    fn is_ascii_control(&self) -> bool { unimplemented!(); }
 }
 
 macro_rules! delegating_ascii_methods {
@@ -298,46 +164,11 @@ macro_rules! delegating_ascii_methods {
     }
 }
 
-macro_rules! delegating_ascii_ctype_methods {
-    () => {
-        #[inline]
-        fn is_ascii_alphabetic(&self) -> bool { self.is_ascii_alphabetic() }
-
-        #[inline]
-        fn is_ascii_uppercase(&self) -> bool { self.is_ascii_uppercase() }
-
-        #[inline]
-        fn is_ascii_lowercase(&self) -> bool { self.is_ascii_lowercase() }
-
-        #[inline]
-        fn is_ascii_alphanumeric(&self) -> bool { self.is_ascii_alphanumeric() }
-
-        #[inline]
-        fn is_ascii_digit(&self) -> bool { self.is_ascii_digit() }
-
-        #[inline]
-        fn is_ascii_hexdigit(&self) -> bool { self.is_ascii_hexdigit() }
-
-        #[inline]
-        fn is_ascii_punctuation(&self) -> bool { self.is_ascii_punctuation() }
-
-        #[inline]
-        fn is_ascii_graphic(&self) -> bool { self.is_ascii_graphic() }
-
-        #[inline]
-        fn is_ascii_whitespace(&self) -> bool { self.is_ascii_whitespace() }
-
-        #[inline]
-        fn is_ascii_control(&self) -> bool { self.is_ascii_control() }
-    }
-}
-
 #[allow(deprecated)]
 impl AsciiExt for u8 {
     type Owned = u8;
 
     delegating_ascii_methods!();
-    delegating_ascii_ctype_methods!();
 }
 
 #[allow(deprecated)]
@@ -345,7 +176,6 @@ impl AsciiExt for char {
     type Owned = char;
 
     delegating_ascii_methods!();
-    delegating_ascii_ctype_methods!();
 }
 
 #[allow(deprecated)]
@@ -353,56 +183,6 @@ impl AsciiExt for [u8] {
     type Owned = Vec<u8>;
 
     delegating_ascii_methods!();
-
-    #[inline]
-    fn is_ascii_alphabetic(&self) -> bool {
-        self.iter().all(|b| b.is_ascii_alphabetic())
-    }
-
-    #[inline]
-    fn is_ascii_uppercase(&self) -> bool {
-        self.iter().all(|b| b.is_ascii_uppercase())
-    }
-
-    #[inline]
-    fn is_ascii_lowercase(&self) -> bool {
-        self.iter().all(|b| b.is_ascii_lowercase())
-    }
-
-    #[inline]
-    fn is_ascii_alphanumeric(&self) -> bool {
-        self.iter().all(|b| b.is_ascii_alphanumeric())
-    }
-
-    #[inline]
-    fn is_ascii_digit(&self) -> bool {
-        self.iter().all(|b| b.is_ascii_digit())
-    }
-
-    #[inline]
-    fn is_ascii_hexdigit(&self) -> bool {
-        self.iter().all(|b| b.is_ascii_hexdigit())
-    }
-
-    #[inline]
-    fn is_ascii_punctuation(&self) -> bool {
-        self.iter().all(|b| b.is_ascii_punctuation())
-    }
-
-    #[inline]
-    fn is_ascii_graphic(&self) -> bool {
-        self.iter().all(|b| b.is_ascii_graphic())
-    }
-
-    #[inline]
-    fn is_ascii_whitespace(&self) -> bool {
-        self.iter().all(|b| b.is_ascii_whitespace())
-    }
-
-    #[inline]
-    fn is_ascii_control(&self) -> bool {
-        self.iter().all(|b| b.is_ascii_control())
-    }
 }
 
 #[allow(deprecated)]
@@ -410,54 +190,4 @@ impl AsciiExt for str {
     type Owned = String;
 
     delegating_ascii_methods!();
-
-    #[inline]
-    fn is_ascii_alphabetic(&self) -> bool {
-        self.bytes().all(|b| b.is_ascii_alphabetic())
-    }
-
-    #[inline]
-    fn is_ascii_uppercase(&self) -> bool {
-        self.bytes().all(|b| b.is_ascii_uppercase())
-    }
-
-    #[inline]
-    fn is_ascii_lowercase(&self) -> bool {
-        self.bytes().all(|b| b.is_ascii_lowercase())
-    }
-
-    #[inline]
-    fn is_ascii_alphanumeric(&self) -> bool {
-        self.bytes().all(|b| b.is_ascii_alphanumeric())
-    }
-
-    #[inline]
-    fn is_ascii_digit(&self) -> bool {
-        self.bytes().all(|b| b.is_ascii_digit())
-    }
-
-    #[inline]
-    fn is_ascii_hexdigit(&self) -> bool {
-        self.bytes().all(|b| b.is_ascii_hexdigit())
-    }
-
-    #[inline]
-    fn is_ascii_punctuation(&self) -> bool {
-        self.bytes().all(|b| b.is_ascii_punctuation())
-    }
-
-    #[inline]
-    fn is_ascii_graphic(&self) -> bool {
-        self.bytes().all(|b| b.is_ascii_graphic())
-    }
-
-    #[inline]
-    fn is_ascii_whitespace(&self) -> bool {
-        self.bytes().all(|b| b.is_ascii_whitespace())
-    }
-
-    #[inline]
-    fn is_ascii_control(&self) -> bool {
-        self.bytes().all(|b| b.is_ascii_control())
-    }
 }

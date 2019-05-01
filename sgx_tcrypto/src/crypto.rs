@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -2719,7 +2719,6 @@ pub fn rsgx_rsa3072_verify_slice<T>(data: &[T],
     }
 }
 
-#[allow(clippy::many_single_char_names)]
 pub fn rsgx_create_rsa_key_pair(n_byte_size: i32,
                                 e_byte_size: i32,
                                 n: &mut [u8],

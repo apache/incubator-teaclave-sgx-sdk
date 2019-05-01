@@ -84,7 +84,6 @@
 //! ```
 
 #![no_std]
-#![cfg_attr(not(feature="std"), feature(alloc))]
 
 #![cfg_attr(all(test, feature = "nightly"), feature(test))]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]

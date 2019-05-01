@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -29,13 +29,13 @@
 use sys_common::{AsInner, IntoInner};
 use core::fmt;
 use core::mem;
-use alloc::borrow::Cow;
-use alloc::str;
-use alloc::string::String;
-use alloc::vec::Vec;
-use alloc::boxed::Box;
-use alloc::rc::Rc;
-use alloc::sync::Arc;
+use alloc_crate::borrow::Cow;
+use alloc_crate::str;
+use alloc_crate::string::String;
+use alloc_crate::vec::Vec;
+use alloc_crate::boxed::Box;
+use alloc_crate::rc::Rc;
+use alloc_crate::sync::Arc;
 use sys_common::bytestring::debug_fmt_bytestring;
 use core::str::lossy::Utf8Lossy;
 

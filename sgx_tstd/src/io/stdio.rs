@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -33,7 +33,7 @@ use sync::{SgxMutex, SgxMutexGuard, SgxReentrantMutex, SgxReentrantMutexGuard};
 use sys::stdio;
 use core::cell::RefCell;
 use core::fmt;
-use alloc::sync::Arc;
+use alloc_crate::sync::Arc;
 
 /// A handle to a raw instance of the standard input stream of this process.
 ///
@@ -140,7 +140,7 @@ fn handle_ebadf<T>(r: io::Result<T>, default: T) -> io::Result<T> {
 ///
 /// Each handle is a shared reference to a global buffer of input data to this
 /// process. A handle can be `lock`'d to gain full access to [`BufRead`] methods
-/// (e.g. `.lines()`). Reads to this handle are otherwise locked with respect
+/// (e.g., `.lines()`). Reads to this handle are otherwise locked with respect
 /// to other reads.
 ///
 /// This handle implements the `Read` trait, but beware that concurrent reads
@@ -150,6 +150,11 @@ fn handle_ebadf<T>(r: io::Result<T>, default: T) -> io::Result<T> {
 ///
 /// [`io::stdin`]: fn.stdin.html
 /// [`BufRead`]: trait.BufRead.html
+///
+/// ### Note: Windows Portability Consideration
+/// When operating in a console, the Windows implementation of this stream does not support
+/// non-UTF-8 byte sequences. Attempting to read bytes that are not valid UTF-8 will return
+/// an error.
 pub struct Stdin {
     inner: Arc<SgxMutex<BufReader<Maybe<StdinRaw>>>>,
 }
@@ -162,6 +167,11 @@ pub struct Stdin {
 /// [`Read`]: trait.Read.html
 /// [`BufRead`]: trait.BufRead.html
 /// [`Stdin::lock`]: struct.Stdin.html#method.lock
+///
+/// ### Note: Windows Portability Consideration
+/// When operating in a console, the Windows implementation of this stream does not support
+/// non-UTF-8 byte sequences. Attempting to read bytes that are not valid UTF-8 will return
+/// an error.
 pub struct StdinLock<'a> {
     inner: SgxMutexGuard<'a, BufReader<Maybe<StdinRaw>>>,
 }
@@ -174,13 +184,21 @@ pub struct StdinLock<'a> {
 ///
 /// [lock]: struct.Stdin.html#method.lock
 ///
+/// ### Note: Windows Portability Consideration
+/// When operating in a console, the Windows implementation of this stream does not support
+/// non-UTF-8 byte sequences. Attempting to read bytes that are not valid UTF-8 will return
+/// an error.
+///
 pub fn stdin() -> Stdin {
-    static INSTANCE: LazyStatic<SgxMutex<BufReader<Maybe<StdinRaw>>>> = LazyStatic::new(stdin_init);
+    static INSTANCE: LazyStatic<SgxMutex<BufReader<Maybe<StdinRaw>>>> = LazyStatic::new();
     return Stdin {
-        inner: INSTANCE.get().expect("cannot access stdin during shutdown"),
+        inner: unsafe {
+            INSTANCE.get(stdin_init).expect("cannot access stdin during shutdown")
+        },
     };
 
     fn stdin_init() -> Arc<SgxMutex<BufReader<Maybe<StdinRaw>>>> {
+        // This must not reentrantly access `INSTANCE`
         let stdin = match stdin_raw() {
             Ok(stdin) => Maybe::Real(stdin),
             _ => Maybe::Fake
@@ -242,7 +260,7 @@ impl Read for Stdin {
     }
 }
 
-impl<'a> Read for StdinLock<'a> {
+impl Read for StdinLock<'_> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
     }
@@ -252,12 +270,12 @@ impl<'a> Read for StdinLock<'a> {
     }
 }
 
-impl<'a> BufRead for StdinLock<'a> {
+impl BufRead for StdinLock<'_> {
     fn fill_buf(&mut self) -> io::Result<&[u8]> { self.inner.fill_buf() }
     fn consume(&mut self, n: usize) { self.inner.consume(n) }
 }
 
-impl<'a> fmt::Debug for StdinLock<'a> {
+impl fmt::Debug for StdinLock<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.pad("StdinLock { .. }")
     }
@@ -270,6 +288,11 @@ impl<'a> fmt::Debug for StdinLock<'a> {
 /// over locking is available via the [`lock`] method.
 ///
 /// Created by the [`io::stdout`] method.
+///
+/// ### Note: Windows Portability Consideration
+/// When operating in a console, the Windows implementation of this stream does not support
+/// non-UTF-8 byte sequences. Attempting to write bytes that are not valid UTF-8 will return
+/// an error.
 ///
 /// [`lock`]: #method.lock
 /// [`io::stdout`]: fn.stdout.html
@@ -285,6 +308,11 @@ pub struct Stdout {
 /// This handle implements the [`Write`] trait, and is constructed via
 /// the [`Stdout::lock`] method.
 ///
+/// ### Note: Windows Portability Consideration
+/// When operating in a console, the Windows implementation of this stream does not support
+/// non-UTF-8 byte sequences. Attempting to write bytes that are not valid UTF-8 will return
+/// an error.
+///
 /// [`Write`]: trait.Write.html
 /// [`Stdout::lock`]: struct.Stdout.html#method.lock
 pub struct StdoutLock<'a> {
@@ -299,14 +327,21 @@ pub struct StdoutLock<'a> {
 ///
 /// [Stdout::lock]: struct.Stdout.html#method.lock
 ///
+/// ### Note: Windows Portability Consideration
+/// When operating in a console, the Windows implementation of this stream does not support
+/// non-UTF-8 byte sequences. Attempting to write bytes that are not valid UTF-8 will return
+/// an error.
+///
 pub fn stdout() -> Stdout {
-    static INSTANCE: LazyStatic<SgxReentrantMutex<RefCell<LineWriter<Maybe<StdoutRaw>>>>>
-        = LazyStatic::new(stdout_init);
+    static INSTANCE: LazyStatic<SgxReentrantMutex<RefCell<LineWriter<Maybe<StdoutRaw>>>>> = LazyStatic::new();
     return Stdout {
-        inner: INSTANCE.get().expect("cannot access stdout during shutdown"),
+        inner: unsafe {
+            INSTANCE.get(stdout_init).expect("cannot access stdout during shutdown")
+        },
     };
 
     fn stdout_init() -> Arc<SgxReentrantMutex<RefCell<LineWriter<Maybe<StdoutRaw>>>>> {
+        // This must not reentrantly access `INSTANCE`
         let stdout = match stdout_raw() {
             Ok(stdout) => Maybe::Real(stdout),
             _ => Maybe::Fake,
@@ -348,7 +383,7 @@ impl Write for Stdout {
     }
 }
 
-impl<'a> Write for StdoutLock<'a> {
+impl Write for StdoutLock<'_> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.inner.borrow_mut().write(buf)
     }
@@ -357,7 +392,7 @@ impl<'a> Write for StdoutLock<'a> {
     }
 }
 
-impl<'a> fmt::Debug for StdoutLock<'a> {
+impl fmt::Debug for StdoutLock<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.pad("StdoutLock { .. }")
     }
@@ -368,6 +403,11 @@ impl<'a> fmt::Debug for StdoutLock<'a> {
 /// For more information, see the [`io::stderr`] method.
 ///
 /// [`io::stderr`]: fn.stderr.html
+///
+/// ### Note: Windows Portability Consideration
+/// When operating in a console, the Windows implementation of this stream does not support
+/// non-UTF-8 byte sequences. Attempting to write bytes that are not valid UTF-8 will return
+/// an error.
 pub struct Stderr {
     inner: Arc<SgxReentrantMutex<RefCell<Maybe<StderrRaw>>>>,
 }
@@ -386,13 +426,20 @@ pub struct StderrLock<'a> {
 ///
 /// This handle is not buffered.
 ///
+/// ### Note: Windows Portability Consideration
+/// When operating in a console, the Windows implementation of this stream does not support
+/// non-UTF-8 byte sequences. Attempting to write bytes that are not valid UTF-8 will return
+/// an error.
 pub fn stderr() -> Stderr {
-    static INSTANCE: LazyStatic<SgxReentrantMutex<RefCell<Maybe<StderrRaw>>>> = LazyStatic::new(stderr_init);
+    static INSTANCE: LazyStatic<SgxReentrantMutex<RefCell<Maybe<StderrRaw>>>> = LazyStatic::new();
     return Stderr {
-        inner: INSTANCE.get().expect("cannot access stderr during shutdown"),
+        inner: unsafe {
+            INSTANCE.get(stderr_init).expect("cannot access stderr during shutdown")
+        },
     };
 
     fn stderr_init() -> Arc<SgxReentrantMutex<RefCell<Maybe<StderrRaw>>>> {
+        // This must not reentrantly access `INSTANCE`
         let stderr = match stderr_raw() {
             Ok(stderr) => Maybe::Real(stderr),
             _ => Maybe::Fake,
@@ -434,7 +481,7 @@ impl Write for Stderr {
     }
 }
 
-impl<'a> Write for StderrLock<'a> {
+impl Write for StderrLock<'_> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.inner.borrow_mut().write(buf)
     }
@@ -443,7 +490,7 @@ impl<'a> Write for StderrLock<'a> {
     }
 }
 
-impl<'a> fmt::Debug for StderrLock<'a> {
+impl fmt::Debug for StderrLock<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.pad("StderrLock { .. }")
     }
@@ -454,8 +501,8 @@ impl<'a> fmt::Debug for StderrLock<'a> {
 ///
 /// This function is used to print error messages, so it takes extra
 /// care to avoid causing a panic when `local_stream` is unusable.
-/// For instance, if the TLS key for the local stream is uninitialized
-/// or already destroyed, or if the local stream is locked by another
+/// For instance, if the TLS key for the local stream is
+/// already destroyed, or if the local stream is locked by another
 /// thread, it will just fall back to the global stream.
 ///
 /// However, if the actual I/O causes an error, this function does panic.

@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -212,15 +212,42 @@ impl File {
 
         // Currently the standard library supports Linux 2.6.18 which did not
         // have the O_CLOEXEC flag (passed above). If we're running on an older
-        // Linux kernel then the flag is just ignored by the OS, so we continue
-        // to explicitly ask for a CLOEXEC fd here.
+        // Linux kernel then the flag is just ignored by the OS. After we open
+        // the first file, we check whether it has CLOEXEC set. If it doesn't,
+        // we will explicitly ask for a CLOEXEC fd for every further file we
+        // open, if it does, we will skip that step.
         //
         // The CLOEXEC flag, however, is supported on versions of macOS/BSD/etc
         // that we support, so we only do this on Linux currently.
-        if cfg!(target_os = "linux") {
-            fd.set_cloexec()?;
+        fn ensure_cloexec(fd: &FileDesc) -> io::Result<()> {
+            use sync::atomic::{AtomicUsize, Ordering};
+
+            const OPEN_CLOEXEC_UNKNOWN: usize = 0;
+            const OPEN_CLOEXEC_SUPPORTED: usize = 1;
+            const OPEN_CLOEXEC_NOTSUPPORTED: usize = 2;
+            static OPEN_CLOEXEC: AtomicUsize = AtomicUsize::new(OPEN_CLOEXEC_UNKNOWN);
+
+            let need_to_set;
+            match OPEN_CLOEXEC.load(Ordering::Relaxed) {
+                OPEN_CLOEXEC_UNKNOWN => {
+                    need_to_set = !fd.get_cloexec()?;
+                    OPEN_CLOEXEC.store(if need_to_set {
+                        OPEN_CLOEXEC_NOTSUPPORTED
+                    } else {
+                        OPEN_CLOEXEC_SUPPORTED
+                    }, Ordering::Relaxed);
+                },
+                OPEN_CLOEXEC_SUPPORTED => need_to_set = false,
+                OPEN_CLOEXEC_NOTSUPPORTED => need_to_set = true,
+                _ => unreachable!(),
+            }
+            if need_to_set {
+                fd.set_cloexec()?;
+            }
+            Ok(())
         }
 
+        ensure_cloexec(&fd)?;
         Ok(File(fd))
     }
 
@@ -229,7 +256,7 @@ impl File {
         cvt(unsafe {
             libc::fstat64(self.0.raw(), &mut stat)
         })?;
-        Ok(FileAttr { stat: stat })
+        Ok(FileAttr { stat })
     }
 
     pub fn fsync(&self) -> io::Result<()> {
@@ -404,7 +431,7 @@ pub fn stat(p: &Path) -> io::Result<FileAttr> {
     cvt(unsafe {
         libc::stat64(p.as_ptr(), &mut stat as *mut _)
     })?;
-    Ok(FileAttr { stat: stat })
+    Ok(FileAttr { stat })
 }
 
 pub fn lstat(p: &Path) -> io::Result<FileAttr> {
@@ -413,7 +440,7 @@ pub fn lstat(p: &Path) -> io::Result<FileAttr> {
     cvt(unsafe {
         libc::lstat64(p.as_ptr(), &mut stat as *mut _)
     })?;
-    Ok(FileAttr { stat: stat })
+    Ok(FileAttr { stat })
 }
 
 pub fn canonicalize(p: &Path) -> io::Result<PathBuf> {
@@ -434,9 +461,9 @@ pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
 
     cfg_if! {
         if #[cfg(feature = "untrusted_fs")] {
-            use fs::{File, set_permissions};
+            use fs::File;
         } else {
-            use untrusted::fs::{File, set_permissions};
+            use untrusted::fs::File;
             use untrusted::path::PathEx;
         }
     }
@@ -451,7 +478,7 @@ pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
     let perm = reader.metadata()?.permissions();
 
     let ret = io::copy(&mut reader, &mut writer)?;
-    set_permissions(to, perm)?;
+    writer.set_permissions(perm)?;
     Ok(ret)
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -78,7 +78,10 @@
 #![feature(alloc)]
 #![feature(allocator_api)]
 #![feature(asm)]
-#![feature(lang_items)]
+#![feature(rustc_const_unstable)]
+#![feature(const_raw_ptr_deref)]
+#![feature(const_cstr_unchecked)]
+#![feature(const_fn)]
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 #![allow(overflowing_literals)]

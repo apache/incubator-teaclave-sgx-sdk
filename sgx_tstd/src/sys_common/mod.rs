@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -35,10 +35,22 @@ pub mod io;
 pub mod memchr;
 pub mod poison;
 pub mod thread_info;
+pub mod util;
 pub mod wtf8;
 #[cfg(feature = "net")]
 pub mod net;
 pub mod bytestring;
+
+macro_rules! rtabort {
+    ($($t:tt)*) => (::sys_common::util::abort(format_args!($($t)*)))
+}
+
+#[allow(unused_macros)]
+macro_rules! rtassert {
+    ($e:expr) => (if !$e {
+        rtabort!(concat!("assertion failed: ", stringify!($e)));
+    })
+}
 
 /// A trait for viewing representations from std types
 #[doc(hidden)]
@@ -83,7 +95,6 @@ pub fn at_exit<F: FnOnce() + Send + 'static>(f: F) -> Result<(), ()> {
 //pub fn cleanup() {
 //
 //    use sync::Once;
-//
 //    static CLEANUP: Once = Once::new();
 //    CLEANUP.call_once(||
 //        at_exit_imp::cleanup()

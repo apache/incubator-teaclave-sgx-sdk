@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -43,5 +43,5 @@ pub fn parse_prefix(_: &OsStr) -> Option<Prefix> {
     None
 }
 
-pub const MAIN_SEP_STR: &'static str = "/";
+pub const MAIN_SEP_STR: &str = "/";
 pub const MAIN_SEP: char = '/';

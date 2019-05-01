@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -234,7 +234,7 @@ impl<'a> Iterator for SplitPaths<'a> {
     fn size_hint(&self) -> (usize, Option<usize>) { self.inner.size_hint() }
 }
 
-impl<'a> fmt::Debug for SplitPaths<'a> {
+impl fmt::Debug for SplitPaths<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.pad("SplitPaths { .. }")
     }
@@ -276,7 +276,6 @@ impl fmt::Display for JoinPathsError {
 }
 
 impl Error for JoinPathsError {
-    #[allow(deprecated)]
     fn description(&self) -> &str { self.inner.description() }
 }
 
@@ -299,7 +298,7 @@ pub mod consts {
     /// - powerpc64
     /// - s390x
     /// - sparc64
-    pub const ARCH: &'static str = super::arch::ARCH;
+    pub const ARCH: &str = super::arch::ARCH;
 
     /// The family of the operating system. Example value is `unix`.
     ///
@@ -307,7 +306,7 @@ pub mod consts {
     ///
     /// - unix
     /// - windows
-    pub const FAMILY: &'static str = os::FAMILY;
+    pub const FAMILY: &str = os::FAMILY;
 
     /// A string describing the specific operating system in use.
     /// Example value is `linux`.
@@ -325,7 +324,7 @@ pub mod consts {
     /// - solaris
     /// - android
     /// - windows
-    pub const OS: &'static str = os::OS;
+    pub const OS: &str = os::OS;
 
     /// Specifies the filename prefix used for shared libraries on this
     /// platform. Example value is `lib`.
@@ -334,7 +333,7 @@ pub mod consts {
     ///
     /// - lib
     /// - `""` (an empty string)
-    pub const DLL_PREFIX: &'static str = os::DLL_PREFIX;
+    pub const DLL_PREFIX: &str = os::DLL_PREFIX;
 
     /// Specifies the filename suffix used for shared libraries on this
     /// platform. Example value is `.so`.
@@ -344,7 +343,7 @@ pub mod consts {
     /// - .so
     /// - .dylib
     /// - .dll
-    pub const DLL_SUFFIX: &'static str = os::DLL_SUFFIX;
+    pub const DLL_SUFFIX: &str = os::DLL_SUFFIX;
 
     /// Specifies the file extension used for shared libraries on this
     /// platform that goes after the dot. Example value is `so`.
@@ -354,7 +353,7 @@ pub mod consts {
     /// - so
     /// - dylib
     /// - dll
-    pub const DLL_EXTENSION: &'static str = os::DLL_EXTENSION;
+    pub const DLL_EXTENSION: &str = os::DLL_EXTENSION;
 
     /// Specifies the filename suffix used for executable binaries on this
     /// platform. Example value is `.exe`.
@@ -365,7 +364,7 @@ pub mod consts {
     /// - .nexe
     /// - .pexe
     /// - `""` (an empty string)
-    pub const EXE_SUFFIX: &'static str = os::EXE_SUFFIX;
+    pub const EXE_SUFFIX: &str = os::EXE_SUFFIX;
 
     /// Specifies the file extension, if any, used for executable binaries
     /// on this platform. Example value is `exe`.
@@ -374,15 +373,15 @@ pub mod consts {
     ///
     /// - exe
     /// - `""` (an empty string)
-    pub const EXE_EXTENSION: &'static str = os::EXE_EXTENSION;
+    pub const EXE_EXTENSION: &str = os::EXE_EXTENSION;
 }
 
 #[cfg(target_arch = "x86")]
 mod arch {
-    pub const ARCH: &'static str = "x86";
+    pub const ARCH: &str = "x86";
 }
 
 #[cfg(target_arch = "x86_64")]
 mod arch {
-    pub const ARCH: &'static str = "x86_64";
+    pub const ARCH: &str = "x86_64";
 }
