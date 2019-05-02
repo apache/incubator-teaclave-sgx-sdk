@@ -1,5 +1,5 @@
 use libc::{size_t, c_int, c_void};
-use libc::{EINVAL, E2BIG, EOVERFLOW};
+use libc::{EINVAL, EOVERFLOW};
 use libc::memset;
 use sgx_types::sgx_status_t;
 use rand_core::RngCore;
@@ -7,10 +7,9 @@ use rdrand;
 use std::ptr::copy_nonoverlapping;
 
 type errno_t = c_int;
-const SIZE_MAX: size_t = std::usize::MAX;
 
 #[no_mangle]
-pub extern "C"
+pub unsafe extern "C"
 fn memset_s(p : *mut c_void,
             destsz: size_t,
             ch: c_int,
@@ -19,15 +18,11 @@ fn memset_s(p : *mut c_void,
         return EINVAL;
     }
 
-    if destsz > SIZE_MAX || count > SIZE_MAX {
-        return E2BIG;
-    }
-
     if count > destsz {
         return EOVERFLOW;
     }
 
-    unsafe {memset(p, ch, count);}
+    memset(p, ch, count);
 
     0
 }
