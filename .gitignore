@@ -16,3 +16,11 @@ Cargo.lock
 *_u.h
 *_t.c
 *_t.h
+
+#generated sample files
+samplecode/*/app/target
+samplecode/*/bin/*
+samplecode/*/enclave/target
+
+#generated assembly
+third_party/ring/pregenerated
