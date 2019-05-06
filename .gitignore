@@ -16,3 +16,10 @@ Cargo.lock
 *_u.h
 *_t.c
 *_t.h
+
+#build file
+**/bin/app
+**/target
+
+#third party
+third_party/ring/pregenerated/
