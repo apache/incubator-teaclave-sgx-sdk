@@ -42,18 +42,18 @@
 #![allow(non_snake_case)]
 #![allow(clippy::too_many_arguments)]
 
-#![cfg_attr(all(feature = "enclave_cargo", not(target_env = "sgx")), no_std)]
+#![cfg_attr(all(feature = "mesalock_sgx", not(target_env = "sgx")), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![cfg_attr(test, feature(test))]
 
-#[cfg(all(feature = "enclave_cargo", not(target_env = "sgx")))]
+#[cfg(all(feature = "mesalock_sgx", not(target_env = "sgx")))]
 #[macro_use]
 extern crate sgx_tstd as std;
 
 extern crate sgx_types;
-#[cfg(any(feature = "enclave_cargo", target_env = "sgx"))]
+#[cfg(any(feature = "mesalock_sgx", target_env = "sgx"))]
 extern crate sgx_tcrypto as crypto;
-#[cfg(not(any(feature = "enclave_cargo", target_env = "sgx")))]
+#[cfg(not(any(feature = "mesalock_sgx", target_env = "sgx")))]
 extern crate sgx_ucrypto as crypto;
 
 use std::prelude::v1::*;
