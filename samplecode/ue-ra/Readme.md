@@ -64,3 +64,11 @@ Start client
 cd ue-ra-client
 cargo run
 ```
+
+Start client-go (golang should be installed)
+```
+cd ue-ra-client-go
+make
+cd bin
+./app
+```
