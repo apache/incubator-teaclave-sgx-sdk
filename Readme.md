@@ -15,6 +15,11 @@ We changed the built-in EDL files. Please carefully upgrade your EDL files on `i
 
 This is not the final release of v1.0.7 and I haven't tagged it yet. I'll remove this line after the release of v1.0.7. We welcome bug reports!
 
+**ATTENTION**: Starts from Intel SGX SDK 2.5, `aesmd` requires a environment variable to start. If you are using docker, please start `aesmd` as:
+```
+# LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service &
+```
+
 ## v1.0.6 Release
 Fix bugs in sgx_alloc, sgx_types, ucd-generate and improve sgx_tunittest. Added rust-base58. Thanks to @elichai, @cbeck88, @brenzi and @nhynes.
 
@@ -43,7 +48,7 @@ This version provides a new namespace: `sgx_tstd::untrusted`, including `sgx_tst
 
 Ubuntu 16.04 or 18.04
 
-[Intel SGX SDK 2.4 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
+[Intel SGX SDK 2.5 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
 
 Docker (Recommended)
 
@@ -60,7 +65,7 @@ Install Intel SGX driver and SDK first. And refer to [Dockerfile](dockerfile/Doc
 
 * As of v1.0.5, we provide 4 docker images: `baiduxlab/sgx-rust:1604-1.0.5` `baiduxlab/sgx-rust:1804-1.0.5` `baiduxlab/sgx-rust-stable:1604-1.0.5` `baiduxlab/sgx-rust-stable:1804-1.0.5`. The `latest` tag pins on `baiduxlab/sgx-rust:1604-1.0.5`.
 
-First, make sure Intel SGX Driver 2.4 is installed and functions well. `/dev/isgx` should appear.
+First, make sure Intel SGX Driver 2.5 is installed and functions well. `/dev/isgx` should appear.
 
 Second, pull the docker image. If you'd like to work on stable branch of Rust and `rust-stable` branch of this SDK, please pull `baiduxlab/sgx-rust-stable` instead.
 
@@ -72,7 +77,7 @@ Third, start a docker with sgx device support and the Rust SGX SDK.
 
 Next, start the aesm service inside the docker
 
-`root@docker:/# /opt/intel/libsgx-enclave-common/aesm/aesm_service &`
+`root@docker:/# LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service &`
 
 Finally, check if the sample code works
 
