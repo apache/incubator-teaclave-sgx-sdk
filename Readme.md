@@ -63,7 +63,7 @@ Install Intel SGX driver and SDK first. And refer to [Dockerfile](dockerfile/Doc
 
 ### Using docker (Recommended) without ME support
 
-* As of v1.0.5, we provide 4 docker images: `baiduxlab/sgx-rust:1604-1.0.5` `baiduxlab/sgx-rust:1804-1.0.5` `baiduxlab/sgx-rust-stable:1604-1.0.5` `baiduxlab/sgx-rust-stable:1804-1.0.5`. The `latest` tag pins on `baiduxlab/sgx-rust:1604-1.0.5`.
+* As of v1.0.7, we provide 4 docker images: `baiduxlab/sgx-rust:1604-1.0.7` `baiduxlab/sgx-rust:1804-1.0.7` `baiduxlab/sgx-rust-stable:1604-1.0.7` `baiduxlab/sgx-rust-stable:1804-1.0.7`. The `latest` tag pins on `baiduxlab/sgx-rust:1604-1.0.7`.
 
 First, make sure Intel SGX Driver 2.5 is installed and functions well. `/dev/isgx` should appear.
 
