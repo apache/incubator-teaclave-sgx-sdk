@@ -72,3 +72,10 @@ make
 cd bin
 ./app
 ```
+
+Start client-java (Java:1.8+, mvn)
+```
+cd ue-ra-client-java
+mvn install
+java -jar target/ue-ra-client-java-0.0.1-SNAPSHOT.jar
+```
