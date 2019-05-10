@@ -9,15 +9,13 @@ To help understand this project and know how to use it, we are writing some [wik
 
 ## v1.0.7 Release
 
-Supports Intel SGX SDK v2.5. Master branch supports Rust nightly build (nightly-2019-04-26) and stable branch supports Rust stable build (stable-2019-04-25).  Refactored `sgx_tstd` to support `mio`. More sample codes added. And we are maintaining forks of popular crates on Github organization [mesalock-linux](https://github.com/mesalock-linux). The ported crates are syncing with the original crates with the help of [Pull](https://pull.now.sh) bot and we manually port almost all tests from the original crates to test if the ported crate works well in SGX. Please refer to [release_notes](release_notes.md) for further details.
+Supports Intel SGX SDK v2.5. Master branch supports Rust nightly build (nightly-2019-04-26) and stable branch supports Rust stable build (stable-2019-04-25).  Refactored `sgx_tstd` to support `mio`. More sample codes added, including Java/Go clients for ue-ra (Thanks to @bradyjoestar)!. And we are maintaining forks of popular crates on Github organization [mesalock-linux](https://github.com/mesalock-linux). The ported crates are syncing with the original crates with the help of [Pull](https://pull.now.sh) bot and we manually port almost all tests from the original crates to test if the ported crate works well in SGX. Please refer to [release_notes](release_notes.md) for further details.
 
 We changed the built-in EDL files. Please carefully upgrade your EDL files on `import` statements. If you encountered any problems during compilation, please create issue and let me know. Thanks!
 
-This is not the final release of v1.0.7 and I haven't tagged it yet. I'll remove this line after the release of v1.0.7. We welcome bug reports!
-
 **ATTENTION**: Starts from Intel SGX SDK 2.5, `aesmd` requires a environment variable to start. If you are using docker, please start `aesmd` as:
 ```
-# LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service &
+LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service
 ```
 
 ## v1.0.6 Release

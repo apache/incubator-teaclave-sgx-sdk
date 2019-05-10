@@ -14,11 +14,15 @@
 
 **sgx_crypto_helper can export public key now** Please refer to static-data-distribution for usages.
 
+**sgx_tcrypto_helper can be directly used for enclave** Thanks to @brenzi and @electronix!
+
 **sealeddata sample supports `T` and `[T]` and serialized data structures** Thanks to @matthias-g!
 
 **`quote_type` is configurable now in all Rust-based remote attestation sample codes** Thanks to @bradyjoestar!
 
 **New sample code tr-mpc** Thanks to @bradyjoestar!
+
+**New sample code: Go and Java ue-ra client** Thanks to @bradyjoestar!
 
 **New sample code sgxcounter** shows how to use Monotonic Counter in SGX.
 
