@@ -9,9 +9,14 @@ To help understand this project and know how to use it, we are writing some [wik
 
 ## v1.0.7 Release
 
-Supports Intel SGX SDK v2.5. Master branch supports Rust nightly build (nightly-2019-04-26) and stable branch supports Rust stable build (stable-2019-04-25).  Refactored `sgx_tstd` to support `mio`. More sample codes added. And we are maintaining forks of popular crates on Github organization [mesalock-linux](https://github.com/mesalock-linux). The ported crates are syncing with the original crates with the help of [Pull](https://pull.now.sh) bot and we manually port almost all tests from the original crates to test if the ported crate works well in SGX. Please refer to [release_notes](release_notes.md) for further details.
+Supports Intel SGX SDK v2.5. Master branch supports Rust nightly build (nightly-2019-04-26) and stable branch supports Rust stable build (stable-2019-04-25).  Refactored `sgx_tstd` to support `mio`. More sample codes added, including Java/Go clients for ue-ra (Thanks to @bradyjoestar)!. And we are maintaining forks of popular crates on Github organization [mesalock-linux](https://github.com/mesalock-linux). The ported crates are syncing with the original crates with the help of [Pull](https://pull.now.sh) bot and we manually port almost all tests from the original crates to test if the ported crate works well in SGX. Please refer to [release_notes](release_notes.md) for further details.
 
 We changed the built-in EDL files. Please carefully upgrade your EDL files on `import` statements. If you encountered any problems during compilation, please create issue and let me know. Thanks!
+
+**ATTENTION**: Starts from Intel SGX SDK 2.5, `aesmd` requires a environment variable to start. If you are using docker, please start `aesmd` as:
+```
+LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service
+```
 
 ## v1.0.6 Release
 Fix bugs in sgx_alloc, sgx_types, ucd-generate and improve sgx_tunittest. Added rust-base58. Thanks to @elichai, @cbeck88, @brenzi and @nhynes.
@@ -41,7 +46,7 @@ This version provides a new namespace: `sgx_tstd::untrusted`, including `sgx_tst
 
 Ubuntu 16.04 or 18.04
 
-[Intel SGX SDK 2.4 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
+[Intel SGX SDK 2.5 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
 
 Docker (Recommended)
 
@@ -56,9 +61,9 @@ Install Intel SGX driver and SDK first. And refer to [Dockerfile](dockerfile/Doc
 
 ### Using docker (Recommended) without ME support
 
-* As of v1.0.5, we provide 4 docker images: `baiduxlab/sgx-rust:1604-1.0.5` `baiduxlab/sgx-rust:1804-1.0.5` `baiduxlab/sgx-rust-stable:1604-1.0.5` `baiduxlab/sgx-rust-stable:1804-1.0.5`. The `latest` tag pins on `baiduxlab/sgx-rust:1604-1.0.5`.
+* As of v1.0.7, we provide 4 docker images: `baiduxlab/sgx-rust:1604-1.0.7` `baiduxlab/sgx-rust:1804-1.0.7` `baiduxlab/sgx-rust-stable:1604-1.0.7` `baiduxlab/sgx-rust-stable:1804-1.0.7`. The `latest` tag pins on `baiduxlab/sgx-rust:1604-1.0.7`.
 
-First, make sure Intel SGX Driver 2.4 is installed and functions well. `/dev/isgx` should appear.
+First, make sure Intel SGX Driver 2.5 is installed and functions well. `/dev/isgx` should appear.
 
 Second, pull the docker image. If you'd like to work on stable branch of Rust and `rust-stable` branch of this SDK, please pull `baiduxlab/sgx-rust-stable` instead.
 
@@ -70,7 +75,7 @@ Third, start a docker with sgx device support and the Rust SGX SDK.
 
 Next, start the aesm service inside the docker
 
-`root@docker:/# /opt/intel/libsgx-enclave-common/aesm/aesm_service &`
+`root@docker:/# LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service &`
 
 Finally, check if the sample code works
 

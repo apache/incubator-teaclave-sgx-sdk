@@ -1,3 +1,31 @@
+# Rust SGX SDK v1.0.7 Release Notes
+
+**Supports Intel SGX SDK v2.5**
+
+**Supports Rust nightly-2019-04-26** in master branch (rustc 1.36.0)
+
+**Supports Rust stable-2019-04-25** in stable branch (rustc 1.34.1)
+
+**Refactored `sgx_tstd` to support mio**
+
+**New sample code mio** shows how to use ported version of mio in SGX enclave.
+
+**sgx_tunittest gives more information on return and supports closures** Thanks to @elichai!
+
+**sgx_crypto_helper can export public key now** Please refer to static-data-distribution for usages.
+
+**sgx_tcrypto_helper can be directly used for enclave** Thanks to @brenzi and @electronix!
+
+**sealeddata sample supports `T` and `[T]` and serialized data structures** Thanks to @matthias-g!
+
+**`quote_type` is configurable now in all Rust-based remote attestation sample codes** Thanks to @bradyjoestar!
+
+**New sample code tr-mpc** Thanks to @bradyjoestar!
+
+**New sample code: Go and Java ue-ra client** Thanks to @bradyjoestar!
+
+**New sample code sgxcounter** shows how to use Monotonic Counter in SGX.
+
 # Rust SGX SDK v1.0.6 Release Notes
 
 **Add proper support to memalign in sgx_alloc** Thanks to @cbeck88.
