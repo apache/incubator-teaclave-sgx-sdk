@@ -25,8 +25,7 @@ public class PemReader {
             CASE_INSENSITIVE);
 
     public static List<X509Certificate> readCertificateChain(File certificateChainFile)
-            throws IOException, GeneralSecurityException
-    {
+            throws IOException, GeneralSecurityException {
         String contents = readFile(certificateChainFile);
 
         Matcher matcher = CERT_PATTERN.matcher(contents);
@@ -44,8 +43,7 @@ public class PemReader {
     }
 
     private static String readFile(File file)
-            throws IOException
-    {
+            throws IOException {
         try (Reader reader = new InputStreamReader(new FileInputStream(file), US_ASCII)) {
             StringBuilder stringBuilder = new StringBuilder();
 
@@ -59,8 +57,7 @@ public class PemReader {
         }
     }
 
-    private static byte[] base64Decode(String base64)
-    {
+    private static byte[] base64Decode(String base64) {
         return Base64.getMimeDecoder().decode(base64.getBytes(US_ASCII));
     }
 
@@ -78,7 +75,7 @@ public class PemReader {
         //System.out.println("Private key\n"+privKeyPEM);
 
         org.bouncycastle.util.encoders.Base64 b64 = new org.bouncycastle.util.encoders.Base64();
-        byte [] decoded = b64.decode(privKeyPEM);
+        byte[] decoded = b64.decode(privKeyPEM);
 
         PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(decoded);
         KeyFactory kf = KeyFactory.getInstance(algorithm);

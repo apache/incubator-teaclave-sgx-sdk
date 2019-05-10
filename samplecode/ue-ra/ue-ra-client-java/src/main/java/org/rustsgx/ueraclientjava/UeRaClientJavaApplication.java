@@ -6,57 +6,37 @@ import javax.net.ssl.*;
 import java.io.*;
 import java.net.Socket;
 import java.security.*;
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
-import java.util.List;
 
 @SpringBootApplication
 public class UeRaClientJavaApplication {
 
-	public static void main(String[] args) {
+    public static void main(String[] args) {
+        System.out.println("Starting ue-ra-client-java");
 
-		HostnameVerifier hv = new HostnameVerifier() {
-			public boolean verify(String hostname, SSLSession session) { return true; }
-		};
-		try{
-			File crtFile = new File("./../cert/client.crt");
-			List<X509Certificate> certificateChain = PemReader.readCertificateChain(crtFile);
+        try {
+            SSLContext sc = SSLContext.getInstance("SSL");
+            SgxCertVerifier sgxCertVerifier = new SgxCertVerifier();
+            sc.init(sgxCertVerifier.keyManagerFactory.getKeyManagers(), sgxCertVerifier.trustAllCerts, new SecureRandom());
 
-			PrivateKey key = PemReader.getPemPrivateKey("./../cert/client.pkcs8","EC");
+            SSLSocketFactory sf = sc.getSocketFactory();
 
-			KeyStore keyStore = KeyStore.getInstance("JKS");
-			keyStore.load(null, null);
-			keyStore.setKeyEntry("key", key, "".toCharArray(), certificateChain.stream().toArray(Certificate[]::new));
+            System.out.println("Connecting to  localhost:3443");
+            Socket s = sf.createSocket("127.0.0.1", 3443);
 
-			KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance("SunX509");
-			keyManagerFactory.init(keyStore, "".toCharArray());
+            DataOutputStream out = new DataOutputStream(s.getOutputStream());
+            String str = "hello ue-ra-java-client";
+            out.write(str.getBytes());
 
-			SSLContext sc = SSLContext.getInstance("SSL");
-			SgxCertVerifier sgxCertVerifier = new SgxCertVerifier();
-			sc.init(keyManagerFactory.getKeyManagers(), sgxCertVerifier.trustAllCerts, new SecureRandom());
+            BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()));
+            String x = in.readLine();
+            System.out.printf("server replied:  %s\n", x);
 
-			SSLSocketFactory sf = sc.getSocketFactory();
-
-			Socket s = sf.createSocket("127.0.0.1", 3443);
-
-			// 向客户端回复信息
-			DataOutputStream out = new DataOutputStream(s.getOutputStream());
-			System.out.print("请输入:\t");
-			// 发送键盘输入的一行
-			String str = new BufferedReader(new InputStreamReader(System.in)).readLine();
-			out.writeUTF(str);
-
-			BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()));
-			String x = in.readLine();
-			System.out.println(x);
-
-			out.close();
-			in.close();
-		}catch (Exception e){
-			System.out.println(e.toString());
-			return;
-		}
-		System.out.println("loadKeyStore success");
-	}
+            out.close();
+            in.close();
+        } catch (Exception e) {
+            System.out.println(e.toString());
+            System.exit(0);
+        }
+    }
 
 }
