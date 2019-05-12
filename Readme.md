@@ -9,6 +9,8 @@ To help understand this project and know how to use it, we are writing some [wik
 
 Current wiki pages:
 
+* [Performance Optimization Tips](https://github.com/baidu/rust-sgx-sdk/wiki/Performance-Optimization-Tips)
+
 * [Use VSCode rls+rust-analysis+sgx-gdb for graphic developing (not in docker)](https://github.com/baidu/rust-sgx-sdk/wiki/Use-VSCode---rls---rust-analysis---sgx-gdb-for-graphic-developing-(not-in-docker))
 
 * [Debugging local enclave in docker](https://github.com/baidu/rust-sgx-sdk/wiki/Debugging-a-local-Rust-SGX-enclave-in-docker-with-sgx-gdb)
