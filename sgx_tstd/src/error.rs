@@ -51,6 +51,23 @@ pub trait Error: Debug + Display {
     fn cause(&self) -> Option<&Error> { None }
 
     /// Get the `TypeId` of `self`
+    /// Pending CVE number here
+    /// https://github.com/rust-lang/rust/issues/60784
+    /// Alex said:
+    /// This leaves us, however, with the question of what to do about this
+    /// API? Error::type_id has been present since the inception of the Error
+    /// trait, all the way back to 1.0.0. It's unstable, however, and is pretty
+    /// rare as well to have a manual implementation of the type_id function.
+    /// Despite this we would ideally still like a path to stability which
+    /// includes safety at some point.
+    ///
+    /// This tracking issue is intended to serve as a location to discuss this
+    /// issue and determine the best way forward to fully removing Error::type_id
+    /// (so even nightly users are not affected by this memory safety issue) and
+    /// having a stable mechanism for the functionality.
+    ///
+    /// Yu: Mark as deprecated for compile-time warning
+    #[deprecated]
     fn type_id(&self) -> TypeId where Self: 'static {
         TypeId::of::<Self>()
     }
@@ -243,6 +260,8 @@ impl Error + 'static {
         let t = TypeId::of::<T>();
 
         // Get TypeId of the type in the trait object
+        // Allow type_id here because the impl here is safe
+        #[allow(deprecated)]
         let boxed = self.type_id();
 
         // Compare both TypeIds on equality
