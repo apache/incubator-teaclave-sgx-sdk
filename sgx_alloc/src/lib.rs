@@ -46,9 +46,9 @@ use core::ptr::NonNull;
 // add fast paths for low alignment values. In practice, the alignment is a
 // constant at the call site and the branch will be optimized out.
 #[cfg(target_arch = "x86")]
-pub const MIN_ALIGN: usize = 8;
+const MIN_ALIGN: usize = 8;
 #[cfg(target_arch = "x86_64")]
-pub const MIN_ALIGN: usize = 8;
+const MIN_ALIGN: usize = 8;
 
 pub struct System;
 
