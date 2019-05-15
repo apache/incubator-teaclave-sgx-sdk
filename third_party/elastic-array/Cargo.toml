@@ -1,0 +1,22 @@
+[package]
+name = "elastic-array"
+version = "0.10.2"
+authors = ["debris <marek.kotewicz@gmail.com>"]
+license = "MIT"
+description = "Elastic vector backed by fixed size array"
+repository = "https://github.com/debris/elastic-array"
+
+[dependencies]
+heapsize = { version = "0.4", path = "../heapsize", optional = true }
+
+[dev-dependencies]
+rand = "0.4"
+
+[badges]
+travis-ci = { repository = "debris/elastic-array" }
+
+[features]
+default = ["std"]
+std = [
+  "heapsize"
+]
