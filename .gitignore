@@ -19,7 +19,7 @@ Cargo.lock
 
 #generated sample files
 samplecode/**/target
-samplecode/**/bin/*
+samplecode/**/bin/*[!md]
 
 #generated assembly
 third_party/ring/pregenerated
