@@ -3,6 +3,8 @@
 # Rust SGX SDK
 Rust SGX SDK helps developers write Intel SGX applications in Rust programming language. [[Paper pdf]](documents/ccsp17.pdf)
 
+New! We open-sourced [gbdt-rs](https://github.com/mesalock-linux/gbdt-rs), a light-weight, amazingly fast, memory safe, and trustworthy gradient boosting decision tree implementation and the [paper](documents/gbdt.pdf) has been accepted by IEEE S&P'19! It is optimized for SGX!
+
 To achieve better security, we recommend developers to apply [Non-bypassable Security Paradigm (NbSP)](https://github.com/baidu/rust-sgx-sdk/blob/master/documents/nbsp.pdf) to the system design and implementation.
 
 To help understand this project and know how to use it, we are writing some [wiki](https://github.com/baidu/rust-sgx-sdk/wiki) articles. Please [send me an email](mailto:rustsgx@gmail.com?subject=Wiki%20page%20needed:) if you'd like to see other topics. We'll add it as soon as possible.
