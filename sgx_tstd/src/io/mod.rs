@@ -46,7 +46,7 @@ pub use self::lazy::{Lazy};
 
 pub use sys::os::{errno, set_errno, error_string};
 #[cfg(feature = "stdio")]
-pub use self::stdio::{stdin, stdout, stderr, _print, Stdin, Stdout, Stderr};
+pub use self::stdio::{stdin, stdout, stderr, _print, _eprint, Stdin, Stdout, Stderr};
 #[cfg(feature = "stdio")]
 pub use self::stdio::{StdoutLock, StderrLock, StdinLock};
 //#[doc(no_inline, hidden)]
