@@ -1,0 +1,29 @@
+environment:
+  matrix:
+    - FEATURES: ""
+
+platform:
+  - x86_64-pc-windows-msvc
+
+# avoid running tests twice
+branches:
+  only:
+    - master
+
+install:
+  - curl -sSf -o rustup-init.exe https://win.rustup.rs/
+  - rustup-init.exe -y --default-host %PLATFORM%
+  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
+  - rustc -vV
+  - cargo -vV
+
+build_script:
+  - cargo check --tests --features "%FEATURES%"
+  - cargo build --all --features "%FEATURES%"
+
+test_script:
+  - cargo test --all --features "%FEATURES%" --exclude uint --exclude fixed-hash
+  - cd fixed-hash/ && cargo test --all-features && cd ..
+  - cd uint/ && cargo test --features=std,quickcheck --release && cd ..
+  - cd plain_hasher/ && cargo test --no-default-features && cd ..
+  - cd parity-util-mem/ && cargo test --features=estimate-heapsize && cd ..

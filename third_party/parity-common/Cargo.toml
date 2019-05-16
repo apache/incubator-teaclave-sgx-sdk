@@ -1,0 +1,21 @@
+[workspace]
+members = [
+	"fixed-hash",
+	"keccak-hash",
+	"kvdb",
+	"kvdb-memorydb",
+	"kvdb-rocksdb",
+	"parity-bytes",
+	"parity-crypto",
+	"parity-path",
+	"plain_hasher",
+	"rlp",
+	"transaction-pool",
+	"trace-time",
+	"triehash",
+	"uint",
+	"parity-util-mem",
+	"primitive-types",
+	"ethereum-types",
+	"ethbloom",
+]
