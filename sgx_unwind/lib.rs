@@ -17,6 +17,7 @@
 #![feature(unwind_attributes)]
 #![feature(static_nobundle)]
 
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![cfg_attr(not(target_env = "msvc"), feature(libc))]
 
 #[macro_use]

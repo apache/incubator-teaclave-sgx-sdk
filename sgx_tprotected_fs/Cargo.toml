@@ -22,6 +22,6 @@ crate-type = ["rlib"]
 [features]
 default = []
 
-[dependencies]
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../sgx_types" }
 sgx_trts = { path = "../sgx_trts" }

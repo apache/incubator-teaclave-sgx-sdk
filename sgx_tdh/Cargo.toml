@@ -25,7 +25,7 @@ crate-type = ["rlib"]
 default = []
 use_lav2 = []
 
-[dependencies]
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../sgx_types" }
 sgx_trts = { path = "../sgx_trts" }
 sgx_tcrypto = { path = "../sgx_tcrypto" }

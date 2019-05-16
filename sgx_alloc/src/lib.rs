@@ -35,6 +35,8 @@
 
 #![no_std]
 
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+
 #![feature(allocator_api)]
 
 extern crate sgx_trts;
@@ -47,6 +49,9 @@ use core::ptr::NonNull;
 // constant at the call site and the branch will be optimized out.
 #[cfg(target_arch = "x86")]
 const MIN_ALIGN: usize = 8;
+
+// The alignment of sgx tlibc is 8
+// https://github.com/intel/linux-sgx/blob/master/sdk/tlibc/stdlib/malloc.c#L541
 #[cfg(target_arch = "x86_64")]
 const MIN_ALIGN: usize = 8;
 

@@ -33,6 +33,7 @@
 //! and they are verified for confidentiality and integrity during a read operation.
 
 #![no_std]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 extern crate sgx_types;
 extern crate sgx_trts;

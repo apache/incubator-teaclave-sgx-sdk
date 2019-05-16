@@ -79,7 +79,7 @@ cd bin
 ./app --verify(add --unlink if your spid's type is unlinkable)
 ```
 
-Start Alice's server 
+Start Alice's server
 
 ```
 cd tr-mpc-server

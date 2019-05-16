@@ -25,5 +25,5 @@ test = false
 bench = false
 doc = false
 
-[dependencies]
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_trts = { path = "../sgx_trts" }
