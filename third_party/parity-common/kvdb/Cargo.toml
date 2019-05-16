@@ -1,0 +1,14 @@
+[package]
+name = "kvdb"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+repository = "https://github.com/paritytech/parity-common"
+description = "Generic key-value trait"
+license = "GPL-3.0"
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path = "../../../sgx_tstd" }
+
+[dependencies]
+elastic-array = { version = "0.10.2", path = "../../elastic-array", default-features = false }
+parity-bytes = { version = "0.1.0", path = "../parity-bytes", default-features = false }
