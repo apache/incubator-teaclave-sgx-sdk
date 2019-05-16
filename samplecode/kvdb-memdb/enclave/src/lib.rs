@@ -38,6 +38,7 @@ extern crate sgx_types;
 extern crate sgx_tstd as std;
 
 extern crate elastic_array;
+extern crate parity_bytes;
 
 use sgx_types::*;
 use std::string::String;
@@ -46,6 +47,7 @@ use std::io::{self, Write};
 use std::slice;
 
 use elastic_array::ElasticArray2;
+use parity_bytes::BytesRef;
 
 #[no_mangle]
 pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_status_t {
@@ -86,6 +88,32 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
     assert_eq!(bytes.len(), 4);
     let r: &[u8] = &bytes;
     assert_eq!(r, &[1, 3, 4, 2]);
+
+    //test parity_byte import
+    let mut data1 = vec![0, 0, 0];
+    let mut data2 = vec![0, 0, 0];
+    let mut data3 = vec![0, 0, 0];
+    let (res1, res2, res3) = {
+        let mut bytes1 = BytesRef::Flexible(&mut data1);
+        let mut bytes2 = BytesRef::Flexible(&mut data2);
+        let mut bytes3 = BytesRef::Flexible(&mut data3);
+
+        // when
+        let res1 = bytes1.write(1, &[1, 1, 1]);
+        let res2 = bytes2.write(3, &[1, 1, 1]);
+        let res3 = bytes3.write(5, &[1, 1, 1]);
+        (res1, res2, res3)
+    };
+
+    // then
+    assert_eq!(&data1, &[0, 1, 1, 1]);
+    assert_eq!(res1, 3);
+
+    assert_eq!(&data2, &[0, 0, 0, 1, 1, 1]);
+    assert_eq!(res2, 3);
+
+    assert_eq!(&data3, &[0, 0, 0, 0, 0, 1, 1, 1]);
+    assert_eq!(res3, 5);
 
 
     sgx_status_t::SGX_SUCCESS
