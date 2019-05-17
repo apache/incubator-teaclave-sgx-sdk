@@ -12,9 +12,8 @@ default = []
 
 
 [dependencies]
-elastic-array = { path = "../../../third_party/elastic-array", default-features = false }
-parity-bytes = { path = "../../../third_party/parity-common/parity-bytes", default-features = false }
 kvdb = { path = "../../../third_party/parity-common/kvdb" }
+kvdb-memorydb = { path = "../../../third_party/parity-common/kvdb-memorydb" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../../../sgx_types" }
