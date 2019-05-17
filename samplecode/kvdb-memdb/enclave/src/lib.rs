@@ -37,8 +37,8 @@ extern crate sgx_types;
 #[macro_use]
 extern crate sgx_tstd as std;
 
-extern crate elastic_array;
-extern crate parity_bytes;
+extern crate kvdb;
+extern crate kvdb_memorydb;
 
 use sgx_types::*;
 use std::string::String;
@@ -46,8 +46,7 @@ use std::vec::Vec;
 use std::io::{self, Write};
 use std::slice;
 
-use elastic_array::ElasticArray2;
-use parity_bytes::BytesRef;
+use kvdb::{DBTransaction, KeyValueDB};
 
 #[no_mangle]
 pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_status_t {
@@ -77,43 +76,21 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
     // Ocall to normal world for output
     println!("{}", &hello_string);
 
-    println!("{}", &hello_string);
+    // test kvdb_memorydb
+    let db = kvdb_memorydb::create(0);
+    println!("Hello, world!");
 
-    // test elastic_array import
-    type BytesShort = ElasticArray2<u8>;
-    let mut bytes = BytesShort::new();
-    bytes.push(1);
-    bytes.push(2);
-    bytes.insert_slice(1, &[3, 4]);
-    assert_eq!(bytes.len(), 4);
-    let r: &[u8] = &bytes;
-    assert_eq!(r, &[1, 3, 4, 2]);
+    let mut batch = DBTransaction::new();
+    batch.put(None, b"foo", b"bar");
+    db.write_buffered(batch);
 
-    //test parity_byte import
-    let mut data1 = vec![0, 0, 0];
-    let mut data2 = vec![0, 0, 0];
-    let mut data3 = vec![0, 0, 0];
-    let (res1, res2, res3) = {
-        let mut bytes1 = BytesRef::Flexible(&mut data1);
-        let mut bytes2 = BytesRef::Flexible(&mut data2);
-        let mut bytes3 = BytesRef::Flexible(&mut data3);
+    let mut batch = DBTransaction::new();
+    batch.put(None, b"foo", b"baz");
+    db.write(batch).unwrap();
 
-        // when
-        let res1 = bytes1.write(1, &[1, 1, 1]);
-        let res2 = bytes2.write(3, &[1, 1, 1]);
-        let res3 = bytes3.write(5, &[1, 1, 1]);
-        (res1, res2, res3)
-    };
-
-    // then
-    assert_eq!(&data1, &[0, 1, 1, 1]);
-    assert_eq!(res1, 3);
-
-    assert_eq!(&data2, &[0, 0, 0, 1, 1, 1]);
-    assert_eq!(res2, 3);
-
-    assert_eq!(&data3, &[0, 0, 0, 0, 0, 1, 1, 1]);
-    assert_eq!(res3, 5);
+    assert_eq!(db.get(None, b"foo").unwrap().unwrap().as_ref(), b"baz");
+    println!("the data in the memorydb is: {:?}", String::from_utf8(db.get(None, b"foo").unwrap()
+        .unwrap().as_ref().to_vec()).expect("Invalid UTF-8").as_str());
 
 
     sgx_status_t::SGX_SUCCESS
