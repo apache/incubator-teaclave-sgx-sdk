@@ -1,0 +1,13 @@
+[package]
+name = "interleaved-ordered"
+description = "Combine two ordered iterators into one"
+version = "0.1.1"
+authors = ["Robert Habermeier <rphmeier@gmail.com>"]
+repository = "https://github.com/rphmeier/interleaved-ordered"
+documentation = "https://docs.rs/interleaved-ordered"
+license = "MIT"
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path = "../../../sgx_tstd" }
+
+[dependencies]
