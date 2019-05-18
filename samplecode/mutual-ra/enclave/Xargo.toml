@@ -31,6 +31,10 @@ stage = 2
 path = "../../../sgx_trts"
 stage = 3
 
+[dependencies.sgx_unwind]
+path = "../../../sgx_unwind"
+stage = 4
+
 [dependencies.sgx_tdh]
 path = "../../../sgx_tdh"
 stage = 4
@@ -39,12 +43,12 @@ stage = 4
 path = "../../../sgx_tseal"
 stage = 4
 
-[dependencies.sgx_alloc]
-path = "../../../sgx_alloc"
+[dependencies.sgx_tprotected_fs]
+path = "../../../sgx_tprotected_fs"
 stage = 4
 
-[dependencies.sgx_unwind]
-path = "../../../sgx_unwind"
+[dependencies.sgx_alloc]
+path = "../../../sgx_alloc"
 stage = 4
 
 [dependencies.std]
@@ -63,7 +67,3 @@ stage = 6
 [dependencies.sgx_tunittest]
 path = "../../../sgx_tunittest"
 stage = 6
-
-[dependencies.sgx_tprotected_fs]
-path = "../../../sgx_tprotected_fs"
-stage = 4
