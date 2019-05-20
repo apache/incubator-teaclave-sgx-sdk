@@ -19,6 +19,10 @@ Current wiki pages:
 
 * Everything about [environment setup](https://github.com/baidu/rust-sgx-sdk/wiki/Environment-Setup)
 
+## v1.0.8 Release
+
+Supports the most recent Rust nightly (nightly-2019-05-20) and Rust stable (stable-2019-05-14). Bug fixes in memory allocator and panicking routines. New third party libraries to support kvdb-memorydb. Please refer to [release_notes](release_notes.md) for more details.
+
 ## v1.0.7 Release
 
 Supports Intel SGX SDK v2.5. Master branch supports Rust nightly build (nightly-2019-04-26) and stable branch supports Rust stable build (stable-2019-04-25).  Refactored `sgx_tstd` to support `mio`. More sample codes added, including Java/Go clients for ue-ra (Thanks to @bradyjoestar)!. And we are maintaining forks of popular crates on Github organization [mesalock-linux](https://github.com/mesalock-linux). The ported crates are syncing with the original crates with the help of [Pull](https://pull.now.sh) bot and we manually port almost all tests from the original crates to test if the ported crate works well in SGX. Please refer to [release_notes](release_notes.md) for further details.

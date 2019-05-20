@@ -1,3 +1,23 @@
+# Rust SGX SDK v1.0.8 Release Notes
+
+**Supports Rust nightly-2019-05-20** in master branch (rustc 1.36.0)
+
+**Supports Rust stable-2019-05-14** in stable branch (rustc 1.34.2)
+
+* Bug fix in sgx_alloc. Correct the MIN_ALIGN to 8 bytes according to Intel's memory alloctor.
+
+* Bug fix in sgx_tstd/panicking.rs. Now master branch can output panic strings correctly.
+
+* Fix `eprintln!` support in sgx_tstd.
+
+* New code sample: kvdb-memdb and its dependencies. Thanks to @bradyjoestar !
+
+* Fixed all Makefiles. Put only `sgx_trts` in the "whole" linking group.
+
+* Fixed xargo sysroots and remove unused "ghost" crates under "xargo" directory. Now there is no duplicated SDK crates in the project.
+
+* Deprecated `sgx_tstd::Error::type_id` function. See Rust issue 60784.
+
 # Rust SGX SDK v1.0.7 Release Notes
 
 **Supports Intel SGX SDK v2.5**
