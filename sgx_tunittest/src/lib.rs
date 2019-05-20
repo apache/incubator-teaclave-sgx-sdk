@@ -160,7 +160,7 @@ macro_rules! should_panic {
 #[macro_export]
 macro_rules! rsgx_unit_tests {
     (
-        $($f : expr),*
+        $($f : expr),* $(,)?
     ) => {
         {
             rsgx_unit_test_start();
