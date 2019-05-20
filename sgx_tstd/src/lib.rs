@@ -56,7 +56,6 @@
 #![feature(allocator_api)]
 #![feature(allocator_internals)]
 #![feature(allow_internal_unstable)]
-#![feature(align_offset)]
 #![feature(array_error_internals)]
 #![feature(box_syntax)]
 #![feature(cfg_target_has_atomic)]
