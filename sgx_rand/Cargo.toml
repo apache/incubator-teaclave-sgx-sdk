@@ -1,6 +1,6 @@
 [package]
 name = "sgx_rand"
-version = "1.0.7"
+version = "1.0.8"
 authors = ["Baidu"]
 repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"
@@ -33,7 +33,7 @@ crate-type = ["rlib"]
 [features]
 default = []
 
-[dependencies]
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../sgx_types" }
 sgx_trts = { path = "../sgx_trts" }
 sgx_tstd = { path = "../sgx_tstd" }

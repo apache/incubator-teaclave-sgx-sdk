@@ -9,6 +9,17 @@ use std::ptr::copy_nonoverlapping;
 type errno_t = c_int;
 const SIZE_MAX: size_t = std::usize::MAX;
 
+// memset_s was defined in ISO C11
+// ISO/IEC 9899:2011 section K.3.7.4.1 The memset_s function
+// It returns:
+// [EINVAL]           The s argument was a null pointer.
+// [E2BIG]            One or both of smax or n was larger than RSIZE_MAX.
+// [EOVERFLOW]        n was larger than smax.
+//
+// In Linux-SGX environment, RSIZE_MAX is chosen to be -1ULL.
+// So the comparison is always false -- but I think keeping this code
+// here as well as these comments is better.
+#[allow(clippy::absurd_extreme_comparisons)]
 #[no_mangle]
 pub extern "C"
 fn memset_s(p : *mut c_void,
@@ -27,7 +38,7 @@ fn memset_s(p : *mut c_void,
         return EOVERFLOW;
     }
 
-    unsafe {memset(p, ch, count);}
+    unsafe { memset(p, ch, count); }
 
     0
 }
@@ -42,9 +53,7 @@ fn sgx_read_rand(rand: *mut u8, len: size_t) -> sgx_status_t {
     let mut tmp = vec![0; len];
     let mut rnd = rdrand::RdRand::new().unwrap();
     rnd.fill_bytes(&mut tmp);
-    unsafe {
-        copy_nonoverlapping(tmp.as_ptr(), rand, len);
-    }
+    unsafe { copy_nonoverlapping(tmp.as_ptr(), rand, len); }
     sgx_status_t::SGX_SUCCESS
 }
 

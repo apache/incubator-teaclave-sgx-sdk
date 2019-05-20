@@ -42,6 +42,8 @@
 //! `std`, as in [`use std::env`], or in expressions through the absolute path
 //! `::std`, as in [`::std::env::args`].
 
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+
 #![no_std]
 #![needs_panic_runtime]
 #![allow(non_camel_case_types)]

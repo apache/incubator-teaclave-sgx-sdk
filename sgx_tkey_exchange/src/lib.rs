@@ -33,6 +33,7 @@
 //!
 
 #![no_std]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 extern crate sgx_types;
 use sgx_types::*;

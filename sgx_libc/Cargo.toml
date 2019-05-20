@@ -1,6 +1,6 @@
 [package]
 name = "sgx_libc"
-version = "1.0.7"
+version = "1.0.8"
 authors = ["Baidu"]
 repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"
@@ -28,5 +28,5 @@ crate-type = ["rlib"]
 default = ["align"]
 align = []
 
-[target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dependencies]
+[target.'cfg(all(not(target_env = "sgx"), target_os = "linux", target_arch = "x86_64"))'.dependencies]
 sgx_types = { path = "../sgx_types" }

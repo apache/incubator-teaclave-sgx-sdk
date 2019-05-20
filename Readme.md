@@ -3,9 +3,25 @@
 # Rust SGX SDK
 Rust SGX SDK helps developers write Intel SGX applications in Rust programming language. [[Paper pdf]](documents/ccsp17.pdf)
 
+New! We open-sourced [gbdt-rs](https://github.com/mesalock-linux/gbdt-rs), a light-weight, amazingly fast, memory safe, and trustworthy gradient boosting decision tree implementation and the [paper](documents/gbdt.pdf) has been accepted by IEEE S&P'19! It is optimized for SGX!
+
 To achieve better security, we recommend developers to apply [Non-bypassable Security Paradigm (NbSP)](https://github.com/baidu/rust-sgx-sdk/blob/master/documents/nbsp.pdf) to the system design and implementation.
 
 To help understand this project and know how to use it, we are writing some [wiki](https://github.com/baidu/rust-sgx-sdk/wiki) articles. Please [send me an email](mailto:rustsgx@gmail.com?subject=Wiki%20page%20needed:) if you'd like to see other topics. We'll add it as soon as possible.
+
+Current wiki pages:
+
+* [Performance Optimization Tips](https://github.com/baidu/rust-sgx-sdk/wiki/Performance-Optimization-Tips)
+
+* [Use VSCode rls+rust-analysis+sgx-gdb for graphic developing (not in docker)](https://github.com/baidu/rust-sgx-sdk/wiki/Use-VSCode---rls---rust-analysis---sgx-gdb-for-graphic-developing-(not-in-docker))
+
+* [Debugging local enclave in docker](https://github.com/baidu/rust-sgx-sdk/wiki/Debugging-a-local-Rust-SGX-enclave-in-docker-with-sgx-gdb)
+
+* Everything about [environment setup](https://github.com/baidu/rust-sgx-sdk/wiki/Environment-Setup)
+
+## v1.0.8 Release
+
+Supports the most recent Rust nightly (nightly-2019-05-20) and Rust stable (stable-2019-05-14). Bug fixes in memory allocator and panicking routines. New third party libraries to support kvdb-memorydb. Please refer to [release_notes](release_notes.md) for more details.
 
 ## v1.0.7 Release
 

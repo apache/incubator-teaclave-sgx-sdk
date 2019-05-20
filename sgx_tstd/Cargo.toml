@@ -1,6 +1,6 @@
 [package]
 name = "sgx_tstd"
-version = "1.0.7"
+version = "1.0.8"
 authors = ["Baidu"]
 build = "build.rs"
 repository = "https://github.com/baidu/rust-sgx-sdk"
@@ -181,7 +181,7 @@ untrusted_time = []
 cc = "1.0"
 sgx_build_helper = { path = "../build_helper" }
 
-[dependencies]
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../sgx_types" }
 sgx_libc = { path = "../sgx_libc" }
 sgx_trts = { path = "../sgx_trts" }

@@ -56,6 +56,7 @@ pub struct enclave_css_t {
 
 /* version of metadata */
 /* based on 2.4 */
+/* https://github.com/intel/linux-sgx/blob/master/common/inc/internal/metadata.h#L41 */
 pub const MAJOR_VERSION         :u32 = 2;
 pub const MINOR_VERSION         :u32 = 4;
 pub const SGX_2_1_MAJOR_VERSION :u32 = 2;   //MAJOR_VERSION should not larger than 0ffffffff

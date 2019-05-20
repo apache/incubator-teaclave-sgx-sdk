@@ -1,6 +1,6 @@
 [package]
 name = "sgx_serialize_derive_internals"
-version = "1.0.7"
+version = "1.0.8"
 authors = ["Baidu"]
 repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"
