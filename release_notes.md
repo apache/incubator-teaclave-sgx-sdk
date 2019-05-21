@@ -18,6 +18,8 @@
 
 * Deprecated `sgx_tstd::Error::type_id` function. See Rust issue 60784.
 
+* sgx_tunittest is edition now! Thanks to @elichai!
+
 # Rust SGX SDK v1.0.7 Release Notes
 
 **Supports Intel SGX SDK v2.5**
