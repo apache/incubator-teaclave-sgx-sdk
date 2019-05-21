@@ -149,7 +149,7 @@ enclave/Enclave_t.o: $(Enclave_EDL_Files)
 	@echo "CC   <=  $<"
 
 $(RustEnclave_Name): enclave compiler-rt enclave/Enclave_t.o
-	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
+	ar d lib/libenclave.a udivti3.o
 	@$(CXX) enclave/Enclave_t.o -o $@ $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 

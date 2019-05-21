@@ -12,9 +12,9 @@ default = []
 
 
 [dependencies]
-kvdb = { path = "../../../third_party/parity-common/kvdb" }
-kvdb-memorydb = { path = "../../../third_party/parity-common/kvdb-memorydb" }
+kvdb = { git = "https://github.com/mesalock-linux/parity-common-sgx" }
+kvdb-memorydb = { git = "https://github.com/mesalock-linux/parity-common-sgx" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { path = "../../../sgx_types" }
-sgx_tstd = { path = "../../../sgx_tstd" }
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }

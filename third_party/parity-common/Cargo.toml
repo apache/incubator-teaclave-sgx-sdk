@@ -1,6 +1,0 @@
-[workspace]
-members = [
-	"kvdb",
-	"kvdb-memorydb",
-	"parity-bytes",
-]
