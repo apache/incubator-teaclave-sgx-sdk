@@ -1,0 +1,12 @@
+[package]
+name = "app"
+version = "1.0.0"
+authors = ["Baidu"]
+build = "build.rs"
+
+[dependencies]
+sgx_types = { path = "../../../sgx_types" }
+sgx_urts = { path = "../../../sgx_urts" }
+dirs = "1.0.2"
+rocksdb = "0.12.2"
+libc = "0.2"
