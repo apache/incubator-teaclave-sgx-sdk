@@ -309,15 +309,7 @@ fn ring_build_rs_main() {
 
 fn pregenerate_asm_main() {
     let pregenerated = PathBuf::from(PREGENERATED);
-
-    match std::fs::create_dir(&pregenerated) {
-        Err(_) => {
-            std::fs::remove_dir_all(&pregenerated).unwrap();
-            std::fs::create_dir(&pregenerated).unwrap();
-        },
-        _ => {},
-    }
-
+    if std::fs::create_dir(&pregenerated).is_err() { return; }
     let pregenerated_tmp = pregenerated.join("tmp");
     std::fs::create_dir(&pregenerated_tmp).unwrap();
 
