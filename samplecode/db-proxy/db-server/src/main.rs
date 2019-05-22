@@ -3,13 +3,12 @@ extern crate rocksdb;
 
 mod util;
 
-use libc::size_t;
-
-use rocksdb::{DBVector, Error, IteratorMode, Options, WriteBatch, DB};
+use rocksdb::DB;
 use util::DBPath;
 
 fn main() {
     let path = DBPath::new("_rust_rocksdb_snapshottest");
+    println!("DB init");
     {
         let db = DB::open_default(&path).unwrap();
 

@@ -149,7 +149,7 @@ enclave/Enclave_t.o: $(Enclave_EDL_Files)
 	@echo "CC   <=  $<"
 
 $(RustEnclave_Name): enclave compiler-rt enclave/Enclave_t.o
-	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
+	cp ../../../compiler-rt/libcompiler-rt-patch.a ./lib
 	@$(CXX) enclave/Enclave_t.o -o $@ $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
@@ -163,7 +163,7 @@ enclave:
 
 .PHONY: compiler-rt
 compiler-rt:
-	$(MAKE) -C ../../compiler-rt/ 2> /dev/null
+	$(MAKE) -C ../../../compiler-rt/ 2> /dev/null
 
 .PHONY: clean
 clean:
