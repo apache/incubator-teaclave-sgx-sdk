@@ -57,9 +57,8 @@ $(error Cannot set SGX_DEBUG and SGX_PRERELEASE at the same time!!)
 endif
 endif
 
-
 ifeq ($(SGX_DEBUG), 1)
-	SGX_COMMON_CFLAGS += -O0 -g
+	SGX_COMMON_CFLAGS += -O0 -g -ggdb
 else
 	SGX_COMMON_CFLAGS += -O2
 endif
@@ -87,7 +86,6 @@ App_Enclave_u_Object :=app/libEnclave_u.a
 App_Name := bin/app
 
 ######## Enclave Settings ########
-
 ifneq ($(SGX_MODE), HW)
 	Trts_Library_Name := sgx_trts_sim
 	Service_Library_Name := sgx_tservice_sim
@@ -137,7 +135,7 @@ $(App_Enclave_u_Object): app/Enclave_u.o
 	$(AR) rcsD $@ $^
 	cp $(App_Enclave_u_Object) ./lib
 
-$(App_Name): $(App_Enclave_u_Object) $(App_SRC_Files)
+$(App_Name): $(App_Enclave_u_Object) $(App_SRC_Files) $(CUSTOM_BIN_PATH)
 	@cd app && SGX_SDK=$(SGX_SDK) cargo build $(App_Rust_Flags)
 	@echo "Cargo  =>  $@"
 	cp $(App_Rust_Path)/app ./bin
@@ -157,6 +155,10 @@ $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/Enclave_private.pem -enclave $(RustEnclave_Name) -out $@ -config enclave/Enclave.config.xml
 	@echo "SIGN =>  $@"
 
+$(CUSTOM_BIN_PATH):
+	@echo "Folder $(CUSTOM_BIN_PATH) does not exist"
+	mkdir -p $@
+
 .PHONY: enclave
 enclave:
 	$(MAKE) -C ./enclave/
@@ -169,4 +171,5 @@ compiler-rt:
 clean:
 	@rm -f $(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) enclave/*_t.* app/*_u.* lib/*.a
 	@cargo clean && rm -f Cargo.lock
+
 
