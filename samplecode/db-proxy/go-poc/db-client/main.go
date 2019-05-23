@@ -16,9 +16,10 @@ type request struct {
 }
 
 type response struct {
-	RspStatus bool `json:rsp_status`
+	RspStatus bool   `json:rsp_status`
+	Data      string `json:data`
+	ErrorInfo string `json:errorInfo`
 }
-
 func main() {
 
 	fmt.Println("start db-client")
@@ -40,6 +41,15 @@ func main() {
 	}
 	log.Println("content:", string(rspBytes))
 
+	//try to insert data failed
+	rep = request{ReqType: "insert", Key: "db", Value: "proxy1"}
+	rspBytes, err = sendReq(rep)
+	if err!= nil{
+		panic(err)
+	}
+
+	log.Println("content:", string(rspBytes))
+
 	//try to delete data
 	rep = request{ReqType: "delete", Key: "db"}
 	rspBytes, err = sendReq(rep)
@@ -49,6 +59,23 @@ func main() {
 	log.Println("content:", string(rspBytes))
 
 	//try to get the deleted data
+	rep = request{ReqType: "get", Key: "db"}
+	rspBytes, err = sendReq(rep)
+	if err!= nil{
+		panic(err)
+	}
+	log.Println("content:", string(rspBytes))
+
+	//try to insert data ,success
+	rep = request{ReqType: "insert", Key: "db", Value: "proxy1"}
+	rspBytes, err = sendReq(rep)
+	if err!= nil{
+		panic(err)
+	}
+
+	log.Println("content:", string(rspBytes))
+
+	//try to get the inserted data
 	rep = request{ReqType: "get", Key: "db"}
 	rspBytes, err = sendReq(rep)
 	if err!= nil{
