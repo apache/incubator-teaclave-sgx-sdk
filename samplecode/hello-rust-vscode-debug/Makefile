@@ -138,6 +138,7 @@ $(App_Enclave_u_Object): app/Enclave_u.o
 $(App_Name): $(App_Enclave_u_Object) $(App_SRC_Files) $(CUSTOM_BIN_PATH)
 	@cd app && SGX_SDK=$(SGX_SDK) cargo build $(App_Rust_Flags)
 	@echo "Cargo  =>  $@"
+	mkdir -p bin
 	cp $(App_Rust_Path)/app ./bin
 
 ######## Enclave Objects ########
