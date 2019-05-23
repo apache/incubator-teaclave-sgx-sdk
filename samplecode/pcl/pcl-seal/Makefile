@@ -158,6 +158,7 @@ $(App_Name): $(App_Enclave_u_Object) $(App_SRC_Files) $(PayloadEnclave_Name)
 	cp $(App_Rust_Path)/app ./bin
 
 $(PayloadEnclave_Name):
+	mkdir bin
 	cp ../encrypted-hello/bin/enclave.signed.so $@
 
 ######## Enclave Objects ########
