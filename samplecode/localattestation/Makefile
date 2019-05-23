@@ -192,6 +192,7 @@ $(RustEnclave1_Name): enclave1 compiler-rt enclave1/Enclave1_t.o
 	@echo "LINK =>  $@"
 
 $(Signed_RustEnclave1_Name): $(RustEnclave1_Name)
+	mkdir -p bin
 	@$(SGX_ENCLAVE_SIGNER) sign -key enclave1/Enclave1_private.pem -enclave $(RustEnclave1_Name) -out $@ -config enclave1/Enclave1.config.xml
 	@echo "SIGN =>  $@"
 
@@ -208,6 +209,7 @@ $(RustEnclave2_Name): enclave2 compiler-rt enclave2/Enclave2_t.o
 	@echo "LINK =>  $@"
 
 $(Signed_RustEnclave2_Name): $(RustEnclave2_Name)
+	mkdir -p bin
 	@$(SGX_ENCLAVE_SIGNER) sign -key enclave2/Enclave2_private.pem -enclave $(RustEnclave2_Name) -out $@ -config enclave2/Enclave2.config.xml
 	@echo "SIGN =>  $@"
 
@@ -223,6 +225,7 @@ $(RustEnclave3_Name): enclave3 compiler-rt enclave3/Enclave3_t.o
 	@echo "LINK =>  $@"
 
 $(Signed_RustEnclave3_Name): $(RustEnclave3_Name)
+	mkdir -p bin
 	@$(SGX_ENCLAVE_SIGNER) sign -key enclave3/Enclave3_private.pem -enclave $(RustEnclave3_Name) -out $@ -config enclave3/Enclave3.config.xml
 	@echo "SIGN =>  $@"
 

@@ -151,6 +151,7 @@ $(Signed_RustEnclave_Name): $(RustEnclave_Name) $(Pcl_Encryption_Tool) $(PCL_KEY
 	@echo ""
 	$(Pcl_Encryption_Tool) -i $(RustEnclave_Name) -o $(Encrypted_RustEnclave_Name) -k $(PCL_KEY) $(Encryption_Tool_Flags)
 	@echo "Encrypted => $(Encrypted_RustEnclave_Name)"
+	mkdir -p bin
 	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/Enclave_private.pem -enclave $(Encrypted_RustEnclave_Name) -out $@ -config enclave/Enclave.config.xml
 	@echo "SIGN =>  $@"
 

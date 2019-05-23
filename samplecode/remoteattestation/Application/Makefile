@@ -245,6 +245,7 @@ $(Enclave_Name): raenclave enclave/enclave_t.o compiler-rt $(Enclave_Cpp_Objects
 	@echo "LINK =>  $@"
 
 $(Signed_Enclave_Name): $(Enclave_Name)
+	mkdir -p bin
 	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/enclave_private.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
 	@echo "SIGN =>  $@"
 

@@ -155,6 +155,7 @@ app/%.o: app/%.cpp
 
 $(App_Name): app/Enclave_u.o $(App_Cpp_Objects) sgx_ustdc
 	cp ../../sgx_ustdc/libsgx_ustdc.a ./lib
+	mkdir -p bin
 	@$(CXX) app/Enclave_u.o $(App_Cpp_Objects) -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
@@ -170,6 +171,7 @@ $(RustEnclave_Name): enclave compiler-rt enclave/Enclave_t.o
 	@echo "LINK =>  $@"
 
 $(Signed_RustEnclave_Name): $(RustEnclave_Name)
+	mkdir -p bin
 	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/Enclave_private.pem -enclave $(RustEnclave_Name) -out $@ -config enclave/Enclave.config.xml
 	@echo "SIGN =>  $@"
 
