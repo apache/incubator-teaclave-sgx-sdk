@@ -71,6 +71,8 @@ pub trait Error: Debug + Display {
     fn type_id(&self) -> TypeId where Self: 'static {
         TypeId::of::<Self>()
     }
+
+    fn source(&self) -> Option<&(dyn Error + 'static)> { None }
 }
 
 impl<'a, E: Error + 'a> From<E> for Box<Error + 'a> {
