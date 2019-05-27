@@ -25,7 +25,7 @@ func main() {
 	fmt.Println("start db-client")
 
 	//try to put data
-	rep := request{ReqType: "put", Key: "db", Value: "proxy"}
+	rep := request{ReqType: "put", Key: "dba", Value: "proxy"}
 	rspBytes, err := sendReq(rep)
 	if err!= nil{
 		panic(err)
@@ -33,6 +33,43 @@ func main() {
 
 	log.Println("content:", string(rspBytes))
 
+	//try to put data
+	rep = request{ReqType: "put", Key: "dbb", Value: "proxy"}
+	rspBytes, err = sendReq(rep)
+	if err!= nil{
+		panic(err)
+	}
+
+	log.Println("content:", string(rspBytes))
+
+	//try to put data
+	rep = request{ReqType: "put", Key: "dbc", Value: "proxy"}
+	rspBytes, err = sendReq(rep)
+	if err!= nil{
+		panic(err)
+	}
+
+	log.Println("content:", string(rspBytes))
+
+	//try to put data
+	rep = request{ReqType: "put", Key: "dbd", Value: "proxy"}
+	rspBytes, err = sendReq(rep)
+	if err!= nil{
+		panic(err)
+	}
+
+	log.Println("content:", string(rspBytes))
+
+	//try to put data
+	rep = request{ReqType: "put", Key: "db", Value: "proxy"}
+	rspBytes, err = sendReq(rep)
+	if err!= nil{
+		panic(err)
+	}
+
+	log.Println("content:", string(rspBytes))
+
+	//
 	//try to get data
 	rep = request{ReqType: "get", Key: "db"}
 	rspBytes, err = sendReq(rep)
@@ -41,6 +78,7 @@ func main() {
 	}
 	log.Println("content:", string(rspBytes))
 
+	fmt.Println("try to insert data")
 	//try to insert data failed
 	rep = request{ReqType: "insert", Key: "db", Value: "proxy1"}
 	rspBytes, err = sendReq(rep)
@@ -51,6 +89,7 @@ func main() {
 	log.Println("content:", string(rspBytes))
 
 	//try to delete data
+	fmt.Println("try to delete data")
 	rep = request{ReqType: "delete", Key: "db"}
 	rspBytes, err = sendReq(rep)
 	if err!= nil{
@@ -67,6 +106,7 @@ func main() {
 	log.Println("content:", string(rspBytes))
 
 	//try to insert data ,success
+	fmt.Println("insert again start")
 	rep = request{ReqType: "insert", Key: "db", Value: "proxy1"}
 	rspBytes, err = sendReq(rep)
 	if err!= nil{
@@ -74,6 +114,7 @@ func main() {
 	}
 
 	log.Println("content:", string(rspBytes))
+	fmt.Println("insert again finished")
 
 	//try to get the inserted data
 	rep = request{ReqType: "get", Key: "db"}

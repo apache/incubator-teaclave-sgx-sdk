@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 
+	mbtree "github.com/bradyjoestar/merkle-btree"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -27,14 +28,14 @@ type response struct {
 }
 
 //hmacPayload is used to compute hmac
-type hmacPayload struct {
-	Key            string `json:key`
-	Value          string `json:Value`
-	PresentCounter int64  `json:present_counter`
+type HmacPayload struct {
+	Key     string `json:key`
+	Value   string `json:Value`
+	Counter int64  `json:present_counter`
 }
 
 //storePayload is used to store value in the db
-type storePayload struct {
+type StorePayload struct {
 	Value string `json:value`
 	Tag   string `json:tag`
 	Ctr   int64  `json:ctr`
@@ -52,9 +53,8 @@ func main() {
 		0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
 	}
 
-	//will be replaced by MB-Tree
-	present := make(map[string]int64)
-	deleted := make(map[string]int64)
+	presentBtree := mbtree.NewMBTree()
+	deletedBtree := mbtree.NewMBTree()
 
 	fmt.Println("start db-proxy-server")
 
@@ -71,7 +71,7 @@ func main() {
 		if err != nil {
 			log.Println("json format error:", err)
 		}
-		rsp := validate(db, b, hmac_key, present, deleted)
+		rsp := validate(db, b, hmac_key, presentBtree, deletedBtree)
 		if err != nil {
 			rsp.RspStatus = false
 		}
@@ -95,7 +95,8 @@ func startleveldb() *leveldb.DB {
 	return db
 }
 
-func validate(db *leveldb.DB, reqByte, hmac_key []byte, present, deleted map[string]int64) response {
+func validate(db *leveldb.DB, reqByte, hmac_key []byte,
+	presentMBTree, deletedMBTree *mbtree.MerkleBtree) response {
 	rsp := response{RspStatus: true}
 	var err error
 	var data []byte
@@ -105,74 +106,88 @@ func validate(db *leveldb.DB, reqByte, hmac_key []byte, present, deleted map[str
 
 	switch req.ReqType {
 	case "get":
+		//TODO:safecheck for the insecurity mbtree should be added
 		data, err = db.Get([]byte(req.Key), nil)
-		sp := storePayload{}
+		sp := StorePayload{}
 		if err == nil {
-			err := json.Unmarshal(data, &sp)
-			if err == nil {
-			}
+			err = json.Unmarshal(data, &sp)
 		} else {
 			break
 		}
 		//verify hmac
-		hmacPayload := hmacPayload{Key: req.Key, Value: sp.Value, PresentCounter: sp.Ctr}
+		hmacPayload := HmacPayload{Key: req.Key, Value: sp.Value, Counter: sp.Ctr}
 		hmacByte, _ := json.Marshal(hmacPayload)
 		tagByte, _ := hex.DecodeString(sp.Tag)
-		if ValidMAC(hmacByte, tagByte, hmac_key) && sp.Ctr == present[req.Key] {
+
+		sr := presentMBTree.Serach(req.Key)
+
+		if ValidMAC(hmacByte, tagByte, hmac_key) && sp.Ctr == sr.Version {
+			fmt.Println("version", sr.Version)
 			rsp.Data = sp.Value
 		} else {
 			fmt.Println("validate failed")
 			err = errors.New("validate failed")
 		}
+		fmt.Println("get successed")
 		break
 	case "put":
-		//compute tag of k,v,counter
-		hmacPayload := hmacPayload{Key: req.Key, Value: req.Value, PresentCounter: present[req.Key] + 1}
+		//TODO:safecheck for the insecurity mbtree should be added
+		sr := presentMBTree.Serach(req.Key)
+		hmacPayload := HmacPayload{Key: req.Key, Value: req.Value, Counter: sr.Version + 1}
 		hmacByte, _ := json.Marshal(hmacPayload)
 		tagByte := computeHMAC(hmacByte, hmac_key)
 		tagString := fmt.Sprintf("%02x", tagByte)
 
 		//try to put it into kvdb
-		storePayload := storePayload{Value: req.Value, Ctr: present[req.Key] + 1, Tag: tagString}
+		storePayload := StorePayload{Value: req.Value, Ctr: sr.Version + 1, Tag: tagString}
 		spByte, _ := json.Marshal(storePayload)
 		err = db.Put([]byte(req.Key), spByte, nil)
 
 		//update present if there is no error
 		if err == nil {
-			present[req.Key] = present[req.Key] + 1
+			presentMBTree.BuildWithKeyValue(mbtree.KeyVersion{Key: req.Key, Version: sr.Version + 1})
 		}
+		fmt.Println(hex.EncodeToString(presentMBTree.Root.Hash))
+
+		fmt.Println("put successed")
 		break
 	case "delete":
+		//TODO:safecheck for the insecurity mbtree should be added
 		err = db.Delete([]byte(req.Key), nil)
 		if err == nil {
-			deleted[req.Key] = present[req.Key]
-			delete(present, req.Key)
+			sr := presentMBTree.Serach(req.Key)
+			deletedMBTree.BuildWithKeyValue(mbtree.KeyVersion{Key: req.Key, Version: sr.Version})
+			presentMBTree.Delete(req.Key)
 		}
+		fmt.Println("delete successed")
 		break
 	case "insert":
-		if _, ok := present[req.Key]; ok {
+		//TODO:safecheck for the insecurity mbtree should be added
+		sr := presentMBTree.Serach(req.Key)
+		if sr.Existed {
 			err = errors.New("key existed in present when called insert")
 		} else {
 			var ctr int64
-			if _, ok := deleted[req.Key]; ok {
-				ctr = deleted[req.Key] + 1
+			deleteSr := deletedMBTree.Serach(req.Key)
+			if deleteSr.Existed {
+				ctr = deleteSr.Version + 1
 			} else {
 				ctr = 0
 			}
-			hmacPayload := hmacPayload{Key: req.Key, Value: req.Value, PresentCounter: ctr}
+			hmacPayload := HmacPayload{Key: req.Key, Value: req.Value, Counter: ctr}
 			hmacByte, _ := json.Marshal(hmacPayload)
 			tagByte := computeHMAC(hmacByte, hmac_key)
 			tagString := fmt.Sprintf("%02x", tagByte)
-
 			//try to insert it into kvdb
-			storePayload := storePayload{Value: req.Value, Ctr: ctr, Tag: tagString}
+			storePayload := StorePayload{Value: req.Value, Ctr: ctr, Tag: tagString}
 			spByte, _ := json.Marshal(storePayload)
 			err = db.Put([]byte(req.Key), spByte, nil)
 			if err == nil {
-				present[req.Key] = ctr
-				delete(deleted, req.Key)
+				presentMBTree.BuildWithKeyValue(mbtree.KeyVersion{Key: req.Key, Version: ctr})
+				deletedMBTree.Delete(req.Key)
 			}
 		}
+		fmt.Println("insert successed")
 		break
 	default:
 	}
