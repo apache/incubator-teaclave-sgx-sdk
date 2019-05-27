@@ -10,15 +10,18 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
-	mbtree "github.com/bradyjoestar/merkle-btree"
+	mbtree "github.com/bradyjoestar/merkle-btree-test"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
 type request struct {
-	ReqType string `json:"req_type"`
-	Key     string `json:"key"`
-	Value   string `json:"value"`
+	ReqType         string `json:"req_type"`
+	Key             string `json:"key"`
+	Value           string `json:"value"`
+	PresentRootHash string `json:"present_root_hash"`
+	DeletedRootHash string `json:"deleted_root_hash"`
 }
 
 type response struct {
@@ -41,8 +44,41 @@ type StorePayload struct {
 	Ctr   int64  `json:ctr`
 }
 
+type SgxPrivateData struct {
+	HmacKey              string `json:hmac_key`
+	SgxCounter           int    `json:sgx_counter`
+	PersistedPresentHash string `json:persisted_present_hash`
+	PersistedPresentHMAC string `json:persisted_present_hmac`
+	PersistedDeletedHash string `json:persisted_deleted_hash`
+	PersistedDeletedHMAC string `json:persisted_deleted_hmac`
+}
+
+type MBTreePayload struct {
+	RootHash   string `json:root_hash`
+	SgxCounter int    `json:sgx_counter`
+}
+
+var sgxCounter int
+var hmac_key []byte
+var persistedPresentHash string
+var persistedDeletedHash string
+
 func main() {
-	hmac_key := []byte{
+	_, err := os.Open("sgxcount.wal")
+	if err != nil && os.IsNotExist(err) {
+		sgxCounter = 0
+	} else {
+		b, err := ioutil.ReadFile("sgxcount.wal")
+		if err != nil {
+			panic(err.Error())
+		}
+		sgxPD := SgxPrivateData{}
+		json.Unmarshal(b, &sgxPD)
+		sgxCounter = sgxPD.SgxCounter
+	}
+	fmt.Println("sgx.ctr", sgxCounter)
+
+	hmac_key = []byte{
 		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 		0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
 		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
@@ -188,6 +224,65 @@ func validate(db *leveldb.DB, reqByte, hmac_key []byte,
 			}
 		}
 		fmt.Println("insert successed")
+		break
+	case "save":
+		sgxCounter++
+		persistedPresentHash = hex.EncodeToString(presentMBTree.Root.Hash)
+		persistedDeletedHash = hex.EncodeToString(deletedMBTree.Root.Hash)
+
+		presentHmac := MBTreePayload{
+			RootHash:   hex.EncodeToString(presentMBTree.Root.Hash),
+			SgxCounter: sgxCounter,
+		}
+		deletedHmac := MBTreePayload{
+			RootHash:   hex.EncodeToString(deletedMBTree.Root.Hash),
+			SgxCounter: sgxCounter,
+		}
+
+		preHmacBytes, _ := json.Marshal(presentHmac)
+		preHmacStr := hex.EncodeToString(computeHMAC(preHmacBytes, hmac_key))
+		delHmacBytes, _ := json.Marshal(deletedHmac)
+		delHmacStr := hex.EncodeToString(computeHMAC(delHmacBytes, hmac_key))
+
+		sgxPD := SgxPrivateData{
+			PersistedDeletedHash: persistedDeletedHash,
+			PersistedPresentHash: persistedPresentHash,
+			SgxCounter:           sgxCounter,
+			HmacKey:              hex.EncodeToString(hmac_key),
+			PersistedPresentHMAC: preHmacStr,
+			PersistedDeletedHMAC: delHmacStr,
+		}
+
+		sgxPDBytes, err := json.Marshal(sgxPD)
+		err = ioutil.WriteFile("sgxcount.wal", sgxPDBytes, 0666)
+		if err != nil {
+			panic(err.Error())
+		}
+		break
+	case "reload":
+		presentHmac := MBTreePayload{
+			RootHash:   req.PresentRootHash,
+			SgxCounter: sgxCounter,
+		}
+		deletedHmac := MBTreePayload{
+			RootHash:   req.DeletedRootHash,
+			SgxCounter: sgxCounter,
+		}
+		preHmacBytes, _ := json.Marshal(presentHmac)
+		preHmacStr := hex.EncodeToString(computeHMAC(preHmacBytes, hmac_key))
+		delHmacBytes, _ := json.Marshal(deletedHmac)
+		delHmacStr := hex.EncodeToString(computeHMAC(delHmacBytes, hmac_key))
+
+		sgxPD := SgxPrivateData{}
+		b, err := ioutil.ReadFile("sgxcount.wal")
+		if err != nil {
+			panic(err.Error())
+		}
+		json.Unmarshal(b, &sgxPD)
+		if sgxPD.PersistedDeletedHMAC != delHmacStr || sgxPD.PersistedPresentHMAC != preHmacStr {
+			panic("reload failed,wrong roothash")
+		}
+
 		break
 	default:
 	}
