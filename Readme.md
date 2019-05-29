@@ -11,6 +11,8 @@ To help understand this project and know how to use it, we are writing some [wik
 
 Current wiki pages:
 
+* [Setup gdb 7.11 on Ubuntu 18.04 for VSCode sgx-gdb remote debugging](https://github.com/baidu/rust-sgx-sdk/wiki/Setup-gdb-7.11-on-Ubuntu-18.04-for-VSCode---sgx-gdb-remote-debugging) If you encounter errors like `gdb.error: syntax error in expression, near )0x7ffff4127370 = 0.`, probably you need to follow this instruction to setup gdb 7. Thanks to @akoskinas for this great instruction!
+
 * [Performance Optimization Tips](https://github.com/baidu/rust-sgx-sdk/wiki/Performance-Optimization-Tips)
 
 * [Use VSCode rls+rust-analysis+sgx-gdb for graphic developing (not in docker)](https://github.com/baidu/rust-sgx-sdk/wiki/Use-VSCode---rls---rust-analysis---sgx-gdb-for-graphic-developing-(not-in-docker))
