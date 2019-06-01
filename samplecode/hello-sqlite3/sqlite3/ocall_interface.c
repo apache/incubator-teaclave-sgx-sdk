@@ -9,7 +9,7 @@
 
 // At this point we have already definitions needed for  ocall interface, so:
 #define DO_NOT_REDEFINE_FOR_OCALL
-#include "../enclave/Enclave_t.h"
+#include "../enclave/Enclave_sql.h"
 
 // For open64 need to define this
 #define O_TMPFILE (__O_TMPFILE | O_DIRECTORY)

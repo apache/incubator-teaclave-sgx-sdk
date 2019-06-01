@@ -74,6 +74,7 @@ CUSTOM_COMMON_PATH := ../../common
 ######## EDL Settings ########
 
 Enclave_EDL_Files := enclave/Enclave_t.c enclave/Enclave_t.h app/Enclave_u.c app/Enclave_u.h
+#EnclaveSQL_EDL_Files := enclave/EnclaveSql_t.c enclave/EnclaveSql_t.h app/EnclaveSql_u.c app/EnclaveSql_u.h
 
 ######## APP Settings ########
 
@@ -133,7 +134,11 @@ app/Enclave_u.o: $(Enclave_EDL_Files)
 	@$(CC) $(App_C_Flags) -c app/Enclave_u.c -o $@
 	@echo "CC   <=  $<"
 
-$(App_Enclave_u_Object): app/Enclave_u.o
+app/ocalls.o: app/ocalls.c
+	$(CC) $(App_C_Flags) -c $< -o $@
+	@echo "CC   <=  $<"
+
+$(App_Enclave_u_Object): app/Enclave_u.o app/ocalls.o
 	$(AR) rcsD $@ $^
 	cp $(App_Enclave_u_Object) ./lib
 
@@ -150,8 +155,9 @@ enclave/Enclave_t.o: $(Enclave_EDL_Files)
 	@echo "CC   <=  $<"
 
 $(RustEnclave_Name): enclave compiler-rt enclave/Enclave_t.o
+	cd sqlite3 && bash build.sh && cd ..
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
-	@$(CXX) enclave/Enclave_t.o -o $@ $(RustEnclave_Link_Flags)
+	@$(CXX) enclave/Enclave_t.o sqlite3/sqlite3.o sqlite3/ocall_interface.o -o $@ $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
 $(Signed_RustEnclave_Name): $(RustEnclave_Name)
