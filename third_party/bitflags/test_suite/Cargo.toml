@@ -1,0 +1,13 @@
+[project]
+name = "test_suite"
+version = "0.0.0"
+
+[features]
+unstable = ["compiletest_rs"]
+
+[dependencies]
+bitflags = { path = "../" }
+compiletest_rs = { version = "0.3.18", optional = true, features=["stable"] }
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"

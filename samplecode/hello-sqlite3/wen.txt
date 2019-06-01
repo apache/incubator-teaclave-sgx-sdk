@@ -1,0 +1,25 @@
+cd App && /opt/sgxsdk/bin/x64/sgx_edger8r --untrusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path /opt/sgxsdk/include
+GEN  =>  App/Enclave_u.c
+cc -m64 -O2  -fPIC -Wno-attributes -IApp -I/opt/sgxsdk/include -DNDEBUG -UEDEBUG -UDEBUG -DSGX_UNTRUSTED -c App/Enclave_u.c -o App/Enclave_u.o
+CC   <=  App/Enclave_u.c
+cc -m64 -O2  -fPIC -Wno-attributes -IApp -I/opt/sgxsdk/include -DNDEBUG -UEDEBUG -UDEBUG -c App/ocalls.c -o App/ocalls.o
+CC   <=  App/ocalls.c
+g++ -m64 -O2  -fPIC -Wno-attributes -IApp -I/opt/sgxsdk/include -DNDEBUG -UEDEBUG -UDEBUG -std=c++11 -c App/App.cpp -o App/App.o
+CXX  <=  App/App.cpp
+g++ App/Enclave_u.o App/ocalls.o App/App.o -o app -m64 -O2  -L/opt/sgxsdk/lib64 -lsgx_urts_sim -lpthread -lsgx_uae_service_sim
+LINK =>  app
+cd Enclave && /opt/sgxsdk/bin/x64/sgx_edger8r --trusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path /opt/sgxsdk/include
+GEN  =>  Enclave/Enclave_t.c
+cc -m64 -O2  -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -fstack-protector-strong -IEnclave -I/opt/sgxsdk/include -I/opt/sgxsdk/include/tlibc -I/opt/sgxsdk/include/libcxx -c Enclave/Enclave_t.c -o Enclave/Enclave_t.o
+CC   <=  Enclave/Enclave_t.c
+g++ -m64 -O2  -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -fstack-protector-strong -IEnclave -I/opt/sgxsdk/include -I/opt/sgxsdk/include/tlibc -I/opt/sgxsdk/include/libcxx -std=c++11 -nostdinc++ -c Enclave/Enclave.cpp -o Enclave/Enclave.o
+CXX  <=  Enclave/Enclave.cpp
+cc -I/opt/sgxsdk/include -DSQLITE_THREADSAFE=0 -E Enclave/sqlite3.c -o Enclave/sqlite3.i
+CC-Preprocess  <=  Enclave/sqlite3.c
+cc -m64 -O2  -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -fstack-protector-strong -IEnclave -I/opt/sgxsdk/include -I/opt/sgxsdk/include/tlibc -I/opt/sgxsdk/include/libcxx -DSQLITE_THREADSAFE=0 -c Enclave/sqlite3.i -o Enclave/sqlite3.o
+CC  <=  Enclave/sqlite3.i
+cc -I/opt/sgxsdk/include -E Enclave/ocall_interface.c -o Enclave/ocall_interface.i
+CC-Preprocess  <=  Enclave/ocall_interface.c
+cc -m64 -O2  -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections -fstack-protector-strong -IEnclave -I/opt/sgxsdk/include -I/opt/sgxsdk/include/tlibc -I/opt/sgxsdk/include/libcxx -c Enclave/ocall_interface.i -o Enclave/ocall_interface.o
+CC  <=  Enclave/ocall_interface.i
+g++ Enclave/Enclave_t.o Enclave/Enclave.o Enclave/sqlite3.o Enclave/ocall_interface.o -o enclave.so -m64 -O2  -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L/opt/sgxsdk/lib64 -Wl,--whole-archive -lsgx_trts_sim -Wl,--no-whole-archive -Wl,--start-group -lsgx_tstdc -lsgx_tcxx -lsgx_tcrypto -lsgx_tservice_sim -Wl,--end-group -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined -Wl,-pie,-eenclave_entry -Wl,--export-dynamic -Wl,--defsym,__ImageBase=0 -Wl,--gc-sections -Wl,--version-script=Enclave/Enclave.lds
