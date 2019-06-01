@@ -178,4 +178,5 @@ clean:
 	@rm -f $(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) enclave/*_t.* app/*_u.* lib/*.a
 	@cd enclave && cargo clean && rm -f Cargo.lock
 	@cd app && cargo clean && rm -f Cargo.lock
+	@rm -f sglite3/sqlite3.o sqlite3/sqlite3.i sqlite3/ocall_interface.i sqlite3/ocall_interface.o app/ocalls.o
 

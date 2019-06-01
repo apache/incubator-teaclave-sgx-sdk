@@ -12,6 +12,7 @@ default = []
 
 [dependencies]
 rust-sqlite = { path = "../../../third_party/rust-sqlite3" }
+sgx_untrusted_time  = { path = "../../../third_party/time" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../../../sgx_types" }

@@ -86,15 +86,15 @@ int ocall_fsync(int fd){
     return fsync(fd);
 }
 
+// ocalls for printing string (C++ ocalls)
 void ocall_print_error(const char *str){
-    //TODO use iostream
+    //TODO: replace this ocall
 }
 
 void ocall_print_string(const char *str){
-    //TODO use iostream
+    //TODO: replace this ocall
 }
 
 void ocall_println_string(const char *str){
-    //TODO  use iostream
+    //TODO: replace this ocall
 }
-
