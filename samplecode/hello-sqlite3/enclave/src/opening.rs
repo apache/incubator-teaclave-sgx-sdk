@@ -37,7 +37,7 @@ pub fn opening() {
         }
     };
 
-    println!("test_openings");
+    println!("test_openings success!");
 
     fn use_access<A: Access>(access: A) -> SqliteResult<Vec<Person>> {
         let mut conn = try!(DatabaseConnection::new(access));

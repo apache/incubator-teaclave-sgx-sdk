@@ -155,6 +155,8 @@ enclave/Enclave_t.o: $(Enclave_EDL_Files)
 	@echo "CC   <=  $<"
 
 $(RustEnclave_Name): enclave compiler-rt enclave/Enclave_t.o
+	bash ../../sgx_db/sqlite3/build.sh
+	cp ../../sgx_db/sqlite3/sqlite3.o ./sqlite3
 	cd sqlite3 && bash build.sh && cd ..
 	cp ../../compiler-rt/libcompiler-rt-patch.a ./lib
 	@$(CXX) enclave/Enclave_t.o sqlite3/sqlite3.o sqlite3/ocall_interface.o -o $@ $(RustEnclave_Link_Flags)
@@ -178,5 +180,5 @@ clean:
 	@rm -f $(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) enclave/*_t.* app/*_u.* lib/*.a
 	@cd enclave && cargo clean && rm -f Cargo.lock
 	@cd app && cargo clean && rm -f Cargo.lock
-	@rm -f sglite3/sqlite3.o sqlite3/sqlite3.i sqlite3/ocall_interface.i sqlite3/ocall_interface.o app/ocalls.o
+	@rm -f sqlite3/sqlite3.o sqlite3/sqlite3.i sqlite3/ocall_interface.i sqlite3/ocall_interface.o app/ocalls.o
 

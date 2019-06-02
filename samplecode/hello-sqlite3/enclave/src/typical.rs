@@ -67,6 +67,4 @@ pub fn typical() {
         },
         Err(oops) => panic!(oops)
     }
-
-    println!("typical");
 }

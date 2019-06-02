@@ -78,10 +78,11 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
 
     //sqlite test
     {
-        opening::opening();
         println!("sqlite opening test:");
-        typical::typical();
+        opening::opening();
+
         println!("sqlite typical test:");
+        typical::typical();
     }
 
     // Rust style convertion
