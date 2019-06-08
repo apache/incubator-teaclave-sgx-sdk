@@ -92,6 +92,8 @@ use test_rand_cratesio::*;
 mod test_types;
 use test_types::*;
 
+mod test_env;
+
 #[no_mangle]
 pub extern "C"
 fn test_main_entrance() -> size_t {
@@ -158,7 +160,8 @@ fn test_main_entrance() -> size_t {
                      test_rand_cratesio,
                      // types
                      check_metadata_size,
-                     check_version
+                     check_version,
+                     test_env::env_tests,
                      )
 }
 

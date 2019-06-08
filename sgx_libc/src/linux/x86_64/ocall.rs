@@ -62,15 +62,15 @@ extern "C" {
                             length: size_t,
                             prot: c_int) -> sgx_status_t;
     // env
-    pub fn u_environ_ocall(result: * mut * const * const c_char) -> sgx_status_t;
-    pub fn u_getenv_ocall(result: * mut * const c_char,
+    pub fn u_env_environ_ocall(result: * mut * const * const c_char) -> sgx_status_t;
+    pub fn u_env_getenv_ocall(result: * mut * const c_char,
                           name: * const c_char) -> sgx_status_t;
-    pub fn u_setenv_ocall(result: * mut c_int,
+    pub fn u_env_setenv_ocall(result: * mut c_int,
                           error: * mut c_int,
                           name: * const c_char,
                           value: * const c_char,
                           overwrite: c_int) -> sgx_status_t;
-    pub fn u_unsetenv_ocall(result: * mut c_int,
+    pub fn u_env_unsetenv_ocall(result: * mut c_int,
                             error: * mut c_int,
                             name: * const c_char) -> sgx_status_t;
     // file
@@ -495,7 +495,7 @@ pub unsafe fn mprotect(addr: * mut c_void, length: size_t, prot: c_int) -> c_int
 
 pub unsafe fn environ() -> * const * const c_char {
     let mut result: * const * const c_char = ptr::null();
-    let status = u_environ_ocall(&mut result as * mut * const * const c_char);
+    let status = u_env_environ_ocall(&mut result as * mut * const * const c_char);
 
     if status != sgx_status_t::SGX_SUCCESS {
         result = ptr::null();
@@ -505,7 +505,7 @@ pub unsafe fn environ() -> * const * const c_char {
 
 pub unsafe fn getenv(name: * const c_char) -> * const c_char {
     let mut result: * const c_char = ptr::null();
-    let status = u_getenv_ocall(&mut result as * mut * const c_char, name);
+    let status = u_env_getenv_ocall(&mut result as * mut * const c_char, name);
 
     if status != sgx_status_t::SGX_SUCCESS {
         result = ptr::null();
@@ -516,7 +516,7 @@ pub unsafe fn getenv(name: * const c_char) -> * const c_char {
 pub unsafe fn setenv(name: * const c_char, value: * const c_char, overwrite: c_int) -> c_int {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
-    let status = u_setenv_ocall(&mut result as * mut c_int,
+    let status = u_env_setenv_ocall(&mut result as * mut c_int,
                                 &mut error as * mut c_int,
                                 name,
                                 value,
@@ -536,7 +536,7 @@ pub unsafe fn setenv(name: * const c_char, value: * const c_char, overwrite: c_i
 pub unsafe fn unsetenv(name: * const c_char) -> c_int {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
-    let status = u_unsetenv_ocall(&mut result as * mut c_int,
+    let status = u_env_unsetenv_ocall(&mut result as * mut c_int,
                                   &mut error as * mut c_int,
                                   name);
 
