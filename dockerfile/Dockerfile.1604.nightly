@@ -35,7 +35,7 @@ MAINTAINER Yu Ding
 ENV sdk_bin https://download.01.org/intel-sgx/linux-2.5/ubuntu16.04-server/sgx_linux_x64_sdk_2.5.100.49891.bin
 ENV psw_deb https://download.01.org/intel-sgx/linux-2.5/ubuntu16.04-server/libsgx-enclave-common_2.5.101.50123-xenial1_amd64.deb
 ENV psw_dev_deb https://download.01.org/intel-sgx/linux-2.5/ubuntu16.04-server/libsgx-enclave-common-dev_2.5.101.50123-xenial1_amd64.deb
-ENV rust_toolchain nightly-2019-05-20
+ENV rust_toolchain nightly-2019-05-22
 
 RUN apt-get update && \
     apt-get install -y build-essential ocaml automake autoconf libtool wget python libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev sudo kmod vim curl git-core libprotobuf-c0-dev libboost-thread-dev libboost-system-dev liblog4cpp5-dev libjsoncpp-dev alien uuid-dev libxml2-dev cmake pkg-config expect gdb && \

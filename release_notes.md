@@ -1,6 +1,6 @@
 # Rust SGX SDK v1.0.8 Release Notes
 
-**Supports Rust nightly-2019-05-20** in master branch (rustc 1.36.0)
+**Supports Rust nightly-2019-05-22** in master branch (rustc 1.36.0)
 
 **Supports Rust stable-2019-05-14** in stable branch (rustc 1.34.2)
 

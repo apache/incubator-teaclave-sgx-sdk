@@ -23,7 +23,7 @@ Current wiki pages:
 
 ## v1.0.8 Release
 
-Supports the most recent Rust nightly (nightly-2019-05-20) and Rust stable (stable-2019-05-14). Bug fixes in memory allocator and panicking routines. New third party libraries to support kvdb-memorydb. Please refer to [release_notes](release_notes.md) for more details.
+Supports the most recent Rust nightly (nightly-2019-05-22) and Rust stable (stable-2019-05-14). Bug fixes in memory allocator and panicking routines. New third party libraries to support kvdb-memorydb. Please refer to [release_notes](release_notes.md) for more details.
 
 ## v1.0.7 Release
 
