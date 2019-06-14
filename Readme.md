@@ -1,5 +1,7 @@
 ![Rust SGX Logo](rustsgx.png)
 
+[![Gitter](https://badges.gitter.im/rust-sgx-sdk/community.svg)](https://gitter.im/rust-sgx-sdk/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+
 # Rust SGX SDK
 Rust SGX SDK helps developers write Intel SGX applications in Rust programming language. [[Paper pdf]](documents/ccsp17.pdf)
 
