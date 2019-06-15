@@ -76,6 +76,7 @@ pub const DEV_HOSTNAME:&'static str = "test-as.sgx.trustedservices.intel.com";
 //pub const PROD_HOSTNAME:&'static str = "as.sgx.trustedservices.intel.com";
 pub const SIGRL_SUFFIX:&'static str = "/attestation/sgx/v3/sigrl/";
 pub const REPORT_SUFFIX:&'static str = "/attestation/sgx/v3/report";
+pub const CERTEXPIRYDAYS: i64 = 90i64;
 
 extern "C" {
     pub fn ocall_sgx_init_quote ( ret_val : *mut sgx_status_t,
