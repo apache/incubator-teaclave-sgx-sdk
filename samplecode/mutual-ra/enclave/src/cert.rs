@@ -8,6 +8,7 @@ use std::untrusted::time::SystemTimeEx;
 use sgx_tcrypto::*;
 use sgx_types::*;
 
+use super::CERTEXPIRYDAYS;
 use std::io::BufReader;
 use rustls;
 use yasna;
@@ -19,11 +20,10 @@ use serde_json::Value;
 use num_bigint::BigUint;
 use bit_vec::BitVec;
 use yasna::models::ObjectIdentifier;
-use yasna::writer::PC;
-use yasna::tags::{TAG_UTCTIME, TAG_UTF8STRING};
 use chrono::prelude::*;
-use chrono::offset::Utc;
 use chrono::Duration;
+use chrono::TimeZone;
+use chrono::Utc as TzUtc;
 use itertools::Itertools;
 
 extern "C" {
@@ -43,7 +43,6 @@ static SUPPORTED_SIG_ALGS: SignatureAlgorithms = &[
     &webpki::RSA_PSS_2048_8192_SHA256_LEGACY_KEY,
     &webpki::RSA_PSS_2048_8192_SHA384_LEGACY_KEY,
     &webpki::RSA_PSS_2048_8192_SHA512_LEGACY_KEY,
-    &webpki::RSA_PKCS1_2048_8192_SHA1,
     &webpki::RSA_PKCS1_2048_8192_SHA256,
     &webpki::RSA_PKCS1_2048_8192_SHA384,
     &webpki::RSA_PKCS1_2048_8192_SHA512,
@@ -87,34 +86,28 @@ pub fn gen_ecc_cert(payload: String,
                 writer.next().write_sequence(|writer| {
                     writer.next().write_set(|writer| {
                         writer.next().write_sequence(|writer| {
-                            writer.next().write_oid(&ObjectIdentifier::from_slice(&[2,5,4,3]));
-                            writer.next().write_identifier(TAG_UTF8STRING, PC::Primitive);
-                            writer.next().write_length(ISSUER.len());
-                            writer.buf.extend_from_slice(ISSUER.as_bytes());
+                            writer
+                                .next()
+                                .write_oid(&ObjectIdentifier::from_slice(&[2,5,4,3]));
+                            writer.next().write_utf8_string(&ISSUER);
                         });
                     });
                 });
                 // Validity: Issuing/Expiring Time (unused but required)
-                let now = SystemTime::now();//.duration_since(UNIX_EPOCH).unwrap().as_secs();
-                let chrono_now: DateTime<Utc> = now.into();
-                let issue_ts = chrono_now.format("%y%m%d%H%M%SZ").to_string();
-                let expire_ts = (chrono_now + Duration::days(1)).format("%y%m%d%H%M%SZ").to_string();
+                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+                let issue_ts = TzUtc.timestamp(now.as_secs() as i64, 0);
+                let expire = now + Duration::days(CERTEXPIRYDAYS).to_std().unwrap();
+                let expire_ts = TzUtc.timestamp(expire.as_secs() as i64, 0);
                 writer.next().write_sequence(|writer| {
-                    writer.next().write_identifier(TAG_UTCTIME, PC::Primitive);
-                    writer.next().write_length(13);
-                    writer.buf.extend_from_slice(&issue_ts.as_bytes());
-                    writer.next().write_identifier(TAG_UTCTIME, PC::Primitive);
-                    writer.next().write_length(13);
-                    writer.buf.extend_from_slice(&expire_ts.as_bytes());
+                    writer.next().write_utctime(&yasna::models::UTCTime::from_datetime(&issue_ts));
+                    writer.next().write_utctime(&yasna::models::UTCTime::from_datetime(&expire_ts));
                 });
                 // Subject: CN=MesaTEE (unused but required)
                 writer.next().write_sequence(|writer| {
                     writer.next().write_set(|writer| {
                         writer.next().write_sequence(|writer| {
                             writer.next().write_oid(&ObjectIdentifier::from_slice(&[2,5,4,3]));
-                            writer.next().write_identifier(TAG_UTF8STRING, PC::Primitive);
-                            writer.next().write_length(SUBJECT.len());
-                            writer.buf.extend_from_slice(SUBJECT.as_bytes());
+                            writer.next().write_utf8_string(&SUBJECT);
                         });
                     });
                 });
@@ -244,7 +237,7 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
     let sig = base64::decode(&sig_raw).unwrap();
 
     let sig_cert_raw = iter.next().unwrap();
-    let sig_cert_dec = base64::decode_config(&sig_cert_raw, base64::MIME).unwrap();
+    let sig_cert_dec = base64::decode_config(&sig_cert_raw, base64::STANDARD).unwrap();
     let sig_cert_input = untrusted::Input::from(&sig_cert_dec);
     let sig_cert = webpki::EndEntityCert::from(sig_cert_input).expect("Bad DER");
 
@@ -255,7 +248,7 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
     let tail_len = "-----END CERTIFICATE-----".len();
     let full_len = ias_ca_stripped.len();
     let ias_ca_core : &[u8] = &ias_ca_stripped[head_len..full_len - tail_len];
-    let ias_cert_dec = base64::decode_config(ias_ca_core, base64::MIME).unwrap();
+    let ias_cert_dec = base64::decode_config(ias_ca_core, base64::STANDARD).unwrap();
     let ias_cert_input = untrusted::Input::from(&ias_cert_dec);
 
     let mut ca_reader = BufReader::new(&IAS_REPORT_CA[..]);
