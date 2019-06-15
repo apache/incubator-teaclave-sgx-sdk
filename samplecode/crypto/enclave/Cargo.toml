@@ -11,7 +11,7 @@ crate-type = ["staticlib"]
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { path = "../../../sgx_types" }
-sgx_trts = { path = "../../../sgx_trts" }
-sgx_tstd = { path = "../../../sgx_tstd" }
-sgx_tcrypto = { path = "../../../sgx_tcrypto" }
+sgx_types = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_trts = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tstd = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tcrypto = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }

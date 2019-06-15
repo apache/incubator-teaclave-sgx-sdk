@@ -11,12 +11,12 @@ crate-type = ["staticlib"]
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { path = "../../../sgx_types" }
-sgx_tseal = { path = "../../../sgx_tseal" }
-sgx_tstd = { path = "../../../sgx_tstd" }
-sgx_rand = { path = "../../../sgx_rand" }
+sgx_types = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tseal = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tstd = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_rand = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
 
 [dependencies]
-serde = { path = "../../../third_party/serde-rs/serde/serde" }
-serde_derive = { path = "../../../third_party/serde-rs/serde/serde_derive" }
-serde_cbor = { path = "../../../third_party/cbor" }
+serde = { git = "https://github.com/mesalock-linux/serde-sgx" }
+serde_derive = { git = "https://github.com/mesalock-linux/serde-sgx" }
+serde_cbor = { git = "https://github.com/mesalock-linux/cbor-sgx" }

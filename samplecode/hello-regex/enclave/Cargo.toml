@@ -11,8 +11,8 @@ crate-type = ["staticlib"]
 default = []
 
 [dependencies]
-regex = { path = "../../../third_party/regex" }
+regex = { git = "https://github.com/mesalock-linux/regex-sgx" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { path = "../../../sgx_types" }
-sgx_tstd = { path = "../../../sgx_tstd" }
+sgx_types = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tstd = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
