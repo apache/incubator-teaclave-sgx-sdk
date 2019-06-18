@@ -37,7 +37,7 @@ extern crate sgx_types;
 #[macro_use]
 extern crate sgx_tstd as std;
 extern crate wasmi;
-extern crate wabt_core;
+extern crate wabt;
 
 use std::{i32, i64, u32, u64, f32};
 use std::prelude::v1::*;
@@ -70,8 +70,8 @@ use wasmi::{ModuleInstance,
             Module,
 };
 
-use wabt_core::script;
-use wabt_core::script::{Value};
+use wabt::script;
+use wabt::script::{Value};
 
 extern crate serde;
 #[macro_use]

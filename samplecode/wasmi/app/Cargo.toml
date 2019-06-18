@@ -5,11 +5,11 @@ authors = ["Baidu"]
 build = "build.rs"
 
 [dependencies]
-sgx_types = { path = "../../../sgx_types" }
-sgx_urts = { path = "../../../sgx_urts" }
+sgx_types = { version = "1.0", rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_urts = { version = "1.0", rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
 wabt = "0.4.0"
-serde = {version = "=1.0.84"}
-serde_json = {version = "=1.0.36"}
-serde_derive = {version = "=1.0.84"}
+serde = {version = "1.0"}
+serde_json = {version = "1.0"}
+serde_derive = {version = "1.0"}
 dirs = "1.0.2"
 nan-preserving-float = "0.1.0"

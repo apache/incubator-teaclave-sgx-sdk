@@ -4,11 +4,11 @@ version = "0.1.0"
 authors = ["Baidu"]
 
 [dependencies]
-wasmi = { path = "../../../../third_party/wasmi" }
-wabt-core = { path = "../../../../third_party/wabt-rs-core" }
-serde = { path = "../../../../third_party/serde-rs/serde/serde" }
-serde_derive = { path = "../../../../third_party/serde-rs/serde/serde_derive" }
+wasmi = { git = "https://github.com/mesalock-linux/wasmi-sgx" }
+wabt = { git = "https://github.com/mesalock-linux/wabt-rs-sgx", branch = "v0.6.0-core" }
+serde = { git = "https://github.com/mesalock-linux/serde-sgx" }
+serde_derive = { git = "https://github.com/mesalock-linux/serde-sgx" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { path = "../../../../sgx_types" }
-sgx_tstd = { path = "../../../../sgx_tstd" }
+sgx_types = { version = "1.0", rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tstd = { version = "1.0", rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }

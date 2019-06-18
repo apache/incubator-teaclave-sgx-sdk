@@ -11,12 +11,12 @@ crate-type = ["staticlib"]
 default = []
 
 [dependencies]
-wasmi = { path = "../../../third_party/wasmi" }
-serde = { path = "../../../third_party/serde-rs/serde/serde" }
-serde_json = { path = "../../../third_party/serde-rs/json"}
+wasmi = { git = "https://github.com/mesalock-linux/wasmi-sgx" }
+serde = { git = "https://github.com/mesalock-linux/serde-sgx" }
+serde_json = { git = "https://github.com/mesalock-linux/serde-json-sgx" }
 sgxwasm = { path = "sgxwasm" }
 lazy_static = { version = "1.1.0", features = ["spin_no_std"] }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { path = "../../../sgx_types" }
-sgx_tstd = { path = "../../../sgx_tstd" }
+sgx_types = { version = "1.0", rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tstd = { version = "1.0", rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
