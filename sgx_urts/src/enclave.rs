@@ -547,7 +547,7 @@ fn cstr(path: &Path) -> io::Result<CString> {
     Ok(CString::new(path.as_os_str().as_bytes())?)
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct SgxEnclave {
     id: sgx_enclave_id_t,
     debug: i32,
