@@ -11,8 +11,8 @@ crate-type = ["staticlib"]
 default = []
 
 [dependencies]
-net2 = { path = "../../../third_party/net2" }
+net2 = { git = "https://github.com/mesalock-linux/net2-rs-sgx" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { path = "../../../sgx_types" }
-sgx_tstd = { path = "../../../sgx_tstd", features = ["net"] }
+sgx_tstd = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git", features = ["net"] }
+sgx_types = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
