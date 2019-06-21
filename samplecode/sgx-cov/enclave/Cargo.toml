@@ -1,0 +1,18 @@
+[package]
+name = "Sgxcovenclave"
+version = "1.0.0"
+authors = ["Baidu"]
+
+[lib]
+name = "sgxcovenclave"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+cov = ["sgx_cov"]
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types = { path = "../../../sgx_types" }
+sgx_tstd = { path = "../../../sgx_tstd" }
+sgx_trts = { path = "../../../sgx_trts" }
+sgx_cov  = { path = "../../../sgx_cov", optional = true }

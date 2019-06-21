@@ -1,0 +1,7 @@
+#![no_std]
+#![feature(profiler_runtime)]
+#![profiler_runtime]
+//#![allow(unused_features)]
+//#![feature(nll)]
+//#![feature(staged_api)]
+//#![deny(rust_2018_idioms)]

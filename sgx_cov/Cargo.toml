@@ -1,0 +1,17 @@
+[package]
+name = "sgx_cov"
+version = "0.1.0"
+authors = ["MesaTEE Authors"]
+description = "Enabling gcov for SGX crates."
+edition = "2018"
+
+[dependencies]
+lazy_static = { version = "1", features = ["spin_no_std"] }
+
+[target.'cfg(target_env = "sgx")'.dependencies]
+profiler_builtins = { path = "fake_profiler_builtins" }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types   = { path = "../sgx_types" }
+sgx_tstd    = { path = "../sgx_tstd" }
+sgx_rand    = { path = "../sgx_rand" }
