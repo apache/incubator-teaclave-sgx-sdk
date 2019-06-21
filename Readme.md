@@ -25,7 +25,7 @@ Current wiki pages:
 
 ## v1.0.8 Release
 
-Supports the most recent Rust nightly (nightly-2019-05-22) and Rust stable (stable-2019-05-14). Bug fixes in memory allocator and panicking routines. New third party libraries to support kvdb-memorydb. Please refer to [release_notes](release_notes.md) for more details.
+Supports the most recent Rust nightly (nightly-2019-05-22) and Rust stable (stable-2019-05-14). Code coverage support has been added to sgx_cov. Bug fixes in memory allocator and panicking routines. New third party libraries to support kvdb-memorydb. Please refer to [release_notes](release_notes.md) for more details.
 
 ## v1.0.7 Release
 
@@ -196,6 +196,8 @@ We provide eighteen sample codes to help developers understand how to write Encl
 * `mutual-ra` provides remote attestation based TLS connection between SGX enclaves. See the [readme](samplecode/mutual-ra/Readme.md) for details.
 
 * `ue-ra` provides remote attestation based TLS connection between an untrusted party and one SGX enclave. See the [readme](samplecode/ue-ra/Readme.md) for details.
+
+* `sgx-cov` shows how to use lcov with Rust SGX enclave to generate code coverage report. See the [readme](samplecode/sgx-cov/Readme.md) for details.
 
 # Tips for writing enclaves in Rust
 

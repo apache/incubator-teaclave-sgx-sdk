@@ -20,6 +20,12 @@
 
 * sgx_tunittest is edition now! Thanks to @elichai!
 
+* add `fn source` in sgx_tstd::error::Error
+
+* Fix env var bugs in sgx_libc, sgx_urts, and sgx_ustdc.
+
+* sgx_cov leverages lcov to generate code coverage report for SGX enclave. Please refer to sgx-cov code sample for details.
+
 # Rust SGX SDK v1.0.7 Release Notes
 
 **Supports Intel SGX SDK v2.5**
