@@ -9,8 +9,6 @@ include = [
     "./lib.rs",
     "./Readme.md",
     "./Cargo.toml",
-    "./fake_profiler_builtins/lib.rs",
-    "./fake_profiler_builtins/Cargo.toml",
 ]
 
 [lib]
@@ -19,7 +17,7 @@ path = "lib.rs"
 
 [dependencies]
 lazy_static = { version = "1", features = ["spin_no_std"] }
-profiler_builtins = { path = "fake_profiler_builtins" }
+profiler_builtins = { git = "https://github.com/mesalock-linux/sgx-fake-profiler-builtins" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types   = { path = "../sgx_types" }
