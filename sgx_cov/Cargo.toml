@@ -19,8 +19,6 @@ path = "lib.rs"
 
 [dependencies]
 lazy_static = { version = "1", features = ["spin_no_std"] }
-
-[target.'cfg(target_env = "sgx")'.dependencies]
 profiler_builtins = { path = "fake_profiler_builtins" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
