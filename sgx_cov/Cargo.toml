@@ -5,6 +5,18 @@ authors = ["MesaTEE Authors"]
 description = "Enabling gcov for SGX crates."
 edition = "2018"
 
+include = [
+    "./lib.rs",
+    "./Readme.md",
+    "./Cargo.toml",
+    "./fake_profiler_builtins/lib.rs",
+    "./fake_profiler_builtins/Cargo.toml",
+]
+
+[lib]
+name = "sgx_cov"
+path = "lib.rs"
+
 [dependencies]
 lazy_static = { version = "1", features = ["spin_no_std"] }
 

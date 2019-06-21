@@ -17,7 +17,7 @@ sgx_cov supports xargo as well:
 ```
 $ XARGO_SGX=1 make COV=1
 $ cd bin && ./app && cd ..
-$ make gen_cov_html
+$ XARGO_SGX=1 make gen_cov_html
 ```
 
 ## The Magic
