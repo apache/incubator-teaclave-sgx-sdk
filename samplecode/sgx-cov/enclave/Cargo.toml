@@ -12,7 +12,7 @@ default = []
 cov = ["sgx_cov"]
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { path = "../../../sgx_types" }
-sgx_tstd = { path = "../../../sgx_tstd" }
-sgx_trts = { path = "../../../sgx_trts" }
-sgx_cov  = { path = "../../../sgx_cov", optional = true }
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_cov  = { git = "https://github.com/baidu/rust-sgx-sdk.git", optional = true }
