@@ -19,7 +19,7 @@ untrusted_time = []
 use_builtin_ocalls = []
 
 [build-dependencies]
-sgx_build_helper = { path = "../../build_helper" }
+sgx_build_helper = { path = "../../sgx_build_helper" }
 
 [dependencies]
 sgx_types = { path = "../../sgx_types" }
