@@ -1,0 +1,19 @@
+[package]
+name = "Loggerenclave"
+version = "1.0.0"
+authors = ["Baidu"]
+
+[lib]
+name = "loggerenclave"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tstd = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+
+[dependencies]
+log = { git = "https://github.com/mesalock-linux/log-sgx" }
+env_logger = { git = "https://github.com/mesalock-linux/env_logger-sgx" }
