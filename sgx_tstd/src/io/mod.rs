@@ -37,6 +37,7 @@ use alloc::vec::Vec;
 use alloc::str;
 use alloc::string::String;
 
+use crate::ops::{Deref, DerefMut};
 pub use self::buffered::{BufReader, BufWriter, LineWriter};
 pub use self::buffered::IntoInnerError;
 pub use self::cursor::Cursor;
@@ -148,6 +149,28 @@ fn read_to_end<R: Read + ?Sized>(r: &mut R, buf: &mut Vec<u8>) -> Result<usize> 
     ret
 }
 
+pub(crate) fn default_read_vectored<F>(read: F, bufs: &mut [IoSliceMut<'_>]) -> Result<usize>
+where
+    F: FnOnce(&mut [u8]) -> Result<usize>
+{
+    let buf = bufs
+        .iter_mut()
+        .find(|b| !b.is_empty())
+        .map_or(&mut [][..], |b| &mut **b);
+    read(buf)
+}
+
+pub(crate) fn default_write_vectored<F>(write: F, bufs: &[IoSlice<'_>]) -> Result<usize>
+where
+    F: FnOnce(&[u8]) -> Result<usize>
+{
+    let buf = bufs
+        .iter()
+        .find(|b| !b.is_empty())
+        .map_or(&[][..], |b| &**b);
+    write(buf)
+}
+
 /// The `Read` trait allows for reading bytes from a source.
 ///
 /// Implementors of the `Read` trait are called 'readers'.
@@ -202,6 +225,19 @@ pub trait Read {
     /// operation should be retried if there is nothing else to do.
     ///
     fn read(&mut self, buf: &mut [u8]) -> Result<usize>;
+
+    /// Like `read`, except that it reads into a slice of buffers.
+    ///
+    /// Data is copied to fill each buffer in order, with the final buffer
+    /// written to possibly being only partially filled. This method must behave
+    /// as a single call to `read` with the buffers concatenated would.
+    ///
+    /// The default implementation calls `read` with either the first nonempty
+    /// buffer provided, or an empty one if none exists.
+    fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> Result<usize> {
+        default_read_vectored(|b| self.read(b), bufs)
+    }
+
     /// Determines if this `Read`er can work with buffers of uninitialized
     /// memory.
     ///
@@ -375,6 +411,83 @@ pub trait Read {
     }
 }
 
+/// A buffer type used with `Read::read_vectored`.
+///
+/// It is semantically a wrapper around an `&mut [u8]`, but is guaranteed to be
+/// ABI compatible with the `iovec` type on Unix platforms and `WSABUF` on
+/// Windows.
+#[repr(transparent)]
+pub struct IoSliceMut<'a>(crate::sys::ioslice::IoSliceMut<'a>);
+
+impl<'a> fmt::Debug for IoSliceMut<'a> {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.0.as_slice(), fmt)
+    }
+}
+
+impl<'a> IoSliceMut<'a> {
+    /// Creates a new `IoSliceMut` wrapping a byte slice.
+    ///
+    /// # Panics
+    ///
+    /// Panics on Windows if the slice is larger than 4GB.
+    #[inline]
+    pub fn new(buf: &'a mut [u8]) -> IoSliceMut<'a> {
+        IoSliceMut(crate::sys::ioslice::IoSliceMut::new(buf))
+    }
+}
+
+impl<'a> Deref for IoSliceMut<'a> {
+    type Target = [u8];
+
+    #[inline]
+    fn deref(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+}
+
+impl<'a> DerefMut for IoSliceMut<'a> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut [u8] {
+        self.0.as_mut_slice()
+    }
+}
+
+/// A buffer type used with `Write::write_vectored`.
+///
+/// It is semantically a wrapper around an `&[u8]`, but is guaranteed to be
+/// ABI compatible with the `iovec` type on Unix platforms and `WSABUF` on
+/// Windows.
+#[repr(transparent)]
+pub struct IoSlice<'a>(crate::sys::ioslice::IoSlice<'a>);
+
+impl<'a> fmt::Debug for IoSlice<'a> {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.0.as_slice(), fmt)
+    }
+}
+
+impl<'a> IoSlice<'a> {
+    /// Creates a new `IoSlice` wrapping a byte slice.
+    ///
+    /// # Panics
+    ///
+    /// Panics on Windows if the slice is larger than 4GB.
+    #[inline]
+    pub fn new(buf: &'a [u8]) -> IoSlice<'a> {
+        IoSlice(crate::sys::ioslice::IoSlice::new(buf))
+    }
+}
+
+impl<'a> Deref for IoSlice<'a> {
+    type Target = [u8];
+
+    #[inline]
+    fn deref(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+}
+
 /// A type used to conditionally initialize buffers passed to `Read` methods.
 #[derive(Debug)]
 pub struct Initializer(bool);
@@ -465,6 +578,18 @@ pub trait Write {
     /// write operation should be retried if there is nothing else to do.
     ///
     fn write(&mut self, buf: &[u8]) -> Result<usize>;
+
+    /// Like `write`, except that it writes from a slice of buffers.
+    ///
+    /// Data is copied to from each buffer in order, with the final buffer
+    /// read from possibly being only partially consumed. This method must
+    /// behave as a call to `write` with the buffers concatenated would.
+    ///
+    /// The default implementation calls `write` with either the first nonempty
+    /// buffer provided, or an empty one if none exists.
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> Result<usize> {
+        default_write_vectored(|b| self.write(b), bufs)
+    }
 
     /// Flush this output stream, ensuring that all intermediately buffered
     /// contents reach their destination.

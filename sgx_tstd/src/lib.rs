@@ -136,6 +136,7 @@ extern crate sgx_trts;
 pub use sgx_trts::{global_ctors_object, global_dtors_object};
 
 extern crate sgx_tprotected_fs;
+extern crate sgx_libc;
 
 // The standard macros that are not built-in to the compiler.
 #[macro_use]

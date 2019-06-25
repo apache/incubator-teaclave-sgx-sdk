@@ -31,6 +31,7 @@ use io::{self, ErrorKind};
 
 pub use self::rand::hashmap_random_keys;
 
+pub mod ioslice;
 pub mod fd;
 pub mod fs;
 pub mod sgxfs;
