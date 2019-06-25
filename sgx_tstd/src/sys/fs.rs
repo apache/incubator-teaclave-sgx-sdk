@@ -30,6 +30,7 @@ use sgx_trts::libc::{c_int, mode_t, time_t, stat64, off64_t};
 use os::unix::prelude::*;
 use ffi::{CString, CStr, OsString};
 use io::{self, Error, ErrorKind, SeekFrom};
+use io::{IoSlice, IoSliceMut};
 use path::{Path, PathBuf};
 use sys::fd::FileDesc;
 use sys::time::SystemTime;
@@ -254,12 +255,20 @@ impl File {
         self.0.read(buf)
     }
 
+    pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        self.0.read_vectored(bufs)
+    }
+
     pub fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize> {
         self.0.read_at(buf, offset)
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
         self.0.write(buf)
+    }
+
+    pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        self.0.write_vectored(bufs)
     }
 
     pub fn write_at(&self, buf: &[u8], offset: u64) -> io::Result<usize> {

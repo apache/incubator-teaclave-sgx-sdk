@@ -31,6 +31,7 @@ use core::cmp;
 use core::mem;
 use core::sync::atomic::{AtomicBool, Ordering};
 use io::{self, Read};
+use io::{IoSlice, IoSliceMut};
 use sys::cvt;
 use sys_common::AsInner;
 
@@ -78,6 +79,15 @@ impl FileDesc {
         Ok(ret as usize)
     }
 
+    pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        let ret = cvt(unsafe {
+            libc::readv(self.fd,
+                        bufs.as_ptr() as *const libc::iovec,
+                        cmp::min(bufs.len(), c_int::max_value() as usize) as c_int)
+        })?;
+        Ok(ret as usize)
+    }
+
     pub fn read_to_end(&self, buf: &mut Vec<u8>) -> io::Result<usize> {
         let mut me = self;
         (&mut me).read_to_end(buf)
@@ -105,6 +115,15 @@ impl FileDesc {
             libc::write(self.fd,
                         buf.as_ptr() as *const c_void,
                         cmp::min(buf.len(), max_len()))
+        })?;
+        Ok(ret as usize)
+    }
+
+    pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        let ret = cvt(unsafe {
+            libc::writev(self.fd,
+                         bufs.as_ptr() as *const libc::iovec,
+                         cmp::min(bufs.len(), c_int::max_value() as usize) as c_int)
         })?;
         Ok(ret as usize)
     }
@@ -219,5 +238,5 @@ mod libc {
     pub use sgx_trts::libc::*;
     pub use sgx_trts::libc::ocall::{read, pread64, write, pwrite64,
                                     fcntl_arg0, fcntl_arg1, ioctl_arg0, ioctl_arg1,
-                                    close};
+                                    close, readv, writev};
 }

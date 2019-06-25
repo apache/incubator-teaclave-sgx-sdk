@@ -32,6 +32,7 @@ use sgx_trts::libc::{c_int, size_t, c_void};
 use core::mem;
 use core::cmp;
 use io;
+use io::{IoSlice, IoSliceMut};
 use net::{SocketAddr, Shutdown};
 use sys::fd::FileDesc;
 use sys_common::{AsInner, FromInner, IntoInner};
@@ -229,6 +230,10 @@ impl Socket {
         self.recv_with_flags(buf, libc::MSG_PEEK)
     }
 
+    pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        self.0.read_vectored(bufs)
+    }
+
     fn recv_from_with_flags(&self, buf: &mut [u8], flags: c_int)
                             -> io::Result<(usize, SocketAddr)> {
         let mut storage: libc::sockaddr_storage = unsafe { mem::zeroed() };
@@ -255,6 +260,10 @@ impl Socket {
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
         self.0.write(buf)
+    }
+
+    pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        self.0.write_vectored(bufs)
     }
 
     pub fn set_timeout(&self, dur: Option<Duration>, kind: c_int) -> io::Result<()> {
