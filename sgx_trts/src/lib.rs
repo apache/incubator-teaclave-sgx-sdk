@@ -86,8 +86,6 @@
 #![allow(non_snake_case)]
 
 extern crate alloc;
-extern crate sgx_types;
-extern crate sgx_libc;
 
 #[macro_use]
 mod macros;
@@ -97,8 +95,11 @@ pub mod trts;
 pub mod enclave;
 pub mod memeq;
 pub mod oom;
-pub mod error;
-pub mod libc;
 pub mod memchr;
 pub mod ascii;
 pub mod c_str;
+
+pub use sgx_libc as libc;
+pub mod error {
+    pub use sgx_libc::{errno, set_errno, error_string};
+}

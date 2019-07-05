@@ -1,4 +1,4 @@
-use types::{sgx_attributes_t, sgx_misc_select_t, sgx_measurement_t, sgx_isvext_prod_id_t, sgx_isvfamily_id_t};
+use crate::types::*;
 use core::default::Default;
 
 /* arch .h*/
