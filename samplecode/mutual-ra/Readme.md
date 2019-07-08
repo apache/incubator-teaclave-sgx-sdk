@@ -7,20 +7,11 @@ This code sample contains an implementation of [Integrating Remote Attestation w
 To use this code sample, one needs to register at Intel website for dev IAS service access. Once the registration is finished, the following stuff should be ready:
 
 1. An SPID assigned by Intel
-2. IAS client certificate such as `client.crt`
-3. IAS client private key such as `client.key`
+2. IAS API Key assigned by Intel
 
-To check whether your IAS registration is complete, please perform the following query with your IAS client certificate and private key:
+Both of these information could be found in the new [Intel Trusted Services API Management Portal](https://api.portal.trustedservices.intel.com/developer). Please log into this portal and switch to "Manage subscriptions" page on the top right corner to see your SPID and API keys. Either primary key or secondary key works.
 
-```
-curl -1 --tlsv1.2 -v --key client.key --cert client.crt https://test-as.sgx.trustedservices.intel.com:443/attestation/sgx/v3/sigrl/00000ABC
-```
-
-Here `00000ABC` is a fake group id which is only used here for testing connection. If this http request can successfully obtain an HTTP status code (no matter which code it is), your IAS service registration should be fine.
-
-## Embedding
-
-`enclave/src/lib.rs` contains three funcs `load_certs` `load_private_key` and `load_spid`. These three functions are configured to load cert/key/spid from `client.crt` `client.key` `spid.txt` from `bin` directory respectively. One can either adjust the file paths/names or copy the cert/key/spid to `bin`. `spid.txt` should only contain one line of 32 chars such as `DEADBEAFDEADBEAFDEADBEAFDEADBEAF`.
+Save them to `bin/spid.txt` and `bin/key.txt` respectively. Size of these two files should be 32 or 33.
 
 ## Run
 

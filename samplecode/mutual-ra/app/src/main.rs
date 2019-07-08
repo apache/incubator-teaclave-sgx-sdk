@@ -82,7 +82,7 @@ pub fn lookup_ipv4(host: &str, port: u16) -> SocketAddr {
 pub extern "C"
 fn ocall_get_ias_socket(ret_fd : *mut c_int) -> sgx_status_t {
     let port = 443;
-    let hostname = "test-as.sgx.trustedservices.intel.com";
+    let hostname = "api.trustedservices.intel.com";
     let addr = lookup_ipv4(hostname, port);
     let sock = TcpStream::connect(&addr).expect("[-] Connect tls server failed!");
 
