@@ -63,3 +63,6 @@ stage = 6
 [dependencies.sgx_tprotected_fs]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 stage = 4
+
+[patch.crates-io]
+libc = { git = "https://github.com/mesalock-linux/libc-sgx" }

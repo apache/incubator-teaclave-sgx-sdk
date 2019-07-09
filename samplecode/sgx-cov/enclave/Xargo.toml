@@ -75,3 +75,6 @@ stage = 6
 [dependencies.sgx_cov]
 path = "../../../sgx_cov"
 stage = 7
+
+[patch.crates-io]
+libc = { git = "https://github.com/mesalock-linux/libc-sgx" }

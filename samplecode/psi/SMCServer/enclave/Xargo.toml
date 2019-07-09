@@ -66,3 +66,6 @@ stage = 6
 [dependencies.sgx_tunittest]
 path = "../../../../sgx_tunittest"
 stage = 6
+
+[patch.crates-io]
+libc = { git = "https://github.com/mesalock-linux/libc-sgx" }
