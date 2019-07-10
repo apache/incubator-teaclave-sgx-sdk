@@ -4,7 +4,7 @@ This code sample contains an implementation of [Integrating Remote Attestation w
 
 ## Requirements
 
-To use this code sample, one needs to register at Intel website for dev IAS service access. Once the registration is finished, the following stuff should be ready:
+To use this code sample, one needs to register at [Intel website](https://api.portal.trustedservices.intel.com/EPID-attestation) for dev IAS service access. Once the registration is finished, the following stuff should be ready:
 
 1. An SPID assigned by Intel
 2. IAS API Key assigned by Intel
