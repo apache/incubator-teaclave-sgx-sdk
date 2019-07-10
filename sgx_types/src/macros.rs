@@ -31,7 +31,7 @@ pub use core::marker::Copy;
 pub use core::default::Default;
 pub use core::ptr;
 pub use core::mem::transmute;
-pub use marker::ContiguousMemory;
+pub use crate::marker::ContiguousMemory;
 
 #[macro_export]
 macro_rules! cfg_if {
@@ -123,7 +123,7 @@ macro_rules! impl_struct_default {
     ($($t:ty, $size:expr;)*) => {$(
         impl Default for $t {
             fn default() -> $t {
-                unsafe{::macros::transmute([0u8; $size])}
+                unsafe{macros::transmute([0u8; $size])}
             }
         }
     )*}
@@ -133,7 +133,7 @@ macro_rules! impl_struct_clone {
     ($($t:ty;)*) => {$(
         impl Clone for $t {
             fn clone(&self) -> $t {
-                unsafe{::macros::ptr::read(self)}
+                unsafe{macros::ptr::read(self)}
             }
         }
     )*}

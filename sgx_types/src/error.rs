@@ -28,6 +28,8 @@
 
 use core::result;
 use core::fmt;
+use crate::int32_t;
+
 //
 // sgx_error.h
 //
@@ -313,7 +315,7 @@ impl fmt::Display for sgx_status_t {
     }
 }
 
-pub type sys_error_t = ::int32_t;
+pub type sys_error_t = int32_t;
 pub type SgxResult<T> = result::Result<T, sgx_status_t>;
 pub type SgxError = result::Result<(), sgx_status_t>;
 pub type SysResult<T> = result::Result<T, sys_error_t>;

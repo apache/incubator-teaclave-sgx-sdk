@@ -47,12 +47,10 @@
 //     ::sys::memchr::memrchr(needle, haystack)
 // }
 
-use libc;
-
 pub fn memchr(needle: u8, haystack: &[u8]) -> Option<usize> {
 
     let p = unsafe {
-        libc::memchr(
+        sgx_libc::memchr(
             haystack.as_ptr(),
             needle,
             haystack.len())
@@ -71,7 +69,7 @@ pub fn memrchr(needle: u8, haystack: &[u8]) -> Option<usize> {
         // GNU's memrchr() will - unlike memchr() - error if haystack is empty.
         if haystack.is_empty() {return None}
         let p = unsafe {
-            libc::memrchr(
+            sgx_libc::memrchr(
                 haystack.as_ptr(),
                 needle,
                 haystack.len())

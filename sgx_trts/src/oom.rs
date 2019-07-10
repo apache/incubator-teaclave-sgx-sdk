@@ -26,7 +26,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use trts;
+use crate::trts;
 use core::sync::atomic::{AtomicPtr, Ordering};
 use core::mem;
 use core::alloc::AllocErr;

@@ -35,9 +35,9 @@
 /// bytes ("nul characters") and that the final byte is 0 ("nul terminator").
 ///
 use sgx_types::c_char;
-use libc;
-use memchr;
-use ascii;
+use crate::libc;
+use crate::memchr;
+use crate::ascii;
 //use error::Error;
 //use io;
 

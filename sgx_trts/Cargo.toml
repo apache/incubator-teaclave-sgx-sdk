@@ -6,28 +6,10 @@ repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"
 documentation = "https://dingelish.github.io/"
 description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
-
-include = [
-    "LICENSE",
-    "Readme.md",
-    "Cargo.toml",
-    "src/trts.rs",
-    "src/oom.rs",
-    "src/ascii.rs",
-    "src/veh.rs",
-    "src/c_str.rs",
-    "src/error.rs",
-    "src/memeq.rs",
-    "src/macros.rs",
-    "src/memchr.rs",
-    "src/lib.rs",
-    "src/libc.rs",
-    "src/enclave.rs",
-]
+edition = "2018"
 
 [lib]
 name = "sgx_trts"
-crate-type = ["rlib"]
 
 [features]
 default = []
