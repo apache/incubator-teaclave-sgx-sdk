@@ -7,7 +7,7 @@ build = "build.rs"
 [dependencies]
 sgx_types = { version = "1.0", rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
 sgx_urts = { version = "1.0", rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-wabt = "0.4.0"
+wabt = "0.6.0"
 serde = {version = "1.0"}
 serde_json = {version = "1.0"}
 serde_derive = {version = "1.0"}
