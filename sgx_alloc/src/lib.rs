@@ -39,6 +39,9 @@
 
 #![feature(allocator_api)]
 
+#[cfg(target_env = "sgx")]
+extern crate sgx_trts;
+
 use core::alloc::{GlobalAlloc, Alloc, AllocErr, Layout};
 use core::ptr::NonNull;
 

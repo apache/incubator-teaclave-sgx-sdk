@@ -85,6 +85,12 @@
 #![allow(overflowing_literals)]
 #![allow(non_snake_case)]
 
+#[cfg(target_env = "sgx")]
+extern crate sgx_types;
+
+#[cfg(target_env = "sgx")]
+extern crate sgx_libc;
+
 extern crate alloc;
 
 #[macro_use]
@@ -99,7 +105,14 @@ pub mod memchr;
 pub mod ascii;
 pub mod c_str;
 
+#[cfg(not(target_env = "sgx"))]
 pub use sgx_libc as libc;
+
+#[cfg(target_env = "sgx")]
+pub mod libc {
+    pub use sgx_libc::*;
+}
+
 pub mod error {
     pub use sgx_libc::{errno, set_errno, error_string};
 }
