@@ -16,6 +16,10 @@ sgx_types = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" 
 sgx_rand = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
 
 [dependencies]
-rusty-machine = { git = "https://github.com/mesalock-linux/rusty-machine-sgx" }
+# Choose the instruction set by specifying "fallback", "sse", "avx", "fma"
+# "fallback" is the fastest for the benchmark in this enclave on my 9900k
+# default features are "mesalock_sgx" + "fallback" as
+# rusty-machine = { git = "https://github.com/mesalock-linux/rusty-machine-sgx" }
+rusty-machine = { git = "https://github.com/mesalock-linux/rusty-machine-sgx", default-features = false, features = ["mesalock_sgx", "fallback"] }
 serde         = { git = "https://github.com/mesalock-linux/serde-sgx" }
 serde_json    = { git = "https://github.com/mesalock-linux/serde-json-sgx" }
