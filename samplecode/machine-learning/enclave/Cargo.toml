@@ -11,11 +11,11 @@ crate-type = ["staticlib"]
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { path = "../../../sgx_types" }
-sgx_tstd = { path = "../../../sgx_tstd" }
-sgx_rand = { path = "../../../sgx_rand" }
+sgx_tstd = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_types = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_rand = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
 
 [dependencies]
-rusty-machine = { path = "../../../third_party/rusty-machine" }
-serde         = { path = "../../../third_party/serde-rs/serde/serde" }
-serde_json    = { path = "../../../third_party/serde-rs/json" }
+rusty-machine = { git = "https://github.com/mesalock-linux/rusty-machine-sgx" }
+serde         = { git = "https://github.com/mesalock-linux/serde-sgx" }
+serde_json    = { git = "https://github.com/mesalock-linux/serde-json-sgx" }
