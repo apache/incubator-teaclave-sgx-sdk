@@ -1,0 +1,14 @@
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+matrix:
+  allow_failures:
+    - rust: nightly
+os:
+  - linux
+  - osx
+script:
+  - cargo test
+  - cargo test --features rust-tls --no-default-features

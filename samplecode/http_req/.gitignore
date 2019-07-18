@@ -1,0 +1,8 @@
+lib
+bin
+app/target
+enclave/target
+*.c
+*.h
+*.o
+*.a

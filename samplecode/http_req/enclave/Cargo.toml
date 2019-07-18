@@ -1,0 +1,16 @@
+[package]
+name = "Httpreqenclave"
+version = "1.0.0"
+authors = ["Piotr Roslaniec <p.roslaniec@gmail.com>"]
+edition = '2018'
+
+[lib]
+name = "httpreqenclave"
+crate-type = ["staticlib"]
+
+[dependencies]
+http_req = { path = "../../../third_party/http_req" }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk", rev = "v1.0.8" }
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk", rev = "v1.0.8", features = ["net"] }

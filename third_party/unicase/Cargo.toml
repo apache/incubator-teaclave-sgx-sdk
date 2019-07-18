@@ -1,0 +1,25 @@
+[package]
+
+name = "unicase"
+version = "2.4.0" # don't forget to update html_root_url
+authors = ["Sean McArthur <sean@seanmonstar.com>"]
+description = "A case-insensitive wrapper around strings."
+repository = "https://github.com/seanmonstar/unicase"
+documentation = "https://docs.rs/unicase"
+license = "MIT/Apache-2.0"
+keywords = ["lowercase", "case", "case-insensitive", "case-folding"]
+
+exclude = [
+    "scripts/*"
+]
+
+build = "build.rs"
+
+[build-dependencies]
+version_check = "0.1"
+
+[features]
+nightly = []
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk", rev = "v1.0.8"}
