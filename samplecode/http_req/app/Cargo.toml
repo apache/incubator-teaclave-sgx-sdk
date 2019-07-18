@@ -5,6 +5,6 @@ authors = ["Piotr Roslaniec <p.roslaniec@gmail.com>"]
 edition = '2018'
 
 [dependencies]
-sgx_types = { path = "/root/sgx/sgx_types" }
-sgx_urts = { path = "/root/sgx/sgx_urts" }
+sgx_types = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_urts = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
 dirs = "1.0.2"
