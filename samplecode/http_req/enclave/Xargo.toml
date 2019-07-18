@@ -4,66 +4,65 @@ panic_unwind = {}
 panic_abort = {}
 
 [dependencies.sgx_types]
-path = "/root/sgx/sgx_types"
+git = "https://github.com/baidu/rust-sgx-sdk.git"
 stage = 1
 
 [dependencies.sgx_libc]
-path = "/root/sgx/sgx_libc"
+git = "https://github.com/baidu/rust-sgx-sdk.git"
 stage = 2
 
 [dependencies.sgx_tkey_exchange]
-path = "/root/sgx/sgx_tkey_exchange"
+git = "https://github.com/baidu/rust-sgx-sdk.git"
 stage = 2
 
 [dependencies.sgx_tservice]
-path = "/root/sgx/sgx_tservice"
+git = "https://github.com/baidu/rust-sgx-sdk.git"
 stage = 2
 
 [dependencies.sgx_tse]
-path = "/root/sgx/sgx_tse"
+git = "https://github.com/baidu/rust-sgx-sdk.git"
 stage = 2
 
 [dependencies.sgx_tcrypto]
-path = "/root/sgx/sgx_tcrypto"
+git = "https://github.com/baidu/rust-sgx-sdk.git"
 stage = 2
 
 [dependencies.sgx_trts]
-path = "/root/sgx/sgx_trts"
+git = "https://github.com/baidu/rust-sgx-sdk.git"
 stage = 3
 
-[dependencies.sgx_unwind]
-path = "/root/sgx/sgx_unwind"
-stage = 4
-
 [dependencies.sgx_tdh]
-path = "/root/sgx/sgx_tdh"
+git = "https://github.com/baidu/rust-sgx-sdk.git"
 stage = 4
 
 [dependencies.sgx_tseal]
-path = "/root/sgx/sgx_tseal"
-stage = 4
-
-[dependencies.sgx_tprotected_fs]
-path = "/root/sgx/sgx_tprotected_fs"
+git = "https://github.com/baidu/rust-sgx-sdk.git"
 stage = 4
 
 [dependencies.sgx_alloc]
-path = "/root/sgx/sgx_alloc"
+git = "https://github.com/baidu/rust-sgx-sdk.git"
 stage = 4
 
 [dependencies.std]
-path = "/root/sgx/xargo/sgx_tstd"
+git = "https://github.com/baidu/rust-sgx-sdk.git"
 features = ["net"]
 stage = 5
 
 [dependencies.sgx_rand]
-path = "/root/sgx/sgx_rand"
+git = "https://github.com/baidu/rust-sgx-sdk.git"
 stage = 6
 
 [dependencies.sgx_serialize]
-path = "/root/sgx/sgx_serialize"
+git = "https://github.com/baidu/rust-sgx-sdk.git"
 stage = 6
 
 [dependencies.sgx_tunittest]
-path = "/root/sgx/sgx_tunittest"
+git = "https://github.com/baidu/rust-sgx-sdk.git"
 stage = 6
+
+[dependencies.sgx_tprotected_fs]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+stage = 4
+
+[patch.crates-io]
+libc = { git = "https://github.com/mesalock-linux/libc-sgx" }

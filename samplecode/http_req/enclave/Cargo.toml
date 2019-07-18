@@ -2,7 +2,7 @@
 name = "Httpreqenclave"
 version = "1.0.0"
 authors = ["Piotr Roslaniec <p.roslaniec@gmail.com>"]
-edition = '2018'
+edition = "2018"
 
 [lib]
 name = "httpreqenclave"

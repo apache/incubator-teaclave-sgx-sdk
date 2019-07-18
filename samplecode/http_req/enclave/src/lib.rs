@@ -35,6 +35,9 @@
 #[macro_use]
 extern crate sgx_tstd as std;
 
+#[cfg(target_env = "sgx")]
+extern crate sgx_types;
+
 use http_req::{request::RequestBuilder, tls, uri::Uri};
 use sgx_types::*;
 use std::ffi::CStr;
