@@ -10,7 +10,7 @@ rustls      = { version = "0.13.0", features = ["dangerous_configuration"] }
 itertools   = "*"
 sgx_types   = { path = "../../../sgx_types" }
 base64      = "0.9.2"
-untrusted   = "*"
+untrusted   = "0.6.2"
 serde_json  = "1.0.24"
 num-bigint  = "*"
 bit-vec     = "*"

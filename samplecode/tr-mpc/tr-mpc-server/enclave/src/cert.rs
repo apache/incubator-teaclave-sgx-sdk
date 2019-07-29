@@ -9,12 +9,11 @@ use sgx_types::*;
 use num_bigint::BigUint;
 use bit_vec::BitVec;
 use yasna::models::ObjectIdentifier;
-use yasna::writer::PC;
-use yasna::tags::{TAG_UTCTIME, TAG_UTF8STRING};
-use chrono::prelude::*;
-use chrono::offset::Utc;
 use chrono::Duration;
+use chrono::TimeZone;
+use chrono::Utc as TzUtc;
 
+use super::CERTEXPIRYDAYS;
 const ISSUER : &str = "MesaTEE";
 const SUBJECT : &str = "MesaTEE";
 
@@ -51,33 +50,25 @@ pub fn gen_ecc_cert(payload: String,
                     writer.next().write_set(|writer| {
                         writer.next().write_sequence(|writer| {
                             writer.next().write_oid(&ObjectIdentifier::from_slice(&[2,5,4,3]));
-                            writer.next().write_identifier(TAG_UTF8STRING, PC::Primitive);
-                            writer.next().write_length(ISSUER.len());
-                            writer.buf.extend_from_slice(ISSUER.as_bytes());
+                            writer.next().write_utf8_string(&ISSUER);
                         });
                     });
                 });
                 // Validity: Issuing/Expiring Time (unused but required)
-                let now = SystemTime::now();//.duration_since(UNIX_EPOCH).unwrap().as_secs();
-                let chrono_now: DateTime<Utc> = now.into();
-                let issue_ts = chrono_now.format("%y%m%d%H%M%SZ").to_string();
-                let expire_ts = (chrono_now + Duration::days(1)).format("%y%m%d%H%M%SZ").to_string();
+                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+                let issue_ts = TzUtc.timestamp(now.as_secs() as i64, 0);
+                let expire = now + Duration::days(CERTEXPIRYDAYS).to_std().unwrap();
+                let expire_ts = TzUtc.timestamp(expire.as_secs() as i64, 0);
                 writer.next().write_sequence(|writer| {
-                    writer.next().write_identifier(TAG_UTCTIME, PC::Primitive);
-                    writer.next().write_length(13);
-                    writer.buf.extend_from_slice(&issue_ts.as_bytes());
-                    writer.next().write_identifier(TAG_UTCTIME, PC::Primitive);
-                    writer.next().write_length(13);
-                    writer.buf.extend_from_slice(&expire_ts.as_bytes());
+                    writer.next().write_utctime(&yasna::models::UTCTime::from_datetime(&issue_ts));
+                    writer.next().write_utctime(&yasna::models::UTCTime::from_datetime(&expire_ts));
                 });
                 // Subject: CN=MesaTEE (unused but required)
                 writer.next().write_sequence(|writer| {
                     writer.next().write_set(|writer| {
                         writer.next().write_sequence(|writer| {
                             writer.next().write_oid(&ObjectIdentifier::from_slice(&[2,5,4,3]));
-                            writer.next().write_identifier(TAG_UTF8STRING, PC::Primitive);
-                            writer.next().write_length(SUBJECT.len());
-                            writer.buf.extend_from_slice(SUBJECT.as_bytes());
+                            writer.next().write_utf8_string(&SUBJECT);
                         });
                     });
                 });
