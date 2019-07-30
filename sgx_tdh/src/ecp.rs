@@ -40,7 +40,7 @@ pub fn derive_key(shared_key: &sgx_ec256_dh_shared_t,
                   label: &[u8; EC_LABEL_LENGTH]) -> SgxResult<sgx_ec_key_128bit_t> {
 
     let cmac_key = sgx_cmac_128bit_key_t::default();
-    let mut key_derive_key = try!(rsgx_rijndael128_cmac_msg(&cmac_key, shared_key).map_err(set_error));
+    let mut key_derive_key = r#try!(rsgx_rijndael128_cmac_msg(&cmac_key, shared_key).map_err(set_error));
 
     //derivation_buffer = counter(0x01) || label || 0x00 || output_key_len(0x0080)
     let mut derivation_buffer = [0_u8; EC_DERIVATION_BUFFER_SIZE];

@@ -30,13 +30,13 @@
 //! The mod opaque Encoder and Decoder container to save buffer of target types
 //!
 
-use leb128::{read_signed_leb128, read_unsigned_leb128, write_signed_leb128, write_unsigned_leb128};
+use crate::leb128::{read_signed_leb128, read_unsigned_leb128, write_signed_leb128, write_unsigned_leb128};
 use std::vec::Vec;
 use std::string::String;
 use std::string::ToString;
 use std::borrow::Cow;
 use std::io::{self, Write};
-use serialize;
+use crate::serialize;
 
 pub struct Encoder<'a> {
     pub cursor: &'a mut io::Cursor<Vec<u8>>,

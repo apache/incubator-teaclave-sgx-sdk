@@ -36,7 +36,7 @@ use sgx_trts::trts::*;
 use sgx_trts::memeq::ConsttimeMemEq;
 use sgx_tcrypto::*;
 use sgx_tse::*;
-use ecp::*;
+use crate::ecp::*;
 use core::mem;
 use core::ptr;
 use alloc::slice;
@@ -407,15 +407,15 @@ impl SgxDhResponder {
         }
 
         let ecc_state = SgxEccHandle::new();
-        try!(ecc_state.open().map_err(|ret| self.set_error(ret)));
-        self.shared_key = try!(ecc_state.compute_shared_dhkey(&self.prv_key, &msg2.g_b).map_err(|ret| self.set_error(ret)));
+        r#try!(ecc_state.open().map_err(|ret| self.set_error(ret)));
+        self.shared_key = r#try!(ecc_state.compute_shared_dhkey(&self.prv_key, &msg2.g_b).map_err(|ret| self.set_error(ret)));
 
-        self.smk_aek = try!(derive_key(&self.shared_key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret)));
+        self.smk_aek = r#try!(derive_key(&self.shared_key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret)));
 
         #[cfg(feature = "use_lav2")]
-        try!(self.lav2_verify_message2(msg2).map_err(|ret| self.set_error(ret)));
+        r#try!(self.lav2_verify_message2(msg2).map_err(|ret| self.set_error(ret)));
         #[cfg(not(feature = "use_lav2"))]
-        try!(self.dh_verify_message2(msg2).map_err(|ret| self.set_error(ret)));
+        r#try!(self.dh_verify_message2(msg2).map_err(|ret| self.set_error(ret)));
 
         initiator_identity.isv_svn = msg2.report.body.isv_svn;
         initiator_identity.isv_prod_id = msg2.report.body.isv_prod_id;
@@ -424,11 +424,11 @@ impl SgxDhResponder {
         initiator_identity.mr_enclave = msg2.report.body.mr_enclave;
 
         #[cfg(feature = "use_lav2")]
-        try!(self.lav2_generate_message3(msg2, msg3).map_err(|ret| self.set_error(ret)));
+        r#try!(self.lav2_generate_message3(msg2, msg3).map_err(|ret| self.set_error(ret)));
         #[cfg(not(feature = "use_lav2"))]
-        try!(self.dh_generate_message3(msg2, msg3).map_err(|ret| self.set_error(ret)));
+        r#try!(self.dh_generate_message3(msg2, msg3).map_err(|ret| self.set_error(ret)));
 
-        * aek = try!(derive_key(&self.shared_key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret)));
+        * aek = r#try!(derive_key(&self.shared_key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret)));
 
         *self = Self::default();
         self.state = SgxDhSessionState::SGX_DH_SESSION_ACTIVE;
@@ -444,12 +444,12 @@ impl SgxDhResponder {
         let mut target = sgx_target_info_t::default();
         let report_data = sgx_report_data_t::default();
 
-        let report = try!(rsgx_create_report(&target, &report_data));
-        try!(SGX_LAV2_PROTO_SPEC.make_target_info(&report, &mut target));
+        let report = r#try!(rsgx_create_report(&target, &report_data));
+        r#try!(SGX_LAV2_PROTO_SPEC.make_target_info(&report, &mut target));
 
         let ecc_state = SgxEccHandle::new();
-        try!(ecc_state.open());
-        let (prv_key, pub_key) = try!(ecc_state.create_key_pair());
+        r#try!(ecc_state.open());
+        let (prv_key, pub_key) = r#try!(ecc_state.create_key_pair());
 
         self.prv_key = prv_key;
         self.pub_key = pub_key;
@@ -469,18 +469,18 @@ impl SgxDhResponder {
         }
 
         let report = msg2.report;
-        let data_mac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &report));
+        let data_mac = r#try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &report));
         if !data_mac.consttime_memeq(&msg2.cmac) {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
 
-        try!(rsgx_verify_report(&report));
+        r#try!(rsgx_verify_report(&report));
 
         let sha_handle = SgxShaHandle::new();
-        try!(sha_handle.init());
-        try!(sha_handle.update_msg(&self.pub_key));
-        try!(sha_handle.update_msg(&msg2.g_b));
-        let msg_hash = try!(sha_handle.get_hash());
+        r#try!(sha_handle.init());
+        r#try!(sha_handle.update_msg(&self.pub_key));
+        r#try!(sha_handle.update_msg(&msg2.g_b));
+        let msg_hash = r#try!(sha_handle.get_hash());
 
         if !msg_hash.eq(data_hash) {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
@@ -492,17 +492,17 @@ impl SgxDhResponder {
     fn lav2_verify_message2(&self, msg2: &SgxDhMsg2) -> SgxError {
 
         let sha_handle = SgxShaHandle::new();
-        try!(sha_handle.init());
-        try!(sha_handle.update_msg(&msg2.report.body.report_data));
-        try!(sha_handle.update_msg(&msg2.g_b));
-        let msg_hash = try!(sha_handle.get_hash());
+        r#try!(sha_handle.init());
+        r#try!(sha_handle.update_msg(&msg2.report.body.report_data));
+        r#try!(sha_handle.update_msg(&msg2.g_b));
+        let msg_hash = r#try!(sha_handle.get_hash());
 
         let mut report = msg2.report;
         report.body.report_data = sgx_report_data_t::default();
         report.body.report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
 
-        try!(rsgx_verify_report(&report));
-        let data_mac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &msg2.g_b));
+        r#try!(rsgx_verify_report(&report));
+        let data_mac = r#try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &msg2.g_b));
         if !data_mac.consttime_memeq(&msg2.cmac) {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
@@ -521,28 +521,28 @@ impl SgxDhResponder {
         msg3.msg3_body.report = Default::default();
 
         let sha_handle = SgxShaHandle::new();
-        try!(sha_handle.init());
-        try!(sha_handle.update_msg(&msg2.g_b));
-        try!(sha_handle.update_msg(&self.pub_key));
-        let msg_hash = try!(sha_handle.get_hash());
+        r#try!(sha_handle.init());
+        r#try!(sha_handle.update_msg(&msg2.g_b));
+        r#try!(sha_handle.update_msg(&self.pub_key));
+        let msg_hash = r#try!(sha_handle.get_hash());
 
         let mut target = sgx_target_info_t::default();
         let mut report_data = sgx_report_data_t::default();
         let report = msg2.report;
 
         report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
-        try!(SGX_LAV2_PROTO_SPEC.make_target_info(&report, &mut target));
-        msg3.msg3_body.report = try!(rsgx_create_report(&target, &report_data));
+        r#try!(SGX_LAV2_PROTO_SPEC.make_target_info(&report, &mut target));
+        msg3.msg3_body.report = r#try!(rsgx_create_report(&target, &report_data));
 
         let add_prop_len = msg3.msg3_body.additional_prop.len() as u32;
         let cmac_handle = SgxCmacHandle::new();
-        try!(cmac_handle.init(&self.smk_aek));
-        try!(cmac_handle.update_msg(&msg3.msg3_body.report));
-        try!(cmac_handle.update_msg(&add_prop_len));
+        r#try!(cmac_handle.init(&self.smk_aek));
+        r#try!(cmac_handle.update_msg(&msg3.msg3_body.report));
+        r#try!(cmac_handle.update_msg(&add_prop_len));
         if add_prop_len > 0 {
-            try!(cmac_handle.update_slice(&msg3.msg3_body.additional_prop));
+            r#try!(cmac_handle.update_slice(&msg3.msg3_body.additional_prop));
         }
-        msg3.cmac = try!(cmac_handle.get_hash());
+        msg3.cmac = r#try!(cmac_handle.get_hash());
 
         Ok(())
     }
@@ -558,22 +558,22 @@ impl SgxDhResponder {
         let report = msg2.report;
 
         let sha_handle = SgxShaHandle::new();
-        try!(sha_handle.init());
-        try!(sha_handle.update_msg(&self.pub_key));
-        try!(sha_handle.update_msg(&proto_spec));
-        let msg_hash = try!(sha_handle.get_hash());
+        r#try!(sha_handle.init());
+        r#try!(sha_handle.update_msg(&self.pub_key));
+        r#try!(sha_handle.update_msg(&proto_spec));
+        let msg_hash = r#try!(sha_handle.get_hash());
 
         report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
-        try!(SGX_LAV2_PROTO_SPEC.make_target_info(&report, &mut target));
-        msg3.msg3_body.report = try!(rsgx_create_report(&target, &report_data));
+        r#try!(SGX_LAV2_PROTO_SPEC.make_target_info(&report, &mut target));
+        msg3.msg3_body.report = r#try!(rsgx_create_report(&target, &report_data));
 
         let cmac_handle = SgxCmacHandle::new();
-        try!(cmac_handle.init(&self.smk_aek));
+        r#try!(cmac_handle.init(&self.smk_aek));
         if msg3.msg3_body.additional_prop.len() > 0 {
-            try!(cmac_handle.update_slice(&msg3.msg3_body.additional_prop));
+            r#try!(cmac_handle.update_slice(&msg3.msg3_body.additional_prop));
         }
-        try!(cmac_handle.update_msg(&self.pub_key));
-        msg3.cmac = try!(cmac_handle.get_hash());
+        r#try!(cmac_handle.update_msg(&self.pub_key));
+        msg3.cmac = r#try!(cmac_handle.get_hash());
 
         Ok(())
     }
@@ -685,18 +685,18 @@ impl SgxDhInitiator {
         }
 
         let ecc_state = SgxEccHandle::new();
-        try!(ecc_state.open().map_err(|ret| self.set_error(ret)));
-        let (mut prv_key, pub_key) = try!(ecc_state.create_key_pair().map_err(|ret| self.set_error(ret)));
-        self.shared_key = try!(ecc_state.compute_shared_dhkey(&prv_key, &msg1.g_a).map_err(|ret| self.set_error(ret)));
+        r#try!(ecc_state.open().map_err(|ret| self.set_error(ret)));
+        let (mut prv_key, pub_key) = r#try!(ecc_state.create_key_pair().map_err(|ret| self.set_error(ret)));
+        self.shared_key = r#try!(ecc_state.compute_shared_dhkey(&prv_key, &msg1.g_a).map_err(|ret| self.set_error(ret)));
 
         prv_key = sgx_ec256_private_t::default();
         self.pub_key = pub_key;
-        self.smk_aek = try!(derive_key(&self.shared_key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret)));
+        self.smk_aek = r#try!(derive_key(&self.shared_key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret)));
 
         #[cfg(feature = "use_lav2")]
-        try!(self.lav2_generate_message2(msg1, msg2).map_err(|ret| self.set_error(ret)));
+        r#try!(self.lav2_generate_message2(msg1, msg2).map_err(|ret| self.set_error(ret)));
         #[cfg(not(feature = "use_lav2"))]
-        try!(self.dh_generate_message2(msg1, msg2).map_err(|ret| self.set_error(ret)));
+        r#try!(self.dh_generate_message2(msg1, msg2).map_err(|ret| self.set_error(ret)));
 
         self.peer_pub_key = msg1.g_a;
         self.state = SgxDhSessionState::SGX_DH_SESSION_INITIATOR_WAIT_M3;
@@ -793,11 +793,11 @@ impl SgxDhInitiator {
         }
 
         #[cfg(feature = "use_lav2")]
-        try!(self.lav2_verify_message3(msg3).map_err(|ret| self.set_error(ret)));
+        r#try!(self.lav2_verify_message3(msg3).map_err(|ret| self.set_error(ret)));
         #[cfg(not(feature = "use_lav2"))]
-        try!(self.dh_verify_message3(msg3).map_err(|ret| self.set_error(ret)));
+        r#try!(self.dh_verify_message3(msg3).map_err(|ret| self.set_error(ret)));
 
-        * aek = try!(derive_key(&self.shared_key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret)));
+        * aek = r#try!(derive_key(&self.shared_key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret)));
 
         *self = Self::default();
         self.state = SgxDhSessionState::SGX_DH_SESSION_ACTIVE;
@@ -820,19 +820,19 @@ impl SgxDhInitiator {
         msg2.g_b = self.pub_key;
 
         let sha_handle = SgxShaHandle::new();
-        try!(sha_handle.init());
-        try!(sha_handle.update_msg(&msg1.g_a));
-        try!(sha_handle.update_msg(&msg2.g_b));
-        let msg_hash = try!(sha_handle.get_hash());
+        r#try!(sha_handle.init());
+        r#try!(sha_handle.update_msg(&msg1.g_a));
+        r#try!(sha_handle.update_msg(&msg2.g_b));
+        let msg_hash = r#try!(sha_handle.get_hash());
 
         let mut report_data = sgx_report_data_t::default();
         report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
         report_data.d[SGX_SHA256_HASH_SIZE..SGX_SHA256_HASH_SIZE + 2].copy_from_slice(&AES_CMAC_KDF_ID);
 
         let target = msg1.target;
-        msg2.report = try!(rsgx_create_report(&target, &report_data));
+        msg2.report = r#try!(rsgx_create_report(&target, &report_data));
         let report = msg2.report;
-        msg2.cmac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &report));
+        msg2.cmac = r#try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &report));
 
         Ok(())
     }
@@ -844,19 +844,19 @@ impl SgxDhInitiator {
         msg2.g_b = self.pub_key;
 
         let sha_handle = SgxShaHandle::new();
-        try!(sha_handle.init());
-        try!(sha_handle.update_msg(&SGX_LAV2_PROTO_SPEC));
-        try!(sha_handle.update_msg(&msg2.g_b));
-        let msg_hash = try!(sha_handle.get_hash());
+        r#try!(sha_handle.init());
+        r#try!(sha_handle.update_msg(&SGX_LAV2_PROTO_SPEC));
+        r#try!(sha_handle.update_msg(&msg2.g_b));
+        let msg_hash = r#try!(sha_handle.get_hash());
 
         let target = msg1.target;
         let mut report_data = sgx_report_data_t::default();
         report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
 
-        msg2.report = try!(rsgx_create_report(&target, &report_data));
+        msg2.report = r#try!(rsgx_create_report(&target, &report_data));
         // Replace report_data with proto_spec
         unsafe {msg2.report.body.report_data = SGX_LAV2_PROTO_SPEC.to_report_data();}
-        msg2.cmac = try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &msg2.g_b));
+        msg2.cmac = r#try!(rsgx_rijndael128_cmac_msg(&self.smk_aek, &msg2.g_b));
 
         Ok(())
     }
@@ -866,25 +866,25 @@ impl SgxDhInitiator {
         let add_prop_len = msg3.msg3_body.additional_prop.len() as u32;
 
         let cmac_handle = SgxCmacHandle::new();
-        try!(cmac_handle.init(&self.smk_aek));
-        try!(cmac_handle.update_msg(&msg3.msg3_body.report));
-        try!(cmac_handle.update_msg(&add_prop_len));
+        r#try!(cmac_handle.init(&self.smk_aek));
+        r#try!(cmac_handle.update_msg(&msg3.msg3_body.report));
+        r#try!(cmac_handle.update_msg(&add_prop_len));
         if add_prop_len > 0 {
-            try!(cmac_handle.update_slice(&msg3.msg3_body.additional_prop));
+            r#try!(cmac_handle.update_slice(&msg3.msg3_body.additional_prop));
         }
-        let data_mac = try!(cmac_handle.get_hash());
+        let data_mac = r#try!(cmac_handle.get_hash());
 
         if !data_mac.consttime_memeq(&msg3.cmac) {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
 
-        try!(rsgx_verify_report(&msg3.msg3_body.report));
+        r#try!(rsgx_verify_report(&msg3.msg3_body.report));
 
         let sha_handle = SgxShaHandle::new();
-        try!(sha_handle.init());
-        try!(sha_handle.update_msg(&self.pub_key));
-        try!(sha_handle.update_msg(&self.peer_pub_key));
-        let msg_hash = try!(sha_handle.get_hash());
+        r#try!(sha_handle.init());
+        r#try!(sha_handle.update_msg(&self.pub_key));
+        r#try!(sha_handle.update_msg(&self.peer_pub_key));
+        let msg_hash = r#try!(sha_handle.get_hash());
 
         let data_hash = &msg3.msg3_body.report.body.report_data.d[..SGX_SHA256_HASH_SIZE];
         if !msg_hash.eq(data_hash) {
@@ -897,10 +897,10 @@ impl SgxDhInitiator {
     fn lav2_verify_message3(&self, msg3: &SgxDhMsg3) -> SgxError {
 
         let sha_handle = SgxShaHandle::new();
-        try!(sha_handle.init());
-        try!(sha_handle.update_msg(&self.peer_pub_key));
-        try!(sha_handle.update_msg(&SGX_LAV2_PROTO_SPEC));
-        let msg_hash = try!(sha_handle.get_hash());
+        r#try!(sha_handle.init());
+        r#try!(sha_handle.update_msg(&self.peer_pub_key));
+        r#try!(sha_handle.update_msg(&SGX_LAV2_PROTO_SPEC));
+        let msg_hash = r#try!(sha_handle.get_hash());
 
         let mut report = msg3.msg3_body.report;
         report.body.report_data = sgx_report_data_t::default();
@@ -910,15 +910,15 @@ impl SgxDhInitiator {
             return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
         }
 
-        try!(rsgx_verify_report(&report));
+        r#try!(rsgx_verify_report(&report));
 
         let cmac_handle = SgxCmacHandle::new();
-        try!(cmac_handle.init(&self.smk_aek));
+        r#try!(cmac_handle.init(&self.smk_aek));
         if msg3.msg3_body.additional_prop.len() > 0 {
-            try!(cmac_handle.update_slice(&msg3.msg3_body.additional_prop));
+            r#try!(cmac_handle.update_slice(&msg3.msg3_body.additional_prop));
         }
-        try!(cmac_handle.update_msg(&self.peer_pub_key));
-        let data_mac = try!(cmac_handle.get_hash());
+        r#try!(cmac_handle.update_msg(&self.peer_pub_key));
+        let data_mac = r#try!(cmac_handle.get_hash());
 
         if !data_mac.consttime_memeq(&msg3.cmac) {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);

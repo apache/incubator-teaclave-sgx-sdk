@@ -6,13 +6,7 @@ repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"
 documentation = "https://dingelish.github.io/"
 description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
-
-include = [
-    "LICENSE",
-    "Readme.md",
-    "Cargo.toml",
-    "src/lib.rs",
-]
+edition = "2018"
 
 [lib]
 name = "sgx_tkey_exchange"

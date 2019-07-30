@@ -27,8 +27,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use syn::{self, Ident};
-use internals::ast::Container;
-use bound;
+use crate::internals::ast::Container;
+use crate::bound;
 
 #[derive(Debug)]
 pub struct Parameters {

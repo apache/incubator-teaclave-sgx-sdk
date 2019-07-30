@@ -40,7 +40,7 @@
 //!
 use sgx_types::*;
 use sgx_types::marker::ContiguousMemory;
-use internal::*;
+use crate::internal::*;
 use core::mem;
 use core::marker::PhantomData;
 use alloc::slice;

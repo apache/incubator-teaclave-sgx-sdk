@@ -6,19 +6,7 @@ repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"
 documentation = "https://dingelish.github.io/"
 description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
-
-include = [
-    "LICENSE",
-    "Readme.md",
-    "Cargo.toml",
-    "build.rs",
-    "src/crypto.rs",
-    "src/lib.rs",
-    "src/rsa2048.rs",
-    "src/rsa3072.rs",
-    "src/util.rs",
-    "example/rsa.rs", "example/sha256.rs",
-]
+edition = "2018"
 
 [lib]
 name = "sgx_crypto_helper"

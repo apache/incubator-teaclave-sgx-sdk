@@ -32,8 +32,8 @@
 
 use std::num::Wrapping as w;
 
-use Rng;
-use distributions::{Sample, IndependentSample};
+use crate::Rng;
+use crate::distributions::{Sample, IndependentSample};
 
 /// Sample values uniformly between two bounds.
 ///

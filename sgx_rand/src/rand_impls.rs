@@ -31,7 +31,7 @@
 use std::char;
 use std::mem;
 
-use {Rand,Rng};
+use crate::{Rand,Rng};
 
 impl Rand for isize {
     #[inline]
@@ -129,7 +129,7 @@ impl Rand for u128 {
 macro_rules! float_impls {
     ($mod_name:ident, $ty:ty, $mantissa_bits:expr, $method_name:ident) => {
         mod $mod_name {
-            use {Rand, Rng, Open01, Closed01};
+            use crate::{Rand, Rng, Open01, Closed01};
 
             const SCALE: $ty = (1u64 << $mantissa_bits) as $ty;
 

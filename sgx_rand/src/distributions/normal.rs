@@ -28,8 +28,8 @@
 
 /// The normal and derived distributions.
 
-use {Rng, Rand, Open01};
-use distributions::{ziggurat, ziggurat_tables, Sample, IndependentSample};
+use crate::{Rng, Rand, Open01};
+use crate::distributions::{ziggurat, ziggurat_tables, Sample, IndependentSample};
 
 /// A wrapper around an `f64` to generate N(0, 1) random numbers
 /// (a.k.a.  a standard normal, or Gaussian).

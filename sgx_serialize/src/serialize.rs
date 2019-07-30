@@ -696,7 +696,7 @@ macro_rules! array {
                         return Err(d.error("wrong array length"));
                     }
                     Ok([$(
-                        try!(d.read_seq_elt($len - $idx - 1,
+                        r#try!(d.read_seq_elt($len - $idx - 1,
                                             |d| DeSerializable::decode(d)))
                     ),*])
                 })
@@ -707,7 +707,7 @@ macro_rules! array {
             fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
                 s.emit_seq($len, |s| {
                     for i in 0..$len {
-                        try!(s.emit_seq_elt(i, |s| self[i].encode(s)));
+                        r#try!(s.emit_seq_elt(i, |s| self[i].encode(s)));
                     }
                     Ok(())
                 })
@@ -796,7 +796,7 @@ impl<T: Serializable> Serializable for LinkedList<T> {
     fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
         s.emit_seq(self.len(), |s| {
             for (i, e) in self.iter().enumerate() {
-                try!(s.emit_seq_elt(i, |s| e.encode(s)));
+                r#try!(s.emit_seq_elt(i, |s| e.encode(s)));
             }
             Ok(())
         })
@@ -808,7 +808,7 @@ impl<T:DeSerializable> DeSerializable for LinkedList<T> {
         d.read_seq(|d, len| {
             let mut list = LinkedList::new();
             for i in 0..len {
-                list.push_back(try!(d.read_seq_elt(i, |d| DeSerializable::decode(d))));
+                list.push_back(r#try!(d.read_seq_elt(i, |d| DeSerializable::decode(d))));
             }
             Ok(list)
         })
@@ -819,7 +819,7 @@ impl<T: Serializable> Serializable for VecDeque<T> {
     fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
         s.emit_seq(self.len(), |s| {
             for (i, e) in self.iter().enumerate() {
-                try!(s.emit_seq_elt(i, |s| e.encode(s)));
+                r#try!(s.emit_seq_elt(i, |s| e.encode(s)));
             }
             Ok(())
         })
@@ -831,7 +831,7 @@ impl<T:DeSerializable> DeSerializable for VecDeque<T> {
         d.read_seq(|d, len| {
             let mut deque: VecDeque<T> = VecDeque::new();
             for i in 0..len {
-                deque.push_back(try!(d.read_seq_elt(i, |d| DeSerializable::decode(d))));
+                deque.push_back(r#try!(d.read_seq_elt(i, |d| DeSerializable::decode(d))));
             }
             Ok(deque)
         })
@@ -843,8 +843,8 @@ impl<K: Serializable + Ord, V: Serializable> Serializable for BTreeMap<K, V> {
         e.emit_map(self.len(), |e| {
             let mut i = 0;
             for (key, val) in self.iter() {
-                try!(e.emit_map_elt_key(i, |e| key.encode(e)));
-                try!(e.emit_map_elt_val(i, |e| val.encode(e)));
+                r#try!(e.emit_map_elt_key(i, |e| key.encode(e)));
+                r#try!(e.emit_map_elt_val(i, |e| val.encode(e)));
                 i += 1;
             }
             Ok(())
@@ -857,8 +857,8 @@ impl<K: DeSerializable + Ord, V: DeSerializable> DeSerializable for BTreeMap<K, 
         d.read_map(|d, len| {
             let mut map = BTreeMap::new();
             for i in 0..len {
-                let key = try!(d.read_map_elt_key(i, |d| DeSerializable::decode(d)));
-                let val = try!(d.read_map_elt_val(i, |d| DeSerializable::decode(d)));
+                let key = r#try!(d.read_map_elt_key(i, |d| DeSerializable::decode(d)));
+                let val = r#try!(d.read_map_elt_val(i, |d| DeSerializable::decode(d)));
                 map.insert(key, val);
             }
             Ok(map)
@@ -871,7 +871,7 @@ impl<T: Serializable + Ord> Serializable for BTreeSet<T> {
         s.emit_seq(self.len(), |s| {
             let mut i = 0;
             for e in self.iter() {
-                try!(s.emit_seq_elt(i, |s| e.encode(s)));
+                r#try!(s.emit_seq_elt(i, |s| e.encode(s)));
                 i += 1;
             }
             Ok(())
@@ -884,7 +884,7 @@ impl<T: DeSerializable + Ord> DeSerializable for BTreeSet<T> {
         d.read_seq(|d, len| {
             let mut set = BTreeSet::new();
             for i in 0..len {
-                set.insert(try!(d.read_seq_elt(i, |d| DeSerializable::decode(d))));
+                set.insert(r#try!(d.read_seq_elt(i, |d| DeSerializable::decode(d))));
             }
             Ok(set)
         })
@@ -899,8 +899,8 @@ impl<K, V> Serializable for HashMap<K, V>
         e.emit_map(self.len(), |e| {
             let mut i = 0;
             for (key, val) in self.iter() {
-                try!(e.emit_map_elt_key(i, |e| key.encode(e)));
-                try!(e.emit_map_elt_val(i, |e| val.encode(e)));
+                r#try!(e.emit_map_elt_key(i, |e| key.encode(e)));
+                r#try!(e.emit_map_elt_val(i, |e| val.encode(e)));
                 i += 1;
             }
             Ok(())
@@ -916,8 +916,8 @@ impl<K, V> DeSerializable for HashMap<K, V>
         d.read_map(|d, len| {
             let mut map = HashMap::with_capacity(cap_capacity::<(K, V)>(len));
             for i in 0..len {
-                let key = try!(d.read_map_elt_key(i, |d| DeSerializable::decode(d)));
-                let val = try!(d.read_map_elt_val(i, |d| DeSerializable::decode(d)));
+                let key = r#try!(d.read_map_elt_key(i, |d| DeSerializable::decode(d)));
+                let val = r#try!(d.read_map_elt_val(i, |d| DeSerializable::decode(d)));
                 map.insert(key, val);
             }
             Ok(map)
@@ -930,7 +930,7 @@ impl<T> Serializable for HashSet<T> where T: Serializable + Hash + Eq {
         s.emit_seq(self.len(), |s| {
             let mut i = 0;
             for e in self.iter() {
-                try!(s.emit_seq_elt(i, |s| e.encode(s)));
+                r#try!(s.emit_seq_elt(i, |s| e.encode(s)));
                 i += 1;
             }
             Ok(())
@@ -943,7 +943,7 @@ impl<T> DeSerializable for HashSet<T> where T: DeSerializable + Hash + Eq, {
         d.read_seq(|d, len| {
             let mut set = HashSet::with_capacity(cap_capacity::<T>(len));
             for i in 0..len {
-                set.insert(try!(d.read_seq_elt(i, |d| DeSerializable::decode(d))));
+                set.insert(r#try!(d.read_seq_elt(i, |d| DeSerializable::decode(d))));
             }
             Ok(set)
         })
@@ -952,8 +952,8 @@ impl<T> DeSerializable for HashSet<T> where T: DeSerializable + Hash + Eq, {
 
 use std::io::Cursor;
 use std::marker::PhantomData;
-use opaque::Encoder as DataEncoder;
-use opaque::Decoder as DataDecoder;
+use crate::opaque::Encoder as DataEncoder;
+use crate::opaque::Decoder as DataDecoder;
 
 ///  SerializeHelper make it easy to obtain serialize function.
 pub struct SerializeHelper {

@@ -30,7 +30,7 @@
 //! generators.
 
 use std::{io, mem, fmt};
-use Rng;
+use crate::Rng;
 
 /// A random number generator
 pub struct SgxRng(imp::SgxRng);
@@ -73,7 +73,7 @@ mod imp {
     use std::io;
 
     use super::{next_u32, next_u64};
-    use Rng;
+    use crate::Rng;
 
     fn getrandom(buf: &mut [u8]) -> SgxError {
         rsgx_read_rand(buf)

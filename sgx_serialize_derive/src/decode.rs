@@ -34,15 +34,15 @@ use syn::{self, Ident};
 
 use quote::Tokens;
 
-use internals::ast::{Body, Container, Field, Style, Variant};
-use internals::{Ctxt};
-use param::Parameters;
-use fragment::{Fragment, Stmts};
+use crate::internals::ast::{Body, Container, Field, Style, Variant};
+use crate::internals::{Ctxt};
+use crate::param::Parameters;
+use crate::fragment::{Fragment, Stmts};
 
 pub fn expand_derive_deserialize(input: &syn::DeriveInput) -> Result<Tokens, String> {
     let ctxt = Ctxt::new();
     let cont = Container::from_ast(&ctxt, input);
-    try!(ctxt.check());
+    r#try!(ctxt.check());
 
     let ident = &cont.ident;
     let params = Parameters::new(&cont);

@@ -31,7 +31,7 @@
 
 use std::default::Default;
 
-use {Rng, SeedableRng};
+use crate::{Rng, SeedableRng};
 
 /// How many bytes of entropy the underling RNG is allowed to generate
 /// before it is reseeded

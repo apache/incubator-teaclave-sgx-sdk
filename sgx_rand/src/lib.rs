@@ -490,7 +490,7 @@ pub trait SeedableRng<Seed>: Rng {
     /// rng.reseed(&[5, 6, 7, 8]);
     /// println!("{}", rng.gen::<f64>());
     /// ```
-    fn reseed(&mut self, Seed);
+    fn reseed(&mut self, seed: Seed);
 
     /// Create a new RNG with the given seed.
     ///

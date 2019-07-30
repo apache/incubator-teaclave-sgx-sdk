@@ -336,7 +336,6 @@ impl SgxInternalSealedData {
 
         /* intel sgx sdk 2.4 */
         let mut report = rsgx_self_report();
-        //let mut report = try!(rsgx_create_report(&target_info, &report_data));
 
         let error = rsgx_read_rand(&mut key_id.id);
         if error.is_err() {
@@ -450,7 +449,6 @@ impl SgxInternalSealedData {
 
         /* intel sgx sdk 2.4 */
         let mut report = rsgx_self_report();
-        //let mut report = try!(rsgx_create_report(&target_info, &report_data));
 
         let error = rsgx_read_rand(&mut key_id.id);
         if error.is_err() {
@@ -517,13 +515,13 @@ impl SgxInternalSealedData {
                     key_request: &sgx_key_request_t) -> SgxResult<Self>  {
 
 
-        let mut seal_key = try!(rsgx_get_key(key_request).map_err(|ret| {
+        let mut seal_key = rsgx_get_key(key_request).map_err(|ret| {
             if ret != sgx_status_t::SGX_ERROR_OUT_OF_MEMORY {
                 sgx_status_t::SGX_ERROR_UNEXPECTED
             } else {
                 ret
             }
-        }));
+        })?;
 
         let mut sealed_data = SgxInternalSealedData::default();
         sealed_data.payload_data.encrypt = vec![0_u8; encrypt_text.len()].into_boxed_slice();
@@ -551,7 +549,7 @@ impl SgxInternalSealedData {
 
     fn unseal_data_helper(&self) -> SgxResult<SgxInternalUnsealedData> {
 
-        let mut seal_key = try!(rsgx_get_key(self.get_key_request()).map_err(|ret| {
+        let mut seal_key = rsgx_get_key(self.get_key_request()).map_err(|ret| {
             if (ret == sgx_status_t::SGX_ERROR_INVALID_CPUSVN) ||
                (ret == sgx_status_t::SGX_ERROR_INVALID_ISVSVN) ||
                (ret == sgx_status_t::SGX_ERROR_OUT_OF_MEMORY) {
@@ -559,7 +557,7 @@ impl SgxInternalSealedData {
             } else {
                 sgx_status_t::SGX_ERROR_MAC_MISMATCH
             }
-        }));
+        })?;
 
         //
         // code that calls sgx_unseal_data commonly does some sanity checks

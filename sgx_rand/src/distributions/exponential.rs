@@ -28,8 +28,8 @@
 
 //! The exponential distribution.
 
-use {Rng, Rand};
-use distributions::{ziggurat, ziggurat_tables, Sample, IndependentSample};
+use crate::{Rng, Rand};
+use crate::distributions::{ziggurat, ziggurat_tables, Sample, IndependentSample};
 
 /// A wrapper around an `f64` to generate Exp(1) random numbers.
 ///

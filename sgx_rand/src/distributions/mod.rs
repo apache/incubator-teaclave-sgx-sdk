@@ -37,7 +37,7 @@
 
 use std::marker;
 
-use {Rng, Rand};
+use crate::{Rng, Rand};
 
 pub use self::range::Range;
 pub use self::gamma::{Gamma, ChiSquared, FisherF, StudentT};
@@ -66,7 +66,7 @@ pub trait Sample<Support> {
 // trait called `Sample` and the other should be `DependentSample`.
 pub trait IndependentSample<Support>: Sample<Support> {
     /// Generate a random value.
-    fn ind_sample<R: Rng>(&self, &mut R) -> Support;
+    fn ind_sample<R: Rng>(&self, rng: &mut R) -> Support;
 }
 
 /// A wrapper for generating types that implement `Rand` via the

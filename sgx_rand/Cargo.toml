@@ -6,25 +6,7 @@ repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"
 documentation = "https://dingelish.github.io/"
 description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
-
-include = [
-    "LICENSE",
-    "Readme.md",
-    "Cargo.toml",
-    "src/os.rs",
-    "src/reseeding.rs",
-    "src/distributions/normal.rs",
-    "src/distributions/mod.rs",
-    "src/distributions/ziggurat_tables.rs",
-    "src/distributions/range.rs",
-    "src/distributions/exponential.rs",
-    "src/distributions/gamma.rs",
-    "src/read.rs",
-    "src/rand_impls.rs",
-    "src/isaac.rs",
-    "src/lib.rs",
-    "src/chacha.rs",
-]
+edition = "2018"
 
 [lib]
 name = "sgx_rand"

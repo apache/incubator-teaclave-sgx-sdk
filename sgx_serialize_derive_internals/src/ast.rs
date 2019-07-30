@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use syn;
-use Ctxt;
+use crate::Ctxt;
 
 #[derive(Debug)]
 pub struct Container<'a> {
