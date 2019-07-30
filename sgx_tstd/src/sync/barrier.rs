@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use core::fmt;
-use sync::{SgxMutex, SgxCondvar};
+use crate::sync::{SgxMutex, SgxCondvar};
 
 /// A barrier enables multiple threads to synchronize the beginning
 /// of some computation.

@@ -30,7 +30,7 @@
 //! associated runtime pieces.
 
 use sgx_trts::trts::rsgx_abort;
-use thread;
+use crate::thread;
 use core::mem;
 use core::fmt;
 use core::panic::{PanicInfo, Location};
@@ -39,8 +39,8 @@ use core::ptr;
 use core::raw;
 use core::sync::atomic::{AtomicPtr, Ordering};
 use core::panic::BoxMeUp;
-use alloc::boxed::Box;
-use alloc::string::String;
+use alloc_crate::boxed::Box;
+use alloc_crate::string::String;
 
 static PANIC_HANDLER: AtomicPtr<()> = AtomicPtr::new(default_panic_handler as * mut ());
 
@@ -53,10 +53,10 @@ fn default_panic_handler(msg: &str, file: &str, line: u32, col: u32) {
 #[cfg(feature = "stdio")]
 fn default_panic_handler(msg: &str, file: &str, line: u32, col: u32) {
 
-    use sys::stdio::Stderr;
+    use crate::sys::stdio::Stderr;
 
     #[cfg(feature = "backtrace")]
-    use sys_common::backtrace;
+    use crate::sys_common::backtrace;
 
     #[cfg(feature = "backtrace")]
     let log_backtrace = {
@@ -70,7 +70,7 @@ fn default_panic_handler(msg: &str, file: &str, line: u32, col: u32) {
     };
 
     let mut err = Stderr::new().ok();
-    let write = |err: &mut ::io::Write| {
+    let write = |err: &mut crate::io::Write| {
         let _ = writeln!(err, "thread panicked at '{}', {}:{}:{}",
                         msg, file, line, col);
 
@@ -147,7 +147,7 @@ pub fn update_panic_count(amt: isize) -> usize {
 }
 
 /// Invoke a closure, capturing the cause of an unwinding panic if one occurs.
-pub unsafe fn try<R, F: FnOnce() -> R>(f: F) -> Result<R, Box<Any + Send>> {
+pub unsafe fn r#try<R, F: FnOnce() -> R>(f: F) -> Result<R, Box<Any + Send>> {
     #[allow(unions_with_drop_fields)]
     union Data<F, R> {
         f: F,
@@ -250,7 +250,7 @@ pub fn begin_panic_fmt(msg: &fmt::Arguments,
                        file_line_col: &(&'static str, u32, u32)) -> ! {
 
     use core::fmt::Write;
-    use alloc::string::String;
+    use alloc_crate::string::String;
 
     // We do two allocations here, unfortunately. But (a) they're
     // required with the current scheme, and (b) we don't handle
@@ -274,7 +274,7 @@ impl<'a> PanicPayload<'a> {
     }
 
     fn fill(&mut self) -> &mut String {
-        use fmt::Write;
+        use crate::fmt::Write;
 
         let inner = self.inner;
         self.string.get_or_insert_with(|| {

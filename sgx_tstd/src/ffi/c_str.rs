@@ -28,8 +28,8 @@
 
 pub use sgx_trts::c_str::*;
 
-use error::Error;
-use io;
+use crate::error::Error;
+use crate::io;
 
 impl Error for NulError {
     fn description(&self) -> &str { "nul byte found in data" }

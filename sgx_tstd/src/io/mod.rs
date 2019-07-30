@@ -26,16 +26,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use memchr;
-use error as std_error;
+use crate::memchr;
+use crate::error as std_error;
 use core::cmp;
 use core::str as core_str;
 use core::fmt;
 use core::result;
 use core::ptr;
-use alloc::vec::Vec;
-use alloc::str;
-use alloc::string::String;
+use alloc_crate::vec::Vec;
+use alloc_crate::str;
+use alloc_crate::string::String;
 
 use crate::ops::{Deref, DerefMut};
 pub use self::buffered::{BufReader, BufWriter, LineWriter};
@@ -45,7 +45,7 @@ pub use self::error::{Result, Error, ErrorKind};
 pub use self::util::{copy, sink, Sink, empty, Empty, repeat, Repeat};
 pub use self::lazy::{Lazy};
 
-pub use sys::os::{errno, set_errno, error_string};
+pub use crate::sys::os::{errno, set_errno, error_string};
 #[cfg(feature = "stdio")]
 pub use self::stdio::{stdin, stdout, stderr, _print, _eprint, Stdin, Stdout, Stderr};
 #[cfg(feature = "stdio")]
@@ -63,7 +63,7 @@ mod util;
 #[cfg(feature = "stdio")]
 mod stdio;
 
-const DEFAULT_BUF_SIZE: usize = ::sys_common::io::DEFAULT_BUF_SIZE;
+const DEFAULT_BUF_SIZE: usize = crate::sys_common::io::DEFAULT_BUF_SIZE;
 
 struct Guard<'a> { buf: &'a mut Vec<u8>, len: usize }
 

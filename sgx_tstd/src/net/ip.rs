@@ -31,8 +31,8 @@ use core::cmp::Ordering;
 use core::fmt;
 use core::hash;
 use core::mem;
-use net::{hton, ntoh};
-use sys_common::{AsInner, FromInner};
+use crate::net::{hton, ntoh};
+use crate::sys_common::{AsInner, FromInner};
 
 /// An IP address, either IPv4 or IPv6.
 ///

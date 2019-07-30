@@ -27,15 +27,15 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_trts::libc::{c_int, mode_t, time_t, stat64, off64_t};
-use os::unix::prelude::*;
-use ffi::{CString, CStr, OsString};
-use io::{self, Error, ErrorKind, SeekFrom};
-use io::{IoSlice, IoSliceMut};
-use path::{Path, PathBuf};
-use sys::fd::FileDesc;
-use sys::time::SystemTime;
-use sys::{cvt, cvt_r};
-use sys_common::{AsInner, FromInner};
+use crate::os::unix::prelude::*;
+use crate::ffi::{CString, CStr, OsString};
+use crate::io::{self, Error, ErrorKind, SeekFrom};
+use crate::io::{IoSlice, IoSliceMut};
+use crate::path::{Path, PathBuf};
+use crate::sys::fd::FileDesc;
+use crate::sys::time::SystemTime;
+use crate::sys::{cvt, cvt_r};
+use crate::sys_common::{AsInner, FromInner};
 use core::fmt;
 use core::mem;
 
@@ -443,10 +443,10 @@ pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
 
     cfg_if! {
         if #[cfg(feature = "untrusted_fs")] {
-            use fs::{File, set_permissions};
+            use crate::fs::{File, set_permissions};
         } else {
-            use untrusted::fs::{File, set_permissions};
-            use untrusted::path::PathEx;
+            use crate::untrusted::fs::{File, set_permissions};
+            use crate::untrusted::path::PathEx;
         }
     }
 

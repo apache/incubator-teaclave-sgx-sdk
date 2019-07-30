@@ -28,8 +28,8 @@
 
 use core::fmt;
 use core::str::FromStr;
-use error::Error;
-use net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use crate::error::Error;
+use crate::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 
 
 struct Parser<'a> {

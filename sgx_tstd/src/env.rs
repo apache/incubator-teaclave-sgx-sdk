@@ -28,10 +28,10 @@
 
 //! Inspection and manipulation of the process's environment.
 
-use error::Error;
-use ffi::{OsStr, OsString};
-use path::PathBuf;
-use sys::os as os_imp;
+use crate::error::Error;
+use crate::ffi::{OsStr, OsString};
+use crate::path::PathBuf;
+use crate::sys::os as os_imp;
 use core::fmt;
 
 /// An iterator over a snapshot of the environment variables of this process.
@@ -282,7 +282,7 @@ impl Error for JoinPathsError {
 
 /// Constants associated with the current target
 pub mod consts {
-    use sys::env::os;
+    use crate::sys::env::os;
 
     /// A string describing the architecture of the CPU that is currently
     /// in use.

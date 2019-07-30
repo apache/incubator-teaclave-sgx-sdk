@@ -32,11 +32,11 @@ use core::hash;
 use core::mem;
 use core::option;
 use core::iter;
-use alloc::vec;
-use alloc::slice;
-use io;
-use net::{ntoh, hton, IpAddr, Ipv4Addr, Ipv6Addr};
-use sys_common::{FromInner, AsInner, IntoInner};
+use alloc_crate::vec;
+use alloc_crate::slice;
+use crate::io;
+use crate::net::{ntoh, hton, IpAddr, Ipv4Addr, Ipv6Addr};
+use crate::sys_common::{FromInner, AsInner, IntoInner};
 
 /// An internet socket address, either IPv4 or IPv6.
 ///

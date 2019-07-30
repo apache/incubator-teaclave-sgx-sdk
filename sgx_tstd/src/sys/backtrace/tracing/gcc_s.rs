@@ -27,10 +27,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_trts::libc::c_void;
-use error::Error;
-use io;
-use sys::backtrace::BacktraceContext;
-use sys_common::backtrace::Frame;
+use crate::error::Error;
+use crate::io;
+use crate::sys::backtrace::BacktraceContext;
+use crate::sys_common::backtrace::Frame;
 
 use sgx_unwind as uw;
 
@@ -49,9 +49,9 @@ impl Error for UnwindError {
     }
 }
 
-impl ::fmt::Display for UnwindError {
+impl crate::fmt::Display for UnwindError {
     #[allow(deprecated)]
-    fn fmt(&self, f: &mut ::fmt::Formatter) -> ::fmt::Result {
+    fn fmt(&self, f: &mut crate::fmt::Formatter) -> crate::fmt::Result {
         write!(f, "{}: {:?}", self.description(), self.0)
     }
 }
@@ -103,7 +103,7 @@ extern fn trace_fn(ctx: *mut uw::_Unwind_Context,
     // FindEnclosingFunction on non-osx platforms. In doing so, we get a
     // slightly more accurate stack trace in the process.
     //
-    // This is often because panic involves the last instruction of a
+    // This is often because crate::panic involves the last instruction of a
     // function being "call std::rt::begin_unwind", with no ret
     // instructions after it. This means that the return instruction
     // pointer points *outside* of the calling function, and by

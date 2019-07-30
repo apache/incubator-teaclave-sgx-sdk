@@ -29,13 +29,13 @@
 //! Native threads.
 
 use sgx_types::{sgx_thread_t, sgx_thread_self};
-use panicking;
-use sys_common::thread_info;
-use sync::{SgxMutex, SgxCondvar};
+use crate::panicking;
+use crate::sys_common::thread_info;
+use crate::sync::{SgxMutex, SgxCondvar};
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
-use alloc::sync::Arc;
-use time::Duration;
+use alloc_crate::sync::Arc;
+use crate::time::Duration;
 
 #[macro_use] mod local;
 pub use self::local::{LocalKey, LocalKeyInner, AccessError};

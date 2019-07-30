@@ -29,12 +29,12 @@
 use sgx_trts::libc;
 
 #[cfg(feature = "untrusted_fs")]
-use fs::Metadata;
+use crate::fs::Metadata;
 #[cfg(not(feature = "untrusted_fs"))]
-use untrusted::fs::Metadata;
-use sys_common::AsInner;
+use crate::untrusted::fs::Metadata;
+use crate::sys_common::AsInner;
 
-use os::raw;
+use crate::os::raw;
 
 /// OS-specific extension methods for `fs::Metadata`
 pub trait MetadataExt {

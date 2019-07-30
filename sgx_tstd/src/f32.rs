@@ -35,8 +35,8 @@
 
 #![allow(missing_docs)]
 
-use intrinsics;
-use sys::cmath;
+use crate::intrinsics;
+use crate::sys::cmath;
 
 pub use core::f32::{RADIX, MANTISSA_DIGITS, DIGITS, EPSILON};
 pub use core::f32::{MIN_EXP, MAX_EXP, MIN_10_EXP};
@@ -451,7 +451,7 @@ impl f32 {
     #[inline]
     pub fn log2(self) -> f32 {
         #[cfg(target_os = "android")]
-        return ::sys::android::log2f32(self);
+        return crate::sys::android::log2f32(self);
         #[cfg(not(target_os = "android"))]
         return unsafe { intrinsics::log2f32(self) };
     }
@@ -844,7 +844,7 @@ impl f32 {
     #[inline]
     pub fn acosh(self) -> f32 {
         match self {
-            x if x < 1.0 => ::f32::NAN,
+            x if x < 1.0 => core::f32::NAN,
             x => (x + ((x * x) - 1.0).sqrt()).ln(),
         }
     }

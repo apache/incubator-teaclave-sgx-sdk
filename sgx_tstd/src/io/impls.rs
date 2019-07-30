@@ -26,7 +26,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use io::{self, SeekFrom, Read, Initializer, Write, Seek, BufRead, Error, ErrorKind};
+use crate::io::{self, SeekFrom, Read, Initializer, Write, Seek, BufRead, Error, ErrorKind};
 use core::cmp;
 use core::fmt;
 use core::mem;

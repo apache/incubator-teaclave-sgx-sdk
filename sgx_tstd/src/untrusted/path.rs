@@ -26,10 +26,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use untrusted::fs;
-use io;
-use path::Path;
-use path::PathBuf;
+use crate::untrusted::fs;
+use crate::io;
+use crate::path::Path;
+use crate::path::PathBuf;
 
 pub trait PathEx {
     fn metadata(&self) -> io::Result<fs::Metadata>;

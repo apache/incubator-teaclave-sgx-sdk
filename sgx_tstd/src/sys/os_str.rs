@@ -26,17 +26,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use sys_common::{AsInner, IntoInner};
+use crate::sys_common::{AsInner, IntoInner};
 use core::fmt;
 use core::mem;
-use alloc::borrow::Cow;
-use alloc::str;
-use alloc::string::String;
-use alloc::vec::Vec;
-use alloc::boxed::Box;
-use alloc::rc::Rc;
-use alloc::sync::Arc;
-use sys_common::bytestring::debug_fmt_bytestring;
+use alloc_crate::borrow::Cow;
+use alloc_crate::str;
+use alloc_crate::string::String;
+use alloc_crate::vec::Vec;
+use alloc_crate::boxed::Box;
+use alloc_crate::rc::Rc;
+use alloc_crate::sync::Arc;
+use crate::sys_common::bytestring::debug_fmt_bytestring;
 use core::str::lossy::Utf8Lossy;
 
 #[derive(Clone, Hash)]

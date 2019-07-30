@@ -38,24 +38,24 @@
 //! Synchronization library supports, as well as the OCALLs that each API function needs.
 //!
 use sgx_types::{self, SysError, sgx_status_t, sgx_thread_t, SGX_THREAD_T_NULL};
-use panic::{UnwindSafe, RefUnwindSafe};
-use sys_common::poison::{self, TryLockError, TryLockResult, LockResult};
+use crate::panic::{UnwindSafe, RefUnwindSafe};
+use crate::sys_common::poison::{self, TryLockError, TryLockResult, LockResult};
 use core::cell::UnsafeCell;
 use core::mem;
 use core::ptr;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 use core::marker;
-use alloc::boxed::Box;
+use alloc_crate::boxed::Box;
 use sgx_trts::libc;
-use sync::SgxThreadSpinlock;
-use thread::{self, rsgx_thread_self};
+use crate::sync::SgxThreadSpinlock;
+use crate::thread::{self, rsgx_thread_self};
 use sgx_types::{c_void, c_int, c_long};
-use io::{self, Error, ErrorKind};
+use crate::io::{self, Error, ErrorKind};
 use sgx_trts::error::set_errno;
 use sgx_trts::enclave::SgxThreadData;
 
-use time::Duration;
+use crate::time::Duration;
 
 
 extern "C" {
@@ -254,7 +254,7 @@ impl SgxThreadMutexInner {
 
     pub unsafe fn unlock(&mut self) -> SysError {
         let mut thread_waiter = SGX_THREAD_T_NULL;
-        try!(self.unlock_lazy(&mut thread_waiter));
+        r#try!(self.unlock_lazy(&mut thread_waiter));
 
         if thread_waiter != SGX_THREAD_T_NULL /* wake the waiter up*/ {
             thread_set_event(SgxThreadData::from_raw(thread_waiter).get_tcs());

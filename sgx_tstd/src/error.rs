@@ -32,11 +32,11 @@ use core::mem::transmute;
 use core::num;
 use core::array;
 use core::fmt::{self, Debug, Display};
-use alloc::str;
-use alloc::string::{self, String};
-use alloc::boxed::Box;
-use alloc::borrow::Cow;
-use alloc::alloc;
+use alloc_crate::str;
+use alloc_crate::string::{self, String};
+use alloc_crate::boxed::Box;
+use alloc_crate::borrow::Cow;
+use alloc_crate::alloc;
 use core::char;
 
 /// Base functionality for all errors in Rust.

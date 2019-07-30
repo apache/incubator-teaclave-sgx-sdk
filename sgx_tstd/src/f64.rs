@@ -35,8 +35,8 @@
 
 #![allow(missing_docs)]
 
-use intrinsics;
-use sys::cmath;
+use crate::intrinsics;
+use crate::sys::cmath;
 
 pub use core::f64::{RADIX, MANTISSA_DIGITS, DIGITS, EPSILON};
 pub use core::f64::{MIN_EXP, MAX_EXP, MIN_10_EXP};
@@ -399,7 +399,7 @@ impl f64 {
     pub fn log2(self) -> f64 {
         self.log_wrapper(|n| {
             #[cfg(target_os = "android")]
-            return ::sys::android::log2f64(n);
+            return crate::sys::android::log2f64(n);
             #[cfg(not(target_os = "android"))]
             return unsafe { intrinsics::log2f64(n) };
         })

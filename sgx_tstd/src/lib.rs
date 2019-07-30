@@ -108,13 +108,13 @@ use prelude::v1::*;
 // We want to reexport a few macros from core but libcore has already been
 // imported by the compiler (via our #[no_std] attribute) In this case we just
 // add a new crate name so we can attach the reexports to it.
-pub use core::{assert_eq, assert_ne, debug_assert, debug_assert_eq,debug_assert_ne, unreachable, unimplemented, write, writeln, try};
+pub use core::{assert_eq, assert_ne, debug_assert, debug_assert_eq,debug_assert_ne, unreachable, unimplemented, write, writeln, r#try};
 
 #[macro_use]
 extern crate core as __core;
 
 #[macro_use]
-extern crate alloc;
+extern crate alloc as alloc_crate;
 
 pub use core::unicode::*;
 
@@ -176,15 +176,15 @@ pub use core::u32;
 pub use core::u64;
 pub use core::u128;
 pub use core::char;
-pub use alloc::boxed;
-pub use alloc::rc;
-pub use alloc::borrow;
-pub use alloc::fmt;
-pub use alloc::slice;
-pub use alloc::str;
-pub use alloc::string;
-pub use alloc::vec;
-pub use alloc::format;
+pub use alloc_crate::boxed;
+pub use alloc_crate::rc;
+pub use alloc_crate::borrow;
+pub use alloc_crate::fmt;
+pub use alloc_crate::slice;
+pub use alloc_crate::str;
+pub use alloc_crate::string;
+pub use alloc_crate::vec;
+pub use alloc_crate::format;
 
 pub mod f32;
 pub mod f64;

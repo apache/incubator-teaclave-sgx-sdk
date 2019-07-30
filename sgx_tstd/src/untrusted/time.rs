@@ -27,8 +27,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use core::mem;
-use sys::time;
-use time::{Instant, SystemTime, SystemTimeError, Duration};
+use crate::sys::time;
+use crate::time::{Instant, SystemTime, SystemTimeError, Duration};
 
 pub trait InstantEx {
     fn now() -> Instant;
@@ -86,7 +86,7 @@ impl SystemTimeEx for SystemTime {
 }
 
 mod inner {
-    use sys::time;
+    use crate::sys::time;
     pub struct Instant(pub time::Instant);
     pub struct SystemTime(pub time::SystemTime);
 }

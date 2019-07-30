@@ -30,14 +30,14 @@
 /// supported platforms.
 
 use sgx_trts::libc;
-use io::prelude::*;
-use io;
-use sync::SgxThreadMutex;
+use crate::io::prelude::*;
+use crate::io;
+use crate::sync::SgxThreadMutex;
 use core::str;
 use core::sync::atomic::{self, Ordering};
 use core::ptr;
 
-pub use sys::backtrace::{
+pub use crate::sys::backtrace::{
     unwind_backtrace,
     init_state,
     resolve_symname,

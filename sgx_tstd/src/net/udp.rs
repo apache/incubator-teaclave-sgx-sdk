@@ -28,11 +28,11 @@
 
 use sgx_trts::libc::c_int;
 use core::fmt;
-use io::{self, Error, ErrorKind};
-use net::{ToSocketAddrs, SocketAddr, Ipv4Addr, Ipv6Addr};
-use sys_common::net as net_imp;
-use sys_common::{AsInner, FromInner, IntoInner};
-use time::Duration;
+use crate::io::{self, Error, ErrorKind};
+use crate::net::{ToSocketAddrs, SocketAddr, Ipv4Addr, Ipv6Addr};
+use crate::sys_common::net as net_imp;
+use crate::sys_common::{AsInner, FromInner, IntoInner};
+use crate::time::Duration;
 
 /// A UDP socket.
 ///

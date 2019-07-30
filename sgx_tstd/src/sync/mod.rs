@@ -38,7 +38,7 @@
 //! Synchronization library supports, as well as the OCALLs that each API function needs.
 //!
 
-pub use alloc::sync::{Arc, Weak};
+pub use alloc_crate::sync::{Arc, Weak};
 pub use core::sync::atomic;
 
 pub use self::barrier::{Barrier, BarrierWaitResult};
@@ -48,7 +48,7 @@ pub use self::remutex::{SgxReentrantMutex, SgxReentrantMutexGuard, SgxReentrantT
 pub use self::once::{Once, OnceState, ONCE_INIT};
 pub use self::rwlock::{SgxRwLock, SgxRwLockReadGuard, SgxRwLockWriteGuard, SgxThreadRwLock};
 pub use self::spinlock::{SgxSpinlock, SgxSpinlockGuard, SgxThreadSpinlock};
-pub use sys_common::poison::{PoisonError, TryLockError, TryLockResult, LockResult};
+pub use crate::sys_common::poison::{PoisonError, TryLockError, TryLockResult, LockResult};
 
 mod barrier;
 mod condvar;

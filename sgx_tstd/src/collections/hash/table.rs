@@ -26,14 +26,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use alloc::alloc::{Global, Alloc, Layout, LayoutErr, handle_alloc_error};
-use alloc::collections::CollectionAllocErr;
-use hash::{BuildHasher, Hash, Hasher};
-use marker;
-use mem::{size_of, needs_drop};
-use mem;
-use ops::{Deref, DerefMut};
-use ptr::{self, Unique, NonNull};
+use alloc_crate::alloc::{Global, Alloc, Layout, LayoutErr, handle_alloc_error};
+use alloc_crate::collections::CollectionAllocErr;
+use crate::hash::{BuildHasher, Hash, Hasher};
+use crate::marker;
+use crate::mem::{size_of, needs_drop};
+use crate::mem;
+use crate::ops::{Deref, DerefMut};
+use crate::ptr::{self, Unique, NonNull};
 use core::hint;
 
 use self::BucketState::*;

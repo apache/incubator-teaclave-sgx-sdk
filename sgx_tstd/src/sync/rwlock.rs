@@ -28,18 +28,18 @@
 
 use sgx_types::{SysError, sgx_thread_t, SGX_THREAD_T_NULL};
 use sgx_trts::libc;
-use panic::{UnwindSafe, RefUnwindSafe};
-use thread;
+use crate::panic::{UnwindSafe, RefUnwindSafe};
+use crate::thread;
 use super::mutex::SgxThreadMutex;
 use super::condvar::SgxThreadCondvar;
 use super::spinlock::SgxThreadSpinlock;
-use sys_common::poison::{self, TryLockError, TryLockResult, LockResult};
+use crate::sys_common::poison::{self, TryLockError, TryLockResult, LockResult};
 use core::cell::UnsafeCell;
 use core::mem;
 use core::ptr;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
-use alloc::boxed::Box;
+use alloc_crate::boxed::Box;
 
 struct RwLockInfo {
     readers_num: u32,
@@ -123,7 +123,7 @@ impl SgxThreadRwLock {
 
         let rwlockinfo: &mut RwLockInfo = &mut *self.lock.get();
 
-        try!(rwlockinfo.ref_busy());
+        r#try!(rwlockinfo.ref_busy());
 
         rwlockinfo.mutex.lock();
         {
@@ -162,7 +162,7 @@ impl SgxThreadRwLock {
 
         let rwlockinfo: &mut RwLockInfo = &mut *self.lock.get();
 
-        try!(rwlockinfo.ref_busy());
+        r#try!(rwlockinfo.ref_busy());
 
         rwlockinfo.mutex.lock();
         {
@@ -201,7 +201,7 @@ impl SgxThreadRwLock {
 
         let rwlockinfo: &mut RwLockInfo = &mut *self.lock.get();
 
-        try!(rwlockinfo.ref_busy());
+        r#try!(rwlockinfo.ref_busy());
 
         rwlockinfo.mutex.lock();
         {
@@ -246,7 +246,7 @@ impl SgxThreadRwLock {
 
         let rwlockinfo: &mut RwLockInfo = &mut *self.lock.get();
 
-        try!(rwlockinfo.ref_busy());
+        r#try!(rwlockinfo.ref_busy());
 
         rwlockinfo.mutex.lock();
         {

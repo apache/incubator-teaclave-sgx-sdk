@@ -30,13 +30,13 @@
 
 use sgx_trts::libc;
 #[cfg(feature = "untrusted_fs")]
-use fs;
+use crate::fs;
 #[cfg(not(feature = "untrusted_fs"))]
-use untrusted::fs;
-use os::raw;
-use sys;
-use io;
-use sys_common::{AsInner, FromInner, IntoInner};
+use crate::untrusted::fs;
+use crate::os::raw;
+use crate::sys;
+use crate::io;
+use crate::sys_common::{AsInner, FromInner, IntoInner};
 
 /// Raw file descriptors.
 pub type RawFd = raw::c_int;

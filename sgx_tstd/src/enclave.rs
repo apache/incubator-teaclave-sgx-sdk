@@ -28,9 +28,9 @@
 
 use sgx_types::*;
 use sgx_trts::enclave;
-use sync::SgxThreadSpinlock;
-use path::{Path, PathBuf};
-use io;
+use crate::sync::SgxThreadSpinlock;
+use crate::path::{Path, PathBuf};
+use crate::io;
 use core::sync::atomic::{AtomicU64, Ordering};
 
 pub use sgx_trts::enclave::SgxThreadPolicy;

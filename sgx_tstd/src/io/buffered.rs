@@ -28,10 +28,10 @@
 
 //! Buffering wrappers for I/O traits
 
-use io::prelude::*;
-use error;
-use io::{self, Initializer, DEFAULT_BUF_SIZE, Error, ErrorKind, SeekFrom};
-use memchr;
+use crate::io::prelude::*;
+use crate::error;
+use crate::io::{self, Initializer, DEFAULT_BUF_SIZE, Error, ErrorKind, SeekFrom};
+use crate::memchr;
 use core::cmp;
 use core::fmt;
 

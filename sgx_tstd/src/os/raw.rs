@@ -76,7 +76,7 @@ pub type mode_t = u32;
 pub use self::arch::{off_t, ino_t, nlink_t, blksize_t, blkcnt_t, stat, time_t};
 
 mod arch {
-    use os::raw::{c_long, c_int};
+    use crate::os::raw::{c_long, c_int};
 
     pub type blkcnt_t = u64;
     pub type blksize_t = u64;

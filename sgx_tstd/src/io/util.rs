@@ -28,7 +28,7 @@
 
 #![allow(missing_copy_implementations)]
 
-use io::{self, Read, Initializer, Write, ErrorKind, BufRead};
+use crate::io::{self, Read, Initializer, Write, ErrorKind, BufRead};
 use core::fmt;
 use core::mem;
 

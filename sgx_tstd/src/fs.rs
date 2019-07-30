@@ -29,11 +29,11 @@
 //! Filesystem manipulation operations.
 
 use core::fmt;
-use io::{self, SeekFrom, Seek, Read, Initializer, Write};
-use path::{Path, PathBuf};
-use sys::fs as fs_imp;
-use sys_common::{AsInnerMut, FromInner, AsInner, IntoInner};
-use time::SystemTime;
+use crate::io::{self, SeekFrom, Seek, Read, Initializer, Write};
+use crate::path::{Path, PathBuf};
+use crate::sys::fs as fs_imp;
+use crate::sys_common::{AsInnerMut, FromInner, AsInner, IntoInner};
+use crate::time::SystemTime;
 
 /// A reference to an open file on the filesystem.
 ///

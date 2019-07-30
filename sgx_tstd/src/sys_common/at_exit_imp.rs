@@ -26,9 +26,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-//use sync::SgxThreadMutex;
-use sync::SgxThreadSpinlock;
-use alloc::boxed::{Box, FnBox};
+//use crate::sync::SgxThreadMutex;
+use crate::sync::SgxThreadSpinlock;
+use alloc_crate::boxed::{Box, FnBox};
 use core::ptr;
 
 type Queue = Vec<Box<FnBox()>>;

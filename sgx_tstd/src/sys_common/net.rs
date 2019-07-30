@@ -32,11 +32,11 @@ use sgx_trts::libc::{c_int, c_uint, c_void};
 use core::cmp;
 use core::fmt;
 use core::mem;
-use io::{self, Error, ErrorKind};
-use net::{SocketAddr, Shutdown, Ipv4Addr, Ipv6Addr};
-use sys::net::{cvt, cvt_r, Socket, wrlen_t};
-use sys_common::{AsInner, FromInner, IntoInner};
-use time::Duration;
+use crate::io::{self, Error, ErrorKind};
+use crate::net::{SocketAddr, Shutdown, Ipv4Addr, Ipv6Addr};
+use crate::sys::net::{cvt, cvt_r, Socket, wrlen_t};
+use crate::sys_common::{AsInner, FromInner, IntoInner};
+use crate::time::Duration;
 
 ////////////////////////////////////////////////////////////////////////////////
 // sockaddr and misc bindings

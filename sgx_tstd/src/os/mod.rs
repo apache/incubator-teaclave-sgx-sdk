@@ -26,6 +26,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-pub use sys::ext as unix;
+pub use crate::sys::ext as unix;
 pub mod raw;
 pub mod fs;

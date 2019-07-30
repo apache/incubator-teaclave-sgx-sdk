@@ -26,8 +26,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use thread;
-use error::Error;
+use crate::thread;
+use crate::error::Error;
 use core::fmt;
 use core::sync::atomic::{AtomicBool, Ordering};
 

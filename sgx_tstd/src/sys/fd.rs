@@ -30,10 +30,10 @@ use sgx_trts::libc::{c_int, c_void, ssize_t};
 use core::cmp;
 use core::mem;
 use core::sync::atomic::{AtomicBool, Ordering};
-use io::{self, Read};
-use io::{IoSlice, IoSliceMut};
-use sys::cvt;
-use sys_common::AsInner;
+use crate::io::{self, Read};
+use crate::io::{IoSlice, IoSliceMut};
+use crate::sys::cvt;
+use crate::sys_common::AsInner;
 
 #[derive(Debug)]
 pub struct FileDesc {

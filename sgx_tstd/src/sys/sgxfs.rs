@@ -29,11 +29,11 @@
 use sgx_types::{sgx_status_t, sgx_key_128bit_t};
 use sgx_trts::libc;
 use sgx_tprotected_fs::{self, SgxFileStream};
-use os::unix::prelude::*;
-use ffi::{CString, CStr};
-use io::{self, Error, ErrorKind, SeekFrom};
-use path::Path;
-use sys_common::FromInner;
+use crate::os::unix::prelude::*;
+use crate::ffi::{CString, CStr};
+use crate::io::{self, Error, ErrorKind, SeekFrom};
+use crate::path::Path;
+use crate::sys_common::FromInner;
 
 pub struct SgxFile(SgxFileStream);
 
@@ -178,7 +178,7 @@ impl SgxFile {
             SeekFrom::Current(off) => (sgx_tprotected_fs::SeekFrom::Current, off),
         };
 
-        try!(self.0.seek(offset, whence).map_err(|err| {
+        r#try!(self.0.seek(offset, whence).map_err(|err| {
             match err {
                 r if r > 4096 => {
                     let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
@@ -188,7 +188,7 @@ impl SgxFile {
             }
         }));
 
-        let offset = try!(self.tell());
+        let offset = r#try!(self.tell());
         Ok(offset as u64)
     }
 
@@ -301,13 +301,13 @@ impl FromInner<SgxFileStream> for SgxFile {
 
 pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
 
-    use sgxfs::SgxFile;
+    use crate::sgxfs::SgxFile;
     cfg_if! {
         if #[cfg(feature = "untrusted_fs")] {
-            use fs;
+            use crate::fs;
         } else {
-            use untrusted::fs;
-            use untrusted::path::PathEx;
+            use crate::untrusted::fs;
+            use crate::untrusted::path::PathEx;
         }
     }
 

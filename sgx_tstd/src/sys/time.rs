@@ -29,7 +29,7 @@
 use sgx_trts::libc;
 use core::cmp::Ordering;
 use core::hash::{Hash, Hasher};
-use time::Duration;
+use crate::time::Duration;
 
 pub use self::inner::{Instant, SystemTime, UNIX_EPOCH};
 use core::convert::TryInto;
@@ -139,8 +139,8 @@ impl Hash for Timespec {
 
 mod inner {
     use core::fmt;
-    use sys::cvt;
-    use time::Duration;
+    use crate::sys::cvt;
+    use crate::time::Duration;
 
     use super::Timespec;
 

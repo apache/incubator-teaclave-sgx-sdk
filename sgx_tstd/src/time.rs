@@ -30,9 +30,9 @@
 
 use core::fmt;
 use core::ops::{Add, Sub, AddAssign, SubAssign};
-use error::Error;
-use sys::time;
-use sys_common::FromInner;
+use crate::error::Error;
+use crate::sys::time;
+use crate::sys_common::FromInner;
 
 pub use core::time::Duration;
 

@@ -28,14 +28,14 @@
 
 use sgx_trts::libc;
 #[cfg(feature = "untrusted_fs")]
-use fs::{self, Permissions, OpenOptions};
+use crate::fs::{self, Permissions, OpenOptions};
 #[cfg(not(feature = "untrusted_fs"))]
-use untrusted::fs::{self, Permissions, OpenOptions};
-use io;
-use path::Path;
-use sys;
-use sys_common::{FromInner, AsInner, AsInnerMut};
-use os::fs::MetadataExt as UnixMetadataExt;
+use crate::untrusted::fs::{self, Permissions, OpenOptions};
+use crate::io;
+use crate::path::Path;
+use crate::sys;
+use crate::sys_common::{FromInner, AsInner, AsInnerMut};
+use crate::os::fs::MetadataExt as UnixMetadataExt;
 
 /// Unix-specific extensions to `File`
 pub trait FileExt {

@@ -30,7 +30,7 @@
 
 #![allow(dead_code)]
 
-use io::prelude::*;
+use crate::io::prelude::*;
 use rand::Rng;
 
 /// An RNG that reads random bytes straight from a `Read`. This will

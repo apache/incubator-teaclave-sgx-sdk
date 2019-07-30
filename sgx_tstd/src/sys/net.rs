@@ -31,15 +31,15 @@
 use sgx_trts::libc::{c_int, size_t, c_void};
 use core::mem;
 use core::cmp;
-use io;
-use io::{IoSlice, IoSliceMut};
-use net::{SocketAddr, Shutdown};
-use sys::fd::FileDesc;
-use sys_common::{AsInner, FromInner, IntoInner};
-use sys_common::net::{getsockopt, setsockopt, sockaddr_to_addr};
-use time::{Duration, Instant};
-use untrusted::time::InstantEx;
-pub use sys::{cvt, cvt_r};
+use crate::io;
+use crate::io::{IoSlice, IoSliceMut};
+use crate::net::{SocketAddr, Shutdown};
+use crate::sys::fd::FileDesc;
+use crate::sys_common::{AsInner, FromInner, IntoInner};
+use crate::sys_common::net::{getsockopt, setsockopt, sockaddr_to_addr};
+use crate::time::{Duration, Instant};
+use crate::untrusted::time::InstantEx;
+pub use crate::sys::{cvt, cvt_r};
 
 pub type wrlen_t = size_t;
 

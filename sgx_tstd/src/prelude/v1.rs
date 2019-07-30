@@ -27,23 +27,23 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Reexported core operators
-#[doc(no_inline)] pub use marker::{Copy, Send, Sized, Sync};
-#[doc(no_inline)] pub use ops::{Drop, Fn, FnMut, FnOnce};
+#[doc(no_inline)] pub use crate::marker::{Copy, Send, Sized, Sync};
+#[doc(no_inline)] pub use crate::ops::{Drop, Fn, FnMut, FnOnce};
 
 // Reexported functions
-#[doc(no_inline)] pub use mem::drop;
+#[doc(no_inline)] pub use crate::mem::drop;
 
 // Reexported types and traits
-#[doc(no_inline)] pub use boxed::Box;
-#[doc(no_inline)] pub use borrow::ToOwned;
-#[doc(no_inline)] pub use clone::Clone;
-#[doc(no_inline)] pub use cmp::{PartialEq, PartialOrd, Eq, Ord};
-#[doc(no_inline)] pub use convert::{AsRef, AsMut, Into, From};
-#[doc(no_inline)] pub use default::Default;
-#[doc(no_inline)] pub use iter::{Iterator, Extend, IntoIterator};
-#[doc(no_inline)] pub use iter::{DoubleEndedIterator, ExactSizeIterator};
-#[doc(no_inline)] pub use option::Option::{self, Some, None};
-#[doc(no_inline)] pub use result::Result::{self, Ok, Err};
-#[doc(no_inline)] pub use slice::SliceConcatExt;
-#[doc(no_inline)] pub use string::{String, ToString};
-#[doc(no_inline)] pub use vec::Vec;
+#[doc(no_inline)] pub use crate::boxed::Box;
+#[doc(no_inline)] pub use crate::borrow::ToOwned;
+#[doc(no_inline)] pub use crate::clone::Clone;
+#[doc(no_inline)] pub use crate::cmp::{PartialEq, PartialOrd, Eq, Ord};
+#[doc(no_inline)] pub use crate::convert::{AsRef, AsMut, Into, From};
+#[doc(no_inline)] pub use crate::default::Default;
+#[doc(no_inline)] pub use crate::iter::{Iterator, Extend, IntoIterator};
+#[doc(no_inline)] pub use crate::iter::{DoubleEndedIterator, ExactSizeIterator};
+#[doc(no_inline)] pub use crate::option::Option::{self, Some, None};
+#[doc(no_inline)] pub use crate::result::Result::{self, Ok, Err};
+#[doc(no_inline)] pub use crate::slice::SliceConcatExt;
+#[doc(no_inline)] pub use crate::string::{String, ToString};
+#[doc(no_inline)] pub use crate::vec::Vec;

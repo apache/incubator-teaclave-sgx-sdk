@@ -26,15 +26,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use io::prelude::*;
+use crate::io::prelude::*;
 
 use sgx_trts::libc::c_int;
 use core::fmt;
-use io::{self, Initializer};
-use net::{ToSocketAddrs, SocketAddr, Shutdown};
-use sys_common::net as net_imp;
-use sys_common::{AsInner, FromInner, IntoInner};
-use time::Duration;
+use crate::io::{self, Initializer};
+use crate::net::{ToSocketAddrs, SocketAddr, Shutdown};
+use crate::sys_common::net as net_imp;
+use crate::sys_common::{AsInner, FromInner, IntoInner};
+use crate::time::Duration;
 
 /// A TCP stream between a local and a remote socket.
 ///

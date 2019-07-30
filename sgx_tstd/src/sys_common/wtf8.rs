@@ -33,7 +33,7 @@
 // unix (it's mostly used on windows), so don't worry about dead code here.
 #![allow(dead_code)]
 
-use alloc::borrow::Cow;
+use alloc_crate::borrow::Cow;
 use core::char;
 use core::str::next_code_point;
 use core::fmt;
@@ -42,10 +42,10 @@ use core::iter::FromIterator;
 use core::mem;
 use core::ops;
 use core::str;
-use alloc::slice;
-use alloc::rc::Rc;
-use alloc::sync::Arc;
-use sys_common::AsInner;
+use alloc_crate::slice;
+use alloc_crate::rc::Rc;
+use alloc_crate::sync::Arc;
+use crate::sys_common::AsInner;
 
 const UTF8_REPLACEMENT_CHARACTER: &'static str = "\u{FFFD}";
 
@@ -430,7 +430,7 @@ impl AsInner<[u8]> for Wtf8 {
 impl fmt::Debug for Wtf8 {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         fn write_str_escaped(f: &mut fmt::Formatter, s: &str) -> fmt::Result {
-            use fmt::Write;
+            use crate::fmt::Write;
             for c in s.chars().flat_map(|c| c.escape_debug()) {
                 f.write_char(c)?
             }

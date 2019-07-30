@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use core::mem;
-use alloc::slice;
+use alloc_crate::slice;
 
 pub fn hashmap_random_keys() -> (u64, u64) {
     let mut v = (0, 0);

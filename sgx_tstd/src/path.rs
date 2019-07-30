@@ -41,15 +41,15 @@
 //! normalization described in the documentation for the [`components`] method.
 //!
 
-use error::Error;
+use crate::error::Error;
 #[cfg(feature = "untrusted_fs")]
-use fs;
-use io;
-use ffi::{OsStr, OsString};
-use sys::path::{is_sep_byte, is_verbatim_sep, MAIN_SEP_STR, parse_prefix};
-use alloc::borrow::{Borrow, Cow};
-use alloc::rc::Rc;
-use alloc::sync::Arc;
+use crate::fs;
+use crate::io;
+use crate::ffi::{OsStr, OsString};
+use crate::sys::path::{is_sep_byte, is_verbatim_sep, MAIN_SEP_STR, parse_prefix};
+use alloc_crate::borrow::{Borrow, Cow};
+use alloc_crate::rc::Rc;
+use alloc_crate::sync::Arc;
 use core::cmp;
 use core::fmt;
 use core::hash::{Hash, Hasher};
@@ -188,7 +188,7 @@ pub fn is_separator(c: char) -> bool {
 /// The primary separator of path components for the current platform.
 ///
 /// For example, `/` on Unix and `\` on Windows.
-pub const MAIN_SEPARATOR: char = ::sys::path::MAIN_SEP;
+pub const MAIN_SEPARATOR: char = crate::sys::path::MAIN_SEP;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Misc helpers

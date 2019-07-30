@@ -3,6 +3,7 @@ name = "std"
 version = "0.0.0"
 authors = ["Baidu"]
 build = "build.rs"
+edition = "2018"
 
 [lib]
 name = "std"

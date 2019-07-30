@@ -82,7 +82,7 @@ pub fn at_exit<F: FnOnce() + Send + 'static>(f: F) -> Result<(), ()> {
 //#[allow(dead_code)]
 //pub fn cleanup() {
 //
-//    use sync::Once;
+//    use crate::sync::Once;
 //
 //    static CLEANUP: Once = Once::new();
 //    CLEANUP.call_once(||
@@ -92,7 +92,7 @@ pub fn at_exit<F: FnOnce() + Send + 'static>(f: F) -> Result<(), ()> {
 
 /// One-time runtime cleanup.
 pub fn cleanup() {
-    use sync::SgxThreadSpinlock;
+    use crate::sync::SgxThreadSpinlock;
 
     static SPIN_LOCK: SgxThreadSpinlock = SgxThreadSpinlock::new();
     static mut IS_CLEAUP: bool = false;

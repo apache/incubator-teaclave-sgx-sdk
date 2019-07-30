@@ -26,11 +26,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use borrow::Borrow;
-use fmt;
-use hash::{Hash, BuildHasher};
-use iter::{Chain, FromIterator, FusedIterator};
-use ops::{BitOr, BitAnd, BitXor, Sub};
+use crate::borrow::Borrow;
+use crate::fmt;
+use crate::hash::{Hash, BuildHasher};
+use crate::iter::{Chain, FromIterator, FusedIterator};
+use crate::ops::{BitOr, BitAnd, BitXor, Sub};
 
 use super::Recover;
 use super::map::{self, HashMap, Keys, RandomState};

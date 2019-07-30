@@ -26,9 +26,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use io;
+use crate::io;
 use sgx_trts::libc;
-use sys::fd::FileDesc;
+use crate::sys::fd::FileDesc;
 
 pub struct Stdin(());
 pub struct Stdout(());
@@ -92,7 +92,7 @@ pub fn is_ebadf(err: &io::Error) -> bool {
     err.raw_os_error() == Some(libc::EBADF as i32)
 }
 
-pub const STDIN_BUF_SIZE: usize = ::sys_common::io::DEFAULT_BUF_SIZE;
+pub const STDIN_BUF_SIZE: usize = crate::sys_common::io::DEFAULT_BUF_SIZE;
 
 pub fn stderr_prints_nothing() -> bool {
     false

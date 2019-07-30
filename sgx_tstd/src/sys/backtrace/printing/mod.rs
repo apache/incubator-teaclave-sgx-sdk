@@ -29,5 +29,5 @@
 pub use self::imp::{foreach_symbol_fileline, resolve_symname, init_state};
 
 mod imp {
-    pub use sys_common::gnu::libbacktrace::{foreach_symbol_fileline, resolve_symname, init_state};
+    pub use crate::sys_common::gnu::libbacktrace::{foreach_symbol_fileline, resolve_symname, init_state};
 }

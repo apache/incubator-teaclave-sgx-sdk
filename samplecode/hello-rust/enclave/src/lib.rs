@@ -71,5 +71,10 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
     // Ocall to normal world for output
     println!("{}", &hello_string);
 
+    let a = 2;
+    let b = dbg!(a * 2) + 1;
+    //      ^-- prints: [src/main.rs:2] a * 2 = 4
+    assert_eq!(b, 5);
+
     sgx_status_t::SGX_SUCCESS
 }

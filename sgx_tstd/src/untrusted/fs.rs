@@ -27,4 +27,4 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //! Filesystem manipulation operations.
-pub use fs::*;
+pub use crate::fs::*;

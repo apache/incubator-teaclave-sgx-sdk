@@ -110,10 +110,10 @@ mod tracing;
 mod printing;
 
 pub mod gnu {
-    use ffi::CString;
-    use enclave;
-    use io::{self, Error, ErrorKind};
-    use os::unix::ffi::OsStrExt;
+    use crate::ffi::CString;
+    use crate::enclave;
+    use crate::io::{self, Error, ErrorKind};
+    use crate::os::unix::ffi::OsStrExt;
     use core::mem;
     use sgx_trts::libc::c_char;
 

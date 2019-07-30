@@ -27,14 +27,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_types::{self, SysError, sgx_thread_mutex_t};
-use sync::mutex::*;
-use panic::{UnwindSafe, RefUnwindSafe};
-use sys_common::poison::{self, TryLockError, TryLockResult, LockResult};
+use crate::sync::mutex::*;
+use crate::panic::{UnwindSafe, RefUnwindSafe};
+use crate::sys_common::poison::{self, TryLockError, TryLockResult, LockResult};
 use core::cell::UnsafeCell;
 use core::fmt;
 use core::ops::Deref;
 use core::marker;
-use alloc::boxed::Box;
+use alloc_crate::boxed::Box;
 
 /// The structure of sgx mutex.
 pub struct SgxReentrantThreadMutex {

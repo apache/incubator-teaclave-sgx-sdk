@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_trts::libc;
-use io::{self, ErrorKind};
+use crate::io::{self, ErrorKind};
 
 pub use self::rand::hashmap_random_keys;
 

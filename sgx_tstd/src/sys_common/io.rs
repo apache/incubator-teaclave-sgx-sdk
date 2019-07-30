@@ -26,11 +26,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use io;
-use io::ErrorKind;
-use io::Read;
-use alloc::slice::from_raw_parts_mut;
-use alloc::vec::Vec;
+use crate::io;
+use crate::io::ErrorKind;
+use crate::io::Read;
+use alloc_crate::slice::from_raw_parts_mut;
+use alloc_crate::vec::Vec;
 
 pub const DEFAULT_BUF_SIZE: usize = 8 * 1024;
 

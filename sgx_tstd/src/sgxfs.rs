@@ -29,10 +29,10 @@
 //! Filesystem manipulation operations.
 
 use sgx_types::sgx_key_128bit_t;
-use io::{self, SeekFrom, Seek, Read, Initializer, Write};
-use path::Path;
-use sys::sgxfs as fs_imp;
-use sys_common::{AsInnerMut, FromInner, AsInner, IntoInner};
+use crate::io::{self, SeekFrom, Seek, Read, Initializer, Write};
+use crate::path::Path;
+use crate::sys::sgxfs as fs_imp;
+use crate::sys_common::{AsInnerMut, FromInner, AsInner, IntoInner};
 
 /// A reference to an open file on the filesystem.
 ///

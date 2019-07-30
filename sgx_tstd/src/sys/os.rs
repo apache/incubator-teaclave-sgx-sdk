@@ -27,22 +27,22 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_trts::error as trts_error;
-use os::unix::prelude::*;
-use error::Error as StdError;
-use ffi::{CString, CStr, OsString, OsStr};
-use path::PathBuf;
-use sync::SgxThreadMutex;
-use sys::cvt;
-use memchr;
-use io;
+use crate::os::unix::prelude::*;
+use crate::error::Error as StdError;
+use crate::ffi::{CString, CStr, OsString, OsStr};
+use crate::path::PathBuf;
+use crate::sync::SgxThreadMutex;
+use crate::sys::cvt;
+use crate::memchr;
+use crate::io;
 use core::marker::PhantomData;
 use core::fmt;
 use core::iter;
 use core::ptr;
-use alloc::slice;
-use alloc::string::String;
-use alloc::str;
-use alloc::vec::{self, Vec};
+use alloc_crate::slice;
+use alloc_crate::string::String;
+use alloc_crate::str;
+use alloc_crate::vec::{self, Vec};
 
 const TMPBUF_SZ: usize = 128;
 static ENV_LOCK: SgxThreadMutex = SgxThreadMutex::new();

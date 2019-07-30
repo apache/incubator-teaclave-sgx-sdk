@@ -26,20 +26,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use ascii;
-use ffi::OsStr;
-use fmt;
-use io::{self, Initializer};
-use io::{IoSlice, IoSliceMut};
-use mem;
-use net::{self, Shutdown};
-use os::unix::ffi::OsStrExt;
-use os::unix::io::{RawFd, AsRawFd, FromRawFd, IntoRawFd};
-use path::Path;
-use time::Duration;
-use sys::{self, cvt};
-use sys::net::Socket;
-use sys_common::{self, AsInner, FromInner, IntoInner};
+use crate::ascii;
+use crate::ffi::OsStr;
+use crate::fmt;
+use crate::io::{self, Initializer};
+use crate::io::{IoSlice, IoSliceMut};
+use crate::mem;
+use crate::net::{self, Shutdown};
+use crate::os::unix::ffi::OsStrExt;
+use crate::os::unix::io::{RawFd, AsRawFd, FromRawFd, IntoRawFd};
+use crate::path::Path;
+use crate::time::Duration;
+use crate::sys::{self, cvt};
+use crate::sys::net::Socket;
+use crate::sys_common::{self, AsInner, FromInner, IntoInner};
 
 fn sun_path_offset() -> usize {
     // Work with an actual instance of the type since using a null pointer is UB

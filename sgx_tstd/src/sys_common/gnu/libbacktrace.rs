@@ -27,10 +27,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_trts::libc;
-use ffi::CStr;
-use io;
-use sys::backtrace::BacktraceContext;
-use sys_common::backtrace::Frame;
+use crate::ffi::CStr;
+use crate::io;
+use crate::sys::backtrace::BacktraceContext;
+use crate::sys_common::backtrace::Frame;
 use core::mem;
 use core::ptr;
 
@@ -46,7 +46,7 @@ where F: FnMut(&[u8], u32) -> io::Result<()>
     let mut fileline_buf = [(ptr::null(), !0); FILELINE_SIZE];
     let ret;
     let fileline_count = {
-        let state = unsafe { try!(__init_state()) };
+        let state = unsafe { r#try!(__init_state()) };
         if state.is_null() {
             ret = -1;
             0
@@ -82,7 +82,7 @@ pub fn resolve_symname<F>(frame: Frame,
     where F: FnOnce(Option<&str>) -> io::Result<()>
 {
     let symname = {
-        let state = unsafe { try!(__init_state()) };
+        let state = unsafe { r#try!(__init_state()) };
         if state.is_null() {
             None
         } else {
@@ -218,7 +218,7 @@ unsafe fn __init_state() -> io::Result<*mut backtrace_state> {
 
     if !STATE.is_null() { return Ok(STATE)  }
 
-    let filename = match ::sys::backtrace::gnu::get_enclave_filename() {
+    let filename = match crate::sys::backtrace::gnu::get_enclave_filename() {
         Ok(filename) => {
             // filename is purposely leaked here since libbacktrace requires
             // it to stay allocated permanently.

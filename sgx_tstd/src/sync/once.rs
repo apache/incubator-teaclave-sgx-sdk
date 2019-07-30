@@ -86,7 +86,7 @@ use core::marker;
 use core::ptr;
 use core::fmt;
 use core::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
-use thread::{self, SgxThread};
+use crate::thread::{self, SgxThread};
 
 /// A synchronization primitive which can be used to run a one-time global
 /// initialization. Useful for one-time initialization for FFI or related

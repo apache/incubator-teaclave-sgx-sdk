@@ -26,14 +26,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use io::prelude::*;
-use io::lazy::LazyStatic;
-use io::{self, Initializer, BufReader, LineWriter};
-use sync::{SgxMutex, SgxMutexGuard, SgxReentrantMutex, SgxReentrantMutexGuard};
-use sys::stdio;
+use crate::io::prelude::*;
+use crate::io::lazy::LazyStatic;
+use crate::io::{self, Initializer, BufReader, LineWriter};
+use crate::sync::{SgxMutex, SgxMutexGuard, SgxReentrantMutex, SgxReentrantMutexGuard};
+use crate::sys::stdio;
 use core::cell::RefCell;
 use core::fmt;
-use alloc::sync::Arc;
+use alloc_crate::sync::Arc;
 
 /// A handle to a raw instance of the standard input stream of this process.
 ///

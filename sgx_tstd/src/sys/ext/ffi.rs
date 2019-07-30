@@ -29,9 +29,9 @@
 //! Unix-specific extension to the primitives in the `std::ffi` module
 
 use core::mem;
-use ffi::{OsStr, OsString};
-use sys::os_str::Buf;
-use sys_common::{FromInner, IntoInner, AsInner};
+use crate::ffi::{OsStr, OsString};
+use crate::sys::os_str::Buf;
+use crate::sys_common::{FromInner, IntoInner, AsInner};
 
 /// Unix-specific extensions to `OsString`.
 pub trait OsStringExt {

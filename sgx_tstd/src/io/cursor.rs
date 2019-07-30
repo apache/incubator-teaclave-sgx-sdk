@@ -26,8 +26,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use io::prelude::*;
-use io::{self, Initializer, SeekFrom, Error, ErrorKind};
+use crate::io::prelude::*;
+use crate::io::{self, Initializer, SeekFrom, Error, ErrorKind};
 use core::cmp;
 
 /// A `Cursor` wraps another type and provides it with a

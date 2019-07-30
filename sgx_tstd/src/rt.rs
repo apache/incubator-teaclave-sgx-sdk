@@ -29,13 +29,13 @@
 //! Runtime services
 
 use sgx_types::sgx_enclave_id_t;
-use enclave;
-use alloc::slice;
+use crate::enclave;
+use alloc_crate::slice;
 use core::str;
 // Reexport some of our utilities which are expected by other crates.
-pub use panicking::{begin_panic, begin_panic_fmt, update_panic_count};
-pub use sys_common::at_exit;
-use sys_common::cleanup;
+pub use crate::panicking::{begin_panic, begin_panic_fmt, update_panic_count};
+pub use crate::sys_common::at_exit;
+use crate::sys_common::cleanup;
 
 #[no_mangle]
 pub extern "C" fn t_global_exit_ecall() {

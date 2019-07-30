@@ -28,18 +28,18 @@
 
 //! Panic support in the standard library
 
-use panicking;
+use crate::panicking;
 use core::any::Any;
 use core::cell::UnsafeCell;
 use core::fmt;
 use core::ops::{Deref, DerefMut, Fn};
 use core::ptr::{Unique, NonNull};
 use core::sync::atomic;
-use alloc::boxed::Box;
-use alloc::rc::Rc;
-use alloc::sync::Arc;
+use alloc_crate::boxed::Box;
+use alloc_crate::rc::Rc;
+use alloc_crate::sync::Arc;
 
-pub use panicking::set_panic_handler;
+pub use crate::panicking::set_panic_handler;
 pub use core::panic::{PanicInfo, Location};
 /// A marker trait which represents "panic safe" types in Rust.
 ///
@@ -266,7 +266,7 @@ impl<T: fmt::Debug> fmt::Debug for AssertUnwindSafe<T> {
 ///
 pub fn catch_unwind<F: FnOnce() -> R + UnwindSafe, R>(f: F) -> Result<R, Box<Any + Send  + 'static>> {
     unsafe {
-        panicking::try(f)
+        panicking::r#try(f)
     }
 }
 

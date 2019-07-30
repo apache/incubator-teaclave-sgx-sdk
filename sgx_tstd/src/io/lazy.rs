@@ -26,9 +26,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use sync::SgxThreadMutex;
-use sys_common;
-use alloc::sync::Arc;
+use crate::sync::SgxThreadMutex;
+use crate::sys_common;
+use alloc_crate::sync::Arc;
 use core::cell::{Cell, UnsafeCell};
 use core::ptr;
 

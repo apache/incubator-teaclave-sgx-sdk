@@ -27,13 +27,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_types::sgx_status_t;
-use error;
-use sys;
+use crate::error;
+use crate::sys;
 use core::fmt;
 use core::result;
 use core::convert::From;
-use alloc::str;
-use alloc::boxed::Box;
+use alloc_crate::str;
+use alloc_crate::boxed::Box;
 
 
 /// A specialized [`Result`](../result/enum.Result.html) type for I/O
