@@ -25,3 +25,11 @@ samplecode/**/target
 
 #generated assembly
 third_party/ring/pregenerated
+
+#Bazel
+.clwb
+bazel-bin
+bazel-genfiles
+bazel-out
+bazel-rust-sgx-sdk
+bazel-testlogs
