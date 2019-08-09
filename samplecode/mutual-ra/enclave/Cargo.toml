@@ -28,7 +28,6 @@ bit-vec = { version = "0.6", default-features = false}
 serde_json = { git = "https://github.com/mesalock-linux/serde-json-sgx" }
 httparse = { version = "1.3.2", default-features=false }
 itertools = { version = "0.8" , default-features = false, features = []}
-untrusted = { git = "https://github.com/briansmith/untrusted", tag = "ring-master"  }
 webpki-roots= { git = "https://github.com/mesalock-linux/webpki-roots.git", branch = "mesalock_sgx" }
 lazy_static = { version = "*", default-features = false, features = ["spin_no_std"] }
 

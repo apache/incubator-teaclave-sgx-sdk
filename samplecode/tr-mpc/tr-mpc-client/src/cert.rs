@@ -3,7 +3,7 @@ use std::ptr;
 use std::time::*;
 use std::fs::OpenOptions;
 use std::fs::File;
-use std::io::{self, Write, Read, BufReader};
+use std::io::{Write, BufReader};
 use std::io::prelude::*;
 
 use sgx_types::*;
@@ -11,7 +11,6 @@ use sgx_types::*;
 use rustls;
 use base64;
 use webpki;
-use untrusted;
 use serde_json;
 use serde_json::Value;
 use chrono::prelude::*;
@@ -28,7 +27,6 @@ static SUPPORTED_SIG_ALGS: SignatureAlgorithms = &[
     &webpki::RSA_PSS_2048_8192_SHA256_LEGACY_KEY,
     &webpki::RSA_PSS_2048_8192_SHA384_LEGACY_KEY,
     &webpki::RSA_PSS_2048_8192_SHA512_LEGACY_KEY,
-    &webpki::RSA_PKCS1_2048_8192_SHA1,
     &webpki::RSA_PKCS1_2048_8192_SHA256,
     &webpki::RSA_PKCS1_2048_8192_SHA384,
     &webpki::RSA_PKCS1_2048_8192_SHA512,
@@ -82,8 +80,7 @@ pub fn verify_mra_cert(cert_der: &[u8], mr_enclave_flag: bool) -> Result<(), sgx
 
     let sig_cert_raw = iter.next().unwrap();
     let sig_cert_dec = base64::decode_config(&sig_cert_raw, base64::MIME).unwrap();
-    let sig_cert_input = untrusted::Input::from(&sig_cert_dec);
-    let sig_cert = webpki::EndEntityCert::from(sig_cert_input).expect("Bad DER");
+    let sig_cert = webpki::EndEntityCert::from(&sig_cert_dec).expect("Bad DER");
 
     // Load Intel CA
 
@@ -94,7 +91,6 @@ pub fn verify_mra_cert(cert_der: &[u8], mr_enclave_flag: bool) -> Result<(), sgx
     let full_len = ias_ca_stripped.len();
     let ias_ca_core : &[u8] = &ias_ca_stripped[head_len..full_len - tail_len];
     let ias_cert_dec = base64::decode_config(ias_ca_core, base64::MIME).unwrap();
-    let ias_cert_input = untrusted::Input::from(&ias_cert_dec);
 
     let mut ca_reader = BufReader::new(&IAS_REPORT_CA[..]);
 
@@ -107,8 +103,8 @@ pub fn verify_mra_cert(cert_der: &[u8], mr_enclave_flag: bool) -> Result<(), sgx
         .map(|cert| cert.to_trust_anchor())
         .collect();
 
-    let mut chain:Vec<untrusted::Input> = Vec::new();
-    chain.push(ias_cert_input);
+    let mut chain:Vec<&[u8]> = Vec::new();
+    chain.push(&ias_cert_dec);
 
     let now_func = webpki::Time::try_from(SystemTime::now());
 
@@ -124,8 +120,8 @@ pub fn verify_mra_cert(cert_der: &[u8], mr_enclave_flag: bool) -> Result<(), sgx
     // Verify the signature against the signing cert
     match sig_cert.verify_signature(
         &webpki::RSA_PKCS1_2048_8192_SHA256,
-        untrusted::Input::from(&attn_report_raw),
-        untrusted::Input::from(&sig)) {
+        &attn_report_raw,
+        &sig) {
         Ok(_) => println!("Signature good"),
         Err(e) => {
             println!("Signature verification error {:?}", e);
@@ -189,7 +185,7 @@ pub fn verify_mra_cert(cert_der: &[u8], mr_enclave_flag: bool) -> Result<(), sgx
         }
 
         let mut output:File = OpenOptions::new().append(true).create(true).open(super::MSFILE).unwrap();
-        write!(output, "{}\n", sgx_quote.report_body.mr_enclave.m.iter().format(""));
+        let _ = write!(output, "{}\n", sgx_quote.report_body.mr_enclave.m.iter().format(""));
 
         if mr_enclave_flag {
             // we are writing the mr_enclave into file
@@ -218,7 +214,7 @@ pub fn verify_mra_cert(cert_der: &[u8], mr_enclave_flag: bool) -> Result<(), sgx
 fn verify_mr_enclave() -> bool {
     //we are trying to vefity the measurement of remote server
     let file = File::open(super::MSFILE).unwrap();
-    let mut fin = BufReader::new(file);
+    let fin = BufReader::new(file);
     let mut i = 0;
 
     let mut ms_str_server = String::new();
