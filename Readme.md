@@ -201,6 +201,8 @@ We provide eighteen sample codes to help developers understand how to write Encl
 
 * `sgx-cov` shows how to use lcov with Rust SGX enclave to generate code coverage report. See the [readme](samplecode/sgx-cov/Readme.md) for details.
 
+* `tcmalloc` shows how to link Rust-SGX enclave with tcmalloc (provided by Intel SGX SDK), and test its performance with different kinds of workload.
+
 # Tips for writing enclaves in Rust
 
 ## Writing EDL
