@@ -52,8 +52,11 @@ use std::net::Shutdown;
 extern crate webpki;
 extern crate rustls;
 extern crate mio;
+extern crate sgx_types;
+
 use rustls::{Session, NoClientAuth};
 use mio::net::{TcpListener, TcpStream};
+use sgx_types::uint8_t;
 
 // Token for our listening socket.
 const LISTENER: mio::Token = mio::Token(0);
@@ -208,7 +211,7 @@ impl Connection {
             self.do_tls_write();
         }
 
-        if self.closing && !self.tls_session.wants_write() {
+        if self.closing {
             let _ = self.socket.shutdown(Shutdown::Both);
             self.close_back();
             self.closed = true;
@@ -438,7 +441,7 @@ fn make_config(cert: &str, key: &str) -> Arc<rustls::ServerConfig> {
 
 
 #[no_mangle]
-pub extern "C" fn run_server() {
+pub extern "C" fn run_server(max_conn: uint8_t) {
     let addr: net::SocketAddr = "0.0.0.0:8443".parse().unwrap();
     let cert = "end.fullchain";
     let key = "end.rsa";
@@ -466,6 +469,9 @@ pub extern "C" fn run_server() {
         for event in events.iter() {
             match event.token() {
                 LISTENER => {
+                    if tlsserv.connections.len() as u8 == max_conn {
+                        continue;
+                    }
                     if !tlsserv.accept(&mut poll) {
                         break 'outer;
                     }
