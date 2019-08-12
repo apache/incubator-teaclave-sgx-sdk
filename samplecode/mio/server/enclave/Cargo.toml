@@ -11,6 +11,7 @@ crate-type = ["staticlib"]
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types   = { path = "../../../../sgx_types" }
 sgx_tstd = { path = "../../../../sgx_tstd", features = ["net", "untrusted_fs"] }
 
 [dependencies]

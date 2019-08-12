@@ -40,6 +40,6 @@ enclave {
 
     trusted {
         /* define ECALLs here. */
-        public void run_server();
+        public void run_server(uint8_t max_conn);
     };
 };

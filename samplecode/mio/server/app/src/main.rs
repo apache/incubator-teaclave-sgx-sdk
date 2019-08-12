@@ -36,15 +36,17 @@ use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
 use std::io::{Read, Write};
+use std::env;
 use std::fs;
 use std::path;
+use std::str::FromStr;
 
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
 
 extern {
-    fn run_server(eid: sgx_enclave_id_t) -> sgx_status_t;
+    fn run_server(eid: sgx_enclave_id_t, max_conn: uint8_t) -> sgx_status_t;
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
@@ -116,6 +118,22 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
 }
 
 fn main() {
+    let mut args: Vec<_> = env::args().collect();
+    //default max_conn is 30
+    let mut max_conn = 30;
+    args.remove(0);
+    while !args.is_empty() {
+        match args.remove(0).as_ref() {
+            "--maxconn" => {
+                max_conn =
+                    uint8_t::from_str(args.remove(0).as_ref()).expect("error parsing argument");
+                println!("max connections is: {}", max_conn);
+            }
+            _ => {
+                panic!("Only --maxconn is accepted");
+            }
+        }
+    }
 
     let enclave = match init_enclave() {
         Ok(r) => {
@@ -130,9 +148,7 @@ fn main() {
 
     println!("[+] Test server in enclave, start!");
 
-    let result = unsafe {
-        run_server(enclave.geteid())
-    };
+    let result = unsafe { run_server(enclave.geteid(), max_conn) };
 
     match result {
         sgx_status_t::SGX_SUCCESS => {},

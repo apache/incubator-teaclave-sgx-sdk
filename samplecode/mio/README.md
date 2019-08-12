@@ -6,7 +6,7 @@ Start server
 cd server
 make
 cd bin
-./app
+./app (add '--maxconn 32' if you want to set the max_conn of tlsserver to 32)
 ```
 
 Start client 
