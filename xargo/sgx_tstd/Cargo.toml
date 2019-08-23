@@ -15,12 +15,9 @@ default = ["stdio"]
 backtrace = ["stdio"]
 stdio = []
 net = []
+pipe = []
 untrusted_fs = []
 untrusted_time = []
-use_builtin_ocalls = []
-
-[build-dependencies]
-sgx_build_helper = { path = "../../sgx_build_helper" }
 
 [dependencies]
 sgx_types = { path = "../../sgx_types" }
@@ -28,10 +25,6 @@ sgx_libc = { path = "../../sgx_libc" }
 sgx_trts = { path = "../../sgx_trts" }
 sgx_alloc = { path = "../../sgx_alloc" }
 sgx_tprotected_fs = { path = "../../sgx_tprotected_fs" }
-sgx_tcrypto = { path = "../../sgx_tcrypto" }
-sgx_tse = { path = "../../sgx_tse" }
-sgx_tseal = { path = "../../sgx_tseal" }
-sgx_tservice = { path = "../../sgx_tservice" }
-sgx_tkey_exchange = { path = "../../sgx_tkey_exchange" }
-sgx_tdh = { path = "../../sgx_tdh" }
+sgx_backtrace_sys = { path = "../../sgx_backtrace_sys" }
+sgx_demangle = { path = "../../sgx_demangle" }
 sgx_unwind = { path = "../../sgx_unwind" }

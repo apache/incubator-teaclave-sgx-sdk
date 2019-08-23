@@ -40,7 +40,7 @@ extern crate sgx_tstd as std;
 use sgx_types::*;
 use std::string::String;
 use std::vec::Vec;
-use std::io::{self, Write};
+//use std::io::{self, Write};
 use std::slice;
 
 #[macro_use] extern crate log;

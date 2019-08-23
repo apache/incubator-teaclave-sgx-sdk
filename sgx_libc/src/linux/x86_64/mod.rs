@@ -40,18 +40,19 @@ pub use sgx_types::{size_t, ptrdiff_t, intptr_t, uintptr_t, ssize_t};
 use core::ptr;
 use core::mem;
 
-#[link(name = "sgx_tstdc")]
 extern {
-
-    //pub fn memchr(s: * const c_void, c: c_int, n: size_t) -> *mut c_void;
-    //pub fn memrchr(cx: *const c_void, c: c_int, n: size_t) -> *mut c_void;
-    pub fn strlen(s: * const c_char) -> size_t;
     pub fn calloc(nobj: size_t, size: size_t) -> * mut c_void;
     pub fn malloc(size: size_t) -> * mut c_void;
     pub fn realloc(p: * mut c_void, size: size_t) -> * mut c_void;
     pub fn free(p: * mut c_void);
-    //pub fn posix_memalign(memptr: * mut * mut c_void, align: size_t, size: size_t) -> c_int;
     pub fn memalign(align: size_t, size: size_t) -> *mut c_void;
+}
+
+#[link(name = "sgx_tstdc")]
+extern {
+    //pub fn memchr(s: * const c_void, c: c_int, n: size_t) -> *mut c_void;
+    //pub fn memrchr(cx: *const c_void, c: c_int, n: size_t) -> *mut c_void;
+    pub fn strlen(s: * const c_char) -> size_t;
     pub fn malloc_usable_size(ptr: * const c_void) -> size_t;
 }
 
@@ -59,7 +60,6 @@ extern {
 extern {
     #[cfg_attr(target_os = "linux", link_name = "__errno_location")]
     fn errno_location() -> * mut c_int;
-
     fn strerror_r(errnum: c_int, buf: * mut c_char, buflen: size_t) -> c_int;
 }
 
@@ -146,6 +146,9 @@ pub type uid_t = u32;
 pub type gid_t = u32;
 pub type ino64_t = u64;
 pub type nfds_t = c_ulong;
+
+#[derive(Copy, Clone, Debug)]
+pub enum DIR {}
 
 s! {
     pub struct stat {
@@ -295,8 +298,8 @@ s! {
                    target_arch = "x86_64"),
                repr(packed))]
     pub struct epoll_event {
-        pub events: crate::uint32_t,
-        pub u64: crate::uint64_t,
+        pub events: uint32_t,
+        pub u64: uint64_t,
     }
 
     #[cfg_attr(target_os = "netbsd", repr(packed))]
@@ -378,7 +381,27 @@ s! {
         pub cmsg_level: c_int,
         pub cmsg_type: c_int,
     }
+    pub struct dirent {
+        pub d_ino: ino_t,
+        pub d_off: off_t,
+        pub d_reclen: c_ushort,
+        pub d_type: c_uchar,
+        pub d_name: [c_char; 256],
+    }
+
+    pub struct dirent64 {
+        pub d_ino: ino64_t,
+        pub d_off: off64_t,
+        pub d_reclen: c_ushort,
+        pub d_type: c_uchar,
+        pub d_name: [c_char; 256],
+    }
 }
+
+pub const AT_FDCWD: c_int = -100;
+pub const AT_SYMLINK_NOFOLLOW: c_int = 0x100;
+pub const AT_REMOVEDIR: c_int = 0x200;
+pub const AT_SYMLINK_FOLLOW: c_int = 0x400;
 
 pub const CLOCK_REALTIME: clockid_t = 0;
 pub const CLOCK_MONOTONIC: clockid_t = 1;
@@ -390,6 +413,14 @@ pub const CLOCK_MONOTONIC_COARSE: clockid_t = 6;
 pub const CLOCK_BOOTTIME: clockid_t = 7;
 pub const CLOCK_REALTIME_ALARM: clockid_t = 8;
 pub const CLOCK_BOOTTIME_ALARM: clockid_t = 9;
+pub const DT_UNKNOWN: u8 = 0;
+pub const DT_FIFO: u8 = 1;
+pub const DT_CHR: u8 = 2;
+pub const DT_DIR: u8 = 4;
+pub const DT_BLK: u8 = 6;
+pub const DT_REG: u8 = 8;
+pub const DT_LNK: u8 = 10;
+pub const DT_SOCK: u8 = 12;
 
 pub const STDIN_FILENO: c_int = 0;
 pub const STDOUT_FILENO: c_int = 1;

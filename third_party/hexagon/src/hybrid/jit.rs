@@ -7,7 +7,7 @@ pub trait JitProvider {
     /// and return true. Otherwise, return false and return immediately.
     ///
     /// The JIT can schedule compilation based on record of calls to this method.
-    fn invoke_function(&self, _ctx: &CommonProgramContext, _id: usize) -> bool;
+    fn invoke_function(&self, _ctx: &dyn CommonProgramContext, _id: usize) -> bool;
 }
 
 pub struct NoJit {
@@ -15,7 +15,7 @@ pub struct NoJit {
 }
 
 impl JitProvider for NoJit {
-    fn invoke_function(&self, _ctx: &CommonProgramContext, _id: usize) -> bool {
+    fn invoke_function(&self, _ctx: &dyn CommonProgramContext, _id: usize) -> bool {
         unreachable!()
     }
 }

@@ -21,9 +21,9 @@ const BTC_ALPHA: &'static[u8] = b"123456789\
                                   ABCDEFGHJKLMNPQRSTUVWXYZ\
                                   abcdefghijkmnopqrstuvwxyz";
 
-const FLICKR_ALPHA: &'static[u8] = b"123456789\
-                                     abcdefghijkmnopqrstuvwxyz\
-                                     ABCDEFGHJKLMNPQRSTUVWXYZ";
+//const FLICKR_ALPHA: &'static[u8] = b"123456789\
+//                                     abcdefghijkmnopqrstuvwxyz\
+//                                     ABCDEFGHJKLMNPQRSTUVWXYZ";
 
 /// A trait for converting base58-encoded values
 pub trait FromBase58 {

@@ -3,7 +3,6 @@ extern crate webpki;
 extern crate rustls;
 extern crate base64;
 extern crate itertools;
-extern crate untrusted;
 extern crate serde_json;
 extern crate num_bigint;
 extern crate bit_vec;
@@ -13,9 +12,7 @@ extern crate sgx_types;
 use sgx_types::*;
 
 use std::fs;
-use std::fs::File;
 use std::io::{self, Write, Read, BufReader};
-use std::io::prelude::*;
 use std::sync::Arc;
 use std::str;
 use std::net::TcpStream;
@@ -94,7 +91,7 @@ fn main() {
 
     println!("Connecting to verify server: {}", VERIFYMSADDR);
 
-    let mut result =  fs::remove_file(MSFILE);
+    let _ = fs::remove_file(MSFILE);
 
     let client_config = make_config(false);
     let dns_name = webpki::DNSNameRef::try_from_ascii_str("localhost").unwrap();

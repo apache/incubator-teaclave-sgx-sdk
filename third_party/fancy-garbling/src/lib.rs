@@ -8,7 +8,6 @@
     clippy::needless_range_loop
 )]
 
-#![feature(reverse_bits)]
 #![allow(non_snake_case)]
 
 #![cfg_attr(not(target_env = "sgx"), no_std)]

@@ -10,7 +10,7 @@ use repeated::RepeatedField;
 pub trait ReflectRepeated: 'static {
     fn reflect_iter(&self) -> ReflectRepeatedIter;
     fn len(&self) -> usize;
-    fn get(&self, index: usize) -> &ProtobufValue;
+    fn get(&self, index: usize) -> &dyn ProtobufValue;
 }
 
 impl<V : ProtobufValue + 'static> ReflectRepeated for Vec<V> {
@@ -24,7 +24,7 @@ impl<V : ProtobufValue + 'static> ReflectRepeated for Vec<V> {
         Vec::len(self)
     }
 
-    fn get(&self, index: usize) -> &ProtobufValue {
+    fn get(&self, index: usize) -> &dyn ProtobufValue {
         &self[index]
     }
 }
@@ -41,7 +41,7 @@ impl<V : ProtobufValue + 'static> ReflectRepeated for [V] {
         <[_]>::len(self)
     }
 
-    fn get(&self, index: usize) -> &ProtobufValue {
+    fn get(&self, index: usize) -> &dyn ProtobufValue {
         &self[index]
     }
 }
@@ -57,13 +57,13 @@ impl<V : ProtobufValue + 'static> ReflectRepeated for RepeatedField<V> {
         RepeatedField::len(self)
     }
 
-    fn get(&self, index: usize) -> &ProtobufValue {
+    fn get(&self, index: usize) -> &dyn ProtobufValue {
         &self[index]
     }
 }
 
 trait ReflectRepeatedIterTrait<'a> {
-    fn next(&mut self) -> Option<&'a ProtobufValue>;
+    fn next(&mut self) -> Option<&'a dyn ProtobufValue>;
 }
 
 struct ReflectRepeatedIterImplSlice<'a, V : ProtobufValue + 'static> {
@@ -72,26 +72,26 @@ struct ReflectRepeatedIterImplSlice<'a, V : ProtobufValue + 'static> {
 
 impl<'a, V : ProtobufValue + 'static> ReflectRepeatedIterTrait<'a>
     for ReflectRepeatedIterImplSlice<'a, V> {
-    fn next(&mut self) -> Option<&'a ProtobufValue> {
-        self.iter.next().map(|v| v as &ProtobufValue)
+    fn next(&mut self) -> Option<&'a dyn ProtobufValue> {
+        self.iter.next().map(|v| v as &dyn ProtobufValue)
     }
 }
 
 pub struct ReflectRepeatedIter<'a> {
-    imp: Box<ReflectRepeatedIterTrait<'a> + 'a>,
+    imp: Box<dyn ReflectRepeatedIterTrait<'a> + 'a>,
 }
 
 impl<'a> Iterator for ReflectRepeatedIter<'a> {
-    type Item = &'a ProtobufValue;
+    type Item = &'a dyn ProtobufValue;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.imp.next()
     }
 }
 
-impl<'a> IntoIterator for &'a ReflectRepeated {
+impl<'a> IntoIterator for &'a dyn ReflectRepeated {
     type IntoIter = ReflectRepeatedIter<'a>;
-    type Item = &'a ProtobufValue;
+    type Item = &'a dyn ProtobufValue;
 
     fn into_iter(self) -> Self::IntoIter {
         self.reflect_iter()
@@ -111,7 +111,7 @@ pub trait ReflectRepeatedMessage<'a> {
 }
 
 pub enum ReflectRepeatedRef<'a> {
-    Generic(&'a ReflectRepeated),
+    Generic(&'a dyn ReflectRepeated),
     U32(&'a [u32]),
     U64(&'a [u64]),
     I32(&'a [i32]),
@@ -121,8 +121,8 @@ pub enum ReflectRepeatedRef<'a> {
     Bool(&'a [bool]),
     String(&'a [String]),
     Bytes(&'a [Vec<u8>]),
-    Enum(Box<ReflectRepeatedEnum<'a> + 'a>),
-    Message(Box<ReflectRepeatedMessage<'a> + 'a>),
+    Enum(Box<dyn ReflectRepeatedEnum<'a> + 'a>),
+    Message(Box<dyn ReflectRepeatedMessage<'a> + 'a>),
 }
 
 impl<'a> ReflectRepeatedRef<'a> {

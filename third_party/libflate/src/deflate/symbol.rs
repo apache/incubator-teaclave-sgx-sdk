@@ -100,12 +100,12 @@ impl Symbol {
             Symbol::Literal(b) => u16::from(b),
             Symbol::EndOfBlock => 256,
             Symbol::Share { length, .. } => match length {
-                3...10 => 257 + length - 3,
-                11...18 => 265 + (length - 11) / 2,
-                19...34 => 269 + (length - 19) / 4,
-                35...66 => 273 + (length - 35) / 8,
-                67...130 => 277 + (length - 67) / 16,
-                131...257 => 281 + (length - 131) / 32,
+                3..=10 => 257 + length - 3,
+                11..=18 => 265 + (length - 11) / 2,
+                19..=34 => 269 + (length - 19) / 4,
+                35..=66 => 273 + (length - 35) / 8,
+                67..=130 => 277 + (length - 67) / 16,
+                131..=257 => 281 + (length - 131) / 32,
                 258 => 285,
                 _ => unreachable!(),
             },
@@ -114,12 +114,12 @@ impl Symbol {
     pub fn extra_lengh(&self) -> Option<(u8, u16)> {
         if let Symbol::Share { length, .. } = *self {
             match length {
-                3...10 | 258 => None,
-                11...18 => Some((1, (length - 11) % 2)),
-                19...34 => Some((2, (length - 19) % 4)),
-                35...66 => Some((3, (length - 35) % 8)),
-                67...130 => Some((4, (length - 67) % 16)),
-                131...257 => Some((5, (length - 131) % 32)),
+                3..=10 | 258 => None,
+                11..=18 => Some((1, (length - 11) % 2)),
+                19..=34 => Some((2, (length - 19) % 4)),
+                35..=66 => Some((3, (length - 35) % 8)),
+                67..=130 => Some((4, (length - 67) % 16)),
+                131..=257 => Some((5, (length - 131) % 32)),
                 _ => unreachable!(),
             }
         } else {
@@ -204,7 +204,7 @@ impl Decoder {
     {
         let decoded = self.literal.decode_unchecked(reader);
         match decoded {
-            0...255 => Symbol::Literal(decoded as u8),
+            0..=255 => Symbol::Literal(decoded as u8),
             256 => Symbol::EndOfBlock,
             286 | 287 => {
                 let message = format!("The value {} must not occur in compressed data", decoded);
@@ -433,12 +433,12 @@ fn load_bitwidthes<R>(
     reader: &mut bit::BitReader<R>,
     code: u16,
     last: Option<u8>,
-) -> io::Result<Box<Iterator<Item = u8>>>
+) -> io::Result<Box<dyn Iterator<Item = u8>>>
 where
     R: io::Read,
 {
     Ok(match code {
-        0...15 => Box::new(iter::once(code as u8)),
+        0..=15 => Box::new(iter::once(code as u8)),
         16 => {
             let count = reader.read_bits(2)? + 3;
             let last = last.ok_or_else(|| invalid_data_error!("No preceding value"))?;

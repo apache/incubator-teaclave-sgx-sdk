@@ -98,10 +98,10 @@ macro_rules! expect_byte_ignore_whitespace {
         // Don't go straight for the loop, assume we are in the clear first.
         match ch {
             // whitespace
-            9 ... 13 | 32 => {
+            9 ..= 13 | 32 => {
                 loop {
                     match expect_byte!($parser) {
-                        9 ... 13 | 32 => {},
+                        9 ..= 13 | 32 => {},
                         next          => {
                             ch = next;
                             break;
@@ -121,7 +121,7 @@ macro_rules! expect_eof {
     ($parser:ident) => ({
         while !$parser.is_eof() {
             match $parser.read_byte() {
-                9 ... 13 | 32 => $parser.bump(),
+                9 ..= 13 | 32 => $parser.bump(),
                 _             => {
                     $parser.bump();
                     return $parser.unexpected_character();
@@ -244,7 +244,7 @@ macro_rules! expect_number {
             let ch = $parser.read_byte();
 
             match ch {
-                b'0' ... b'9' => {
+                b'0' ..= b'9' => {
                     $parser.bump();
                     num = num * 10 + (ch - b'0') as u64;
                 },
@@ -303,7 +303,7 @@ macro_rules! expect_fraction {
         let ch = expect_byte!($parser);
 
         match ch {
-            b'0' ... b'9' => {
+            b'0' ..= b'9' => {
                 if $num < MAX_PRECISION {
                     $num = $num * 10 + (ch - b'0') as u64;
                     $e -= 1;
@@ -330,7 +330,7 @@ macro_rules! expect_fraction {
             let ch = $parser.read_byte();
 
             match ch {
-                b'0' ... b'9' => {
+                b'0' ..= b'9' => {
                     $parser.bump();
                     if $num < MAX_PRECISION {
                         $num = $num * 10 + (ch - b'0') as u64;
@@ -429,9 +429,9 @@ impl<'a> Parser<'a> {
     fn read_hexdec_digit(&mut self) -> Result<u32> {
         let ch = expect_byte!(self);
         Ok(match ch {
-            b'0' ... b'9' => (ch - b'0'),
-            b'a' ... b'f' => (ch + 10 - b'a'),
-            b'A' ... b'F' => (ch + 10 - b'A'),
+            b'0' ..= b'9' => (ch - b'0'),
+            b'a' ..= b'f' => (ch + 10 - b'a'),
+            b'A' ..= b'F' => (ch + 10 - b'A'),
             _             => return self.unexpected_character(),
         } as u32)
     }
@@ -453,8 +453,8 @@ impl<'a> Parser<'a> {
         let mut codepoint = try!(self.read_hexdec_codepoint());
 
         match codepoint {
-            0x0000 ... 0xD7FF => {},
-            0xD800 ... 0xDBFF => {
+            0x0000 ..= 0xD7FF => {},
+            0xD800 ..= 0xDBFF => {
                 codepoint -= 0xD800;
                 codepoint <<= 10;
 
@@ -462,28 +462,28 @@ impl<'a> Parser<'a> {
 
                 let lower = try!(self.read_hexdec_codepoint());
 
-                if let 0xDC00 ... 0xDFFF = lower {
+                if let 0xDC00 ..= 0xDFFF = lower {
                     codepoint = (codepoint | lower - 0xDC00) + 0x010000;
                 } else {
                     return Err(Error::FailedUtf8Parsing)
                 }
             },
-            0xE000 ... 0xFFFF => {},
+            0xE000 ..= 0xFFFF => {},
             _ => return Err(Error::FailedUtf8Parsing)
         }
 
         match codepoint {
-            0x0000 ... 0x007F => self.buffer.push(codepoint as u8),
-            0x0080 ... 0x07FF => self.buffer.extend_from_slice(&[
+            0x0000 ..= 0x007F => self.buffer.push(codepoint as u8),
+            0x0080 ..= 0x07FF => self.buffer.extend_from_slice(&[
                 (((codepoint >> 6) as u8) & 0x1F) | 0xC0,
                 ((codepoint        as u8) & 0x3F) | 0x80
             ]),
-            0x0800 ... 0xFFFF => self.buffer.extend_from_slice(&[
+            0x0800 ..= 0xFFFF => self.buffer.extend_from_slice(&[
                 (((codepoint >> 12) as u8) & 0x0F) | 0xE0,
                 (((codepoint >> 6)  as u8) & 0x3F) | 0x80,
                 ((codepoint         as u8) & 0x3F) | 0x80
             ]),
-            0x10000 ... 0x10FFFF => self.buffer.extend_from_slice(&[
+            0x10000 ..= 0x10FFFF => self.buffer.extend_from_slice(&[
                 (((codepoint >> 18) as u8) & 0x07) | 0xF0,
                 (((codepoint >> 12) as u8) & 0x3F) | 0x80,
                 (((codepoint >> 6)  as u8) & 0x3F) | 0x80,
@@ -573,7 +573,7 @@ impl<'a> Parser<'a> {
             }
             let ch = self.read_byte();
             match ch {
-                b'0' ... b'9' => {
+                b'0' ..= b'9' => {
                     self.bump();
                     match num.checked_mul(10).and_then(|num| {
                         num.checked_add((ch - b'0') as u64)
@@ -614,7 +614,7 @@ impl<'a> Parser<'a> {
         };
 
         let mut e = match ch {
-            b'0' ... b'9' => (ch - b'0') as i16,
+            b'0' ..= b'9' => (ch - b'0') as i16,
             _ => return self.unexpected_character(),
         };
 
@@ -624,7 +624,7 @@ impl<'a> Parser<'a> {
             }
             let ch = self.read_byte();
             match ch {
-                b'0' ... b'9' => {
+                b'0' ..= b'9' => {
                     self.bump();
                     e = e.saturating_mul(10).saturating_add((ch - b'0') as i16);
                 },
@@ -684,14 +684,14 @@ impl<'a> Parser<'a> {
                 },
                 b'"' => expect_string!(self).into(),
                 b'0' => JsonValue::Number(allow_number_extensions!(self)),
-                b'1' ... b'9' => {
+                b'1' ..= b'9' => {
                     JsonValue::Number(expect_number!(self, ch))
                 },
                 b'-' => {
                     let ch = expect_byte!(self);
                     JsonValue::Number(- match ch {
                         b'0' => allow_number_extensions!(self),
-                        b'1' ... b'9' => expect_number!(self, ch),
+                        b'1' ..= b'9' => expect_number!(self, ch),
                         _    => return self.unexpected_character()
                     })
                 }

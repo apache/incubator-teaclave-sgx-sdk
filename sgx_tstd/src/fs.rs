@@ -34,6 +34,8 @@ use crate::path::{Path, PathBuf};
 use crate::sys::fs as fs_imp;
 use crate::sys_common::{AsInnerMut, FromInner, AsInner, IntoInner};
 use crate::time::SystemTime;
+use crate::ffi::OsString;
+use crate::untrusted::path::PathEx;
 
 /// A reference to an open file on the filesystem.
 ///
@@ -56,6 +58,33 @@ pub struct File {
 ///
 #[derive(Clone)]
 pub struct Metadata(fs_imp::FileAttr);
+/// Iterator over the entries in a directory.
+///
+/// This iterator is returned from the [`read_dir`] function of this module and
+/// will yield instances of [`io::Result`]`<`[`DirEntry`]`>`. Through a [`DirEntry`]
+/// information like the entry's path and possibly other metadata can be
+/// learned.
+///
+/// # Errors
+///
+/// This [`io::Result`] will be an [`Err`] if there's some sort of intermittent
+/// IO error during iteration.
+///
+/// [`read_dir`]: fn.read_dir.html
+/// [`DirEntry`]: struct.DirEntry.html
+/// [`io::Result`]: ../io/type.Result.html
+/// [`Err`]: ../result/enum.Result.html#variant.Err
+#[derive(Debug)]
+pub struct ReadDir(fs_imp::ReadDir);
+
+/// Entries returned by the [`ReadDir`] iterator.
+///
+/// [`ReadDir`]: struct.ReadDir.html
+///
+/// An instance of `DirEntry` represents an entry inside of a directory on the
+/// filesystem. Each entry can be inspected via methods to learn about the full
+/// path or possibly other metadata through per-platform extension traits.
+pub struct DirEntry(fs_imp::DirEntry);
 
 /// Options and flags which can be used to configure how a file is opened.
 ///
@@ -100,6 +129,14 @@ pub struct Permissions(fs_imp::FilePermissions);
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FileType(fs_imp::FileType);
 
+/// A builder used to create directories in various manners.
+///
+/// This builder also supports platform-specific options.
+#[derive(Debug)]
+pub struct DirBuilder {
+    inner: fs_imp::DirBuilder,
+    recursive: bool,
+}
 /// How large a buffer to pre-allocate before reading the entire file.
 fn initial_buffer_size(file: &File) -> usize {
     // Allocate one extra byte so the buffer doesn't need to grow before the
@@ -660,6 +697,41 @@ impl AsInner<fs_imp::FilePermissions> for Permissions {
     fn as_inner(&self) -> &fs_imp::FilePermissions { &self.0 }
 }
 
+impl Iterator for ReadDir {
+    type Item = io::Result<DirEntry>;
+
+    fn next(&mut self) -> Option<io::Result<DirEntry>> {
+        self.0.next().map(|entry| entry.map(DirEntry))
+    }
+}
+
+impl DirEntry {
+    pub fn path(&self) -> PathBuf { self.0.path() }
+
+    pub fn metadata(&self) -> io::Result<Metadata> {
+        self.0.metadata().map(Metadata)
+    }
+
+    pub fn file_type(&self) -> io::Result<FileType> {
+        self.0.file_type().map(FileType)
+    }
+
+    pub fn file_name(&self) -> OsString {
+        self.0.file_name()
+    }
+}
+
+impl fmt::Debug for DirEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("DirEntry")
+            .field(&self.path())
+            .finish()
+    }
+}
+
+impl AsInner<fs_imp::DirEntry> for DirEntry {
+    fn as_inner(&self) -> &fs_imp::DirEntry { &self.0 }
+}
 /// Removes a file from the filesystem.
 ///
 /// Note that there is no
@@ -869,6 +941,46 @@ pub fn read_link<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
 ///
 /// This function currently corresponds to the `realpath` function on Unix
 /// and the `CreateFile` and `GetFinalPathNameByHandle` functions on Windows.
+/// Creates a new, empty directory at the provided path
+///
+/// # Platform-specific behavior
+///
+/// This function currently corresponds to the `mkdir` function on Unix
+/// and the `CreateDirectory` function on Windows.
+/// Note that, this [may change in the future][changes].
+///
+/// [changes]: ../io/index.html#platform-specific-behavior
+///
+/// **NOTE**: If a parent of the given path doesn't exist, this function will
+/// return an error. To create a directory and all its missing parents at the
+/// same time, use the [`create_dir_all`] function.
+///
+/// # Errors
+///
+/// This function will return an error in the following situations, but is not
+/// limited to just these cases:
+///
+/// * User lacks permissions to create directory at `path`.
+/// * A parent of the given path doesn't exist. (To create a directory and all
+///   its missing parents at the same time, use the [`create_dir_all`]
+///   function.)
+/// * `path` already exists.
+///
+/// [`create_dir_all`]: fn.create_dir_all.html
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::fs;
+///
+/// fn main() -> std::io::Result<()> {
+///     fs::create_dir("/some/dir")?;
+///     Ok(())
+/// }
+/// ```
+pub fn create_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
+    DirBuilder::new().create(path.as_ref())
+}
 /// Note that, this [may change in the future][changes].
 ///
 /// [changes]: ../io/index.html#platform-specific-behavior
@@ -885,6 +997,20 @@ pub fn canonicalize<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     fs_imp::canonicalize(path.as_ref())
 }
 
+pub fn create_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
+    DirBuilder::new().recursive(true).create(path.as_ref())
+}
+
+pub fn remove_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
+    fs_imp::rmdir(path.as_ref())
+}
+pub fn remove_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
+    fs_imp::remove_dir_all(path.as_ref())
+}
+
+pub fn read_dir<P: AsRef<Path>>(path: P) -> io::Result<ReadDir> {
+    fs_imp::readdir(path.as_ref()).map(ReadDir)
+}
 /// Changes the permissions found on a file or a directory.
 ///
 /// # Platform-specific behavior
@@ -906,4 +1032,99 @@ pub fn canonicalize<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
 pub fn set_permissions<P: AsRef<Path>>(path: P, perm: Permissions)
                                        -> io::Result<()> {
     fs_imp::set_perm(path.as_ref(), perm.0)
+}
+impl DirBuilder {
+    /// Creates a new set of options with default mode/security settings for all
+    /// platforms and also non-recursive.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::fs::DirBuilder;
+    ///
+    /// let builder = DirBuilder::new();
+    /// ```
+    pub fn new() -> DirBuilder {
+        DirBuilder {
+            inner: fs_imp::DirBuilder::new(),
+            recursive: false,
+        }
+    }
+
+    /// Indicates that directories should be created recursively, creating all
+    /// parent directories. Parents that do not exist are created with the same
+    /// security and permissions settings.
+    ///
+    /// This option defaults to `false`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::fs::DirBuilder;
+    ///
+    /// let mut builder = DirBuilder::new();
+    /// builder.recursive(true);
+    /// ```
+    pub fn recursive(&mut self, recursive: bool) -> &mut Self {
+        self.recursive = recursive;
+        self
+    }
+
+    /// Creates the specified directory with the options configured in this
+    /// builder.
+    ///
+    /// It is considered an error if the directory already exists unless
+    /// recursive mode is enabled.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::fs::{self, DirBuilder};
+    ///
+    /// let path = "/tmp/foo/bar/baz";
+    /// DirBuilder::new()
+    ///     .recursive(true)
+    ///     .create(path).unwrap();
+    ///
+    /// assert!(fs::metadata(path).unwrap().is_dir());
+    /// ```
+    pub fn create<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
+        self._create(path.as_ref())
+    }
+
+    fn _create(&self, path: &Path) -> io::Result<()> {
+        if self.recursive {
+            self.create_dir_all(path)
+        } else {
+            self.inner.mkdir(path)
+        }
+    }
+
+    fn create_dir_all(&self, path: &Path) -> io::Result<()> {
+        if path == Path::new("") {
+            return Ok(())
+        }
+
+        match self.inner.mkdir(path) {
+            Ok(()) => return Ok(()),
+            Err(ref e) if e.kind() == io::ErrorKind::NotFound => {}
+            Err(_) if path.is_dir() => return Ok(()),
+            Err(e) => return Err(e),
+        }
+        match path.parent() {
+            Some(p) => self.create_dir_all(p)?,
+            None => return Err(io::Error::new(io::ErrorKind::Other, "failed to create whole tree")),
+        }
+        match self.inner.mkdir(path) {
+            Ok(()) => Ok(()),
+            Err(_) if path.is_dir() => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl AsInnerMut<fs_imp::DirBuilder> for DirBuilder {
+    fn as_inner_mut(&mut self) -> &mut fs_imp::DirBuilder {
+        &mut self.inner
+    }
 }

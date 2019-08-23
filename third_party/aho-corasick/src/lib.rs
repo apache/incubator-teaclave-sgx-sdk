@@ -136,7 +136,7 @@ extern crate quickcheck;
 #[cfg(test)]
 extern crate rand;
 
-use std::slice::SliceConcatExt;//join
+//use std::slice::SliceConcatExt;//join
 
 use std::collections::VecDeque;
 use std::fmt;

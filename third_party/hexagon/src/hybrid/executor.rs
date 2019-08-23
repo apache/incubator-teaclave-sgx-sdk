@@ -61,7 +61,7 @@ impl Executor {
 
     fn eval_partial(
         &self,
-        program: &CommonProgramContext,
+        program: &dyn CommonProgramContext,
         local: &mut Local,
         f: &Function,
         block_id: usize
@@ -368,7 +368,7 @@ impl Executor {
         panic!("Terminator not found");
     }
 
-    pub fn eval_program(&self, program: &CommonProgramContext, entry_fn: usize) {
+    pub fn eval_program(&self, program: &dyn CommonProgramContext, entry_fn: usize) {
 
         let entry = &program.get_program().functions[entry_fn];
 

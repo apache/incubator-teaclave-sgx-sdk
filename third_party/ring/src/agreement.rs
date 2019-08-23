@@ -107,7 +107,7 @@ impl<'a> EphemeralPrivateKey {
     /// Generate a new ephemeral private key for the given algorithm.
     ///
     /// C analog: `EC_KEY_new_by_curve_name` + `EC_KEY_generate_key`.
-    pub fn generate(alg: &'static Algorithm, rng: &rand::SecureRandom)
+    pub fn generate(alg: &'static Algorithm, rng: &dyn rand::SecureRandom)
                     -> Result<EphemeralPrivateKey, error::Unspecified> {
         // NSA Guide Step 1.
         //

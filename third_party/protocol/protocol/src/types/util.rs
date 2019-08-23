@@ -8,21 +8,21 @@ use std::io::prelude::*;
 pub type SizeType = u32;
 
 /// Reads a length-prefixed list from a stream.
-pub fn read_list<T>(read: &mut Read)
+pub fn read_list<T>(read: &mut dyn Read)
     -> Result<Vec<T>, Error>
     where T: Parcel {
     self::read_list_ext::<SizeType, T>(read)
 }
 
 /// Writes a length-prefixed list to a stream.
-pub fn write_list<'a,T,I>(write: &mut Write, elements: I)
+pub fn write_list<'a,T,I>(write: &mut dyn Write, elements: I)
     -> Result<(), Error>
     where T: Parcel+'a,
           I: IntoIterator<Item=&'a T> {
     self::write_list_ext::<SizeType, T, I>(write, elements)
 }
 
-pub fn read_list_ext<S,T>(read: &mut Read)
+pub fn read_list_ext<S,T>(read: &mut dyn Read)
     -> Result<Vec<T>, Error>
     where S: Integer,
           T: Parcel {
@@ -37,7 +37,7 @@ pub fn read_list_ext<S,T>(read: &mut Read)
     Ok(elements)
 }
 
-pub fn write_list_ext<'a,S,T,I>(write: &mut Write, elements: I)
+pub fn write_list_ext<'a,S,T,I>(write: &mut dyn Write, elements: I)
     -> Result<(), Error>
     where S: Integer,
           T: Parcel+'a,

@@ -30,10 +30,10 @@ macro_rules! define_middleware_pipeline {
         impl $ty
         {
             /// Gets the middleware pipeline.
-            pub fn middleware_mut(&mut self) -> ::std::collections::VecDeque<&mut $crate::wire::Middleware> {
+            pub fn middleware_mut(&mut self) -> ::std::collections::VecDeque<&mut dyn $crate::wire::Middleware> {
                 let mut middleware = ::std::collections::VecDeque::new();
 
-                $( middleware.push_front(&mut self.$mw_name as &mut $crate::wire::Middleware); )+
+                $( middleware.push_front(&mut self.$mw_name as &mut dyn $crate::wire::Middleware); )+
 
                 middleware
             }

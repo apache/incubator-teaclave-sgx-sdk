@@ -39,7 +39,7 @@ pub mod wtf8;
 #[cfg(feature = "net")]
 pub mod net;
 pub mod bytestring;
-
+pub mod fs;
 /// A trait for viewing representations from std types
 #[doc(hidden)]
 pub trait AsInner<Inner: ?Sized> {

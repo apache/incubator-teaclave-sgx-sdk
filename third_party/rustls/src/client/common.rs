@@ -149,7 +149,7 @@ impl ReceivedTicketDetails {
 
 pub struct ClientAuthDetails {
     pub cert: Option<CertificatePayload>,
-    pub signer: Option<Box<sign::Signer>>,
+    pub signer: Option<Box<dyn sign::Signer>>,
     pub auth_context: Option<Vec<u8>>,
 }
 

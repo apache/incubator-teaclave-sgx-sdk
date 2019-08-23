@@ -173,7 +173,7 @@ fn parse_spki_value(input: untrusted::Input)
 pub struct SignatureAlgorithm {
     public_key_alg_id: AlgorithmIdentifier,
     signature_alg_id: AlgorithmIdentifier,
-    verification_alg: &'static signature::VerificationAlgorithm,
+    verification_alg: &'static dyn signature::VerificationAlgorithm,
 }
 
 /// ECDSA signatures using the P-256 curve and SHA-256.

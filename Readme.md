@@ -25,6 +25,18 @@ Current wiki pages:
 
 * Everything about [environment setup](https://github.com/baidu/rust-sgx-sdk/wiki/Environment-Setup)
 
+## v1.0.9 Preview
+
+**Attention** This is only a preview version of v1.0.9.
+
+**Significant changes**
+
+**SGX global data definition has changed** This makes v1.0.9 **only** compatible with Intel SGX SDK 2.6.
+
+**Built-in EDL has changed** Please update your Xargo.toml, EDL and common directory for upgrade.
+
+**Rustc version** is nightly-2019-08-01
+
 ## v1.0.8 Release
 
 Supports the most recent Rust nightly (nightly-2019-05-22) and Rust stable (stable-2019-05-14). Code coverage support has been added to sgx_cov. Bug fixes in memory allocator and panicking routines. New third party libraries to support kvdb-memorydb. Please refer to [release_notes](release_notes.md) for more details.

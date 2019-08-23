@@ -11,6 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(deprecated)]
+
 use std::prelude::v1::*;
 use std::error;
 use std::{cmp, io, result};
@@ -103,7 +105,7 @@ quick_error! {
             description("snapshot is temporarily unavailable")
         }
         /// Some other error occurred.
-        Other(err: Box<error::Error + Sync + Send>) {
+        Other(err: Box<dyn error::Error + Sync + Send>) {
             from()
             cause(err.as_ref())
             description(err.description())

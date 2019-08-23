@@ -481,8 +481,8 @@ impl SigningState {
     /// constant time to protect the private key from side channel attacks. On
     /// x86-64, this is done pretty well, but not perfectly. On other
     /// platforms, it is done less perfectly.
-    pub fn sign(&mut self, padding_alg: &'static ::signature::RSAEncoding,
-                rng: &rand::SecureRandom, msg: &[u8], signature: &mut [u8])
+    pub fn sign(&mut self, padding_alg: &'static dyn crate::signature::RSAEncoding,
+                rng: &dyn rand::SecureRandom, msg: &[u8], signature: &mut [u8])
                 -> Result<(), error::Unspecified> {
         let mod_bits = self.key_pair.public_key.n_bits;
         if signature.len() != mod_bits.as_usize_bytes_rounded_up() {

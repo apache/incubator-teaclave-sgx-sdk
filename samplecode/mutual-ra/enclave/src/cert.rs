@@ -14,7 +14,6 @@ use rustls;
 use yasna;
 use base64;
 use webpki;
-use untrusted;
 use serde_json;
 use serde_json::Value;
 use num_bigint::BigUint;
@@ -238,8 +237,8 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
 
     let sig_cert_raw = iter.next().unwrap();
     let sig_cert_dec = base64::decode_config(&sig_cert_raw, base64::STANDARD).unwrap();
-    let sig_cert_input = untrusted::Input::from(&sig_cert_dec);
-    let sig_cert = webpki::EndEntityCert::from(sig_cert_input).expect("Bad DER");
+    //let sig_cert_input = untrusted::Input::from(&sig_cert_dec);
+    let sig_cert = webpki::EndEntityCert::from(&sig_cert_dec).expect("Bad DER");
 
     // Verify if the signing cert is issued by Intel CA
     let mut ias_ca_stripped = IAS_REPORT_CA.to_vec();
@@ -249,7 +248,6 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
     let full_len = ias_ca_stripped.len();
     let ias_ca_core : &[u8] = &ias_ca_stripped[head_len..full_len - tail_len];
     let ias_cert_dec = base64::decode_config(ias_ca_core, base64::STANDARD).unwrap();
-    let ias_cert_input = untrusted::Input::from(&ias_cert_dec);
 
     let mut ca_reader = BufReader::new(&IAS_REPORT_CA[..]);
 
@@ -262,8 +260,8 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
         .map(|cert| cert.to_trust_anchor())
         .collect();
 
-    let mut chain:Vec<untrusted::Input> = Vec::new();
-    chain.push(ias_cert_input);
+    let mut chain:Vec<&[u8]> = Vec::new();
+    chain.push(&ias_cert_dec);
 
     let now_func = webpki::Time::try_from(SystemTime::now());
 
@@ -279,8 +277,8 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
     // Verify the signature against the signing cert
     match sig_cert.verify_signature(
         &webpki::RSA_PKCS1_2048_8192_SHA256,
-        untrusted::Input::from(&attn_report_raw),
-        untrusted::Input::from(&sig)) {
+        &attn_report_raw,
+        &sig) {
         Ok(_) => println!("Signature good"),
         Err(e) => {
             println!("Signature verification error {:?}", e);

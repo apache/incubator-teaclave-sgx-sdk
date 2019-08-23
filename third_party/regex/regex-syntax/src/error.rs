@@ -5,7 +5,7 @@ use std::result;
 use std::string::String;
 use std::string::ToString;
 use std::vec::Vec;
-use std::slice::SliceConcatExt;
+//use std::slice::SliceConcatExt;
 
 use ast;
 use hir;
@@ -44,6 +44,7 @@ impl From<hir::Error> for Error {
 }
 
 impl error::Error for Error {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match *self {
             Error::Parse(ref x) => x.description(),

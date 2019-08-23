@@ -26,7 +26,7 @@ pub struct VirtualFunctionInfo {
     pub basic_blocks: Vec<BasicBlock>
 }
 
-pub type NativeFunction = Box<Fn(&mut ExecutorImpl) -> Value + Send>;
+pub type NativeFunction = Box<dyn Fn(&mut ExecutorImpl) -> Value + Send>;
 
 impl Object for Function {
     fn initialize(&mut self, pool: &mut ObjectPool) {
@@ -40,12 +40,12 @@ impl Object for Function {
         }
     }
 
-    fn as_any(&self) -> &Any {
-        self as &Any
+    fn as_any(&self) -> &dyn Any {
+        self as &dyn Any
     }
 
-    fn as_any_mut(&mut self) -> &mut Any {
-        self as &mut Any
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self as &mut dyn Any
     }
 
     fn call(&self, executor: &mut ExecutorImpl) -> Value {

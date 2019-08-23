@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 use std::{self, fmt, error};
 
 
@@ -7,6 +8,7 @@ use std::{self, fmt, error};
 pub struct TryFromIntError { }
 
 impl TryFromIntError {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         "out of range integral type conversion attempted"
     }

@@ -118,7 +118,7 @@ impl TlsClient {
         }
     }
 
-    fn read_source_to_end(&mut self, rd: &mut io::Read) -> io::Result<usize> {
+    fn read_source_to_end(&mut self, rd: &mut dyn io::Read) -> io::Result<usize> {
         let mut buf = Vec::new();
         let len = rd.read_to_end(&mut buf)?;
         self.tls_session.write_all(&buf).unwrap();

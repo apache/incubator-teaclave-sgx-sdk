@@ -362,7 +362,7 @@ pub mod primitive {
 /// A key pair for signing.
 #[derive(Debug)]
 pub struct KeyPair {
-    inner: std::boxed::Box<KeyPairImpl + Send + Sync>,
+    inner: std::boxed::Box<dyn KeyPairImpl + Send + Sync>,
 }
 
 impl KeyPair {
@@ -374,7 +374,7 @@ impl KeyPair {
 }
 
 pub(crate) trait KeyPairImpl: core::fmt::Debug + Send + 'static {
-    fn sign(&self, rng: &rand::SecureRandom, msg: untrusted::Input)
+    fn sign(&self, rng: &dyn rand::SecureRandom, msg: untrusted::Input)
             -> Result<Signature, error::Unspecified>;
 }
 
@@ -391,7 +391,7 @@ pub trait SigningAlgorithm: core::fmt::Debug + Sync + 'static + private::Sealed 
 ///
 /// The key is checked to ensure it is valid for the given algorithm.
 #[inline]
-pub fn key_pair_from_pkcs8(alg: &'static SigningAlgorithm, input: untrusted::Input)
+pub fn key_pair_from_pkcs8(alg: &'static dyn SigningAlgorithm, input: untrusted::Input)
     -> Result<KeyPair, error::Unspecified>
 {
     alg.from_pkcs8(input)
@@ -400,7 +400,7 @@ pub fn key_pair_from_pkcs8(alg: &'static SigningAlgorithm, input: untrusted::Inp
 /// Returns a signature of the given data using the given key. The signing may or may
 /// not use `rng`, depending on the `key_pair's algorithm.
 #[inline]
-pub fn sign(key_pair: &KeyPair, rng: &rand::SecureRandom, msg: untrusted::Input)
+pub fn sign(key_pair: &KeyPair, rng: &dyn rand::SecureRandom, msg: untrusted::Input)
             -> Result<Signature, error::Unspecified> {
     key_pair.inner.sign(rng, msg)
 }
@@ -439,7 +439,7 @@ pub trait VerificationAlgorithm: core::fmt::Debug + Sync + private::Sealed {
 /// }
 /// # fn main() { }
 /// ```
-pub fn verify(alg: &VerificationAlgorithm, public_key: untrusted::Input,
+pub fn verify(alg: &dyn VerificationAlgorithm, public_key: untrusted::Input,
               msg: untrusted::Input, signature: untrusted::Input)
               -> Result<(), error::Unspecified> {
     init::init_once();

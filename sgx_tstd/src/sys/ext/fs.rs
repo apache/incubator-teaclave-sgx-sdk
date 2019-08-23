@@ -261,3 +261,22 @@ pub fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()>
 {
     sys::fs::symlink(src.as_ref(), dst.as_ref())
 }
+
+pub trait DirEntryExt {
+    fn ino(&self) -> u64;
+}
+
+impl DirEntryExt for fs::DirEntry {
+    fn ino(&self) -> u64 { self.as_inner().ino() }
+}
+
+pub trait DirBuilderExt {
+    fn mode(&mut self, mode: u32) -> &mut Self;
+}
+
+impl DirBuilderExt for fs::DirBuilder {
+    fn mode(&mut self, mode: u32) -> &mut fs::DirBuilder {
+        self.as_inner_mut().set_mode(mode);
+        self
+    }
+}

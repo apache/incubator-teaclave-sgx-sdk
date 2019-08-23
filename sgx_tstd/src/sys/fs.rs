@@ -26,9 +26,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use sgx_trts::libc::{c_int, mode_t, time_t, stat64, off64_t};
+use sgx_trts::libc::{c_int, mode_t, time_t, stat64, off64_t, DIR, dirent64};
 use crate::os::unix::prelude::*;
-use crate::ffi::{CString, CStr, OsString};
+use crate::ffi::{CString, CStr, OsString, OsStr};
 use crate::io::{self, Error, ErrorKind, SeekFrom};
 use crate::io::{IoSlice, IoSliceMut};
 use crate::path::{Path, PathBuf};
@@ -36,14 +36,43 @@ use crate::sys::fd::FileDesc;
 use crate::sys::time::SystemTime;
 use crate::sys::{cvt, cvt_r};
 use crate::sys_common::{AsInner, FromInner};
-use core::fmt;
-use core::mem;
+use core::{fmt, mem, ptr};
+use alloc_crate::sync::Arc;
+
+pub use crate::sys_common::fs::remove_dir_all;
 
 pub struct File(FileDesc);
 
 #[derive(Clone)]
 pub struct FileAttr {
     stat: stat64,
+}
+
+#[derive(Debug)]
+pub struct DirBuilder { 
+    mode: mode_t,
+ }
+
+// all DirEntry's will have a reference to this struct
+struct InnerReadDir {
+    dirp: Dir,
+    root: PathBuf,
+}
+
+#[derive(Clone)]
+pub struct ReadDir {
+    inner: Arc<InnerReadDir>,
+    end_of_stream: bool,
+}
+
+struct Dir(*mut DIR);
+
+unsafe impl Send for Dir {}
+unsafe impl Sync for Dir {}
+
+pub struct DirEntry {
+    entry: dirent64,
+    dir: ReadDir,
 }
 
 #[derive(Clone, Debug)]
@@ -135,6 +164,98 @@ impl FromInner<u32> for FilePermissions {
     }
 }
 
+impl fmt::Debug for ReadDir {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // This will only be called from std::fs::ReadDir, which will add a "ReadDir()" frame.
+        // Thus the result will be e g 'ReadDir("/home")'
+        fmt::Debug::fmt(&*self.inner.root, f)
+    }
+}
+
+impl Iterator for ReadDir {
+    type Item = io::Result<DirEntry>;
+
+    fn next(&mut self) -> Option<io::Result<DirEntry>> {
+        if self.end_of_stream {
+            return None;
+        }
+
+        unsafe {
+            let mut ret = DirEntry {
+                entry: mem::zeroed(),
+                dir: self.clone(),
+            };
+            let mut entry_ptr = ptr::null_mut();
+            loop {
+                if libc::readdir64_r(self.inner.dirp.0, &mut ret.entry, &mut entry_ptr) != 0 {
+                    if entry_ptr.is_null() {
+                        // We encountered an error (which will be returned in this iteration), but
+                        // we also reached the end of the directory stream. The `end_of_stream`
+                        // flag is enabled to make sure that we return `None` in the next iteration
+                        // (instead of looping forever)
+                        self.end_of_stream = true;
+                    }
+                    return Some(Err(Error::last_os_error()))
+                }
+                if entry_ptr.is_null() {
+                    return None
+                }
+                if ret.name_bytes() != b"." && ret.name_bytes() != b".." {
+                    return Some(Ok(ret))
+                }
+            }
+        }
+    }
+}
+
+impl Drop for Dir {
+    fn drop(&mut self) {
+        let r = unsafe { libc::closedir(self.0) };
+        debug_assert_eq!(r, 0);
+    }
+}
+
+impl DirEntry {
+    pub fn path(&self) -> PathBuf {
+        self.dir.inner.root.join(OsStr::from_bytes(self.name_bytes()))
+    }
+
+    pub fn file_name(&self) -> OsString {
+        OsStr::from_bytes(self.name_bytes()).to_os_string()
+    }
+
+    pub fn metadata(&self) -> io::Result<FileAttr> {
+        let fd = cvt(unsafe {libc::dirfd(self.dir.inner.dirp.0)})?;
+        let mut stat: stat64 = unsafe { mem::zeroed() };
+        cvt(unsafe {
+            libc::fstatat64(fd, self.entry.d_name.as_ptr(), &mut stat, libc::AT_SYMLINK_NOFOLLOW)
+        })?;
+        Ok(FileAttr { stat })
+    }
+
+    pub fn file_type(&self) -> io::Result<FileType> {
+        match self.entry.d_type {
+            libc::DT_CHR => Ok(FileType { mode: libc::S_IFCHR }),
+            libc::DT_FIFO => Ok(FileType { mode: libc::S_IFIFO }),
+            libc::DT_LNK => Ok(FileType { mode: libc::S_IFLNK }),
+            libc::DT_REG => Ok(FileType { mode: libc::S_IFREG }),
+            libc::DT_SOCK => Ok(FileType { mode: libc::S_IFSOCK }),
+            libc::DT_DIR => Ok(FileType { mode: libc::S_IFDIR }),
+            libc::DT_BLK => Ok(FileType { mode: libc::S_IFBLK }),
+            _ => lstat(&self.path()).map(|m| m.file_type()),
+        }
+    }
+
+    pub fn ino(&self) -> u64 {
+        self.entry.d_ino as u64
+    }
+
+    fn name_bytes(&self) -> &[u8] {
+        unsafe {
+            CStr::from_ptr(self.entry.d_name.as_ptr()).to_bytes()
+        }
+    }
+}
 impl OpenOptions {
     pub fn new() -> OpenOptions {
         OpenOptions {
@@ -304,6 +425,22 @@ impl File {
     }
 }
 
+impl DirBuilder {
+    pub fn new() -> DirBuilder {
+        DirBuilder { mode: 0o777 }
+    }
+
+    pub fn mkdir(&self, p: &Path) -> io::Result<()> {
+        let p = cstr(p)?;
+        cvt(unsafe { libc::mkdir(p.as_ptr(), self.mode) })?;
+        Ok(())
+    }
+
+    pub fn set_mode(&mut self, mode: u32) {
+        self.mode = mode as mode_t;
+    }
+}
+
 fn cstr(path: &Path) -> io::Result<CString> {
     Ok(CString::new(path.as_os_str().as_bytes())?)
 }
@@ -348,6 +485,22 @@ impl fmt::Debug for File {
     }
 }
 
+pub fn readdir(p: &Path) -> io::Result<ReadDir> {
+    let root = p.to_path_buf();
+    let p = cstr(p)?;
+    unsafe {
+        let ptr = libc::opendir(p.as_ptr());
+        if ptr.is_null() {
+            Err(Error::last_os_error())
+        } else {
+            let inner = InnerReadDir { dirp: Dir(ptr), root };
+            Ok(ReadDir{
+                inner: Arc::new(inner),
+                end_of_stream: false,
+            })
+        }
+    }
+}
 pub fn unlink(p: &Path) -> io::Result<()> {
     let p = cstr(p)?;
     cvt(unsafe { libc::unlink(p.as_ptr()) })?;
@@ -364,6 +517,12 @@ pub fn rename(old: &Path, new: &Path) -> io::Result<()> {
 pub fn set_perm(p: &Path, perm: FilePermissions) -> io::Result<()> {
     let p = cstr(p)?;
     cvt_r(|| unsafe { libc::chmod(p.as_ptr(), perm.mode) })?;
+    Ok(())
+}
+
+pub fn rmdir(p: &Path) -> io::Result<()> {
+    let p = cstr(p)?;
+    cvt(unsafe { libc::rmdir(p.as_ptr()) })?;
     Ok(())
 }
 
@@ -468,5 +627,5 @@ mod libc {
     pub use sgx_trts::libc::*;
     pub use sgx_trts::libc::ocall::{open64, fstat64, fsync, fdatasync, ftruncate64, lseek64, fchmod,
                                     unlink, link, rename, chmod, readlink, symlink, stat64, lstat64,
-                                    fcntl_arg0, realpath, free};
+                                    fcntl_arg0, realpath, free, readdir64_r, closedir, dirfd, mkdir, rmdir, opendir, fstatat64};
 }

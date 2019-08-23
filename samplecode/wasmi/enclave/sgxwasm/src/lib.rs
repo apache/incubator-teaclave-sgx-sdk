@@ -37,7 +37,7 @@ extern crate sgx_types;
 #[macro_use]
 extern crate sgx_tstd as std;
 extern crate wasmi;
-extern crate wabt;
+extern crate wabt_core as wabt;
 
 use std::{i32, i64, u32, u64, f32};
 use std::prelude::v1::*;

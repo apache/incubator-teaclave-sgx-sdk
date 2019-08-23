@@ -563,19 +563,19 @@ pub use backtrace::InternalBacktrace;
 
 #[derive(Debug)]
 /// Iterator over the error chain using the `Error::cause()` method.
-pub struct Iter<'a>(Option<&'a error::Error>);
+pub struct Iter<'a>(Option<&'a dyn error::Error>);
 
 impl<'a> Iter<'a> {
     /// Returns a new iterator over the error chain using `Error::cause()`.
-    pub fn new(err: Option<&'a error::Error>) -> Iter<'a> {
+    pub fn new(err: Option<&'a dyn error::Error>) -> Iter<'a> {
         Iter(err)
     }
 }
 
 impl<'a> Iterator for Iter<'a> {
-    type Item = &'a error::Error;
+    type Item = &'a dyn error::Error;
 
-    fn next<'b>(&'b mut self) -> Option<&'a error::Error> {
+    fn next<'b>(&'b mut self) -> Option<&'a dyn error::Error> {
         match self.0.take() {
             Some(e) => {
                 self.0 = e.cause();
@@ -630,7 +630,7 @@ pub trait ChainedError: error::Error + Send + 'static {
     /// Returns the first known backtrace, either from its State or from one
     /// of the errors from `foreign_links`.
     #[doc(hidden)]
-    fn extract_backtrace(e: &(error::Error + Send + 'static)) -> Option<InternalBacktrace>
+    fn extract_backtrace(e: &(dyn error::Error + Send + 'static)) -> Option<InternalBacktrace>
         where Self: Sized;
 }
 
@@ -662,7 +662,7 @@ impl<'a, T> fmt::Display for DisplayChain<'a, T>
 #[doc(hidden)]
 pub struct State {
     /// Next error in the error chain.
-    pub next_error: Option<Box<error::Error + Send>>,
+    pub next_error: Option<Box<dyn error::Error + Send>>,
     /// Backtrace for the current error.
     pub backtrace: InternalBacktrace,
 }
@@ -678,7 +678,7 @@ impl Default for State {
 
 impl State {
     /// Creates a new State type
-    pub fn new<CE: ChainedError>(e: Box<error::Error + Send>) -> State {
+    pub fn new<CE: ChainedError>(e: Box<dyn error::Error + Send>) -> State {
         let backtrace = CE::extract_backtrace(&*e)
             .unwrap_or_else(InternalBacktrace::new);
         State {

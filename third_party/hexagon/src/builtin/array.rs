@@ -23,12 +23,12 @@ impl Object for Array {
         self.elements.borrow().iter().filter(|v| v.is_object()).map(|v| v.as_object_id()).collect()
     }
 
-    fn as_any(&self) -> &Any {
-        self as &Any
+    fn as_any(&self) -> &dyn Any {
+        self as &dyn Any
     }
 
-    fn as_any_mut(&mut self) -> &mut Any {
-        self as &mut Any
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self as &mut dyn Any
     }
 
     fn call_field(&self, name: &str, executor: &mut ExecutorImpl) -> Value {

@@ -34,6 +34,7 @@ use crate::sys_common::thread_info;
 use crate::sync::{SgxMutex, SgxCondvar};
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
+use core::clone::Clone;
 use alloc_crate::sync::Arc;
 use crate::time::Duration;
 

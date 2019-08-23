@@ -33,12 +33,12 @@ pub use self::value::ProtobufValueRef;
 
 pub struct FieldDescriptor {
     proto: &'static FieldDescriptorProto,
-    accessor: Box<FieldAccessor + 'static>,
+    accessor: Box<dyn FieldAccessor + 'static>,
 }
 
 impl FieldDescriptor {
     fn new(
-        a: Box<FieldAccessor + 'static>,
+        a: Box<dyn FieldAccessor + 'static>,
         proto: &'static FieldDescriptorProto,
     ) -> FieldDescriptor {
         assert_eq!(proto.get_name(), a.name_generic());
@@ -60,66 +60,66 @@ impl FieldDescriptor {
         self.proto.get_label() == FieldDescriptorProto_Label::LABEL_REPEATED
     }
 
-    pub fn has_field(&self, m: &Message) -> bool {
+    pub fn has_field(&self, m: &dyn Message) -> bool {
         self.accessor.has_field_generic(m)
     }
 
-    pub fn len_field(&self, m: &Message) -> usize {
+    pub fn len_field(&self, m: &dyn Message) -> usize {
         self.accessor.len_field_generic(m)
     }
 
-    pub fn get_message<'a>(&self, m: &'a Message) -> &'a Message {
+    pub fn get_message<'a>(&self, m: &'a dyn Message) -> &'a dyn Message {
         self.accessor.get_message_generic(m)
     }
 
-    pub fn get_enum(&self, m: &Message) -> &'static EnumValueDescriptor {
+    pub fn get_enum(&self, m: &dyn Message) -> &'static EnumValueDescriptor {
         self.accessor.get_enum_generic(m)
     }
 
-    pub fn get_str<'a>(&self, m: &'a Message) -> &'a str {
+    pub fn get_str<'a>(&self, m: &'a dyn Message) -> &'a str {
         self.accessor.get_str_generic(m)
     }
 
-    pub fn get_bytes<'a>(&self, m: &'a Message) -> &'a [u8] {
+    pub fn get_bytes<'a>(&self, m: &'a dyn Message) -> &'a [u8] {
         self.accessor.get_bytes_generic(m)
     }
 
-    pub fn get_u32(&self, m: &Message) -> u32 {
+    pub fn get_u32(&self, m: &dyn Message) -> u32 {
         self.accessor.get_u32_generic(m)
     }
 
-    pub fn get_u64(&self, m: &Message) -> u64 {
+    pub fn get_u64(&self, m: &dyn Message) -> u64 {
         self.accessor.get_u64_generic(m)
     }
 
-    pub fn get_i32(&self, m: &Message) -> i32 {
+    pub fn get_i32(&self, m: &dyn Message) -> i32 {
         self.accessor.get_i32_generic(m)
     }
 
-    pub fn get_i64(&self, m: &Message) -> i64 {
+    pub fn get_i64(&self, m: &dyn Message) -> i64 {
         self.accessor.get_i64_generic(m)
     }
 
-    pub fn get_bool(&self, m: &Message) -> bool {
+    pub fn get_bool(&self, m: &dyn Message) -> bool {
         self.accessor.get_bool_generic(m)
     }
 
-    pub fn get_f32(&self, m: &Message) -> f32 {
+    pub fn get_f32(&self, m: &dyn Message) -> f32 {
         self.accessor.get_f32_generic(m)
     }
 
-    pub fn get_f64(&self, m: &Message) -> f64 {
+    pub fn get_f64(&self, m: &dyn Message) -> f64 {
         self.accessor.get_f64_generic(m)
     }
 
-    pub fn get_reflect<'a>(&self, m: &'a Message) -> ReflectFieldRef<'a> {
+    pub fn get_reflect<'a>(&self, m: &'a dyn Message) -> ReflectFieldRef<'a> {
         self.accessor.get_reflect(m)
     }
 }
 
 
 trait MessageFactory {
-    fn new_instance(&self) -> Box<Message>;
+    fn new_instance(&self) -> Box<dyn Message>;
 }
 
 struct MessageFactoryTyped<M> {
@@ -137,7 +137,7 @@ impl<M> MessageFactoryTyped<M> {
 }
 
 impl<M : 'static + Message + Default> MessageFactory for MessageFactoryTyped<M> {
-    fn new_instance(&self) -> Box<Message> {
+    fn new_instance(&self) -> Box<dyn Message> {
         let m: M = Default::default();
         Box::new(m)
     }
@@ -146,7 +146,7 @@ impl<M : 'static + Message + Default> MessageFactory for MessageFactoryTyped<M> 
 pub struct MessageDescriptor {
     full_name: String,
     proto: &'static DescriptorProto,
-    factory: Box<MessageFactory + 'static>,
+    factory: Box<dyn MessageFactory + 'static>,
     fields: Vec<FieldDescriptor>,
 
     index_by_name: HashMap<String, usize>,
@@ -160,7 +160,7 @@ impl MessageDescriptor {
 
     pub fn new<M : 'static + Message + Default>(
         rust_name: &'static str,
-        fields: Vec<Box<FieldAccessor + 'static>>,
+        fields: Vec<Box<dyn FieldAccessor + 'static>>,
         file: &'static FileDescriptorProto,
     ) -> MessageDescriptor {
         let proto = find_message_by_rust_name(file, rust_name);
@@ -199,7 +199,7 @@ impl MessageDescriptor {
         }
     }
 
-    pub fn new_instance(&self) -> Box<Message> {
+    pub fn new_instance(&self) -> Box<dyn Message> {
         self.factory.new_instance()
     }
 
@@ -296,7 +296,7 @@ impl EnumDescriptor {
 
 
 pub enum ReflectFieldRef<'a> {
-    Repeated(&'a ReflectRepeated),
-    Map(&'a ReflectMap),
+    Repeated(&'a dyn ReflectRepeated),
+    Map(&'a dyn ReflectMap),
     Optional(Option<ProtobufValueRef<'a>>),
 }

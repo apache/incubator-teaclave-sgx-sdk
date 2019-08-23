@@ -291,7 +291,7 @@ mod serde;
 
 // The LOGGER static holds a pointer to the global logger. It is protected by
 // the STATE static which determines whether LOGGER has been initialized yet.
-static mut LOGGER: &'static Log = &NopLogger;
+static mut LOGGER: &'static dyn Log = &NopLogger;
 static STATE: AtomicUsize = AtomicUsize::new(0);
 
 // There are three different states that we care about: the logger's
@@ -1021,7 +1021,7 @@ pub fn max_level() -> LevelFilter {
 #[cfg(feature = "std")]
 pub fn set_boxed_logger<M>(make_logger: M) -> Result<(), SetLoggerError>
 where
-    M: FnOnce(MaxLevelFilter) -> Box<Log>,
+    M: FnOnce(MaxLevelFilter) -> Box<dyn Log>,
 {
     unsafe { set_logger(|max_level| &*Box::into_raw(make_logger(max_level))) }
 }
@@ -1081,7 +1081,7 @@ where
 /// ```
 pub fn set_logger<M>(make_logger: M) -> Result<(), SetLoggerError>
 where
-    M: FnOnce(MaxLevelFilter) -> &'static Log,
+    M: FnOnce(MaxLevelFilter) -> &'static dyn Log,
 {
     unsafe {
         if STATE.compare_and_swap(UNINITIALIZED, INITIALIZING, Ordering::SeqCst) != UNINITIALIZED {
@@ -1137,7 +1137,7 @@ impl error::Error for ParseLevelError {
 /// Returns a reference to the logger.
 ///
 /// If a logger has not been set, a no-op implementation is returned.
-pub fn logger() -> &'static Log {
+pub fn logger() -> &'static dyn Log {
     unsafe {
         if STATE.load(Ordering::SeqCst) != INITIALIZED {
             static NOP: NopLogger = NopLogger;

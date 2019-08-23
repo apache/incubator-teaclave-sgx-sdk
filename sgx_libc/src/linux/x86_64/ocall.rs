@@ -62,15 +62,15 @@ extern "C" {
                             length: size_t,
                             prot: c_int) -> sgx_status_t;
     // env
-    pub fn u_env_environ_ocall(result: * mut * const * const c_char) -> sgx_status_t;
-    pub fn u_env_getenv_ocall(result: * mut * const c_char,
+    pub fn u_environ_ocall(result: * mut * const * const c_char) -> sgx_status_t;
+    pub fn u_getenv_ocall(result: * mut * const c_char,
                           name: * const c_char) -> sgx_status_t;
-    pub fn u_env_setenv_ocall(result: * mut c_int,
+    pub fn u_setenv_ocall(result: * mut c_int,
                           error: * mut c_int,
                           name: * const c_char,
                           value: * const c_char,
                           overwrite: c_int) -> sgx_status_t;
-    pub fn u_env_unsetenv_ocall(result: * mut c_int,
+    pub fn u_unsetenv_ocall(result: * mut c_int,
                             error: * mut c_int,
                             name: * const c_char) -> sgx_status_t;
     // file
@@ -170,6 +170,33 @@ extern "C" {
     pub fn u_realpath_ocall(result: * mut * mut c_char,
                             error: * mut c_int,
                             pathname: * const c_char) -> sgx_status_t;
+    pub fn u_mkdir_ocall(result: * mut c_int,
+                         error: * mut c_int,
+                         pathname: * const c_char,
+                         mode: mode_t) -> sgx_status_t;
+    pub fn u_rmdir_ocall(result: * mut c_int,
+                         error: * mut c_int,
+                         pathname: * const c_char) -> sgx_status_t;
+    pub fn u_opendir_ocall(result: * mut * mut DIR,
+                           error: * mut c_int,
+                           pathname: * const c_char) -> sgx_status_t;
+    pub fn u_readdir64_r_ocall(result: * mut c_int,
+                               error: * mut c_int,
+                               dirp: * mut DIR,
+                               entry: * mut dirent64,
+                               dirresult: * mut * mut  dirent64) -> sgx_status_t;
+    pub fn u_closedir_ocall(result: * mut c_int,
+                            error: * mut c_int,
+                            dirp: * mut DIR) -> sgx_status_t;
+    pub fn u_dirfd_ocall(result: * mut c_int,
+                         error: * mut c_int,
+                         dirp: * mut DIR) -> sgx_status_t;
+    pub fn u_fstatat64_ocall(result: * mut c_int,
+                             error: * mut c_int,
+                             dirfd: c_int,
+                             pathname: * const c_char,
+                             buf: * mut stat64,
+                             flags: c_int) -> sgx_status_t;
     // fd
     pub fn u_read_ocall(result: * mut ssize_t,
                         errno: * mut c_int,
@@ -495,7 +522,7 @@ pub unsafe fn mprotect(addr: * mut c_void, length: size_t, prot: c_int) -> c_int
 
 pub unsafe fn environ() -> * const * const c_char {
     let mut result: * const * const c_char = ptr::null();
-    let status = u_env_environ_ocall(&mut result as * mut * const * const c_char);
+    let status = u_environ_ocall(&mut result as * mut * const * const c_char);
 
     if status != sgx_status_t::SGX_SUCCESS {
         result = ptr::null();
@@ -505,7 +532,7 @@ pub unsafe fn environ() -> * const * const c_char {
 
 pub unsafe fn getenv(name: * const c_char) -> * const c_char {
     let mut result: * const c_char = ptr::null();
-    let status = u_env_getenv_ocall(&mut result as * mut * const c_char, name);
+    let status = u_getenv_ocall(&mut result as * mut * const c_char, name);
 
     if status != sgx_status_t::SGX_SUCCESS {
         result = ptr::null();
@@ -516,7 +543,7 @@ pub unsafe fn getenv(name: * const c_char) -> * const c_char {
 pub unsafe fn setenv(name: * const c_char, value: * const c_char, overwrite: c_int) -> c_int {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
-    let status = u_env_setenv_ocall(&mut result as * mut c_int,
+    let status = u_setenv_ocall(&mut result as * mut c_int,
                                 &mut error as * mut c_int,
                                 name,
                                 value,
@@ -536,7 +563,7 @@ pub unsafe fn setenv(name: * const c_char, value: * const c_char, overwrite: c_i
 pub unsafe fn unsetenv(name: * const c_char) -> c_int {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
-    let status = u_env_unsetenv_ocall(&mut result as * mut c_int,
+    let status = u_unsetenv_ocall(&mut result as * mut c_int,
                                   &mut error as * mut c_int,
                                   name);
 
@@ -1003,6 +1030,143 @@ pub unsafe fn realpath(pathname: * const c_char) -> * mut c_char {
     } else {
         set_errno(ESGX);
         result = ptr::null_mut();
+    }
+    result
+}
+
+pub unsafe fn mkdir(pathname: * const c_char, mode: mode_t) -> c_int {
+    let mut error: c_int = 0;
+    let mut result: c_int = 0;
+    let status = u_mkdir_ocall(&mut result as * mut c_int,
+                               &mut error as * mut c_int,
+                               pathname,
+                               mode);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn rmdir(pathname: * const c_char) -> c_int {
+    let mut error: c_int = 0;
+    let mut result: c_int = 0;
+    let status = u_rmdir_ocall(&mut result as * mut c_int,
+                               &mut error as * mut c_int,
+                               pathname);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn opendir(pathname: * const c_char) -> * mut DIR {
+    let mut result: * mut DIR = ptr::null_mut();
+    let mut error: c_int = 0;
+    let status = u_opendir_ocall(&mut result as * mut * mut DIR,
+                                 &mut error as * mut c_int,
+                                 pathname);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result.is_null() {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = ptr::null_mut();
+    }
+    result
+}
+
+pub unsafe fn readdir64_r(dirp: * mut DIR,
+                          entry: * mut dirent64,
+                          dirresult: * mut  *mut dirent64) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_readdir64_r_ocall(&mut result as * mut c_int,
+                                     &mut error as * mut c_int,
+                                     dirp,
+                                     entry,
+                                     dirresult);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+                           
+pub unsafe fn closedir(dirp: * mut DIR) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_closedir_ocall(&mut result as * mut c_int,
+                                  &mut error as * mut c_int,
+                                  dirp);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}   
+
+pub unsafe fn dirfd(dirp: * mut DIR) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_dirfd_ocall(&mut result as * mut c_int,
+                               &mut error as * mut c_int,
+                               dirp);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn fstatat64(dirfd: c_int,
+                        pathname: * const c_char,
+                        buf: * mut stat64,
+                        flags: c_int) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_fstatat64_ocall(&mut result as * mut c_int,
+                                   &mut error as * mut c_int,
+                                   dirfd,
+                                   pathname,
+                                   buf,
+                                   flags);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
     }
     result
 }

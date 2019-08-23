@@ -9,12 +9,12 @@ use std::io::prelude::*;
 pub trait Transport
 {
     fn process_data(&mut self,
-                    read: &mut Read) -> Result<(), Error>;
+                    read: &mut dyn Read) -> Result<(), Error>;
 
     fn receive_raw_packet(&mut self) -> Result<Option<Vec<u8>>, Error>;
 
     fn send_raw_packet(&mut self,
-                       write: &mut Write,
+                       write: &mut dyn Write,
                        packet: &[u8]) -> Result<(), Error>;
 }
 

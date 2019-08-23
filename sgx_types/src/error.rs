@@ -91,6 +91,7 @@ impl_enum! {
         SGX_ERROR_MC_OVER_QUOTA             = 0x0000_400f,   /* Monotonic counters exceeds quota limitation */
         SGX_ERROR_KDF_MISMATCH              = 0x0000_4011,   /* Key derivation function doesn't match during key exchange */
         SGX_ERROR_UNRECOGNIZED_PLATFORM     = 0x0000_4012,   /* EPID Provisioning failed due to platform not recognized by backend server*/
+        SGX_ERROR_UNSUPPORTED_CONFIG        = 0x0000_4013,   /* The config for trigging EPID Provisiong or PSE Provisiong&LTP is invalid*/
 
         SGX_ERROR_NO_PRIVILEGE              = 0x0000_5002,   /* Not enough privilege to perform the operation */
 
@@ -116,6 +117,7 @@ impl_enum! {
         SGX_ERROR_ATT_KEY_CERTIFICATION_FAILURE = 0x0000_8002,    /* Failed to generate and certify the attestation key.*/
         SGX_ERROR_ATT_KEY_UNINITIALIZED         = 0x0000_8003,    /* The platform quoting infrastructure does not have the attestation key available to generate quote.*/
         SGX_ERROR_INVALID_ATT_KEY_CERT_DATA     = 0x0000_8004,    /* TThe data returned by the platform library's sgx_get_quote_config() is invalid.*/
+        SGX_ERROR_PLATFORM_CERT_UNAVAILABLE     = 0x0000_8005,    /* The PCK Cert for the platform is not available.*/
 
         SGX_INTERNAL_ERROR_ENCLAVE_CREATE_INTERRUPTED = 0x0000_F001, /* The ioctl for enclave_create unexpectedly failed with EINTR. */
 
@@ -184,6 +186,7 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_MC_OVER_QUOTA => "Monotonic counters exceeds quota limitation.",
             sgx_status_t::SGX_ERROR_KDF_MISMATCH => "Key derivation function doesn't match during key exchange.",
             sgx_status_t::SGX_ERROR_UNRECOGNIZED_PLATFORM => "EPID Provisioning failed due to platform not recognized by backend server.",
+            sgx_status_t::SGX_ERROR_UNSUPPORTED_CONFIG => "The config for trigging EPID Provisiong or PSE Provisiong&LTP is invalid.",
             sgx_status_t::SGX_ERROR_NO_PRIVILEGE => "Not enough privilege to perform the operation.",
 
             sgx_status_t::SGX_ERROR_PCL_ENCRYPTED => "Trying to encrypt an already encrypted enclave.",
@@ -206,6 +209,7 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_ATT_KEY_CERTIFICATION_FAILURE => "Failed to generate and certify the attestation key.",
             sgx_status_t::SGX_ERROR_ATT_KEY_UNINITIALIZED => "The platform quoting infrastructure does not have the attestation key available to generate quote.",
             sgx_status_t::SGX_ERROR_INVALID_ATT_KEY_CERT_DATA => "The data returned by the platform library is invalid.",
+            sgx_status_t::SGX_ERROR_PLATFORM_CERT_UNAVAILABLE => "The PCK Cert for the platform is not available.",
 
             sgx_status_t::SGX_INTERNAL_ERROR_ENCLAVE_CREATE_INTERRUPTED => "The ioctl for enclave_create unexpectedly failed with EINTR.",
 
@@ -273,6 +277,7 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_MC_OVER_QUOTA => "SGX_ERROR_MC_OVER_QUOTA",
             sgx_status_t::SGX_ERROR_KDF_MISMATCH => "SGX_ERROR_KDF_MISMATCH",
             sgx_status_t::SGX_ERROR_UNRECOGNIZED_PLATFORM => "SGX_ERROR_UNRECOGNIZED_PLATFORM",
+            sgx_status_t::SGX_ERROR_UNSUPPORTED_CONFIG => "SGX_ERROR_UNSUPPORTED_CONFIG",
             sgx_status_t::SGX_ERROR_NO_PRIVILEGE => "SGX_ERROR_NO_PRIVILEGE",
 
             sgx_status_t::SGX_ERROR_PCL_ENCRYPTED => "SGX_ERROR_PCL_ENCRYPTED",
@@ -295,6 +300,7 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_ATT_KEY_CERTIFICATION_FAILURE => "SGX_ERROR_ATT_KEY_CERTIFICATION_FAILURE",
             sgx_status_t::SGX_ERROR_ATT_KEY_UNINITIALIZED => "SGX_ERROR_ATT_KEY_UNINITIALIZED",
             sgx_status_t::SGX_ERROR_INVALID_ATT_KEY_CERT_DATA => "SGX_ERROR_INVALID_ATT_KEY_CERT_DATA",
+            sgx_status_t::SGX_ERROR_PLATFORM_CERT_UNAVAILABLE => "SGX_ERROR_PLATFORM_CERT_UNAVAILABLE",
 
             sgx_status_t::SGX_INTERNAL_ERROR_ENCLAVE_CREATE_INTERRUPTED => "SGX_INTERNAL_ERROR_ENCLAVE_CREATE_INTERRUPTED",
 
@@ -315,8 +321,189 @@ impl fmt::Display for sgx_status_t {
     }
 }
 
+
+impl_enum! {
+
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
+    pub enum sgx_pce_error_t {
+        SGX_PCE_SUCCESS                 = 0x0000_F000,
+        SGX_PCE_UNEXPECTED              = 0x0000_F001,
+        SGX_PCE_INVALID_PARAMETER       = 0x0000_F002,
+        SGX_PCE_OUT_OF_EPC              = 0x0000_F003,
+        SGX_PCE_INTERFACE_UNAVAILABLE   = 0x0000_F004,
+        SGX_PCE_INVALID_REPORT          = 0x0000_F005,
+        SGX_PCE_CRYPTO_ERROR            = 0x0000_F006,
+        SGX_PCE_INVALID_PRIVILEGE       = 0x0000_F007,
+        SGX_PCE_INVALID_TCB             = 0x0000_F008,
+    }
+}
+
+
+impl sgx_pce_error_t {
+    pub fn __description(&self) -> &str {
+        match *self {
+            sgx_pce_error_t::SGX_PCE_SUCCESS => "Success.",
+            sgx_pce_error_t::SGX_PCE_UNEXPECTED => "Unexpected error.",
+            sgx_pce_error_t::SGX_PCE_INVALID_PARAMETER => "The parameter is incorrect.",
+            sgx_pce_error_t::SGX_PCE_OUT_OF_EPC => "Not enough memory is available to complete this operation.",
+            sgx_pce_error_t::SGX_PCE_INTERFACE_UNAVAILABLE => "SGX API is unavailable.",
+            sgx_pce_error_t::SGX_PCE_INVALID_REPORT => "The report cannot be verified.",
+            sgx_pce_error_t::SGX_PCE_CRYPTO_ERROR => "Cannot decrypt or verify ciphertext.",
+            sgx_pce_error_t::SGX_PCE_INVALID_PRIVILEGE => "Not enough privilege to perform the operation.",
+            sgx_pce_error_t::SGX_PCE_INVALID_TCB => "PCE could not sign at the requested TCB.",
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        match *self {
+            sgx_pce_error_t::SGX_PCE_SUCCESS => "SGX_PCE_SUCCESS.",
+            sgx_pce_error_t::SGX_PCE_UNEXPECTED => "SGX_PCE_UNEXPECTED",
+            sgx_pce_error_t::SGX_PCE_INVALID_PARAMETER => "SGX_PCE_INVALID_PARAMETER",
+            sgx_pce_error_t::SGX_PCE_OUT_OF_EPC => "SGX_PCE_OUT_OF_EPC",
+            sgx_pce_error_t::SGX_PCE_INTERFACE_UNAVAILABLE => "SGX_PCE_INTERFACE_UNAVAILABLE",
+            sgx_pce_error_t::SGX_PCE_INVALID_REPORT => "SGX_PCE_INVALID_REPORT",
+            sgx_pce_error_t::SGX_PCE_CRYPTO_ERROR => "SGX_PCE_CRYPTO_ERROR",
+            sgx_pce_error_t::SGX_PCE_INVALID_PRIVILEGE => "SGX_PCE_INVALID_PRIVILEGE",
+            sgx_pce_error_t::SGX_PCE_INVALID_TCB => "SGX_PCE_INVALID_TCB",
+        }
+    }
+}
+
+impl fmt::Display for sgx_pce_error_t {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+
+impl_enum! {
+
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
+    pub enum sgx_quote3_error_t {
+        SGX_QL_SUCCESS                          = 0x0000_E000,
+//      SGX_QL_ERROR_MIN                        = 0x0000_E001,
+        SGX_QL_ERROR_UNEXPECTED                 = 0x0000_E001,
+        SGX_QL_ERROR_INVALID_PARAMETER          = 0x0000_E002,
+        SGX_QL_ERROR_OUT_OF_MEMORY              = 0x0000_E003,
+        SGX_QL_ERROR_ECDSA_ID_MISMATCH          = 0x0000_E004,
+        SGX_QL_PATHNAME_BUFFER_OVERFLOW_ERROR   = 0x0000_E005,
+        SGX_QL_FILE_ACCESS_ERROR                = 0x0000_E006,
+        SGX_QL_ERROR_STORED_KEY                 = 0x0000_E007,
+        SGX_QL_ERROR_PUB_KEY_ID_MISMATCH        = 0x0000_E008,
+        SGX_QL_ERROR_INVALID_PCE_SIG_SCHEME     = 0x0000_E009,
+        SGX_QL_ATT_KEY_BLOB_ERROR               = 0x0000_E00A,
+        SGX_QL_UNSUPPORTED_ATT_KEY_ID           = 0x0000_E00B,
+        SGX_QL_UNSUPPORTED_LOADING_POLICY       = 0x0000_E00C,
+        SGX_QL_INTERFACE_UNAVAILABLE            = 0x0000_E00D,
+        SGX_QL_PLATFORM_LIB_UNAVAILABLE         = 0x0000_E00E,
+        SGX_QL_ATT_KEY_NOT_INITIALIZED          = 0x0000_E00F,
+        SGX_QL_ATT_KEY_CERT_DATA_INVALID        = 0x0000_E010,
+        SGX_QL_NO_PLATFORM_CERT_DATA            = 0x0000_E011,
+        SGX_QL_OUT_OF_EPC                       = 0x0000_E012,
+        SGX_QL_ERROR_REPORT                     = 0x0000_E013,
+        SGX_QL_ENCLAVE_LOST                     = 0x0000_E014,
+        SGX_QL_INVALID_REPORT                   = 0x0000_E015,
+        SGX_QL_ENCLAVE_LOAD_ERROR               = 0x0000_E016,
+        SGX_QL_UNABLE_TO_GENERATE_QE_REPORT     = 0x0000_E017,
+        SGX_QL_KEY_CERTIFCATION_ERROR           = 0x0000_E018,
+        SGX_QL_NETWORK_ERROR                    = 0x0000_E019,
+        SGX_QL_MESSAGE_ERROR                    = 0x0000_E01A,
+        SGX_QL_ERROR_INVALID_PRIVILEGE          = 0x0000_E01B,
+        SGX_QL_ERROR_MAX                        = 0x0000_E0FF,
+    }
+}
+
+impl sgx_quote3_error_t {
+    pub fn __description(&self) -> &str {
+        match *self {
+            sgx_quote3_error_t::SGX_QL_SUCCESS => "Success.",
+//          sgx_quote3_error_t::SGX_QL_ERROR_MIN => "Indicate min error to allow better translation.",
+            sgx_quote3_error_t::SGX_QL_ERROR_UNEXPECTED => "Unexpected error.",
+            sgx_quote3_error_t::SGX_QL_ERROR_INVALID_PARAMETER => "The parameter is incorrect",
+            sgx_quote3_error_t::SGX_QL_ERROR_OUT_OF_MEMORY => "Not enough memory is available to complete this operation.",
+            sgx_quote3_error_t::SGX_QL_ERROR_ECDSA_ID_MISMATCH => "Expected ECDSA_ID does not match the value stored in the ECDSA Blob.",
+            sgx_quote3_error_t::SGX_QL_PATHNAME_BUFFER_OVERFLOW_ERROR => "The ECDSA blob pathname is too large.",
+            sgx_quote3_error_t::SGX_QL_FILE_ACCESS_ERROR => "Error accessing ECDSA blob.",
+            sgx_quote3_error_t::SGX_QL_ERROR_STORED_KEY => "Cached ECDSA key is invalid.",
+            sgx_quote3_error_t::SGX_QL_ERROR_PUB_KEY_ID_MISMATCH => "Cached ECDSA key does not match requested key.",
+            sgx_quote3_error_t::SGX_QL_ERROR_INVALID_PCE_SIG_SCHEME => "PCE use the incorrect signature scheme.",
+            sgx_quote3_error_t::SGX_QL_ATT_KEY_BLOB_ERROR => "There is a problem with the attestation key blob.",
+            sgx_quote3_error_t::SGX_QL_UNSUPPORTED_ATT_KEY_ID => "Unsupported attestation key ID.",
+            sgx_quote3_error_t::SGX_QL_UNSUPPORTED_LOADING_POLICY => "Unsupported enclave loading policy.",
+            sgx_quote3_error_t::SGX_QL_INTERFACE_UNAVAILABLE => "Unable to load the QE enclave.",
+            sgx_quote3_error_t::SGX_QL_PLATFORM_LIB_UNAVAILABLE => "Unable to find the platform library with the dependent APIs.",
+            sgx_quote3_error_t::SGX_QL_ATT_KEY_NOT_INITIALIZED => "The attestation key doesn't exist or has not been certified.",
+            sgx_quote3_error_t::SGX_QL_ATT_KEY_CERT_DATA_INVALID => "The certification data retrieved from the platform library is invalid.",
+            sgx_quote3_error_t::SGX_QL_NO_PLATFORM_CERT_DATA => "The platform library doesn't have any platfrom cert data.",
+            sgx_quote3_error_t::SGX_QL_OUT_OF_EPC => "Not enough memory in the EPC to load the enclave.",
+            sgx_quote3_error_t::SGX_QL_ERROR_REPORT => "There was a problem verifying an SGX REPORT.",
+            sgx_quote3_error_t::SGX_QL_ENCLAVE_LOST => "Interfacing to the enclave failed due to a power transition.",
+            sgx_quote3_error_t::SGX_QL_INVALID_REPORT => "Error verifying the application enclave's report.",
+            sgx_quote3_error_t::SGX_QL_ENCLAVE_LOAD_ERROR => "Unable to load the enclaves.",
+            sgx_quote3_error_t::SGX_QL_UNABLE_TO_GENERATE_QE_REPORT => "The QE was unable to generate its own report targeting the application enclave.",
+            sgx_quote3_error_t::SGX_QL_KEY_CERTIFCATION_ERROR => "Caused when the provider library returns an invalid TCB.",
+            sgx_quote3_error_t::SGX_QL_NETWORK_ERROR => "Network error when retrieving PCK certs.",
+            sgx_quote3_error_t::SGX_QL_MESSAGE_ERROR => "Message error when retrieving PCK certs.",
+            sgx_quote3_error_t::SGX_QL_ERROR_INVALID_PRIVILEGE => "No enough privilege to perform the operation.",
+            sgx_quote3_error_t::SGX_QL_ERROR_MAX => "Indicate max error to allow better translation.",
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        match *self {
+            sgx_quote3_error_t::SGX_QL_SUCCESS => "SGX_QL_SUCCESS",
+//          sgx_quote3_error_t::SGX_QL_ERROR_MIN => "SGX_QL_ERROR_MIN",
+            sgx_quote3_error_t::SGX_QL_ERROR_UNEXPECTED => "SGX_QL_ERROR_UNEXPECTED",
+            sgx_quote3_error_t::SGX_QL_ERROR_INVALID_PARAMETER => "SGX_QL_ERROR_INVALID_PARAMETER",
+            sgx_quote3_error_t::SGX_QL_ERROR_OUT_OF_MEMORY => "SGX_QL_ERROR_OUT_OF_MEMORY",
+            sgx_quote3_error_t::SGX_QL_ERROR_ECDSA_ID_MISMATCH => "SGX_QL_ERROR_ECDSA_ID_MISMATCH",
+            sgx_quote3_error_t::SGX_QL_PATHNAME_BUFFER_OVERFLOW_ERROR => "SGX_QL_PATHNAME_BUFFER_OVERFLOW_ERROR",
+            sgx_quote3_error_t::SGX_QL_FILE_ACCESS_ERROR => "SGX_QL_FILE_ACCESS_ERROR",
+            sgx_quote3_error_t::SGX_QL_ERROR_STORED_KEY => "SGX_QL_ERROR_STORED_KEY",
+            sgx_quote3_error_t::SGX_QL_ERROR_PUB_KEY_ID_MISMATCH => "SGX_QL_ERROR_PUB_KEY_ID_MISMATCH",
+            sgx_quote3_error_t::SGX_QL_ERROR_INVALID_PCE_SIG_SCHEME => "SGX_QL_ERROR_INVALID_PCE_SIG_SCHEME",
+            sgx_quote3_error_t::SGX_QL_ATT_KEY_BLOB_ERROR => "SGX_QL_ATT_KEY_BLOB_ERROR",
+            sgx_quote3_error_t::SGX_QL_UNSUPPORTED_ATT_KEY_ID => "SGX_QL_UNSUPPORTED_ATT_KEY_ID",
+            sgx_quote3_error_t::SGX_QL_UNSUPPORTED_LOADING_POLICY => "SGX_QL_UNSUPPORTED_LOADING_POLICY",
+            sgx_quote3_error_t::SGX_QL_INTERFACE_UNAVAILABLE => "SGX_QL_INTERFACE_UNAVAILABLE",
+            sgx_quote3_error_t::SGX_QL_PLATFORM_LIB_UNAVAILABLE => "SGX_QL_PLATFORM_LIB_UNAVAILABLE",
+            sgx_quote3_error_t::SGX_QL_ATT_KEY_NOT_INITIALIZED => "SGX_QL_ATT_KEY_NOT_INITIALIZED",
+            sgx_quote3_error_t::SGX_QL_ATT_KEY_CERT_DATA_INVALID => "SGX_QL_ATT_KEY_CERT_DATA_INVALID",
+            sgx_quote3_error_t::SGX_QL_NO_PLATFORM_CERT_DATA => "SGX_QL_NO_PLATFORM_CERT_DATA",
+            sgx_quote3_error_t::SGX_QL_OUT_OF_EPC => "SGX_QL_OUT_OF_EPC",
+            sgx_quote3_error_t::SGX_QL_ERROR_REPORT => "SGX_QL_ERROR_REPORT",
+            sgx_quote3_error_t::SGX_QL_ENCLAVE_LOST => "SGX_QL_ENCLAVE_LOST",
+            sgx_quote3_error_t::SGX_QL_INVALID_REPORT => "SGX_QL_INVALID_REPORT",
+            sgx_quote3_error_t::SGX_QL_ENCLAVE_LOAD_ERROR => "SGX_QL_ENCLAVE_LOAD_ERROR",
+            sgx_quote3_error_t::SGX_QL_UNABLE_TO_GENERATE_QE_REPORT => "SGX_QL_UNABLE_TO_GENERATE_QE_REPORT",
+            sgx_quote3_error_t::SGX_QL_KEY_CERTIFCATION_ERROR => "SGX_QL_KEY_CERTIFCATION_ERROR",
+            sgx_quote3_error_t::SGX_QL_NETWORK_ERROR => "SGX_QL_NETWORK_ERROR",
+            sgx_quote3_error_t::SGX_QL_MESSAGE_ERROR => "SGX_QL_MESSAGE_ERROR",
+            sgx_quote3_error_t::SGX_QL_ERROR_INVALID_PRIVILEGE => "SGX_QL_ERROR_INVALID_PRIVILEGE",
+            sgx_quote3_error_t::SGX_QL_ERROR_MAX => "SGX_QL_ERROR_MAX",
+        }
+    }
+}
+
+impl fmt::Display for sgx_quote3_error_t {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+
 pub type sys_error_t = int32_t;
+
 pub type SgxResult<T> = result::Result<T, sgx_status_t>;
 pub type SgxError = result::Result<(), sgx_status_t>;
+
+pub type SgxPceResult<T> = result::Result<T, sgx_pce_error_t>;
+pub type SgxPceError = result::Result<(), sgx_pce_error_t>;
+
+pub type SgxQuote3Result<T> = result::Result<T, sgx_quote3_error_t>;
+pub type SgxQuote3Error = result::Result<(), sgx_quote3_error_t>;
+
 pub type SysResult<T> = result::Result<T, sys_error_t>;
 pub type SysError = result::Result<(), sys_error_t>;

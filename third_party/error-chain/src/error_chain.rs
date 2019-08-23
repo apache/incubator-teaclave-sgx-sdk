@@ -136,7 +136,7 @@ macro_rules! impl_error_chain_processed {
             }
 
             /// Construct a chained error from another boxed error and a kind, and generates a backtrace
-            pub fn with_boxed_chain<K>(error: Box<::std::error::Error + Send>, kind: K)
+            pub fn with_boxed_chain<K>(error: Box<dyn crate::std::error::Error + Send>, kind: K)
                 -> $error_name
                 where K: Into<$error_kind_name>
             {
@@ -180,7 +180,7 @@ macro_rules! impl_error_chain_processed {
             }
 
             #[allow(unknown_lints, renamed_and_removed_lints, unused_doc_comment, unused_doc_comments)]
-            fn cause(&self) -> Option<&::std::error::Error> {
+            fn cause(&self) -> Option<&dyn (::std::error::Error)> {
                 match self.1.next_error {
                     Some(ref c) => Some(&**c),
                     None => {
@@ -423,7 +423,7 @@ macro_rules! impl_extract_backtrace {
      $error_kind_name: ident
      $([$link_error_path: path, $(#[$meta_links: meta])*])*) => {
         #[allow(unknown_lints, renamed_and_removed_lints, unused_doc_comment, unused_doc_comments)]
-        fn extract_backtrace(e: &(::std::error::Error + Send + 'static))
+        fn extract_backtrace(e: &(dyn crate::std::error::Error + Send + 'static))
             -> Option<$crate::InternalBacktrace> {
             if let Some(e) = e.downcast_ref::<$error_name>() {
                 return Some(e.1.backtrace.clone());

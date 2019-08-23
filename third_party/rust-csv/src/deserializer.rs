@@ -663,6 +663,7 @@ impl SerdeError for DeserializeError {
 }
 
 impl StdError for DeserializeError {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         self.kind.description()
     }
@@ -679,6 +680,7 @@ impl fmt::Display for DeserializeError {
 }
 
 impl fmt::Display for DeserializeErrorKind {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::DeserializeErrorKind::*;
 
@@ -709,6 +711,7 @@ impl DeserializeError {
 }
 
 impl DeserializeErrorKind {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         use self::DeserializeErrorKind::*;
 

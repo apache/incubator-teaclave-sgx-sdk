@@ -155,7 +155,7 @@ pub trait Evented {
     fn deregister(&self, poll: &Poll) -> io::Result<()>;
 }
 
-impl Evented for Box<Evented> {
+impl Evented for Box<dyn Evented> {
     fn register(&self, poll: &Poll, token: Token, interest: Ready, opts: PollOpt) -> io::Result<()> {
         self.as_ref().register(poll, token, interest, opts)
     }

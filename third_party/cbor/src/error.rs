@@ -104,7 +104,7 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match self.0.code {
             ErrorCode::Io(ref err) => Some(err),
             _ => None,
@@ -139,7 +139,7 @@ impl de::Error for Error {
         }))
     }
 
-    fn invalid_type(unexp: de::Unexpected, exp: &de::Expected) -> Error {
+    fn invalid_type(unexp: de::Unexpected, exp: &dyn de::Expected) -> Error {
         if let de::Unexpected::Unit = unexp {
             Error::custom(format_args!("invalid type: null, expected {}", exp))
         } else {

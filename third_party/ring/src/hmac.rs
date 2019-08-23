@@ -179,7 +179,7 @@ impl SigningKey {
     ///
     /// The key will be `recommended_key_len(digest_alg)` bytes long.
     pub fn generate(digest_alg: &'static digest::Algorithm,
-                    rng: &rand::SecureRandom)
+                    rng: &dyn rand::SecureRandom)
                     -> Result<SigningKey, error::Unspecified> {
         // XXX: There should probably be a `digest::MAX_CHAINING_LEN`, but for
         // now `digest::MAX_OUTPUT_LEN` is good enough.
@@ -198,7 +198,7 @@ impl SigningKey {
     /// `recommended_key_len(digest_alg)`. This serialized value can be
     /// deserialized with `SigningKey::new()`.
     pub fn generate_serializable(digest_alg: &'static digest::Algorithm,
-                                 rng: &rand::SecureRandom, key_bytes: &mut [u8])
+                                 rng: &dyn rand::SecureRandom, key_bytes: &mut [u8])
                     -> Result<SigningKey, error::Unspecified> {
         if key_bytes.len() != recommended_key_len(digest_alg) {
             return Err(error::Unspecified);

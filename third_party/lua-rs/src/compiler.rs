@@ -852,7 +852,7 @@ impl<'p> Compiler<'p> {
         self.code.add_ABC(OP_LOADBOOL, a as i32, 1, 0, line);
     }
 
-    fn compile_binary_log_expr_aux(&mut self, mut reg: usize,
+    fn compile_binary_log_expr_aux(&mut self, reg: usize,
                                    expr: &ExprNode, expr_ctx: &ExprContext,
                                    thenlabel: i32, elselabel: i32, hasnextcond: bool, lb: &mut Lblabels) {
         let mut flip = 0;
@@ -931,11 +931,11 @@ impl<'p> Compiler<'p> {
             }
             _ => {
                 if !hasnextcond && thenlabel == elselabel {
-                    reg += self.compile_expr(reg, expr, expr_ctx);
+                    //reg += self.compile_expr(reg, expr, expr_ctx);
                 } else {
                     let a = reg;
                     let sreg = expr_ctx.savereg(a);
-                    reg += self.compile_expr(reg, expr, &ExprContext::with_opt(0));
+                    //reg += self.compile_expr(reg, expr, &ExprContext::with_opt(0));
                     if sreg == a {
                         self.code.add_ABC(OP_TEST, a as i32, 0, 0 ^ flip, start_line(expr));
                     } else {
@@ -987,7 +987,7 @@ impl<'p> Compiler<'p> {
         self.set_label_pc(endlabel, lastpc);
     }
 
-    fn compile_binaryop_expr(&mut self, mut reg: usize, expr: &ExprNode, expr_ctx: &ExprContext) {
+    fn compile_binaryop_expr(&mut self, reg: usize, expr: &ExprNode, expr_ctx: &ExprContext) {
         match expr.inner() {
             Expr::BinaryOp(ref opr, ref lhs, ref rhs)
             if opr == &BinaryOpr::Add ||
@@ -1017,8 +1017,8 @@ impl<'p> Compiler<'p> {
                 }
                 let a = expr_ctx.savereg(reg);
                 let basereg = reg;
-                reg += self.compile_expr(reg, lhs, &ExprContext::with_opt(0));
-                reg += self.compile_expr(reg, rhs, &ExprContext::with_opt(0));
+                //reg += self.compile_expr(reg, lhs, &ExprContext::with_opt(0));
+                //reg += self.compile_expr(reg, rhs, &ExprContext::with_opt(0));
                 let mut pc = self.code.last_pc();
                 while pc != 0 && get_opcode(self.code.at(pc)) == OP_CONCAT {
                     self.code.pop();
@@ -1321,7 +1321,7 @@ impl<'p> Compiler<'p> {
             let ac = &mut acs[namesassigned];
             let mut nilexprs: Vec<ExprNode> = vec![];
             let expr = if namesassigned >= lenexprs {
-                let mut expr = ExprNode::new(Expr::Nil, lhs[namesassigned].lineinfo());
+                let expr = ExprNode::new(Expr::Nil, lhs[namesassigned].lineinfo());
                 nilexprs.push(expr);
                 &nilexprs[0]
             } else {
@@ -1674,7 +1674,7 @@ impl<'p> Compiler<'p> {
                     }
                 }
                 Expr::FuncCall(ref expr) => {
-                    reg += self.compile_expr(reg, &exprs[0], &ExprContext::with_opt(-2));
+                    //reg += self.compile_expr(reg, &exprs[0], &ExprContext::with_opt(-2));
                     let lastpc = self.code.last_pc();
                     self.code.set_opcode(lastpc, OP_TAILCALL);
                     self.code.add_ABC(OP_RETURN, a as i32, 0, 0, startline);

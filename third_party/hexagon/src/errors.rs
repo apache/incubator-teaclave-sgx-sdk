@@ -3,7 +3,7 @@ use std::any::Any;
 use object::Object;
 
 pub struct VMError {
-    inner: Box<Object>
+    inner: Box<dyn Object>
 }
 
 impl<T> From<T> for VMError where T: Object + 'static {
@@ -23,7 +23,7 @@ impl<'a> From<&'a str> for VMError {
 }
 
 impl VMError {
-    pub fn unwrap(self) -> Box<Object> {
+    pub fn unwrap(self) -> Box<dyn Object> {
         self.inner
     }
 }
@@ -37,12 +37,12 @@ impl Object for ValidateError {
         Vec::new()
     }
 
-    fn as_any(&self) -> &Any {
-        self as &Any
+    fn as_any(&self) -> &dyn Any {
+        self as &dyn Any
     }
 
-    fn as_any_mut(&mut self) -> &mut Any {
-        self as &mut Any
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self as &mut dyn Any
     }
 
     fn to_str(&self) -> &str {
@@ -67,12 +67,12 @@ impl Object for ParseError {
         Vec::new()
     }
 
-    fn as_any(&self) -> &Any {
-        self as &Any
+    fn as_any(&self) -> &dyn Any {
+        self as &dyn Any
     }
 
-    fn as_any_mut(&mut self) -> &mut Any {
-        self as &mut Any
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self as &mut dyn Any
     }
 
     fn to_str(&self) -> &str {
@@ -97,12 +97,12 @@ impl Object for RuntimeError {
         Vec::new()
     }
 
-    fn as_any(&self) -> &Any {
-        self as &Any
+    fn as_any(&self) -> &dyn Any {
+        self as &dyn Any
     }
 
-    fn as_any_mut(&mut self) -> &mut Any {
-        self as &mut Any
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self as &mut dyn Any
     }
 
     fn to_str(&self) -> &str {
@@ -127,12 +127,12 @@ impl Object for FieldNotFoundError {
         Vec::new()
     }
 
-    fn as_any(&self) -> &Any {
-        self as &Any
+    fn as_any(&self) -> &dyn Any {
+        self as &dyn Any
     }
 
-    fn as_any_mut(&mut self) -> &mut Any {
-        self as &mut Any
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self as &mut dyn Any
     }
 
     fn to_string(&self) -> String {

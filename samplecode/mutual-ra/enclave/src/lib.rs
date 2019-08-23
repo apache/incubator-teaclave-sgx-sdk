@@ -41,7 +41,6 @@ extern crate sgx_tse;
 extern crate sgx_tstd as std;
 extern crate sgx_rand;
 
-extern crate untrusted;
 extern crate rustls;
 extern crate webpki;
 extern crate itertools;

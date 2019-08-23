@@ -36,6 +36,7 @@ pub trait PathEx {
     fn symlink_metadata(&self) -> io::Result<fs::Metadata>;
     fn canonicalize(&self) -> io::Result<PathBuf>;
     fn read_link(&self) -> io::Result<PathBuf>;
+    fn read_dir(&self) -> io::Result<fs::ReadDir>;
     fn exists(&self) -> bool;
     fn is_file(&self) -> bool;
     fn is_dir(&self) -> bool;
@@ -86,6 +87,9 @@ impl PathEx for Path {
         fs::read_link(self)
     }
 
+    fn read_dir(&self) -> io::Result<fs::ReadDir> {
+        fs::read_dir(self)
+    }
     /// Returns whether the path points at an existing entity.
     ///
     /// This function will traverse symbolic links to query information about the

@@ -557,6 +557,7 @@ pub enum ParseError {
 }
 
 impl fmt::Display for ParseError {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             InvalidFormatSpecifier(ch) => {
@@ -571,6 +572,7 @@ impl fmt::Display for ParseError {
 }
 
 impl Error for ParseError {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match *self {
             InvalidSecond => "Invalid second.",
@@ -609,9 +611,9 @@ enum Fmt<'a> {
 fn validate_format<'a>(fmt: TmFmt<'a>) -> Result<TmFmt<'a>, ParseError> {
 
     match (fmt.tm.tm_wday, fmt.tm.tm_mon) {
-        (0...6, 0...11) => (),
-        (_wday, 0...11) => return Err(InvalidDayOfWeek),
-        (0...6, _mon) => return Err(InvalidMonth),
+        (0..=6, 0..=11) => (),
+        (_wday, 0..=11) => return Err(InvalidDayOfWeek),
+        (0..=6, _mon) => return Err(InvalidMonth),
         _ => return Err(InvalidDay)
     }
     match fmt.format {

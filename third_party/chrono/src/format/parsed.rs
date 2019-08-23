@@ -279,7 +279,7 @@ impl Parsed {
                 // check if present quotient and/or modulo is consistent to the full year.
                 // since the presence of those fields means a positive full year,
                 // we should filter a negative full year first.
-                (Some(y), q, r @ Some(0...99)) | (Some(y), q, r @ None) => {
+                (Some(y), q, r @ Some(0..=99)) | (Some(y), q, r @ None) => {
                     if y < 0 { return Err(OUT_OF_RANGE); }
                     let (q_, r_) = div_rem(y, 100);
                     if q.unwrap_or(q_) == q_ && r.unwrap_or(r_) == r_ {
@@ -291,7 +291,7 @@ impl Parsed {
 
                 // the full year is missing but we have quotient and modulo.
                 // reconstruct the full year. make sure that the result is always positive.
-                (None, Some(q), Some(r @ 0...99)) => {
+                (None, Some(q), Some(r @ 0..=99)) => {
                     if q < 0 { return Err(OUT_OF_RANGE); }
                     let y = q.checked_mul(100).and_then(|v| v.checked_add(r));
                     Ok(Some(try!(y.ok_or(OUT_OF_RANGE))))
@@ -299,7 +299,7 @@ impl Parsed {
 
                 // we only have modulo. try to interpret a modulo as a conventional two-digit year.
                 // note: we are affected by Rust issue #18060. avoid multiple range patterns.
-                (None, None, Some(r @ 0...99)) => Ok(Some(r + if r < 70 {2000} else {1900})),
+                (None, None, Some(r @ 0..=99)) => Ok(Some(r + if r < 70 {2000} else {1900})),
 
                 // otherwise it is an out-of-bound or insufficient condition.
                 (None, Some(_), None) => Err(NOT_ENOUGH),
@@ -454,32 +454,32 @@ impl Parsed {
     /// It is able to handle leap seconds when given second is 60.
     pub fn to_naive_time(&self) -> ParseResult<NaiveTime> {
         let hour_div_12 = match self.hour_div_12 {
-            Some(v @ 0...1) => v,
+            Some(v @ 0..=1) => v,
             Some(_) => return Err(OUT_OF_RANGE),
             None => return Err(NOT_ENOUGH),
         };
         let hour_mod_12 = match self.hour_mod_12 {
-            Some(v @ 0...11) => v,
+            Some(v @ 0..=11) => v,
             Some(_) => return Err(OUT_OF_RANGE),
             None => return Err(NOT_ENOUGH),
         };
         let hour = hour_div_12 * 12 + hour_mod_12;
 
         let minute = match self.minute {
-            Some(v @ 0...59) => v,
+            Some(v @ 0..=59) => v,
             Some(_) => return Err(OUT_OF_RANGE),
             None => return Err(NOT_ENOUGH),
         };
 
         // we allow omitting seconds or nanoseconds, but they should be in the range.
         let (second, mut nano) = match self.second.unwrap_or(0) {
-            v @ 0...59 => (v, 0),
+            v @ 0..=59 => (v, 0),
             60 => (59, 1_000_000_000),
             _ => return Err(OUT_OF_RANGE),
         };
         nano += match self.nanosecond {
-            Some(v @ 0...999_999_999) if self.second.is_some() => v,
-            Some(0...999_999_999) => return Err(NOT_ENOUGH), // second is missing
+            Some(v @ 0..=999_999_999) if self.second.is_some() => v,
+            Some(0..=999_999_999) => return Err(NOT_ENOUGH), // second is missing
             Some(_) => return Err(OUT_OF_RANGE),
             None => 0,
         };

@@ -6,7 +6,7 @@ use std::fmt;
 
 use fnv::FnvHasher;
 
-type AnyMap = HashMap<TypeId, Box<Any + Send + Sync>, BuildHasherDefault<FnvHasher>>;
+type AnyMap = HashMap<TypeId, Box<dyn Any + Send + Sync>, BuildHasherDefault<FnvHasher>>;
 
 /// A type map of protocol extensions.
 ///
@@ -44,7 +44,7 @@ impl Extensions {
         self.map.insert(TypeId::of::<T>(), Box::new(val))
             .and_then(|boxed| {
                 //TODO: we can use unsafe and remove double checking the type id
-                (boxed as Box<Any + 'static>)
+                (boxed as Box<dyn Any + 'static>)
                     .downcast()
                     .ok()
                     .map(|boxed| *boxed)
@@ -66,7 +66,7 @@ impl Extensions {
     pub fn get<T: Send + Sync + 'static>(&self) -> Option<&T> {
         self.map.get(&TypeId::of::<T>())
             //TODO: we can use unsafe and remove double checking the type id
-            .and_then(|boxed| (&**boxed as &(Any + 'static)).downcast_ref())
+            .and_then(|boxed| (&**boxed as &(dyn Any + 'static)).downcast_ref())
     }
 
     /// Get a mutable reference to a type previously inserted on this `Extensions`.
@@ -84,7 +84,7 @@ impl Extensions {
     pub fn get_mut<T: Send + Sync + 'static>(&mut self) -> Option<&mut T> {
         self.map.get_mut(&TypeId::of::<T>())
             //TODO: we can use unsafe and remove double checking the type id
-            .and_then(|boxed| (&mut **boxed as &mut (Any + 'static)).downcast_mut())
+            .and_then(|boxed| (&mut **boxed as &mut (dyn Any + 'static)).downcast_mut())
     }
 
 
@@ -105,7 +105,7 @@ impl Extensions {
         self.map.remove(&TypeId::of::<T>())
             .and_then(|boxed| {
                 //TODO: we can use unsafe and remove double checking the type id
-                (boxed as Box<Any + 'static>)
+                (boxed as Box<dyn Any + 'static>)
                     .downcast()
                     .ok()
                     .map(|boxed| *boxed)

@@ -49,7 +49,7 @@ impl<'a> KeyPair {
     /// https://tools.ietf.org/html/draft-ietf-curdle-pkix-04.
     ///
     /// [RFC 5958 Section 2]: https://tools.ietf.org/html/rfc5958#section-2
-    pub fn generate_pkcs8(rng: &rand::SecureRandom)
+    pub fn generate_pkcs8(rng: &dyn rand::SecureRandom)
             -> Result<[u8; ED25519_PKCS8_V2_LEN], error::Unspecified> {
         let mut seed = [0u8; SEED_LEN];
         rng.fill(&mut seed)?;

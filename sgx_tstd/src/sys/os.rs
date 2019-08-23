@@ -219,6 +219,12 @@ pub fn unsetenv(n: &OsStr) -> io::Result<()> {
     }
 }
 
+pub fn temp_dir() -> PathBuf {
+    crate::env::var_os("TMPDIR").map(PathBuf::from).unwrap_or_else(|| {
+        PathBuf::from("/tmp")
+    })
+}
+
 mod libc {
     pub use sgx_trts::libc::*;
     pub use sgx_trts::libc::ocall::{environ, getenv, setenv, unsetenv};

@@ -183,7 +183,7 @@ impl<T: Copy> Vector<T> {
     /// assert_eq!(b, vector![2.0; 4]);
     /// # }
     /// ```
-    pub fn apply(mut self, f: &Fn(T) -> T) -> Vector<T> {
+    pub fn apply(mut self, f: &dyn Fn(T) -> T) -> Vector<T> {
         for val in &mut self.data {
             *val = f(*val);
         }

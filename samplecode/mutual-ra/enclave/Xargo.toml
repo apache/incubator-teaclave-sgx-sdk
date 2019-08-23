@@ -7,6 +7,10 @@ panic_abort = {}
 path = "../../../sgx_types"
 stage = 1
 
+[dependencies.sgx_demangle]
+path = "../../../sgx_demangle"
+stage = 1
+
 [dependencies.sgx_libc]
 path = "../../../sgx_libc"
 stage = 2
@@ -31,6 +35,10 @@ stage = 2
 path = "../../../sgx_trts"
 stage = 3
 
+[dependencies.sgx_backtrace_sys]
+path = "../../../sgx_backtrace_sys"
+stage = 3
+
 [dependencies.sgx_unwind]
 path = "../../../sgx_unwind"
 stage = 4
@@ -53,7 +61,7 @@ stage = 4
 
 [dependencies.std]
 path = "../../../xargo/sgx_tstd"
-features = ["net", "backtrace"]
+features = ["backtrace", "net"]
 stage = 5
 
 [dependencies.sgx_rand]
@@ -68,5 +76,14 @@ stage = 6
 path = "../../../sgx_tunittest"
 stage = 6
 
+[dependencies.sgx_backtrace]
+path = "../../../sgx_backtrace"
+stage = 7
+
+[dependencies.sgx_cov]
+path = "../../../sgx_cov"
+stage = 7
+
 [patch.crates-io]
 libc = { git = "https://github.com/mesalock-linux/libc-sgx" }
+cfg-if = { git = "https://github.com/mesalock-linux/cfg-if-for-sysroot" }

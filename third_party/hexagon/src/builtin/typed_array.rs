@@ -61,12 +61,12 @@ impl<T: TypedArrayElement> Object for TypedArray<T> {
         Vec::new()
     }
 
-    fn as_any(&self) -> &Any {
-        self as &Any
+    fn as_any(&self) -> &dyn Any {
+        self as &dyn Any
     }
 
-    fn as_any_mut(&mut self) -> &mut Any {
-        self as &mut Any
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self as &mut dyn Any
     }
 
     fn call_field(&self, name: &str, executor: &mut ExecutorImpl) -> Value {

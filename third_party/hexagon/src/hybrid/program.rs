@@ -18,7 +18,7 @@ pub struct ProgramInfo<'a> {
 
 pub struct NativeFunction<'a> {
     name: String,
-    fn_impl: &'a Fn(&Executor)
+    fn_impl: &'a dyn Fn(&Executor)
 }
 
 impl<'a> Debug for NativeFunction<'a> {
@@ -28,7 +28,7 @@ impl<'a> Debug for NativeFunction<'a> {
 }
 
 impl<'a> NativeFunction<'a> {
-    pub fn new<T: ToString>(name: T, f: &'a Fn(&Executor)) -> NativeFunction<'a> {
+    pub fn new<T: ToString>(name: T, f: &'a dyn Fn(&Executor)) -> NativeFunction<'a> {
         NativeFunction {
             fn_impl: f,
             name: name.to_string()

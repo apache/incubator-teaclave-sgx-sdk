@@ -81,7 +81,7 @@ enum Repr {
 #[derive(Debug)]
 struct Custom {
     kind: ErrorKind,
-    error: Box<error::Error+Send+Sync>,
+    error: Box<dyn error::Error+Send+Sync>,
 }
 
 /// A list specifying general categories of I/O error.
@@ -226,12 +226,12 @@ impl Error {
     /// payload which will be contained in this `Error`.
     ///
     pub fn new<E>(kind: ErrorKind, error: E) -> Error
-        where E: Into<Box<error::Error+Send+Sync>>
+        where E: Into<Box<dyn error::Error+Send+Sync>>
     {
         Self::_new(kind, error.into())
     }
 
-    fn _new(kind: ErrorKind, error: Box<error::Error+Send+Sync>) -> Error {
+    fn _new(kind: ErrorKind, error: Box<dyn error::Error+Send+Sync>) -> Error {
         Error {
             repr: Repr::Custom(Box::new(Custom {
                 kind: kind,
@@ -297,7 +297,7 @@ impl Error {
     /// If this `Error` was constructed via `new` then this function will
     /// return `Some`, otherwise it will return `None`.
     ///
-    pub fn get_ref(&self) -> Option<&(error::Error+Send+Sync+'static)> {
+    pub fn get_ref(&self) -> Option<&(dyn error::Error+Send+Sync+'static)> {
         match self.repr {
             Repr::Os(..) => None,
             Repr::Simple(..) => None,
@@ -312,7 +312,7 @@ impl Error {
     /// If this `Error` was constructed via `new` then this function will
     /// return `Some`, otherwise it will return `None`.
     ///
-    pub fn get_mut(&mut self) -> Option<&mut (error::Error+Send+Sync+'static)> {
+    pub fn get_mut(&mut self) -> Option<&mut (dyn error::Error+Send+Sync+'static)> {
         match self.repr {
             Repr::Os(..) => None,
             Repr::Simple(..) => None,
@@ -326,7 +326,7 @@ impl Error {
     /// If this `Error` was constructed via `new` then this function will
     /// return `Some`, otherwise it will return `None`.
     ///
-    pub fn into_inner(self) -> Option<Box<error::Error+Send+Sync>> {
+    pub fn into_inner(self) -> Option<Box<dyn error::Error+Send+Sync>> {
         match self.repr {
             Repr::Os(..) => None,
             Repr::Simple(..) => None,
@@ -386,7 +386,7 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match self.repr {
             Repr::Os(..) => None,
             Repr::Simple(..) => None,

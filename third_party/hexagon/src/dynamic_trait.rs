@@ -13,11 +13,11 @@ impl Object for DynamicTrait {
         self.fields.borrow().iter().map(|(_, v)| *v).collect()
     }
 
-    fn as_any(&self) -> &Any {
-        self as &Any
+    fn as_any(&self) -> &dyn Any {
+        self as &dyn Any
     }
 
-    fn as_any_mut(&mut self) -> &mut Any {
-        self as &mut Any
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self as &mut dyn Any
     }
 }

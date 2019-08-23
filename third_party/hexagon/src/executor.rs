@@ -142,7 +142,7 @@ impl ExecutorImpl {
         self.get_object_pool_mut().set_static_object(key, obj);
     }
 
-    pub fn create_static_object<K: ToString>(&mut self, key: K, obj: Box<Object>) {
+    pub fn create_static_object<K: ToString>(&mut self, key: K, obj: Box<dyn Object>) {
         let obj_id = self.object_pool.allocate(obj);
         self.set_static_object(key, Value::Object(obj_id));
     }

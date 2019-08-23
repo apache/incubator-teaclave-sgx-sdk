@@ -37,6 +37,9 @@ extern crate sgx_types;
 #[macro_use]
 extern crate sgx_tstd as std;
 
+extern crate sgx_backtrace;
+use sgx_backtrace::Backtrace;
+
 use sgx_types::*;
 use std::string::String;
 use std::vec::Vec;
@@ -99,6 +102,10 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
         test_backtrace_2()
     }).ok();
 
+    println!("\nsgx_backtrace sample code");
+    let _  = sgx_backtrace::set_enclave_path("enclave.signed.so");
+    foo();
+
     sgx_status_t::SGX_SUCCESS
 }
 
@@ -115,4 +122,65 @@ fn test_backtrace_2() {
 #[inline(never)]
 fn test_panic() -> !{
     panic!("enclave panicked.");
+}
+
+#[inline(never)]
+fn foo() {
+    bar()
+}
+
+#[inline(never)]
+fn bar() {
+    baz()
+}
+
+#[inline(never)]
+fn baz() {
+    println!("{:?}", Backtrace::new());
+    raw()
+}
+
+#[inline(never)]
+fn raw() {
+    print()
+}
+
+#[cfg(target_pointer_width = "32")]
+const HEX_WIDTH: usize = 10;
+#[cfg(target_pointer_width = "64")]
+const HEX_WIDTH: usize = 20;
+
+#[inline(never)]
+fn print() {
+    let mut cnt = 0;
+    sgx_backtrace::trace(|frame| {
+        let ip = frame.ip();
+        print!("frame #{:<2} - {:#02$x}", cnt, ip as usize, HEX_WIDTH);
+        cnt += 1;
+
+        let mut resolved = false;
+        sgx_backtrace::resolve(frame.ip(), |symbol| {
+            if !resolved {
+                resolved = true;
+            } else {
+                print!("{}", vec![" "; 7 + 2 + 3 + HEX_WIDTH].join(""));
+            }
+
+            if let Some(name) = symbol.name() {
+                print!(" - {}", name);
+            } else {
+                print!(" - <unknown>");
+            }
+            if let Some(file) = symbol.filename() {
+                if let Some(l) = symbol.lineno() {
+                    print!("\n{:13}{:4$}@ {}:{}", "", "", file.display(), l, HEX_WIDTH);
+                }
+            }
+            println!("");
+        });
+        if !resolved {
+            println!(" - <no info>");
+        }
+        true // keep going
+    });
 }

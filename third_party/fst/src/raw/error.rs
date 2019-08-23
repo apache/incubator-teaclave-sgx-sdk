@@ -96,6 +96,7 @@ impl fmt::Debug for Error {
 }
 
 impl error::Error for Error {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         use self::Error::*;
         match *self {
@@ -108,7 +109,7 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::FromUtf8(ref err) => Some(err),
             _ => None,

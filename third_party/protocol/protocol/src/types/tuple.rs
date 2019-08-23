@@ -8,13 +8,13 @@ impl<T0, T1> Parcel for (T0, T1)
 {
     const TYPE_NAME: &'static str = "(T0, T1)";
 
-    fn read(read: &mut Read) -> Result<Self, Error> {
+    fn read(read: &mut dyn Read) -> Result<Self, Error> {
         let v0 = T0::read(read)?;
         let v1 = T1::read(read)?;
         Ok((v0, v1))
     }
 
-    fn write(&self, write: &mut Write) -> Result<(), Error> {
+    fn write(&self, write: &mut dyn Write) -> Result<(), Error> {
         self.0.write(write)?;
         self.1.write(write)?;
 
@@ -27,14 +27,14 @@ impl<T0, T1, T2> Parcel for (T0, T1, T2)
 {
     const TYPE_NAME: &'static str = "(T0, T1, T2)";
 
-    fn read(read: &mut Read) -> Result<Self, Error> {
+    fn read(read: &mut dyn Read) -> Result<Self, Error> {
         let v0 = T0::read(read)?;
         let v1 = T1::read(read)?;
         let v2 = T2::read(read)?;
         Ok((v0, v1, v2))
     }
 
-    fn write(&self, write: &mut Write) -> Result<(), Error> {
+    fn write(&self, write: &mut dyn Write) -> Result<(), Error> {
         self.0.write(write)?;
         self.1.write(write)?;
         self.2.write(write)?;
@@ -48,7 +48,7 @@ impl<T0, T1, T2, T3> Parcel for (T0, T1, T2, T3)
 {
     const TYPE_NAME: &'static str = "(T0, T1, T2, T3)";
 
-    fn read(read: &mut Read) -> Result<Self, Error> {
+    fn read(read: &mut dyn Read) -> Result<Self, Error> {
         let v0 = T0::read(read)?;
         let v1 = T1::read(read)?;
         let v2 = T2::read(read)?;
@@ -56,7 +56,7 @@ impl<T0, T1, T2, T3> Parcel for (T0, T1, T2, T3)
         Ok((v0, v1, v2, v3))
     }
 
-    fn write(&self, write: &mut Write) -> Result<(), Error> {
+    fn write(&self, write: &mut dyn Write) -> Result<(), Error> {
         self.0.write(write)?;
         self.1.write(write)?;
         self.2.write(write)?;
@@ -71,7 +71,7 @@ impl<T0, T1, T2, T3, T4> Parcel for (T0, T1, T2, T3, T4)
 {
     const TYPE_NAME: &'static str = "(T0, T1, T2, T3, T4)";
 
-    fn read(read: &mut Read) -> Result<Self, Error> {
+    fn read(read: &mut dyn Read) -> Result<Self, Error> {
         let v0 = T0::read(read)?;
         let v1 = T1::read(read)?;
         let v2 = T2::read(read)?;
@@ -80,7 +80,7 @@ impl<T0, T1, T2, T3, T4> Parcel for (T0, T1, T2, T3, T4)
         Ok((v0, v1, v2, v3, v4))
     }
 
-    fn write(&self, write: &mut Write) -> Result<(), Error> {
+    fn write(&self, write: &mut dyn Write) -> Result<(), Error> {
         self.0.write(write)?;
         self.1.write(write)?;
         self.2.write(write)?;

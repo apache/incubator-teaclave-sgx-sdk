@@ -365,7 +365,7 @@ impl CodeLengthReader {
                 None => return Err("invalid length code".to_owned()),
             });
             match code {
-                0...15 => self.result.push(code),
+                0..=15 => self.result.push(code),
                 16 => {
                     let last = match self.result.last() {
                         Some(&v) => v,
@@ -870,11 +870,11 @@ impl InflateStream {
                                             ok!(BlockHeader)
                                         }
                                     }
-                                    1...8 => len!(code, 0),
-                                    9...12 => len!(code, 1),
-                                    13...16 => len!(code, 2),
-                                    17...20 => len!(code, 3),
-                                    21...23 => len!(code, 4),
+                                    1..=8 => len!(code, 0),
+                                    9..=12 => len!(code, 1),
+                                    13..=16 => len!(code, 2),
+                                    17..=20 => len!(code, 3),
+                                    21..=23 => len!(code, 4),
                                     _ => return Err(format!("bad DEFLATE len code {}", code as u16 + 256)),
                                 };
                                 continue;
@@ -898,7 +898,7 @@ impl InflateStream {
                                 debug!("{:09b}", code as u16 + 256);
                                 match code {
                                     24 => len!(24, 4),
-                                    25...28 => len!(code, 5),
+                                    25..=28 => len!(code, 5),
                                     29 => len!(29, 0),
                                     _ => return Err(format!("bad DEFLATE len code {}", code as u16 + 256)),
                                 };
@@ -956,11 +956,11 @@ impl InflateStream {
                                 let code = code16 as u8;
                                 debug!("{:09b}", code16);
                                 match code16 {
-                                    0...255 => {
+                                    0..=255 => {
                                         push_or!(code, ok!({stream = save; next!(0)}));
                                         continue;
                                     }
-                                    256...285 => {}
+                                    256..=285 => {}
                                     _ => return Err(format!("bad DEFLATE len code {}", code)),
                                 }
 
@@ -983,12 +983,12 @@ impl InflateStream {
                                             ok!(BlockHeader)
                                         }
                                     }
-                                    1...8 => len!(code, 0),
-                                    9...12 => len!(code, 1),
-                                    13...16 => len!(code, 2),
-                                    17...20 => len!(code, 3),
-                                    21...24 => len!(code, 4),
-                                    25...28 => len!(code, 5),
+                                    1..=8 => len!(code, 0),
+                                    9..=12 => len!(code, 1),
+                                    13..=16 => len!(code, 2),
+                                    17..=20 => len!(code, 3),
+                                    21..=24 => len!(code, 4),
+                                    25..=28 => len!(code, 5),
                                     29 => len!(29, 0),
                                     _ => return Err(format!("bad DEFLATE len code {}", code as u16 + 256)),
                                 }
@@ -1003,20 +1003,20 @@ impl InflateStream {
                                 len_dist!(len, dist_code, $bits => {stream = save; next!(len)}, next!(0))
                             ));
                             match dist_code {
-                                0...3 => len_dist_case!(0),
-                                4...5 => len_dist_case!(1),
-                                6...7 => len_dist_case!(2),
-                                8...9 => len_dist_case!(3),
-                                10...11 => len_dist_case!(4),
-                                12...13 => len_dist_case!(5),
-                                14...15 => len_dist_case!(6),
-                                16...17 => len_dist_case!(7),
-                                18...19 => len_dist_case!(8),
-                                20...21 => len_dist_case!(9),
-                                22...23 => len_dist_case!(10),
-                                24...25 => len_dist_case!(11),
-                                26...27 => len_dist_case!(12),
-                                28...29 => len_dist_case!(13),
+                                0..=3 => len_dist_case!(0),
+                                4..=5 => len_dist_case!(1),
+                                6..=7 => len_dist_case!(2),
+                                8..=9 => len_dist_case!(3),
+                                10..=11 => len_dist_case!(4),
+                                12..=13 => len_dist_case!(5),
+                                14..=15 => len_dist_case!(6),
+                                16..=17 => len_dist_case!(7),
+                                18..=19 => len_dist_case!(8),
+                                20..=21 => len_dist_case!(9),
+                                22..=23 => len_dist_case!(10),
+                                24..=25 => len_dist_case!(11),
+                                26..=27 => len_dist_case!(12),
+                                28..=29 => len_dist_case!(13),
                                 _ => return Err(format!("bad DEFLATE dist code {}", dist_code)),
                             }
                         }

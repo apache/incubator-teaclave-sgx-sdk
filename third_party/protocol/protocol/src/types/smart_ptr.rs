@@ -12,12 +12,12 @@ macro_rules! impl_smart_ptr_type {
         {
             const TYPE_NAME: &'static str = stringify!($ty<T>);
 
-            fn read(read: &mut Read) -> Result<Self, Error> {
+            fn read(read: &mut dyn Read) -> Result<Self, Error> {
                 let value = T::read(read)?;
                 Ok($ty::new(value))
             }
 
-            fn write(&self, write: &mut Write) -> Result<(), Error> {
+            fn write(&self, write: &mut dyn Write) -> Result<(), Error> {
                 self.deref().write(write)
             }
         }

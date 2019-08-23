@@ -1,7 +1,10 @@
 [package]
 name = "sgx_cov"
 version = "0.1.0"
-authors = ["MesaTEE Authors"]
+authors = ["Baidu"]
+repository = "https://github.com/baidu/rust-sgx-sdk"
+license-file = "LICENSE"
+documentation = "https://dingelish.github.io/"
 description = "Enabling gcov for SGX crates."
 edition = "2018"
 

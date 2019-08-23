@@ -5,7 +5,7 @@ use super::jit::JitProvider;
 pub trait CommonProgramContext {
     fn get_executor(&self) -> &Executor;
     fn get_program(&self) -> &Program;
-    fn get_jit_provider(&self) -> Option<&JitProvider>;
+    fn get_jit_provider(&self) -> Option<&dyn JitProvider>;
 }
 
 pub struct ProgramContext<'a, TJitProvider: JitProvider> {
@@ -37,7 +37,7 @@ impl<'a, TJitProvider: JitProvider> CommonProgramContext for ProgramContext<'a, 
         &self.program
     }
 
-    fn get_jit_provider(&self) -> Option<&JitProvider> {
-        self.jit_provider.as_ref().map(|v| v as &JitProvider)
+    fn get_jit_provider(&self) -> Option<&dyn JitProvider> {
+        self.jit_provider.as_ref().map(|v| v as &dyn JitProvider)
     }
 }

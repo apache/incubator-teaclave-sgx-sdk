@@ -11,7 +11,7 @@ use super::{ParseResult, TOO_SHORT, INVALID, OUT_OF_RANGE};
 /// Returns true when two slices are equal case-insensitively (in ASCII).
 /// Assumes that the `pattern` is already converted to lower case.
 fn equals(s: &str, pattern: &str) -> bool {
-    let mut xs = s.as_bytes().iter().map(|&c| match c { b'A'...b'Z' => c + 32, _ => c });
+    let mut xs = s.as_bytes().iter().map(|&c| match c { b'A'..=b'Z' => c + 32, _ => c });
     let mut ys = pattern.as_bytes().iter().cloned();
     loop {
         match (xs.next(), ys.next()) {
@@ -212,7 +212,7 @@ fn timezone_offset_internal<F>(mut s: &str, mut consume_colon: F, allow_missing_
 
     // hours (00--99)
     let hours = match try!(digits(s)) {
-        (h1 @ b'0'...b'9', h2 @ b'0'...b'9') => i32::from((h1 - b'0') * 10 + (h2 - b'0')),
+        (h1 @ b'0'..=b'9', h2 @ b'0'..=b'9') => i32::from((h1 - b'0') * 10 + (h2 - b'0')),
         _ => return Err(INVALID),
     };
     s = &s[2..];
@@ -224,8 +224,8 @@ fn timezone_offset_internal<F>(mut s: &str, mut consume_colon: F, allow_missing_
     // if the next two items are digits then we have to add minutes
     let minutes = if let Ok(ds) = digits(s) {
         match ds {
-            (m1 @ b'0'...b'5', m2 @ b'0'...b'9') => i32::from((m1 - b'0') * 10 + (m2 - b'0')),
-            (b'6'...b'9', b'0'...b'9') => return Err(OUT_OF_RANGE),
+            (m1 @ b'0'..=b'5', m2 @ b'0'..=b'9') => i32::from((m1 - b'0') * 10 + (m2 - b'0')),
+            (b'6'..=b'9', b'0'..=b'9') => return Err(OUT_OF_RANGE),
             _ => return Err(INVALID),
         }
     } else if allow_missing_minutes {
@@ -270,7 +270,7 @@ pub fn timezone_offset_permissive<F>(s: &str, colon: F)
 /// May return `None` which indicates an insufficient offset data (i.e. `-0000`).
 pub fn timezone_offset_2822(s: &str) -> ParseResult<(&str, Option<i32>)> {
     // tries to parse legacy time zone names
-    let upto = s.as_bytes().iter().position(|&c| match c { b'a'...b'z' | b'A'...b'Z' => false,
+    let upto = s.as_bytes().iter().position(|&c| match c { b'a'..=b'z' | b'A'..=b'Z' => false,
                                                            _ => true })
         .unwrap_or_else(|| s.len());
     if upto > 0 {

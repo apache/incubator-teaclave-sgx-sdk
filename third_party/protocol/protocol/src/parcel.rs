@@ -46,10 +46,10 @@ pub trait Parcel : Sized
     /// Reads a value from a stream.
     ///
     /// Blocks until a value is received.
-    fn read(read: &mut Read) -> Result<Self, ::Error>;
+    fn read(read: &mut dyn Read) -> Result<Self, ::Error>;
 
     /// Writes a value to a stream.
-    fn write(&self, write: &mut Write) -> Result<(), ::Error>;
+    fn write(&self, write: &mut dyn Write) -> Result<(), ::Error>;
 
     /// Parses a new value from its raw byte representation.
     ///

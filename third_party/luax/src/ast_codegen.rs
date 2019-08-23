@@ -2,8 +2,8 @@ use std::prelude::v1::*;
 use std::error::Error;
 use std::fmt;
 use hexagon::opcode::{OpCode, SelectType};
-use ast::{Block, Expr, Stmt, Lhs, GetEscapeInfo};
-use codegen::{ModuleBuilder, FunctionBuilder, BasicBlockBuilder, LoopControlInfo, VarLocation};
+use ast::{Block, Expr, Stmt, Lhs};
+use codegen::{FunctionBuilder, LoopControlInfo};
 
 #[derive(Debug)]
 pub struct CodegenError {
@@ -263,7 +263,7 @@ impl RestrictedGenerateCode for Expr {
             Expr::Number(v) => fb.get_current_bb().opcodes.push(OpCode::LoadFloat(v)),
             Expr::String(ref s) => fb.get_current_bb().opcodes.push(OpCode::LoadString(s.clone())),
             Expr::Function(ref vlhs, ref blk) => {
-                let mut new_builder = fb.get_module_builder().new_function();
+                let new_builder = fb.get_module_builder().new_function();
 
                 let mut arg_names: Vec<String> = Vec::new();
                 for lhs in vlhs {
@@ -280,7 +280,7 @@ impl RestrictedGenerateCode for Expr {
             },
             Expr::Table(ref elems) => {
                 fb.write_array_create()?;
-                for (i, v) in elems.iter().enumerate() {
+                for (_i, v) in elems.iter().enumerate() {
                     fb.get_current_bb().opcodes.push(OpCode::Dup);
                     v.restricted_generate_code(fb)?;
                     fb.get_current_bb().opcodes.push(OpCode::Rotate2);

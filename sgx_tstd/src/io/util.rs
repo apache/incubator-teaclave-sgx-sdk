@@ -30,7 +30,7 @@
 
 use crate::io::{self, Read, Initializer, Write, ErrorKind, BufRead};
 use core::fmt;
-use core::mem;
+use core::mem::{self, MaybeUninit};
 
 /// Copies the entire contents of a reader into a writer.
 ///
@@ -50,7 +50,7 @@ pub fn copy<R: ?Sized, W: ?Sized>(reader: &mut R, writer: &mut W) -> io::Result<
     where R: Read, W: Write
 {
     let mut buf = unsafe {
-        let mut buf: [u8; super::DEFAULT_BUF_SIZE] = mem::uninitialized();
+        let mut buf: [u8; super::DEFAULT_BUF_SIZE] = MaybeUninit::<[u8; 8192]>::uninit().assume_init();
         reader.initializer().initialize(&mut buf);
         buf
     };

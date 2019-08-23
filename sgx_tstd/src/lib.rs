@@ -52,24 +52,30 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 #![allow(unused_assignments)]
-#![cfg_attr(feature = "backtrace", feature(panic_unwind))]
+#![feature(panic_unwind)]
+#![feature(__rust_unstable_column)]
 #![feature(allocator_api)]
 #![feature(allocator_internals)]
 #![feature(allow_internal_unstable)]
 #![feature(array_error_internals)]
+#![feature(asm)]
 #![feature(box_syntax)]
 #![feature(cfg_target_has_atomic)]
 #![feature(char_error_internals)]
 #![feature(compiler_builtins_lib)]
+#![feature(concat_idents)]
 #![feature(const_fn)]
 #![feature(core_intrinsics)]
-#![feature(fixed_size_array)]
+#![feature(custom_test_frameworks)]
 #![feature(dropck_eyepatch)]
+#![feature(fixed_size_array)]
 #![feature(fn_traits)]
-#![feature(fnbox)]
-#![feature(int_error_internals)]
+#![feature(format_args_nl)]
+#![feature(global_asm)]
 #![feature(hashmap_internals)]
+#![feature(int_error_internals)]
 #![feature(lang_items)]
+#![feature(log_syntax)]
 #![feature(needs_panic_runtime)]
 #![feature(never_type)]
 #![feature(optin_builtin_traits)]
@@ -82,6 +88,7 @@
 #![feature(str_internals)]
 #![feature(thread_local)]
 #![feature(toowned_clone_into)]
+#![feature(trace_macros)]
 #![feature(try_reserve)]
 #![feature(unboxed_closures)]
 #![feature(untagged_unions)]
@@ -119,8 +126,12 @@ extern crate alloc as alloc_crate;
 pub use core::unicode::*;
 
 // We always need an unwinder currently for backtraces
-#[cfg(feature = "backtrace")]
+#[allow(unused_extern_crates)]
 extern crate sgx_unwind;
+#[cfg(feature = "backtrace")]
+extern crate sgx_backtrace_sys;
+#[cfg(feature = "backtrace")]
+extern crate sgx_demangle;
 
 // compiler-rt intrinsics
 #[cfg(stage0)]

@@ -1616,6 +1616,33 @@ impl Path {
         fs::read_link(self)
     }
 
+    /// Returns an iterator over the entries within a directory.
+    ///
+    /// The iterator will yield instances of [`io::Result`]`<`[`DirEntry`]`>`. New
+    /// errors may be encountered after an iterator is initially constructed.
+    ///
+    /// This is an alias to [`fs::read_dir`].
+    ///
+    /// [`io::Result`]: ../io/type.Result.html
+    /// [`DirEntry`]: ../fs/struct.DirEntry.html
+    /// [`fs::read_dir`]: ../fs/fn.read_dir.html
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::path::Path;
+    ///
+    /// let path = Path::new("/laputa");
+    /// for entry in path.read_dir().expect("read_dir call failed") {
+    ///     if let Ok(entry) = entry {
+    ///         println!("{:?}", entry.path());
+    ///     }
+    /// }
+    /// ```
+    #[cfg(feature = "untrusted_fs")]
+    pub fn read_dir(&self) -> io::Result<fs::ReadDir> {
+        fs::read_dir(self)
+    }
     /// Returns whether the path points at an existing entity.
     ///
     /// This function will traverse symbolic links to query information about the

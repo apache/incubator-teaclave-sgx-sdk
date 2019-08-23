@@ -109,6 +109,7 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match *self {
             Error::IoError(ref e) => e.description(),
@@ -118,7 +119,7 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::IoError(ref io_err) => Some(io_err),
             Error::WabtError(ref wabt_err) => Some(wabt_err),

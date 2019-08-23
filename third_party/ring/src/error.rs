@@ -93,7 +93,7 @@ impl core::fmt::Display for Unspecified {
 #[cfg(feature = "use_heap")]
 impl std::error::Error for Unspecified {
     #[inline]
-    fn cause(&self) -> Option<&std::error::Error> { None }
+    fn cause(&self) -> Option<&dyn std::error::Error> { None }
 
     #[inline]
     fn description(&self) -> &str { "ring::error::Unspecified" }

@@ -70,6 +70,6 @@ pub trait Object: Send {
         panic!(errors::VMError::from(errors::RuntimeError::new("Cannot cast to bool")));
     }
     fn get_children(&self) -> Vec<usize>;
-    fn as_any(&self) -> &Any;
-    fn as_any_mut(&mut self) -> &mut Any;
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }

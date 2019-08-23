@@ -1,7 +1,6 @@
 //! Bindings to the [wabt](https://github.com/WebAssembly/wabt) library.
 //!
 
-#![allow(deprecated)]
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 

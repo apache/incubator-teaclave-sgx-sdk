@@ -22,7 +22,7 @@ use untrusted;
 use arithmetic::montgomery::R;
 
 /// Generates a random scalar in the range [1, n).
-pub fn random_scalar(ops: &PrivateKeyOps, rng: &rand::SecureRandom)
+pub fn random_scalar(ops: &PrivateKeyOps, rng: &dyn rand::SecureRandom)
                      -> Result<Scalar, error::Unspecified> {
     // Generating a random private key and then converting it into a scalar is a
     // bit circuitous.
@@ -30,7 +30,7 @@ pub fn random_scalar(ops: &PrivateKeyOps, rng: &rand::SecureRandom)
     Ok(private_key_as_scalar(ops, &key))
 }
 
-pub fn generate_private_key(ops: &PrivateKeyOps, rng: &rand::SecureRandom)
+pub fn generate_private_key(ops: &PrivateKeyOps, rng: &dyn rand::SecureRandom)
                             -> Result<ec::PrivateKey, error::Unspecified> {
     // [NSA Suite B Implementer's Guide to ECDSA] Appendix A.1.2, and
     // [NSA Suite B Implementer's Guide to NIST SP 800-56A] Appendix B.2,

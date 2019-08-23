@@ -1,7 +1,7 @@
 use std::prelude::v1::*;
 use std::any::Any;
 use std::collections::HashMap;
-use std::cell::{Cell, RefCell};
+use std::cell::{RefCell};
 use hexagon::object::Object;
 use hexagon::value::{Value, ValueContext};
 use hexagon::executor::ExecutorImpl;
@@ -25,12 +25,12 @@ impl Object for Pair {
         ret
     }
 
-    fn as_any(&self) -> &Any {
-        self as &Any
+    fn as_any(&self) -> &dyn Any {
+        self as &dyn Any
     }
 
-    fn as_any_mut(&mut self) -> &mut Any {
-        self as &mut Any
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self as &mut dyn Any
     }
 }
 
@@ -41,13 +41,13 @@ fn f64_to_u64(v: f64) -> u64 {
     unsafe { ::std::mem::transmute::<f64, u64>(v) }
 }
 
-fn u64_to_f64(v: u64) -> f64 {
-    let result = unsafe { ::std::mem::transmute::<u64, f64>(v) };
-    if result.is_nan() {
-        panic!(VMError::from("NaN"));
-    }
-    result
-}
+//fn u64_to_f64(v: u64) -> f64 {
+//    let result = unsafe { ::std::mem::transmute::<u64, f64>(v) };
+//    if result.is_nan() {
+//        panic!(VMError::from("NaN"));
+//    }
+//    result
+//}
 
 pub struct Table {
     string_values: RefCell<HashMap<String, Value>>,
@@ -133,12 +133,12 @@ impl Object for Table {
         ret
     }
 
-    fn as_any(&self) -> &Any {
-        self as &Any
+    fn as_any(&self) -> &dyn Any {
+        self as &dyn Any
     }
 
-    fn as_any_mut(&mut self) -> &mut Any {
-        self as &mut Any
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self as &mut dyn Any
     }
 
     fn call_field(&self, name: &str, executor: &mut ExecutorImpl) -> Value {

@@ -8,7 +8,7 @@ default = []
 use_std = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_trts = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tstd = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tdh = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_types = { path = "../../../sgx_types" }
+sgx_trts = { path = "../../../sgx_trts" }
+sgx_tstd = { path = "../../../sgx_tstd" }
+sgx_tdh = { path = "../../../sgx_tdh" }

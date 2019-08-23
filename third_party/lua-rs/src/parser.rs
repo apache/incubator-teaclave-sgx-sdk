@@ -378,7 +378,7 @@ impl<R: Read> Parser<R> {
             Token::String(ref s) => {
                 let line = self.prev_number;
                 next = true;
-                let mut expr = ExprNode::new(Expr::String(s.clone()), (line, line));
+                let expr = ExprNode::new(Expr::String(s.clone()), (line, line));
                 vec![expr]
             }
             _ => return Err(Error::SyntaxError("function arguments expected".to_string()))
@@ -404,8 +404,8 @@ impl<R: Read> Parser<R> {
                     self.next()?;
                     let obj = if let Token::Ident(ref s) = self.token {
                         let line = self.line_number;
-                        let mut key = ExprNode::new(Expr::String(s.clone()), (line, line));
-                        let mut obj = Expr::AttrGet(Box::new(exprnode), Box::new(key));
+                        let key = ExprNode::new(Expr::String(s.clone()), (line, line));
+                        let obj = Expr::AttrGet(Box::new(exprnode), Box::new(key));
                         obj
                     } else {
                         return Err(self.unexpected(&self.token));
@@ -415,8 +415,8 @@ impl<R: Read> Parser<R> {
                 }
                 Token::Char('[') => {
                     self.next()?;
-                    let mut key = self.expression()?;
-                    let mut obj = Expr::AttrGet(Box::new(exprnode), Box::new(key));
+                    let key = self.expression()?;
+                    let obj = Expr::AttrGet(Box::new(exprnode), Box::new(key));
                     self.check_next(Token::Char(']'))?;
                     obj
                 }
@@ -525,7 +525,7 @@ impl<R: Read> Parser<R> {
         };
 
         // link all elseif
-        for mut elseif in elseifs.into_iter().rev().into_iter() {
+        for elseif in elseifs.into_iter().rev().into_iter() {
             let mut e: Vec<Node<Stmt>> = vec![];
             mem::swap(&mut e, &mut els);
             let (mut elif, lineinfo) = elseif;
@@ -641,7 +641,7 @@ impl<R: Read> Parser<R> {
         while self.testnext(&Token::Char('.'))? {
             if let Token::Ident(ref s) = self.token {
                 let key = ExprNode::new(Expr::String(s.clone()), (self.prev_number, self.prev_number));
-                let mut obj = Expr::AttrGet(Box::new(nameexpr), Box::new(key));
+                let obj = Expr::AttrGet(Box::new(nameexpr), Box::new(key));
                 nameexpr = ExprNode::new(obj, (line, self.prev_number));
             } else {
                 return Err(self.unexpected(&self.token));

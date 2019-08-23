@@ -280,6 +280,10 @@ impl Error for JoinPathsError {
     fn description(&self) -> &str { self.inner.description() }
 }
 
+pub fn temp_dir() -> PathBuf {
+    os_imp::temp_dir()
+}
+
 /// Constants associated with the current target
 pub mod consts {
     use crate::sys::env::os;

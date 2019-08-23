@@ -429,7 +429,7 @@ impl<T: Storage> RawNode<T> {
         m.set_msg_type(MessageType::MsgUnreachable);
         m.set_from(id);
         // we don't care if it is ok actually
-        self.raft.step(m).is_ok();
+        let _ = self.raft.step(m).is_ok();
     }
 
     /// ReportSnapshot reports the status of the sent snapshot.
@@ -440,7 +440,7 @@ impl<T: Storage> RawNode<T> {
         m.set_from(id);
         m.set_reject(rej);
         // we don't care if it is ok actually
-        self.raft.step(m).is_ok();
+        let _ = self.raft.step(m).is_ok();
     }
 
     /// TransferLeader tries to transfer leadership to the given transferee.
@@ -448,7 +448,7 @@ impl<T: Storage> RawNode<T> {
         let mut m = Message::new();
         m.set_msg_type(MessageType::MsgTransferLeader);
         m.set_from(transferee);
-        self.raft.step(m).is_ok();
+        let _ = self.raft.step(m).is_ok();
     }
 
     /// ReadIndex requests a read state. The read state will be set in ready.
@@ -461,7 +461,7 @@ impl<T: Storage> RawNode<T> {
         let mut e = Entry::new();
         e.set_data(rctx);
         m.set_entries(RepeatedField::from_vec(vec![e]));
-        self.raft.step(m).is_ok();
+        let _ = self.raft.step(m).is_ok();
     }
 
     /// Returns the store as an immutable reference.

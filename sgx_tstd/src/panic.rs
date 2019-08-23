@@ -170,7 +170,7 @@ impl<T: RefUnwindSafe + ?Sized> UnwindSafe for Arc<T> {}
 impl<T: ?Sized> !RefUnwindSafe for UnsafeCell<T> {}
 impl<T> RefUnwindSafe for AssertUnwindSafe<T> {}
 
-impl RefUnwindSafe for Fn() {}
+impl RefUnwindSafe for dyn Fn() {}
 
 #[cfg(target_has_atomic = "ptr")]
 impl RefUnwindSafe for atomic::AtomicIsize {}
@@ -264,7 +264,7 @@ impl<T: fmt::Debug> fmt::Debug for AssertUnwindSafe<T> {
 /// aborting the process as well. This function *only* catches unwinding panics,
 /// not those that abort the process.
 ///
-pub fn catch_unwind<F: FnOnce() -> R + UnwindSafe, R>(f: F) -> Result<R, Box<Any + Send  + 'static>> {
+pub fn catch_unwind<F: FnOnce() -> R + UnwindSafe, R>(f: F) -> Result<R, Box<dyn Any + Send  + 'static>> {
     unsafe {
         panicking::r#try(f)
     }
@@ -282,6 +282,6 @@ pub fn catch_unwind<F: FnOnce() -> R + UnwindSafe, R>(f: F) -> Result<R, Box<Any
 /// panics are implemented this way then this function will abort the process,
 /// not trigger an unwind.
 ///
-pub fn resume_unwind(payload: Box<Any + Send>) -> ! {
+pub fn resume_unwind(payload: Box<dyn Any + Send>) -> ! {
     panicking::update_count_then_panic(payload)
 }

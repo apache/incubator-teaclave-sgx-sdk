@@ -5,6 +5,6 @@ authors = ["Baidu"]
 build = "build.rs"
 
 [dependencies]
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", features = ["global_init", "global_exit"] }
+sgx_types = { path = "../../../sgx_types" }
+sgx_urts = { path = "../../../sgx_urts", features = ["global_init", "global_exit"] }
 dirs = "1.0.2"

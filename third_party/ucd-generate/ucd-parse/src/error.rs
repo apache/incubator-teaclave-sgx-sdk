@@ -1,3 +1,4 @@
+use std::prelude::v1::*;
 use std::error;
 use std::fmt;
 use std::io;
@@ -62,6 +63,7 @@ impl Error {
 }
 
 impl error::Error for Error {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match self.kind {
             ErrorKind::Io(ref err) => err.description(),
@@ -69,7 +71,7 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match self.kind {
             ErrorKind::Io(ref err) => Some(err),
             _ => None,

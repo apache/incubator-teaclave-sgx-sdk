@@ -26,43 +26,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-extern crate sgx_build_helper as build_helper;
-
-use std::env;
-use std::process::Command;
-use build_helper::{run, native_lib_boilerplate};
-
 fn main() {
-    let target = env::var("TARGET").expect("TARGET was not set");
-    let host = env::var("HOST").expect("HOST was not set");
     if cfg!(feature = "backtrace") {
-        let _ = build_libbacktrace(&host, &target);
-
         println!("cargo:rustc-cfg=RUST_BACKTRACE=\"1\"");
         //println!("cargo:rustc-cfg=RUST_BACKTRACE=\"full\"");
     }
-}
-
-fn build_libbacktrace(host: &str, target: &str) -> Result<(), ()> {
-    let native = native_lib_boilerplate("../sgx_tstd/libbacktrace", "libbacktrace", "backtrace", ".libs")?;
-    let cflags = env::var("CFLAGS").unwrap_or_default() + " -fvisibility=hidden -O2";
-
-    run(Command::new("sh")
-                .current_dir(&native.out_dir)
-                .arg(native.src_dir.join("configure").to_str().unwrap()
-                                   .replace("C:\\", "/c/")
-                                   .replace("\\", "/"))
-                .arg("--with-pic")
-                .arg("--disable-multilib")
-                .arg("--disable-shared")
-                .arg("--disable-host-shared")
-                .arg(format!("--host={}", build_helper::gnu_target(target)))
-                .arg(format!("--build={}", build_helper::gnu_target(host)))
-                .env("CFLAGS", cflags));
-
-    run(Command::new(build_helper::make(host))
-                .current_dir(&native.out_dir)
-                .arg(format!("INCDIR={}", native.src_dir.display()))
-                .arg("-j").arg(env::var("NUM_JOBS").expect("NUM_JOBS was not set")));
-    Ok(())
 }

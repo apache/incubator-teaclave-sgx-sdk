@@ -2777,15 +2777,15 @@ pub fn rsgx_create_rsa_key_pair(n_byte_size: i32,
     }
 }
 
-fn rsgx_create_rsa_priv_key(mod_size: i32,
-                            exp_size: i32,
-                            e: &[u8],
-                            p: &[u8],
-                            q: &[u8],
-                            dmp1: &[u8],
-                            dmq1: &[u8],
-                            iqmp: &[u8],
-                            new_pri_key: &mut sgx_rsa_key_t) -> sgx_status_t {
+fn rsgx_create_rsa_priv2_key(mod_size: i32,
+                             exp_size: i32,
+                             e: &[u8],
+                             p: &[u8],
+                             q: &[u8],
+                             dmp1: &[u8],
+                             dmq1: &[u8],
+                             iqmp: &[u8],
+                             new_pri_key: &mut sgx_rsa_key_t) -> sgx_status_t {
 
     if (mod_size <= 0) || (exp_size <= 0) {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
@@ -2822,7 +2822,39 @@ fn rsgx_create_rsa_priv_key(mod_size: i32,
     }
 }
 
-fn rsgx_create_rsa_pub_key(mod_size: i32,
+fn rsgx_create_rsa_priv1_key(n_size: i32,
+                            e_size: i32,
+                            d_size: i32,
+                            n: &[u8],
+                            e: &[u8],
+                            d: &[u8],
+                            new_pri_key: &mut sgx_rsa_key_t) -> sgx_status_t {
+
+    if (n_size <= 0) || (e_size <= 0) || (d_size <= 0) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (n.is_empty()) || (n.len() > i32::max_value() as usize) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (e.is_empty()) || (e.len() > i32::max_value() as usize) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if (d.is_empty()) || (d.len() > i32::max_value() as usize) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    unsafe {
+        sgx_create_rsa_priv1_key(n_size,
+                                 e_size,
+                                 d_size,
+                                 n.as_ptr(),
+                                 e.as_ptr(),
+                                 d.as_ptr(),
+                                 new_pri_key as * mut sgx_rsa_key_t)
+    }
+}
+
+fn rsgx_create_rsa_pub1_key(mod_size: i32,
                            exp_size: i32,
                            n: &[u8],
                            e: &[u8],
@@ -2933,6 +2965,7 @@ impl SgxRsaPrivKey {
         }
     }
 
+    #[inline]
     pub fn create(&self,
                   mod_size: i32,
                   exp_size: i32,
@@ -2943,20 +2976,62 @@ impl SgxRsaPrivKey {
                   dmq1: &[u8],
                   iqmp: &[u8]) -> SgxError {
 
+        self.create2(mod_size, exp_size, e, p, q, dmp1, dmq1, iqmp)
+    }
+
+    pub fn create2(&self,
+                   mod_size: i32,
+                   exp_size: i32,
+                   e: &[u8],
+                   p: &[u8],
+                   q: &[u8],
+                   dmp1: &[u8],
+                   dmq1: &[u8],
+                   iqmp: &[u8]) -> SgxError {
 
         if self.createflag.get() {
             return Ok(());
         }
 
-        let ret = rsgx_create_rsa_priv_key(mod_size,
-                                           exp_size,
-                                           e,
-                                           p,
-                                           q,
-                                           dmp1,
-                                           dmq1,
-                                           iqmp,
-                                           self.key.borrow_mut().deref_mut());
+        let ret = rsgx_create_rsa_priv2_key(mod_size,
+                                            exp_size,
+                                            e,
+                                            p,
+                                            q,
+                                            dmp1,
+                                            dmq1,
+                                            iqmp,
+                                            self.key.borrow_mut().deref_mut());
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                self.mod_size.set(mod_size);
+                self.exp_size.set(exp_size);
+                self.createflag.set(true);
+                Ok(())
+            },
+            _ => Err(ret),
+        }
+    }
+
+    pub fn create1(&self,
+                   mod_size: i32,
+                   exp_size: i32,
+                   priv_exp_size: i32,
+                   n: &[u8],
+                   e: &[u8],
+                   d: &[u8]) -> SgxError {
+
+        if self.createflag.get() {
+            return Ok(());
+        }
+
+        let ret = rsgx_create_rsa_priv1_key(mod_size,
+                                            exp_size,
+                                            priv_exp_size,
+                                            n,
+                                            e,
+                                            d,
+                                            self.key.borrow_mut().deref_mut());
         match ret {
             sgx_status_t::SGX_SUCCESS => {
                 self.mod_size.set(mod_size);
@@ -3058,11 +3133,11 @@ impl SgxRsaPubKey {
             return Ok(());
         }
 
-        let ret = rsgx_create_rsa_pub_key(mod_size,
-                                          exp_size,
-                                          n,
-                                          e,
-                                          self.key.borrow_mut().deref_mut());
+        let ret = rsgx_create_rsa_pub1_key(mod_size,
+                                           exp_size,
+                                           n,
+                                           e,
+                                           self.key.borrow_mut().deref_mut());
         match ret {
             sgx_status_t::SGX_SUCCESS => {
                 self.mod_size.set(mod_size);

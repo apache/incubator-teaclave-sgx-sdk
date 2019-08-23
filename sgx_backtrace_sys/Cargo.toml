@@ -1,0 +1,25 @@
+[package]
+name = "sgx_backtrace_sys"
+version = "1.0.9-preview"
+authors = ["Baidu"]
+build = "build.rs"
+repository = "https://github.com/baidu/rust-sgx-sdk"
+license-file = "LICENSE"
+documentation = "https://dingelish.github.io/"
+description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
+edition = "2018"
+
+
+[lib]
+name = "sgx_backtrace_sys"
+crate-type = ["rlib"]
+
+[features]
+default = []
+
+[build-dependencies]
+cc = "1.0"
+sgx_build_helper = { path = "../sgx_build_helper" }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_libc = { path = "../sgx_libc" }

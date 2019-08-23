@@ -54,7 +54,7 @@ impl Error for IntoStringError {
         self.__description()
     }
 
-    fn cause(&self) -> Option<&Error> {
-        self.__cause().map(|e| e as &Error)
+    fn cause(&self) -> Option<&dyn Error> {
+        self.__cause().map(|e| e as &dyn Error)
     }
 }

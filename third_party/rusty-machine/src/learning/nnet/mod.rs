@@ -189,7 +189,7 @@ impl<T, A> NeuralNet<T, A>
     /// net.add(Box::new(Linear::new(3, 4)))
     ///    .add(Box::new(Linear::new(4, 5)));
     /// ```
-    pub fn add<'a>(&'a mut self, layer: Box<NetLayer>) -> &'a mut NeuralNet<T, A> {
+    pub fn add<'a>(&'a mut self, layer: Box<dyn NetLayer>) -> &'a mut NeuralNet<T, A> {
         self.base.add(layer);
         self
     }
@@ -215,7 +215,7 @@ impl<T, A> NeuralNet<T, A>
     /// net.add_layers(linear_sig);
     /// ```
     pub fn add_layers<'a, U>(&'a mut self, layers: U) -> &'a mut NeuralNet<T, A>
-        where U: IntoIterator<Item = Box<NetLayer>> {
+        where U: IntoIterator<Item = Box<dyn NetLayer>> {
             self.base.add_layers(layers);
             self
     }
@@ -248,7 +248,7 @@ impl<T, A> NeuralNet<T, A>
 /// This struct cannot be instantiated and is used internally only.
 #[derive(Debug, Serialize)]
 pub struct BaseNeuralNet<T: Criterion> {
-    layers: Vec<Box<NetLayer>>,
+    layers: Vec<Box<dyn NetLayer>>,
     weights: Vec<f64>,
     criterion: T,
 }
@@ -289,7 +289,7 @@ impl<T: Criterion> BaseNeuralNet<T> {
     }
 
     /// Adds the specified layer to the end of the network
-    fn add<'a>(&'a mut self, layer: Box<NetLayer>) -> &'a mut BaseNeuralNet<T> {
+    fn add<'a>(&'a mut self, layer: Box<dyn NetLayer>) -> &'a mut BaseNeuralNet<T> {
         self.weights.extend_from_slice(&layer.default_params());
         self.layers.push(layer);
         self
@@ -297,7 +297,7 @@ impl<T: Criterion> BaseNeuralNet<T> {
 
     /// Adds multiple layers to the end of the network
     fn add_layers<'a, U>(&'a mut self, layers: U) -> &'a mut BaseNeuralNet<T>
-        where U: IntoIterator<Item = Box<NetLayer>>
+        where U: IntoIterator<Item = Box<dyn NetLayer>>
     {
         for layer in layers {
             self.add(layer);

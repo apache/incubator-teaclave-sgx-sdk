@@ -1,9 +1,10 @@
 // This module defines various common things used throughout the UCD.
 
+use std::prelude::v1::*;
 use std::char;
 use std::collections::BTreeMap;
 use std::fmt;
-use std::fs::File;
+use std::untrusted::fs::File;
 use std::io::{self, BufRead};
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};

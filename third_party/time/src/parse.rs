@@ -334,7 +334,7 @@ fn match_digits_i64(ss: &mut &str, min_digits : usize, max_digits: usize, ws: bo
     let chars = ss[n..].char_indices();
     for (_, ch) in chars.take(max_digits - n) {
         match ch {
-            '0' ... '9' => value = value * 10 + (ch as i64 - '0' as i64),
+            '0' ..= '9' => value = value * 10 + (ch as i64 - '0' as i64),
             _ => break,
         }
         n += 1;
@@ -357,7 +357,7 @@ fn match_fractional_seconds(ss: &mut &str) -> i32 {
     for (i, ch) in &mut chars {
         *ss = &orig[i..];
         match ch {
-            '0' ... '9' => {
+            '0' ..= '9' => {
                 // This will drop digits after the nanoseconds place
                 let digit = ch as i32 - '0' as i32;
                 value += digit * multiplier;

@@ -195,7 +195,7 @@ impl GetEscapeInfo for Stmt {
                     c.get_used_vars()
                 )
             },
-            Stmt::Local(ref l, ref r) => r.get_used_vars(),
+            Stmt::Local(ref _l, ref r) => r.get_used_vars(),
             Stmt::Localrec(ref l, ref r) => pair_get_used_vars!(l, r),
             Stmt::Goto(_) | Stmt::Label(_) | Stmt::Break => Vec::new(),
             Stmt::Return(ref v) => v.get_used_vars(),
@@ -257,10 +257,10 @@ impl GetEscapeInfo for Expr {
         match *self {
             Expr::Nil | Expr::Dots | Expr::Boolean(_) | Expr::Number(_) | Expr::String(_) => Vec::new(),
             Expr::Function(ref l, ref r) => {
-                let mut args: HashSet<String> = l.iter()
+                let args: HashSet<String> = l.iter()
                     .map(|v| v.id().unwrap().to_string())
                     .collect();
-                let mut result: Vec<String> = r.get_used_vars()
+                let result: Vec<String> = r.get_used_vars()
                     .into_iter()
                     .filter(|v| !args.contains(v)).collect();
                 result
@@ -316,7 +316,7 @@ impl GetEscapeInfo for Expr {
             Expr::Or(ref l, ref r) => pair_get_closure_escaped_vars!(l, r),
             Expr::Call(ref l, ref r) => pair_get_closure_escaped_vars!(l, r),
             Expr::Pair(ref l, ref r) => pair_get_closure_escaped_vars!(l, r),
-            Expr::Id(ref v) => vec! [  ],
+            Expr::Id(ref _v) => vec! [  ],
             Expr::Index(ref l, ref r) => pair_get_closure_escaped_vars!(l, r),
         }
     }

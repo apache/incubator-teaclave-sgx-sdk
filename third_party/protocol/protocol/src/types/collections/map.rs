@@ -16,7 +16,7 @@ macro_rules! impl_map_type {
         {
             const TYPE_NAME: &'static str = stringify!($ty<K,V>);
 
-            fn read(read: &mut Read) -> Result<Self, Error> {
+            fn read(read: &mut dyn Read) -> Result<Self, Error> {
                 let mut map = $ty::new();
 
                 let length = SizeType::read(read)?;
@@ -31,7 +31,7 @@ macro_rules! impl_map_type {
                 Ok(map)
             }
 
-            fn write(&self, write: &mut Write) -> Result<(), Error> {
+            fn write(&self, write: &mut dyn Write) -> Result<(), Error> {
                 (self.len() as SizeType).write(write)?;
 
                 for (key, value) in self.iter() {

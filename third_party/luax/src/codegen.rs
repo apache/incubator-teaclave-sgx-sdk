@@ -1,5 +1,5 @@
 use std::prelude::v1::*;
-use std::rc::Rc;
+
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
@@ -8,7 +8,7 @@ use hexagon::opcode::OpCode;
 use hexagon::function::Function;
 use ast;
 use ast::GetEscapeInfo;
-use ast_codegen::{RestrictedGenerateCode, UnrestrictedGenerateCode, CodegenError};
+use ast_codegen::{UnrestrictedGenerateCode, CodegenError};
 
 pub struct ModuleBuilder {
     scopes: RefCell<Vec<Scope>>,

@@ -13,7 +13,7 @@ use ghash::{Ghash};
 use util::fixed_time_eq;
 
 pub struct AesGcm<'a> {
-    cipher: Box<SynchronousStreamCipher + 'a>,
+    cipher: Box<dyn SynchronousStreamCipher + 'a>,
     mac: Ghash,
     finished: bool,
     end_tag: [u8; 16]

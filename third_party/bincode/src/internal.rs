@@ -55,6 +55,7 @@ pub enum ErrorKind {
 }
 
 impl StdError for ErrorKind {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match *self {
             ErrorKind::Io(ref err) => error::Error::description(err),
@@ -72,7 +73,7 @@ impl StdError for ErrorKind {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             ErrorKind::Io(ref err) => Some(err),
             ErrorKind::InvalidUtf8Encoding(_) => None,
@@ -94,6 +95,7 @@ impl From<io::Error> for Error {
 }
 
 impl fmt::Display for ErrorKind {
+    #[allow(deprecated)]
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             ErrorKind::Io(ref ioerr) => write!(fmt, "io error: {}", ioerr),

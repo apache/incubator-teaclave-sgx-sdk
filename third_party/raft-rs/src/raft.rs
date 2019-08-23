@@ -664,7 +664,7 @@ impl<T: Storage> Raft<T> {
 
         self.election_elapsed = 0;
         let m = new_message(INVALID_ID, MessageType::MsgHup, Some(self.id));
-        self.step(m).is_ok();
+        let _ = self.step(m).is_ok();
         true
     }
 
@@ -680,7 +680,7 @@ impl<T: Storage> Raft<T> {
             if self.check_quorum {
                 let m = new_message(INVALID_ID, MessageType::MsgCheckQuorum, Some(self.id));
                 has_ready = true;
-                self.step(m).is_ok();
+                let _ = self.step(m).is_ok();
             }
             if self.state == StateRole::Leader && self.lead_transferee.is_some() {
                 self.abort_leader_transfer()
@@ -695,7 +695,7 @@ impl<T: Storage> Raft<T> {
             self.heartbeat_elapsed = 0;
             has_ready = true;
             let m = new_message(INVALID_ID, MessageType::MsgBeat, Some(self.id));
-            self.step(m).is_ok();
+            let _ = self.step(m).is_ok();
         }
         has_ready
     }

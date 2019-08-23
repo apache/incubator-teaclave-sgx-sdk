@@ -5,12 +5,12 @@ macro_rules! impl_list_type {
         {
             const TYPE_NAME: &'static str = stringify!($ty<T>);
 
-            fn read(read: &mut ::std::io::Read) -> Result<Self, $crate::Error> {
+            fn read(read: &mut dyn (::std::io::Read)) -> Result<Self, $crate::Error> {
                 let elements = ::types::util::read_list(read)?;
                 Ok(elements.into_iter().collect())
             }
 
-            fn write(&self, write: &mut ::std::io::Write)
+            fn write(&self, write: &mut dyn (::std::io::Write))
                 -> Result<(), $crate::Error> {
                 ::types::util::write_list(write, self.iter())
             }

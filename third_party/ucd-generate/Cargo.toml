@@ -1,37 +1,37 @@
-[package]
-name = "ucd-generate"
-version = "0.2.0"  #:version
-authors = ["Andrew Gallant <jamslam@gmail.com>"]
-description = """
-A program for generating packed representations of the Unicode character
-database that can be efficiently searched.
-"""
-documentation = "https://github.com/BurntSushi/ucd-generate"
-homepage = "https://github.com/BurntSushi/ucd-generate"
-repository = "https://github.com/BurntSushi/ucd-generate"
-readme = "README.md"
-keywords = ["unicode", "generate", "character", "table", "fst"]
-license = "MIT/Apache-2.0"
-categories = ["text-processing", "internationalization"]
+#[package]
+#name = "ucd-generate"
+#version = "0.2.0"  #:version
+#authors = ["Andrew Gallant <jamslam@gmail.com>"]
+#description = """
+#A program for generating packed representations of the Unicode character
+#database that can be efficiently searched.
+#"""
+#documentation = "https://github.com/BurntSushi/ucd-generate"
+#homepage = "https://github.com/BurntSushi/ucd-generate"
+#repository = "https://github.com/BurntSushi/ucd-generate"
+#readme = "README.md"
+#keywords = ["unicode", "generate", "character", "table", "fst"]
+#license = "MIT/Apache-2.0"
+#categories = ["text-processing", "internationalization"]
 
 [workspace]
 members = ["ucd-parse", "ucd-trie", "ucd-util"]
 
-[dependencies]
-byteorder = { path = "../byteorder" }
-fst = { path = "../fst", default-features = false }
-regex-automata = "0.1.1"
-ucd-parse = { version = "0.1.1", path = "ucd-parse" }
-ucd-trie = { version = "0.1.1", path = "ucd-trie" }
-ucd-util = { version = "0.1.2", path = "ucd-util"  }
-
-[dependencies.clap]
-version = "2"
-default-features = false
-features = ["suggestions", "color"]
-
-[dev-dependencies]
-lazy_static = "1"
-
-[profile.release]
-debug = true
+#[dependencies]
+#byteorder = { path = "../byteorder" }
+#fst = { path = "../fst", default-features = false }
+#regex-automata = "0.1.1"
+#ucd-parse = { version = "0.1.1", path = "ucd-parse" }
+#ucd-trie = { version = "0.1.1", path = "ucd-trie" }
+#ucd-util = { version = "0.1.2", path = "ucd-util"  }
+#
+#[dependencies.clap]
+#version = "2"
+#default-features = false
+#features = ["suggestions", "color"]
+#
+#[dev-dependencies]
+#lazy_static = "1"
+#
+#[profile.release]
+#debug = true

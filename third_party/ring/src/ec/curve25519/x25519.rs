@@ -49,7 +49,7 @@ fn x25519_check_private_key_bytes(bytes: &[u8])
     Ok(())
 }
 
-fn x25519_generate_private_key(rng: &rand::SecureRandom)
+fn x25519_generate_private_key(rng: &dyn rand::SecureRandom)
                                -> Result<ec::PrivateKey, error::Unspecified> {
     let mut result = ec::PrivateKey { bytes: [0; ec::SCALAR_MAX_BYTES] };
     rng.fill(&mut result.bytes[..PRIVATE_KEY_LEN])?;

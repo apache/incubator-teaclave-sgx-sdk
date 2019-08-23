@@ -7,7 +7,7 @@ macro_rules! impl_parcel_for_array {
         impl<T: Parcel> Parcel for [T; $n] where T: Copy {
             const TYPE_NAME: &'static str = stringify!([T; $n]);
 
-            fn read(read: &mut Read) -> Result<Self, Error> {
+            fn read(read: &mut dyn Read) -> Result<Self, Error> {
                 use std::mem;
 
                 let mut elements: Vec<T> = Vec::with_capacity($n);
@@ -23,7 +23,7 @@ macro_rules! impl_parcel_for_array {
                 Ok(array)
             }
 
-            fn write(&self, write: &mut Write) -> Result<(), Error> {
+            fn write(&self, write: &mut dyn Write) -> Result<(), Error> {
                 for elem in self.iter() {
                     elem.write(write)?;
                 }

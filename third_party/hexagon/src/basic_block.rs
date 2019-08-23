@@ -359,7 +359,7 @@ impl BasicBlock {
     }
 
     pub fn transform_const_get_fields(&mut self, rt_handles: &mut Vec<usize>, pool: &mut ObjectPool, this: Option<Value>) -> bool {
-        fn const_get_field_to_opcode(obj: &Object, key: &str, pool: &ObjectPool, rt_handles: &mut Vec<usize>) -> Option<OpCode> {
+        fn const_get_field_to_opcode(obj: &dyn Object, key: &str, pool: &ObjectPool, rt_handles: &mut Vec<usize>) -> Option<OpCode> {
             if obj.has_const_field(pool, key) {
                 if let Some(v) = obj.get_field(pool, key) {
                     println!("debug [transform_const_get_fields] GetField/CallField {} -> {:?}", key, v);

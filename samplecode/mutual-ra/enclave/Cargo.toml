@@ -28,7 +28,6 @@ bit-vec = { version = "0.6", default-features = false}
 serde_json = { git = "https://github.com/mesalock-linux/serde-json-sgx" }
 httparse = { version = "1.3.2", default-features=false }
 itertools = { version = "0.8" , default-features = false, features = []}
-untrusted = { git = "https://github.com/briansmith/untrusted", tag = "ring-master"  }
 webpki-roots= { git = "https://github.com/mesalock-linux/webpki-roots.git", branch = "mesalock_sgx" }
 lazy_static = { version = "*", default-features = false, features = ["spin_no_std"] }
 
@@ -36,11 +35,15 @@ lazy_static = { version = "*", default-features = false, features = ["spin_no_st
 git = "https://github.com/mesalock-linux/rustls"
 branch = "mesalock_sgx"
 features = ["dangerous_configuration"]
+
 [patch.'https://github.com/baidu/rust-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }
+sgx_backtrace = { path = "../../../sgx_backtrace" }
+sgx_backtrace_sys = { path = "../../../sgx_backtrace_sys" }
 sgx_build_helper = { path = "../../../sgx_build_helper" }
 sgx_cov = { path = "../../../sgx_cov" }
 sgx_crypto_helper = { path = "../../../sgx_crypto_helper" }
+sgx_demangle = { path = "../../../sgx_demangle" }
 sgx_libc = { path = "../../../sgx_libc" }
 sgx_rand = { path = "../../../sgx_rand" }
 sgx_rand_derive = { path = "../../../sgx_rand_derive" }

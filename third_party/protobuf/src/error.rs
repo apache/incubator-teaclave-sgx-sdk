@@ -45,6 +45,7 @@ impl fmt::Display for ProtobufError {
 }
 
 impl Error for ProtobufError {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match self {
             // not sure that cause should be included in message
@@ -67,7 +68,7 @@ impl Error for ProtobufError {
         }
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         match self {
             &ProtobufError::IoError(ref e) => Some(e),
             &ProtobufError::Utf8(ref e) => Some(e),

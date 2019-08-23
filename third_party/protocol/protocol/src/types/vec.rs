@@ -24,12 +24,12 @@ impl<S: types::Integer, T: Parcel> Parcel for Vec<S, T>
 {
     const TYPE_NAME: &'static str = "protocol::Vec<S,T>";
 
-    fn read(read: &mut Read) -> Result<Self, Error> {
+    fn read(read: &mut dyn Read) -> Result<Self, Error> {
         let elements = types::util::read_list_ext::<S,T>(read)?;
         Ok(Self::new(elements))
     }
 
-    fn write(&self, write: &mut Write) -> Result<(), Error> {
+    fn write(&self, write: &mut dyn Write) -> Result<(), Error> {
         types::util::write_list_ext::<S,T,_>(write, self.elements.iter())
     }
 }
@@ -45,11 +45,11 @@ mod std_vec {
     {
         const TYPE_NAME: &'static str = "Vec<T>";
 
-        fn read(read: &mut Read) -> Result<Self, Error> {
+        fn read(read: &mut dyn Read) -> Result<Self, Error> {
             types::util::read_list(read)
         }
 
-        fn write(&self, write: &mut Write) -> Result<(), Error> {
+        fn write(&self, write: &mut dyn Write) -> Result<(), Error> {
             types::util::write_list(write, self.iter())
         }
     }

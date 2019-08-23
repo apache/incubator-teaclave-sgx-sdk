@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::error::Error as StdError;
 use std::boxed::*;
 use std::fmt;
@@ -128,7 +130,7 @@ impl StdError for Error {
         }
     }
 
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&dyn StdError> {
         match *self.0 {
             ErrorKind::Io(ref err) => Some(err),
             ErrorKind::Utf8 { ref err, .. } => Some(err),
@@ -229,7 +231,7 @@ impl fmt::Display for FromUtf8Error {
 
 impl StdError for FromUtf8Error {
     fn description(&self) -> &str { self.err.description() }
-    fn cause(&self) -> Option<&StdError> { Some(&self.err) }
+    fn cause(&self) -> Option<&dyn StdError> { Some(&self.err) }
 }
 
 /// A UTF-8 validation error.
@@ -315,7 +317,7 @@ impl<W: ::std::any::Any> StdError for IntoInnerError<W> {
         self.err.description()
     }
 
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&dyn StdError> {
         self.err.cause()
     }
 }

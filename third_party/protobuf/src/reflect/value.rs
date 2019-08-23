@@ -13,7 +13,7 @@ use super::*;
 pub trait ProtobufValue: Any + 'static {
     fn as_ref(&self) -> ProtobufValueRef;
 
-    fn as_any(&self) -> &Any {
+    fn as_any(&self) -> &dyn Any {
         unimplemented!()
     }
 
@@ -141,7 +141,7 @@ pub enum ProtobufValueRef<'a> {
     String(&'a str),
     Bytes(&'a [u8]),
     Enum(&'static EnumValueDescriptor),
-    Message(&'a Message),
+    Message(&'a dyn Message),
 }
 
 impl<'a> ProtobufValueRef<'a> {

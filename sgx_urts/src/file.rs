@@ -28,7 +28,7 @@
 
 use std::ptr;
 use std::io::Error;
-use libc::{self, c_int, c_char, size_t, ssize_t, off_t, off64_t, mode_t, stat, stat64};
+use libc::{self, c_int, c_char, size_t, ssize_t, off_t, off64_t, mode_t, stat, stat64, DIR, dirent64};
 
 #[no_mangle]
 pub extern "C" fn u_open_ocall(error: * mut c_int,
@@ -126,7 +126,7 @@ pub extern "C" fn u_lstat_ocall(error: * mut c_int,
                                 path: * const c_char,
                                 buf: * mut stat) -> c_int {
     let mut errno = 0;
-    let ret = unsafe { libc::stat(path, buf) };
+    let ret = unsafe { libc::lstat(path, buf) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
@@ -141,7 +141,7 @@ pub extern "C" fn u_lstat64_ocall(error: * mut c_int,
                                   path: * const c_char,
                                   buf: * mut stat64) -> c_int {
     let mut errno = 0;
-    let ret = unsafe { libc::stat64(path, buf) };
+    let ret = unsafe { libc::lstat64(path, buf) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
@@ -376,6 +376,106 @@ pub extern "C" fn u_realpath_ocall(error: * mut c_int, pathname: * const c_char)
     let mut errno = 0;
     let ret = unsafe { libc::realpath(pathname, ptr::null_mut()) };
     if ret.is_null() {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_mkdir_ocall(error: * mut c_int,
+                                pathname: * const c_char,
+                                mode: mode_t) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::mkdir(pathname, mode) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_rmdir_ocall(error: * mut c_int, pathname: * const c_char) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::rmdir(pathname) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_opendir_ocall(error: * mut c_int, pathname: * const c_char) -> * mut DIR {
+    let mut errno = 0;
+    let ret = unsafe { libc::opendir(pathname) };
+    if ret.is_null() {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_readdir64_r_ocall(error: * mut c_int,
+                                      dirp: * mut DIR,
+                                      entry: * mut dirent64,
+                                      result: * mut * mut dirent64) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::readdir64_r(dirp, entry, result) };
+    if ret != 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_closedir_ocall(error: * mut c_int, dirp: * mut DIR) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::closedir(dirp) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_dirfd_ocall(error: * mut c_int, dirp: * mut DIR) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::dirfd(dirp) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_fstatat64_ocall(error: * mut c_int,
+                                    dirfd: c_int,
+                                    pathname: * const c_char,
+                                    buf: * mut stat64,
+                                    flags: c_int) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::fstatat64(dirfd, pathname, buf, flags) };
+    if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {

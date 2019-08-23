@@ -50,7 +50,7 @@ const PRIVATE_KEY_PUBLIC_MODULUS_MAX_BITS: bits::BitLength =
 
 /// Parameters for RSA verification.
 pub struct RSAParameters {
-    padding_alg: &'static padding::RSAVerification,
+    padding_alg: &'static dyn padding::RSAVerification,
     min_bits: bits::BitLength,
     id: RSAParametersID,
 }

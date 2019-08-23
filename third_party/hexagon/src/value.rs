@@ -70,7 +70,7 @@ impl<'a, 'b> ValueContext<'a, 'b> {
         self.pool.get(self.as_object_id())
     }
 
-    pub fn as_object_direct(&self) -> &'b Object {
+    pub fn as_object_direct(&self) -> &'b dyn Object {
         self.pool.get_direct(self.as_object_id())
     }
 

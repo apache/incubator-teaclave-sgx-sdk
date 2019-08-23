@@ -30,8 +30,8 @@ const NO_LIMIT: u64 = u64::MAX;
 
 /// Hold all possible combinations of input source
 enum InputSource<'a> {
-    BufRead(&'a mut BufRead),
-    Read(BufReader<&'a mut Read>),
+    BufRead(&'a mut dyn BufRead),
+    Read(BufReader<&'a mut dyn Read>),
     Slice(&'a [u8]),
     #[cfg(feature = "bytes")]
     Bytes(&'a Bytes),
@@ -73,7 +73,7 @@ impl<'a> Drop for BufReadIter<'a> {
 }
 
 impl<'ignore> BufReadIter<'ignore> {
-    pub fn from_read<'a>(read: &'a mut Read) -> BufReadIter<'a> {
+    pub fn from_read<'a>(read: &'a mut dyn Read) -> BufReadIter<'a> {
         BufReadIter {
             input_source: InputSource::Read(
                 BufReader::with_capacity(INPUT_STREAM_BUFFER_SIZE, read),
@@ -86,7 +86,7 @@ impl<'ignore> BufReadIter<'ignore> {
         }
     }
 
-    pub fn from_buf_read<'a>(buf_read: &'a mut BufRead) -> BufReadIter<'a> {
+    pub fn from_buf_read<'a>(buf_read: &'a mut dyn BufRead) -> BufReadIter<'a> {
         BufReadIter {
             input_source: InputSource::BufRead(buf_read),
             buf: &[],

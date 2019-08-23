@@ -49,7 +49,7 @@ macro_rules! suite_b_curve {
                 $private_key_ops, bytes)
         }
 
-        fn $generate_private_key(rng: &rand::SecureRandom)
+        fn $generate_private_key(rng: &dyn rand::SecureRandom)
                                  -> Result<ec::PrivateKey, error::Unspecified> {
             ec::suite_b::private_key::generate_private_key($private_key_ops, rng)
         }

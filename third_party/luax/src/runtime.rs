@@ -7,12 +7,12 @@ use hexagon::object::Object;
 use hexagon::builtin::dynamic_object::DynamicObject;
 use hexagon::function::Function;
 use hexagon::errors::VMError;
-use hexagon;
+
 use codegen::ModuleBuilder;
 use lua_types::{Pair, Table};
 
 pub struct ModuleRuntime<'a> {
-    executor: &'a mut ExecutorImpl
+    _executor: &'a mut ExecutorImpl
 }
 
 macro_rules! alloc_object {
@@ -67,7 +67,7 @@ fn init_global_resources(e: &mut ExecutorImpl, g: &mut DynamicObject) {
                 e.get_object_pool()
             ).to_i64() as usize;
 
-            let array: Box<Object> = match ValueContext::new(&array_type, e.get_object_pool()).to_str().as_ref() {
+            let array: Box<dyn Object> = match ValueContext::new(&array_type, e.get_object_pool()).to_str().as_ref() {
                 "i8" => Box::new(TypedArray::new(0i8, len)),
                 "u8" => Box::new(TypedArray::new(0u8, len)),
                 "i16" => Box::new(TypedArray::new(0i16, len)),
@@ -105,7 +105,7 @@ pub fn invoke(executor: &mut ExecutorImpl, builder: ModuleBuilder, entry_fn_id: 
     let functions = builder.functions.into_inner();
     let mut global_resources = DynamicObject::new(None);
 
-    let mut fn_res = Array::new();
+    let fn_res = Array::new();
     let mut local_fn_res: Vec<Value> = Vec::new();
 
     for mut f in functions {

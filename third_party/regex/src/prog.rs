@@ -7,7 +7,7 @@ use std::slice;
 use std::sync::Arc;
 use std::vec::Vec;
 use std::string::String;
-use std::slice::SliceConcatExt;
+//use std::slice::SliceConcatExt;
 
 use input::Char;
 use literal::LiteralSearcher;
