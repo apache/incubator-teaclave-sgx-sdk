@@ -1,0 +1,35 @@
+[package]
+
+name = "rust-sqlite"
+version = "0.3.1"
+authors = [
+  "Dan Connolly <dckc@madmode.com>",
+  "Peter Reid <peter.d.reid@gmail.com>"
+]
+keywords = ["database", "sql", "sqlite"]
+
+exclude = [
+    ".hg/*",
+    "*.orig",
+    "*~",
+]
+
+description = "Rustic bindings for sqlite3"
+repository = "https://github.com/dckc/rust-sqlite3"
+readme = "README.md"
+documentation = "http://dckc.github.io/rust-sqlite3"
+
+license = "MIT"
+
+[lib]
+name = "sqlite3"
+
+[dependencies]
+bitflags = { path = "../bitflags" }
+enum_primitive = { path = "../enum_primitive-rs" }
+sgx_untrusted_time = { path = "../time" }
+
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { path =  "../../sgx_tstd" }
+sgx_libc = { path =  "../../sgx_libc" }

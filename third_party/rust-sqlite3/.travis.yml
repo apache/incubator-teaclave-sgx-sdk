@@ -1,0 +1,35 @@
+language: rust
+sudo: false
+addons:
+  apt:
+    packages:
+      - sqlite3
+      - libsqlite3-dev
+
+rust:
+  - nightly
+  - beta
+  - stable
+
+# load travis-cargo
+before_script:
+  - |
+      pip install 'travis-cargo<0.2' --user &&
+      (cargo install rustfmt || true) &&
+      export PATH=$HOME/.local/bin:~/.cargo/bin:$PATH
+
+# the main build
+script:
+  - |
+      cargo fmt -- --write-mode=diff &&
+      travis-cargo build &&
+      travis-cargo test &&
+      travis-cargo bench &&
+      travis-cargo --only stable doc -- --no-deps
+after_success:
+  - travis-cargo --only stable doc-upload
+
+env:
+  global:
+    - TRAVIS_CARGO_NIGHTLY_FEATURE=""
+    - secure: "kYpqCeQnfAi4CKu0Lqoz/+xJURWnn2AuEW5J1upZUR6hunN6zZ8hTKAeNgA4Tlqs2rVPc3gM9lyWyh0/N49G6jwQPD8d0KcqlWbBl+WVTbU81i35wiCpbA5itcdgESiTmPpZvMk6T0hxBfpn+GeB7ZEH6PXYMS1XUHWYRy25hQ8="

@@ -1,0 +1,72 @@
+/*
+ * Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in
+ *     the documentation and/or other materials provided with the
+ *     distribution.
+ *   * Neither the name of Baidu, Inc., nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+
+enclave {
+    from "sgx_tstd.edl" import *;
+    from "sgx_stdio.edl" import *;
+    from "sgx_backtrace.edl" import *;
+    from "sgx_tstdc.edl" import *;
+
+    include "../ocall_types.h" // Need to import some type declartions from stdlib
+
+
+    trusted {
+        /* define ECALLs here. */
+
+        public sgx_status_t start_db(uint8_t existed);
+    };
+
+    untrusted {
+        void ocall_println_string([in, string] const char *str);
+        void ocall_print_string([in, string] const char *str);
+        void ocall_print_error([in, string] const char *str);
+
+        int ocall_lstat([in, string] const char *path, [in, out, size=size] struct stat *buf, size_t size) propagate_errno;
+        int ocall_stat([in, string] const char *path, [in, out, size=size] struct stat *buf, size_t size);
+        int ocall_fstat(int fd, [in, out, size=size] struct stat* buf, size_t size);
+        int ocall_ftruncate(int fd, off_t length);
+
+        char* ocall_getcwd([out, size=size] char *buf, size_t size) propagate_errno;
+        int ocall_getpid(void);
+        int ocall_getuid(void);
+        char* ocall_getenv([in, string] const char *name);
+
+        int ocall_open64([in, string] const char *filename, int flags, mode_t mode);
+        int ocall_close(int fd);
+        off_t ocall_lseek64(int fd, off_t offset, int whence) propagate_errno;
+        int ocall_read(int fd, [out, size=count] void *buf, size_t count) propagate_errno;
+        int ocall_write(int fd, [in, size=count] const void *buf, size_t count) propagate_errno;
+        int ocall_fsync(int fd);
+        int ocall_fcntl(int fd, int cmd, [in, size=size] void* arg, size_t size) propagate_errno;
+        int ocall_unlink([in, string] const char *pathname);
+    };
+
+};
