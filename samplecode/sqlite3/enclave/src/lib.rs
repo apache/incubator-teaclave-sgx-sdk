@@ -37,8 +37,6 @@ extern crate sgx_types;
 #[macro_use]
 extern crate sgx_tstd as std;
 
-extern crate sgx_untrusted_time as time;
-
 use sgx_types::*;
 use std::string::String;
 use std::vec::Vec;

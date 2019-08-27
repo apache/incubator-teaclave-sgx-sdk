@@ -14,7 +14,6 @@ default = []
 serde       = { path = "../../../third_party/serde-rs/serde/serde" }
 serde_derive = { path = "../../../third_party/serde-rs/serde/serde_derive" }
 rust-sqlite = { path = "../../../third_party/rust-sqlite3" }
-sgx_untrusted_time  = { path = "../../../third_party/time" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../../../sgx_types" }

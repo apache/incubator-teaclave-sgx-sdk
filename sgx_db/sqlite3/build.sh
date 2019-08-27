@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-rm -rf ../../sgx_db/sqlite3/sqlite3.o
-rm -rf ../../sgx_db/sqlite3/sqlite3.i
+git clone https://github.com/gel-sgx/SGX_SQLite.git
+mv SGX_SQLite/Enclave/sqlite3.c ../../sgx_db/sqlite3/
+mv SGX_SQLite/Enclave/sqlite3.h ../../sgx_db/sqlite3/
+rm -r SGX_SQLite
+
 
 echo "build sqlite3"
 

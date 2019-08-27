@@ -25,7 +25,7 @@ license = "MIT"
 name = "sqlite3"
 
 [dependencies]
-bitflags = { path = "../bitflags" }
+bitflags = "1.0.5"
 enum_primitive = { path = "../enum_primitive-rs" }
 sgx_untrusted_time = { path = "../time" }
 
