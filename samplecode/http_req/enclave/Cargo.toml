@@ -9,7 +9,7 @@ name = "httpreqenclave"
 crate-type = ["staticlib"]
 
 [dependencies]
-http_req = { path = "../../../third_party/http_req" }
+http_req = { git = "https://github.com/mesalock-linux/http_req-sgx" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk", rev = "v1.0.8" }
