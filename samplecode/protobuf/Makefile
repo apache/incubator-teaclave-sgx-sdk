@@ -136,7 +136,7 @@ $(Enclave_EDL_Files): $(SGX_EDGER8R) enclave/Enclave.edl
 $(Proto_RS_Files): $(Proto_File)
 	protoc --rust_out ./app/src $(Proto_File)
 	protoc --rust_out ./enclave/src $(Proto_File)
-	sed -i -e 's/#!\[allow(unused_results)\]/#!\[allow(unused_results)\]\n\nuse std::prelude::v1::*;\n/g' ./enclave/src/person.rs
+	sed -i -e 's/use protobuf::Message as/\n\nuse std::prelude::v1::*;\nuse protobuf::Message as/g' ./enclave/src/person.rs
 
 ######## App Objects ########
 

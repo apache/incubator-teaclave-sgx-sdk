@@ -15,7 +15,7 @@ sgx_types = { path = "../../../sgx_types" }
 sgx_tstd = { path = "../../../sgx_tstd" }
 
 [dependencies]
-protobuf = { path = "../../../third_party/protobuf" }
+protobuf = { git = "https://github.com/mesalock-linux/rust-protobuf-sgx", branch = "v2.8" }
 [patch.'https://github.com/baidu/rust-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }
 sgx_build_helper = { path = "../../../sgx_build_helper" }
