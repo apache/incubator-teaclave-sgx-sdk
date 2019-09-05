@@ -76,12 +76,11 @@ use ue_send_recv::{tls_receive_vec, tls_send_vec};
 mod cert;
 mod hex;
 
-#[allow(dead_code)]
-pub const DEV_HOSTNAME:&'static str = "test-as.sgx.trustedservices.intel.com";
-#[allow(dead_code)]
-pub const PROD_HOSTNAME:&'static str = "as.sgx.trustedservices.intel.com";
-pub const SIGRL_SUFFIX:&'static str = "/attestation/sgx/v3/sigrl/";
-pub const REPORT_SUFFIX:&'static str = "/attestation/sgx/v3/report";
+pub const DEV_HOSTNAME:&'static str = "api.trustedservices.intel.com";
+pub const SIGRL_SUFFIX:&'static str = "/sgx/dev/attestation/v3/sigrl/";
+pub const REPORT_SUFFIX:&'static str = "/sgx/dev/attestation/v3/report";
+pub const CERTEXPIRYDAYS: i64 = 90i64;
+
 pub const KEYFILE:&'static str = "prov_key.bin";
 #[allow(dead_code)]
 const PCL_SEALED_KEY_SIZE: usize = 560 + SGX_AESGCM_KEY_SIZE + SGX_PCL_GUID_SIZE; // sizeof sgx_sealed_data_t = 560

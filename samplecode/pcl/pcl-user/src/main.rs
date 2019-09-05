@@ -3,7 +3,6 @@ extern crate webpki;
 extern crate rustls;
 extern crate base64;
 extern crate itertools;
-extern crate untrusted;
 extern crate serde_json;
 extern crate num_bigint;
 extern crate bit_vec;

@@ -8,5 +8,5 @@ default = []
 enclave = []
 
 [dependencies]
-rustls = "^0.13.0"
-cfg-if = "0.1.6"
+rustls = "0.16.0"
+cfg-if = "*"
