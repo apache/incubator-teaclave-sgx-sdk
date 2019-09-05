@@ -1,8 +1,0 @@
-error: unexpected literal in serde variant attribute
- --> $DIR/variant.rs:5:13
-  |
-5 |     #[serde("literal")]
-  |             ^^^^^^^^^
-
-error: aborting due to previous error
-

@@ -1,8 +1,0 @@
-error: failed to parse type: from = "Option<T"
- --> $DIR/from.rs:4:16
-  |
-4 | #[serde(from = "Option<T")]
-  |                ^^^^^^^^^^
-
-error: aborting due to previous error
-

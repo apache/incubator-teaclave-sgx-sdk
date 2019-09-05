@@ -1,8 +1,0 @@
-error: expected serde rename attribute to be a string: `rename = "..."`
- --> $DIR/boolean.rs:5:22
-  |
-5 |     #[serde(rename = true)]
-  |                      ^^^^
-
-error: aborting due to previous error
-

@@ -1,9 +1,0 @@
-language: rust
-rust:
-   - stable
-   - beta
-   - nightly
-script:
-   - cargo build --verbose
-   - python3 build.py > newlib.rs
-   - diff -u src/lib.rs newlib.rs

@@ -1,7 +1,0 @@
-
-test mat_mul_f32::mix10000         ... bench:  23,430,259 ns/iter (+/- 700,947)
-test mat_mul_f64::mix10000         ... bench:  36,255,323 ns/iter (+/- 1,344,432)
-test mat_mul_f32::m127             ... bench:     290,740 ns/iter (+/- 6,776)
-test mat_mul_f64::m127             ... bench:     433,429 ns/iter (+/- 17,110)
-test nonative_mat_mul_f32::m127             ... bench:     375,725 ns/iter (+/- 7,761)
-test nonative_mat_mul_f64::m127             ... bench:     503,924 ns/iter (+/- 16,038)

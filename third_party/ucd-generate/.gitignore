@@ -1,9 +1,0 @@
-.*.swp
-tags
-target
-/x
-perf.data*
-/tmp
-/ucd-parse/Cargo.lock
-/ucd-trie/Cargo.lock
-/ucd-util/Cargo.lock
