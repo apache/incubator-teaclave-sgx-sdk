@@ -1,0 +1,14 @@
+load("@io_bazel_rules_rust//rust:rust.bzl", "rust_library")
+
+rust_library(
+    name = "sgx_unwind",
+    srcs = [
+        "lib.rs",
+        "libunwind.rs",
+        "macros.rs",
+    ],
+    edition = "2018",
+    rustc_flags = ["-lgcc_s"],  #TODO: Make this target dependent
+    visibility = ["//visibility:public"],
+    deps = ["//sgx_trts"],
+)
