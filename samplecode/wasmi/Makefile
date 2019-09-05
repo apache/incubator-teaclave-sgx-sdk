@@ -161,6 +161,7 @@ $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 
 .PHONY: enclave
 enclave:
+	git submodule init && git submodule update
 	$(MAKE) -C ./enclave/
 
 .PHONY: compiler-rt
