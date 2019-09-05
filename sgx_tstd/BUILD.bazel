@@ -1,12 +1,17 @@
 load("@io_bazel_rules_rust//rust:rust.bzl", "rust_library")
 
 rust_library(
-    name = "sgx_tprotected_fs",
-    srcs = glob(["src/*.rs"]),
+    name = "sgx_tstd",
+    srcs = glob(["src/**"]),
+    crate_features = ["stdio"],
     edition = "2018",
     visibility = ["//visibility:public"],
     deps = [
+        "//sgx_alloc",
+        "//sgx_libc",
+        "//sgx_tprotected_fs",
         "//sgx_trts",
         "//sgx_types",
+        "//sgx_unwind",
     ],
 )
