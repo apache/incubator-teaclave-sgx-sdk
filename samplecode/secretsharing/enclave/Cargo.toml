@@ -15,7 +15,7 @@ sgx_types = { path = "../../../sgx_types" }
 sgx_tstd = { path = "../../../sgx_tstd" }
 
 [dependencies]
-threshold-secret-sharing = { path = "../../../third_party/rust-threshold-secret-sharing" }
+threshold-secret-sharing = { git = "https://github.com/mesalock-linux/rust-threshold-secret-sharing-sgx" }
 [patch.'https://github.com/baidu/rust-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }
 sgx_build_helper = { path = "../../../sgx_build_helper" }
