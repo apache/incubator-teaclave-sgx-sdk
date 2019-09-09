@@ -13,6 +13,7 @@
 #![deny(warnings)]
 
 #![feature(link_cfg)]
+#![feature(nll)]
 #![feature(staged_api)]
 #![feature(unwind_attributes)]
 #![feature(static_nobundle)]

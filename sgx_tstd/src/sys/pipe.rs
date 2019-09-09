@@ -27,12 +27,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_trts::libc::c_int;
-use crate::io;
-use crate::io::{IoSlice, IoSliceMut};
-use crate::mem;
+use crate::io::{self, IoSlice, IoSliceMut};
 use crate::sys::fd::FileDesc;
 use crate::sys::{cvt, cvt_r};
+use core::mem;
 use alloc_crate::vec::Vec;
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Anonymous pipes

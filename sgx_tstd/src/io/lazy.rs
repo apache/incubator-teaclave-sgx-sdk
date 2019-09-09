@@ -33,82 +33,61 @@ use core::cell::{Cell, UnsafeCell};
 use core::ptr;
 
 pub struct Lazy<T> {
+    // We never call `lock.init()`, so it is UB to attempt to acquire this mutex reentrantly!
     lock: SgxThreadMutex,
     ptr: Cell<*mut Arc<T>>,
-    init: fn() -> Arc<T>,
 }
+
+#[inline]
+const fn done<T>() -> *mut Arc<T> { 1_usize as *mut _ }
 
 unsafe impl<T> Sync for Lazy<T> {}
 
-impl<T: Send + Sync + 'static> Lazy<T> {
-
-    pub const fn new(init: fn() -> Arc<T>) -> Lazy<T> {
+impl<T> Lazy<T> {
+    pub const fn new() -> Lazy<T> {
         Lazy {
             lock: SgxThreadMutex::new(),
             ptr: Cell::new(ptr::null_mut()),
-            init: init
         }
     }
+}
 
-    pub fn get(&'static self) -> Option<Arc<T>> {
-        unsafe {
-            let r = self.lock.lock();
-            if r.is_err() {
-                return None;
-            }
-            let ptr = self.ptr.get();
-            let ret = if ptr.is_null() {
-                Some(self.init())
-            } else if ptr as usize == 1 {
-                None
-            } else {
-                Some((*ptr).clone())
-            };
-            self.lock.unlock();
-            return ret
+impl<T: Send + Sync + 'static> Lazy<T> {
+    /// Safety: `init` must not call `get` on the variable that is being
+    /// initialized.
+    pub unsafe fn get(&'static self, init: fn() -> Arc<T>) -> Option<Arc<T>> {
+        let r = self.lock.lock();
+        if r.is_err() {
+            return None;
         }
-    }
-    /*
-    #[cfg(not(feature = "global_exit"))]
-    pub unsafe fn destroy(&'static self) {
-
-        self.lock.lock();
         let ptr = self.ptr.get();
-        if ptr.is_null() || ptr as usize == 1 {
-            self.lock.unlock();
-            return;
-        }
-        self.ptr.set(1 as *mut _);
+        let ret = if ptr.is_null() {
+            Some(self.init(init))
+        } else if ptr == done() {
+            None
+        } else {
+            Some((*ptr).clone())
+        };
         self.lock.unlock();
-        drop(Box::from_raw(ptr))
-    }
-
-    #[cfg(not(feature = "global_exit"))]
-    unsafe fn init(&'static self) -> Arc<T> {
-
-        let ret = (self.init)();
-        self.ptr.set(Box::into_raw(Box::new(ret.clone())));
         ret
     }
-    */
 
-    unsafe fn init(&'static self) -> Arc<T> {
+    // Must only be called with `lock` held
+    unsafe fn init(&'static self, init: fn() -> Arc<T>) -> Arc<T> {
         // If we successfully register an at exit handler, then we cache the
         // `Arc` allocation in our own internal box (it will get deallocated by
         // the at exit handler). Otherwise we just return the freshly allocated
         // `Arc`.
         let registered = sys_common::at_exit(move || {
             self.lock.lock();
-            let ptr = self.ptr.get();
-            if ptr.is_null() || ptr as usize == 1 {
-                self.lock.unlock();
-                return;
-            }
-            self.ptr.set(1 as *mut _);
+            let ptr = self.ptr.replace(done());
             self.lock.unlock();
             drop(Box::from_raw(ptr))
         });
-        let ret = (self.init)();
+        // This could reentrantly call `init` again, which is a problem
+        // because our `lock` allows reentrancy!
+        // That's why `get` is unsafe and requires the caller to ensure no reentrancy happens.
+        let ret = init();
         if registered.is_ok() {
             self.ptr.set(Box::into_raw(Box::new(ret.clone())));
         }
@@ -120,41 +99,40 @@ impl<T: Send + Sync + 'static> Lazy<T> {
 pub struct LazyStatic<T> {
     lock: SgxThreadMutex,
     opt: UnsafeCell<Option<Arc<T>>>,
-    init: fn() -> Arc<T>,
 }
 
 unsafe impl<T> Sync for LazyStatic<T> {}
 
 #[allow(dead_code)]
-impl<T: Send + Sync + 'static> LazyStatic<T> {
-
-    pub const fn new(init: fn() -> Arc<T>) -> LazyStatic<T> {
+impl<T> LazyStatic<T> {
+    pub const fn new() -> LazyStatic<T> {
         LazyStatic {
             lock: SgxThreadMutex::new(),
             opt: UnsafeCell::new(None),
-            init: init
         }
     }
+}
 
-    pub fn get(&'static self) -> Option<Arc<T>> {
-        unsafe {
-            let r = self.lock.lock();
-            if r.is_err() {
-                return None;
-            }
+#[allow(dead_code)]
+impl<T: Send + Sync + 'static> LazyStatic<T> {
 
-            let ret = match *self.opt.get() {
-                Some(ref arc) => Some(arc.clone()),
-                None => Some(self.init()),
-            };
-            self.lock.unlock();
-            ret
+    pub unsafe fn get(&'static self, init: fn() -> Arc<T>) -> Option<Arc<T>> {
+     
+        let r = self.lock.lock();
+        if r.is_err() {
+            return None;
         }
+        let ret = match *self.opt.get() {
+            Some(ref arc) => Some(arc.clone()),
+            None => Some(self.init(init)),
+        };
+        self.lock.unlock();
+        ret
     }
 
-    unsafe fn init(&'static self) -> Arc<T> {
+    unsafe fn init(&'static self, init: fn() -> Arc<T>) -> Arc<T> {
 
-        let ret = (self.init)();
+        let ret = init();
         *self.opt.get() = Some(ret.clone());
         ret
     }

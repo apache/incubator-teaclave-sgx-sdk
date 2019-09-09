@@ -1,6 +1,6 @@
 [package]
 name = "sgx_ucrypto"
-version = "1.0.8"
+version = "1.0.9"
 authors = ["Baidu"]
 repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"
@@ -18,5 +18,5 @@ default = []
 [dependencies]
 sgx_types = { path = "../sgx_types" }
 libc = "0.2"
-rdrand = "0.4"
+rdrand = "0.6"
 rand_core = "0.3"

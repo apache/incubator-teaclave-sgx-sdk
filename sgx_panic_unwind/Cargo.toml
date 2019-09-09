@@ -1,0 +1,16 @@
+[package]
+name = "panic_unwind"
+version = "0.0.0"
+authors = ["Baidu"]
+repository = "https://github.com/baidu/rust-sgx-sdk"
+license-file = "LICENSE"
+documentation = "https://dingelish.github.io/"
+description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
+edition = "2018"
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+sgx_libc = { path = "../sgx_libc" }
+sgx_unwind = { path = "../sgx_unwind" }

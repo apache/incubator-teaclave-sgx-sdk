@@ -1,6 +1,6 @@
 [package]
 name = "sgx_tkey_exchange"
-version = "1.0.8"
+version = "1.0.9"
 authors = ["Baidu"]
 repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"

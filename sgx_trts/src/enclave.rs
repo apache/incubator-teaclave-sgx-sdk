@@ -34,7 +34,7 @@
 use sgx_types::*;
 use sgx_types::metadata::*;
 
-pub const LAYOUT_ENTRY_NUM : usize = 38;
+pub const LAYOUT_ENTRY_NUM : usize = 42;
 
 #[link(name = "sgx_trts")]
 extern {
@@ -50,6 +50,8 @@ struct global_data_t {
     enclave_size: usize,
     heap_offset: usize,
     heap_size: usize,
+    rsrv_offset: usize,
+    rsrv_size: usize,
     thread_policy: usize,
     td_template : thread_data_t,
     tcs_template: [u8;TCS_TEMPLATE_SIZE], // 72

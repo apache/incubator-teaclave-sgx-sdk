@@ -53,7 +53,7 @@ impl Default for Rsa3072KeyPair {
 }
 
 impl fmt::Debug for Rsa3072KeyPair {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, r#"Rsa3072KeyPair: {{ n:{:02X}, d:{:02X}, e:{:02X}, p:{:02X}, q:{:02X}, dmp1:{:02X}, dmq:{:02X}, iqmp:{:02X} }}"#,
             self.n.iter().format(""),
             self.d.iter().format(""),
@@ -164,7 +164,12 @@ impl RsaKeyPair for Rsa3072KeyPair {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
-        let bs_plain = bs - 2 * 256 / 8 - 2;
+        // Additional one byte is required in 1.0.9
+        // let bs_plain = bs - 2 * 256 / 8 - 2;
+        // In 2.6, we need a longer buf to put the decrypted data.
+        // The output length is exactly bs_plain above, but it results in
+        // SGX_ERROR_INVALID_PARAMETER.
+        let bs_plain = bs;
         let count = ciphertext.len() / bs;
         plaintext.clear();
 
@@ -243,7 +248,7 @@ impl Rsa3072PubKey {
 }
 
 impl fmt::Debug for Rsa3072PubKey {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, r#"Rsa3072KeyPair: {{ n:{:02X}, e:{:02X} }}"#,
             self.n.iter().format(""),
             self.e.iter().format(""))

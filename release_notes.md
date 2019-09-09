@@ -1,3 +1,21 @@
+# Rust SGX SDK v1.0.9 Release Notes
+
+**Supports Rust nightly-2019-08-01** in master branch (rustc 1.38.0). Stable branch would be pushed later.
+
+**Supports Intel SGX SDK v2.6**
+
+**New sgx crates** sgx_backtrace, sgx_backtrace_sys, sgx_demangle, sgx_panic_abort, sgx_panic_unwind.
+
+**Removed libbacktrace and new libunwind is in sgx_unwind**
+
+**No longer requires libsgx_tcxx** unless the enclave depends on protected_fs or tse.
+
+**Removed all local third_party crates** We forked everything and maintain them by merge bot. We'll merge the commits periodically, and provide a world map of the forked crates very soon.
+
+**Upgrade Notes** Please update your edl files as well as the common headers. And please adjust the Xargo.toml if your project are using xargo.
+
+**The Apache Incubator** Rust SGX SDK would be soon transferred to the Apache Incubator, as a subproject of MesaTEE. It'll be in a repo like `apache/incubator-rust-sgx-sdk`, while the former link `baidu/rust-sgx-sdk` still works well.
+
 # Rust SGX SDK v1.0.8 Release Notes
 
 **Supports Rust nightly-2019-05-22** in master branch (rustc 1.36.0)

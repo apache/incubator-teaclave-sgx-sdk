@@ -79,7 +79,6 @@ pub const SGX_DH_MAC_SIZE: size_t           = 16;
 pub const SGX_DH_SESSION_DATA_SIZE: size_t  = 200;
 
 impl_copy_clone! {
-
     #[repr(packed)]
     pub struct sgx_dh_msg1_t {
         pub g_a: sgx_ec256_public_t,
@@ -145,7 +144,6 @@ impl_struct_ContiguousMemory! {
 }
 
 impl_enum! {
-
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq)]
     pub enum sgx_dh_session_role_t {
@@ -162,7 +160,6 @@ impl_enum! {
 pub const SGX_FEBITSIZE: uint32_t = 256;
 
 impl_struct!{
-
     #[repr(packed)]
     pub struct ecc_param_t {
         pub eccP: [uint32_t; SGX_NISTP_ECP256_KEY_SIZE],      /* EC prime field */
@@ -213,7 +210,6 @@ pub type sgx_config_svn_t = uint16_t;
 pub type sgx_config_id_t = [uint8_t; SGX_CONFIGID_SIZE];
 
 impl_struct! {
-
     pub struct sgx_cpu_svn_t {
         pub svn: [uint8_t; SGX_CPUSVN_SIZE],
     }
@@ -224,7 +220,6 @@ impl_struct! {
 }
 
 impl_copy_clone! {
-
     pub struct sgx_key_request_t {
         pub key_name: uint16_t,
         pub key_policy: uint16_t,
@@ -256,7 +251,6 @@ pub type sgx_ra_context_t = uint32_t;
 pub type sgx_ra_key_128_t = sgx_key_128bit_t;
 
 impl_enum! {
-
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq)]
     pub enum sgx_ra_key_type_t {
@@ -266,7 +260,6 @@ impl_enum! {
 }
 
 impl_struct! {
-
     pub struct sgx_ra_msg1_t {
         pub g_a: sgx_ec256_public_t,
         pub gid: sgx_epid_group_id_t,
@@ -285,7 +278,6 @@ impl_struct! {
 }
 
 impl_copy_clone! {
-
     pub struct sgx_ra_msg3_t {
         pub mac: sgx_mac_t,
         pub g_a: sgx_ec256_public_t,
@@ -311,7 +303,6 @@ pub type sgx_epid_group_id_t = [uint8_t; 4];
 pub const SGX_PLATFORM_INFO_SIZE: size_t = 101;
 
 impl_struct! {
-
     #[repr(packed)]
     pub struct sgx_spid_t {
         pub id: [uint8_t; 16],
@@ -336,7 +327,6 @@ impl_struct! {
 }
 
 impl_enum! {
-
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq)]
     pub enum sgx_quote_sign_type_t {
@@ -346,17 +336,16 @@ impl_enum! {
 }
 
 impl_copy_clone! {
-
     #[repr(packed)]
     pub struct sgx_quote_t {
         pub version: uint16_t,                    /* 0   */
         pub sign_type: uint16_t,                  /* 2   */
-        pub epid_group_id: sgx_epid_group_id_t,     /* 4   */
-        pub qe_svn: sgx_isv_svn_t,                  /* 8   */
-        pub pce_svn: sgx_isv_svn_t,                 /* 10  */
+        pub epid_group_id: sgx_epid_group_id_t,   /* 4   */
+        pub qe_svn: sgx_isv_svn_t,                /* 8   */
+        pub pce_svn: sgx_isv_svn_t,               /* 10  */
         pub xeid: uint32_t,                       /* 12  */
-        pub basename: sgx_basename_t,               /* 16  */
-        pub report_body: sgx_report_body_t,         /* 48  */
+        pub basename: sgx_basename_t,             /* 16  */
+        pub report_body: sgx_report_body_t,       /* 48  */
         pub signature_len: uint32_t,              /* 432 */
         pub signature: [uint8_t; 0],              /* 436 */
     }
@@ -369,7 +358,7 @@ impl_copy_clone! {
     /* intel sgx sdk 2.5 */
     #[repr(packed)]
     pub struct sgx_att_key_id_t {
-        pub att_key_id: [uint8_t; 158],
+        pub att_key_id: [uint8_t; 256],
     }
 
     #[repr(packed)]
@@ -383,7 +372,7 @@ impl_copy_clone! {
 impl_struct_default! {
     sgx_quote_t, 436;
     sgx_platform_info_t, 101;
-    sgx_att_key_id_t, 158;
+    sgx_att_key_id_t, 256;
     sgx_qe_report_info_t, 960;
 }
 
@@ -411,7 +400,6 @@ pub type sgx_isvext_prod_id_t = [uint8_t; SGX_ISVEXT_PROD_ID_SIZE];
 pub type sgx_isvfamily_id_t = [uint8_t; SGX_ISV_FAMILY_ID_SIZE];
 
 impl_struct! {
-
     pub struct sgx_measurement_t {
         pub m: [uint8_t; SGX_HASH_SIZE],
     }
@@ -420,7 +408,6 @@ impl_struct! {
 pub type sgx_mac_t = [uint8_t; SGX_MAC_SIZE];
 
 impl_copy_clone! {
-
     pub struct sgx_report_data_t {
         pub d: [uint8_t; SGX_REPORT_DATA_SIZE],
     }
@@ -440,8 +427,12 @@ pub const SGX_TARGET_INFO_RESERVED1_BYTES: size_t = 2;
 pub const SGX_TARGET_INFO_RESERVED2_BYTES: size_t = 8;
 pub const SGX_TARGET_INFO_RESERVED3_BYTES: size_t = 384;
 
-impl_copy_clone! {
+pub const SGX_REPORT_BODY_RESERVED1_BYTES: size_t = 12;
+pub const SGX_REPORT_BODY_RESERVED2_BYTES: size_t = 32;
+pub const SGX_REPORT_BODY_RESERVED3_BYTES: size_t = 32;
+pub const SGX_REPORT_BODY_RESERVED4_BYTES: size_t = 42;
 
+impl_copy_clone! {
     pub struct sgx_target_info_t {
         pub mr_enclave: sgx_measurement_t,
         pub attributes: sgx_attributes_t,
@@ -456,18 +447,18 @@ impl_copy_clone! {
     pub struct sgx_report_body_t {
         pub cpu_svn: sgx_cpu_svn_t,
         pub misc_select: sgx_misc_select_t,
-        pub reserved1: [uint8_t; 12],
+        pub reserved1: [uint8_t; SGX_REPORT_BODY_RESERVED1_BYTES],
         pub isv_ext_prod_id: sgx_isvext_prod_id_t,
         pub attributes: sgx_attributes_t,
         pub mr_enclave: sgx_measurement_t,
-        pub reserved2: [uint8_t; 32],
+        pub reserved2: [uint8_t; SGX_REPORT_BODY_RESERVED2_BYTES],
         pub mr_signer: sgx_measurement_t,
-        pub reserved3: [uint8_t; 32],
+        pub reserved3: [uint8_t; SGX_REPORT_BODY_RESERVED3_BYTES],
         pub config_id: sgx_config_id_t,
         pub isv_prod_id: sgx_prod_id_t,
         pub isv_svn: sgx_isv_svn_t,
         pub config_svn: sgx_config_svn_t,
-        pub reserved4: [uint8_t; 42],
+        pub reserved4: [uint8_t; SGX_REPORT_BODY_RESERVED4_BYTES],
         pub isv_family_id: sgx_isvfamily_id_t,
         pub report_data: sgx_report_data_t,
     }
@@ -512,7 +503,6 @@ pub const SGX_MC_UUID_COUNTER_ID_SIZE: size_t    = 3;
 pub const SGX_MC_UUID_NONCE_SIZE: size_t         = 13;
 
 impl_struct! {
-
     #[repr(packed)]
     pub struct sgx_mc_uuid_t {
         pub counter_id: [uint8_t; SGX_MC_UUID_COUNTER_ID_SIZE],
@@ -521,7 +511,6 @@ impl_struct! {
 }
 
 impl_copy_clone! {
-
     #[repr(packed)]
     pub struct sgx_ps_sec_prop_desc_t {
         pub sgx_ps_sec_prop_desc: [uint8_t; 256],
@@ -569,7 +558,6 @@ pub const SGX_RSA3072_PRI_EXP_SIZE: size_t   = 384;
 pub const SGX_RSA3072_PUB_EXP_SIZE: size_t   = 4;
 
 impl_struct! {
-
     pub struct sgx_ec256_dh_shared_t {
         pub s: [uint8_t; SGX_ECP256_KEY_SIZE],
     }
@@ -597,7 +585,6 @@ impl_struct! {
 }
 
 impl_copy_clone! {
-
     pub struct sgx_rsa3072_public_key_t {
         pub modulus: [uint8_t; SGX_RSA3072_KEY_SIZE],
         pub exponent: [uint8_t; SGX_RSA3072_PUB_EXP_SIZE],
@@ -728,7 +715,6 @@ pub type sgx_rsa_key_t = * mut c_void;
 
 /* intel sgx sdk 2.1.3 */
 impl_copy_clone! {
-
     pub struct rsa_params_t {
         pub n: [uint32_t; N_SIZE_IN_UINT],
         pub e: [uint32_t; E_SIZE_IN_UINT],
@@ -814,7 +800,6 @@ pub const SGX_THREAD_RECURSIVE_MUTEX_INITIALIZER: sgx_thread_mutex_t = sgx_threa
 pub const SGX_THREAD_MUTEX_INITIALIZER: sgx_thread_mutex_t = SGX_THREAD_NONRECURSIVE_MUTEX_INITIALIZER;
 
 impl_struct! {
-
     pub struct sgx_thread_mutexattr_t {
         pub m_dummy: c_uchar,
     }
@@ -858,7 +843,6 @@ pub const EXCEPTION_CONTINUE_SEARCH: uint32_t      = 0;
 pub const EXCEPTION_CONTINUE_EXECUTION: uint32_t   = 0xFFFF_FFFF;
 
 impl_enum! {
-
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq)]
     pub enum sgx_exception_vector_t {
@@ -874,7 +858,6 @@ impl_enum! {
 }
 
 impl_enum!{
-
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq)]
     pub enum sgx_exception_type_t {
@@ -929,7 +912,6 @@ cfg_if! {
 }
 
 impl_struct! {
-
     pub struct sgx_exception_info_t {
         pub cpu_context: sgx_cpu_context_t,
         pub exception_vector: sgx_exception_vector_t,
@@ -947,7 +929,6 @@ pub const SGX_SEAL_TAG_SIZE: size_t  = SGX_AESGCM_MAC_SIZE;
 pub const SGX_SEAL_IV_SIZE: size_t   = 12;
 
 impl_struct! {
-
     pub struct sgx_aes_gcm_data_t {
         pub payload_size: uint32_t,
         pub reserved: [uint8_t; 12],
@@ -972,7 +953,6 @@ pub const PS_CAP_TRUSTED_TIME: size_t        = 0x1;
 pub const PS_CAP_MONOTONIC_COUNTER: size_t   = 0x2;
 
 impl_struct! {
-
     pub struct sgx_ps_cap_t {
         pub ps_cap0: uint32_t,
         pub ps_cap1: uint32_t,
@@ -1026,7 +1006,6 @@ pub const _SGX_EX_FEATURES_MASK_: uint32_t = (0xFFFF_FFFF_u32 >> (MAX_EX_FEATURE
 
 /* intel sgx sdk 2.4 */
 impl_copy_clone! {
-
     #[repr(packed)]
     pub struct sgx_kss_config_t {
         pub config_id: sgx_config_id_t,
@@ -1168,3 +1147,210 @@ impl Default for sgx_uswitchless_config_t {
     }
 }
 
+
+//
+// sgx_pce.h
+//
+/* PCE ID for the PCE in this library */
+pub const PCE_ID: uint16_t = 0;
+pub const PCE_ALG_RSA_OAEP_3072: uint8_t = 1;
+pub const PCE_NIST_P256_ECDSA_SHA256: uint8_t = 0;
+
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq)]
+    pub enum sgx_ql_request_policy_t {
+        SGX_QL_PERSISTENT  = 0,  /* QE is initialized on first use and reused until process ends */
+        SGX_QL_EPHEMERAL   = 1,  /* QE is initialized and terminated on every quote. If a previous QE exists, it is stopped & restarted before quoting.*/
+//      SGX_QL_DEFAULT     = 0,
+    }
+}
+
+impl_struct! {
+    #[repr(packed)]
+    pub struct sgx_pce_info_t {
+        pub pce_isv_svn: sgx_isv_svn_t,
+        pub pce_id: uint16_t,
+    }
+}
+
+//
+// sgx_ql_lib_common.h
+//
+
+impl_struct! {
+    #[repr(packed)]
+    pub struct sgx_ql_qe3_id_t {
+        pub id: [uint8_t; 16],
+    }
+}
+
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq)]
+    pub enum sgx_ql_config_version_t {
+        SGX_QL_CONFIG_VERSION_1  = 1,
+    }
+}
+
+#[repr(C)]
+#[repr(packed)]
+pub struct sgx_ql_pck_cert_id_t {
+    pub p_qe3_id: * mut uint8_t,
+    pub qe3_id_size: uint32_t,
+    pub p_platform_cpu_svn: * mut sgx_cpu_svn_t,
+    pub p_platform_pce_isv_svn: * mut sgx_isv_svn_t,
+    pub p_encrypted_ppid: * mut uint8_t,
+    pub encrypted_ppid_size: uint32_t,
+    pub crypto_suite: uint8_t,
+    pub pce_id: uint16_t,
+}
+
+#[repr(C)]
+#[repr(packed)]
+pub struct sgx_ql_config_t {
+    pub version: sgx_ql_config_version_t,
+    pub cert_cpu_svn: sgx_cpu_svn_t,
+    pub cert_pce_isv_svn: sgx_isv_svn_t,
+    pub cert_data_size: uint32_t,
+    pub p_cert_data: * mut uint8_t,
+}
+
+
+//
+// sgx_quote_3.h
+//
+pub const REF_QUOTE_MAX_AUTHENTICATON_DATA_SIZE: uint16_t = 64;
+
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq)]
+    pub enum sgx_ql_attestation_algorithm_id_t {
+        SGX_QL_ALG_EPID         = 0,
+        SGX_QL_ALG_RESERVED_1   = 1,
+        SGX_QL_ALG_ECDSA_P256   = 2,
+        SGX_QL_ALG_ECDSA_P384   = 3,
+        SGX_QL_ALG_MAX          = 4,
+    }
+}
+
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq)]
+    pub enum sgx_ql_cert_key_type_t {
+        PPID_CLEARTEXT          = 1,
+        PPID_RSA2048_ENCRYPTED  = 2,
+        PPID_RSA3072_ENCRYPTED  = 3,
+        PCK_CLEARTEXT           = 4,
+        PCK_CERT_CHAIN          = 5,
+        ECDSA_SIG_AUX_DATA      = 6,
+    }
+}
+
+
+impl_copy_clone! {
+    #[repr(packed)]
+    pub struct sgx_ql_att_key_id_t {
+        pub id: uint16_t,
+        pub version: uint16_t,
+        pub mrsigner_length: uint16_t,
+        pub mrsigner: [uint8_t; 48],
+        pub prod_id: uint32_t,
+        pub extended_prod_id: [uint8_t; 16],
+        pub config_id: [uint8_t; 64],
+        pub family_id: [uint8_t; 16],
+        pub algorithm_id: uint32_t,
+    }
+
+    #[repr(packed)]
+    pub struct sgx_att_key_id_ext_t {
+        pub base: sgx_ql_att_key_id_t,
+        pub spid: [uint8_t; 16],
+        pub att_key_type: uint16_t,
+        pub reserved: [uint8_t; 80],
+    }
+
+    #[repr(packed)]
+    pub struct sgx_ql_ppid_rsa3072_encrypted_cert_info_t {
+        pub enc_ppid: [uint8_t; 384],
+        pub cpu_svn: sgx_cpu_svn_t,
+        pub pce_info: sgx_pce_info_t,
+    }
+}
+
+impl_struct_default! {
+    sgx_ql_att_key_id_t, 158;
+    sgx_att_key_id_ext_t, 256;
+    sgx_ql_ppid_rsa3072_encrypted_cert_info_t, 404;
+}
+
+impl_struct_ContiguousMemory! {
+    sgx_ql_att_key_id_t;
+    sgx_att_key_id_ext_t;
+    sgx_ql_ppid_rsa3072_encrypted_cert_info_t;
+}
+
+impl_struct! {
+    #[repr(packed)]
+    pub struct sgx_ql_auth_data_t {
+        pub size: uint16_t,
+        pub auth_data: [uint8_t; 0],
+    }
+
+    #[repr(packed)]
+    pub struct sgx_ql_certification_data_t {
+        pub cert_key_type: uint16_t,
+        pub size: uint32_t,
+        pub certification_data: [uint8_t; 0],
+    }
+}
+
+impl_copy_clone! {
+    #[repr(packed)]
+    pub struct sgx_ql_ecdsa_sig_data_t {
+        pub sig: [uint8_t; 64],
+        pub attest_pub_key: [uint8_t; 64],
+        pub qe3_report: sgx_report_body_t,
+        pub qe3_report_sig: [uint8_t; 64],
+        pub auth_certification_data: [uint8_t; 0],
+    }
+}
+
+impl_struct_default! {
+    sgx_ql_ecdsa_sig_data_t, 576;
+}
+
+impl_struct_ContiguousMemory! {
+    sgx_ql_ecdsa_sig_data_t;
+}
+
+impl_struct! {
+    #[repr(packed)]
+    pub struct sgx_quote_header_t {
+        pub version: uint16_t,
+        pub att_key_type: uint16_t,
+        pub att_key_data_0: uint32_t,
+        pub qe_svn: sgx_isv_svn_t,
+        pub pce_svn: sgx_isv_svn_t,
+        pub vendor_id: [uint8_t; 16],
+        pub user_data: [uint8_t; 20],
+    }
+}
+
+impl_copy_clone! {
+    #[repr(packed)]
+    pub struct sgx_quote3_t {
+        pub header: sgx_quote_header_t,
+        pub report_body: sgx_report_body_t,
+        pub signature_data_len: uint32_t,
+        pub signature_data: [uint8_t; 0],
+    }
+}
+
+impl_struct_default! {
+    sgx_quote3_t, 436;
+}
+
+impl_struct_ContiguousMemory! {
+    sgx_quote3_t;
+}

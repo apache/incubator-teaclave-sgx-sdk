@@ -35,19 +35,13 @@
 //!
 
 pub use crate::ops::Bound;
-pub use alloc_crate::collections::{BinaryHeap,BTreeMap, BTreeSet};
+pub use alloc_crate::collections::{BinaryHeap, BTreeMap, BTreeSet};
 pub use alloc_crate::collections::{LinkedList, VecDeque};
 pub use alloc_crate::collections::{binary_heap, btree_map, btree_set};
 pub use alloc_crate::collections::{linked_list, vec_deque};
 
 pub use self::hash_map::HashMap;
 pub use self::hash_set::HashSet;
-
-
-/// Range syntax
-pub mod range {
-    pub use crate::ops::RangeBounds as RangeArgument;
-}
 
 pub use alloc_crate::collections::CollectionAllocErr;
 

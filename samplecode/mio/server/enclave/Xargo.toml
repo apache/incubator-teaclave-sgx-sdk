@@ -1,10 +1,16 @@
 [dependencies]
 alloc = {}
-panic_unwind = {}
-panic_abort = {}
 
 [dependencies.sgx_types]
 path = "../../../../sgx_types"
+stage = 1
+
+[dependencies.sgx_demangle]
+path = "../../../../sgx_demangle"
+stage = 1
+
+[dependencies.panic_abort]
+path = "../../../../sgx_panic_abort"
 stage = 1
 
 [dependencies.sgx_libc]
@@ -31,6 +37,10 @@ stage = 2
 path = "../../../../sgx_trts"
 stage = 3
 
+[dependencies.sgx_backtrace_sys]
+path = "../../../../sgx_backtrace_sys"
+stage = 3
+
 [dependencies.sgx_unwind]
 path = "../../../../sgx_unwind"
 stage = 4
@@ -51,22 +61,31 @@ stage = 4
 path = "../../../../sgx_alloc"
 stage = 4
 
+[dependencies.panic_unwind]
+path = "../../../../sgx_panic_unwind"
+stage = 5
+
 [dependencies.std]
 path = "../../../../xargo/sgx_tstd"
 features = ["net"]
-stage = 5
+stage = 6
 
 [dependencies.sgx_rand]
 path = "../../../../sgx_rand"
-stage = 6
+stage = 7
 
 [dependencies.sgx_serialize]
 path = "../../../../sgx_serialize"
-stage = 6
+stage = 7
 
 [dependencies.sgx_tunittest]
 path = "../../../../sgx_tunittest"
-stage = 6
+stage = 7
 
-[patch.crates-io]
-libc = { git = "https://github.com/mesalock-linux/libc-sgx" }
+[dependencies.sgx_backtrace]
+path = "../../../../sgx_backtrace"
+stage = 8
+
+[dependencies.sgx_cov]
+path = "../../../../sgx_cov"
+stage = 8

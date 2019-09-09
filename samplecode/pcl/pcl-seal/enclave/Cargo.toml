@@ -11,12 +11,12 @@ crate-type = ["staticlib"]
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types       = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tstd        = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git", features = ["net"] }
-sgx_tcrypto     = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tse         = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_rand        = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tseal       = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_types       = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tstd        = { git = "https://github.com/baidu/rust-sgx-sdk.git", features = ["net"] }
+sgx_tcrypto     = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tse         = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_rand        = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tseal       = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
 
 [dependencies]
 chrono          = { git = "https://github.com/mesalock-linux/chrono-sgx" }

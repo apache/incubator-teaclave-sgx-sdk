@@ -26,12 +26,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use sgx_trts::libc::{c_int, c_void, ssize_t};
+use sgx_trts::libc::{c_int, c_void, ssize_t, iovec};
 use core::cmp;
 use core::mem;
 use core::sync::atomic::{AtomicBool, Ordering};
-use crate::io::{self, Read};
-use crate::io::{IoSlice, IoSliceMut};
+use crate::io::{self, Read, Initializer, IoSlice, IoSliceMut};
 use crate::sys::cvt;
 use crate::sys_common::AsInner;
 
@@ -58,12 +57,12 @@ fn max_len() -> usize {
 
 impl FileDesc {
     pub fn new(fd: c_int) -> FileDesc {
-        FileDesc { fd: fd }
+        FileDesc { fd }
     }
 
     pub fn raw(&self) -> c_int { self.fd }
 
-    /// Extracts the actual filedescriptor without closing it.
+    /// Extracts the actual file descriptor without closing it.
     pub fn into_raw(self) -> c_int {
         let fd = self.fd;
         mem::forget(self);
@@ -82,7 +81,7 @@ impl FileDesc {
     pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         let ret = cvt(unsafe {
             libc::readv(self.fd,
-                        bufs.as_ptr() as *const libc::iovec,
+                        bufs.as_ptr() as *const iovec,
                         cmp::min(bufs.len(), c_int::max_value() as usize) as c_int)
         })?;
         Ok(ret as usize)
@@ -122,7 +121,7 @@ impl FileDesc {
     pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
         let ret = cvt(unsafe {
             libc::writev(self.fd,
-                         bufs.as_ptr() as *const libc::iovec,
+                         bufs.as_ptr() as *const iovec,
                          cmp::min(bufs.len(), c_int::max_value() as usize) as c_int)
         })?;
         Ok(ret as usize)
@@ -217,6 +216,11 @@ impl<'a> Read for &'a FileDesc {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         (**self).read(buf)
     }
+
+    #[inline]
+    unsafe fn initializer(&self) -> Initializer {
+        Initializer::nop()
+    }
 }
 
 impl AsInner<c_int> for FileDesc {
@@ -236,7 +240,7 @@ impl Drop for FileDesc {
 
 mod libc {
     pub use sgx_trts::libc::*;
-    pub use sgx_trts::libc::ocall::{read, pread64, write, pwrite64,
+    pub use sgx_trts::libc::ocall::{read, pread64, write, pwrite64, readv, writev,
                                     fcntl_arg0, fcntl_arg1, ioctl_arg0, ioctl_arg1,
-                                    close, readv, writev};
+                                    close};
 }

@@ -14,9 +14,9 @@ default = []
 itertools = { version = "*", default-features = false }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tstd = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tservice = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tservice = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
 
 [patch.'https://github.com/baidu/rust-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }

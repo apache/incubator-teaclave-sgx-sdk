@@ -49,12 +49,10 @@
 // initialization closure panics, the Once enters a "poisoned" state which means
 // that all future calls will immediately panic as well.
 //
-// So to implement this, one might first reach for a `StaticMutex`, but those
-// unfortunately need to be deallocated (e.g. call `destroy()`) to free memory
-// on all OSes (some of the BSDs allocate memory for mutexes). It also gets a
-// lot harder with poisoning to figure out when the mutex needs to be
-// deallocated because it's not after the closure finishes, but after the first
-// successful closure finishes.
+// So to implement this, one might first reach for a `Mutex`, but those cannot
+// be put into a `static`. It also gets a lot harder with poisoning to figure
+// out when the mutex needs to be deallocated because it's not after the closure
+// finishes, but after the first successful closure finishes.
 //
 // All in all, this is instead implemented with atomics and lock-free
 // operations! Whee! Each `Once` has one word of atomic state, and this state is
@@ -91,15 +89,16 @@ use crate::thread::{self, SgxThread};
 /// A synchronization primitive which can be used to run a one-time global
 /// initialization. Useful for one-time initialization for FFI or related
 /// functionality. This type can only be constructed with the [`ONCE_INIT`]
-/// value.
+/// value or the equivalent [`Once::new`] constructor.
 ///
 /// [`ONCE_INIT`]: constant.ONCE_INIT.html
+/// [`Once::new`]: struct.Once.html#method.new
 ///
 pub struct Once {
     // This `state` word is actually an encoded version of just a pointer to a
     // `Waiter`, so we add the `PhantomData` appropriately.
     state: AtomicUsize,
-    _marker: marker::PhantomData<* mut Waiter>,
+    _marker: marker::PhantomData<*mut Waiter>,
 }
 
 // The `PhantomData` of a raw pointer removes these two auto traits, but we
@@ -107,8 +106,8 @@ pub struct Once {
 unsafe impl Sync for Once {}
 unsafe impl Send for Once {}
 
-/// State yielded to the [`call_once_force`] method which can be used to query
-/// whether the [`Once`] was previously poisoned or not.
+/// State yielded to [`call_once_force`]’s closure parameter. The state can be
+/// used to query the poison status of the [`Once`].
 ///
 /// [`call_once_force`]: struct.Once.html#method.call_once_force
 /// [`Once`]: struct.Once.html
@@ -138,14 +137,14 @@ const STATE_MASK: usize = 0x3;
 struct Waiter {
     thread: Option<SgxThread>,
     signaled: AtomicBool,
-    next: * mut Waiter,
+    next: *mut Waiter,
 }
 
 // Helper struct used to clean up after a closure call with a `Drop`
 // implementation to also run on panic.
-struct Finish {
+struct Finish<'a> {
     panicked: bool,
-    me: &'static Once,
+    me: &'a Once,
 }
 
 impl Once {
@@ -171,6 +170,10 @@ impl Once {
     /// happens-before relation between the closure and code executing after the
     /// return).
     ///
+    /// If the given closure recursively invokes `call_once` on the same `Once`
+    /// instance the exact behavior is not specified, allowed outcomes are
+    /// a panic or a deadlock.
+    ///
     /// # Panics
     ///
     /// The closure `f` will only be executed once if this is called
@@ -181,10 +184,10 @@ impl Once {
     /// This is similar to [poisoning with mutexes][poison].
     ///
     /// [poison]: struct.Mutex.html#poisoning
-    pub fn call_once<F>(&'static self, f: F) where F: FnOnce() {
-        // Fast path, just see if we've completed initialization.
-        if self.state.load(Ordering::SeqCst) == COMPLETE {
-            return
+    pub fn call_once<F>(&self, f: F) where F: FnOnce() {
+        // Fast path check
+        if self.is_completed() {
+            return;
         }
 
         let mut f = Some(f);
@@ -193,27 +196,50 @@ impl Once {
 
     /// Performs the same function as [`call_once`] except ignores poisoning.
     ///
+    /// Unlike [`call_once`], if this `Once` has been poisoned (i.e., a previous
+    /// call to `call_once` or `call_once_force` caused a panic), calling
+    /// `call_once_force` will still invoke the closure `f` and will _not_
+    /// result in an immediate panic. If `f` panics, the `Once` will remain
+    /// in a poison state. If `f` does _not_ panic, the `Once` will no
+    /// longer be in a poison state and all future calls to `call_once` or
+    /// `call_one_force` will be no-ops.
+    ///
+    /// The closure `f` is yielded a [`OnceState`] structure which can be used
+    /// to query the poison status of the `Once`.
+    ///
     /// [`call_once`]: struct.Once.html#method.call_once
-    ///
-    /// If this `Once` has been poisoned (some initialization panicked) then
-    /// this function will continue to attempt to call initialization functions
-    /// until one of them doesn't panic.
-    ///
-    /// The closure `f` is yielded a [`OnceState`] structure which can be used to query the
-    /// state of this `Once` (whether initialization has previously panicked or
-    /// not).
-    ///
     /// [`OnceState`]: struct.OnceState.html
-    pub fn call_once_force<F>(&'static self, f: F) where F: FnOnce(&OnceState) {
-        // same as above, just with a different parameter to `call_inner`.
-        if self.state.load(Ordering::SeqCst) == COMPLETE {
-            return
+    ///
+    pub fn call_once_force<F>(&self, f: F) where F: FnOnce(&OnceState) {
+        // Fast path check
+        if self.is_completed() {
+            return;
         }
 
         let mut f = Some(f);
         self.call_inner(true, &mut |p| {
             f.take().unwrap()(&OnceState { poisoned: p })
         });
+    }
+
+    /// Returns `true` if some `call_once` call has completed
+    /// successfully. Specifically, `is_completed` will return false in
+    /// the following situations:
+    ///   * `call_once` was not called at all,
+    ///   * `call_once` was called, but has not yet completed,
+    ///   * the `Once` instance is poisoned
+    ///
+    /// It is also possible that immediately after `is_completed`
+    /// returns false, some other thread finishes executing
+    /// `call_once`.
+    ///
+    #[inline]
+    pub fn is_completed(&self) -> bool {
+        // An `Acquire` load is enough because that makes all the initialization
+        // operations visible to us, and, this being a fast path, weaker
+        // ordering helps with performance. This `Acquire` synchronizes with
+        // `SeqCst` operations on the slow path.
+        self.state.load(Ordering::Acquire) == COMPLETE
     }
 
     // This is a non-generic function to reduce the monomorphization cost of
@@ -228,9 +254,13 @@ impl Once {
     // currently no way to take an `FnOnce` and call it via virtual dispatch
     // without some allocation overhead.
     #[cold]
-    fn call_inner(&'static self,
+    fn call_inner(&self,
                   ignore_poisoning: bool,
-                  init: &mut FnMut(bool)) {
+                  init: &mut dyn FnMut(bool)) {
+
+        // This cold path uses SeqCst consistently because the
+        // performance difference really does not matter there, and
+        // SeqCst minimizes the chances of something going wrong.
         let mut state = self.state.load(Ordering::SeqCst);
 
         'outer: loop {
@@ -313,12 +343,12 @@ impl Once {
 }
 
 impl fmt::Debug for Once {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Once { .. }")
     }
 }
 
-impl Drop for Finish {
+impl Drop for Finish<'_> {
     fn drop(&mut self) {
         // Swap out our state with however we finished. We should only ever see
         // an old state which was RUNNING.
@@ -347,12 +377,12 @@ impl Drop for Finish {
 }
 
 impl OnceState {
-    /// Returns whether the associated [`Once`] has been poisoned.
+    /// Returns `true` if the associated [`Once`] was poisoned prior to the
+    /// invocation of the closure passed to [`call_once_force`].
     ///
-    /// Once an initialization routine for a [`Once`] has panicked it will forever
-    /// indicate to future forced initialization routines that it is poisoned.
-    ///
+    /// [`call_once_force`]: struct.Once.html#method.call_once_force
     /// [`Once`]: struct.Once.html
+    ///
     pub fn poisoned(&self) -> bool {
         self.poisoned
     }

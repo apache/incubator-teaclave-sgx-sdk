@@ -81,7 +81,7 @@ impl Iterator for Vars {
 }
 
 impl fmt::Debug for Vars {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Vars { .. }")
     }
 }
@@ -93,7 +93,7 @@ impl Iterator for VarsOs {
 }
 
 impl fmt::Debug for VarsOs {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("VarsOs { .. }")
     }
 }
@@ -145,7 +145,7 @@ pub enum VarError {
 }
 
 impl fmt::Display for VarError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             VarError::NotPresent => write!(f, "environment variable not found"),
             VarError::NotUnicode(ref s) => {
@@ -224,7 +224,7 @@ pub struct SplitPaths<'a> { inner: os_imp::SplitPaths<'a> }
 ///
 /// Returns an iterator over the paths contained in `unparsed`.
 ///
-pub fn split_paths<T: AsRef<OsStr> + ?Sized>(unparsed: &T) -> SplitPaths {
+pub fn split_paths<T: AsRef<OsStr> + ?Sized>(unparsed: &T) -> SplitPaths<'_> {
     SplitPaths { inner: os_imp::split_paths(unparsed.as_ref()) }
 }
 
@@ -234,8 +234,8 @@ impl<'a> Iterator for SplitPaths<'a> {
     fn size_hint(&self) -> (usize, Option<usize>) { self.inner.size_hint() }
 }
 
-impl<'a> fmt::Debug for SplitPaths<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl fmt::Debug for SplitPaths<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("SplitPaths { .. }")
     }
 }
@@ -270,14 +270,17 @@ pub fn join_paths<I, T>(paths: I) -> Result<OsString, JoinPathsError>
 }
 
 impl fmt::Display for JoinPathsError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.inner.fmt(f)
     }
 }
 
 impl Error for JoinPathsError {
-    #[allow(deprecated)]
     fn description(&self) -> &str { self.inner.description() }
+}
+
+pub fn temp_dir() -> PathBuf {
+    os_imp::temp_dir()
 }
 
 /// Constants associated with the current target
@@ -299,7 +302,7 @@ pub mod consts {
     /// - powerpc64
     /// - s390x
     /// - sparc64
-    pub const ARCH: &'static str = super::arch::ARCH;
+    pub const ARCH: &str = super::arch::ARCH;
 
     /// The family of the operating system. Example value is `unix`.
     ///
@@ -307,7 +310,7 @@ pub mod consts {
     ///
     /// - unix
     /// - windows
-    pub const FAMILY: &'static str = os::FAMILY;
+    pub const FAMILY: &str = os::FAMILY;
 
     /// A string describing the specific operating system in use.
     /// Example value is `linux`.
@@ -325,7 +328,7 @@ pub mod consts {
     /// - solaris
     /// - android
     /// - windows
-    pub const OS: &'static str = os::OS;
+    pub const OS: &str = os::OS;
 
     /// Specifies the filename prefix used for shared libraries on this
     /// platform. Example value is `lib`.
@@ -334,7 +337,7 @@ pub mod consts {
     ///
     /// - lib
     /// - `""` (an empty string)
-    pub const DLL_PREFIX: &'static str = os::DLL_PREFIX;
+    pub const DLL_PREFIX: &str = os::DLL_PREFIX;
 
     /// Specifies the filename suffix used for shared libraries on this
     /// platform. Example value is `.so`.
@@ -344,7 +347,7 @@ pub mod consts {
     /// - .so
     /// - .dylib
     /// - .dll
-    pub const DLL_SUFFIX: &'static str = os::DLL_SUFFIX;
+    pub const DLL_SUFFIX: &str = os::DLL_SUFFIX;
 
     /// Specifies the file extension used for shared libraries on this
     /// platform that goes after the dot. Example value is `so`.
@@ -354,7 +357,7 @@ pub mod consts {
     /// - so
     /// - dylib
     /// - dll
-    pub const DLL_EXTENSION: &'static str = os::DLL_EXTENSION;
+    pub const DLL_EXTENSION: &str = os::DLL_EXTENSION;
 
     /// Specifies the filename suffix used for executable binaries on this
     /// platform. Example value is `.exe`.
@@ -365,7 +368,7 @@ pub mod consts {
     /// - .nexe
     /// - .pexe
     /// - `""` (an empty string)
-    pub const EXE_SUFFIX: &'static str = os::EXE_SUFFIX;
+    pub const EXE_SUFFIX: &str = os::EXE_SUFFIX;
 
     /// Specifies the file extension, if any, used for executable binaries
     /// on this platform. Example value is `exe`.
@@ -374,15 +377,15 @@ pub mod consts {
     ///
     /// - exe
     /// - `""` (an empty string)
-    pub const EXE_EXTENSION: &'static str = os::EXE_EXTENSION;
+    pub const EXE_EXTENSION: &str = os::EXE_EXTENSION;
 }
 
 #[cfg(target_arch = "x86")]
 mod arch {
-    pub const ARCH: &'static str = "x86";
+    pub const ARCH: &str = "x86";
 }
 
 #[cfg(target_arch = "x86_64")]
 mod arch {
-    pub const ARCH: &'static str = "x86_64";
+    pub const ARCH: &str = "x86_64";
 }

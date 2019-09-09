@@ -178,7 +178,7 @@ impl SgxFile {
             SeekFrom::Current(off) => (sgx_tprotected_fs::SeekFrom::Current, off),
         };
 
-        r#try!(self.0.seek(offset, whence).map_err(|err| {
+        self.0.seek(offset, whence).map_err(|err| {
             match err {
                 r if r > 4096 => {
                     let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
@@ -186,9 +186,9 @@ impl SgxFile {
                 },
                 _ => Error::from_raw_os_error(err),
             }
-        }));
+        })?;
 
-        let offset = r#try!(self.tell());
+        let offset = self.tell()?;
         Ok(offset as u64)
     }
 

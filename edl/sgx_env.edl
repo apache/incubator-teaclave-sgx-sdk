@@ -36,9 +36,9 @@ enclave {
     };
 
     untrusted {
-        char ** u_env_environ_ocall();
-        char * u_env_getenv_ocall([in, string] const char *name);
-    	int u_env_setenv_ocall([out] int *error, [in, string] const char *name, [in, string] const char *value, int overwrite);
-        int u_env_unsetenv_ocall([out] int *error, [in, string] const char *name);
+        char ** u_environ_ocall();
+        char * u_getenv_ocall([in, string] const char *name);
+        int u_setenv_ocall([out] int *error, [in, string] const char *name, [in, string] const char *value, int overwrite);
+        int u_unsetenv_ocall([out] int *error, [in, string] const char *name);
     };
 };

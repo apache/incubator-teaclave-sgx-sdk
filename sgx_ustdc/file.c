@@ -37,6 +37,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <dirent.h>
 
 int u_open_ocall(int * error, const char * pathname, int flags)
 {
@@ -250,6 +251,69 @@ char *u_realpath_ocall(int *error, const char *pathname)
     char *ret = realpath(pathname, NULL);
     if (error) {
         *error = ret == NULL ? errno : 0;
+    }
+    return ret;
+}
+
+int u_mkdir_ocall(int *error, const char *pathname, mode_t mode)
+{
+    int ret = mkdir(pathname, mode);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+int u_rmdir_ocall(int *error, const char *pathname)
+{
+     int ret = rmdir(pathname);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+void * u_opendir_ocall(int *error, const char *pathname)
+{
+    DIR *ret = opendir(pathname);
+    if (error) {
+        *error = ret == NULL ? errno : 0;
+    }
+    return ret;
+}
+
+int u_readdir64_r_ocall(int *error, DIR *dirp, struct dirent64 *entry, struct dirent64 **result) 
+{
+    int ret = readdir64_r(dirp, entry, result);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+int u_closedir_ocall(int *error, DIR *dirp)
+{
+    int ret = closedir(dirp);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+int u_dirfd_ocall(int *error, DIR *dirp) 
+{
+    int ret = dirfd(dirp);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+int u_fstatat64_ocall(int *error, int dirfd, const char *pathname, struct stat64 *buf, int flags)
+{
+    int ret = fstatat64(dirfd, pathname, buf, flags);
+     if (error) {
+        *error = ret == -1 ? errno : 0;
     }
     return ret;
 }

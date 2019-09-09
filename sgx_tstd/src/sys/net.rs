@@ -31,8 +31,7 @@
 use sgx_trts::libc::{c_int, size_t, c_void};
 use core::mem;
 use core::cmp;
-use crate::io;
-use crate::io::{IoSlice, IoSliceMut};
+use crate::io::{self, IoSlice, IoSliceMut};
 use crate::net::{SocketAddr, Shutdown};
 use crate::sys::fd::FileDesc;
 use crate::sys_common::{AsInner, FromInner, IntoInner};

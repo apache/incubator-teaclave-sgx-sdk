@@ -80,10 +80,12 @@ pub const TCS_NUM_MIN           :u32 = 1;
 pub const SSA_NUM_MIN           :u32 = 2;
 pub const SSA_FRAME_SIZE_MIN    :u32 = 1;
 pub const SSA_FRAME_SIZE_MAX    :u32 = 2;
-pub const STACK_SIZE_MIN        :u32 = 0x2000;
-pub const STACK_SIZE_MAX        :u32 = 0x40000;
-pub const HEAP_SIZE_MIN         :u32 = 0x1000;
-pub const HEAP_SIZE_MAX         :u32 = 0x1000000;
+pub const STACK_SIZE_MIN        :u32 = 0x0002000; /*   8 KB */
+pub const STACK_SIZE_MAX        :u32 = 0x0040000; /* 256 KB */
+pub const HEAP_SIZE_MIN         :u32 = 0x0001000; /*   4 KB */
+pub const HEAP_SIZE_MAX         :u32 = 0x1000000; /*  16 MB */
+pub const RSRV_SIZE_MIN         :u32 = 0x0000000; /*   0 KB */
+pub const RSRV_SIZE_MAX         :u32 = 0x0000000; /*   0 KB */
 pub const DEFAULT_MISC_SELECT   :u32 = 0;
 pub const DEFAULT_MISC_MASK     :u32 = 0xFFFFFFFF;
 pub const ISVFAMILYID_MAX       :u64 = 0xFFFFFFFFFFFFFFFF;
@@ -131,6 +133,9 @@ pub const LAYOUT_ID_SSA_DYN       :u32 = 16;
 pub const LAYOUT_ID_STACK_DYN_MAX :u32 = 17;
 pub const LAYOUT_ID_STACK_DYN_MIN :u32 = 18;
 pub const LAYOUT_ID_THREAD_GROUP_DYN :u32 = group_id!(19);
+pub const LAYOUT_ID_RSRV_MIN      :u32 = 20;
+pub const LAYOUT_ID_RSRV_INIT     :u32 = 21;
+pub const LAYOUT_ID_RSRV_MAX      :u32 = 22;
 
 type si_flags_t = u64;
 

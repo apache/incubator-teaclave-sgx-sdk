@@ -21,9 +21,12 @@ lazy_static = { version = "1.1.0", features = ["spin_no_std"] }
 
 [patch.'https://github.com/baidu/rust-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }
+sgx_backtrace = { path = "../../../sgx_backtrace" }
+sgx_backtrace_sys = { path = "../../../sgx_backtrace_sys" }
 sgx_build_helper = { path = "../../../sgx_build_helper" }
 sgx_cov = { path = "../../../sgx_cov" }
 sgx_crypto_helper = { path = "../../../sgx_crypto_helper" }
+sgx_demangle = { path = "../../../sgx_demangle" }
 sgx_libc = { path = "../../../sgx_libc" }
 sgx_rand = { path = "../../../sgx_rand" }
 sgx_rand_derive = { path = "../../../sgx_rand_derive" }

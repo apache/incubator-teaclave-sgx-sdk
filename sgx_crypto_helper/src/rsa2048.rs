@@ -54,7 +54,7 @@ impl Default for Rsa2048KeyPair {
 }
 
 impl fmt::Debug for Rsa2048KeyPair {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, r#"Rsa2048KeyPair: {{ n:{:02X}, d:{:02X}, e:{:02X}, p:{:02X}, q:{:02X}, dmp1:{:02X}, dmq:{:02X}, iqmp:{:02X} }}"#,
             self.n.iter().format(""),
             self.d.iter().format(""),
@@ -173,7 +173,8 @@ impl RsaKeyPair for Rsa2048KeyPair {
         // #define SHA_SIZE_BIT         256
         // #define RSAOAEP_ENCRYPT_MAXLEN RSA_2048_KEY_BYTE - 2*SHA_SIZE_BIT/8 - 2 /* 190 */
         // RSA_2048_KEY_BYTE - 2*SHA_SIZE_BIT/8 - 2
-        let bs_plain = 256 - 2 * 256 / 8 - 2;
+        //let bs_plain = 256 - 2 * 256 / 8 - 2;
+        let bs_plain = bs;
         let count = ciphertext.len() / bs;
         plaintext.clear();
 
@@ -258,7 +259,7 @@ impl Rsa2048PubKey {
 }
 
 impl fmt::Debug for Rsa2048PubKey {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, r#"Rsa2048KeyPair: {{ n:{:02X}, e:{:02X} }}"#,
             self.n.iter().format(""),
             self.e.iter().format(""))

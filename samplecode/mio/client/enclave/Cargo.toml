@@ -11,7 +11,7 @@ crate-type = ["staticlib"]
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_tstd = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git", features = ["net"] }
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", features = ["net"] }
 
 [dependencies]
 mio = { git = "https://github.com/mesalock-linux/mio-sgx", branch = "v0.6.19_sgx1.0.8" }

@@ -56,7 +56,7 @@ impl SgxTimeError {
 }
 
 impl fmt::Display for SgxTimeError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
            SgxTimeError::TimeStamp(_) => write!(f, "second time provided was later than self"),
            SgxTimeError::TimeSourceChanged => write!(f, "time source does not match"),

@@ -26,6 +26,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use crate::alloc::{AllocErr, LayoutErr, CannotReallocInPlace};
 use core::any::TypeId;
 use core::cell;
 use core::mem::transmute;
@@ -36,19 +37,46 @@ use alloc_crate::str;
 use alloc_crate::string::{self, String};
 use alloc_crate::boxed::Box;
 use alloc_crate::borrow::Cow;
-use alloc_crate::alloc;
 use core::char;
 
-/// Base functionality for all errors in Rust.
+/// `Error` is a trait representing the basic expectations for error values,
+/// i.e., values of type `E` in [`Result<T, E>`]. Errors must describe
+/// themselves through the [`Display`] and [`Debug`] traits, and may provide
+/// cause chain information:
+///
+/// The [`source`] method is generally used when errors cross "abstraction
+/// boundaries". If one module must report an error that is caused by an error
+/// from a lower-level module, it can allow access to that error via the
+/// [`source`] method. This makes it possible for the high-level module to
+/// provide its own errors while also revealing some of the implementation for
+/// debugging via [`source`] chains.
+///
+/// [`Result<T, E>`]: ../result/enum.Result.html
+/// [`Display`]: ../fmt/trait.Display.html
+/// [`Debug`]: ../fmt/trait.Debug.html
+/// [`source`]: trait.Error.html#method.source
 pub trait Error: Debug + Display {
-    /// A short description of the error.
-    #[deprecated]
+    /// **This method is soft-deprecated.**
+    ///
+    /// Although using it won’t cause compilation warning,
+    /// new code should use [`Display`] instead
+    /// and new `impl`s can omit it.
+    ///
+    /// To obtain error description as a string, use `to_string()`.
+    ///
+    /// [`Display`]: ../fmt/trait.Display.html
+    ///
     fn description(&self) -> &str {
         "description() is deprecated; use Display"
     }
 
     /// The lower-level cause of this error, if any.
-    fn cause(&self) -> Option<&Error> { None }
+    fn cause(&self) -> Option<&dyn Error> {
+        self.source()
+    }
+
+    /// The lower-level source of this error, if any.
+    fn source(&self) -> Option<&(dyn Error + 'static)> { None }
 
     /// Get the `TypeId` of `self`
     /// Pending CVE number here
@@ -68,28 +96,38 @@ pub trait Error: Debug + Display {
     ///
     /// Yu: Mark as deprecated for compile-time warning
     #[deprecated]
-    fn type_id(&self) -> TypeId where Self: 'static {
+    fn type_id(&self, _: private::Internal) -> TypeId where Self: 'static {
         TypeId::of::<Self>()
     }
-
-    fn source(&self) -> Option<&(dyn Error + 'static)> { None }
 }
 
-impl<'a, E: Error + 'a> From<E> for Box<Error + 'a> {
-    fn from(err: E) -> Box<Error + 'a> {
+mod private {
+    // This is a hack to prevent `type_id` from being overridden by `Error`
+    // implementations, since that can enable unsound downcasting.
+    #[derive(Debug)]
+    pub struct Internal;
+}
+impl<'a, E: Error + 'a> From<E> for Box<dyn Error + 'a> {
+    /// Converts a type of [`Error`] into a box of dyn [`Error`].
+    ///
+    fn from(err: E) -> Box<dyn Error + 'a> {
         Box::new(err)
     }
 }
 
-impl<'a, E: Error + Send + Sync + 'a> From<E> for Box<Error + Send + Sync + 'a> {
-    fn from(err: E) -> Box<Error + Send + Sync + 'a> {
+impl<'a, E: Error + Send + Sync + 'a> From<E> for Box<dyn Error + Send + Sync + 'a> {
+    /// Converts a type of [`Error`] + [`Send`] + [`Sync`] into a box of dyn [`Error`] +
+    /// [`Send`] + [`Sync`].
+    ///
+    fn from(err: E) -> Box<dyn Error + Send + Sync + 'a> {
         Box::new(err)
     }
 }
 
-impl From<String> for Box<Error + Send + Sync> {
-    fn from(err: String) -> Box<Error + Send + Sync> {
-        #[derive(Debug)]
+impl From<String> for Box<dyn Error + Send + Sync> {
+    /// Converts a [`String`] into a box of dyn [`Error`] + [`Send`] + [`Sync`].
+    ///
+    fn from(err: String) -> Box<dyn Error + Send + Sync> {
         struct StringError(String);
 
         impl Error for StringError {
@@ -97,8 +135,15 @@ impl From<String> for Box<Error + Send + Sync> {
         }
 
         impl Display for StringError {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 Display::fmt(&self.0, f)
+            }
+        }
+
+        // Purposefully skip printing "StringError(..)"
+        impl Debug for StringError {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                Debug::fmt(&self.0, f)
             }
         }
 
@@ -106,34 +151,44 @@ impl From<String> for Box<Error + Send + Sync> {
     }
 }
 
-impl From<String> for Box<Error> {
-    fn from(str_err: String) -> Box<Error> {
-        let err1: Box<Error + Send + Sync> = From::from(str_err);
-        let err2: Box<Error> = err1;
+impl From<String> for Box<dyn Error> {
+    /// Converts a [`String`] into a box of dyn [`Error`].
+    ///
+    fn from(str_err: String) -> Box<dyn Error> {
+        let err1: Box<dyn Error + Send + Sync> = From::from(str_err);
+        let err2: Box<dyn Error> = err1;
         err2
     }
 }
 
-impl<'a, 'b> From<&'b str> for Box<Error + Send + Sync + 'a> {
-    fn from(err: &'b str) -> Box<Error + Send + Sync + 'a> {
+impl<'a> From<&str> for Box<dyn Error + Send + Sync + 'a> {
+    /// Converts a [`str`] into a box of dyn [`Error`] + [`Send`] + [`Sync`].
+    ///
+    fn from(err: &str) -> Box<dyn Error + Send + Sync + 'a> {
         From::from(String::from(err))
     }
 }
 
-impl<'a> From<&'a str> for Box<Error> {
-    fn from(err: &'a str) -> Box<Error> {
+impl From<&str> for Box<dyn Error> {
+    /// Converts a [`str`] into a box of dyn [`Error`].
+    ///
+    fn from(err: &str) -> Box<dyn Error> {
         From::from(String::from(err))
     }
 }
 
-impl<'a, 'b> From<Cow<'b, str>> for Box<Error + Send + Sync + 'a> {
-    fn from(err: Cow<'b, str>) -> Box<Error + Send + Sync + 'a> {
+impl<'a, 'b> From<Cow<'b, str>> for Box<dyn Error + Send + Sync + 'a> {
+    /// Converts a [`Cow`] into a box of dyn [`Error`] + [`Send`] + [`Sync`].
+    ///
+    fn from(err: Cow<'b, str>) -> Box<dyn Error + Send + Sync + 'a> {
         From::from(String::from(err))
     }
 }
 
-impl<'a> From<Cow<'a, str>> for Box<Error> {
-    fn from(err: Cow<'a, str>) -> Box<Error> {
+impl<'a> From<Cow<'a, str>> for Box<dyn Error> {
+    /// Converts a [`Cow`] into a box of dyn [`Error`].
+    ///
+    fn from(err: Cow<'a, str>) -> Box<dyn Error> {
         From::from(String::from(err))
     }
 }
@@ -142,15 +197,21 @@ impl Error for ! {
     fn description(&self) -> &str { *self }
 }
 
-impl Error for alloc::AllocErr {
+impl Error for AllocErr {
     fn description(&self) -> &str {
         "memory allocation failed"
     }
 }
 
-impl Error for alloc::CannotReallocInPlace {
+impl Error for LayoutErr {
     fn description(&self) -> &str {
-        alloc::CannotReallocInPlace::description(self)
+        "invalid parameters to Layout::from_size_align"
+    }
+}
+
+impl Error for CannotReallocInPlace {
+    fn description(&self) -> &str {
+        CannotReallocInPlace::description(self)
     }
 }
 
@@ -213,13 +274,17 @@ impl Error for char::DecodeUtf16Error {
 }
 
 impl<T: Error> Error for Box<T> {
-    #[allow(deprecated)]
     fn description(&self) -> &str {
         Error::description(&**self)
     }
 
-    fn cause(&self) -> Option<&Error> {
+    #[allow(deprecated)]
+    fn cause(&self) -> Option<&dyn Error> {
         Error::cause(&**self)
+    }
+
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Error::source(&**self)
     }
 }
 
@@ -254,7 +319,7 @@ impl Error for char::ParseCharError {
 }
 
 // copied from any.rs
-impl Error + 'static {
+impl dyn Error + 'static {
     /// Returns true if the boxed type is the same as `T`
     #[inline]
     pub fn is<T: Error + 'static>(&self) -> bool {
@@ -262,9 +327,7 @@ impl Error + 'static {
         let t = TypeId::of::<T>();
 
         // Get TypeId of the type in the trait object
-        // Allow type_id here because the impl here is safe
-        #[allow(deprecated)]
-        let boxed = self.type_id();
+        let boxed = self.type_id(private::Internal);
 
         // Compare both TypeIds on equality
         t == boxed
@@ -276,7 +339,7 @@ impl Error + 'static {
     pub fn downcast_ref<T: Error + 'static>(&self) -> Option<&T> {
         if self.is::<T>() {
             unsafe {
-                Some(&*(self as *const Error as *const T))
+                Some(&*(self as *const dyn Error as *const T))
             }
         } else {
             None
@@ -289,7 +352,7 @@ impl Error + 'static {
     pub fn downcast_mut<T: Error + 'static>(&mut self) -> Option<&mut T> {
         if self.is::<T>() {
             unsafe {
-                Some(&mut *(self as *mut Error as *mut T))
+                Some(&mut *(self as *mut dyn Error as *mut T))
             }
         } else {
             None
@@ -297,83 +360,121 @@ impl Error + 'static {
     }
 }
 
-impl Error + 'static + Send {
+impl dyn Error + 'static + Send {
     /// Forwards to the method defined on the type `Any`.
     #[inline]
     pub fn is<T: Error + 'static>(&self) -> bool {
-        <Error + 'static>::is::<T>(self)
+        <dyn Error + 'static>::is::<T>(self)
     }
 
     /// Forwards to the method defined on the type `Any`.
     #[inline]
     pub fn downcast_ref<T: Error + 'static>(&self) -> Option<&T> {
-        <Error + 'static>::downcast_ref::<T>(self)
+        <dyn Error + 'static>::downcast_ref::<T>(self)
     }
 
     /// Forwards to the method defined on the type `Any`.
     #[inline]
     pub fn downcast_mut<T: Error + 'static>(&mut self) -> Option<&mut T> {
-        <Error + 'static>::downcast_mut::<T>(self)
+        <dyn Error + 'static>::downcast_mut::<T>(self)
     }
 }
 
-impl Error + 'static + Send + Sync {
+impl dyn Error + 'static + Send + Sync {
     /// Forwards to the method defined on the type `Any`.
     #[inline]
     pub fn is<T: Error + 'static>(&self) -> bool {
-        <Error + 'static>::is::<T>(self)
+        <dyn Error + 'static>::is::<T>(self)
     }
 
     /// Forwards to the method defined on the type `Any`.
     #[inline]
     pub fn downcast_ref<T: Error + 'static>(&self) -> Option<&T> {
-        <Error + 'static>::downcast_ref::<T>(self)
+        <dyn Error + 'static>::downcast_ref::<T>(self)
     }
 
     /// Forwards to the method defined on the type `Any`.
     #[inline]
     pub fn downcast_mut<T: Error + 'static>(&mut self) -> Option<&mut T> {
-        <Error + 'static>::downcast_mut::<T>(self)
+        <dyn Error + 'static>::downcast_mut::<T>(self)
     }
 }
 
-impl Error {
+impl dyn Error {
     #[inline]
     /// Attempt to downcast the box to a concrete type.
-    pub fn downcast<T: Error + 'static>(self: Box<Self>) -> Result<Box<T>, Box<Error>> {
+    pub fn downcast<T: Error + 'static>(self: Box<Self>) -> Result<Box<T>, Box<dyn Error>> {
         if self.is::<T>() {
             unsafe {
-                let raw: *mut Error = Box::into_raw(self);
+                let raw: *mut dyn Error = Box::into_raw(self);
                 Ok(Box::from_raw(raw as *mut T))
             }
         } else {
             Err(self)
         }
     }
+
+    /// Returns an iterator starting with the current error and continuing with
+    /// recursively calling [`source`].
+    ///
+    #[inline]
+    pub fn iter_chain(&self) -> ErrorIter<'_> {
+        ErrorIter {
+            current: Some(self),
+        }
+    }
+
+    /// Returns an iterator starting with the [`source`] of this error
+    /// and continuing with recursively calling [`source`].
+    ///
+    #[inline]
+    pub fn iter_sources(&self) -> ErrorIter<'_> {
+        ErrorIter {
+            current: self.source(),
+        }
+    }
 }
 
-impl Error + Send {
+/// An iterator over [`Error`]
+///
+/// [`Error`]: trait.Error.html
+#[derive(Copy, Clone, Debug)]
+pub struct ErrorIter<'a> {
+    current: Option<&'a (dyn Error + 'static)>,
+}
+
+impl<'a> Iterator for ErrorIter<'a> {
+    type Item = &'a (dyn Error + 'static);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.current;
+        self.current = self.current.and_then(Error::source);
+        current
+    }
+}
+
+impl dyn Error + Send {
     #[inline]
     /// Attempt to downcast the box to a concrete type.
     pub fn downcast<T: Error + 'static>(self: Box<Self>)
-                                        -> Result<Box<T>, Box<Error + Send>> {
-        let err: Box<Error> = self;
-        <Error>::downcast(err).map_err(|s| unsafe {
+                                        -> Result<Box<T>, Box<dyn Error + Send>> {
+        let err: Box<dyn Error> = self;
+        <dyn Error>::downcast(err).map_err(|s| unsafe {
             // reapply the Send marker
-            transmute::<Box<Error>, Box<Error + Send>>(s)
+            transmute::<Box<dyn Error>, Box<dyn Error + Send>>(s)
         })
     }
 }
 
-impl Error + Send + Sync {
+impl dyn Error + Send + Sync {
     #[inline]
     /// Attempt to downcast the box to a concrete type.
     pub fn downcast<T: Error + 'static>(self: Box<Self>)
                                         -> Result<Box<T>, Box<Self>> {
-        let err: Box<Error> = self;
-        <Error>::downcast(err).map_err(|s| unsafe {
+        let err: Box<dyn Error> = self;
+        <dyn Error>::downcast(err).map_err(|s| unsafe {
             // reapply the Send+Sync marker
-            transmute::<Box<Error>, Box<Error + Send + Sync>>(s)
+            transmute::<Box<dyn Error>, Box<dyn Error + Send + Sync>>(s)
         })
     }
 }

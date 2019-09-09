@@ -32,6 +32,7 @@ use sgx_types::{sgx_thread_t, sgx_thread_self};
 use crate::panicking;
 use crate::sys_common::thread_info;
 use crate::sync::{SgxMutex, SgxCondvar};
+use core::any::Any;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
 use alloc_crate::sync::Arc;
@@ -132,7 +133,8 @@ const NOTIFIED: usize = 2;
 ///   specifying a maximum time to block the thread for.
 ///
 /// * The [`unpark`] method on a [`Thread`] atomically makes the token available
-///   if it wasn't already.
+///   if it wasn't already. Because the token is initially absent, [`unpark`]
+///   followed by [`park`] will result in the second call returning immediately.
 ///
 /// In other words, each [`Thread`] acts a bit like a spinlock that can be
 /// locked and unlocked using `park` and `unpark`.
@@ -339,22 +341,35 @@ impl SgxThread {
     /// used as a more CPU-efficient implementation of a spinlock.
     ///
     pub fn unpark(&self) {
-        loop {
-            match self.inner.state.compare_exchange(EMPTY, NOTIFIED, SeqCst, SeqCst) {
-                Ok(_) => return, // no one was waiting
-                Err(NOTIFIED) => return, // already unparked
-                Err(PARKED) => {} // gotta go wake someone up
-                _ => panic!("inconsistent state in unpark"),
-            }
-
-            // Coordinate wakeup through the mutex and a condvar notification
-            let _lock = self.inner.lock.lock().unwrap();
-            match self.inner.state.compare_exchange(PARKED, NOTIFIED, SeqCst, SeqCst) {
-                Ok(_) => return self.inner.cvar.signal(),
-                Err(NOTIFIED) => return, // a different thread unparked
-                Err(EMPTY) => {} // parked thread went away, try again
-                _ => panic!("inconsistent state in unpark"),
-            }
+        // To ensure the unparked thread will observe any writes we made
+        // before this call, we must perform a release operation that `park`
+        // can synchronize with. To do that we must write `NOTIFIED` even if
+        // `state` is already `NOTIFIED`. That is why this must be a swap
+        // rather than a compare-and-swap that returns if it reads `NOTIFIED`
+        // on failure.
+        match self.inner.state.swap(NOTIFIED, SeqCst) {
+            EMPTY => return, // no one was waiting
+            NOTIFIED => return, // already unparked
+            PARKED => {} // gotta go wake someone up
+            _ => panic!("inconsistent state in unpark"),
         }
+
+        // There is a period between when the parked thread sets `state` to
+        // `PARKED` (or last checked `state` in the case of a spurious wake
+        // up) and when it actually waits on `cvar`. If we were to notify
+        // during this period it would be ignored and then when the parked
+        // thread went to sleep it would never wake up. Fortunately, it has
+        // `lock` locked at this stage so we can acquire `lock` to wait until
+        // it is ready to receive the notification.
+        //
+        // Releasing `lock` before the call to `notify_one` means that when the
+        // parked thread wakes it doesn't get woken only to have to wait for us
+        // to release `lock`.
+        drop(self.inner.lock.lock().unwrap());
+        self.inner.cvar.signal()
     }
 }
+
+/// A specialized [`Result`] type for threads.
+///
+pub type Result<T> = crate::result::Result<T, Box<dyn Any + Send + 'static>>;

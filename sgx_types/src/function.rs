@@ -339,6 +339,16 @@ extern {
                                     p_rsa_key_iqmp: * const uint8_t,
                                     new_pri_key2: * mut * mut c_void) -> sgx_status_t;
 
+
+    /* intel sgx sdk 2.6 */
+    pub fn sgx_create_rsa_priv1_key(n_byte_size: int32_t,
+                                    e_byte_size: int32_t,
+                                    d_byte_size: int32_t,
+                                    le_n: * const uint8_t,
+                                    le_e: * const uint8_t,
+                                    le_d: * const uint8_t,
+                                    new_pri_key1: * mut * mut c_void) -> sgx_status_t;
+
     pub fn sgx_create_rsa_pub1_key(mod_size: int32_t,
                                    exp_size: int32_t,
                                    le_n: * const uint8_t,
@@ -459,8 +469,14 @@ extern {
     pub fn sgx_get_extended_epid_group_id(p_extended_epid_group_id: * mut uint32_t) -> sgx_status_t;
 
     pub fn sgx_report_attestation_status(p_platform_info: * const sgx_platform_info_t,
-                                         attestation_status: i32,
+                                         attestation_status: int32_t,
                                          p_update_info: * mut sgx_update_info_bit_t) -> sgx_status_t;
+
+    /* intel sgx sdk 2.6 */
+    pub fn sgx_check_update_status(p_platform_info: * const sgx_platform_info_t,
+                                   p_update_info: * mut sgx_update_info_bit_t,
+                                   config: uint32_t,
+                                   p_status: * mut uint32_t) -> sgx_status_t;
 
     /* intel sgx sdk 2.1 */
     pub fn sgx_register_wl_cert_chain(p_wl_cert_chain: * const uint8_t,
@@ -469,11 +485,10 @@ extern {
     /* intel sgx sdk 2.5 */
     pub fn sgx_select_att_key_id(p_att_key_id_list: * const uint8_t,
                                  att_key_id_list_size: uint32_t,
-                                 pp_selected_key_id: * mut * mut sgx_att_key_id_t) -> sgx_status_t;
+                                 pp_selected_key_id: * mut sgx_att_key_id_t) -> sgx_status_t;
 
     pub fn sgx_init_quote_ex(p_att_key_id: * const sgx_att_key_id_t,
                              p_qe_target_info: * mut sgx_target_info_t,
-                             refresh_att_key: bool,
                              p_pub_key_id_size: * mut size_t,
                              p_pub_key_id: * mut uint8_t) -> sgx_status_t;
 
@@ -597,25 +612,15 @@ extern {
                      stream: SGX_FILE) -> size_t;
 
     pub fn sgx_ftell(stream: SGX_FILE) -> int64_t;
-
     pub fn sgx_fseek(stream: SGX_FILE, offset: int64_t, origin: c_int) -> int32_t;
-
     pub fn sgx_fflush(stream: SGX_FILE) -> int32_t;
-
     pub fn sgx_ferror(stream: SGX_FILE) -> int32_t;
-
     pub fn sgx_feof(stream: SGX_FILE) -> int32_t;
-
     pub fn sgx_clearerr(stream: SGX_FILE);
-
     pub fn sgx_fclose(stream: SGX_FILE) -> int32_t;
-
     pub fn sgx_remove(filename: * const c_char) -> int32_t;
-
     pub fn sgx_fexport_auto_key(filename: * const c_char, key: * mut sgx_key_128bit_t) -> int32_t;
-
     pub fn sgx_fimport_auto_key(filename: * const c_char, key: * const sgx_key_128bit_t) -> int32_t;
-
     pub fn sgx_fclear_cache(stream: SGX_FILE) -> int32_t;
 }
 
@@ -626,4 +631,44 @@ extern {
     pub fn sgx_is_capable(sgx_capable: * mut int32_t) -> sgx_status_t;
     pub fn sgx_cap_enable_device(sgx_device_status: * mut sgx_device_status_t) -> sgx_status_t;
     pub fn sgx_cap_get_status(sgx_device_status: * mut sgx_device_status_t) -> sgx_status_t;
+}
+
+//#[link(name = "sgx_pce_wrapper")]
+extern {
+
+    //
+    // sgx_pce.h
+    //
+    pub fn sgx_set_pce_enclave_load_policy(policy: sgx_ql_request_policy_t) -> sgx_pce_error_t;
+    pub fn sgx_pce_get_target(p_pce_target: * mut sgx_target_info_t, p_pce_isv_svn: * mut sgx_isv_svn_t) -> sgx_pce_error_t;
+    pub fn sgx_get_pce_info(p_report: * const sgx_report_t,
+                            p_public_key: * const uint8_t,
+                            key_size: uint32_t,
+                            crypto_suite: uint8_t,
+                            p_encrypted_ppid: * mut uint8_t,
+                            encrypted_ppid_buf_size: uint32_t,
+                            p_encrypted_ppid_out_size: * mut uint32_t,
+                            p_pce_isv_svn: * mut sgx_isv_svn_t,
+                            p_pce_id: * mut uint16_t,
+                            p_signature_scheme: * mut uint8_t) -> sgx_pce_error_t;
+    pub fn sgx_pce_sign_report(isv_svn: * const sgx_isv_svn_t,
+                               cpu_svn: * const sgx_cpu_svn_t,
+                               p_report: * const sgx_report_t,
+                               p_signature: * mut uint8_t,
+                               signature_buf_size: uint32_t,
+                               p_signature_out_size: * mut uint32_t) -> sgx_pce_error_t;
+
+}
+
+//#[link(name = "sgx_dcap_ql")]
+extern {
+
+    //
+    // sgx_dcap_ql_wrapper.h
+    //
+    pub fn sgx_qe_set_enclave_load_policy(policy: sgx_ql_request_policy_t) -> sgx_quote3_error_t;
+    pub fn sgx_qe_get_target_info(p_qe_target_info: * mut sgx_target_info_t) -> sgx_quote3_error_t;
+    pub fn sgx_qe_get_quote_size(p_quote_size: * mut uint32_t) -> sgx_quote3_error_t;
+    pub fn sgx_qe_get_quote(p_app_report: * const sgx_report_t, quote_size: uint32_t, p_quote: * mut uint8_t) -> sgx_quote3_error_t;
+    pub fn sgx_qe_cleanup_by_policy() -> sgx_quote3_error_t;
 }

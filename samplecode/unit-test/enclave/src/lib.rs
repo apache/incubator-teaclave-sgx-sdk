@@ -94,6 +94,9 @@ use test_types::*;
 
 mod test_env;
 
+mod test_path;
+use test_path::*;
+
 #[no_mangle]
 pub extern "C"
 fn test_main_entrance() -> size_t {
@@ -162,6 +165,29 @@ fn test_main_entrance() -> size_t {
                      check_metadata_size,
                      check_version,
                      test_env::env_tests,
+                     //path
+                     test_path_stat_is_correct_on_is_dir,
+                     test_path_fileinfo_false_when_checking_is_file_on_a_directory,
+                     test_path_directoryinfo_check_exists_before_and_after_mkdir,
+                     test_path_directoryinfo_readdir,
+                     test_path_mkdir_path_already_exists_error,
+                     test_path_recursive_mkdir,
+                     test_path_recursive_mkdir_failure,
+                     test_path_recursive_mkdir_slash,
+                     test_path_recursive_mkdir_dot,
+                     test_path_recursive_mkdir_empty,
+                     test_path_recursive_rmdir,
+                     test_path_recursive_rmdir_of_symlink,
+                     test_path_unicode_path_is_dir,
+                     test_path_unicode_path_exists,
+                     test_path_copy_file_dst_dir,
+                     test_path_copy_file_src_dir,
+                     test_path_canonicalize_works_simple,
+                     test_path_dir_entry_methods,
+                     test_path_read_dir_not_found,
+                     test_path_mkdir_trailing_slash,
+                     test_path_create_dir_all_with_junctions,
+                     test_path_copy_file_follows_dst_symlink,
                      )
 }
 

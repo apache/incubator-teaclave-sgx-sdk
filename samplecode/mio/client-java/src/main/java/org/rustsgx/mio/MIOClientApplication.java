@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 @SpringBootApplication
 public class MIOClientApplication {
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         System.out.println("This is a mio client application");
 
         SSLHelper.loadCerts("ca.cert");

@@ -11,9 +11,9 @@ crate-type = ["staticlib"]
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_trts = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tstd = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git", features = ["net"] }
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", features = ["net"] }
 
 [dependencies]
 rustls = { git = "https://github.com/mesalock-linux/rustls", branch = "mesalock_sgx" }
@@ -22,9 +22,12 @@ webpki = { git = "https://github.com/mesalock-linux/webpki", branch = "mesalock_
 # Comment out these following lines to use rust-sgx-sdk from git
 [patch.'https://github.com/baidu/rust-sgx-sdk.git']
 sgx_alloc = { path = "../../../../sgx_alloc" }
+sgx_backtrace = { path = "../../../../sgx_backtrace" }
+sgx_backtrace_sys = { path = "../../../../sgx_backtrace_sys" }
 sgx_build_helper = { path = "../../../../sgx_build_helper" }
 sgx_cov = { path = "../../../../sgx_cov" }
 sgx_crypto_helper = { path = "../../../../sgx_crypto_helper" }
+sgx_demangle = { path = "../../../../sgx_demangle" }
 sgx_libc = { path = "../../../../sgx_libc" }
 sgx_rand = { path = "../../../../sgx_rand" }
 sgx_rand_derive = { path = "../../../../sgx_rand_derive" }
@@ -43,6 +46,6 @@ sgx_tservice = { path = "../../../../sgx_tservice" }
 sgx_tstd = { path = "../../../../sgx_tstd" }
 sgx_tunittest = { path = "../../../../sgx_tunittest" }
 sgx_types = { path = "../../../../sgx_types" }
-sgx_ucrypto = { path = "../../../../sgx_ucrypto" }
+#sgx_ucrypto = { path = "../../../../sgx_ucrypto" }
 sgx_unwind = { path = "../../../../sgx_unwind" }
-sgx_urts = { path = "../../../../sgx_urts" }
+#sgx_urts = { path = "../../../../sgx_urts" }

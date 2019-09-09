@@ -117,3 +117,18 @@ impl AsRawFd for io::Stdout {
 impl AsRawFd for io::Stderr {
     fn as_raw_fd(&self) -> RawFd { libc::STDERR_FILENO }
 }
+
+#[cfg(feature = "stdio")]
+impl<'a> AsRawFd for io::StdinLock<'a> {
+    fn as_raw_fd(&self) -> RawFd { libc::STDIN_FILENO }
+}
+
+#[cfg(feature = "stdio")]
+impl<'a> AsRawFd for io::StdoutLock<'a> {
+    fn as_raw_fd(&self) -> RawFd { libc::STDOUT_FILENO }
+}
+
+#[cfg(feature = "stdio")]
+impl<'a> AsRawFd for io::StderrLock<'a> {
+    fn as_raw_fd(&self) -> RawFd { libc::STDERR_FILENO }
+}

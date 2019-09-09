@@ -1,0 +1,10 @@
+
+[package]
+name = "sgx_demangle"
+version = "1.0.9"
+authors = ["Baidu"]
+repository = "https://github.com/baidu/rust-sgx-sdk"
+license-file = "LICENSE"
+documentation = "https://dingelish.github.io/"
+description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
+edition = "2018"

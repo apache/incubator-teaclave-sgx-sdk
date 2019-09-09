@@ -74,7 +74,7 @@ pub struct SplitPaths<'a> {
                     fn(&'a [u8]) -> PathBuf>,
 }
 
-pub fn split_paths(unparsed: &OsStr) -> SplitPaths {
+pub fn split_paths(unparsed: &OsStr) -> SplitPaths<'_> {
     fn bytes_to_path(b: &[u8]) -> PathBuf {
         PathBuf::from(<OsStr as OsStrExt>::from_bytes(b))
     }
@@ -113,7 +113,7 @@ pub fn join_paths<I, T>(paths: I) -> Result<OsString, JoinPathsError>
 }
 
 impl fmt::Display for JoinPathsError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         "path segment contains separator `:`".fmt(f)
     }
 }
@@ -143,13 +143,8 @@ pub fn env() -> Env {
     unsafe {
         ENV_LOCK.lock();
         let mut environ = environ();
-        if environ == ptr::null() {
-            ENV_LOCK.unlock();
-            panic!("os::env() failure getting env string from OS: {}",
-                   io::Error::last_os_error());
-        }
         let mut result = Vec::new();
-        while *environ != ptr::null() {
+        while environ != ptr::null() && *environ != ptr::null() {
             if let Some(key_value) = parse(CStr::from_ptr(*environ).to_bytes()) {
                 result.push(key_value);
             }
@@ -192,7 +187,7 @@ pub fn getenv(k: &OsStr) -> io::Result<Option<OsString>> {
             Some(OsStringExt::from_vec(CStr::from_ptr(s).to_bytes().to_vec()))
         };
         ENV_LOCK.unlock();
-        return Ok(ret)
+        Ok(ret)
     }
 }
 
@@ -204,7 +199,7 @@ pub fn setenv(k: &OsStr, v: &OsStr) -> io::Result<()> {
         ENV_LOCK.lock();
         let ret = cvt(libc::setenv(k.as_ptr(), v.as_ptr(), 1)).map(|_| ());
         ENV_LOCK.unlock();
-        return ret
+        ret
     }
 }
 
@@ -215,8 +210,14 @@ pub fn unsetenv(n: &OsStr) -> io::Result<()> {
         ENV_LOCK.lock();
         let ret = cvt(libc::unsetenv(nbuf.as_ptr())).map(|_| ());
         ENV_LOCK.unlock();
-        return ret
+        ret
     }
+}
+
+pub fn temp_dir() -> PathBuf {
+    crate::env::var_os("TMPDIR").map(PathBuf::from).unwrap_or_else(|| {
+        PathBuf::from("/tmp")
+    })
 }
 
 mod libc {

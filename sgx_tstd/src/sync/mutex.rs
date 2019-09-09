@@ -254,7 +254,7 @@ impl SgxThreadMutexInner {
 
     pub unsafe fn unlock(&mut self) -> SysError {
         let mut thread_waiter = SGX_THREAD_T_NULL;
-        r#try!(self.unlock_lazy(&mut thread_waiter));
+        self.unlock_lazy(&mut thread_waiter)?;
 
         if thread_waiter != SGX_THREAD_T_NULL /* wake the waiter up*/ {
             thread_set_event(SgxThreadData::from_raw(thread_waiter).get_tcs());
@@ -624,7 +624,7 @@ impl<T: ?Sized> SgxMutex<T> {
     ///
     /// This function might panic when called if the lock is already held by
     /// the current thread.
-    pub fn lock(&self) -> LockResult<SgxMutexGuard<T>> {
+    pub fn lock(&self) -> LockResult<SgxMutexGuard<'_, T>> {
         unsafe {
             self.inner.lock();
             SgxMutexGuard::new(self)
@@ -647,7 +647,7 @@ impl<T: ?Sized> SgxMutex<T> {
     /// If another user of this mutex panicked while holding the mutex, then
     /// this call will return failure if the mutex would otherwise be
     /// acquired.
-    pub fn try_lock(&self) -> TryLockResult<SgxMutexGuard<T>> {
+    pub fn try_lock(&self) -> TryLockResult<SgxMutexGuard<'_, T>> {
         unsafe {
             match self.inner.try_lock() {
                 Ok(_) => Ok(SgxMutexGuard::new(self)?),
@@ -690,12 +690,13 @@ impl<T: ?Sized> SgxMutex<T> {
     /// Returns a mutable reference to the underlying data.
     ///
     /// Since this call borrows the `Mutex` mutably, no actual locking needs to
-    /// take place---the mutable borrow statically guarantees no locks exist.
+    /// take place -- the mutable borrow statically guarantees no locks exist.
     ///
     /// # Errors
     ///
     /// If another user of this mutex panicked while holding the mutex, then
     /// this call will return an error instead.
+    ///
     pub fn get_mut(&mut self) -> LockResult<&mut T> {
         let data = unsafe { &mut *self.data.get() };
         poison::map_result(self.poison.borrow(), |_| data)
@@ -729,19 +730,21 @@ impl<T: ?Sized + Default> Default for SgxMutex<T> {
 }
 
 impl<T: ?Sized + fmt::Debug> fmt::Debug for SgxMutex<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.try_lock() {
-            Ok(guard) => f.debug_struct("Mutex").field("data", &&*guard).finish(),
+            Ok(guard) => f.debug_struct("SgxMutex").field("data", &&*guard).finish(),
             Err(TryLockError::Poisoned(err)) => {
-                f.debug_struct("Mutex").field("data", &&**err.get_ref()).finish()
+                f.debug_struct("SgxMutex").field("data", &&**err.get_ref()).finish()
             },
             Err(TryLockError::WouldBlock) => {
                 struct LockedPlaceholder;
                 impl fmt::Debug for LockedPlaceholder {
-                    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { f.write_str("<locked>") }
+                    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                        f.write_str("<locked>")
+                    }
                 }
 
-                f.debug_struct("Mutex").field("data", &LockedPlaceholder).finish()
+                f.debug_struct("SgxMutex").field("data", &LockedPlaceholder).finish()
             }
         }
     }
@@ -761,8 +764,8 @@ pub struct SgxMutexGuard<'a, T: ?Sized + 'a> {
     __poison: poison::Guard,
 }
 
-impl<'a, T: ?Sized> !marker::Send for SgxMutexGuard<'a, T> {}
-unsafe impl<'a, T: ?Sized + Sync> Sync for SgxMutexGuard<'a, T> {}
+impl<T: ?Sized> !Send for SgxMutexGuard<'_, T> {}
+unsafe impl<T: ?Sized + Sync> Sync for SgxMutexGuard<'_, T> {}
 
 impl<'mutex, T: ?Sized> SgxMutexGuard<'mutex, T> {
 
@@ -776,7 +779,7 @@ impl<'mutex, T: ?Sized> SgxMutexGuard<'mutex, T> {
     }
 }
 
-impl<'mutex, T: ?Sized> Deref for SgxMutexGuard<'mutex, T> {
+impl<T: ?Sized> Deref for SgxMutexGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -784,13 +787,13 @@ impl<'mutex, T: ?Sized> Deref for SgxMutexGuard<'mutex, T> {
     }
 }
 
-impl<'mutex, T: ?Sized> DerefMut for SgxMutexGuard<'mutex, T> {
+impl<T: ?Sized> DerefMut for SgxMutexGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.__lock.data.get() }
     }
 }
 
-impl<'a, T: ?Sized> Drop for SgxMutexGuard<'a, T> {
+impl<T: ?Sized> Drop for SgxMutexGuard<'_, T> {
     #[inline]
     fn drop(&mut self) {
         unsafe {
@@ -800,19 +803,18 @@ impl<'a, T: ?Sized> Drop for SgxMutexGuard<'a, T> {
     }
 }
 
-impl<'a, T: ?Sized + fmt::Debug> fmt::Debug for SgxMutexGuard<'a, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("MutexGuard")
-            .field("lock", &self.__lock)
-            .finish()
+impl<T: ?Sized + fmt::Debug> fmt::Debug for SgxMutexGuard<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&**self, f)
     }
 }
 
-impl<'a, T: ?Sized + fmt::Display> fmt::Display for SgxMutexGuard<'a, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl<T: ?Sized + fmt::Display> fmt::Display for SgxMutexGuard<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (**self).fmt(f)
     }
 }
+
 pub fn guard_lock<'a, T: ?Sized>(guard: &SgxMutexGuard<'a, T>) -> &'a SgxThreadMutex {
     &guard.__lock.inner
 }

@@ -14,9 +14,9 @@ default = []
 lto = true
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_tstd = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_types = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_rand = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_rand = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
 
 [dependencies]
 # Choose the instruction set by specifying "fallback", "sse", "avx", "fma"
@@ -26,11 +26,15 @@ sgx_rand = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
 rusty-machine = { git = "https://github.com/mesalock-linux/rusty-machine-sgx", default-features = false, features = ["mesalock_sgx", "fallback"] }
 serde         = { git = "https://github.com/mesalock-linux/serde-sgx" }
 serde_json    = { git = "https://github.com/mesalock-linux/serde-json-sgx" }
+
 [patch.'https://github.com/baidu/rust-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }
+sgx_backtrace = { path = "../../../sgx_backtrace" }
+sgx_backtrace_sys = { path = "../../../sgx_backtrace_sys" }
 sgx_build_helper = { path = "../../../sgx_build_helper" }
 sgx_cov = { path = "../../../sgx_cov" }
 sgx_crypto_helper = { path = "../../../sgx_crypto_helper" }
+sgx_demangle = { path = "../../../sgx_demangle" }
 sgx_libc = { path = "../../../sgx_libc" }
 sgx_rand = { path = "../../../sgx_rand" }
 sgx_rand_derive = { path = "../../../sgx_rand_derive" }
@@ -49,6 +53,6 @@ sgx_tservice = { path = "../../../sgx_tservice" }
 sgx_tstd = { path = "../../../sgx_tstd" }
 sgx_tunittest = { path = "../../../sgx_tunittest" }
 sgx_types = { path = "../../../sgx_types" }
-sgx_ucrypto = { path = "../../../sgx_ucrypto" }
+#sgx_ucrypto = { path = "../../../sgx_ucrypto" }
 sgx_unwind = { path = "../../../sgx_unwind" }
-sgx_urts = { path = "../../../sgx_urts" }
+#sgx_urts = { path = "../../../sgx_urts" }

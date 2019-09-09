@@ -25,6 +25,10 @@ Current wiki pages:
 
 * Everything about [environment setup](https://github.com/baidu/rust-sgx-sdk/wiki/Environment-Setup)
 
+## v1.0.9 Release
+
+Supports Intel SGX SDK v2.6, and Rust nightly-2019-08-01. Bumps everything to edition. Removed third_party directory since we have all of those dependencies forked and maintained with merge bot. Since Intel SGX SDK v2.6 imports some breaking changes in global thread metata, thread local features of v1.0.9 is not works on Intel SGX SDK v2.5. EDL and common headers are changed respectively. For detailed information, please refer to [release_notes](release_notes.md) for more details.
+
 ## v1.0.8 Release
 
 Supports the most recent Rust nightly (nightly-2019-05-22) and Rust stable (stable-2019-05-14). Code coverage support has been added to sgx_cov. Bug fixes in memory allocator and panicking routines. New third party libraries to support kvdb-memorydb. Please refer to [release_notes](release_notes.md) for more details.

@@ -1,6 +1,6 @@
 [package]
 name = "sgx_crypto_helper"
-version = "1.0.8"
+version = "1.0.9"
 authors = ["Baidu"]
 repository = "https://github.com/baidu/rust-sgx-sdk"
 license-file = "LICENSE"
@@ -20,14 +20,14 @@ enclave_cargo = ["sgx_tcrypto"]
 sgx_ucrypto = { path = "../sgx_ucrypto" }
 sgx_tcrypto = { path = "../sgx_tcrypto", optional = true }
 libc = "0.2"
-serde = "*"
-serde_derive = "*"
+serde = "1.0.98"
+serde_derive = "1.0.98"
 sgx_types = { path = "../sgx_types" }
 itertools = "*"
 serde-big-array = "0.1"
 
 [dev-dependencies]
 sgx_ucrypto = { path = "../sgx_ucrypto" }
-rdrand = "0.4"
-rand_core = "*"
+rdrand = "0.6"
+rand_core = "0.4"
 serde_json = "*"

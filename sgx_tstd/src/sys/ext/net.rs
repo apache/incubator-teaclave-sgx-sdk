@@ -26,12 +26,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use core::mem;
+use core::fmt;
 use crate::ascii;
 use crate::ffi::OsStr;
-use crate::fmt;
-use crate::io::{self, Initializer};
-use crate::io::{IoSlice, IoSliceMut};
-use crate::mem;
+use crate::io::{self, Initializer, IoSlice, IoSliceMut};
 use crate::net::{self, Shutdown};
 use crate::os::unix::ffi::OsStrExt;
 use crate::os::unix::io::{RawFd, AsRawFd, FromRawFd, IntoRawFd};
@@ -41,10 +40,9 @@ use crate::sys::{self, cvt};
 use crate::sys::net::Socket;
 use crate::sys_common::{self, AsInner, FromInner, IntoInner};
 
-fn sun_path_offset() -> usize {
+fn sun_path_offset(addr: &libc::sockaddr_un) -> usize {
     // Work with an actual instance of the type since using a null pointer is UB
-    let addr: libc::sockaddr_un = unsafe { mem::uninitialized() };
-    let base = &addr as *const _ as usize;
+    let base = addr as *const _ as usize;
     let path = &addr.sun_path as *const _ as usize;
     path - base
 }
@@ -70,7 +68,7 @@ unsafe fn sockaddr_un(path: &Path) -> io::Result<(libc::sockaddr_un, libc::sockl
     // null byte for pathname addresses is already there because we zeroed the
     // struct
 
-    let mut len = sun_path_offset() + bytes.len();
+    let mut len = sun_path_offset(&addr) + bytes.len();
     match bytes.get(0) {
         Some(&0) | None => {}
         Some(_) => len += 1,
@@ -108,7 +106,7 @@ impl SocketAddr {
         if len == 0 {
             // When there is a datagram from unnamed unix socket
             // linux returns zero bytes of address
-            len = sun_path_offset() as libc::socklen_t;  // i.e. zero-length address
+            len = sun_path_offset(&addr) as libc::socklen_t;  // i.e., zero-length address
         } else if addr.sun_family != libc::AF_UNIX as libc::sa_family_t {
             return Err(io::Error::new(io::ErrorKind::InvalidInput,
                                       "file descriptor did not correspond to a Unix socket"));
@@ -120,7 +118,7 @@ impl SocketAddr {
         })
     }
 
-    /// Returns true if and only if the address is unnamed.
+    /// Returns `true` if the address is unnamed.
     ///
     pub fn is_unnamed(&self) -> bool {
         if let AddressKind::Unnamed = self.address() {
@@ -140,8 +138,8 @@ impl SocketAddr {
         }
     }
 
-    fn address<'a>(&'a self) -> AddressKind<'a> {
-        let len = self.len as usize - sun_path_offset();
+    fn address(&self) -> AddressKind<'_> {
+        let len = self.len as usize - sun_path_offset(&self.addr);
         let path = unsafe { mem::transmute::<&[libc::c_char], &[u8]>(&self.addr.sun_path) };
 
         // macOS seems to return a len of 16 and a zeroed sun_path for unnamed addresses
@@ -157,7 +155,7 @@ impl SocketAddr {
 }
 
 impl fmt::Debug for SocketAddr {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.address() {
             AddressKind::Unnamed => write!(fmt, "(unnamed)"),
             AddressKind::Abstract(name) => write!(fmt, "{} (abstract)", AsciiEscaped(name)),
@@ -169,7 +167,7 @@ impl fmt::Debug for SocketAddr {
 struct AsciiEscaped<'a>(&'a [u8]);
 
 impl<'a> fmt::Display for AsciiEscaped<'a> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(fmt, "\"")?;
         for byte in self.0.iter().cloned().flat_map(ascii::escape_default) {
             write!(fmt, "{}", byte as char)?;
@@ -183,7 +181,7 @@ impl<'a> fmt::Display for AsciiEscaped<'a> {
 pub struct UnixStream(Socket);
 
 impl fmt::Debug for UnixStream {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut builder = fmt.debug_struct("UnixStream");
         builder.field("fd", self.0.as_inner());
         if let Ok(addr) = self.local_addr() {
@@ -250,6 +248,11 @@ impl UnixStream {
     /// indefinitely. An [`Err`] is returned if the zero [`Duration`] is passed to this
     /// method.
     ///
+    /// [`None`]: ../../../../std/option/enum.Option.html#variant.None
+    /// [`Err`]: ../../../../std/result/enum.Result.html#variant.Err
+    /// [`read`]: ../../../../std/io/trait.Read.html#tymethod.read
+    /// [`Duration`]: ../../../../std/time/struct.Duration.html
+    ///
     pub fn set_read_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
         self.0.set_timeout(timeout, libc::SO_RCVTIMEO)
     }
@@ -259,6 +262,11 @@ impl UnixStream {
     /// If the provided value is [`None`], then [`write`] calls will block
     /// indefinitely. An [`Err`] is returned if the zero [`Duration`] is
     /// passed to this method.
+    ///
+    /// [`None`]: ../../../../std/option/enum.Option.html#variant.None
+    /// [`Err`]: ../../../../std/result/enum.Result.html#variant.Err
+    /// [`write`]: ../../../../std/io/trait.Write.html#tymethod.write
+    /// [`Duration`]: ../../../../std/time/struct.Duration.html
     ///
     pub fn set_write_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
         self.0.set_timeout(timeout, libc::SO_SNDTIMEO)
@@ -293,6 +301,8 @@ impl UnixStream {
     /// This function will cause all pending and future I/O calls on the
     /// specified portions to immediately return with an appropriate value
     /// (see the documentation of [`Shutdown`]).
+    ///
+    /// [`Shutdown`]: ../../../../std/net/enum.Shutdown.html
     ///
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
         self.0.shutdown(how)
@@ -431,7 +441,7 @@ impl IntoRawFd for net::UdpSocket {
 pub struct UnixListener(Socket);
 
 impl fmt::Debug for UnixListener {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut builder = fmt.debug_struct("UnixListener");
         builder.field("fd", self.0.as_inner());
         if let Ok(addr) = self.local_addr() {
@@ -506,7 +516,10 @@ impl UnixListener {
     /// The iterator will never return [`None`] and will also not yield the
     /// peer's [`SocketAddr`] structure.
     ///
-    pub fn incoming<'a>(&'a self) -> Incoming<'a> {
+    /// [`None`]: ../../../../std/option/enum.Option.html#variant.None
+    /// [`SocketAddr`]: struct.SocketAddr.html
+    ///
+    pub fn incoming(&self) -> Incoming<'_> {
         Incoming { listener: self }
     }
 }
@@ -542,6 +555,9 @@ impl<'a> IntoIterator for &'a UnixListener {
 ///
 /// It will never return [`None`].
 ///
+/// [`None`]: ../../../../std/option/enum.Option.html#variant.None
+/// [`UnixListener`]: struct.UnixListener.html
+///
 #[derive(Debug)]
 pub struct Incoming<'a> {
     listener: &'a UnixListener,
@@ -564,7 +580,7 @@ impl<'a> Iterator for Incoming<'a> {
 pub struct UnixDatagram(Socket);
 
 impl fmt::Debug for UnixDatagram {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut builder = fmt.debug_struct("UnixDatagram");
         builder.field("fd", self.0.as_inner());
         if let Ok(addr) = self.local_addr() {
@@ -601,7 +617,7 @@ impl UnixDatagram {
         Ok(UnixDatagram(inner))
     }
 
-    /// Create an unnamed pair of connected sockets.
+    /// Creates an unnamed pair of connected sockets.
     ///
     /// Returns two `UnixDatagrams`s which are connected to each other.
     ///
@@ -614,6 +630,10 @@ impl UnixDatagram {
     ///
     /// The [`send`] method may be used to send data to the specified address.
     /// [`recv`] and [`recv_from`] will only receive data from that address.
+    ///
+    /// [`send`]: #method.send
+    /// [`recv`]: #method.recv
+    /// [`recv_from`]: #method.recv_from
     ///
     pub fn connect<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
         fn inner(d: &UnixDatagram, path: &Path) -> io::Result<()> {
@@ -647,6 +667,8 @@ impl UnixDatagram {
     /// Returns the address of this socket's peer.
     ///
     /// The [`connect`] method will connect the socket to a peer.
+    ///
+    /// [`connect`]: #method.connect
     ///
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
         SocketAddr::new(|addr, len| unsafe { libc::getpeername(*self.0.as_inner(), addr, len) })
@@ -726,6 +748,12 @@ impl UnixDatagram {
     /// block indefinitely. An [`Err`] is returned if the zero [`Duration`]
     /// is passed to this method.
     ///
+    /// [`None`]: ../../../../std/option/enum.Option.html#variant.None
+    /// [`Err`]: ../../../../std/result/enum.Result.html#variant.Err
+    /// [`recv`]: #method.recv
+    /// [`recv_from`]: #method.recv_from
+    /// [`Duration`]: ../../../../std/time/struct.Duration.html
+    ///
     pub fn set_read_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
         self.0.set_timeout(timeout, libc::SO_RCVTIMEO)
     }
@@ -735,6 +763,11 @@ impl UnixDatagram {
     /// If the provided value is [`None`], then [`send`] and [`send_to`] calls will
     /// block indefinitely. An [`Err`] is returned if the zero [`Duration`] is passed to this
     /// method.
+    ///
+    /// [`None`]: ../../../../std/option/enum.Option.html#variant.None
+    /// [`send`]: #method.send
+    /// [`send_to`]: #method.send_to
+    /// [`Duration`]: ../../../../std/time/struct.Duration.html
     ///
     pub fn set_write_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
         self.0.set_timeout(timeout, libc::SO_SNDTIMEO)

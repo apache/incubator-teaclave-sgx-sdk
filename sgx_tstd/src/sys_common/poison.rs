@@ -116,13 +116,13 @@ pub type LockResult<Guard> = Result<Guard, PoisonError<Guard>>;
 pub type TryLockResult<Guard> = Result<Guard, TryLockError<Guard>>;
 
 impl<T> fmt::Debug for PoisonError<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         "PoisonError { inner: .. }".fmt(f)
     }
 }
 
 impl<T> fmt::Display for PoisonError<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         "poisoned lock: another task failed inside".fmt(f)
     }
 }
@@ -139,7 +139,7 @@ impl<T> PoisonError<T> {
     /// This is generally created by methods like [`SgxMutex::lock`] or [`SgxRwLock::read`].
     ///
     pub fn new(guard: T) -> PoisonError<T> {
-        PoisonError { guard: guard }
+        PoisonError { guard }
     }
 
     /// Consumes this error indicating that a lock is poisoned, returning the
@@ -165,7 +165,7 @@ impl<T> From<PoisonError<T>> for TryLockError<T> {
 }
 
 impl<T> fmt::Debug for TryLockError<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             TryLockError::Poisoned(..) => "Poisoned(..)".fmt(f),
             TryLockError::WouldBlock => "WouldBlock".fmt(f)
@@ -174,7 +174,7 @@ impl<T> fmt::Debug for TryLockError<T> {
 }
 
 impl<T> fmt::Display for TryLockError<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             TryLockError::Poisoned(..) => "poisoned lock: another task failed inside",
             TryLockError::WouldBlock => "try_lock failed because the operation would block"
@@ -183,7 +183,6 @@ impl<T> fmt::Display for TryLockError<T> {
 }
 
 impl<T> Error for TryLockError<T> {
-    #[allow(deprecated)]
     fn description(&self) -> &str {
         match *self {
             TryLockError::Poisoned(ref p) => p.description(),
@@ -191,13 +190,14 @@ impl<T> Error for TryLockError<T> {
         }
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         match *self {
             TryLockError::Poisoned(ref p) => Some(p),
             _ => None
         }
     }
 }
+
 pub fn map_result<T, U, F>(result: LockResult<T>, f: F)
                            -> LockResult<U>
                            where F: FnOnce(T) -> U {

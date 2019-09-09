@@ -28,9 +28,9 @@
 
 #![allow(missing_copy_implementations)]
 
-use crate::io::{self, Read, Initializer, Write, ErrorKind, BufRead};
+use crate::io::{self, Read, Initializer, Write, ErrorKind, BufRead, IoSlice, IoSliceMut};
 use core::fmt;
-use core::mem;
+use core::mem::MaybeUninit;
 
 /// Copies the entire contents of a reader into a writer.
 ///
@@ -41,6 +41,11 @@ use core::mem;
 /// On success, the total number of bytes that were copied from
 /// `reader` to `writer` is returned.
 ///
+/// If you’re wanting to copy the contents of one file to another and you’re
+/// working with filesystem paths, see the [`fs::copy`] function.
+///
+/// [`fs::copy`]: ../fs/fn.copy.html
+///
 /// # Errors
 ///
 /// This function will return an error immediately if any call to `read` or
@@ -49,21 +54,23 @@ use core::mem;
 pub fn copy<R: ?Sized, W: ?Sized>(reader: &mut R, writer: &mut W) -> io::Result<u64>
     where R: Read, W: Write
 {
-    let mut buf = unsafe {
-        let mut buf: [u8; super::DEFAULT_BUF_SIZE] = mem::uninitialized();
-        reader.initializer().initialize(&mut buf);
-        buf
-    };
+    let mut buf = MaybeUninit::<[u8; super::DEFAULT_BUF_SIZE]>::uninit();
+    // FIXME(#53491): This is calling `get_mut` and `get_ref` on an uninitialized
+    // `MaybeUninit`. Revisit this once we decided whether that is valid or not.
+    // This is still technically undefined behavior due to creating a reference
+    // to uninitialized data, but within libstd we can rely on more guarantees
+    // than if this code were in an external lib.
+    unsafe { reader.initializer().initialize(buf.get_mut()); }
 
     let mut written = 0;
     loop {
-        let len = match reader.read(&mut buf) {
+        let len = match reader.read(unsafe { buf.get_mut() }) {
             Ok(0) => return Ok(written),
             Ok(len) => len,
             Err(ref e) if e.kind() == ErrorKind::Interrupted => continue,
             Err(e) => return Err(e),
         };
-        writer.write_all(&buf[..len])?;
+        writer.write_all(unsafe { &buf.get_ref()[..len] })?;
         written += len as u64;
     }
 }
@@ -78,7 +85,10 @@ pub struct Empty { _priv: () }
 
 /// Constructs a new handle to an empty reader.
 ///
-/// All reads from the returned reader will return `Ok(0)`.
+/// All reads from the returned reader will return [`Ok`]`(0)`.
+///
+/// [`Ok`]: ../result/enum.Result.html#variant.Ok
+///
 pub fn empty() -> Empty { Empty { _priv: () } }
 
 impl Read for Empty {
@@ -99,7 +109,7 @@ impl BufRead for Empty {
 }
 
 impl fmt::Debug for Empty {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Empty { .. }")
     }
 }
@@ -116,7 +126,7 @@ pub struct Repeat { byte: u8 }
 ///
 /// All reads from this reader will succeed by filling the specified buffer with
 /// the given byte.
-pub fn repeat(byte: u8) -> Repeat { Repeat { byte: byte } }
+pub fn repeat(byte: u8) -> Repeat { Repeat { byte } }
 
 impl Read for Repeat {
     #[inline]
@@ -128,13 +138,22 @@ impl Read for Repeat {
     }
 
     #[inline]
+    fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        let mut nwritten = 0;
+        for buf in bufs {
+            nwritten += self.read(buf)?;
+        }
+        Ok(nwritten)
+    }
+
+    #[inline]
     unsafe fn initializer(&self) -> Initializer {
         Initializer::nop()
     }
 }
 
 impl fmt::Debug for Repeat {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Repeat { .. }")
     }
 }
@@ -156,12 +175,19 @@ pub fn sink() -> Sink { Sink { _priv: () } }
 impl Write for Sink {
     #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> { Ok(buf.len()) }
+
+    #[inline]
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        let total_len = bufs.iter().map(|b| b.len()).sum();
+        Ok(total_len)
+    }
+
     #[inline]
     fn flush(&mut self) -> io::Result<()> { Ok(()) }
 }
 
 impl fmt::Debug for Sink {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Sink { .. }")
     }
 }

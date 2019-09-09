@@ -35,8 +35,6 @@ extern crate dirs;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
-extern crate mio;
-
 use std::os::unix::io::{IntoRawFd, AsRawFd};
 use std::fs;
 use std::env;

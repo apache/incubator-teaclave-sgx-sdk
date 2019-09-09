@@ -280,7 +280,7 @@ impl Rand for IsaacRng {
 }
 
 impl fmt::Debug for IsaacRng {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "IsaacRng {{}}")
     }
 }
@@ -529,7 +529,7 @@ impl Rand for Isaac64Rng {
 }
 
 impl fmt::Debug for Isaac64Rng {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Isaac64Rng {{}}")
     }
 }

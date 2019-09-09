@@ -29,13 +29,12 @@
 //! This module provides constants which are specific to the implementation
 //! of the `f32` floating point data type.
 //!
-//! *[See also the `f32` primitive type](../../std/primitive.f32.html).*
-//!
 //! Mathematically significant numbers are provided in the `consts` sub-module.
+//!
 
 #![allow(missing_docs)]
 
-use crate::intrinsics;
+use core::intrinsics;
 use crate::sys::cmath;
 
 pub use core::f32::{RADIX, MANTISSA_DIGITS, DIGITS, EPSILON};
@@ -48,15 +47,6 @@ pub use core::f32::consts;
 impl f32 {
     /// Returns the largest integer less than or equal to a number.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// let f = 3.99_f32;
-    /// let g = 3.0_f32;
-    ///
-    /// assert_eq!(f.floor(), 3.0);
-    /// assert_eq!(g.floor(), 3.0);
-    /// ```
     #[inline]
     pub fn floor(self) -> f32 {
         // On MSVC LLVM will lower many math intrinsics to a call to the
@@ -80,15 +70,6 @@ impl f32 {
 
     /// Returns the smallest integer greater than or equal to a number.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// let f = 3.01_f32;
-    /// let g = 4.0_f32;
-    ///
-    /// assert_eq!(f.ceil(), 4.0);
-    /// assert_eq!(g.ceil(), 4.0);
-    /// ```
     #[inline]
     pub fn ceil(self) -> f32 {
         // see notes above in `floor`
@@ -101,15 +82,6 @@ impl f32 {
     /// Returns the nearest integer to a number. Round half-way cases away from
     /// `0.0`.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// let f = 3.3_f32;
-    /// let g = -3.3_f32;
-    ///
-    /// assert_eq!(f.round(), 3.0);
-    /// assert_eq!(g.round(), -3.0);
-    /// ```
     #[inline]
     pub fn round(self) -> f32 {
         unsafe { intrinsics::roundf32(self) }
@@ -117,15 +89,6 @@ impl f32 {
 
     /// Returns the integer part of a number.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// let f = 3.3_f32;
-    /// let g = -3.7_f32;
-    ///
-    /// assert_eq!(f.trunc(), 3.0);
-    /// assert_eq!(g.trunc(), -3.0);
-    /// ```
     #[inline]
     pub fn trunc(self) -> f32 {
         unsafe { intrinsics::truncf32(self) }
@@ -133,41 +96,12 @@ impl f32 {
 
     /// Returns the fractional part of a number.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let x = 3.5_f32;
-    /// let y = -3.5_f32;
-    /// let abs_difference_x = (x.fract() - 0.5).abs();
-    /// let abs_difference_y = (y.fract() - (-0.5)).abs();
-    ///
-    /// assert!(abs_difference_x <= f32::EPSILON);
-    /// assert!(abs_difference_y <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn fract(self) -> f32 { self - self.trunc() }
 
     /// Computes the absolute value of `self`. Returns `NAN` if the
     /// number is `NAN`.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let x = 3.5_f32;
-    /// let y = -3.5_f32;
-    ///
-    /// let abs_difference_x = (x.abs() - x).abs();
-    /// let abs_difference_y = (y.abs() - (-y)).abs();
-    ///
-    /// assert!(abs_difference_x <= f32::EPSILON);
-    /// assert!(abs_difference_y <= f32::EPSILON);
-    ///
-    /// assert!(f32::NAN.abs().is_nan());
-    /// ```
     #[inline]
     pub fn abs(self) -> f32 {
         unsafe { intrinsics::fabsf32(self) }
@@ -179,25 +113,26 @@ impl f32 {
     /// - `-1.0` if the number is negative, `-0.0` or `NEG_INFINITY`
     /// - `NAN` if the number is `NAN`
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let f = 3.5_f32;
-    ///
-    /// assert_eq!(f.signum(), 1.0);
-    /// assert_eq!(f32::NEG_INFINITY.signum(), -1.0);
-    ///
-    /// assert!(f32::NAN.signum().is_nan());
-    /// ```
     #[inline]
     pub fn signum(self) -> f32 {
         if self.is_nan() {
             NAN
         } else {
-            unsafe { intrinsics::copysignf32(1.0, self) }
+            1.0_f32.copysign(self)
         }
+    }
+
+    /// Returns a number composed of the magnitude of `self` and the sign of
+    /// `sign`.
+    ///
+    /// Equal to `self` if the sign of `self` and `sign` are the same, otherwise
+    /// equal to `-self`. If `self` is a `NAN`, then a `NAN` with the sign of
+    /// `sign` is returned.
+    ///
+    #[inline]
+    #[must_use]
+    pub fn copysign(self, sign: f32) -> f32 {
+        unsafe { intrinsics::copysignf32(self, sign) }
     }
 
     /// Fused multiply-add. Computes `(self * a) + b` with only one rounding
@@ -206,45 +141,20 @@ impl f32 {
     /// Using `mul_add` can be more performant than an unfused multiply-add if
     /// the target architecture has a dedicated `fma` CPU instruction.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let m = 10.0_f32;
-    /// let x = 4.0_f32;
-    /// let b = 60.0_f32;
-    ///
-    /// // 100.0
-    /// let abs_difference = (m.mul_add(x, b) - (m*x + b)).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn mul_add(self, a: f32, b: f32) -> f32 {
         unsafe { intrinsics::fmaf32(self, a, b) }
     }
 
-    /// Calculates Euclidean division, the matching method for `mod_euc`.
+    /// Calculates Euclidean division, the matching method for `rem_euclid`.
     ///
     /// This computes the integer `n` such that
-    /// `self = n * rhs + self.mod_euc(rhs)`.
+    /// `self = n * rhs + self.rem_euclid(rhs)`.
     /// In other words, the result is `self / rhs` rounded to the integer `n`
     /// such that `self >= n * rhs`.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// #![feature(euclidean_division)]
-    /// let a: f32 = 7.0;
-    /// let b = 4.0;
-    /// assert_eq!(a.div_euc(b), 1.0); // 7.0 > 4.0 * 1.0
-    /// assert_eq!((-a).div_euc(b), -2.0); // -7.0 >= 4.0 * -2.0
-    /// assert_eq!(a.div_euc(-b), -1.0); // 7.0 >= -4.0 * -1.0
-    /// assert_eq!((-a).div_euc(-b), 2.0); // -7.0 >= -4.0 * 2.0
-    /// ```
     #[inline]
-    pub fn div_euc(self, rhs: f32) -> f32 {
+    pub fn div_euclid(self, rhs: f32) -> f32 {
         let q = (self / rhs).trunc();
         if self % rhs < 0.0 {
             return if rhs > 0.0 { q - 1.0 } else { q + 1.0 }
@@ -252,23 +162,19 @@ impl f32 {
         q
     }
 
-    /// Calculates the Euclidean modulo (self mod rhs), which is never negative.
+    /// Calculates the least nonnegative remainder of `self (mod rhs)`.
     ///
-    /// In particular, the result `n` satisfies `0 <= n < rhs.abs()`.
+    /// In particular, the return value `r` satisfies `0.0 <= r < rhs.abs()` in
+    /// most cases. However, due to a floating point round-off error it can
+    /// result in `r == rhs.abs()`, violating the mathematical definition, if
+    /// `self` is much smaller than `rhs.abs()` in magnitude and `self < 0.0`.
+    /// This result is not an element of the function's codomain, but it is the
+    /// closest floating point number in the real numbers and thus fulfills the
+    /// property `self == self.div_euclid(rhs) * rhs + self.rem_euclid(rhs)`
+    /// approximatively.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// #![feature(euclidean_division)]
-    /// let a: f32 = 7.0;
-    /// let b = 4.0;
-    /// assert_eq!(a.mod_euc(b), 3.0);
-    /// assert_eq!((-a).mod_euc(b), 1.0);
-    /// assert_eq!(a.mod_euc(-b), 3.0);
-    /// assert_eq!((-a).mod_euc(-b), 1.0);
-    /// ```
     #[inline]
-    pub fn mod_euc(self, rhs: f32) -> f32 {
+    pub fn rem_euclid(self, rhs: f32) -> f32 {
         let r = self % rhs;
         if r < 0.0 {
             r + rhs.abs()
@@ -282,16 +188,6 @@ impl f32 {
     ///
     /// Using this function is generally faster than using `powf`
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let x = 2.0_f32;
-    /// let abs_difference = (x.powi(2) - x*x).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn powi(self, n: i32) -> f32 {
         unsafe { intrinsics::powif32(self, n) }
@@ -299,16 +195,6 @@ impl f32 {
 
     /// Raises a number to a floating point power.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let x = 2.0_f32;
-    /// let abs_difference = (x.powf(2.0) - x*x).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn powf(self, n: f32) -> f32 {
         // see notes above in `floor`
@@ -322,19 +208,6 @@ impl f32 {
     ///
     /// Returns NaN if `self` is a negative number.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let positive = 4.0_f32;
-    /// let negative = -4.0_f32;
-    ///
-    /// let abs_difference = (positive.sqrt() - 2.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// assert!(negative.sqrt().is_nan());
-    /// ```
     #[inline]
     pub fn sqrt(self) -> f32 {
         if self < 0.0 {
@@ -346,20 +219,6 @@ impl f32 {
 
     /// Returns `e^(self)`, (the exponential function).
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let one = 1.0f32;
-    /// // e^1
-    /// let e = one.exp();
-    ///
-    /// // ln(e) - 1 == 0
-    /// let abs_difference = (e.ln() - 1.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn exp(self) -> f32 {
         // see notes above in `floor`
@@ -371,18 +230,6 @@ impl f32 {
 
     /// Returns `2^(self)`.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let f = 2.0f32;
-    ///
-    /// // 2^2 - 4 == 0
-    /// let abs_difference = (f.exp2() - 4.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn exp2(self) -> f32 {
         unsafe { intrinsics::exp2f32(self) }
@@ -390,20 +237,6 @@ impl f32 {
 
     /// Returns the natural logarithm of the number.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let one = 1.0f32;
-    /// // e^1
-    /// let e = one.exp();
-    ///
-    /// // ln(e) - 1 == 0
-    /// let abs_difference = (e.ln() - 1.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn ln(self) -> f32 {
         // see notes above in `floor`
@@ -419,35 +252,11 @@ impl f32 {
     /// `self.log2()` can produce more accurate results for base 2, and
     /// `self.log10()` can produce more accurate results for base 10.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let five = 5.0f32;
-    ///
-    /// // log5(5) - 1 == 0
-    /// let abs_difference = (five.log(5.0) - 1.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn log(self, base: f32) -> f32 { self.ln() / base.ln() }
 
     /// Returns the base 2 logarithm of the number.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let two = 2.0f32;
-    ///
-    /// // log2(2) - 1 == 0
-    /// let abs_difference = (two.log2() - 1.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn log2(self) -> f32 {
         #[cfg(target_os = "android")]
@@ -458,18 +267,6 @@ impl f32 {
 
     /// Returns the base 10 logarithm of the number.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let ten = 10.0f32;
-    ///
-    /// // log10(10) - 1 == 0
-    /// let abs_difference = (ten.log10() - 1.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn log10(self) -> f32 {
         // see notes above in `floor`
@@ -479,20 +276,18 @@ impl f32 {
         return unsafe { intrinsics::log10f32(self) };
     }
 
+    /// The positive difference of two numbers.
+    ///
+    /// * If `self <= other`: `0:0`
+    /// * Else: `self - other`
+    ///
+    #[inline]
+    pub fn abs_sub(self, other: f32) -> f32 {
+        unsafe { cmath::fdimf(self, other) }
+    }
+
     /// Takes the cubic root of a number.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let x = 8.0f32;
-    ///
-    /// // x^(1/3) - 2 == 0
-    /// let abs_difference = (x.cbrt() - 2.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn cbrt(self) -> f32 {
         unsafe { cmath::cbrtf(self) }
@@ -501,19 +296,6 @@ impl f32 {
     /// Calculates the length of the hypotenuse of a right-angle triangle given
     /// legs of length `x` and `y`.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let x = 2.0f32;
-    /// let y = 3.0f32;
-    ///
-    /// // sqrt(x^2 + y^2)
-    /// let abs_difference = (x.hypot(y) - (x.powi(2) + y.powi(2)).sqrt()).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn hypot(self, other: f32) -> f32 {
         unsafe { cmath::hypotf(self, other) }
@@ -521,17 +303,6 @@ impl f32 {
 
     /// Computes the sine of a number (in radians).
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let x = f32::consts::PI/2.0;
-    ///
-    /// let abs_difference = (x.sin() - 1.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn sin(self) -> f32 {
         // see notes in `core::f32::Float::floor`
@@ -543,17 +314,6 @@ impl f32 {
 
     /// Computes the cosine of a number (in radians).
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let x = 2.0*f32::consts::PI;
-    ///
-    /// let abs_difference = (x.cos() - 1.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn cos(self) -> f32 {
         // see notes in `core::f32::Float::floor`
@@ -565,16 +325,6 @@ impl f32 {
 
     /// Computes the tangent of a number (in radians).
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let x = f32::consts::PI / 4.0;
-    /// let abs_difference = (x.tan() - 1.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn tan(self) -> f32 {
         unsafe { cmath::tanf(self) }
@@ -584,18 +334,6 @@ impl f32 {
     /// the range [-pi/2, pi/2] or NaN if the number is outside the range
     /// [-1, 1].
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let f = f32::consts::PI / 2.0;
-    ///
-    /// // asin(sin(pi/2))
-    /// let abs_difference = (f.sin().asin() - f32::consts::PI / 2.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn asin(self) -> f32 {
         unsafe { cmath::asinf(self) }
@@ -605,18 +343,6 @@ impl f32 {
     /// the range [0, pi] or NaN if the number is outside the range
     /// [-1, 1].
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let f = f32::consts::PI / 4.0;
-    ///
-    /// // acos(cos(pi/4))
-    /// let abs_difference = (f.cos().acos() - f32::consts::PI / 4.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn acos(self) -> f32 {
         unsafe { cmath::acosf(self) }
@@ -625,18 +351,6 @@ impl f32 {
     /// Computes the arctangent of a number. Return value is in radians in the
     /// range [-pi/2, pi/2];
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let f = 1.0f32;
-    ///
-    /// // atan(tan(1))
-    /// let abs_difference = (f.tan().atan() - 1.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn atan(self) -> f32 {
         unsafe { cmath::atanf(self) }
@@ -649,28 +363,6 @@ impl f32 {
     /// * `y >= 0`: `arctan(y/x) + pi` -> `(pi/2, pi]`
     /// * `y < 0`: `arctan(y/x) - pi` -> `(-pi, -pi/2)`
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let pi = f32::consts::PI;
-    /// // Positive angles measured counter-clockwise
-    /// // from positive x axis
-    /// // -pi/4 radians (45 deg clockwise)
-    /// let x1 = 3.0f32;
-    /// let y1 = -3.0f32;
-    ///
-    /// // 3pi/4 radians (135 deg counter-clockwise)
-    /// let x2 = -3.0f32;
-    /// let y2 = 3.0f32;
-    ///
-    /// let abs_difference_1 = (y1.atan2(x1) - (-pi/4.0)).abs();
-    /// let abs_difference_2 = (y2.atan2(x2) - 3.0*pi/4.0).abs();
-    ///
-    /// assert!(abs_difference_1 <= f32::EPSILON);
-    /// assert!(abs_difference_2 <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn atan2(self, other: f32) -> f32 {
         unsafe { cmath::atan2f(self, other) }
@@ -679,20 +371,6 @@ impl f32 {
     /// Simultaneously computes the sine and cosine of the number, `x`. Returns
     /// `(sin(x), cos(x))`.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let x = f32::consts::PI/4.0;
-    /// let f = x.sin_cos();
-    ///
-    /// let abs_difference_0 = (f.0 - x.sin()).abs();
-    /// let abs_difference_1 = (f.1 - x.cos()).abs();
-    ///
-    /// assert!(abs_difference_0 <= f32::EPSILON);
-    /// assert!(abs_difference_1 <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn sin_cos(self) -> (f32, f32) {
         (self.sin(), self.cos())
@@ -701,18 +379,6 @@ impl f32 {
     /// Returns `e^(self) - 1` in a way that is accurate even if the
     /// number is close to zero.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let x = 6.0f32;
-    ///
-    /// // e^(ln(6)) - 1
-    /// let abs_difference = (x.ln().exp_m1() - 5.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn exp_m1(self) -> f32 {
         unsafe { cmath::expm1f(self) }
@@ -721,18 +387,6 @@ impl f32 {
     /// Returns `ln(1+n)` (natural logarithm) more accurately than if
     /// the operations were performed separately.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let x = f32::consts::E - 1.0;
-    ///
-    /// // ln(1 + (e - 1)) == ln(e) == 1
-    /// let abs_difference = (x.ln_1p() - 1.0).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn ln_1p(self) -> f32 {
         unsafe { cmath::log1pf(self) }
@@ -740,21 +394,6 @@ impl f32 {
 
     /// Hyperbolic sine function.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let e = f32::consts::E;
-    /// let x = 1.0f32;
-    ///
-    /// let f = x.sinh();
-    /// // Solving sinh() at 1 gives `(e^2-1)/(2e)`
-    /// let g = (e*e - 1.0)/(2.0*e);
-    /// let abs_difference = (f - g).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn sinh(self) -> f32 {
         unsafe { cmath::sinhf(self) }
@@ -762,21 +401,6 @@ impl f32 {
 
     /// Hyperbolic cosine function.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let e = f32::consts::E;
-    /// let x = 1.0f32;
-    /// let f = x.cosh();
-    /// // Solving cosh() at 1 gives this result
-    /// let g = (e*e + 1.0)/(2.0*e);
-    /// let abs_difference = (f - g).abs();
-    ///
-    /// // Same result
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn cosh(self) -> f32 {
         unsafe { cmath::coshf(self) }
@@ -784,21 +408,6 @@ impl f32 {
 
     /// Hyperbolic tangent function.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let e = f32::consts::E;
-    /// let x = 1.0f32;
-    ///
-    /// let f = x.tanh();
-    /// // Solving tanh() at 1 gives `(1 - e^(-2))/(1 + e^(-2))`
-    /// let g = (1.0 - e.powi(-2))/(1.0 + e.powi(-2));
-    /// let abs_difference = (f - g).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn tanh(self) -> f32 {
         unsafe { cmath::tanhf(self) }
@@ -806,18 +415,6 @@ impl f32 {
 
     /// Inverse hyperbolic sine function.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let x = 1.0f32;
-    /// let f = x.sinh().asinh();
-    ///
-    /// let abs_difference = (f - x).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn asinh(self) -> f32 {
         if self == NEG_INFINITY {
@@ -829,42 +426,39 @@ impl f32 {
 
     /// Inverse hyperbolic cosine function.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let x = 1.0f32;
-    /// let f = x.cosh().acosh();
-    ///
-    /// let abs_difference = (f - x).abs();
-    ///
-    /// assert!(abs_difference <= f32::EPSILON);
-    /// ```
     #[inline]
     pub fn acosh(self) -> f32 {
         match self {
-            x if x < 1.0 => core::f32::NAN,
+            x if x < 1.0 => crate::f32::NAN,
             x => (x + ((x * x) - 1.0).sqrt()).ln(),
         }
     }
 
     /// Inverse hyperbolic tangent function.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::f32;
-    ///
-    /// let e = f32::consts::E;
-    /// let f = e.tanh().atanh();
-    ///
-    /// let abs_difference = (f - e).abs();
-    ///
-    /// assert!(abs_difference <= 1e-5);
-    /// ```
     #[inline]
     pub fn atanh(self) -> f32 {
         0.5 * ((2.0 * self) / (1.0 - self)).ln_1p()
+    }
+
+    /// Restrict a value to a certain interval unless it is NaN.
+    ///
+    /// Returns `max` if `self` is greater than `max`, and `min` if `self` is
+    /// less than `min`. Otherwise this returns `self`.
+    ///
+    /// Not that this function returns NaN if the initial value was NaN as
+    /// well.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `min > max`, `min` is NaN, or `max` is NaN.
+    ///
+    #[inline]
+    pub fn clamp(self, min: f32, max: f32) -> f32 {
+        assert!(min <= max);
+        let mut x = self;
+        if x < min { x = min; }
+        if x > max { x = max; }
+        x
     }
 }

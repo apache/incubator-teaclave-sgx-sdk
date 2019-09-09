@@ -260,13 +260,11 @@ pub struct SgxReentrantMutexGuard<'a, T: 'a> {
     __poison: poison::Guard,
 }
 
-impl<'a, T> !marker::Send for SgxReentrantMutexGuard<'a, T> {}
-
+impl<T> !Send for SgxReentrantMutexGuard<'_, T> {}
 
 impl<T> SgxReentrantMutex<T> {
     /// Creates a new reentrant mutex in an unlocked state.
     pub fn new(t: T) -> SgxReentrantMutex<T> {
-
         SgxReentrantMutex{
             inner: Box::new(SgxReentrantThreadMutex::new()),
             poison: poison::Flag::new(),
@@ -286,7 +284,7 @@ impl<T> SgxReentrantMutex<T> {
     /// If another user of this mutex panicked while holding the mutex, then
     /// this call will return failure if the mutex would otherwise be
     /// acquired.
-    pub fn lock(&self) -> LockResult<SgxReentrantMutexGuard<T>> {
+    pub fn lock(&self) -> LockResult<SgxReentrantMutexGuard<'_, T>> {
         unsafe { self.inner.lock(); }
         SgxReentrantMutexGuard::new(&self)
     }
@@ -303,8 +301,7 @@ impl<T> SgxReentrantMutex<T> {
     /// If another user of this mutex panicked while holding the mutex, then
     /// this call will return failure if the mutex would otherwise be
     /// acquired.
-    pub fn try_lock(&self) -> TryLockResult<SgxReentrantMutexGuard<T>> {
-
+    pub fn try_lock(&self) -> TryLockResult<SgxReentrantMutexGuard<'_, T>> {
         match unsafe { self.inner.try_lock() } {
             Ok(_) => Ok(SgxReentrantMutexGuard::new(&self)?),
             Err(_) => Err(TryLockError::WouldBlock),
@@ -322,27 +319,28 @@ impl<T> Drop for SgxReentrantMutex<T> {
 }
 
 impl<T: fmt::Debug + 'static> fmt::Debug for SgxReentrantMutex<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.try_lock() {
-            Ok(guard) => f.debug_struct("ReentrantMutex").field("data", &*guard).finish(),
+            Ok(guard) => f.debug_struct("SgxReentrantMutex").field("data", &*guard).finish(),
             Err(TryLockError::Poisoned(err)) => {
-                f.debug_struct("ReentrantMutex").field("data", &**err.get_ref()).finish()
+                f.debug_struct("SgxReentrantMutex").field("data", &**err.get_ref()).finish()
             },
             Err(TryLockError::WouldBlock) => {
                 struct LockedPlaceholder;
                 impl fmt::Debug for LockedPlaceholder {
-                    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { f.write_str("<locked>") }
+                    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                        f.write_str("<locked>")
+                    }
                 }
 
-                f.debug_struct("ReentrantMutex").field("data", &LockedPlaceholder).finish()
+                f.debug_struct("SgxReentrantMutex").field("data", &LockedPlaceholder).finish()
             }
         }
     }
 }
 
 impl<'mutex, T> SgxReentrantMutexGuard<'mutex, T> {
-    fn new(lock: &'mutex SgxReentrantMutex<T>)
-            -> LockResult<SgxReentrantMutexGuard<'mutex, T>> {
+    fn new(lock: &'mutex SgxReentrantMutex<T>) -> LockResult<SgxReentrantMutexGuard<'mutex, T>> {
         poison::map_result(lock.poison.borrow(), |guard| {
             SgxReentrantMutexGuard {
                 __lock: lock,
@@ -352,7 +350,7 @@ impl<'mutex, T> SgxReentrantMutexGuard<'mutex, T> {
     }
 }
 
-impl<'mutex, T> Deref for SgxReentrantMutexGuard<'mutex, T> {
+impl<T> Deref for SgxReentrantMutexGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -360,12 +358,24 @@ impl<'mutex, T> Deref for SgxReentrantMutexGuard<'mutex, T> {
     }
 }
 
-impl<'a, T> Drop for SgxReentrantMutexGuard<'a, T> {
+impl<T> Drop for SgxReentrantMutexGuard<'_, T> {
     #[inline]
     fn drop(&mut self) {
         unsafe {
             self.__lock.poison.done(&self.__poison);
             self.__lock.inner.unlock();
         }
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for SgxReentrantMutexGuard<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&**self, f)
+    }
+}
+
+impl<T: fmt::Display> fmt::Display for SgxReentrantMutexGuard<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (**self).fmt(f)
     }
 }

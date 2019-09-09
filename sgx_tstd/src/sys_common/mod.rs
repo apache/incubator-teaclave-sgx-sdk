@@ -27,6 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 pub mod at_exit_imp;
+pub mod os_str_bytes;
 #[cfg(feature = "backtrace")]
 pub mod backtrace;
 #[cfg(feature = "backtrace")]
@@ -35,10 +36,34 @@ pub mod io;
 pub mod memchr;
 pub mod poison;
 pub mod thread_info;
+pub mod util;
 pub mod wtf8;
 #[cfg(feature = "net")]
 pub mod net;
 pub mod bytestring;
+pub mod fs;
+
+macro_rules! rtabort {
+    ($($t:tt)*) => (crate::sys_common::util::abort(format_args!($($t)*)))
+}
+
+#[allow(unused_macros)]
+macro_rules! rtassert {
+    ($e:expr) => (if !$e {
+        rtabort!(concat!("assertion failed: ", stringify!($e)));
+    })
+}
+
+#[allow(unused_macros)] // not used on all platforms
+macro_rules! rtunwrap {
+    ($ok:ident, $e:expr) => (match $e {
+        $ok(v) => v,
+        ref err => {
+            let err = err.as_ref().map(|_|()); // map Ok/Some which might not be Debug
+            rtabort!(concat!("unwrap failed: ", stringify!($e), " = {:?}"), err)
+        },
+    })
+}
 
 /// A trait for viewing representations from std types
 #[doc(hidden)]

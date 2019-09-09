@@ -27,6 +27,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_trts::libc;
+use sgx_backtrace_sys::{
+    backtrace_syminfo_callback, 
+    backtrace_full_callback, 
+    backtrace_error_callback, 
+    backtrace_state,
+    backtrace_create_state,
+    backtrace_syminfo,
+    backtrace_pcinfo};
 use crate::ffi::CStr;
 use crate::io;
 use crate::sys::backtrace::BacktraceContext;
@@ -46,7 +54,7 @@ where F: FnMut(&[u8], u32) -> io::Result<()>
     let mut fileline_buf = [(ptr::null(), !0); FILELINE_SIZE];
     let ret;
     let fileline_count = {
-        let state = unsafe { r#try!(__init_state()) };
+        let state = unsafe { (__init_state())? };
         if state.is_null() {
             ret = -1;
             0
@@ -82,7 +90,7 @@ pub fn resolve_symname<F>(frame: Frame,
     where F: FnOnce(Option<&str>) -> io::Result<()>
 {
     let symname = {
-        let state = unsafe { r#try!(__init_state()) };
+        let state = unsafe { __init_state()? };
         if state.is_null() {
             None
         } else {
@@ -109,45 +117,6 @@ pub fn resolve_symname<F>(frame: Frame,
 
 pub fn init_state() -> io::Result<()> {
     unsafe { __init_state().map(|_|()) }
-}
-
-////////////////////////////////////////////////////////////////////////
-// libbacktrace.h API
-////////////////////////////////////////////////////////////////////////
-type backtrace_syminfo_callback =
-extern "C" fn(data: *mut libc::c_void,
-              pc: libc::uintptr_t,
-              symname: *const libc::c_char,
-              symval: libc::uintptr_t,
-              symsize: libc::uintptr_t);
-type backtrace_full_callback =
-extern "C" fn(data: *mut libc::c_void,
-              pc: libc::uintptr_t,
-              filename: *const libc::c_char,
-              lineno: libc::c_int,
-              function: *const libc::c_char) -> libc::c_int;
-type backtrace_error_callback =
-extern "C" fn(data: *mut libc::c_void,
-              msg: *const libc::c_char,
-              errnum: libc::c_int);
-enum backtrace_state {}
-
-extern {
-    fn backtrace_create_state(filename: *const libc::c_char,
-                              threaded: libc::c_int,
-                              error: backtrace_error_callback,
-                              data: *mut libc::c_void)
-        -> *mut backtrace_state;
-    fn backtrace_syminfo(state: *mut backtrace_state,
-                         addr: libc::uintptr_t,
-                         cb: backtrace_syminfo_callback,
-                         error: backtrace_error_callback,
-                         data: *mut libc::c_void) -> libc::c_int;
-    fn backtrace_pcinfo(state: *mut backtrace_state,
-                        addr: libc::uintptr_t,
-                        cb: backtrace_full_callback,
-                        error: backtrace_error_callback,
-                        data: *mut libc::c_void) -> libc::c_int;
 }
 
 ////////////////////////////////////////////////////////////////////////

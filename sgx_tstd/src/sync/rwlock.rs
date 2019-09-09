@@ -123,7 +123,7 @@ impl SgxThreadRwLock {
 
         let rwlockinfo: &mut RwLockInfo = &mut *self.lock.get();
 
-        r#try!(rwlockinfo.ref_busy());
+        rwlockinfo.ref_busy()?;
 
         rwlockinfo.mutex.lock();
         {
@@ -162,7 +162,7 @@ impl SgxThreadRwLock {
 
         let rwlockinfo: &mut RwLockInfo = &mut *self.lock.get();
 
-        r#try!(rwlockinfo.ref_busy());
+        rwlockinfo.ref_busy()?;
 
         rwlockinfo.mutex.lock();
         {
@@ -201,7 +201,7 @@ impl SgxThreadRwLock {
 
         let rwlockinfo: &mut RwLockInfo = &mut *self.lock.get();
 
-        r#try!(rwlockinfo.ref_busy());
+        rwlockinfo.ref_busy()?;
 
         rwlockinfo.mutex.lock();
         {
@@ -246,7 +246,7 @@ impl SgxThreadRwLock {
 
         let rwlockinfo: &mut RwLockInfo = &mut *self.lock.get();
 
-        r#try!(rwlockinfo.ref_busy());
+        rwlockinfo.ref_busy()?;
 
         rwlockinfo.mutex.lock();
         {
@@ -416,7 +416,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// # Panics
     ///
     /// This function might panic when called if the lock is already held by the current thread.
-    pub fn read(&self) -> LockResult<SgxRwLockReadGuard<T>> {
+    pub fn read(&self) -> LockResult<SgxRwLockReadGuard<'_, T>> {
         unsafe {
             let ret = self.inner.read();
             match ret {
@@ -444,7 +444,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// is poisoned whenever a writer panics while holding an exclusive lock. An
     /// error will only be returned if the lock would have otherwise been
     /// acquired.
-    pub fn try_read(&self) -> TryLockResult<SgxRwLockReadGuard<T>> {
+    pub fn try_read(&self) -> TryLockResult<SgxRwLockReadGuard<'_, T>> {
         unsafe {
             let ret = self.inner.try_read();
             match ret {
@@ -472,7 +472,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// # Panics
     ///
     /// This function might panic when called if the lock is already held by the current thread.
-    pub fn write(&self) -> LockResult<SgxRwLockWriteGuard<T>> {
+    pub fn write(&self) -> LockResult<SgxRwLockWriteGuard<'_, T>> {
         unsafe {
             let ret = self.inner.write();
             match ret {
@@ -500,7 +500,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// is poisoned whenever a writer panics while holding an exclusive lock. An
     /// error will only be returned if the lock would have otherwise been
     /// acquired.
-    pub fn try_write(&self) -> TryLockResult<SgxRwLockWriteGuard<T>> {
+    pub fn try_write(&self) -> TryLockResult<SgxRwLockWriteGuard<'_, T>> {
         unsafe {
             let ret = self.inner.try_write();
             match ret {
@@ -513,8 +513,9 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// Determines whether the lock is poisoned.
     ///
     /// If another thread is active, the lock can still become poisoned at any
-    /// time.  You should not trust a `false` value for program correctness
+    /// time. You should not trust a `false` value for program correctness
     /// without additional synchronization.
+    ///
     #[inline]
     pub fn is_poisoned(&self) -> bool {
         self.poison.get()
@@ -547,7 +548,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// Returns a mutable reference to the underlying data.
     ///
     /// Since this call borrows the `RwLock` mutably, no actual locking needs to
-    /// take place---the mutable borrow statically guarantees no locks exist.
+    /// take place -- the mutable borrow statically guarantees no locks exist.
     ///
     /// # Errors
     ///
@@ -555,8 +556,10 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// is poisoned whenever a writer panics while holding an exclusive lock. An
     /// error will only be returned if the lock would have otherwise been
     /// acquired.
+    ///
     pub fn get_mut(&mut self) -> LockResult<&mut T> {
-
+        // We know statically that there are no other references to `self`, so
+        // there's no need to lock the inner lock.
         let data = unsafe { &mut *self.data.get() };
         poison::map_result(self.poison.borrow(), |_| data)
     }
@@ -572,7 +575,7 @@ unsafe impl<#[may_dangle] T: ?Sized> Drop for SgxRwLock<T> {
 }
 
 impl<T: ?Sized + fmt::Debug> fmt::Debug for SgxRwLock<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.try_read() {
             Ok(guard) => f.debug_struct("RwLock").field("data", &&*guard).finish(),
             Err(TryLockError::Poisoned(err)) => {
@@ -581,7 +584,9 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for SgxRwLock<T> {
             Err(TryLockError::WouldBlock) => {
                 struct LockedPlaceholder;
                 impl fmt::Debug for LockedPlaceholder {
-                    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { f.write_str("<locked>") }
+                    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                        f.write_str("<locked>")
+                    }
                 }
 
                 f.debug_struct("RwLock").field("data", &LockedPlaceholder).finish()
@@ -616,8 +621,8 @@ pub struct SgxRwLockReadGuard<'a, T: ?Sized + 'a> {
     __lock: &'a SgxRwLock<T>,
 }
 
-impl<'a, T: ?Sized> !Send for SgxRwLockReadGuard<'a, T> {}
-unsafe impl<'a, T: ?Sized + Sync> Sync for SgxRwLockReadGuard<'a, T> {}
+impl<T: ?Sized> !Send for SgxRwLockReadGuard<'_, T> {}
+unsafe impl<T: ?Sized + Sync> Sync for SgxRwLockReadGuard<'_, T> {}
 
 /// RAII structure used to release the exclusive write access of a lock when
 /// dropped.
@@ -629,8 +634,8 @@ pub struct SgxRwLockWriteGuard<'a, T: ?Sized + 'a> {
     __poison: poison::Guard,
 }
 
-impl<'a, T: ?Sized> !Send for SgxRwLockWriteGuard<'a, T> {}
-unsafe impl<'a, T: ?Sized + Sync> Sync for SgxRwLockWriteGuard<'a, T> {}
+impl<T: ?Sized> !Send for SgxRwLockWriteGuard<'_, T> {}
+unsafe impl<T: ?Sized + Sync> Sync for SgxRwLockWriteGuard<'_, T> {}
 
 impl<'rwlock, T: ?Sized> SgxRwLockReadGuard<'rwlock, T> {
     unsafe fn new(lock: &'rwlock SgxRwLock<T>)
@@ -655,34 +660,35 @@ impl<'rwlock, T: ?Sized> SgxRwLockWriteGuard<'rwlock, T> {
     }
 }
 
-impl<'a, T: fmt::Debug> fmt::Debug for SgxRwLockReadGuard<'a, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("RwLockReadGuard")
+impl<T: fmt::Debug> fmt::Debug for SgxRwLockReadGuard<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SgxRwLockReadGuard")
             .field("lock", &self.__lock)
             .finish()
     }
 }
 
-impl<'a, T: ?Sized + fmt::Display> fmt::Display for SgxRwLockReadGuard<'a, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl<T: ?Sized + fmt::Display> fmt::Display for SgxRwLockReadGuard<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (**self).fmt(f)
     }
 }
 
-impl<'a, T: fmt::Debug> fmt::Debug for SgxRwLockWriteGuard<'a, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("RwLockWriteGuard")
+impl<T: fmt::Debug> fmt::Debug for SgxRwLockWriteGuard<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SgxRwLockWriteGuard")
             .field("lock", &self.__lock)
             .finish()
     }
 }
 
-impl<'a, T: ?Sized + fmt::Display> fmt::Display for SgxRwLockWriteGuard<'a, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl<T: ?Sized + fmt::Display> fmt::Display for SgxRwLockWriteGuard<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (**self).fmt(f)
     }
 }
-impl<'rwlock, T: ?Sized> Deref for SgxRwLockReadGuard<'rwlock, T> {
+
+impl<T: ?Sized> Deref for SgxRwLockReadGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -690,7 +696,7 @@ impl<'rwlock, T: ?Sized> Deref for SgxRwLockReadGuard<'rwlock, T> {
     }
 }
 
-impl<'rwlock, T: ?Sized> Deref for SgxRwLockWriteGuard<'rwlock, T> {
+impl<T: ?Sized> Deref for SgxRwLockWriteGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -698,19 +704,19 @@ impl<'rwlock, T: ?Sized> Deref for SgxRwLockWriteGuard<'rwlock, T> {
     }
 }
 
-impl<'rwlock, T: ?Sized> DerefMut for SgxRwLockWriteGuard<'rwlock, T> {
+impl<T: ?Sized> DerefMut for SgxRwLockWriteGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.__lock.data.get() }
     }
 }
 
-impl<'a, T: ?Sized> Drop for SgxRwLockReadGuard<'a, T> {
+impl<T: ?Sized> Drop for SgxRwLockReadGuard<'_, T> {
     fn drop(&mut self) {
         unsafe { self.__lock.inner.read_unlock(); }
     }
 }
 
-impl<'a, T: ?Sized> Drop for SgxRwLockWriteGuard<'a, T> {
+impl<T: ?Sized> Drop for SgxRwLockWriteGuard<'_, T> {
     fn drop(&mut self) {
         self.__lock.poison.done(&self.__poison);
         unsafe { self.__lock.inner.write_unlock(); }

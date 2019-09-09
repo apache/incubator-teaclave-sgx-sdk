@@ -42,7 +42,7 @@ use crate::fragment::{Fragment, Stmts};
 pub fn expand_derive_serialize(input: &syn::DeriveInput) -> Result<Tokens, String> {
     let ctxt = Ctxt::new();
     let cont = Container::from_ast(&ctxt, input);
-    r#try!(ctxt.check());
+    ctxt.check()?;
 
     let ident = &cont.ident;
     let params = Parameters::new(&cont);

@@ -66,7 +66,7 @@ pub struct Error {
 }
 
 impl fmt::Debug for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.repr, f)
     }
 }
@@ -81,7 +81,7 @@ enum Repr {
 #[derive(Debug)]
 struct Custom {
     kind: ErrorKind,
-    error: Box<error::Error+Send+Sync>,
+    error: Box<dyn error::Error+Send+Sync>,
 }
 
 /// A list specifying general categories of I/O error.
@@ -94,6 +94,7 @@ struct Custom {
 /// [`io::Error`]: struct.Error.html
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[allow(deprecated)]
+#[non_exhaustive]
 pub enum ErrorKind {
     /// An entity was not found, often a file.
     NotFound,
@@ -163,15 +164,10 @@ pub enum ErrorKind {
     ///
     /// SGX error status
     SgxError,
-
-    /// A marker variant that tells the compiler that users of this enum cannot
-    /// match it exhaustively.
-    #[doc(hidden)]
-    __Nonexhaustive,
 }
 
 impl ErrorKind {
-    fn as_str(&self) -> &'static str {
+    pub(crate) fn as_str(&self) -> &'static str {
         match *self {
             ErrorKind::NotFound => "entity not found",
             ErrorKind::PermissionDenied => "permission denied",
@@ -192,7 +188,6 @@ impl ErrorKind {
             ErrorKind::Other => "other os error",
             ErrorKind::UnexpectedEof => "unexpected end of file",
             ErrorKind::SgxError => "Sgx error status",
-            ErrorKind::__Nonexhaustive => unreachable!()
         }
     }
 }
@@ -200,6 +195,8 @@ impl ErrorKind {
 /// Intended for use for errors not exposed to the user, where allocating onto
 /// the heap (for normal construction via Error::new) is too costly.
 impl From<ErrorKind> for Error {
+    /// Converts an [`ErrorKind`] into an [`Error`].
+    ///
     #[inline]
     fn from(kind: ErrorKind) -> Error {
         Error {
@@ -226,16 +223,16 @@ impl Error {
     /// payload which will be contained in this `Error`.
     ///
     pub fn new<E>(kind: ErrorKind, error: E) -> Error
-        where E: Into<Box<error::Error+Send+Sync>>
+        where E: Into<Box<dyn error::Error+Send+Sync>>
     {
         Self::_new(kind, error.into())
     }
 
-    fn _new(kind: ErrorKind, error: Box<error::Error+Send+Sync>) -> Error {
+    fn _new(kind: ErrorKind, error: Box<dyn error::Error+Send+Sync>) -> Error {
         Error {
             repr: Repr::Custom(Box::new(Custom {
-                kind: kind,
-                error: error,
+                kind,
+                error,
             }))
         }
     }
@@ -297,7 +294,7 @@ impl Error {
     /// If this `Error` was constructed via `new` then this function will
     /// return `Some`, otherwise it will return `None`.
     ///
-    pub fn get_ref(&self) -> Option<&(error::Error+Send+Sync+'static)> {
+    pub fn get_ref(&self) -> Option<&(dyn error::Error+Send+Sync+'static)> {
         match self.repr {
             Repr::Os(..) => None,
             Repr::Simple(..) => None,
@@ -312,7 +309,7 @@ impl Error {
     /// If this `Error` was constructed via `new` then this function will
     /// return `Some`, otherwise it will return `None`.
     ///
-    pub fn get_mut(&mut self) -> Option<&mut (error::Error+Send+Sync+'static)> {
+    pub fn get_mut(&mut self) -> Option<&mut (dyn error::Error+Send+Sync+'static)> {
         match self.repr {
             Repr::Os(..) => None,
             Repr::Simple(..) => None,
@@ -326,7 +323,7 @@ impl Error {
     /// If this `Error` was constructed via `new` then this function will
     /// return `Some`, otherwise it will return `None`.
     ///
-    pub fn into_inner(self) -> Option<Box<error::Error+Send+Sync>> {
+    pub fn into_inner(self) -> Option<Box<dyn error::Error+Send+Sync>> {
         match self.repr {
             Repr::Os(..) => None,
             Repr::Simple(..) => None,
@@ -348,7 +345,7 @@ impl Error {
 }
 
 impl fmt::Debug for Repr {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Repr::Os(code) =>
                 fmt.debug_struct("Os")
@@ -363,7 +360,7 @@ impl fmt::Debug for Repr {
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.repr {
             Repr::Os(code) => {
                 let detail = sys::os::error_string(code);
@@ -377,7 +374,6 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {
-    #[allow(deprecated)]
     fn description(&self) -> &str {
         match self.repr {
             Repr::Os(..) | Repr::Simple(..) => self.kind().as_str(),
@@ -386,11 +382,21 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    #[allow(deprecated)]
+    fn cause(&self) -> Option<&dyn error::Error> {
         match self.repr {
             Repr::Os(..) => None,
             Repr::Simple(..) => None,
             Repr::Custom(ref c) => c.error.cause(),
+            Repr::SgxStatus(ref s) => Some(s),
+        }
+    }
+
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match self.repr {
+            Repr::Os(..) => None,
+            Repr::Simple(..) => None,
+            Repr::Custom(ref c) => c.error.source(),
             Repr::SgxStatus(ref s) => Some(s),
         }
     }

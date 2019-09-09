@@ -1,68 +1,91 @@
 [dependencies]
 alloc = {}
-panic_unwind = {}
-panic_abort = {}
 
 [dependencies.sgx_types]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
+path = "../../../sgx_types"
+stage = 1
+
+[dependencies.sgx_demangle]
+path = "../../../sgx_demangle"
+stage = 1
+
+[dependencies.panic_abort]
+path = "../../../sgx_panic_abort"
 stage = 1
 
 [dependencies.sgx_libc]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
+path = "../../../sgx_libc"
 stage = 2
 
 [dependencies.sgx_tkey_exchange]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
+path = "../../../sgx_tkey_exchange"
 stage = 2
 
 [dependencies.sgx_tservice]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
+path = "../../../sgx_tservice"
 stage = 2
 
 [dependencies.sgx_tse]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
+path = "../../../sgx_tse"
 stage = 2
 
 [dependencies.sgx_tcrypto]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
+path = "../../../sgx_tcrypto"
 stage = 2
 
 [dependencies.sgx_trts]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
+path = "../../../sgx_trts"
 stage = 3
 
+[dependencies.sgx_backtrace_sys]
+path = "../../../sgx_backtrace_sys"
+stage = 3
+
+[dependencies.sgx_unwind]
+path = "../../../sgx_unwind"
+stage = 4
+
 [dependencies.sgx_tdh]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
+path = "../../../sgx_tdh"
 stage = 4
 
 [dependencies.sgx_tseal]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
+path = "../../../sgx_tseal"
+stage = 4
+
+[dependencies.sgx_tprotected_fs]
+path = "../../../sgx_tprotected_fs"
 stage = 4
 
 [dependencies.sgx_alloc]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
+path = "../../../sgx_alloc"
 stage = 4
 
-[dependencies.std]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-features = ["net"]
+[dependencies.panic_unwind]
+path = "../../../sgx_panic_unwind"
 stage = 5
 
-[dependencies.sgx_rand]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
+[dependencies.std]
+path = "../../../xargo/sgx_tstd"
+features = ["net"]
 stage = 6
+
+[dependencies.sgx_rand]
+path = "../../../sgx_rand"
+stage = 7
 
 [dependencies.sgx_serialize]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-stage = 6
+path = "../../../sgx_serialize"
+stage = 7
 
 [dependencies.sgx_tunittest]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-stage = 6
+path = "../../../sgx_tunittest"
+stage = 7
 
-[dependencies.sgx_tprotected_fs]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-stage = 4
+[dependencies.sgx_backtrace]
+path = "../../../sgx_backtrace"
+stage = 8
 
-[patch.crates-io]
-libc = { git = "https://github.com/mesalock-linux/libc-sgx" }
+[dependencies.sgx_cov]
+path = "../../../sgx_cov"
+stage = 8

@@ -62,9 +62,17 @@ use crate::thread::{self, rsgx_thread_self};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 
+/// A type indicating whether a timed wait on a condition variable returned
+/// due to a time out or not.
+///
+/// It is returned by the [`wait_timeout`] method.
+///
+/// [`wait_timeout`]: struct.Condvar.html#method.wait_timeout
 pub struct WaitTimeoutResult(bool);
 
 impl WaitTimeoutResult {
+    /// Returns `true` if the wait was known to have timed out.
+    ///
     pub fn timed_out(&self) -> bool {
         self.0
     }
@@ -104,11 +112,11 @@ impl SgxThreadCondvar {
         condvar.thread_vec.push(rsgx_thread_self());
         let mut waiter: sgx_thread_t = SGX_THREAD_T_NULL;
 
-        r#try!(mutex.unlock_lazy(&mut waiter).map_err(|ret| {
+        mutex.unlock_lazy(&mut waiter).map_err(|ret| {
             condvar.thread_vec.pop();
             condvar.spinlock.unlock();
             ret
-        }));
+        })?;
 
         loop {
             condvar.spinlock.unlock();
@@ -144,11 +152,11 @@ impl SgxThreadCondvar {
         condvar.thread_vec.push(rsgx_thread_self());
         let mut waiter: sgx_thread_t = SGX_THREAD_T_NULL;
 
-        r#try!(mutex.unlock_lazy(&mut waiter).map_err(|ret| {
+        mutex.unlock_lazy(&mut waiter).map_err(|ret| {
             condvar.thread_vec.pop();
             condvar.spinlock.unlock();
             ret
-        }));
+        })?;
         let mut ret = Ok(());
         loop {
             condvar.spinlock.unlock();
@@ -554,7 +562,7 @@ impl SgxCondvar {
 
 
 impl fmt::Debug for SgxCondvar {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Condvar { .. }")
     }
 }
