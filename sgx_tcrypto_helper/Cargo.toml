@@ -18,9 +18,9 @@ default = ["mesalock_sgx"]
 mesalock_sgx = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_tcrypto = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tstd    = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_types   = { rev = "v1.0.8", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tcrypto = { rev = "v1.0.9", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tstd    = { rev = "v1.0.9", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_types   = { rev = "v1.0.9", git = "https://github.com/baidu/rust-sgx-sdk.git" }
 
 [dependencies]
 serde = { git = "https://github.com/mesalock-linux/serde-sgx" }
