@@ -8,7 +8,13 @@ license-file = "LICENSE"
 documentation = "https://dingelish.github.io/"
 description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
 edition = "2018"
-exclude = ["libunwind/autom4te.cache/*",]
+exclude = [
+    "libunwind/autom4te.cache/*",
+    "libunwind/Makefile.in",
+    "libunwind/aclocal.m4",
+    "libunwind/configure",
+    "libunwind/src/Makefile.in",
+]
 
 [lib]
 name = "sgx_unwind"
