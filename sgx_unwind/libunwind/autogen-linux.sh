@@ -39,7 +39,7 @@ srcdir=`dirname $0`
 ORIGDIR=`pwd`
 cd $srcdir
 
-autoreconf -v --install || exit $?
+autoreconf -v --force --install || exit $?
 cd $ORIGDIR             || exit $?
 
 CFLAGS="$CFLAGS -std=c99 -fno-builtin -DHAVE_SGX=1 -fPIC -DUNW_LOCAL_ONLY"

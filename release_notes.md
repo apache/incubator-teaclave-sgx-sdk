@@ -4,6 +4,8 @@
 
 **Supports Intel SGX SDK v2.6**
 
+**CentOS 7.6 supported** Added dockerfile for CentOS 7.6.
+
 **New sgx crates** sgx_backtrace, sgx_backtrace_sys, sgx_demangle, sgx_panic_abort, sgx_panic_unwind.
 
 **Removed libbacktrace and new libunwind is in sgx_unwind**

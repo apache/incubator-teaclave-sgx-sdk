@@ -10,9 +10,11 @@ description = "Rust SGX SDK provides the ability to write Intel SGX applications
 edition = "2018"
 exclude = [
     "libunwind/autom4te.cache/*",
-    "libunwind/Makefile.in",
     "libunwind/aclocal.m4",
+    "libunwind/config/*",
     "libunwind/configure",
+    "libunwind/INSTALL",
+    "libunwind/Makefile.in",
     "libunwind/src/Makefile.in",
 ]
 
