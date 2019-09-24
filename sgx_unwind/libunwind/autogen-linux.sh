@@ -66,6 +66,8 @@ if [ -f /usr/bin/dpkg ]; then
     fi
 fi
 
+sed -i "s/rtmk-nova\*/rtmk-nova\* | linux-sgx/" $srcdir/config/config.sub
+
 export CFLAGS
 $srcdir/configure $HOST_OPT --enable-shared=no \
    --disable-block-signals \
@@ -73,3 +75,4 @@ $srcdir/configure $HOST_OPT --enable-shared=no \
    --enable-debug-frame=no \
    --enable-cxx-exceptions \
    "$@"
+
