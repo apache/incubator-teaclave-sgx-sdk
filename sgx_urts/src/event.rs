@@ -1,11 +1,11 @@
 use std::sync::Mutex;
 use std::time::Duration;
 use std::sync::atomic::{AtomicIsize, Ordering};
-use libc::{self, c_int, c_void};
+use libc::{self, c_int, c_void, time_t};
 use std::io::Error;
 use std::slice;
 use std::sync::Once;
-
+use std::cmp;
 static mut GLOBAL_TCS_CACHE: *mut SgxTcsInfoCache = 0 as *mut SgxTcsInfoCache;
 static INIT: Once = Once::new();
 
@@ -29,7 +29,7 @@ impl SeEvent {
             if dur.as_millis() == 0 {
                 unsafe {
                     libc::syscall(libc::SYS_futex,
-                                  self.event.load(Ordering::SeqCst),
+                                  self,
                                   FUTEX_WAIT,
                                   -1,
                                   0,
@@ -37,13 +37,14 @@ impl SeEvent {
                                   0);
                 }
             } else {
-                let timeout: libc::timespec = libc::timespec {
-                    tv_sec: dur.as_secs() as i64, tv_nsec: dur.subsec_nanos() as i64
+                 let timeout: libc::timespec = libc::timespec {
+                    tv_sec: cmp::min(dur.as_secs(), time_t::max_value() as u64) as time_t,
+                    tv_nsec: dur.subsec_nanos() as libc::c_long,
                 };
 
                 let ret = unsafe {
                     libc::syscall(libc::SYS_futex,
-                                  self.event.load(Ordering::SeqCst),
+                                  self,
                                   FUTEX_WAIT,
                                   -1,
                                   &timeout,
@@ -53,6 +54,7 @@ impl SeEvent {
                 if ret < 0 {
                     let _err = Error::last_os_error().raw_os_error().unwrap_or(0);
                     if _err == libc::ETIMEDOUT {
+                        self.event.fetch_add(1, Ordering::SeqCst);
                         return _err;
                     }
                 }
@@ -63,9 +65,9 @@ impl SeEvent {
 
     pub fn wake(&self) -> i32 {
         if self.event.fetch_add(1, Ordering::SeqCst) != 0 {
-            unsafe {
-                libc::syscall(libc::SYS_futex,
-                              self.event.load(Ordering::SeqCst),
+           unsafe {
+               libc::syscall(libc::SYS_futex,
+                              self,
                               FUTEX_WAKE,
                               1,
                               0,

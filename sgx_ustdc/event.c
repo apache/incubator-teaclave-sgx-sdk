@@ -134,7 +134,7 @@ int se_event_wait(se_handle_t se_event, int timeout_ms)
         ret = syscall(__NR_futex, se_event, FUTEX_WAIT, -1, tm, 0, 0);
         if (ret < 0) {
             if (errno == ETIMEDOUT) {
-
+                __sync_fetch_and_add((int*)se_event, 1);
                 return errno;
             }
         }
