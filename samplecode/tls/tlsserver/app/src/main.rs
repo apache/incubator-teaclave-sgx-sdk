@@ -412,7 +412,7 @@ impl Connection {
             self.do_tls_write();
         }
 
-        if self.closing && !self.wants_write() {
+        if self.closing {
             self.tls_close();
             let _ = self.socket.shutdown(Shutdown::Both);
             self.close_back();
