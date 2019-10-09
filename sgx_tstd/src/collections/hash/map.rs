@@ -39,7 +39,7 @@ use core::hash::{Hash, Hasher, BuildHasher, SipHasher13};
 use core::iter::{FromIterator, FusedIterator};
 use core::mem::{self, replace};
 use core::ops::{Deref, DerefMut, Index};
-use crate::collections::CollectionAllocErr;
+use crate::collections::TryReserveError;
 use crate::sys;
 
 use super::table::{self, Bucket, EmptyBucket, Fallibility, FullBucket, FullBucketMut, RawTable,
@@ -64,7 +64,7 @@ impl DefaultResizePolicy {
     /// provide that capacity, accounting for maximum loading. The raw capacity
     /// is always zero or a power of two.
     #[inline]
-    fn try_raw_capacity(&self, len: usize) -> Result<usize, CollectionAllocErr> {
+    fn try_raw_capacity(&self, len: usize) -> Result<usize, TryReserveError> {
         if len == 0 {
             Ok(0)
         } else {
@@ -74,7 +74,7 @@ impl DefaultResizePolicy {
             let mut raw_cap = len.checked_mul(11)
                 .map(|l| l / 10)
                 .and_then(|l| l.checked_next_power_of_two())
-                .ok_or(CollectionAllocErr::CapacityOverflow)?;
+                .ok_or(TryReserveError::CapacityOverflow)?;
 
             raw_cap = max(MIN_NONZERO_RAW_CAPACITY, raw_cap);
             Ok(raw_cap)
@@ -731,8 +731,8 @@ impl<K, V, S> HashMap<K, V, S>
     #[inline]
     pub fn reserve(&mut self, additional: usize) {
         match self.reserve_internal(additional, Infallible) {
-            Err(CollectionAllocErr::CapacityOverflow) => panic!("capacity overflow"),
-            Err(CollectionAllocErr::AllocErr) => unreachable!(),
+            Err(TryReserveError::CapacityOverflow) => panic!("capacity overflow"),
+            Err(TryReserveError::AllocErr) => unreachable!(),
             Ok(()) => { /* yay */ }
         }
     }
@@ -746,19 +746,19 @@ impl<K, V, S> HashMap<K, V, S>
     /// If the capacity overflows, or the allocator reports a failure, then an error
     /// is returned.
     ///
-    pub fn try_reserve(&mut self, additional: usize) -> Result<(), CollectionAllocErr> {
+    pub fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         self.reserve_internal(additional, Fallible)
     }
 
     #[inline]
     fn reserve_internal(&mut self, additional: usize, fallibility: Fallibility)
-        -> Result<(), CollectionAllocErr> {
+        -> Result<(), TryReserveError> {
 
         let remaining = self.capacity() - self.len(); // this can't overflow
         if remaining < additional {
             let min_cap = self.len()
                 .checked_add(additional)
-                .ok_or(CollectionAllocErr::CapacityOverflow)?;
+                .ok_or(TryReserveError::CapacityOverflow)?;
             let raw_cap = self.resize_policy.try_raw_capacity(min_cap)?;
             self.try_resize(raw_cap, fallibility)?;
         } else if self.table.tag() && remaining <= self.len() {
@@ -781,7 +781,7 @@ impl<K, V, S> HashMap<K, V, S>
         &mut self,
         new_raw_cap: usize,
         fallibility: Fallibility,
-    ) -> Result<(), CollectionAllocErr> {
+    ) -> Result<(), TryReserveError> {
         assert!(self.table.size() <= new_raw_cap);
         assert!(new_raw_cap.is_power_of_two() || new_raw_cap == 0);
 

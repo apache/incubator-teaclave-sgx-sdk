@@ -49,7 +49,6 @@ pub use crate::result::Result::{self, Ok, Err};
 
 #[doc(no_inline)]
 pub use core::prelude::v1::{
-    __rust_unstable_column,
     asm,
     assert,
     cfg,
@@ -81,9 +80,7 @@ pub use core::prelude::v1::{
     Clone,
     Copy,
     Debug,
-    Decodable,
     Default,
-    Encodable,
     Eq,
     Hash,
     Ord,

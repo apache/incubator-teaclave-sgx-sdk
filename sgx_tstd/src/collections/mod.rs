@@ -43,7 +43,7 @@ pub use alloc_crate::collections::{linked_list, vec_deque};
 pub use self::hash_map::HashMap;
 pub use self::hash_set::HashSet;
 
-pub use alloc_crate::collections::CollectionAllocErr;
+pub use alloc_crate::collections::TryReserveError;
 
 mod hash;
 
