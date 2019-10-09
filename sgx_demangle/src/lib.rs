@@ -172,12 +172,12 @@ fn is_ascii_punctuation(c: char) -> bool {
 impl<'a> fmt::Display for Demangle<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.style {
-            None => r#try!(f.write_str(self.original)),
+            None => f.write_str(self.original)?,
             Some(DemangleStyle::Legacy(ref d)) => {
-                r#try!(fmt::Display::fmt(d, f))
+                fmt::Display::fmt(d, f)?
             }
             Some(DemangleStyle::V0(ref d)) => {
-                r#try!(fmt::Display::fmt(d, f))
+                fmt::Display::fmt(d, f)?
             }
         }
         f.write_str(self.suffix)

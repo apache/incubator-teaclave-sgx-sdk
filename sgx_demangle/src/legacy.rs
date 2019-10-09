@@ -128,7 +128,7 @@ impl<'a> fmt::Display for Demangle<'a> {
                 break;
             }
             if element != 0 {
-                r#try!(f.write_str("::"));
+                f.write_str("::")?;
             }
             if rest.starts_with("_$") {
                 rest = &rest[1..];
@@ -136,21 +136,21 @@ impl<'a> fmt::Display for Demangle<'a> {
             while !rest.is_empty() {
                 if rest.starts_with('.') {
                     if let Some('.') = rest[1..].chars().next() {
-                        r#try!(f.write_str("::"));
+                        f.write_str("::")?;
                         rest = &rest[2..];
                     } else {
-                        r#try!(f.write_str("."));
+                        f.write_str(".")?;
                         rest = &rest[1..];
                     }
                 } else if rest.starts_with('$') {
                     macro_rules! demangle {
                         ($($pat:expr => $demangled:expr,)*) => ({
                             $(if rest.starts_with($pat) {
-                                r#try!(f.write_str($demangled));
+                                f.write_str($demangled)?;
                                 rest = &rest[$pat.len()..];
                               } else)*
                             {
-                                r#try!(f.write_str(rest));
+                                f.write_str(rest)?;
                                 break;
                             }
 
@@ -188,7 +188,7 @@ impl<'a> fmt::Display for Demangle<'a> {
                         None => rest.len(),
                         Some((i, _)) => i,
                     };
-                    r#try!(f.write_str(&rest[..idx]));
+                    f.write_str(&rest[..idx])?;
                     rest = &rest[idx..];
                 }
             }
