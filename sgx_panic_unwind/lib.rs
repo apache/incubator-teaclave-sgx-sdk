@@ -13,6 +13,7 @@
 //! module.
 
 #![no_std]
+#![cfg_attr(all(target_env = "sgx", target_vendor = "mesalock"), feature(rustc_private))]
 #![unstable(feature = "panic_unwind", issue = "32837")]
 #![feature(core_intrinsics)]
 #![feature(lang_items)]
