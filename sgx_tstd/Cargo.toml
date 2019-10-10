@@ -31,3 +31,4 @@ sgx_tprotected_fs = { path = "../sgx_tprotected_fs" }
 sgx_backtrace_sys = { path = "../sgx_backtrace_sys" }
 sgx_demangle = { path = "../sgx_demangle" }
 sgx_unwind = { path = "../sgx_unwind" }
+hashbrown = { version = "*", default-features = false }

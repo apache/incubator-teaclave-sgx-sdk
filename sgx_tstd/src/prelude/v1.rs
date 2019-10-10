@@ -49,7 +49,6 @@ pub use crate::result::Result::{self, Ok, Err};
 
 #[doc(no_inline)]
 pub use core::prelude::v1::{
-    __rust_unstable_column,
     asm,
     assert,
     cfg,
@@ -75,23 +74,21 @@ pub use core::prelude::v1::{
 
 // FIXME: Attribute and derive macros are not documented because for them rustdoc generates
 // dead links which fail link checker testing.
-#[allow(deprecated)]
-#[doc(hidden)]
+//#[allow(deprecated)]
+//#[doc(hidden)]
 pub use core::prelude::v1::{
     Clone,
     Copy,
     Debug,
-    Decodable,
     Default,
-    Encodable,
     Eq,
     Hash,
     Ord,
     PartialEq,
     PartialOrd,
-    RustcDecodable,
-    RustcEncodable,
-    bench,
+//    RustcDecodable,
+//    RustcEncodable,
+//    bench,
     global_allocator,
     test,
     test_case,
@@ -111,3 +108,4 @@ pub use crate::borrow::ToOwned;
 pub use crate::string::{String, ToString};
 #[doc(no_inline)]
 pub use crate::vec::Vec;
+
