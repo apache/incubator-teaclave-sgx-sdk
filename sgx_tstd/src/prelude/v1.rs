@@ -74,8 +74,8 @@ pub use core::prelude::v1::{
 
 // FIXME: Attribute and derive macros are not documented because for them rustdoc generates
 // dead links which fail link checker testing.
-//#[allow(deprecated)]
-//#[doc(hidden)]
+#[allow(deprecated)]
+#[doc(hidden)]
 pub use core::prelude::v1::{
     Clone,
     Copy,
@@ -86,8 +86,8 @@ pub use core::prelude::v1::{
     Ord,
     PartialEq,
     PartialOrd,
-//    RustcDecodable,
-//    RustcEncodable,
+    RustcDecodable,
+    RustcEncodable,
 //    bench,
     global_allocator,
     test,
@@ -108,4 +108,3 @@ pub use crate::borrow::ToOwned;
 pub use crate::string::{String, ToString};
 #[doc(no_inline)]
 pub use crate::vec::Vec;
-
