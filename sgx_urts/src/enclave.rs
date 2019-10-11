@@ -83,7 +83,7 @@ use std::os::unix::ffi::OsStrExt;
 /// release builds, the value of SGX_DEBUG_FLAG is 0. In debug and pre-release
 /// builds, the value of SGX_DEBUG_FLAG is 1 by default.
 ///
-/// **launch_token**
+/// **launch_token [deprecated]**
 ///
 /// A pointer to an sgx_launch_token_t object used to initialize the enclave to be
 /// created. Must not be NULL. The caller can provide an all-0 buffer as the sgx_
@@ -94,7 +94,7 @@ use std::os::unix::ffi::OsStrExt;
 /// stored sgx_launch_token_t object. If the token provided is not valid,
 /// the function will attempt to update it to a valid one.
 ///
-/// **launch_token_updated**
+/// **launch_token_updated [deprecated]**
 ///
 /// The output is 0 or 1. 0 indicates the launch token has not been updated. 1
 /// indicates the launch token has been updated.
@@ -301,7 +301,7 @@ pub fn rsgx_create_encrypted_enclave(file_name: &CStr,
 /// release builds, the value of SGX_DEBUG_FLAG is 0. In debug and pre-release
 /// builds, the value of SGX_DEBUG_FLAG is 1 by default.
 ///
-/// **launch_token**
+/// **launch_token [deprecated]**
 ///
 /// A pointer to an sgx_launch_token_t object used to initialize the enclave to be
 /// created. Must not be NULL. The caller can provide an all-0 buffer as the sgx_
@@ -312,7 +312,7 @@ pub fn rsgx_create_encrypted_enclave(file_name: &CStr,
 /// stored sgx_launch_token_t object. If the token provided is not valid,
 /// the function will attempt to update it to a valid one.
 ///
-/// **launch_token_updated**
+/// **launch_token_updated [deprecated]**
 ///
 /// The output is 0 or 1. 0 indicates the launch token has not been updated. 1
 /// indicates the launch token has been updated.
@@ -555,11 +555,12 @@ pub struct SgxEnclave {
 }
 
 impl SgxEnclave {
+    // launch_token and launch_token_updated are deprecated
+    const DEPRECATED_LAUNCH_TOKEN: sgx_launch_token_t = [0; 1024];
+    const DEPRECATED_LAUNCH_TOKEN_UPDATED: i32 = 0;
 
     pub fn create<P: AsRef<Path>>(file_name: P,
                                   debug: i32,
-                                  launch_token: &mut sgx_launch_token_t,
-                                  launch_token_updated: &mut i32,
                                   misc_attr: &mut sgx_misc_attribute_t) -> SgxResult<SgxEnclave> {
 
         let path: CString = cstr(file_name
@@ -568,8 +569,8 @@ impl SgxEnclave {
 
         let enclave = rsgx_create_enclave(path.as_c_str(),
                                           debug,
-                                          launch_token,
-                                          launch_token_updated,
+                                          &mut Self::DEPRECATED_LAUNCH_TOKEN,
+                                          &mut Self::DEPRECATED_LAUNCH_TOKEN_UPDATED,
                                           misc_attr)
                         .map(|eid| SgxEnclave {
                                     id: eid,
@@ -582,8 +583,6 @@ impl SgxEnclave {
 
     pub fn create_encrypt<P: AsRef<Path>>(file_name: P,
                                           debug: i32,
-                                          launch_token: &mut sgx_launch_token_t,
-                                          launch_token_updated: &mut i32,
                                           misc_attr: &mut sgx_misc_attribute_t,
                                           sealed_key: *const sgx_sealed_data_t) -> SgxResult<SgxEnclave> {
 
@@ -593,8 +592,8 @@ impl SgxEnclave {
 
         let enclave = rsgx_create_encrypted_enclave(path.as_c_str(),
                                                     debug,
-                                                    launch_token,
-                                                    launch_token_updated,
+                                                    &mut Self::DEPRECATED_LAUNCH_TOKEN,
+                                                    &mut Self::DEPRECATED_LAUNCH_TOKEN_UPDATED,
                                                     misc_attr,
                                                     sealed_key)
                         .map(|eid| SgxEnclave {
@@ -608,8 +607,6 @@ impl SgxEnclave {
 
     pub fn create_with_workers<P: AsRef<Path>>(file_name: P,
                                                debug: i32,
-                                               launch_token: &mut sgx_launch_token_t,
-                                               launch_token_updated: &mut i32,
                                                misc_attr: &mut sgx_misc_attribute_t,
                                                num_uworkers: u32,
                                                num_tworkers: u32) -> SgxResult<SgxEnclave> {
@@ -620,8 +617,8 @@ impl SgxEnclave {
 
         let enclave = rsgx_create_enclave_with_workers(path.as_c_str(),
                                                        debug,
-                                                       launch_token,
-                                                       launch_token_updated,
+                                                       &mut Self::DEPRECATED_LAUNCH_TOKEN,
+                                                       &mut Self::DEPRECATED_LAUNCH_TOKEN_UPDATED,
                                                        misc_attr,
                                                        num_uworkers,
                                                        num_tworkers)
