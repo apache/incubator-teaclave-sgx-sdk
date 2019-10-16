@@ -39,13 +39,12 @@ enclave {
 
     trusted {
         /* define ECALLs here. */
-
         public size_t tls_server_new(int fd, [in, string]char* cert, [in, string] char* key);
-        public int tls_server_read([user_check] void* session, [user_check] char* buf, int cnt);
-        public int tls_server_write([user_check] void* session, [in, size=cnt] char* buf, int cnt);
-        public int tls_server_wants_read([user_check] void* session);
-        public int tls_server_wants_write([user_check] void* session);
-        public void tls_server_close([user_check] void* session);
-        public void tls_server_send_close([user_check] void* session);
+        public int tls_server_read(size_t session_id, [user_check] char* buf, int cnt);
+        public int tls_server_write(size_t session_id, [in, size=cnt] char* buf, int cnt);
+        public int tls_server_wants_read(size_t session_id);
+        public int tls_server_wants_write(size_t session_id);
+        public void tls_server_close(size_t session_id);
+        public void tls_server_send_close(size_t session_id);
     };
 };

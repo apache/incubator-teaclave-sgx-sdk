@@ -18,6 +18,7 @@ sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", features = ["net
 [dependencies]
 rustls = { git = "https://github.com/mesalock-linux/rustls", branch = "mesalock_sgx" }
 webpki = { git = "https://github.com/mesalock-linux/webpki", branch = "mesalock_sgx" }
+lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }
 
 [patch.'https://github.com/baidu/rust-sgx-sdk.git']
 sgx_alloc = { path = "../../../../sgx_alloc" }
