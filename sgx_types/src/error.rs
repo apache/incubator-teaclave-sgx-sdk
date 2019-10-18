@@ -382,7 +382,7 @@ impl_enum! {
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
     pub enum sgx_quote3_error_t {
-        SGX_QL_SUCCESS                          = 0x0000_E000,
+        SGX_QL_SUCCESS                          = 0x0000_0000,
 //      SGX_QL_ERROR_MIN                        = 0x0000_E001,
         SGX_QL_ERROR_UNEXPECTED                 = 0x0000_E001,
         SGX_QL_ERROR_INVALID_PARAMETER          = 0x0000_E002,
