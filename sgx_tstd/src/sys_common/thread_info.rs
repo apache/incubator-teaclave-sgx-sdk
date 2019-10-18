@@ -41,7 +41,7 @@ impl SgxThreadInfo {
         THREAD_INFO.try_with(move |c| {
             if c.borrow().is_none() {
                 *c.borrow_mut() = Some(SgxThreadInfo {
-                    thread: SgxThread::new(),
+                    thread: SgxThread::new(None),
                 })
             }
             f(c.borrow_mut().as_mut().unwrap())
@@ -54,7 +54,7 @@ pub fn current_thread() -> Option<SgxThread> {
 }
 
 pub fn set(thread: SgxThread) {
-    THREAD_INFO.with(|c| assert!(c.borrow().is_none()));
+    //THREAD_INFO.with(|c| assert!(c.borrow().is_none()));
     THREAD_INFO.with(move |c| *c.borrow_mut() = Some(SgxThreadInfo{
         thread,
     }));

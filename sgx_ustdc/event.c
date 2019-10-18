@@ -119,10 +119,8 @@ void se_event_destroy(se_handle_t se_event)
         free(se_event); 
 }
 
-int se_event_wait(se_handle_t se_event, int timeout_ms)
+int se_event_wait(se_handle_t se_event, const struct timespec * timeout)
 {
-    struct timespec ts = {.tv_sec = timeout_ms / 1000, .tv_nsec = (timeout_ms % 1000) * 1000000};
-    struct timespec *tm = timeout_ms ? &ts : NULL;
     int ret = -1;
 
     if (se_event == NULL) {
@@ -131,11 +129,11 @@ int se_event_wait(se_handle_t se_event, int timeout_ms)
     
     if (__sync_fetch_and_add((int *)se_event, -1) == 0) {
         
-        ret = syscall(__NR_futex, se_event, FUTEX_WAIT, -1, tm, 0, 0);
+        ret = syscall(__NR_futex, se_event, FUTEX_WAIT, -1, timeout, 0, 0);
         if (ret < 0) {
             if (errno == ETIMEDOUT) {
-                __sync_fetch_and_add((int*)se_event, 1);
-                return errno;
+                __sync_fetch_and_add((int*)se_event, 1);    
+                return -1;
             }
         }
     }
@@ -256,9 +254,7 @@ int u_thread_set_event_ocall(int *error, const tcs_handle_t tcs)
 
     int ret = se_event_wake(se_event); 
     if (ret != 0) {
-
         if (error) {
-
             *error = errno;   
         }
         return -1;
@@ -270,7 +266,7 @@ int u_thread_set_event_ocall(int *error, const tcs_handle_t tcs)
     return 0;
 }
 
-int u_thread_wait_event_ocall(int * error, const tcs_handle_t tcs, int timeout)
+int u_thread_wait_event_ocall(int * error, const tcs_handle_t tcs, const struct timespec * timeout)
 {
     se_handle_t se_event = NULL;
 
@@ -281,7 +277,6 @@ int u_thread_wait_event_ocall(int * error, const tcs_handle_t tcs, int timeout)
         return -1;
     }
       
-
     se_event = get_tcs_event(tcs);
     if (se_event == NULL) {
        return -1;
@@ -314,15 +309,12 @@ int u_thread_set_multiple_events_ocall(int * error, const tcs_handle_t * tcss, i
 
         se_event = get_tcs_event(tcss[i]);
         if (se_event == NULL) {
-
            return -1;
         }
 
         int ret = se_event_wake(se_event);
         if (ret != 0) {
-
             if (error) {
-
                 *error = errno;  
             }   
             return -1;
@@ -335,7 +327,7 @@ int u_thread_set_multiple_events_ocall(int * error, const tcs_handle_t * tcss, i
     return 0;
 }
 
-int u_thread_setwait_events_ocall(int * error, const tcs_handle_t waiter_tcs, const tcs_handle_t self_tcs, int timeout)
+int u_thread_setwait_events_ocall(int * error, const tcs_handle_t waiter_tcs, const tcs_handle_t self_tcs, const struct timespec * timeout)
 {
     int result = u_thread_set_event_ocall(error, waiter_tcs);
     if (result < 0) {

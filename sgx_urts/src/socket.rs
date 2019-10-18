@@ -30,7 +30,7 @@ use std::io::Error;
 use libc::{self, c_int, c_void, size_t, ssize_t, sockaddr, socklen_t, msghdr};
 
 #[no_mangle]
-pub extern "C" fn u_socket_ocall(error: *mut c_int, domain: c_int, ty: c_int, protocol: c_int) -> c_int {
+pub extern "C" fn u_socket_ocall(error: * mut c_int, domain: c_int, ty: c_int, protocol: c_int) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::socket(domain, ty, protocol) };
     if ret < 0 {
@@ -43,7 +43,7 @@ pub extern "C" fn u_socket_ocall(error: *mut c_int, domain: c_int, ty: c_int, pr
 }
 
 #[no_mangle]
-pub extern "C" fn u_socketpair_ocall(error: *mut c_int, domain: c_int, ty: c_int, protocol: c_int, sv: *mut c_int) -> c_int {
+pub extern "C" fn u_socketpair_ocall(error: * mut c_int, domain: c_int, ty: c_int, protocol: c_int, sv: * mut c_int) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::socketpair(domain, ty, protocol, sv) };
     if ret < 0 {
@@ -72,7 +72,7 @@ pub extern "C" fn u_bind_ocall(error: * mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_listen_ocall(error: *mut c_int, sockfd: c_int, backlog: c_int) -> c_int {
+pub extern "C" fn u_listen_ocall(error: * mut c_int, sockfd: c_int, backlog: c_int) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::listen(sockfd, backlog) };
     if ret < 0 {
@@ -85,11 +85,11 @@ pub extern "C" fn u_listen_ocall(error: *mut c_int, sockfd: c_int, backlog: c_in
 }
 
 #[no_mangle]
-pub extern "C" fn u_accept_ocall(error: *mut c_int,
+pub extern "C" fn u_accept_ocall(error: * mut c_int,
                                  sockfd: c_int,
-                                 addr: *mut sockaddr,
+                                 addr: * mut sockaddr,
                                  addrlen_in: socklen_t,
-                                 addrlen_out: *mut socklen_t) -> c_int {
+                                 addrlen_out: * mut socklen_t) -> c_int {
     let mut errno = 0;
     unsafe { *addrlen_out = addrlen_in };
     let ret = unsafe { libc::accept(sockfd, addr, addrlen_out) };
@@ -103,11 +103,11 @@ pub extern "C" fn u_accept_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_accept4_ocall(error: *mut c_int,
+pub extern "C" fn u_accept4_ocall(error: * mut c_int,
                                   sockfd: c_int,
-                                  addr: *mut sockaddr,
+                                  addr: * mut sockaddr,
                                   addrlen_in: socklen_t,
-                                  addrlen_out: *mut socklen_t,
+                                  addrlen_out: * mut socklen_t,
                                   flags: c_int) -> c_int {
     let mut errno = 0;
     unsafe { *addrlen_out = addrlen_in };

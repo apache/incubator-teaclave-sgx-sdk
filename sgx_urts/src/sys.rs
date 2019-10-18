@@ -27,12 +27,30 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use std::io::Error;
-use libc::{self, c_int, c_long};
+use libc::{self, c_int, c_long, c_ulong};
 
 #[no_mangle]
 pub extern "C" fn u_sysconf_ocall(error: * mut c_int, name: c_int) -> c_long {
     let mut errno = 0;
     let ret = unsafe { libc::sysconf(name) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn  u_prctl_ocall(error: * mut c_int,
+                                 option: c_int,
+                                 arg2: c_ulong,
+                                 arg3: c_ulong,
+                                 arg4: c_ulong,
+                                 arg5: c_ulong) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::prctl(option, arg2, arg3, arg4, arg5) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }

@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
-
+#![feature(ptr_offset_from)]
 extern crate libc;
 extern crate sgx_types;
 
@@ -42,6 +42,6 @@ pub mod env;
 pub mod sys;
 pub mod pipe;
 pub mod event;
-
+pub mod thread;
 pub use enclave::*;
 

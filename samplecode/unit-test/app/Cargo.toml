@@ -6,8 +6,7 @@ build = "build.rs"
 
 [dependencies]
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-dirs = "1.0.2"
+sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git",  features = ["global_init"] }
 
 [patch.'https://github.com/baidu/rust-sgx-sdk.git']
 sgx_types = { path = "../../../sgx_types" }

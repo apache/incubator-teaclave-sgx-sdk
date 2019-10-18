@@ -106,6 +106,7 @@ pub mod oom;
 pub mod memchr;
 pub mod ascii;
 pub mod c_str;
+pub mod cpu_feature;
 
 #[cfg(not(target_env = "sgx"))]
 pub use sgx_libc as libc;

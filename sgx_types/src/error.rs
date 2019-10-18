@@ -40,7 +40,7 @@ impl_enum! {
     pub enum sgx_status_t {
         SGX_SUCCESS                         = 0x0000_0000,
 
-        SGX_ERROR_UNEXPECTED                 = 0x0000_0001,      /* Unexpected error */
+        SGX_ERROR_UNEXPECTED                = 0x0000_0001,      /* Unexpected error */
         SGX_ERROR_INVALID_PARAMETER         = 0x0000_0002,      /* The parameter is incorrect */
         SGX_ERROR_OUT_OF_MEMORY             = 0x0000_0003,      /* Not enough memory is available to complete this operation */
         SGX_ERROR_ENCLAVE_LOST              = 0x0000_0004,      /* Enclave lost after power transition or used in child process created by linux:fork() */

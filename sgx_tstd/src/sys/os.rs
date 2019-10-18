@@ -27,12 +27,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use sgx_trts::error as trts_error;
+use sgx_types::metadata;
 use crate::os::unix::prelude::*;
 use crate::error::Error as StdError;
 use crate::ffi::{CString, CStr, OsString, OsStr};
-use crate::path::PathBuf;
+use crate::path::{self, PathBuf};
 use crate::sync::SgxThreadMutex;
-use crate::sys::cvt;
+use crate::sys::{cvt, fd};
 use crate::memchr;
 use crate::io;
 use core::marker::PhantomData;
@@ -43,6 +44,8 @@ use alloc_crate::slice;
 use alloc_crate::string::String;
 use alloc_crate::str;
 use alloc_crate::vec::{self, Vec};
+use crate::mem;
+use libc::{c_int, c_char, c_void};
 
 const TMPBUF_SZ: usize = 128;
 static ENV_LOCK: SgxThreadMutex = SgxThreadMutex::new();
@@ -56,9 +59,7 @@ pub fn set_errno(e: i32) {
 }
 
 pub fn error_string(error: i32) -> String {
-
     let mut buf = [0_i8; TMPBUF_SZ];
-
     unsafe {
         if trts_error::error_string(error, &mut buf) < 0 {
             panic!("strerror_r failure");
@@ -120,6 +121,18 @@ impl fmt::Display for JoinPathsError {
 
 impl StdError for JoinPathsError {
     fn description(&self) -> &str { "failed to join paths" }
+}
+
+pub fn current_exe() -> io::Result<PathBuf> {
+    match crate::fs::read_link("/proc/self/exe") {
+        Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                "no /proc/self/exe available. Is /proc mounted?"
+            ))
+        },
+        other => other,
+    }
 }
 
 pub struct Env {
@@ -214,13 +227,78 @@ pub fn unsetenv(n: &OsStr) -> io::Result<()> {
     }
 }
 
+pub fn page_size() -> usize {
+    metadata::SE_PAGE_SIZE
+}
+
 pub fn temp_dir() -> PathBuf {
     crate::env::var_os("TMPDIR").map(PathBuf::from).unwrap_or_else(|| {
         PathBuf::from("/tmp")
     })
 }
 
+pub fn getcwd() -> io::Result<PathBuf> {
+    let mut buf = Vec::with_capacity(512);
+    loop {
+        unsafe {
+            let ptr = buf.as_mut_ptr() as *mut libc::c_char;
+            if !libc::getcwd(ptr, buf.capacity()).is_null() {
+                let len = CStr::from_ptr(buf.as_ptr() as *const libc::c_char).to_bytes().len();
+                buf.set_len(len);
+                buf.shrink_to_fit();
+                return Ok(PathBuf::from(OsString::from_vec(buf)));
+            } else {
+                let error = io::Error::last_os_error();
+                if error.raw_os_error() != Some(libc::ERANGE) {
+                    return Err(error);
+                }
+            }
+
+            // Trigger the internal buffer resizing logic of `Vec` by requiring
+            // more space than the current capacity.
+            let cap = buf.capacity();
+            buf.set_len(cap);
+            buf.reserve(1);
+        }
+    }
+}
+
+pub fn chdir(p: &path::Path) -> io::Result<()> {
+    let p: &OsStr = p.as_ref();
+    let p = CString::new(p.as_bytes())?;
+    unsafe {
+        match libc::chdir(p.as_ptr()) == (0 as c_int) {
+            true => Ok(()),
+            false => Err(io::Error::last_os_error()),
+        }
+    }
+}
+
+pub fn home_dir() -> Option<PathBuf> {
+    return crate::env::var_os("HOME").or_else(|| unsafe {
+        fallback()
+    }).map(PathBuf::from);
+    unsafe fn fallback() -> Option<OsString> {
+        let amt = match libc::sysconf(libc::_SC_GETPW_R_SIZE_MAX) {
+            n if n < 0 => 512 as usize,
+            n => n as usize,
+        };
+        let mut buf = Vec::with_capacity(amt);
+        let mut passwd: libc::passwd = mem::zeroed();
+        let mut result = ptr::null_mut();
+        match libc::getpwuid_r(libc::getuid(), &mut passwd, buf.as_mut_ptr(),
+                               buf.capacity(), &mut result) {
+            0 if !result.is_null() => {
+                let ptr = passwd.pw_dir as *const _;
+                let bytes = CStr::from_ptr(ptr).to_bytes().to_vec();
+                Some(OsStringExt::from_vec(bytes))
+            },
+            _ => None,
+        }
+    }
+}
+
 mod libc {
     pub use sgx_trts::libc::*;
-    pub use sgx_trts::libc::ocall::{environ, getenv, setenv, unsetenv};
+    pub use sgx_trts::libc::ocall::{environ, getenv, setenv, unsetenv, getcwd, chdir, sysconf, getuid, getpwuid_r};
 }

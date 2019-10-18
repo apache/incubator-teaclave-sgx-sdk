@@ -83,7 +83,7 @@ use std::os::unix::ffi::OsStrExt;
 /// release builds, the value of SGX_DEBUG_FLAG is 0. In debug and pre-release
 /// builds, the value of SGX_DEBUG_FLAG is 1 by default.
 ///
-/// **launch_token**
+/// **launch_token [deprecated]**
 ///
 /// A pointer to an sgx_launch_token_t object used to initialize the enclave to be
 /// created. Must not be NULL. The caller can provide an all-0 buffer as the sgx_
@@ -94,7 +94,7 @@ use std::os::unix::ffi::OsStrExt;
 /// stored sgx_launch_token_t object. If the token provided is not valid,
 /// the function will attempt to update it to a valid one.
 ///
-/// **launch_token_updated**
+/// **launch_token_updated [deprecated]**
 ///
 /// The output is 0 or 1. 0 indicates the launch token has not been updated. 1
 /// indicates the launch token has been updated.
@@ -301,7 +301,7 @@ pub fn rsgx_create_encrypted_enclave(file_name: &CStr,
 /// release builds, the value of SGX_DEBUG_FLAG is 0. In debug and pre-release
 /// builds, the value of SGX_DEBUG_FLAG is 1 by default.
 ///
-/// **launch_token**
+/// **launch_token [deprecated]**
 ///
 /// A pointer to an sgx_launch_token_t object used to initialize the enclave to be
 /// created. Must not be NULL. The caller can provide an all-0 buffer as the sgx_
@@ -312,7 +312,7 @@ pub fn rsgx_create_encrypted_enclave(file_name: &CStr,
 /// stored sgx_launch_token_t object. If the token provided is not valid,
 /// the function will attempt to update it to a valid one.
 ///
-/// **launch_token_updated**
+/// **launch_token_updated [deprecated]**
 ///
 /// The output is 0 or 1. 0 indicates the launch token has not been updated. 1
 /// indicates the launch token has been updated.

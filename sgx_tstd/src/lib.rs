@@ -142,20 +142,19 @@ extern crate sgx_unwind;
 extern crate sgx_backtrace_sys;
 #[cfg(feature = "backtrace")]
 extern crate sgx_demangle;
-
 extern crate sgx_alloc;
 
 #[macro_use]
 extern crate sgx_types;
-
 pub use sgx_types::{cfg_if, __cfg_if_items, __cfg_if_apply};
 
 #[macro_use]
 extern crate sgx_trts;
-pub use sgx_trts::{global_ctors_object, global_dtors_object};
+pub use sgx_trts::{global_ctors_object, global_dtors_object, is_x86_feature_detected, is_cpu_feature_supported};
 
 extern crate sgx_tprotected_fs;
 extern crate sgx_libc;
+extern crate sgx_tseal;
 
 // The standard macros that are not built-in to the compiler.
 #[macro_use]

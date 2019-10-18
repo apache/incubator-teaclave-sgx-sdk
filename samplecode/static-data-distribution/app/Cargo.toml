@@ -9,7 +9,6 @@ sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
 sgx_crypto_helper = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
 serde_json = "1.0"
-dirs = "1.0.2"
 
 [patch.'https://github.com/baidu/rust-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }

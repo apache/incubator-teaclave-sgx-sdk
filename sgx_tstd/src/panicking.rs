@@ -41,6 +41,7 @@ use core::sync::atomic::{AtomicPtr, Ordering};
 use alloc_crate::boxed::Box;
 use alloc_crate::string::String;
 use crate::sys::stdio::panic_output;
+use crate::sys_common::thread_info;
 use crate::sys_common::util;
 use crate::thread;
 
@@ -101,9 +102,12 @@ fn default_panic_handler(info: &PanicInfo<'_>) {
         }
     };
 
+    let thread = thread_info::current_thread();
+    let name = thread.as_ref().and_then(|t| t.name()).unwrap_or("<unnamed>");
+
     let write = |err: &mut dyn (crate::io::Write)| {
-        let _ = writeln!(err, "thread panicked at '{}', {}",
-                        msg, location);
+        let _ = writeln!(err, "thread '{}' panicked at '{}', {}",
+                         name, msg, location);
 
         #[cfg(feature = "backtrace")]
         {

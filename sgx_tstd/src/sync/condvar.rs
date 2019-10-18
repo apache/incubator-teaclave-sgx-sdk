@@ -59,7 +59,7 @@ use crate::time::Duration;
 use crate::time::Instant;
 use crate::untrusted::time::InstantEx;
 use crate::thread::{self, rsgx_thread_self};
-
+use crate::u64;
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 
 /// A type indicating whether a timed wait on a condition variable returned
@@ -121,11 +121,11 @@ impl SgxThreadCondvar {
         loop {
             condvar.spinlock.unlock();
             if waiter == SGX_THREAD_T_NULL {
-                mutex::thread_wait_event(SgxThreadData::new().get_tcs(), Duration::from_secs(0));
+                mutex::thread_wait_event(SgxThreadData::current().get_tcs(), Duration::new(u64::MAX, 1_000_000_000 - 1));
             } else {
                 mutex::thread_setwait_events(SgxThreadData::from_raw(waiter).get_tcs(),
-                                                          SgxThreadData::new().get_tcs(),
-                                                          Duration::new(0, 0));
+                                             SgxThreadData::current().get_tcs(),
+                                             Duration::new(u64::MAX, 1_000_000_000 - 1));
                 waiter = SGX_THREAD_T_NULL;
             }
             condvar.spinlock.lock();
@@ -162,10 +162,10 @@ impl SgxThreadCondvar {
             condvar.spinlock.unlock();
             let mut result = 0;
             if waiter == SGX_THREAD_T_NULL {
-                result = mutex::thread_wait_event(SgxThreadData::new().get_tcs(), dur);
+                result = mutex::thread_wait_event(SgxThreadData::current().get_tcs(), dur);
             } else {
-                result = mutex::thread_setwait_events(SgxThreadData::from_raw(waiter as usize).get_tcs(),
-                                                      SgxThreadData::new().get_tcs(),
+                result = mutex::thread_setwait_events(SgxThreadData::from_raw(waiter).get_tcs(),
+                                                      SgxThreadData::current().get_tcs(),
                                                       dur);
                 waiter = SGX_THREAD_T_NULL;
             }

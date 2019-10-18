@@ -39,6 +39,8 @@ pub const LAYOUT_ENTRY_NUM : usize = 42;
 #[link(name = "sgx_trts")]
 extern {
     static g_global_data: global_data_t;
+    static g_cpu_feature_indicator: uint64_t;
+    static EDMM_supported: c_int;
     pub fn get_thread_data() -> * const c_void;
     pub fn get_enclave_base() -> * const c_void;
     pub fn get_heap_base() -> * const c_void;
@@ -46,37 +48,37 @@ extern {
 }
 
 #[repr(C)]
-struct global_data_t {
-    enclave_size: usize,
-    heap_offset: usize,
-    heap_size: usize,
-    rsrv_offset: usize,
-    rsrv_size: usize,
-    thread_policy: usize,
-    td_template : thread_data_t,
-    tcs_template: [u8;TCS_TEMPLATE_SIZE], // 72
-    layout_entry_num : u32,
-    reserved : u32,
-    layout_table : [layout_t;LAYOUT_ENTRY_NUM],
+pub struct global_data_t {
+    pub enclave_size: usize,
+    pub heap_offset: usize,
+    pub heap_size: usize,
+    pub rsrv_offset: usize,
+    pub rsrv_size: usize,
+    pub thread_policy: usize,
+    pub td_template: thread_data_t,
+    pub tcs_template: [u8; TCS_TEMPLATE_SIZE], // 72
+    pub layout_entry_num: u32,
+    pub reserved: u32,
+    pub layout_table: [layout_t; LAYOUT_ENTRY_NUM],
 }
 
 #[repr(C)]
-struct thread_data_t {
-    self_addr: usize,
-    last_sp: usize,
-    stack_base_addr: usize,
-    stack_limit_addr: usize,
-    first_ssa_gpr: usize,
-    stack_guard: usize,
-    flags: usize,
-    xsave_size: usize,
-    last_error: usize,
-    m_next: usize,
-    tls_addr: usize,
-    tls_array: usize,
-    exception_flag: usize,
-    cxx_thread_info: [usize; 6],
-    stack_commit_addr: usize,
+pub struct thread_data_t {
+    pub self_addr: usize,
+    pub last_sp: usize,
+    pub stack_base_addr: usize,
+    pub stack_limit_addr: usize,
+    pub first_ssa_gpr: usize,
+    pub stack_guard: usize,
+    pub flags: usize,
+    pub xsave_size: usize,
+    pub last_error: usize,
+    pub m_next: usize,
+    pub tls_addr: usize,
+    pub tls_array: usize,
+    pub exception_flag: usize,
+    pub cxx_thread_info: [usize; 6],
+    pub stack_commit_addr: usize,
 }
 
 #[derive(Copy, Clone)]
@@ -87,6 +89,9 @@ pub struct SgxGlobalData {
     heap_offset: usize,
     heap_size: usize,
     thread_policy: SgxThreadPolicy,
+    static_tcs_num: u32,  // minpool thread + utility thread
+    eremove_tcs_num: u32,
+    dyn_tcs_num: u32,
 }
 
 impl Default for SgxGlobalData {
@@ -105,6 +110,7 @@ impl SgxGlobalData {
     /// This API is only an experimental funtion.
     ///
     pub fn new() -> Self {
+        let (static_num, eremove_num, dyn_num) = rsgx_get_tcs_num();
         SgxGlobalData {
            enclave_base: rsgx_get_enclave_base() as usize,
            enclave_size: rsgx_get_enclave_size(),
@@ -112,6 +118,9 @@ impl SgxGlobalData {
            heap_offset: rsgx_get_heap_offset(),
            heap_size: rsgx_get_heap_size(),
            thread_policy: rsgx_get_thread_policy(),
+           static_tcs_num: static_num,
+           eremove_tcs_num: eremove_num,
+           dyn_tcs_num: dyn_num,
         }
     }
 
@@ -175,6 +184,30 @@ impl SgxGlobalData {
     pub fn thread_policy(&self) -> SgxThreadPolicy {
         self.thread_policy
     }
+
+    pub fn get_static_tcs_num(&self) -> u32 {
+        self.static_tcs_num
+    }
+
+    pub fn get_eremove_tcs_num(&self) -> u32 {
+        self.eremove_tcs_num
+    }
+
+    pub fn get_dyn_tcs_num(&self) -> u32 {
+        self.dyn_tcs_num
+    }
+
+    pub fn get_tcs_max_num(&self) -> u32 {
+        if rsgx_is_supported_EDMM() {
+            if self.dyn_tcs_num != 0 {
+                self.static_tcs_num + self.dyn_tcs_num - 1 // - 1 is utility thread
+            } else {
+                self.static_tcs_num
+            }
+        } else {
+            self.static_tcs_num + self.eremove_tcs_num
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -204,9 +237,9 @@ impl SgxThreadData {
     /// This API is only an experimental funtion.
     ///
     #[allow(clippy::cast_ptr_alignment)]
-    pub fn new() -> Self {
+    pub fn current() -> Self {
         let td = unsafe {
-            let p = rsgx_get_thread_data() as * const thread_data_t;
+            let p = rsgx_get_thread_data();
             &*p
         };
         SgxThreadData {
@@ -225,7 +258,7 @@ impl SgxThreadData {
         }
     }
 
-    pub unsafe fn from_raw(raw: usize) -> Self {
+    pub unsafe fn from_raw(raw: sgx_thread_t) -> Self {
         let p = raw as * const thread_data_t;
         let td = &*p;
         SgxThreadData {
@@ -324,9 +357,8 @@ pub enum SgxThreadPolicy {
 /// This API is only an experimental funtion.
 ///
 #[inline]
-pub fn rsgx_get_thread_data() -> * const u8 {
-
-    unsafe { get_thread_data() as * const u8 }
+pub fn rsgx_get_thread_data() -> * const thread_data_t {
+    unsafe { get_thread_data() as * const thread_data_t }
 }
 
 ///
@@ -338,7 +370,6 @@ pub fn rsgx_get_thread_data() -> * const u8 {
 ///
 #[inline]
 pub fn rsgx_get_enclave_base() -> * const u8 {
-
     unsafe { get_enclave_base() as * const u8 }
 }
 
@@ -351,7 +382,6 @@ pub fn rsgx_get_enclave_base() -> * const u8 {
 ///
 #[inline]
 pub fn rsgx_get_enclave_size() -> usize {
-
     unsafe{ g_global_data.enclave_size }
 }
 
@@ -364,7 +394,6 @@ pub fn rsgx_get_enclave_size() -> usize {
 ///
 #[inline]
 pub fn rsgx_get_heap_base() -> * const u8 {
-
     unsafe { get_heap_base() as * const u8 }
 }
 
@@ -377,7 +406,6 @@ pub fn rsgx_get_heap_base() -> * const u8 {
 ///
 #[inline]
 pub fn rsgx_get_heap_offset() -> usize {
-
     unsafe{ g_global_data.heap_offset }
 }
 
@@ -390,7 +418,6 @@ pub fn rsgx_get_heap_offset() -> usize {
 ///
 #[inline]
 pub fn rsgx_get_heap_size() -> usize {
-
     unsafe { get_heap_size() }
 }
 
@@ -403,7 +430,6 @@ pub fn rsgx_get_heap_size() -> usize {
 ///
 #[inline]
 pub fn rsgx_get_thread_policy() -> SgxThreadPolicy {
-
     unsafe {
         if g_global_data.thread_policy != 0 {
             SgxThreadPolicy::Unbound
@@ -411,4 +437,66 @@ pub fn rsgx_get_thread_policy() -> SgxThreadPolicy {
             SgxThreadPolicy::Bound
         }
     }
+}
+
+///
+/// rsgx_get_global_data is to get global_data base address.
+///
+/// **Note**
+///
+/// This API is only an experimental funtion.
+///
+#[inline]
+pub fn rsgx_get_global_data() -> * const global_data_t {
+    unsafe { &g_global_data as * const global_data_t }
+}
+
+pub fn rsgx_get_tcs_num() -> (u32, u32, u32) {
+    let gd = unsafe {
+        let p = rsgx_get_global_data();
+        &*p
+    };
+
+    let mut static_tcs_num: u32 = 0;
+    let mut eremove_tcs_num: u32 = 0;
+    let mut dyn_tcs_num: u32 = 0;
+    let layout_table = &gd.layout_table[0..gd.layout_entry_num as usize];
+    unsafe { traversal_layout(&mut static_tcs_num, &mut dyn_tcs_num, &mut eremove_tcs_num, layout_table); }
+
+    unsafe fn traversal_layout(static_num: &mut u32, dyn_num: &mut u32, eremove_num: &mut u32, layout_table: &[layout_t])
+    {
+        for (i, layout) in layout_table.iter().enumerate() {
+            if !is_group_id!(layout.group.id as u32) {
+                if (layout.entry.attributes & PAGE_ATTR_EADD) != 0 {
+                    if (layout.entry.content_offset != 0) && (layout.entry.si_flags == SI_FLAGS_TCS) {
+                        if (layout.entry.attributes & PAGE_ATTR_EREMOVE) == 0 {
+                            *static_num += 1;
+                        } else {
+                            *eremove_num += 1;
+                        }
+                    }
+                }
+                if (layout.entry.attributes & PAGE_ATTR_POST_ADD) != 0 {
+                    if layout.entry.id == LAYOUT_ID_TCS_DYN as u16 {
+                        *dyn_num += 1;
+                    }
+                }
+            } else {
+                for _ in 0..layout.group.load_times {
+                    traversal_layout(static_num, dyn_num, eremove_num, &layout_table[i-layout.group.entry_count as usize..i])
+                }
+            }
+        }
+    }
+    (static_tcs_num, eremove_tcs_num, dyn_tcs_num)
+}
+
+#[inline]
+pub fn rsgx_is_supported_EDMM() -> bool {
+    unsafe { EDMM_supported != 0 }
+}
+
+#[inline]
+pub fn rsgx_get_cpu_feature() -> u64 {
+    unsafe { g_cpu_feature_indicator }
 }

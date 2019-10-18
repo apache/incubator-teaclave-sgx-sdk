@@ -46,8 +46,8 @@ pub fn tmpdir() -> TempDir {
 }
 
 pub fn test_path_stat_is_correct_on_is_dir() {
-   let tmpdir = tmpdir();
-   let filename = &tmpdir.join("file_stat_correct_on_is_dir");
+    let tmpdir = tmpdir();
+    let filename = &tmpdir.join("file_stat_correct_on_is_dir");
     
     check!(fs::create_dir(filename));
     let stat_res_fn = check!(fs::metadata(filename));
@@ -200,7 +200,6 @@ pub fn test_path_unicode_path_is_dir() {
     assert!(filepath.exists());
 }
 
-
 pub fn test_path_unicode_path_exists() {
     assert!(Path::new(".").exists());
     assert!(!Path::new("test/nonexistent-bogus-path").exists());
@@ -299,21 +298,20 @@ pub fn test_path_create_dir_all_with_junctions() {
     assert!(d.exists());
 }
 
+pub fn test_path_copy_file_follows_dst_symlink() {
+    let tmp = tmpdir();
 
-    pub fn test_path_copy_file_follows_dst_symlink() {
-        let tmp = tmpdir();
-      
-        let in_path = tmp.join("in.txt");
-        let out_path = tmp.join("out.txt");
-        let out_path_symlink = tmp.join("out_symlink.txt");
+    let in_path = tmp.join("in.txt");
+    let out_path = tmp.join("out.txt");
+    let out_path_symlink = tmp.join("out_symlink.txt");
 
-        check!(fs::write(&in_path, "foo"));
-        check!(fs::write(&out_path, "bar"));
-        check!(fs::soft_link(&out_path, &out_path_symlink));
+    check!(fs::write(&in_path, "foo"));
+    check!(fs::write(&out_path, "bar"));
+    check!(fs::soft_link(&out_path, &out_path_symlink));
 
-        check!(fs::copy(&in_path, &out_path_symlink));
+    check!(fs::copy(&in_path, &out_path_symlink));
 
-        assert!(check!(out_path_symlink.symlink_metadata()).file_type().is_symlink());
-        assert_eq!(check!(fs::read(&out_path_symlink)), b"foo".to_vec());
-        assert_eq!(check!(fs::read(&out_path)), b"foo".to_vec());
-    }
+    assert!(check!(out_path_symlink.symlink_metadata()).file_type().is_symlink());
+    assert_eq!(check!(fs::read(&out_path_symlink)), b"foo".to_vec());
+    assert_eq!(check!(fs::read(&out_path)), b"foo".to_vec());
+}

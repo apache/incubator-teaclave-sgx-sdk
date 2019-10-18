@@ -282,13 +282,9 @@ void * u_opendir_ocall(int *error, const char *pathname)
     return ret;
 }
 
-int u_readdir64_r_ocall(int *error, DIR *dirp, struct dirent64 *entry, struct dirent64 **result) 
+int u_readdir64_r_ocall(DIR *dirp, struct dirent64 *entry, struct dirent64 **result)
 {
-    int ret = readdir64_r(dirp, entry, result);
-    if (error) {
-        *error = ret == -1 ? errno : 0;
-    }
-    return ret;
+    return readdir64_r(dirp, entry, result);
 }
 
 int u_closedir_ocall(int *error, DIR *dirp)

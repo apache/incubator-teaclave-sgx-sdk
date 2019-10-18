@@ -27,7 +27,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use std::io::Error;
-use libc::{self, c_char, c_int};
+use libc::{self, c_char, c_int, uid_t, size_t, passwd};
+
+#[no_mangle]
+pub extern "C" fn u_getuid_ocall() -> uid_t {
+     unsafe { libc::getuid()}
+}
 
 #[no_mangle]
 pub extern "C" fn u_environ_ocall() -> * const * const c_char {
@@ -65,6 +70,76 @@ pub extern "C" fn u_unsetenv_ocall(error: * mut c_int, name: * const c_char) -> 
     }
     if !error.is_null() {
         unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn  u_getcwd_ocall(error: * mut c_int, buf: *mut c_char, size: size_t) -> *mut c_char {
+    let mut errno = 0;
+    let ret = unsafe { libc::getcwd(buf, size) };
+    if ret.is_null() {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+     if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_chdir_ocall(error: * mut c_int, dir: *const c_char) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::chdir(dir) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+     if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_getpwuid_r_ocall(uid: uid_t,
+                                     pwd: *mut passwd,
+                                     buf: *mut c_char,
+                                     buflen: size_t,
+                                     passwd_result: *mut *mut passwd) -> c_int {
+    let ret = unsafe { libc::getpwuid_r(uid, pwd, buf, buflen, passwd_result) };
+    if ret == 0 {
+        let pwd_ret = unsafe { *passwd_result };
+        if !pwd_ret.is_null() {
+            unsafe {
+                let mut temp_pwd = &mut *pwd;
+                let p = -1_isize as usize;
+                if !temp_pwd.pw_name.is_null() {
+                    temp_pwd.pw_name = temp_pwd.pw_name.offset_from(buf) as * mut c_char;
+                } else {
+                    temp_pwd.pw_name = p as usize as * mut c_char;
+                }
+                if !temp_pwd.pw_passwd.is_null() {
+                    temp_pwd.pw_passwd = temp_pwd.pw_passwd.offset_from(buf) as * mut c_char;
+                } else {
+                    temp_pwd.pw_passwd = p as usize as * mut c_char;
+                }
+                if !temp_pwd.pw_gecos.is_null() {
+                    temp_pwd.pw_gecos = temp_pwd.pw_gecos.offset_from(buf) as * mut c_char;
+                } else {
+                    temp_pwd.pw_gecos = p as * mut c_char;
+                }
+                if !temp_pwd.pw_dir.is_null() {
+                    temp_pwd.pw_dir = temp_pwd.pw_dir.offset_from(buf) as * mut c_char;
+                } else {
+                    temp_pwd.pw_dir = p as * mut c_char;
+                }
+                if !temp_pwd.pw_shell.is_null() {
+                    temp_pwd.pw_shell = temp_pwd.pw_shell.offset_from(buf) as * mut c_char;
+                } else {
+                    temp_pwd.pw_shell = p as * mut c_char;
+                }
+            }
+        }
     }
     ret
 }

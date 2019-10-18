@@ -30,10 +30,22 @@
 
 use crate::error::Error;
 use crate::ffi::{OsStr, OsString};
-use crate::path::PathBuf;
+use crate::path::{PathBuf, Path};
 use crate::sys::os as os_imp;
 use core::fmt;
+use crate::io;
 
+pub fn current_exe() -> io::Result<PathBuf> {
+    os_imp::current_exe()
+}
+
+pub fn set_current_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
+    os_imp::chdir(path.as_ref())
+}
+
+pub fn current_dir() -> io::Result<PathBuf> {
+    os_imp::getcwd()
+}
 /// An iterator over a snapshot of the environment variables of this process.
 ///
 pub struct Vars { inner: VarsOs }
@@ -277,6 +289,10 @@ impl fmt::Display for JoinPathsError {
 
 impl Error for JoinPathsError {
     fn description(&self) -> &str { self.inner.description() }
+}
+
+pub fn home_dir() -> Option<PathBuf> {
+    os_imp::home_dir()
 }
 
 pub fn temp_dir() -> PathBuf {

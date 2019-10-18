@@ -210,5 +210,5 @@ macro_rules! group_id {
 
 #[macro_export]
 macro_rules! is_group_id {
-    ($gid:expr) => ( (!!($gid & GROUP_FLAG)) )
+    ($gid:expr) => ( (($gid & GROUP_FLAG) != 0) )
 }

@@ -146,11 +146,16 @@ pub type uid_t = u32;
 pub type gid_t = u32;
 pub type ino64_t = u64;
 pub type nfds_t = c_ulong;
+pub type pthread_t = c_ulong;
 
 #[derive(Copy, Clone, Debug)]
 pub enum DIR {}
 
 s! {
+    #[cfg(target_arch = "x86_64")]
+    pub struct pthread_attr_t {
+       __size: [u64; 7],
+    }
     pub struct stat {
         pub st_dev: dev_t,
         pub st_ino: ino_t,
@@ -395,6 +400,16 @@ s! {
         pub d_reclen: c_ushort,
         pub d_type: c_uchar,
         pub d_name: [c_char; 256],
+    }
+
+    pub struct passwd {
+        pub pw_name: *mut c_char,
+        pub pw_passwd: *mut c_char,
+        pub pw_uid: uid_t,
+        pub pw_gid: gid_t,
+        pub pw_gecos: *mut c_char,
+        pub pw_dir: *mut c_char,
+        pub pw_shell: *mut c_char,
     }
 }
 

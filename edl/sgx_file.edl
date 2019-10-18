@@ -68,7 +68,7 @@ enclave {
         int u_mkdir_ocall([out] int *error, [in, string] const char *pathname, uint32_t mode);
         int u_rmdir_ocall([out] int *error, [in, string] const char *pathname);
         void * u_opendir_ocall([out] int *error, [in, string] const char *pathname);
-        int u_readdir64_r_ocall([out] int *error, [user_check] void *dirp, [in, out] struct dirent64_t *entry, [out] struct dirent64_t **result);
+        int u_readdir64_r_ocall([user_check] void *dirp, [in, out] struct dirent64_t *entry, [out] struct dirent64_t **result);
         int u_closedir_ocall([out] int *error, [user_check] void *dirp);
         int u_dirfd_ocall([out] int *error, [user_check] void *dirp);
         int u_fstatat64_ocall([out] int *error, int dirfd, [in, string] const char *pathname, [out] struct stat64_t *buf, int flags);

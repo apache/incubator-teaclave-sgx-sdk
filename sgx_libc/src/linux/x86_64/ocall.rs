@@ -62,6 +62,7 @@ extern "C" {
                             length: size_t,
                             prot: c_int) -> sgx_status_t;
     // env
+    pub fn u_getuid_ocall(result: * mut uid_t) -> sgx_status_t;
     pub fn u_environ_ocall(result: * mut * const * const c_char) -> sgx_status_t;
     pub fn u_getenv_ocall(result: * mut * const c_char,
                           name: * const c_char) -> sgx_status_t;
@@ -73,6 +74,14 @@ extern "C" {
     pub fn u_unsetenv_ocall(result: * mut c_int,
                             error: * mut c_int,
                             name: * const c_char) -> sgx_status_t;
+    pub fn u_getcwd_ocall(result: *mut *mut c_char,  error: * mut c_int, buf: *mut c_char, size: size_t) -> sgx_status_t;
+    pub fn u_chdir_ocall(result: * mut c_int,  error: * mut c_int, dir: *const c_char) -> sgx_status_t;
+    pub fn u_getpwuid_r_ocall(result: * mut c_int,
+                              uid: uid_t,
+                              pwd: *mut passwd,
+                              buf: *mut c_char,
+                              buflen: size_t,
+                              passwd_result: *mut *mut passwd) -> sgx_status_t;
     // file
     pub fn u_open_ocall(result: * mut c_int,
                         error: * mut c_int,
@@ -181,7 +190,6 @@ extern "C" {
                            error: * mut c_int,
                            pathname: * const c_char) -> sgx_status_t;
     pub fn u_readdir64_r_ocall(result: * mut c_int,
-                               error: * mut c_int,
                                dirp: * mut DIR,
                                entry: * mut dirent64,
                                dirresult: * mut * mut  dirent64) -> sgx_status_t;
@@ -384,7 +392,6 @@ extern "C" {
                         fds: * mut pollfd,
                         nfds: nfds_t,
                         timeout: c_int) -> sgx_status_t;
-
     pub fn u_epoll_create1_ocall(result: * mut c_int,
                                  error: * mut c_int,
                                  flags: c_int) -> sgx_status_t;
@@ -404,16 +411,39 @@ extern "C" {
     pub fn u_sysconf_ocall(result: * mut c_long,
                            error: * mut c_int,
                            name: c_int) -> sgx_status_t;
-
+    pub fn u_prctl_ocall(result: * mut c_int,
+                         error: * mut c_int,
+                         option: c_int,
+                         arg2: c_ulong,
+                         arg3: c_ulong,
+                         arg4: c_ulong,
+                         arg5: c_ulong) -> sgx_status_t;
     // pipe
     pub fn u_pipe_ocall(result: * mut c_int,
                         error: * mut c_int,
                         fds: * mut c_int) -> sgx_status_t;
-
     pub fn u_pipe2_ocall(result: * mut c_int,
                          error: * mut c_int,
                          fds: * mut c_int,
                          flags: c_int) -> sgx_status_t;
+    //thread
+    pub  fn u_pthread_create_ocall(result: * mut c_int,
+                                   native: * mut pthread_t,
+                                   attr: * const pthread_attr_t,
+                                   f: * mut c_void,
+                                   value: * mut c_void,
+                                   len: c_int) -> sgx_status_t;
+    pub  fn u_pthread_join_ocall(result: * mut c_int,
+                                 native: pthread_t,
+                                 value: *mut *mut c_void) -> sgx_status_t;
+    pub  fn u_pthread_detach_ocall(result: * mut c_int,
+                                   native: pthread_t) -> sgx_status_t;
+    pub  fn u_sched_yield_ocall(result: * mut c_int,
+                                error: * mut c_int) -> sgx_status_t;
+    pub  fn u_nanosleep_ocall(result: * mut c_int,
+                              error: * mut c_int,
+                              rqtp: *const timespec,
+                              rmtp: *mut timespec) -> sgx_status_t;
 }
 
 pub unsafe fn malloc(size: size_t) -> * mut c_void {
@@ -520,6 +550,15 @@ pub unsafe fn mprotect(addr: * mut c_void, length: size_t, prot: c_int) -> c_int
     result
 }
 
+pub unsafe fn getuid() -> uid_t {
+    let mut result: uid_t = 0;
+    let status = u_getuid_ocall(&mut result as * mut uid_t);
+    if status != sgx_status_t::SGX_SUCCESS {
+         set_errno(ESGX);
+         result = 0;
+    }
+    result
+}
 pub unsafe fn environ() -> * const * const c_char {
     let mut result: * const * const c_char = ptr::null();
     let status = u_environ_ocall(&mut result as * mut * const * const c_char);
@@ -574,6 +613,95 @@ pub unsafe fn unsetenv(name: * const c_char) -> c_int {
     } else {
         set_errno(ESGX);
         result = -1;
+    }
+    result
+}
+
+pub unsafe fn getcwd(buf: * mut c_char, size: size_t) -> * mut c_char {
+    let mut result: * mut c_char = ptr::null_mut();
+    let mut error: c_int = 0;
+    let status = u_getcwd_ocall(&mut result as * mut * mut c_char, &mut error as * mut c_int, buf, size);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result.is_null() {
+            set_errno(error);
+        } else {
+            result = buf;
+        }
+    } else {
+        set_errno(ESGX);
+        result = ptr::null_mut();
+    }
+    result
+}
+
+pub unsafe fn chdir(dir: * const c_char) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_chdir_ocall(&mut result as * mut c_int, &mut error as * mut c_int, dir);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn getpwuid_r(uid: uid_t,
+                         pwd: * mut passwd,
+                         buf: * mut c_char,
+                         buflen: size_t,
+                         passwd_result:  *mut * mut passwd) -> c_int {
+    let mut result: c_int = 0;
+    let status = u_getpwuid_r_ocall(&mut result as * mut c_int,
+                                    uid,
+                                    pwd,
+                                    buf,
+                                    buflen,
+                                    passwd_result);
+    if status == sgx_status_t::SGX_SUCCESS && result == 0 {
+        let pwd_ret = *passwd_result;
+        if !pwd_ret.is_null() {
+            let mut temp_pwd = &mut *pwd;
+            let mut temp_buf = buf;
+            if temp_pwd.pw_name as usize != -1_isize as usize {
+                temp_pwd.pw_name = temp_buf.offset(temp_pwd.pw_name as isize);
+            } else {
+                temp_pwd.pw_name = ptr::null_mut();
+            }
+            temp_buf = buf;
+            if temp_pwd.pw_passwd as usize != -1_isize as usize {
+                temp_pwd.pw_passwd = temp_buf.offset(temp_pwd.pw_passwd as isize);
+            } else {
+                temp_pwd.pw_passwd = ptr::null_mut();
+            }
+            temp_buf = buf;
+            if temp_pwd.pw_gecos as usize != -1_isize as usize {
+                temp_pwd.pw_gecos = temp_buf.offset(temp_pwd.pw_gecos as isize);
+            } else {
+                temp_pwd.pw_gecos = ptr::null_mut();
+            }
+            temp_buf = buf;
+            if temp_pwd.pw_dir as usize != -1_isize as usize {
+                temp_pwd.pw_dir = temp_buf.offset(temp_pwd.pw_dir as isize);
+            } else {
+                temp_pwd.pw_dir = ptr::null_mut();
+            }
+            temp_buf = buf;
+            if temp_pwd.pw_shell as usize != -1_isize as usize {
+                temp_pwd.pw_shell = temp_buf.offset(temp_pwd.pw_shell as isize);
+            } else {
+                temp_pwd.pw_shell = ptr::null_mut();
+            }
+            *passwd_result = pwd;
+        }
+    } else {
+        *passwd_result = ptr::null_mut();
+        if status != sgx_status_t::SGX_SUCCESS {
+            result = ESGX;
+        }
     }
     result
 }
@@ -1091,22 +1219,22 @@ pub unsafe fn opendir(pathname: * const c_char) -> * mut DIR {
 
 pub unsafe fn readdir64_r(dirp: * mut DIR,
                           entry: * mut dirent64,
-                          dirresult: * mut  *mut dirent64) -> c_int {
+                          dirresult: * mut * mut dirent64) -> c_int {
     let mut result: c_int = 0;
-    let mut error: c_int = 0;
     let status = u_readdir64_r_ocall(&mut result as * mut c_int,
-                                     &mut error as * mut c_int,
                                      dirp,
                                      entry,
                                      dirresult);
-
-    if status == sgx_status_t::SGX_SUCCESS {
-        if result == -1 {
-            set_errno(error);
+    if status == sgx_status_t::SGX_SUCCESS && result == 0 {
+        let dir_ret = *dirresult;
+        if !dir_ret.is_null() {
+            *dirresult = entry;
         }
     } else {
-        set_errno(ESGX);
-        result = -1;
+        *dirresult = ptr::null_mut();
+        if status != sgx_status_t::SGX_SUCCESS {
+            result = ESGX;
+        }
     }
     result
 }
@@ -2295,7 +2423,6 @@ pub unsafe fn sysconf(name: c_int) -> c_long {
     let status = u_sysconf_ocall(&mut result as * mut c_long,
                                  &mut error as * mut c_int,
                                  name);
-
     if status == sgx_status_t::SGX_SUCCESS {
         if result == -1 {
             set_errno(error);
@@ -2306,6 +2433,32 @@ pub unsafe fn sysconf(name: c_int) -> c_long {
     }
     result
 }
+
+pub unsafe fn prctl(option: c_int,
+                    arg2: c_ulong,
+                    arg3: c_ulong,
+                    arg4: c_ulong,
+                    arg5: c_ulong) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_prctl_ocall(&mut result as * mut c_int,
+                               &mut error as * mut c_int,
+                               option,
+                               arg2,
+                               arg3,
+                               arg4,
+                               arg5);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
 
 pub unsafe fn pipe(fds: * mut c_int) -> c_int {
     let mut result: c_int = 0;
@@ -2331,6 +2484,78 @@ pub unsafe fn pipe2(fds: * mut c_int, flags: c_int) -> c_int {
                                &mut error as * mut c_int,
                                fds,
                                flags);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn pthread_create(native: * mut pthread_t,
+                             attr: * const pthread_attr_t,
+                             f: * mut c_void,
+                             value: * mut c_void,
+                             len: c_int) -> c_int {
+    let mut result: c_int = 0;
+    let status = u_pthread_create_ocall(&mut result as * mut c_int,
+                                        native,
+                                        attr,
+                                        f,
+                                        value,
+                                        len);
+    if status != sgx_status_t::SGX_SUCCESS {
+       result = ESGX;
+    }
+    result
+}
+
+pub unsafe fn pthread_join(native: pthread_t, value: * mut * mut c_void) -> c_int {
+    let mut result: c_int = 0;
+    let status = u_pthread_join_ocall(&mut result as * mut c_int,
+                                      native,
+                                      value);
+    if status != sgx_status_t::SGX_SUCCESS {
+       result = ESGX;
+    }
+    result
+}
+
+pub unsafe fn pthread_detach(native: pthread_t) -> c_int {
+    let mut result: c_int = 0;
+    let status = u_pthread_detach_ocall(&mut result as * mut c_int, native);
+    if status != sgx_status_t::SGX_SUCCESS {
+       result = ESGX;
+    }
+    result
+}
+
+pub unsafe fn sched_yield() -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_sched_yield_ocall(&mut result as * mut c_int,
+                                     &mut error as * mut c_int);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn nanosleep(rqtp: * const timespec, rmtp: * mut timespec) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_nanosleep_ocall(&mut result as * mut c_int,
+                                   &mut error as * mut c_int,
+                                   rqtp,
+                                   rmtp);
     if status == sgx_status_t::SGX_SUCCESS {
         if result == -1 {
             set_errno(error);

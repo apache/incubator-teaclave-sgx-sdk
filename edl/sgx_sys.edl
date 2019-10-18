@@ -37,5 +37,6 @@ enclave {
 
     untrusted {
         long u_sysconf_ocall([out] int *error, int name);
+        int u_prctl_ocall([out] int *error, int option, unsigned long arg2, unsigned long arg3, unsigned long arg4, unsigned long arg5);
     };
 };

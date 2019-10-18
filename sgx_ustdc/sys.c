@@ -28,12 +28,27 @@
 
 #include <unistd.h>
 #include <errno.h>
+#include <sys/prctl.h>
 
 long u_sysconf_ocall(int * error, int name)
 {
     long ret = sysconf(name);
     if (error) {
         *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+int u_prctl_ocall(int * error,
+                  int option,
+                  unsigned long arg2,
+                  unsigned long arg3,
+                  unsigned long arg4,
+                  unsigned long arg5)
+{
+    int ret = prctl(option, arg2, arg3, arg4, arg5);
+    if (error) {
+        *error = ret < 0  ? errno : 0;
     }
     return ret;
 }

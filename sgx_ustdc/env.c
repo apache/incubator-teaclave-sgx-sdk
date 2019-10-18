@@ -29,8 +29,13 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <errno.h>
-
+#include <pwd.h>
 extern char **environ;
+
+uid_t u_getuid_ocall()
+{
+    return getuid();
+}
 
 char ** u_environ_ocall()
 {
@@ -56,6 +61,41 @@ int u_unsetenv_ocall(int * error, const char * name)
     int ret = unsetenv(name);
     if (error) {
         *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+char* u_getcwd_ocall(int *error, char *buf, size_t size)
+{
+    char *ret = getcwd(buf, size);
+    if (error) {
+        *error = ret == NULL ? errno : 0;
+    }
+    return ret;
+}
+
+int u_chdir_ocall(int *error, const char *dir)
+{
+    int ret = chdir(dir);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+int u_getpwuid_r_ocall(uid_t uid,
+                       struct passwd *pwd,
+                       char *buf,
+                       size_t buflen,
+                       struct passwd **passwd_result)
+{
+    int ret = getpwuid_r(uid, pwd, buf, buflen, passwd_result);
+    if (ret == 0 && *passwd_result != NULL) {
+        pwd->pw_name = pwd->pw_name ? pwd->pw_name - buf : -1;
+        pwd->pw_passwd = pwd->pw_passwd ? pwd->pw_passwd - buf : -1;
+        pwd->pw_gecos = pwd->pw_gecos ? pwd->pw_gecos - buf : -1;
+        pwd->pw_dir = pwd->pw_dir ? pwd->pw_dir - buf : -1;
+        pwd->pw_shell = pwd->pw_shell ? pwd->pw_shell - buf : -1;
     }
     return ret;
 }
