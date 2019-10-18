@@ -38,9 +38,11 @@ extern crate sgx_trts;
 #[macro_use]
 extern crate sgx_tstd as std;
 
+#[macro_use]
+extern crate lazy_static;
+
 use sgx_types::*;
-use sgx_trts::trts::{rsgx_raw_is_outside_enclave, rsgx_lfence};
-use std::mem;
+use sgx_trts::trts::{rsgx_raw_is_outside_enclave, rsgx_lfence, rsgx_sfence};
 
 use std::untrusted::fs;
 use std::io::BufReader;
@@ -48,13 +50,14 @@ use std::io::BufReader;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 
-use std::ptr;
 use std::vec::Vec;
 use std::boxed::Box;
 use std::io::{Read, Write};
 use std::slice;
-use std::sync::Arc;
+use std::sync::{Arc, SgxRwLock};
 use std::net::TcpStream;
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, AtomicPtr, Ordering};
 
 extern crate webpki;
 extern crate rustls;
@@ -63,6 +66,14 @@ use rustls::{Session, NoClientAuth};
 pub struct TlsServer {
     socket: TcpStream,
     tls_session: rustls::ServerSession,
+}
+
+static GLOBAL_CONTEXT_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+lazy_static! {
+    static ref GLOBAL_CONTEXTS: SgxRwLock<HashMap<usize, AtomicPtr<TlsServer>>> = {
+        SgxRwLock::new(HashMap::new())
+    };
 }
 
 impl TlsServer {
@@ -172,142 +183,150 @@ fn make_config(cert: &str, key: &str) -> Arc<rustls::ServerConfig> {
     Arc::new(config)
 }
 
+struct Sessions;
+
+impl Sessions {
+    fn new_session(svr_ptr : *mut TlsServer) -> Option<usize> {
+        match GLOBAL_CONTEXTS.write() {
+            Ok(mut gctxts) => {
+                let curr_id = GLOBAL_CONTEXT_COUNT.fetch_add(1, Ordering::SeqCst);
+                gctxts.insert(curr_id, AtomicPtr::new(svr_ptr));
+                Some(curr_id)
+            },
+            Err(x) => {
+                println!("Locking global context SgxRwLock failed! {:?}", x);
+                None
+            },
+        }
+    }
+
+    fn get_session(sess_id: size_t) -> Option<*mut TlsServer> {
+        match GLOBAL_CONTEXTS.read() {
+            Ok(gctxts) => {
+                match gctxts.get(&sess_id) {
+                    Some(s) => {
+                        Some(s.load(Ordering::SeqCst))
+                    },
+                    None => {
+                        println!("Global contexts cannot find session id = {}", sess_id);
+                        None
+                    }
+                }
+            },
+            Err(x) => {
+                println!("Locking global context SgxRwLock failed on get_session! {:?}", x);
+                None
+            },
+        }
+    }
+
+    fn remove_session(sess_id: size_t) {
+        if let Ok(mut gctxts) = GLOBAL_CONTEXTS.write() {
+            if let Some(session_ptr) = gctxts.get(&sess_id) {
+                let session_ptr = session_ptr.load(Ordering::SeqCst);
+                let session = unsafe { &mut *session_ptr };
+                let _ = unsafe { Box::<TlsServer>::from_raw(session as *mut _) };
+                let _ = gctxts.remove(&sess_id);
+            }
+        }
+    }
+}
+
 #[no_mangle]
-pub extern "C" fn tls_server_new(fd: c_int, cert: * const c_char, key: * const c_char) ->  *const c_void {
+pub extern "C" fn tls_server_new(fd: c_int, cert: * const c_char, key: * const c_char) -> usize {
     let certfile = unsafe { CStr::from_ptr(cert).to_str() };
     if certfile.is_err() {
-        return ptr::null();
+        return 0xFFFF_FFFF_FFFF_FFFF;
     }
     let keyfile = unsafe { CStr::from_ptr(key).to_str() };
     if keyfile.is_err() {
-        return ptr::null();
+        return 0xFFFF_FFFF_FFFF_FFFF;
     }
     let config = make_config(certfile.unwrap(), keyfile.unwrap());
 
-    Box::into_raw(Box::new(TlsServer::new(fd, config))) as  *const c_void
+    let p: *mut TlsServer = Box::into_raw(Box::new(TlsServer::new(fd, config)));
+    match Sessions::new_session(p) {
+        Some(s) => s,
+        None => 0xFFFF_FFFF_FFFF_FFFF,
+    }
 }
 
 #[no_mangle]
-pub extern "C" fn tls_server_read(session: *const c_void, buf: * mut c_char, cnt: c_int) -> c_int {
-    if session.is_null() {
-        return -1;
-    }
-
-    if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsServer>()) {
-        return -1;
-    }
-    rsgx_lfence();
-
-    let session = unsafe { &mut *(session as *mut TlsServer) };
-
-    if buf.is_null() || cnt == 0 {
-        // just read_tls
-        session.do_read()
-    } else {
-
-        if !rsgx_raw_is_outside_enclave(buf as * const u8, cnt as usize) {
-            return -1;
+pub extern "C" fn tls_server_read(session_id: size_t, buf: * mut c_char, cnt: c_int) -> c_int {
+    if let Some(session_ptr) = Sessions::get_session(session_id) {
+        let session = unsafe { &mut *(session_ptr) };
+        if buf.is_null() || cnt == 0 {
+            // just read_tls
+            session.do_read()
+        } else {
+            if !rsgx_raw_is_outside_enclave(buf as * const u8, cnt as usize) {
+                return -1;
+            }
+            // read plain buffer
+            let mut plaintext = Vec::new();
+            let mut result = session.read(&mut plaintext);
+            if result == -1 {
+                return result;
+            }
+            if cnt < result {
+                result = cnt;
+            }
+            rsgx_sfence();
+            let raw_buf = unsafe { slice::from_raw_parts_mut(buf as * mut u8, result as usize) };
+            raw_buf.copy_from_slice(plaintext.as_slice());
+            result
         }
+    } else { -1 }
+}
+
+#[no_mangle]
+pub extern "C" fn tls_server_write(session_id: usize, buf: * const c_char, cnt: c_int)  -> c_int {
+    if let Some(session_ptr) = Sessions::get_session(session_id) {
+        let session = unsafe { &mut *(session_ptr) };
+
+        // no buffer, just write_tls.
+        if buf.is_null() || cnt == 0 {
+            session.do_write();
+            return 0;
+        }
+
         rsgx_lfence();
+        // cache buffer, waitting for next write_tls
+        let cnt = cnt as usize;
+        let plaintext = unsafe { slice::from_raw_parts(buf as * mut u8, cnt) };
+        let result = session.write(plaintext);
 
-        // read plain buffer
-        let mut plaintext = Vec::new();
-        let mut result = session.read(&mut plaintext);
-        if result == -1 {
-            return result;
-        }
-
-        if cnt < result {
-            result = cnt;
-        }
-        let raw_buf = unsafe { slice::from_raw_parts_mut(buf as * mut u8, result as usize) };
-        raw_buf.copy_from_slice(plaintext.as_slice());
         result
-    }
+    } else { -1 }
 }
 
 #[no_mangle]
-pub extern "C" fn tls_server_write(session: *const c_void, buf: * const c_char, cnt: c_int)  -> c_int {
-    if session.is_null() {
-        return -1;
-    }
-
-    if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsServer>()) {
-        return -1;
-    }
-    rsgx_lfence();
-
-    let session = unsafe { &mut *(session as *mut TlsServer) };
-
-    // no buffer, just write_tls.
-    if buf.is_null() || cnt == 0 {
-        session.do_write();
-        return 0;
-    }
-
-    // cache buffer, waitting for next write_tls
-    let cnt = cnt as usize;
-    let plaintext = unsafe { slice::from_raw_parts(buf as * mut u8, cnt) };
-    let result = session.write(plaintext);
-
-    result
+pub extern "C" fn tls_server_wants_read(session_id: usize) -> c_int {
+    if let Some(session_ptr) = Sessions::get_session(session_id) {
+        let session = unsafe { &mut *(session_ptr) };
+        let result = session.tls_session.wants_read() as c_int;
+        result
+    } else { -1 }
 }
 
 #[no_mangle]
-pub extern "C" fn tls_server_wants_read(session: *const c_void)  -> c_int {
-    if session.is_null() {
-        return -1;
-    }
-
-    if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsServer>()) {
-        return -1;
-    }
-    rsgx_lfence();
-
-    let session = unsafe { &mut *(session as *mut TlsServer) };
-    let result = session.tls_session.wants_read() as c_int;
-    result
+pub extern "C" fn tls_server_wants_write(session_id: usize)  -> c_int {
+    if let Some(session_ptr) = Sessions::get_session(session_id) {
+        let session = unsafe { &mut *(session_ptr) };
+        let result = session.tls_session.wants_write() as c_int;
+        result
+    } else { -1 }
 }
 
 #[no_mangle]
-pub extern "C" fn tls_server_wants_write(session: *const c_void)  -> c_int {
-    if session.is_null() {
-        return -1;
-    }
-
-    if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsServer>()) {
-        return -1;
-    }
-    rsgx_lfence();
-
-    let session = unsafe { &mut *(session as *mut TlsServer) };
-    let result = session.tls_session.wants_write() as c_int;
-    result
+pub extern "C" fn tls_server_close(session_id: usize) {
+    Sessions::remove_session(session_id)
 }
 
 #[no_mangle]
-pub extern "C" fn tls_server_close(session: * const c_void) {
-    if !session.is_null() {
-
-        if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsServer>()) {
-            return;
-        }
-        rsgx_lfence();
-
-        let _ = unsafe { Box::<TlsServer>::from_raw(session as *mut _) };
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn tls_server_send_close(session: * const c_void) {
-    if !session.is_null() {
-
-        if rsgx_raw_is_outside_enclave(session as * const u8, mem::size_of::<TlsServer>()) {
-            return;
-        }
-        rsgx_lfence();
-
-        let session = unsafe { &mut *(session as *mut TlsServer) };
+pub extern "C" fn tls_server_send_close(session_id: usize) {
+    if let Some(session_ptr) = Sessions::get_session(session_id) {
+        let session = unsafe { &mut *session_ptr };
         session.tls_session.send_close_notify();
     }
 }

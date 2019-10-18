@@ -41,10 +41,10 @@ enclave {
         /* define ECALLs here. */
 
         public size_t tls_client_new(int fd, [in, string]char* hostname, [in, string] char* cert);
-        public int tls_client_read([user_check] void* session, [out, size=cnt] char* buf, int cnt);
-        public int tls_client_write([user_check] void* session, [in, size=cnt] char* buf, int cnt);
-        public int tls_client_wants_read([user_check] void* session);
-        public int tls_client_wants_write([user_check] void* session);
-        public void tls_client_close([user_check] void* session);
+        public int tls_client_read(size_t session_id, [out, size=cnt] char* buf, int cnt);
+        public int tls_client_write(size_t session_id, [in, size=cnt] char* buf, int cnt);
+        public int tls_client_wants_read(size_t session_id);
+        public int tls_client_wants_write(size_t session_id);
+        public void tls_client_close(size_t session_id);
     };
 };

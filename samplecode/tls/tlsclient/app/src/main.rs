@@ -43,7 +43,6 @@ use std::fs;
 use std::path;
 use std::net::SocketAddr;
 use std::str;
-use std::ptr;
 use std::io::{self, Read, Write};
 
 const BUFFER_SIZE: usize = 1024;
@@ -52,18 +51,18 @@ static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
 
 extern {
-    fn tls_client_new(eid: sgx_enclave_id_t, retval: *mut *const c_void,
+    fn tls_client_new(eid: sgx_enclave_id_t, retval: *mut usize,
                      fd: c_int, hostname: *const c_char, cert: *const c_char) -> sgx_status_t;
     fn tls_client_read(eid: sgx_enclave_id_t, retval: *mut c_int,
-                     session: *const c_void, buf: *mut c_void, cnt: c_int) -> sgx_status_t;
+                     session_id: usize, buf: *mut c_void, cnt: c_int) -> sgx_status_t;
     fn tls_client_write(eid: sgx_enclave_id_t, retval: *mut c_int,
-                     session: *const c_void, buf: *const c_void, cnt: c_int) -> sgx_status_t;
+                     session_id: usize, buf: *const c_void, cnt: c_int) -> sgx_status_t;
     fn tls_client_wants_read(eid: sgx_enclave_id_t, retval: *mut c_int,
-                     session: *const c_void) -> sgx_status_t;
+                     session_id: usize) -> sgx_status_t;
     fn tls_client_wants_write(eid: sgx_enclave_id_t, retval: *mut c_int,
-                     session: *const c_void) -> sgx_status_t;
+                     session_id: usize) -> sgx_status_t;
     fn tls_client_close(eid: sgx_enclave_id_t,
-                     session: *const c_void) -> sgx_status_t;
+                     session_id: usize) -> sgx_status_t;
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
@@ -142,7 +141,7 @@ struct TlsClient {
     enclave_id: sgx_enclave_id_t,
     socket: TcpStream,
     closing: bool,
-    tlsclient: *const c_void,
+    tlsclient_id: usize,
 }
 
 impl TlsClient {
@@ -181,13 +180,13 @@ impl TlsClient {
 
         println!("[+] TlsClient new {} {}", hostname, cert);
 
-        let mut tlsclient: *const c_void = ptr::null();
+        let mut tlsclient_id: usize = 0xFFFF_FFFF_FFFF_FFFF;
         let c_host = CString::new(hostname.to_string()).unwrap();
         let c_cert = CString::new(cert.to_string()).unwrap();
 
         let retval = unsafe {
             tls_client_new(enclave_id,
-                           &mut tlsclient as *mut *const c_void,
+                           &mut tlsclient_id,
                            sock.as_raw_fd(),
                            c_host.as_ptr() as *const c_char,
                            c_cert.as_ptr() as *const c_char)
@@ -198,7 +197,7 @@ impl TlsClient {
             return Option::None;
         }
 
-        if tlsclient.is_null() {
+        if tlsclient_id == 0xFFFF_FFFF_FFFF_FFFF {
             println!("[-] New enclave tlsclient error");
             return Option::None;
         }
@@ -208,14 +207,14 @@ impl TlsClient {
             enclave_id: enclave_id,
             socket: sock,
             closing: false,
-            tlsclient: tlsclient as *const c_void,
+            tlsclient_id: tlsclient_id,
         })
     }
 
     fn close(&self) {
 
         let retval = unsafe {
-            tls_client_close(self.enclave_id, self.tlsclient)
+            tls_client_close(self.enclave_id, self.tlsclient_id)
         };
 
         if retval != sgx_status_t::SGX_SUCCESS {
@@ -228,7 +227,7 @@ impl TlsClient {
         let result = unsafe {
             tls_client_read(self.enclave_id,
                             &mut retval,
-                            self.tlsclient,
+                            self.tlsclient_id,
                             buf.as_mut_ptr() as * mut c_void,
                             buf.len() as c_int)
         };
@@ -247,7 +246,7 @@ impl TlsClient {
         let result = unsafe {
             tls_client_write(self.enclave_id,
                              &mut retval,
-                             self.tlsclient,
+                             self.tlsclient_id,
                              buf.as_ptr() as * const c_void,
                              buf.len() as c_int)
         };
@@ -302,7 +301,7 @@ impl TlsClient {
         let result = unsafe {
             tls_client_wants_read(self.enclave_id,
                                   &mut retval,
-                                  self.tlsclient)
+                                  self.tlsclient_id)
         };
 
         match result {
@@ -323,7 +322,7 @@ impl TlsClient {
         let result = unsafe {
             tls_client_wants_write(self.enclave_id,
                                    &mut retval,
-                                   self.tlsclient)
+                                   self.tlsclient_id)
         };
 
         match result {

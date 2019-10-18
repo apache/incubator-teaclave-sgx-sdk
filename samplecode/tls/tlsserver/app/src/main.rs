@@ -44,7 +44,6 @@ use std::fs;
 use std::path;
 use std::net;
 use std::str;
-use std::ptr;
 use std::io;
 use std::io::{Read, Write};
 use std::collections::HashMap;
@@ -55,20 +54,20 @@ static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
 
 extern {
-    fn tls_server_new(eid: sgx_enclave_id_t, retval: *mut * const c_void,
+    fn tls_server_new(eid: sgx_enclave_id_t, retval: *mut size_t,
                      fd: c_int, cert: *const c_char, key: *const c_char) -> sgx_status_t;
     fn tls_server_read(eid: sgx_enclave_id_t, retval: *mut c_int,
-                     session: *const c_void, buf: *mut c_void, cnt: c_int) -> sgx_status_t;
+                     session_id: size_t, buf: *mut c_void, cnt: c_int) -> sgx_status_t;
     fn tls_server_write(eid: sgx_enclave_id_t, retval: *mut c_int,
-                     session: *const c_void, buf: *const c_void, cnt: c_int) -> sgx_status_t;
+                     session_id: size_t, buf: *const c_void, cnt: c_int) -> sgx_status_t;
     fn tls_server_wants_read(eid: sgx_enclave_id_t, retval: *mut c_int,
-                     session: *const c_void) -> sgx_status_t;
+                     session_id: size_t) -> sgx_status_t;
     fn tls_server_wants_write(eid: sgx_enclave_id_t, retval: *mut c_int,
-                     session: *const c_void) -> sgx_status_t;
+                     session_id: size_t) -> sgx_status_t;
     fn tls_server_close(eid: sgx_enclave_id_t,
-                     session: *const c_void) -> sgx_status_t;
+                     session_id: size_t) -> sgx_status_t;
     fn tls_server_send_close(edi: sgx_enclave_id_t,
-                     session: *const c_void) -> sgx_status_t;
+                     session_id: size_t) -> sgx_status_t;
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
@@ -190,10 +189,10 @@ impl TlsServer {
 
                 println!("Accepting new connection from {:?}", addr);
 
-                let mut tlsserver: *const c_void = ptr::null();
+                let mut tlsserver_id: usize = 0xFFFF_FFFF_FFFF_FFFF;
                 let retval = unsafe {
                     tls_server_new(self.enclave_id,
-                                   &mut tlsserver as *mut *const c_void,
+                                   &mut tlsserver_id,
                                    socket.as_raw_fd(),
                                    self.cert.as_bytes_with_nul().as_ptr() as * const c_char,
                                    self.key.as_bytes_with_nul().as_ptr() as * const c_char)
@@ -204,7 +203,7 @@ impl TlsServer {
                     return false;
                 }
 
-                if tlsserver.is_null() {
+                if tlsserver_id == 0xFFFF_FFFF_FFFF_FFFF {
                     println!("[-] New enclave tlsserver error");
                     return false;
                 }
@@ -216,7 +215,7 @@ impl TlsServer {
                                                                socket,
                                                                token,
                                                                mode,
-                                                               tlsserver));
+                                                               tlsserver_id));
                 self.connections[&token].register(poll);
                 true
             }
@@ -254,7 +253,7 @@ struct Connection {
     token: mio::Token,
     closing: bool,
     mode: ServerMode,
-    tlsserver: *const c_void,
+    tlsserver_id: usize,
     back: Option<TcpStream>,
     sent_http_response: bool,
 }
@@ -291,7 +290,7 @@ impl Connection {
            socket: TcpStream,
            token: mio::Token,
            mode: ServerMode,
-           tlsserver: * const c_void)
+           tlsserver_id: usize)
            -> Connection {
         let back = open_back(&mode);
         Connection {
@@ -300,7 +299,7 @@ impl Connection {
             token: token,
             closing: false,
             mode: mode,
-            tlsserver: tlsserver,
+            tlsserver_id: tlsserver_id,
             back: back,
             sent_http_response: false,
         }
@@ -311,7 +310,7 @@ impl Connection {
         let result = unsafe {
             tls_server_read(self.enclave_id,
                             &mut retval,
-                            self.tlsserver,
+                            self.tlsserver_id,
                             buf.as_ptr() as * mut c_void,
                             buf.len() as c_int)
         };
@@ -329,7 +328,7 @@ impl Connection {
         let result = unsafe {
             tls_server_write(self.enclave_id,
                              &mut retval,
-                             self.tlsserver,
+                             self.tlsserver_id,
                              buf.as_ptr() as * const c_void,
                              buf.len() as c_int)
         };
@@ -347,7 +346,7 @@ impl Connection {
         let result = unsafe {
             tls_server_wants_read(self.enclave_id,
                                   &mut retval,
-                                  self.tlsserver)
+                                  self.tlsserver_id)
         };
         match result {
             sgx_status_t::SGX_SUCCESS => {},
@@ -368,7 +367,7 @@ impl Connection {
         let result = unsafe {
             tls_server_wants_write(self.enclave_id,
                                    &mut retval,
-                                   self.tlsserver)
+                                   self.tlsserver_id)
         };
 
         match result {
@@ -387,13 +386,13 @@ impl Connection {
 
     fn tls_close(&self) {
         unsafe {
-            tls_server_close(self.enclave_id, self.tlsserver)
+            tls_server_close(self.enclave_id, self.tlsserver_id)
         };
     }
 
     fn send_close_notify(&self) {
         unsafe {
-            tls_server_send_close(self.enclave_id, self.tlsserver);
+            tls_server_send_close(self.enclave_id, self.tlsserver_id);
         }
     }
 
