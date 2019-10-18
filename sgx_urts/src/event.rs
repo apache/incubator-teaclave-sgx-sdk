@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 use std::time::Duration;
-use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::atomic::{AtomicI32, Ordering};
 use libc::{self, c_int, c_void, time_t};
 use std::io::Error;
 use std::slice;
@@ -13,13 +13,13 @@ pub const FUTEX_WAIT: usize = 0;
 pub const FUTEX_WAKE: usize = 1;
 
 pub struct SeEvent {
-    event: AtomicIsize,
+    event: AtomicI32,
 }
 
 impl SeEvent {
     pub fn new() -> Self {
         SeEvent{
-            event: AtomicIsize::new(0),
+            event: AtomicI32::new(0),
         }
     }
 
