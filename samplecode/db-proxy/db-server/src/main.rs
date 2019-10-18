@@ -1,25 +1,37 @@
-extern crate libc;
+extern crate hex;
+extern crate merklebtree;
+extern crate ring;
+extern crate serde;
+extern crate serde_json;
 extern crate rocksdb;
+extern crate parking_lot;
 
-mod util;
 
-use rocksdb::DB;
-use util::DBPath;
+mod client;
+mod server;
+mod verifytree;
+
+
+use std::fs;
+use std::io::{Read, Write};
+use std::path;
+use parking_lot::RwLock;
+use rocksdb::{DBVector, WriteBatch, DB};
+use server::new_server;
 
 fn main() {
-    let path = DBPath::new("_rust_rocksdb_snapshottest");
-    println!("DB init");
-    {
-        let db = DB::open_default(&path).unwrap();
-
-        assert!(db.put(b"k1", b"v1111").is_ok());
-
-        let snap = db.snapshot();
-        assert!(snap.get(b"k1").unwrap().unwrap().to_utf8().unwrap() == "v1111");
-
-        assert!(db.put(b"k2", b"v2222").is_ok());
-
-        assert!(db.get(b"k2").unwrap().is_some());
-        assert!(snap.get(b"k2").unwrap().is_none());
-    }
+    vertias_db();
 }
+
+
+pub fn vertias_db() {
+    // generate the key_value of hmac key
+    let mut key_value = Vec::new();
+    for i in 0..32 {
+        key_value.push(i as u8)
+    }
+
+    let mut server = new_server(key_value);
+    client::client_test(&mut server);
+}
+
