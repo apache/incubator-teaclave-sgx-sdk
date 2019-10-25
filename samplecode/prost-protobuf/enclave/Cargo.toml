@@ -13,6 +13,7 @@ default = []
 [dependencies]
 prost = { git = "https://github.com/mesalock-linux/prost-sgx" }
 bytes = { git = "https://github.com/mesalock-linux/bytes-sgx" }
+prost-types = { git = "https://github.com/mesalock-linux/prost-sgx" }
 
 [build-dependencies]
 prost-build = "*"

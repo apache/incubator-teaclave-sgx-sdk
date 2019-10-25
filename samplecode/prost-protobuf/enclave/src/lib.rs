@@ -41,9 +41,11 @@ use sgx_types::*;
 use std::slice;
 
 extern crate prost;
+extern crate prost_types;
 extern crate bytes;
 
 use prost::Message;
+use prost_types::Timestamp;
 
 mod person {
     include!(concat!(env!("OUT_DIR"), "/person.rs"));
@@ -59,6 +61,9 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
         the_one.id,
         the_one.email);
     println!("{:?}", the_one);
+
+    let ts = Timestamp { seconds: 0x1234, nanos: 0x5678 };
+    println!("well known types ts = {:?}", ts);
 
     sgx_status_t::SGX_SUCCESS
 }
