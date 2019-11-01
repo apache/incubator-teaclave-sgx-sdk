@@ -1,10 +1,13 @@
 use crate::client::*;
 use crate::verifytree::mbtree::*;
 use hex;
-use ring::hmac::Key;
+use merklebtree::iterator::prev;
+use merklebtree::merklebtree::{MerkleBTree, Nodes};
 use merklebtree::node::Node;
+use merklebtree::sgxdb;
 use merklebtree::traits::CalculateHash;
 use parking_lot::RwLock;
+use ring::hmac::Key;
 use ring::{digest, hmac, rand};
 use rocksdb::{DBVector, DB};
 use serde::{Deserialize, Serialize};
@@ -17,6 +20,8 @@ pub struct server {
     hmac_key: Key,
     present_mbtree: Merklebtree,
     deleted_mbtree: Merklebtree,
+    sgx_present_root_node: Node<key_version>,
+    sgx_delete_root_node: Node<key_version>,
 }
 
 //hmacPayload is used to compute hmac
@@ -52,12 +57,12 @@ pub struct mbtree_payload {
 }
 
 impl server {
-    fn put(&mut self, key: String, value: String) {
+    fn db_put(&mut self, key: String, value: String) {
         let db = self.db_handler.clone();
         db.write().put(key.as_bytes(), value.as_bytes()).unwrap();
     }
 
-    fn get(&mut self, key: String) -> String {
+    fn db_get(&mut self, key: String) -> String {
         let db = self.db_handler.clone();
         let db_read = db.read();
         let r = db.read().get(key.as_str());
@@ -70,9 +75,139 @@ impl server {
         }
     }
 
-    fn delete(&mut self, key: String) {
+    fn db_delete(&mut self, key: String) {
         let db = self.db_handler.clone();
         db.write().delete(key.as_bytes()).unwrap();
+    }
+
+    fn present_search(&mut self, key: String) -> search_result {
+        let (get_result, mut present_subnodes) = self.present_mbtree.search(key);
+        if get_result.existed {
+            present_subnodes.nodes_map.remove(&0).unwrap();
+            present_subnodes
+                .nodes_map
+                .insert(0, self.sgx_present_root_node.clone());
+            sgxdb::verify_subnodes_hash(&present_subnodes);
+        }
+        get_result
+    }
+
+    fn delete_search(&mut self, key: String) -> search_result {
+        let (get_result, mut delete_subnodes) = self.deleted_mbtree.search(key);
+        if get_result.existed {
+            delete_subnodes.nodes_map.remove(&0).unwrap();
+            delete_subnodes
+                .nodes_map
+                .insert(0, self.sgx_delete_root_node.clone());
+            sgxdb::verify_subnodes_hash(&delete_subnodes);
+        }
+        get_result
+    }
+
+    fn present_remove(&mut self, key: String) {
+        let mut present_subnodes = self.present_mbtree.delete(key.clone());
+        if present_subnodes.nodes_map.len() == 0 {
+            return;
+        }
+
+        present_subnodes.nodes_map.remove(&0).unwrap();
+        present_subnodes
+            .nodes_map
+            .insert(0, self.sgx_present_root_node.clone());
+
+        sgxdb::verify_subnodes_hash(&present_subnodes);
+
+        let kv = key_version {
+            key: key.clone(),
+            version: 0,
+        };
+
+        self.present_mbtree
+            .mbtree
+            .remove(kv.clone(), &mut present_subnodes);
+
+        let node_hash = self.present_mbtree.nodes.merkleroot();
+        let subnode_hash = present_subnodes.merkleroot();
+        assert_eq!(node_hash, subnode_hash);
+
+        self.sgx_present_root_node = present_subnodes.nodes_map.remove(&0).unwrap();
+    }
+
+    fn delete_remove(&mut self, key: String) {
+        let mut delete_subnodes = self.deleted_mbtree.delete(key.clone());
+        if delete_subnodes.nodes_map.len() == 0 {
+            return;
+        }
+
+        delete_subnodes.nodes_map.remove(&0).unwrap();
+        delete_subnodes
+            .nodes_map
+            .insert(0, self.sgx_delete_root_node.clone());
+
+        sgxdb::verify_subnodes_hash(&delete_subnodes);
+        let kv = key_version {
+            key: key.clone(),
+            version: 0,
+        };
+        self.deleted_mbtree
+            .mbtree
+            .remove(kv.clone(), &mut delete_subnodes);
+
+        let node_hash = self.deleted_mbtree.nodes.merkleroot();
+        let subnode_hash = delete_subnodes.merkleroot();
+        assert_eq!(node_hash, subnode_hash);
+
+        self.sgx_delete_root_node = delete_subnodes.nodes_map.remove(&0).unwrap();
+    }
+
+    fn present_build_with_kv(&mut self, kv: key_version) {
+        if self.sgx_present_root_node.content.len() == 0 {
+            self.sgx_present_root_node = Node::new_node(kv.clone(), 0);
+            self.sgx_present_root_node.root_flag = true;
+            self.present_mbtree.build_with_key_value(kv.clone());
+            return;
+        }
+        let mut present_subnodes = self.present_mbtree.build_with_key_value(kv.clone());
+        present_subnodes.nodes_map.remove(&0).unwrap();
+        present_subnodes
+            .nodes_map
+            .insert(0, self.sgx_present_root_node.clone());
+
+        sgxdb::verify_subnodes_hash(&present_subnodes);
+        self.present_mbtree
+            .mbtree
+            .put(kv.clone(), &mut present_subnodes);
+
+        let node_hash = self.present_mbtree.nodes.merkleroot();
+        let subnode_hash = present_subnodes.merkleroot();
+        assert_eq!(node_hash, subnode_hash);
+
+        self.sgx_present_root_node = present_subnodes.nodes_map.remove(&0).unwrap();
+    }
+
+    fn delete_build_with_kv(&mut self, kv: key_version) {
+        if self.sgx_delete_root_node.content.len() == 0 {
+            self.sgx_delete_root_node = Node::new_node(kv.clone(), 0);
+            self.sgx_delete_root_node.root_flag = true;
+            self.deleted_mbtree.build_with_key_value(kv.clone());
+            return;
+        }
+        let mut delete_subnodes = self.deleted_mbtree.build_with_key_value(kv.clone());
+        delete_subnodes.nodes_map.remove(&0).unwrap();
+        delete_subnodes
+            .nodes_map
+            .insert(0, self.sgx_present_root_node.clone());
+
+        sgxdb::verify_subnodes_hash(&delete_subnodes);
+        self.deleted_mbtree
+            .mbtree
+            .put(kv.clone(), &mut delete_subnodes);
+
+        let node_hash = self.deleted_mbtree.nodes.merkleroot();
+        let subnode_hash = delete_subnodes.merkleroot();
+        assert_eq!(node_hash, subnode_hash);
+
+        self.sgx_delete_root_node = delete_subnodes.nodes_map.remove(&0).unwrap();
     }
 }
 
@@ -90,6 +225,8 @@ pub fn new_server(key_value: Vec<u8>) -> server {
         hmac_key: s_key,
         present_mbtree: new_mbtree(),
         deleted_mbtree: new_mbtree(),
+        sgx_present_root_node: Node::new_empty(0),
+        sgx_delete_root_node: Node::new_empty(0),
     }
 }
 
@@ -117,7 +254,7 @@ impl server {
     }
 
     pub fn veritasdb_get(&mut self, req: request) -> String {
-        let data = self.get(req.key.clone());
+        let data = self.db_get(req.key.clone());
         if data == "".to_string() {
             return String::new();
         }
@@ -131,7 +268,7 @@ impl server {
         let hmac_string = serde_json::to_string(&hmac_data).unwrap();
         let verify_result = self.verify_hmac(hmac_string, sp.tag.clone());
 
-        let sr = self.present_mbtree.search(req.key.clone());
+        let sr = self.present_search(req.key.clone());
         if verify_result && sp.ctr == sr.version {
             return sp.value;
         } else {
@@ -141,7 +278,7 @@ impl server {
     }
 
     pub fn veritasdb_put(&mut self, req: request) {
-        let get_result = self.present_mbtree.search(req.key.clone());
+        let get_result = self.present_search(req.key.clone());
         if get_result.existed {
             let hmac_data = hmac_payload {
                 key: req.key.clone(),
@@ -158,10 +295,10 @@ impl server {
                 ctr: get_result.version + 1,
             };
             let store_string = serde_json::to_string(&store_data).unwrap();
-            self.put(req.key.clone(), store_string.clone());
+            self.db_put(req.key.clone(), store_string.clone());
 
             //update present if there is no error
-            self.present_mbtree.build_with_key_value(key_version {
+            self.present_build_with_kv(key_version {
                 key: req.key,
                 version: get_result.version + 1,
             });
@@ -172,13 +309,13 @@ impl server {
     }
 
     pub fn veritasdb_insert(&mut self, req: request) {
-        let sr = self.present_mbtree.search(req.key.clone());
+        let sr = self.present_search(req.key.clone());
         if sr.existed {
             println!("key existed in present when called insert");
             return;
         } else {
             let mut ctr = 0;
-            let delete_sr = self.deleted_mbtree.search(req.key.clone());
+            let delete_sr = self.delete_search(req.key.clone());
             if delete_sr.existed {
                 ctr = delete_sr.version + 1;
             } else {
@@ -198,26 +335,26 @@ impl server {
                 tag: tag_string,
             };
             let store_string = serde_json::to_string(&store_data).unwrap();
-            self.put(req.key.clone(), store_string);
-            self.present_mbtree.build_with_key_value(key_version {
+            self.db_put(req.key.clone(), store_string);
+            self.present_build_with_kv(key_version {
                 key: req.key.clone(),
                 version: ctr,
             });
-            self.deleted_mbtree.delete(req.key.clone());
+            self.delete_remove(req.key.clone());
         }
     }
 
     pub fn veritasdb_delete(&mut self, req: request) {
-        let get_result = self.get(req.key.clone());
+        let get_result = self.db_get(req.key.clone());
         if get_result == "".to_string() {
         } else {
-            self.delete(req.key.clone());
-            let sr = self.present_mbtree.search(req.key.clone());
-            self.deleted_mbtree.build_with_key_value(key_version {
+            self.db_delete(req.key.clone());
+            let sr = self.present_search(req.key.clone());
+            self.delete_build_with_kv(key_version {
                 key: req.key.clone(),
                 version: sr.version,
             });
-            self.present_mbtree.delete(req.key);
+            self.present_remove(req.key.clone());
         }
     }
 

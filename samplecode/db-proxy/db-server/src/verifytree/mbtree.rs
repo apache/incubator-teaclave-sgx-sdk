@@ -1,4 +1,5 @@
 use merklebtree::merklebtree::{MerkleBTree, Nodes};
+use merklebtree::node::Node;
 use merklebtree::traits::CalculateHash;
 use ring::digest;
 use std::cmp::Ordering;
@@ -52,6 +53,7 @@ impl CalculateHash for key_version {
 pub struct Merklebtree {
     pub mbtree: MerkleBTree,
     pub nodes: Nodes<key_version>,
+    pub root_node: Node<key_version>,
 }
 
 pub fn new_mbtree() -> Merklebtree {
@@ -71,12 +73,13 @@ pub fn new_mbtree() -> Merklebtree {
     Merklebtree {
         mbtree: tree,
         nodes,
+        root_node: Node::new_empty(0),
     }
 }
 
 impl Merklebtree {
-    pub fn search(&mut self, key: String) -> search_result {
-        let (value, found) = self.mbtree.get(
+    pub fn search(&mut self, key: String) -> (search_result, Nodes<key_version>) {
+        let (value, found, subnodes) = self.mbtree.get_clone(
             key_version {
                 key: key.clone(),
                 version: 0,
@@ -84,38 +87,46 @@ impl Merklebtree {
             &mut self.nodes,
         );
         if found {
-            return search_result {
-                existed: true,
-                key: key,
-                version: value.version,
-            };
+            return (
+                search_result {
+                    existed: true,
+                    key: key,
+                    version: value.version,
+                },
+                subnodes,
+            );
         } else {
-            return search_result {
-                existed: false,
-                key: key,
-                version: -1,
-            };
+            return (
+                search_result {
+                    existed: false,
+                    key: key,
+                    version: -1,
+                },
+                subnodes,
+            );
         }
     }
 
-    pub fn delete(&mut self, key: String) {
-        self.mbtree.remove(
+    pub fn delete(&mut self, key: String) -> Nodes<key_version> {
+        let subnodes = self.mbtree.remove_clone(
             key_version {
                 key: key,
                 version: 0,
             },
             &mut self.nodes,
         );
+        subnodes
     }
 
-    pub fn build_with_key_value(&mut self, kv: key_version) {
+    pub fn build_with_key_value(&mut self, kv: key_version) -> Nodes<key_version> {
         println!("kv:{:?}", kv);
-        self.mbtree.put(
+        let subnodes = self.mbtree.put_clone(
             key_version {
                 key: kv.key,
                 version: kv.version,
             },
             &mut self.nodes,
         );
+        subnodes
     }
 }
