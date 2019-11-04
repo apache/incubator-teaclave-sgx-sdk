@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-merklebtree = "0.1.1"
+merklebtree = "0.1.5"
 ring = "0.16.9"
 hex = "0.4.0"
 serde = { version = "1.0.60", features = ["derive"] }
