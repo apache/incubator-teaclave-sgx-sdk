@@ -30,7 +30,6 @@ cfg_if! {
     } else if #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))] {
         // no unwinder on the system!
     } else {
-        extern crate sgx_trts;
         mod libunwind;
         pub use libunwind::*;
     }

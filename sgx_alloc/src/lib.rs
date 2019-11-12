@@ -35,12 +35,11 @@
 
 #![no_std]
 
+#![allow(non_camel_case_types)]
+
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 #![feature(allocator_api)]
-
-#[cfg(target_env = "sgx")]
-extern crate sgx_trts;
 
 use core::alloc::{GlobalAlloc, Alloc, AllocErr, Layout};
 use core::ptr::NonNull;
@@ -85,7 +84,6 @@ unsafe impl Alloc for System {
     }
 }
 
-
 mod realloc_fallback {
     use core::alloc::{GlobalAlloc, Layout};
     use core::cmp;
@@ -110,8 +108,8 @@ mod realloc_fallback {
 
 mod platform {
     use super::*;
-
-    use sgx_trts::libc::{self, c_void};
+    use libc;
+    use core::ffi::c_void;
     use core::ptr;
     use core::alloc::{GlobalAlloc, Layout};
 
@@ -151,7 +149,7 @@ mod platform {
                           layout: Layout,
                           new_size: usize) -> *mut u8 {
             if layout.align() <= MIN_ALIGN && layout.align() <= new_size {
-                libc::realloc(ptr as *mut libc::c_void, new_size) as *mut u8
+                libc::realloc(ptr as *mut c_void, new_size) as *mut u8
             } else {
                 self.realloc_fallback(ptr, layout, new_size)
             }
@@ -161,5 +159,17 @@ mod platform {
     #[inline]
     unsafe fn aligned_malloc(layout: &Layout) -> *mut u8 {
         libc::memalign(layout.align(), layout.size()) as *mut u8
+    }
+}
+
+mod libc {
+    use core::ffi::c_void;
+    type size_t = usize;
+    extern {
+        pub fn calloc(nobj: size_t, size: size_t) -> * mut c_void;
+        pub fn malloc(size: size_t) -> * mut c_void;
+        pub fn realloc(p: * mut c_void, size: size_t) -> * mut c_void;
+        pub fn free(p: * mut c_void);
+        pub fn memalign(align: size_t, size: size_t) -> *mut c_void;
     }
 }

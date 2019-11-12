@@ -43,5 +43,6 @@ pub mod sys;
 pub mod pipe;
 pub mod event;
 pub mod thread;
+pub mod net;
 pub use enclave::*;
 

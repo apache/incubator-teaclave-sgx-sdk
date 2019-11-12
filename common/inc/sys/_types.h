@@ -1,4 +1,4 @@
-/*	$OpenBSD: _types.h,v 1.2 2008/03/16 19:42:57 otto Exp $	*/
+/*  $OpenBSD: _types.h,v 1.2 2008/03/16 19:42:57 otto Exp $ */
 
 /*-
  * Copyright (c) 1990, 1993
@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)types.h	8.3 (Berkeley) 1/5/94
+ *  @(#)types.h 8.3 (Berkeley) 1/5/94
  */
 
 #ifndef _SYS__TYPES_H_
@@ -83,9 +83,9 @@ typedef __uint64_t          __uint_fast64_t;
 
 typedef long                __off_t;
 #ifdef __x86_64__
-typedef long int 			__off64_t;
+typedef long int            __off64_t;
 #else
-typedef long long int 		__off64_t;
+typedef long long int       __off64_t;
 #endif
 
 /* 7.18.1.4 Integer types capable of holding object pointers */
@@ -138,25 +138,25 @@ typedef __int64_t           __intmax_t;
 typedef __uint64_t          __uintmax_t;
 
 
-typedef unsigned long int 		__ino_t;
-typedef unsigned int 			__mode_t;
-typedef unsigned int 			__uid_t;
-typedef unsigned int 			__gid_t;
-typedef long int 				__blksize_t;
-typedef long int 				__blkcnt_t;
+typedef unsigned long int       __ino_t;
+typedef unsigned int            __mode_t;
+typedef unsigned int            __uid_t;
+typedef unsigned int            __gid_t;
+typedef long int                __blksize_t;
+typedef long int                __blkcnt_t;
 
 #ifdef __x86_64__
-typedef unsigned long int 		__dev_t;
-typedef long int 				__off64_t;
-typedef unsigned long int		__nlink_t;
-typedef long int 				__blkcnt64_t;
-typedef unsigned long int 		__ino64_t;
+typedef unsigned long int       __dev_t;
+typedef long int                __off64_t;
+typedef unsigned long int       __nlink_t;
+typedef long int                __blkcnt64_t;
+typedef unsigned long int       __ino64_t;
 #else
-typedef unsigned long long int 	__dev_t;
-typedef long long int 			__off64_t;
-typedef unsigned int 			__nlink_t;
-typedef long long int 			__blkcnt64_t;
-typedef unsigned long long int 	__ino64_t;
+typedef unsigned long long int  __dev_t;
+typedef long long int           __off64_t;
+typedef unsigned int            __nlink_t;
+typedef long long int           __blkcnt64_t;
+typedef unsigned long long int  __ino64_t;
 #endif
 
 typedef unsigned int            __socklen_t;

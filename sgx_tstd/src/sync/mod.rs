@@ -49,6 +49,7 @@ pub use self::once::{Once, OnceState, ONCE_INIT};
 pub use self::rwlock::{SgxRwLock, SgxRwLockReadGuard, SgxRwLockWriteGuard, SgxThreadRwLock};
 pub use self::spinlock::{SgxSpinlock, SgxSpinlockGuard, SgxThreadSpinlock};
 pub use crate::sys_common::poison::{PoisonError, TryLockError, TryLockResult, LockResult};
+#[cfg(feature = "thread")]
 pub mod mpsc;
 mod barrier;
 mod condvar;

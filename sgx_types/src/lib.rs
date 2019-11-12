@@ -75,6 +75,7 @@ pub type ptrdiff_t = isize;
 pub type intptr_t = isize;
 pub type uintptr_t = usize;
 pub type ssize_t = isize;
+pub type time_t = i64;
 
 mod types;
 pub use self::types::*;

@@ -30,6 +30,7 @@ use sgx_types::{self, sgx_status_t};
 use super::*;
 use alloc::slice;
 use alloc::vec::Vec;
+use alloc::boxed::Box;
 use core::ptr;
 use core::mem;
 
@@ -386,6 +387,15 @@ extern "C" {
                             errno: * mut c_int,
                             sockfd: c_int,
                             how: c_int) -> sgx_status_t;
+    // net
+    pub fn u_getaddrinfo_ocall(result: * mut c_int,
+                               errno: * mut c_int,
+                               node: * const c_char,
+                               service: * const c_char,
+                               hints: * const addrinfo,
+                               res: * mut * mut addrinfo) -> sgx_status_t;
+    pub fn u_freeaddrinfo_ocall(res: * mut addrinfo) -> sgx_status_t;
+    pub fn u_gai_strerror_ocall(result: * mut * const c_char, errcode: c_int) -> sgx_status_t;
     // async io
     pub fn u_poll_ocall(result: * mut c_int,
                         errno: * mut c_int,
@@ -2336,6 +2346,120 @@ pub unsafe fn shutdown(sockfd: c_int, how: c_int) -> c_int {
     } else {
         set_errno(ESGX);
         result = -1;
+    }
+    result
+}
+
+pub unsafe fn getaddrinfo(node: * const c_char, service: * const c_char, hints: * const addrinfo, res: * mut * mut addrinfo) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let mut ret_res: * mut addrinfo = ptr::null_mut();
+    let hint: addrinfo = addrinfo {
+        ai_flags: (*hints).ai_flags,
+        ai_family: (*hints).ai_family,
+        ai_socktype: (*hints).ai_socktype,
+        ai_protocol: (*hints).ai_protocol,
+        ai_addrlen: 0,
+        ai_addr: ptr::null_mut(),
+        ai_canonname: ptr::null_mut(),
+        ai_next: ptr::null_mut(),
+    };
+
+    let status = u_getaddrinfo_ocall(&mut result as * mut c_int,
+                                     &mut error as * mut c_int,
+                                     node,
+                                     service,
+                                     &hint as * const addrinfo,
+                                     &mut ret_res as * mut * mut addrinfo);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == 0 {
+            *res = ptr::null_mut();
+            let mut cur_ptr: * mut addrinfo = ret_res;
+            let mut addrinfo_vec: Vec<Box<addrinfo>> = Vec::new();
+            while cur_ptr != ptr::null_mut() {
+                let cur: &addrinfo = &*cur_ptr;
+                let mut info = addrinfo {
+                    ai_flags: cur.ai_flags,
+                    ai_family: cur.ai_family,
+                    ai_socktype: cur.ai_socktype,
+                    ai_protocol: cur.ai_protocol,
+                    ai_addrlen: 0,
+                    ai_addr: ptr::null_mut(),
+                    ai_canonname: ptr::null_mut(),
+                    ai_next: ptr::null_mut(),
+                };
+
+                if !cur.ai_addr.is_null() && cur.ai_addrlen > 0 {
+                    let mut addr_vec = vec![0u8; cur.ai_addrlen as usize];
+                    let addr_slice: &[u8] = slice::from_raw_parts(cur.ai_addr as * const u8, cur.ai_addrlen as usize);
+                    addr_vec.copy_from_slice(addr_slice);
+                    addr_vec.shrink_to_fit();
+                    info.ai_addrlen = cur.ai_addrlen;
+                    info.ai_addr = addr_vec.as_mut_ptr() as * mut sockaddr;
+                    mem::forget(addr_vec);
+                }
+
+                if !cur.ai_canonname.is_null() {
+                    let len: usize = strlen(cur.ai_canonname) + 1;
+                    let mut name_vec = vec![0u8; len];
+                    let name_slice: &[u8] = slice::from_raw_parts(cur.ai_canonname as * const u8, len);
+                    name_vec.copy_from_slice(name_slice);
+                    name_vec.shrink_to_fit();
+                    info.ai_canonname = name_vec.as_mut_ptr() as * mut c_char;
+                    mem::forget(name_vec);
+                }
+
+                addrinfo_vec.push(Box::new(info));
+                cur_ptr = cur.ai_next;
+            }
+
+            if addrinfo_vec.len() > 0 {
+                for i in 0..addrinfo_vec.len() - 1 {
+                    addrinfo_vec[i].ai_next = addrinfo_vec[i + 1].as_mut() as * mut addrinfo;
+                }
+                *res = addrinfo_vec[0].as_mut() as * mut addrinfo;
+
+                for info in addrinfo_vec {
+                    let _ = Box::into_raw(info);
+                }
+            }
+            let _ = u_freeaddrinfo_ocall(ret_res);
+
+        } else if result == EAI_SYSTEM {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = EAI_SYSTEM;
+    }
+    result
+}
+
+pub unsafe fn freeaddrinfo(res: * mut addrinfo ) {
+    let mut cur_ptr: * mut addrinfo = res;
+    let mut addrinfo_vec: Vec<Box<addrinfo>> = Vec::new();
+    while cur_ptr != ptr::null_mut() {
+        let cur: &addrinfo = &*cur_ptr;
+        if !cur.ai_addr.is_null() && cur.ai_addrlen > 0 {
+            let addr_vec = Vec::from_raw_parts(cur.ai_addr as * mut u8, cur.ai_addrlen as usize, cur.ai_addrlen as usize);
+            drop(addr_vec);
+        }
+        if !cur.ai_canonname.is_null() {
+            let len: usize = strlen(cur.ai_canonname) + 1;
+            let name_vec = Vec::from_raw_parts(cur.ai_canonname as * mut u8, len, len);
+            drop(name_vec);
+        }
+        addrinfo_vec.push(Box::from_raw(cur_ptr));
+        cur_ptr = cur.ai_next;
+    }
+    drop(addrinfo_vec);
+}
+
+pub unsafe fn gai_strerror(errcode: c_int) -> * const c_char {
+    let mut result: * const c_char = ptr::null();
+    let status = u_gai_strerror_ocall(&mut result as * mut * const c_char, errcode);
+    if status != sgx_status_t::SGX_SUCCESS {
+        set_errno(ESGX);
     }
     result
 }

@@ -34,7 +34,6 @@ use crate::int32_t;
 // sgx_error.h
 //
 impl_enum! {
-
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
     pub enum sgx_status_t {
@@ -323,7 +322,6 @@ impl fmt::Display for sgx_status_t {
 
 
 impl_enum! {
-
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
     pub enum sgx_pce_error_t {
@@ -338,7 +336,6 @@ impl_enum! {
         SGX_PCE_INVALID_TCB             = 0x0000_F008,
     }
 }
-
 
 impl sgx_pce_error_t {
     pub fn __description(&self) -> &str {
@@ -378,40 +375,70 @@ impl fmt::Display for sgx_pce_error_t {
 
 
 impl_enum! {
-
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
     pub enum sgx_quote3_error_t {
-        SGX_QL_SUCCESS                          = 0x0000_0000,
-//      SGX_QL_ERROR_MIN                        = 0x0000_E001,
-        SGX_QL_ERROR_UNEXPECTED                 = 0x0000_E001,
-        SGX_QL_ERROR_INVALID_PARAMETER          = 0x0000_E002,
-        SGX_QL_ERROR_OUT_OF_MEMORY              = 0x0000_E003,
-        SGX_QL_ERROR_ECDSA_ID_MISMATCH          = 0x0000_E004,
-        SGX_QL_PATHNAME_BUFFER_OVERFLOW_ERROR   = 0x0000_E005,
-        SGX_QL_FILE_ACCESS_ERROR                = 0x0000_E006,
-        SGX_QL_ERROR_STORED_KEY                 = 0x0000_E007,
-        SGX_QL_ERROR_PUB_KEY_ID_MISMATCH        = 0x0000_E008,
-        SGX_QL_ERROR_INVALID_PCE_SIG_SCHEME     = 0x0000_E009,
-        SGX_QL_ATT_KEY_BLOB_ERROR               = 0x0000_E00A,
-        SGX_QL_UNSUPPORTED_ATT_KEY_ID           = 0x0000_E00B,
-        SGX_QL_UNSUPPORTED_LOADING_POLICY       = 0x0000_E00C,
-        SGX_QL_INTERFACE_UNAVAILABLE            = 0x0000_E00D,
-        SGX_QL_PLATFORM_LIB_UNAVAILABLE         = 0x0000_E00E,
-        SGX_QL_ATT_KEY_NOT_INITIALIZED          = 0x0000_E00F,
-        SGX_QL_ATT_KEY_CERT_DATA_INVALID        = 0x0000_E010,
-        SGX_QL_NO_PLATFORM_CERT_DATA            = 0x0000_E011,
-        SGX_QL_OUT_OF_EPC                       = 0x0000_E012,
-        SGX_QL_ERROR_REPORT                     = 0x0000_E013,
-        SGX_QL_ENCLAVE_LOST                     = 0x0000_E014,
-        SGX_QL_INVALID_REPORT                   = 0x0000_E015,
-        SGX_QL_ENCLAVE_LOAD_ERROR               = 0x0000_E016,
-        SGX_QL_UNABLE_TO_GENERATE_QE_REPORT     = 0x0000_E017,
-        SGX_QL_KEY_CERTIFCATION_ERROR           = 0x0000_E018,
-        SGX_QL_NETWORK_ERROR                    = 0x0000_E019,
-        SGX_QL_MESSAGE_ERROR                    = 0x0000_E01A,
-        SGX_QL_ERROR_INVALID_PRIVILEGE          = 0x0000_E01B,
-        SGX_QL_ERROR_MAX                        = 0x0000_E0FF,
+        SGX_QL_SUCCESS                                  = 0x0000_0000,
+//      SGX_QL_ERROR_MIN                                = 0x0000_E001,
+        SGX_QL_ERROR_UNEXPECTED                         = 0x0000_E001,
+        SGX_QL_ERROR_INVALID_PARAMETER                  = 0x0000_E002,
+        SGX_QL_ERROR_OUT_OF_MEMORY                      = 0x0000_E003,
+        SGX_QL_ERROR_ECDSA_ID_MISMATCH                  = 0x0000_E004,
+        SGX_QL_PATHNAME_BUFFER_OVERFLOW_ERROR           = 0x0000_E005,
+        SGX_QL_FILE_ACCESS_ERROR                        = 0x0000_E006,
+        SGX_QL_ERROR_STORED_KEY                         = 0x0000_E007,
+        SGX_QL_ERROR_PUB_KEY_ID_MISMATCH                = 0x0000_E008,
+        SGX_QL_ERROR_INVALID_PCE_SIG_SCHEME             = 0x0000_E009,
+        SGX_QL_ATT_KEY_BLOB_ERROR                       = 0x0000_E00A,
+        SGX_QL_UNSUPPORTED_ATT_KEY_ID                   = 0x0000_E00B,
+        SGX_QL_UNSUPPORTED_LOADING_POLICY               = 0x0000_E00C,
+        SGX_QL_INTERFACE_UNAVAILABLE                    = 0x0000_E00D,
+        SGX_QL_PLATFORM_LIB_UNAVAILABLE                 = 0x0000_E00E,
+        SGX_QL_ATT_KEY_NOT_INITIALIZED                  = 0x0000_E00F,
+        SGX_QL_ATT_KEY_CERT_DATA_INVALID                = 0x0000_E010,
+        SGX_QL_NO_PLATFORM_CERT_DATA                    = 0x0000_E011,
+        SGX_QL_OUT_OF_EPC                               = 0x0000_E012,
+        SGX_QL_ERROR_REPORT                             = 0x0000_E013,
+        SGX_QL_ENCLAVE_LOST                             = 0x0000_E014,
+        SGX_QL_INVALID_REPORT                           = 0x0000_E015,
+        SGX_QL_ENCLAVE_LOAD_ERROR                       = 0x0000_E016,
+        SGX_QL_UNABLE_TO_GENERATE_QE_REPORT             = 0x0000_E017,
+        SGX_QL_KEY_CERTIFCATION_ERROR                   = 0x0000_E018,
+        SGX_QL_NETWORK_ERROR                            = 0x0000_E019,
+        SGX_QL_MESSAGE_ERROR                            = 0x0000_E01A,
+//      SGX_QL_ERROR_INVALID_PRIVILEGE                  = 0x0000_E01B,   dcap 1.3 define 0xE035
+        SGX_QL_NO_QUOTE_COLLATERAL_DATA                 = 0x0000_E01B,
+        SGX_QL_QUOTE_CERTIFICATION_DATA_UNSUPPORTED     = 0x0000_E01C,
+        SGX_QL_QUOTE_FORMAT_UNSUPPORTED                 = 0x0000_E01D,
+        SGX_QL_UNABLE_TO_GENERATE_REPORT                = 0x0000_E01E,
+        SGX_QL_QE_REPORT_INVALID_SIGNATURE              = 0x0000_E01F,
+        SGX_QL_QE_REPORT_UNSUPPORTED_FORMAT             = 0x0000_E020,
+        SGX_QL_PCK_CERT_UNSUPPORTED_FORMAT              = 0x0000_E021,
+        SGX_QL_PCK_CERT_CHAIN_ERROR                     = 0x0000_E022,
+        SGX_QL_TCBINFO_UNSUPPORTED_FORMAT               = 0x0000_E023,
+        SGX_QL_TCBINFO_MISMATCH                         = 0x0000_E024,
+        SGX_QL_QEIDENTITY_UNSUPPORTED_FORMAT            = 0x0000_E025,
+        SGX_QL_QEIDENTITY_MISMATCH                      = 0x0000_E026,
+        SGX_QL_TCB_OUT_OF_DATE                          = 0x0000_E027,
+        SGX_QL_TCB_OUT_OF_DATE_CONFIGURATION_NEEDED     = 0x0000_E028,
+        SGX_QL_SGX_ENCLAVE_IDENTITY_OUT_OF_DATE         = 0x0000_E029,
+        SGX_QL_SGX_ENCLAVE_REPORT_ISVSVN_OUT_OF_DATE    = 0x0000_E02A,
+        SGX_QL_QE_IDENTITY_OUT_OF_DATE                  = 0x0000_E02B,
+        SGX_QL_SGX_TCB_INFO_EXPIRED                     = 0x0000_E02C,
+        SGX_QL_SGX_PCK_CERT_CHAIN_EXPIRED               = 0x0000_E02D,
+        SGX_QL_SGX_CRL_EXPIRED                          = 0x0000_E02E,
+        SGX_QL_SGX_SIGNING_CERT_CHAIN_EXPIRED           = 0x0000_E02F,
+        SGX_QL_SGX_ENCLAVE_IDENTITY_EXPIRED             = 0x0000_E030,
+        SGX_QL_PCK_REVOKED                              = 0x0000_E031,
+        SGX_QL_TCB_REVOKED                              = 0x0000_E032,
+        SGX_QL_TCB_CONFIGURATION_NEEDED                 = 0x0000_E033,
+        SGX_QL_UNABLE_TO_GET_COLLATERAL                 = 0x0000_E034,
+        SGX_QL_ERROR_INVALID_PRIVILEGE                  = 0x0000_E035,
+        SGX_QL_NO_QVE_IDENTITY_DATA                     = 0x0000_E037,
+        SGX_QL_CRL_UNSUPPORTED_FORMAT                   = 0x0000_E038,
+        SGX_QL_QEIDENTITY_CHAIN_ERROR                   = 0x0000_E039,
+        SGX_QL_TCBINFO_CHAIN_ERROR                      = 0x0000_E03A,
+        SGX_QL_ERROR_MAX                                = 0x0000_E0FF,
     }
 }
 
@@ -446,7 +473,37 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_KEY_CERTIFCATION_ERROR => "Caused when the provider library returns an invalid TCB.",
             sgx_quote3_error_t::SGX_QL_NETWORK_ERROR => "Network error when retrieving PCK certs.",
             sgx_quote3_error_t::SGX_QL_MESSAGE_ERROR => "Message error when retrieving PCK certs.",
+            sgx_quote3_error_t::SGX_QL_NO_QUOTE_COLLATERAL_DATA => "The platform does not have the quote verification collateral data available.",
+            sgx_quote3_error_t::SGX_QL_QUOTE_CERTIFICATION_DATA_UNSUPPORTED => "",
+            sgx_quote3_error_t::SGX_QL_QUOTE_FORMAT_UNSUPPORTED => "",
+            sgx_quote3_error_t::SGX_QL_UNABLE_TO_GENERATE_REPORT => "",
+            sgx_quote3_error_t::SGX_QL_QE_REPORT_INVALID_SIGNATURE => "",
+            sgx_quote3_error_t::SGX_QL_QE_REPORT_UNSUPPORTED_FORMAT => "",
+            sgx_quote3_error_t::SGX_QL_PCK_CERT_UNSUPPORTED_FORMAT => "",
+            sgx_quote3_error_t::SGX_QL_PCK_CERT_CHAIN_ERROR => "",
+            sgx_quote3_error_t::SGX_QL_TCBINFO_UNSUPPORTED_FORMAT => "",
+            sgx_quote3_error_t::SGX_QL_TCBINFO_MISMATCH => "",
+            sgx_quote3_error_t::SGX_QL_QEIDENTITY_UNSUPPORTED_FORMAT => "",
+            sgx_quote3_error_t::SGX_QL_QEIDENTITY_MISMATCH => "",
+            sgx_quote3_error_t::SGX_QL_TCB_OUT_OF_DATE => "",
+            sgx_quote3_error_t::SGX_QL_TCB_OUT_OF_DATE_CONFIGURATION_NEEDED => "",
+            sgx_quote3_error_t::SGX_QL_SGX_ENCLAVE_IDENTITY_OUT_OF_DATE => "",
+            sgx_quote3_error_t::SGX_QL_SGX_ENCLAVE_REPORT_ISVSVN_OUT_OF_DATE => "",
+            sgx_quote3_error_t::SGX_QL_QE_IDENTITY_OUT_OF_DATE => "",
+            sgx_quote3_error_t::SGX_QL_SGX_TCB_INFO_EXPIRED => "",
+            sgx_quote3_error_t::SGX_QL_SGX_PCK_CERT_CHAIN_EXPIRED => "",
+            sgx_quote3_error_t::SGX_QL_SGX_CRL_EXPIRED => "",
+            sgx_quote3_error_t::SGX_QL_SGX_SIGNING_CERT_CHAIN_EXPIRED => "",
+            sgx_quote3_error_t::SGX_QL_SGX_ENCLAVE_IDENTITY_EXPIRED => "",
+            sgx_quote3_error_t::SGX_QL_PCK_REVOKED => "",
+            sgx_quote3_error_t::SGX_QL_TCB_REVOKED => "",
+            sgx_quote3_error_t::SGX_QL_TCB_CONFIGURATION_NEEDED => "",
+            sgx_quote3_error_t::SGX_QL_UNABLE_TO_GET_COLLATERAL => "",
             sgx_quote3_error_t::SGX_QL_ERROR_INVALID_PRIVILEGE => "No enough privilege to perform the operation.",
+            sgx_quote3_error_t::SGX_QL_NO_QVE_IDENTITY_DATA => "The platform does not have the QVE identity data available.",
+            sgx_quote3_error_t::SGX_QL_CRL_UNSUPPORTED_FORMAT => "",
+            sgx_quote3_error_t::SGX_QL_QEIDENTITY_CHAIN_ERROR => "",
+            sgx_quote3_error_t::SGX_QL_TCBINFO_CHAIN_ERROR => "",
             sgx_quote3_error_t::SGX_QL_ERROR_MAX => "Indicate max error to allow better translation.",
         }
     }
@@ -481,7 +538,37 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_KEY_CERTIFCATION_ERROR => "SGX_QL_KEY_CERTIFCATION_ERROR",
             sgx_quote3_error_t::SGX_QL_NETWORK_ERROR => "SGX_QL_NETWORK_ERROR",
             sgx_quote3_error_t::SGX_QL_MESSAGE_ERROR => "SGX_QL_MESSAGE_ERROR",
+            sgx_quote3_error_t::SGX_QL_NO_QUOTE_COLLATERAL_DATA => "SGX_QL_NO_QUOTE_COLLATERAL_DATA",
+            sgx_quote3_error_t::SGX_QL_QUOTE_CERTIFICATION_DATA_UNSUPPORTED => "SGX_QL_QUOTE_CERTIFICATION_DATA_UNSUPPORTED",
+            sgx_quote3_error_t::SGX_QL_QUOTE_FORMAT_UNSUPPORTED => "SGX_QL_QUOTE_FORMAT_UNSUPPORTED",
+            sgx_quote3_error_t::SGX_QL_UNABLE_TO_GENERATE_REPORT => "SGX_QL_UNABLE_TO_GENERATE_REPORT",
+            sgx_quote3_error_t::SGX_QL_QE_REPORT_INVALID_SIGNATURE => "SGX_QL_QE_REPORT_INVALID_SIGNATURE",
+            sgx_quote3_error_t::SGX_QL_QE_REPORT_UNSUPPORTED_FORMAT => "SGX_QL_QE_REPORT_UNSUPPORTED_FORMAT",
+            sgx_quote3_error_t::SGX_QL_PCK_CERT_UNSUPPORTED_FORMAT => "SGX_QL_PCK_CERT_UNSUPPORTED_FORMAT",
+            sgx_quote3_error_t::SGX_QL_PCK_CERT_CHAIN_ERROR => "SGX_QL_PCK_CERT_CHAIN_ERROR",
+            sgx_quote3_error_t::SGX_QL_TCBINFO_UNSUPPORTED_FORMAT => "SGX_QL_TCBINFO_UNSUPPORTED_FORMAT",
+            sgx_quote3_error_t::SGX_QL_TCBINFO_MISMATCH => "SGX_QL_TCBINFO_MISMATCH",
+            sgx_quote3_error_t::SGX_QL_QEIDENTITY_UNSUPPORTED_FORMAT => "SGX_QL_QEIDENTITY_UNSUPPORTED_FORMAT",
+            sgx_quote3_error_t::SGX_QL_QEIDENTITY_MISMATCH => "SGX_QL_QEIDENTITY_MISMATCH",
+            sgx_quote3_error_t::SGX_QL_TCB_OUT_OF_DATE => "SGX_QL_TCB_OUT_OF_DATE",
+            sgx_quote3_error_t::SGX_QL_TCB_OUT_OF_DATE_CONFIGURATION_NEEDED => "SGX_QL_TCB_OUT_OF_DATE_CONFIGURATION_NEEDED",
+            sgx_quote3_error_t::SGX_QL_SGX_ENCLAVE_IDENTITY_OUT_OF_DATE => "SGX_QL_SGX_ENCLAVE_IDENTITY_OUT_OF_DATE",
+            sgx_quote3_error_t::SGX_QL_SGX_ENCLAVE_REPORT_ISVSVN_OUT_OF_DATE => "SGX_QL_SGX_ENCLAVE_REPORT_ISVSVN_OUT_OF_DATE",
+            sgx_quote3_error_t::SGX_QL_QE_IDENTITY_OUT_OF_DATE => "SGX_QL_QE_IDENTITY_OUT_OF_DATE",
+            sgx_quote3_error_t::SGX_QL_SGX_TCB_INFO_EXPIRED => "SGX_QL_SGX_TCB_INFO_EXPIRED",
+            sgx_quote3_error_t::SGX_QL_SGX_PCK_CERT_CHAIN_EXPIRED => "SGX_QL_SGX_PCK_CERT_CHAIN_EXPIRED",
+            sgx_quote3_error_t::SGX_QL_SGX_CRL_EXPIRED => "SGX_QL_SGX_CRL_EXPIRED",
+            sgx_quote3_error_t::SGX_QL_SGX_SIGNING_CERT_CHAIN_EXPIRED => "SGX_QL_SGX_SIGNING_CERT_CHAIN_EXPIRED",
+            sgx_quote3_error_t::SGX_QL_SGX_ENCLAVE_IDENTITY_EXPIRED => "SGX_QL_SGX_ENCLAVE_IDENTITY_EXPIRED",
+            sgx_quote3_error_t::SGX_QL_PCK_REVOKED => "SGX_QL_PCK_REVOKED",
+            sgx_quote3_error_t::SGX_QL_TCB_REVOKED => "SGX_QL_TCB_REVOKED",
+            sgx_quote3_error_t::SGX_QL_TCB_CONFIGURATION_NEEDED => "SGX_QL_TCB_CONFIGURATION_NEEDED",
+            sgx_quote3_error_t::SGX_QL_UNABLE_TO_GET_COLLATERAL => "SGX_QL_UNABLE_TO_GET_COLLATERAL",
             sgx_quote3_error_t::SGX_QL_ERROR_INVALID_PRIVILEGE => "SGX_QL_ERROR_INVALID_PRIVILEGE",
+            sgx_quote3_error_t::SGX_QL_NO_QVE_IDENTITY_DATA => "SGX_QL_NO_QVE_IDENTITY_DATA",
+            sgx_quote3_error_t::SGX_QL_CRL_UNSUPPORTED_FORMAT => "SGX_QL_CRL_UNSUPPORTED_FORMAT",
+            sgx_quote3_error_t::SGX_QL_QEIDENTITY_CHAIN_ERROR => "SGX_QL_QEIDENTITY_CHAIN_ERROR",
+            sgx_quote3_error_t::SGX_QL_TCBINFO_CHAIN_ERROR => "SGX_QL_TCBINFO_CHAIN_ERROR",
             sgx_quote3_error_t::SGX_QL_ERROR_MAX => "SGX_QL_ERROR_MAX",
         }
     }
@@ -494,6 +581,79 @@ impl fmt::Display for sgx_quote3_error_t {
 }
 
 
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
+    pub enum sgx_qcnl_error_t {
+        SGX_QCNL_SUCCESS                    = 0x0000_0000,
+        SGX_QCNL_UNEXPECTED_ERROR           = 0x0000_F001,
+        SGX_QCNL_INVALID_PARAMETER          = 0x0000_F002,
+        SGX_QCNL_NETWORK_ERROR              = 0x0000_F003,
+        SGX_QCNL_NETWORK_PROXY_FAIL         = 0x0000_F004,
+        SGX_QCNL_NETWORK_HOST_FAIL          = 0x0000_F005,
+        SGX_QCNL_NETWORK_COULDNT_CONNECT    = 0x0000_F006,
+        SGX_QCNL_NETWORK_HTTP2_ERROR        = 0x0000_F007,
+        SGX_QCNL_NETWORK_WRITE_ERROR        = 0x0000_F008,
+        SGX_QCNL_NETWORK_OPERATION_TIMEDOUT = 0x0000_F009,
+        SGX_QCNL_NETWORK_HTTPS_ERROR        = 0x0000_F00A,
+        SGX_QCNL_NETWORK_UNKNOWN_OPTION     = 0x0000_F00B,
+        SGX_QCNL_NETWORK_INIT_ERROR         = 0x0000_F00C,
+        SGX_QCNL_MSG_ERROR                  = 0x0000_F00D,
+        SGX_QCNL_ERROR_STATUS_NOT_FOUND     = 0x0000_F00E,
+        SGX_QCNL_OUT_OF_MEMORY              = 0x0000_F00F,
+    }
+}
+
+impl sgx_qcnl_error_t {
+    pub fn __description(&self) -> &str {
+        match *self {
+            sgx_qcnl_error_t::SGX_QCNL_SUCCESS => "Success.",
+            sgx_qcnl_error_t::SGX_QCNL_UNEXPECTED_ERROR => "Unexpected error.",
+            sgx_qcnl_error_t::SGX_QCNL_INVALID_PARAMETER => "The parameter is incorrect.",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_ERROR => "Network error.",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_PROXY_FAIL => "Network error : Couldn't resolve proxy.",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_HOST_FAIL => "Network error : Couldn't resolve host.",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_COULDNT_CONNECT => "Network error : Failed to connect() to host or proxy.",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_HTTP2_ERROR => "Network error : A problem was detected in the HTTP2 framing layer.",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_WRITE_ERROR => "Network error : an error was returned to libcurl from a write callback.",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_OPERATION_TIMEDOUT => "Network error : Operation timeout.",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_HTTPS_ERROR => "Network error : A problem occurred somewhere in the SSL/TLS handshake.",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_UNKNOWN_OPTION => "Network error : An option passed to libcurl is not recognized/known.",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_INIT_ERROR => "Failed to initialize CURL library.",
+            sgx_qcnl_error_t::SGX_QCNL_MSG_ERROR => "HTTP message error.",
+            sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_NOT_FOUND => "Data not found.",
+            sgx_qcnl_error_t::SGX_QCNL_OUT_OF_MEMORY => "Out of memory error.",
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        match *self {
+            sgx_qcnl_error_t::SGX_QCNL_SUCCESS => "SGX_QCNL_SUCCESS.",
+            sgx_qcnl_error_t::SGX_QCNL_UNEXPECTED_ERROR => "SGX_QCNL_UNEXPECTED_ERROR",
+            sgx_qcnl_error_t::SGX_QCNL_INVALID_PARAMETER => "SGX_QCNL_INVALID_PARAMETER",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_ERROR => "SGX_QCNL_NETWORK_ERROR",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_PROXY_FAIL => "SGX_QCNL_NETWORK_PROXY_FAIL",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_HOST_FAIL => "SGX_QCNL_NETWORK_HOST_FAIL",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_COULDNT_CONNECT => "SGX_QCNL_NETWORK_COULDNT_CONNECT",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_HTTP2_ERROR => "SGX_QCNL_NETWORK_HTTP2_ERROR",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_WRITE_ERROR => "SGX_QCNL_NETWORK_WRITE_ERROR",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_OPERATION_TIMEDOUT => "SGX_QCNL_NETWORK_OPERATION_TIMEDOUT",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_HTTPS_ERROR => "SGX_QCNL_NETWORK_HTTPS_ERROR",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_UNKNOWN_OPTION => "SGX_QCNL_NETWORK_UNKNOWN_OPTION",
+            sgx_qcnl_error_t::SGX_QCNL_NETWORK_INIT_ERROR => "SGX_QCNL_NETWORK_INIT_ERROR",
+            sgx_qcnl_error_t::SGX_QCNL_MSG_ERROR => "SGX_QCNL_MSG_ERROR",
+            sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_NOT_FOUND => "SGX_QCNL_ERROR_STATUS_NOT_FOUND",
+            sgx_qcnl_error_t::SGX_QCNL_OUT_OF_MEMORY => "SGX_QCNL_OUT_OF_MEMORY",
+        }
+    }
+}
+
+impl fmt::Display for sgx_qcnl_error_t {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 pub type sys_error_t = int32_t;
 
 pub type SgxResult<T> = result::Result<T, sgx_status_t>;
@@ -504,6 +664,9 @@ pub type SgxPceError = result::Result<(), sgx_pce_error_t>;
 
 pub type SgxQuote3Result<T> = result::Result<T, sgx_quote3_error_t>;
 pub type SgxQuote3Error = result::Result<(), sgx_quote3_error_t>;
+
+pub type SgxQcnlResult<T> = result::Result<T, sgx_qcnl_error_t>;
+pub type SgxQcnlError = result::Result<(), sgx_qcnl_error_t>;
 
 pub type SysResult<T> = result::Result<T, sys_error_t>;
 pub type SysError = result::Result<(), sys_error_t>;

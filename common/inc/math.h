@@ -1,4 +1,4 @@
-/*	$OpenBSD: math.h,v 1.27 2010/12/14 11:16:15 martynas Exp $	*/
+/*  $OpenBSD: math.h,v 1.27 2010/12/14 11:16:15 martynas Exp $  */
 /*
  * ====================================================
  * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.

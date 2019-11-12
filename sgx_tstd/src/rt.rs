@@ -36,6 +36,9 @@ use core::str;
 pub use crate::panicking::{begin_panic, begin_panic_fmt, update_panic_count};
 pub use crate::sys_common::at_exit;
 use crate::sys_common::cleanup;
+use crate::sync::Once;
+
+static INIT: Once = Once::new();
 
 #[no_mangle]
 pub extern "C" fn t_global_exit_ecall() {
@@ -43,13 +46,14 @@ pub extern "C" fn t_global_exit_ecall() {
 
 #[no_mangle]
 pub extern "C" fn t_global_init_ecall(id: u64, path: * const u8, len: usize) {
-
-    enclave::set_enclave_id(id as sgx_enclave_id_t);
-    let s = unsafe {
-        let str_slice = slice::from_raw_parts(path, len);
-        str::from_utf8_unchecked(str_slice)
-    };
-    enclave::set_enclave_path(s);
+    INIT.call_once(|| {
+        enclave::set_enclave_id(id as sgx_enclave_id_t);
+        let s = unsafe {
+            let str_slice = slice::from_raw_parts(path, len);
+            str::from_utf8_unchecked(str_slice)
+        };
+        enclave::set_enclave_path(s);
+    });
 }
 
 global_dtors_object! {

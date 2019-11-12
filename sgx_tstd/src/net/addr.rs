@@ -32,11 +32,15 @@ use core::hash;
 use core::mem;
 use core::option;
 use core::iter;
+#[cfg(feature = "net")]
+use core::convert::TryInto;
 use alloc_crate::vec;
 use alloc_crate::slice;
 use crate::io;
 use crate::net::{ntoh, hton, IpAddr, Ipv4Addr, Ipv6Addr};
 use crate::sys_common::{FromInner, AsInner, IntoInner};
+#[cfg(feature = "net")]
+use crate::sys_common::net::LookupHost;
 
 /// An internet socket address, either IPv4 or IPv6.
 ///
@@ -497,6 +501,13 @@ impl ToSocketAddrs for (Ipv6Addr, u16) {
     }
 }
 
+#[cfg(feature = "net")]
+fn resolve_socket_addr(lh: LookupHost) -> io::Result<vec::IntoIter<SocketAddr>> {
+    let p = lh.port();
+    let v: Vec<_> = lh.map(|mut a| { a.set_port(p); a }).collect();
+    Ok(v.into_iter())
+}
+
 impl ToSocketAddrs for (&str, u16) {
     type Iter = vec::IntoIter<SocketAddr>;
     fn to_socket_addrs(&self) -> io::Result<vec::IntoIter<SocketAddr>> {
@@ -512,12 +523,15 @@ impl ToSocketAddrs for (&str, u16) {
             return Ok(vec![SocketAddr::V6(addr)].into_iter())
         }
 
-        Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid socket address"))
+        #[cfg(not(feature = "net"))]
+        let r = Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid socket address"));
+        #[cfg(feature = "net")]
+        let r = resolve_socket_addr((host, port).try_into()?);
+        r
     }
 }
 
 // accepts strings like 'localhost:12345'
-#[allow(unused_variables)]
 impl ToSocketAddrs for str {
     type Iter = vec::IntoIter<SocketAddr>;
     fn to_socket_addrs(&self) -> io::Result<vec::IntoIter<SocketAddr>> {
@@ -526,22 +540,11 @@ impl ToSocketAddrs for str {
             return Ok(vec![addr].into_iter());
         }
 
-        macro_rules! try_opt {
-            ($e:expr, $msg:expr) => (
-                match $e {
-                    Some(r) => r,
-                    None => return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                                      $msg)),
-                }
-            )
-        }
-
-        // split the string by ':' and convert the second part to u16
-        let mut parts_iter = self.rsplitn(2, ':');
-        let port_str = try_opt!(parts_iter.next(), "invalid socket address");
-        let host = try_opt!(parts_iter.next(), "invalid socket address");
-        let port: u16 = try_opt!(port_str.parse().ok(), "invalid port value");
-        Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid socket address"))
+        #[cfg(not(feature = "net"))]
+        let r = Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid socket address"));
+        #[cfg(feature = "net")]
+        let r = resolve_socket_addr(self.try_into()?);
+        r
     }
 }
 

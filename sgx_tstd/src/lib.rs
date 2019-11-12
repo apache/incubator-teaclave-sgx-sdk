@@ -56,19 +56,16 @@
 
 #![feature(alloc_error_handler)]
 #![feature(panic_unwind)]
-//#![feature(__rust_unstable_column)]
 #![feature(allocator_api)]
 #![feature(allow_internal_unsafe)]
 #![feature(allocator_internals)]
 #![feature(allow_internal_unstable)]
 #![feature(array_error_internals)]
-//#![feature(bind_by_move_pattern_guards)]
 #![feature(asm)]
 #![feature(box_syntax)]
 #![feature(c_variadic)]
 #![feature(cfg_target_has_atomic)]
 #![feature(char_error_internals)]
-#![feature(compiler_builtins_lib)]
 #![feature(concat_idents)]
 #![feature(const_fn)]
 #![feature(core_intrinsics)]
@@ -111,13 +108,9 @@
 #![feature(unicode_internals)]
 #![feature(alloc_layout_extra)]
 #![feature(non_exhaustive)]
-//#![feature(const_vec_new)]
 #![feature(vec_remove_item)]
 #![feature(int_error_matching)]
 #![default_lib_allocator]
-
-#[global_allocator]
-static ALLOC: sgx_alloc::System = sgx_alloc::System;
 
 // Explicitly import the prelude. The compiler uses this same unstable attribute
 // to import the prelude implicitly when building crates that depend on std.

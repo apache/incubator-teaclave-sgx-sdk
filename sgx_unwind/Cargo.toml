@@ -27,6 +27,3 @@ doc = false
 
 [build-dependencies]
 sgx_build_helper = { path = "../sgx_build_helper" }
-
-[target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_trts = { path = "../sgx_trts" }

@@ -36,6 +36,7 @@ pub mod io;
 pub mod memchr;
 pub mod poison;
 pub mod thread_info;
+#[cfg(feature = "thread")]
 pub mod thread;
 pub mod util;
 pub mod wtf8;

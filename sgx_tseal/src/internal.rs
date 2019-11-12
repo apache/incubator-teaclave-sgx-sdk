@@ -35,22 +35,6 @@ use core::ptr;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-//const SGX_MISCSEL_EXINFO: uint32_t     = 0x00000001;
-//const TSEAL_DEFAULT_MISCMASK: uint32_t = (!SGX_MISCSEL_EXINFO);
-
-/* intel sgx sdk 1.8 */
-/* Set the bits which have no security implications to 0 for sealed data migration */
-/* Bits which have no security implications in attributes.flags:
- *    Reserved bit[55:6]  - 0xFFFFFFFFFFFFC0ULL
- *    SGX_FLAGS_MODE64BIT
- *    SGX_FLAGS_PROVISION_KEY
- *    SGX_FLAGS_EINITTOKEN_KEY */
-const FLAGS_NON_SECURITY_BITS: uint64_t = (0x00FF_FFFF_FFFF_FFC0 | SGX_FLAGS_MODE64BIT | SGX_FLAGS_PROVISION_KEY| SGX_FLAGS_EINITTOKEN_KEY);
-const TSEAL_DEFAULT_FLAGSMASK: uint64_t = (!FLAGS_NON_SECURITY_BITS);
-
-const MISC_NON_SECURITY_BITS: uint32_t =  0x0FFF_FFFF;  /* bit[27:0]: have no security implications */
-const TSEAL_DEFAULT_MISCMASK: uint32_t =  (!MISC_NON_SECURITY_BITS);
-
 /* intel sgx sdk 2.4 */
 const KEY_POLICY_KSS: uint16_t = (SGX_KEYPOLICY_CONFIGID | SGX_KEYPOLICY_ISVFAMILYID | SGX_KEYPOLICY_ISVEXTPRODID);
 

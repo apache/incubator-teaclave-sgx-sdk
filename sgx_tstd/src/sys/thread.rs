@@ -36,8 +36,8 @@ use crate::cmp;
 use crate::sys::os;
 use crate::ffi::CStr;
 use crate::enclave::get_enclave_id;
-use crate::sgx_tseal::{SgxSealedData, SgxUnsealedData};
-use crate::sgx_types::{sgx_enclave_id_t, sgx_sealed_data_t, sgx_status_t, c_void, c_int} ;
+use crate::sgx_tseal::SgxSealedData;
+use crate::sgx_types::{self, sgx_attributes_t, sgx_enclave_id_t, sgx_sealed_data_t, sgx_status_t, c_void, c_int};
 
 pub struct Thread {
     id: libc::pthread_t,
@@ -57,9 +57,15 @@ pub struct ThreadParam {
 
 impl ThreadParam {
     pub fn new(eid: sgx_enclave_id_t, p: *mut c_void) -> io::Result<ThreadParam> {
+        let key_policy = sgx_types::SGX_KEYPOLICY_MRENCLAVE;
+        let attr_mask = sgx_attributes_t {
+                        flags: sgx_types::TSEAL_DEFAULT_FLAGSMASK,
+                        xfrm: 0};
+        let misc_mask = sgx_types::TSEAL_DEFAULT_MISCMASK;
+
         let aad: [u8; 8] = unsafe{ mem::transmute(eid) };
         let main = p as usize;
-        let result = SgxSealedData::<usize>::seal_data(&aad, &main);
+        let result = SgxSealedData::<usize>::seal_data_ex(key_policy, attr_mask, misc_mask, &aad, &main);
         let sealed_data = match result {
             Ok(t) => t,
             Err(ret) => { return Err(io::Error::from_sgx_error(ret)); },
@@ -98,10 +104,9 @@ impl ThreadParam {
         let mut addr = [0_u8; 8];
         &mut addr[..].copy_from_slice(unsealed_data.get_additional_txt());
         let eid = u64::from_ne_bytes(addr);
-        if eid != self.eid {
+        if eid != self.eid || eid != get_enclave_id() {
             return Err(io::Error::from_sgx_error(sgx_status_t::SGX_ERROR_INVALID_ENCLAVE_ID));
         }
-
         Ok(*unsealed_data.get_decrypt_txt() as *mut c_void)
     }
 

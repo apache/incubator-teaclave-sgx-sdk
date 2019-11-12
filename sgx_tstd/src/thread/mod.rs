@@ -44,6 +44,7 @@ use crate::panicking;
 use crate::sys_common::thread_info;
 use crate::sync::{SgxMutex, SgxCondvar, Once, ONCE_INIT};
 use crate::time::Duration;
+#[cfg(feature = "thread")]
 use crate::sys::thread as imp;
 use crate::io::{self, Error, ErrorKind};
 use crate::ffi::{CStr, CString};
@@ -51,12 +52,15 @@ use crate::sys_common::{AsInner, IntoInner};
 
 #[macro_use] mod local;
 pub use self::local::{LocalKey, LocalKeyInner, AccessError};
+
+#[cfg(feature = "thread")]
 #[derive(Debug)]
 pub struct Builder {
     // A name for the thread-to-be, for identification in panic messages
     name: Option<String>,
 }
 
+#[cfg(feature = "thread")]
 impl Builder {
     pub fn new() -> Builder {
         if rsgx_get_thread_policy() != SgxThreadPolicy::Bound {
@@ -127,20 +131,24 @@ impl Builder {
     }
 }
 
+#[cfg(feature = "thread")]
 pub fn spawn<F, T>(f: F) -> JoinHandle<T> where
     F: FnOnce() -> T, F: Send + 'static, T: Send + 'static
 {
     Builder::new().spawn(f).expect("failed to spawn thread")
 }
 
+#[cfg(feature = "thread")]
 pub fn yield_now() {
     imp::Thread::yield_now()
 }
 
+#[cfg(feature = "thread")]
 pub fn sleep_ms(ms: u32) {
     sleep(Duration::from_millis(ms as u64))
 }
 
+#[cfg(feature = "thread")]
 pub fn sleep(dur: Duration) {
     imp::Thread::sleep(dur)
 }
@@ -582,18 +590,23 @@ pub type Result<T> = crate::result::Result<T, Box<dyn Any + Send + 'static>>;
 // this type is inherently Sync because no methods take &self. Regardless,
 // however, we add inheriting impls for Send/Sync to this type to ensure it's
 // Send/Sync and that future modifications will still appropriately classify it.
+#[cfg(feature = "thread")]
 struct Packet<T>(Arc<UnsafeCell<Option<Result<T>>>>);
 
+#[cfg(feature = "thread")]
 unsafe impl<T: Send> Send for Packet<T> {}
+#[cfg(feature = "thread")]
 unsafe impl<T: Sync> Sync for Packet<T> {}
 
 /// Inner representation for JoinHandle
+#[cfg(feature = "thread")]
 struct JoinInner<T> {
     native: Option<imp::Thread>,
     thread: SgxThread,
     packet: Packet<T>,
 }
 
+#[cfg(feature = "thread")]
 impl<T> JoinInner<T> {
     fn join(&mut self) -> Result<T> {
         let reval = self.native.take().unwrap().join();
@@ -671,12 +684,13 @@ impl<T> JoinInner<T> {
 /// [`thread::spawn`]: fn.spawn.html
 /// [`thread::Builder::spawn`]: struct.Builder.html#method.spawn
 
+#[cfg(feature = "thread")]
 pub struct JoinHandle<T>(JoinInner<T>);
-
+#[cfg(feature = "thread")]
 unsafe impl<T> Send for JoinHandle<T> {}
-
+#[cfg(feature = "thread")]
 unsafe impl<T> Sync for JoinHandle<T> {}
-
+#[cfg(feature = "thread")]
 impl<T> JoinHandle<T> {
     /// Extracts a handle to the underlying thread.
     ///
@@ -734,20 +748,24 @@ impl<T> JoinHandle<T> {
     }
 }
 
+#[cfg(feature = "thread")]
 impl<T> AsInner<imp::Thread> for JoinHandle<T> {
     fn as_inner(&self) -> &imp::Thread { self.0.native.as_ref().unwrap() }
 }
 
+#[cfg(feature = "thread")]
 impl<T> IntoInner<imp::Thread> for JoinHandle<T> {
     fn into_inner(self) -> imp::Thread { self.0.native.unwrap() }
 }
 
+#[cfg(feature = "thread")]
 impl<T> fmt::Debug for JoinHandle<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("JoinHandle { .. }")
     }
 }
 
+#[cfg(feature = "thread")]
 fn _assert_sync_and_send() {
     fn _assert_both<T: Send + Sync>() {}
     _assert_both::<JoinHandle<()>>();

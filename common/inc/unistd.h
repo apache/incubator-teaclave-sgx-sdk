@@ -1,5 +1,5 @@
-/*	$OpenBSD: unistd.h,v 1.62 2008/06/25 14:58:54 millert Exp $ */
-/*	$NetBSD: unistd.h,v 1.26.4.1 1996/05/28 02:31:51 mrg Exp $	*/
+/*  $OpenBSD: unistd.h,v 1.62 2008/06/25 14:58:54 millert Exp $ */
+/*  $NetBSD: unistd.h,v 1.26.4.1 1996/05/28 02:31:51 mrg Exp $  */
 
 /*-
  * Copyright (c) 1991 The Regents of the University of California.
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)unistd.h	5.13 (Berkeley) 6/17/91
+ *  @(#)unistd.h    5.13 (Berkeley) 6/17/91
  */
 
 #ifndef _UNISTD_H_

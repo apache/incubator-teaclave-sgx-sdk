@@ -72,6 +72,22 @@ impl_struct! {
 }
 
 //
+// tseal_migration_attr.h
+//
+pub const FLAGS_NON_SECURITY_BITS: uint64_t   = (0x00FF_FFFF_FFFF_FFC0
+                                                | SGX_FLAGS_MODE64BIT
+                                                | SGX_FLAGS_PROVISION_KEY
+                                                | SGX_FLAGS_EINITTOKEN_KEY);
+pub const TSEAL_DEFAULT_FLAGSMASK: uint64_t   = (!FLAGS_NON_SECURITY_BITS);
+pub const FLAGS_SECURITY_BITS_RESERVED: uint64_t = (!(FLAGS_NON_SECURITY_BITS
+                                                   | SGX_FLAGS_INITTED
+                                                   | SGX_FLAGS_DEBUG
+                                                   | SGX_FLAGS_KSS));
+pub const MISC_NON_SECURITY_BITS: uint32_t     = 0x0FFFFFFF;
+pub const TSEAL_DEFAULT_MISCMASK: uint32_t     = (!MISC_NON_SECURITY_BITS);
+
+
+//
 // sgx_dh.h
 //
 
@@ -945,9 +961,8 @@ impl_struct! {
 }
 
 //
-// sgx_uae_service.h
+// sgx_uae_platform.h
 //
-
 
 pub const PS_CAP_TRUSTED_TIME: size_t        = 0x1;
 pub const PS_CAP_MONOTONIC_COUNTER: size_t   = 0x2;
@@ -962,7 +977,6 @@ impl_struct! {
 //
 // sgx_ukey_exchange.h
 //
-
 
 pub type sgx_ecall_get_ga_trusted_t = unsafe extern "C" fn(eid: sgx_enclave_id_t,
                                                            retval: * mut sgx_status_t,
@@ -1216,6 +1230,24 @@ pub struct sgx_ql_config_t {
     pub p_cert_data: * mut uint8_t,
 }
 
+#[repr(C)]
+pub struct sgx_ql_qve_collateral_t {
+    pub version: uint32_t,                  // version = 1.  PCK Cert chain is in the Quote.
+    pub pck_crl_issuer_chain: * mut char,
+    pub pck_crl_issuer_chain_size: uint32_t,
+    pub root_ca_crl: * mut char,            // Root CA CRL
+    pub root_ca_crl_size: uint32_t,
+    pub pck_crl: * mut char,                // PCK Cert CRL
+    pub pck_crl_size: uint32_t,
+    pub tcb_info_issuer_chain: * mut char,
+    pub tcb_info_issuer_chain_size: uint32_t,
+    pub tcb_info: * mut char,               // TCB Info structure
+    pub tcb_info_size: uint32_t,
+    pub qe_identity_issuer_chain: * mut char,
+    pub qe_identity_issuer_chain_size: uint32_t,
+    pub qe_identity: * mut char,            // QE Identity Structure
+    pub qe_identity_size: uint32_t,
+}
 
 //
 // sgx_quote_3.h
@@ -1244,9 +1276,9 @@ impl_enum! {
         PCK_CLEARTEXT           = 4,
         PCK_CERT_CHAIN          = 5,
         ECDSA_SIG_AUX_DATA      = 6,
+        QL_CERT_KEY_TYPE_MAX    = 16,
     }
 }
-
 
 impl_copy_clone! {
     #[repr(packed)]
@@ -1353,4 +1385,67 @@ impl_struct_default! {
 
 impl_struct_ContiguousMemory! {
     sgx_quote3_t;
+}
+
+//
+// sgx_ql_quote.h
+//
+impl_copy_clone! {
+    #[repr(packed)]
+    pub struct sgx_ql_qe_report_info_t {
+        pub nonce: sgx_quote_nonce_t,
+        pub app_enclave_target_info: sgx_target_info_t,
+        pub qe_report: sgx_report_t,
+    }
+}
+
+impl_struct_default! {
+    sgx_ql_qe_report_info_t, 960;
+}
+
+impl_struct_ContiguousMemory! {
+    sgx_ql_qe_report_info_t;
+}
+
+//
+// qve_header.h
+//
+impl_copy_clone! {
+    pub struct sgx_ql_qv_supplemental_t {
+        pub version: uint32_t,
+        pub earliest_issue_date: time_t,
+        pub tcb_level_date_tag: time_t,
+        pub pck_crl_num: uint32_t,
+        pub root_ca_crl_num: uint32_t,
+        pub tcb_eval_ref_num: uint32_t,
+        pub root_key_id: [uint8_t; 48],
+        pub pck_ppid: sgx_key_128bit_t,
+        pub tcb_cpusvn: sgx_cpu_svn_t,
+        pub tcb_pce_isvsvn: sgx_isv_svn_t,
+        pub pce_id: uint16_t,
+    }
+}
+
+impl_struct_default! {
+    sgx_ql_qv_supplemental_t, 120;
+}
+
+impl_struct_ContiguousMemory! {
+    sgx_ql_qv_supplemental_t;
+}
+
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
+    pub enum sgx_ql_qv_result_t {
+        SGX_QL_QV_RESULT_OK                         = 0x0000_0000,
+//      SGX_QL_QV_RESULT_MIN                        = 0x0000_A001,
+        SGX_QL_QV_RESULT_CONFIG_NEEDED              = 0x0000_A001,
+        SGX_QL_QV_RESULT_OUT_OF_DATE                = 0x0000_A002,
+        SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED  = 0x0000_A003,
+        SGX_QL_QV_RESULT_INVALID_SIGNATURE          = 0x0000_A004,
+        SGX_QL_QV_RESULT_REVOKED                    = 0x0000_A005,
+        SGX_QL_QV_RESULT_UNSPECIFIED                = 0x0000_A006,
+        SGX_QL_QV_RESULT_MAX                        = 0x0000_A0FF,
+    }
 }

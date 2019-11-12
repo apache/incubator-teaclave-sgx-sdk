@@ -37,6 +37,7 @@
 #![allow(unused_macros)]
 #![allow(unused_assignments)]
 
+#[macro_use]
 extern crate alloc;
 
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]

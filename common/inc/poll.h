@@ -7,9 +7,9 @@ typedef unsigned long int nfds_t;
 /* Data structure describing a polling request.  */
 struct pollfd
 {
-    int fd;			/* File descriptor to poll.  */
-    short int events;		/* Types of events poller cares about.  */
-    short int revents;		/* Types of events that actually occurred.  */
+    int fd;             /* File descriptor to poll.  */
+    short int events;   /* Types of events poller cares about.  */
+    short int revents;  /* Types of events that actually occurred.  */
 };
 
 #endif

@@ -1,4 +1,4 @@
-/* $OpenBSD: stdbool.h,v 1.5 2010/07/24 22:17:03 guenther Exp $ */
+/*  $OpenBSD: stdbool.h,v 1.5 2010/07/24 22:17:03 guenther Exp $    */
 
 /*
  * Written by Marc Espie, September 25, 1999

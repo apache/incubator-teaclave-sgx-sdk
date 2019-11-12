@@ -26,6 +26,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <unistd.h>
 #include <sys/types.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -91,11 +92,11 @@ int u_getpwuid_r_ocall(uid_t uid,
 {
     int ret = getpwuid_r(uid, pwd, buf, buflen, passwd_result);
     if (ret == 0 && *passwd_result != NULL) {
-        pwd->pw_name = pwd->pw_name ? pwd->pw_name - buf : -1;
-        pwd->pw_passwd = pwd->pw_passwd ? pwd->pw_passwd - buf : -1;
-        pwd->pw_gecos = pwd->pw_gecos ? pwd->pw_gecos - buf : -1;
-        pwd->pw_dir = pwd->pw_dir ? pwd->pw_dir - buf : -1;
-        pwd->pw_shell = pwd->pw_shell ? pwd->pw_shell - buf : -1;
+        pwd->pw_name = pwd->pw_name ? (char *)(pwd->pw_name - buf) : (char *)-1;
+        pwd->pw_passwd = pwd->pw_passwd ? (char *)(pwd->pw_passwd - buf) : (char *)-1;
+        pwd->pw_gecos = pwd->pw_gecos ? (char *)(pwd->pw_gecos - buf) : (char *)-1;
+        pwd->pw_dir = pwd->pw_dir ? (char *)(pwd->pw_dir - buf) : (char *)-1;
+        pwd->pw_shell = pwd->pw_shell ? (char *)(pwd->pw_shell - buf) : (char *)-1;
     }
     return ret;
 }

@@ -1,5 +1,5 @@
-/*	$OpenBSD: stdlib.h,v 1.47 2010/05/18 22:24:55 tedu Exp $	*/
-/*	$NetBSD: stdlib.h,v 1.25 1995/12/27 21:19:08 jtc Exp $	*/
+/*      $OpenBSD: stdlib.h,v 1.47 2010/05/18 22:24:55 tedu Exp $ */
+/*      $NetBSD: stdlib.h,v 1.25 1995/12/27 21:19:08 jtc Exp $   */
 
 /*-
 * Copyright (c) 1990 The Regents of the University of California.
@@ -29,7 +29,7 @@
 * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 * SUCH DAMAGE.
 *
-*	@(#)stdlib.h	5.13 (Berkeley) 6/4/91
+*       @(#)stdlib.h    5.13 (Berkeley) 6/4/91
 */
 
 #ifndef _STDLIB_H_

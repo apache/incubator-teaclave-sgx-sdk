@@ -6,18 +6,18 @@
 typedef unsigned long int pthread_t;
 
 #if defined __x86_64__ && !defined __ILP32__
-# define __WORDSIZE	64
+# define __WORDSIZE 64
 #else
-# define __WORDSIZE	32
-#define __WORDSIZE32_SIZE_ULONG		0
-#define __WORDSIZE32_PTRDIFF_LONG	0
+# define __WORDSIZE 32
+#define __WORDSIZE32_SIZE_ULONG     0
+#define __WORDSIZE32_PTRDIFF_LONG   0
 #endif
 
 #ifdef __x86_64__
 # if __WORDSIZE == 64
-#  define __SIZEOF_PTHREAD_ATTR_T 56
+#  define __SIZEOF_PTHREAD_ATTR_T   56
 # else
-#  define __SIZEOF_PTHREAD_ATTR_T 32
+#  define __SIZEOF_PTHREAD_ATTR_T   32
 #endif
 
 union pthread_attr_t

@@ -1,5 +1,5 @@
-/*	$OpenBSD: wctype.h,v 1.5 2006/01/06 18:53:04 millert Exp $	*/
-/*	$NetBSD: wctype.h,v 1.5 2003/03/02 22:18:11 tshiozak Exp $	*/
+/*  $OpenBSD: wctype.h,v 1.5 2006/01/06 18:53:04 millert Exp $  */
+/*  $NetBSD: wctype.h,v 1.5 2003/03/02 22:18:11 tshiozak Exp $  */
 
 /*-
  * Copyright (c)1999 Citrus Project,
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	citrus Id: wctype.h,v 1.4 2000/12/21 01:50:21 itojun Exp
+ *  citrus Id: wctype.h,v 1.4 2000/12/21 01:50:21 itojun Exp
  */
 
 #ifndef _WCTYPE_H_

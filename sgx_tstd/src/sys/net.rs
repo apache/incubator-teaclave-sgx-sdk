@@ -27,10 +27,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #![allow(dead_code)]
-
 use sgx_trts::libc::{c_int, size_t, c_void};
 use core::mem;
 use core::cmp;
+use core::str;
+use crate::ffi::CStr;
 use crate::io::{self, IoSlice, IoSliceMut};
 use crate::net::{SocketAddr, Shutdown};
 use crate::sys::fd::FileDesc;
@@ -43,6 +44,34 @@ pub use crate::sys::{cvt, cvt_r};
 pub type wrlen_t = size_t;
 
 pub struct Socket(FileDesc);
+
+pub fn init() {}
+
+pub fn cvt_gai(err: c_int) -> io::Result<()> {
+    if err == 0 {
+        return Ok(())
+    }
+
+    // We may need to trigger a glibc workaround. See on_resolver_failure() for details.
+    // on_resolver_failure();
+
+    if err == libc::EAI_SYSTEM {
+        return Err(io::Error::last_os_error())
+    }
+
+    let detail = unsafe {
+        let strerr = libc::gai_strerror(err);
+        if strerr.is_null() {
+            return Err(io::Error::from_raw_os_error(libc::ESGX))
+        }
+
+        str::from_utf8(CStr::from_ptr(strerr).to_bytes()).unwrap()
+            .to_owned()
+    };
+    Err(io::Error::new(io::ErrorKind::Other,
+                       &format!("failed to lookup address information: {}",
+                                detail)[..]))
+}
 
 impl Socket {
 
@@ -357,5 +386,5 @@ impl IntoInner<c_int> for Socket {
 mod libc {
     pub use sgx_trts::libc::*;
     pub use sgx_trts::libc::ocall::{socket, socketpair, connect, accept4, recv, recvfrom, shutdown,
-                                    ioctl_arg1, poll};
+                                    ioctl_arg1, poll, gai_strerror};
 }

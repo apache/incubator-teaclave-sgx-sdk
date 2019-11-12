@@ -80,4 +80,4 @@ extern errno_t memmove_s( void * dst, size_t sizeInBytes, const void * src, size
     }
 #endif
 
-#endif	/* MBUSAFECRT_H */
+#endif  /* MBUSAFECRT_H */

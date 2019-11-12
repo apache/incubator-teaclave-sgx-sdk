@@ -24,8 +24,8 @@
    has nanoseconds instead of microseconds.  */
 struct timespec
 {
-	__time_t 	tv_sec;		/* Seconds.  */
-	long 	   	tv_nsec;	/* Nanoseconds.  */
+    __time_t  tv_sec;   /* Seconds.  */
+    long      tv_nsec;  /* Nanoseconds.  */
 };
 
 #endif

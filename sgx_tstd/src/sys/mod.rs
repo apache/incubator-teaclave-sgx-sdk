@@ -35,6 +35,7 @@ pub mod fd;
 pub mod fs;
 pub mod sgxfs;
 pub mod io;
+#[cfg(feature = "thread")]
 pub mod thread;
 #[cfg(feature = "net")]
 pub mod net;

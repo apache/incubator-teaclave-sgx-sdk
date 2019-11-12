@@ -19,6 +19,7 @@ backtrace = ["stdio"]
 stdio = []
 net = []
 pipe = []
+thread = []
 untrusted_fs = []
 untrusted_time = []
 

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ctype.h	5.3 (Berkeley) 4/3/91
+ *  @(#)ctype.h 5.3 (Berkeley) 4/3/91
  */
 
 #ifndef _CTYPE_H_

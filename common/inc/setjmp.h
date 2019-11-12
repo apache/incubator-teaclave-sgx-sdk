@@ -1,4 +1,4 @@
-/*	$NetBSD: setjmp.h,v 1.26 2011/11/05 09:27:06 joerg Exp $	*/
+/*  $NetBSD: setjmp.h,v 1.26 2011/11/05 09:27:06 joerg Exp $    */
 
 /*-
  * Copyright (c) 1990, 1993
@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)setjmp.h	8.2 (Berkeley) 1/21/94
+ *  @(#)setjmp.h    8.2 (Berkeley) 1/21/94
  */
 
 #ifndef _SETJMP_H_

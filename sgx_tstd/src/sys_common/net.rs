@@ -32,9 +32,12 @@ use sgx_trts::libc::{c_int, c_uint, c_void};
 use core::cmp;
 use core::fmt;
 use core::mem;
+use core::ptr;
+use core::convert::{TryFrom, TryInto};
+use crate::ffi::CString;
 use crate::io::{self, Error, ErrorKind, IoSlice, IoSliceMut};
 use crate::net::{SocketAddr, Shutdown, Ipv4Addr, Ipv6Addr};
-use crate::sys::net::{cvt, cvt_r, Socket, wrlen_t};
+use crate::sys::net::{cvt, cvt_r, cvt_gai, Socket, init, wrlen_t};
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 use crate::time::Duration;
 
@@ -101,6 +104,91 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage, len: usize) -> io::Res
 
 fn to_ipv6mr_interface(value: u32) -> c_uint {
     value as c_uint
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// get_host_addresses
+////////////////////////////////////////////////////////////////////////////////
+
+pub struct LookupHost {
+    original: *mut libc::addrinfo,
+    cur: *mut libc::addrinfo,
+    port: u16
+}
+
+impl LookupHost {
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+}
+
+impl Iterator for LookupHost {
+    type Item = SocketAddr;
+    fn next(&mut self) -> Option<SocketAddr> {
+        loop {
+            unsafe {
+                let cur = self.cur.as_ref()?;
+                self.cur = cur.ai_next;
+                match sockaddr_to_addr(mem::transmute(cur.ai_addr),
+                                       cur.ai_addrlen as usize)
+                {
+                    Ok(addr) => return Some(addr),
+                    Err(_) => continue,
+                }
+            }
+        }
+    }
+}
+
+unsafe impl Sync for LookupHost {}
+unsafe impl Send for LookupHost {}
+
+impl Drop for LookupHost {
+    fn drop(&mut self) {
+        unsafe { libc::freeaddrinfo(self.original) }
+    }
+}
+
+impl TryFrom<&str> for LookupHost {
+    type Error = io::Error;
+
+    fn try_from(s: &str) -> io::Result<LookupHost> {
+        macro_rules! try_opt {
+            ($e:expr, $msg:expr) => (
+                match $e {
+                    Some(r) => r,
+                    None => return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                                                      $msg)),
+                }
+            )
+        }
+
+        // split the string by ':' and convert the second part to u16
+        let mut parts_iter = s.rsplitn(2, ':');
+        let port_str = try_opt!(parts_iter.next(), "invalid socket address");
+        let host = try_opt!(parts_iter.next(), "invalid socket address");
+        let port: u16 = try_opt!(port_str.parse().ok(), "invalid port value");
+
+        (host, port).try_into()
+    }
+}
+
+impl<'a> TryFrom<(&'a str, u16)> for LookupHost {
+    type Error = io::Error;
+
+    fn try_from((host, port): (&'a str, u16)) -> io::Result<LookupHost> {
+        init();
+
+        let c_host = CString::new(host)?;
+        let mut hints: libc::addrinfo = unsafe { mem::zeroed() };
+        hints.ai_socktype = libc::SOCK_STREAM;
+        let mut res = ptr::null_mut();
+        unsafe {
+            cvt_gai(libc::getaddrinfo(c_host.as_ptr(), ptr::null(), &hints, &mut res)).map(|_| {
+                LookupHost { original: res, cur: res, port }
+            })
+        }
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -640,5 +728,5 @@ impl fmt::Debug for UdpSocket {
 mod libc {
     pub use sgx_trts::libc::*;
     pub use sgx_trts::libc::ocall::{bind, listen, connect, setsockopt, getsockopt, send, sendto,
-                                    getpeername, getsockname};
+                                    getpeername, getsockname, getaddrinfo, freeaddrinfo};
 }

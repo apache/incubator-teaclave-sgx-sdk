@@ -1,4 +1,4 @@
-/*	$OpenBSD: stdint.h,v 1.4 2006/12/10 22:17:55 deraadt Exp $	*/
+/*  $OpenBSD: stdint.h,v 1.4 2006/12/10 22:17:55 deraadt Exp $  */
 
 /*
  * Copyright (c) 1997, 2005 Todd C. Miller <Todd.Miller@courtesan.com>

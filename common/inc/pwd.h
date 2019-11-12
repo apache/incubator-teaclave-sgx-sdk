@@ -19,18 +19,18 @@
  *	POSIX Standard: 9.2.2 User Database Access	<pwd.h>
  */
 
-#ifndef	_PWD_H
-#define	_PWD_H
+#ifndef _PWD_H
+#define _PWD_H
 
 struct passwd
 {
-    char *pw_name;		/* Username.  */
-    char *pw_passwd;	/* Password.  */
-    __uid_t pw_uid;		/* User ID.  */
-    __gid_t pw_gid;		/* Group ID.  */
-    char *pw_gecos;		/* Real name.  */
-    char *pw_dir;		/* Home directory.  */
-    char *pw_shell;		/* Shell program.  */
+    char *pw_name;      /* Username.  */
+    char *pw_passwd;    /* Password.  */
+    __uid_t pw_uid;     /* User ID.  */
+    __gid_t pw_gid;     /* Group ID.  */
+    char *pw_gecos;     /* Real name.  */
+    char *pw_dir;       /* Home directory.  */
+    char *pw_shell;     /* Shell program.  */
 };
 
 #endif
