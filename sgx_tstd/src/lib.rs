@@ -68,7 +68,6 @@
 #![feature(c_variadic)]
 #![feature(cfg_target_has_atomic)]
 #![feature(char_error_internals)]
-#![feature(compiler_builtins_lib)]
 #![feature(concat_idents)]
 #![feature(const_fn)]
 #![feature(core_intrinsics)]
