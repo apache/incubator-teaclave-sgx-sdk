@@ -1,6 +1,6 @@
 [package]
 name = "sgx_backtrace_sys"
-version = "1.0.9"
+version = "1.1.0"
 authors = ["Baidu"]
 build = "build.rs"
 repository = "https://github.com/baidu/rust-sgx-sdk"

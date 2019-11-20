@@ -31,7 +31,7 @@
 
 use sgx_trts::trts::rsgx_abort;
 use core::panic::BoxMeUp;
-use core::mem;
+use core::mem::{self, ManuallyDrop};
 use core::fmt;
 use core::panic::{PanicInfo, Location};
 use core::any::Any;
@@ -157,10 +157,9 @@ pub fn update_panic_count(amt: isize) -> usize {
 
 /// Invoke a closure, capturing the cause of an unwinding panic if one occurs.
 pub unsafe fn r#try<R, F: FnOnce() -> R>(f: F) -> Result<R, Box<dyn Any + Send>> {
-    #[allow(unions_with_drop_fields)]
     union Data<F, R> {
-        f: F,
-        r: R,
+        f: ManuallyDrop<F>,
+        r: ManuallyDrop<R>,
     }
 
     // We do some sketchy operations with ownership here for the sake of
@@ -191,7 +190,7 @@ pub unsafe fn r#try<R, F: FnOnce() -> R>(f: F) -> Result<R, Box<dyn Any + Send>>
     let mut any_data = 0;
     let mut any_vtable = 0;
     let mut data = Data {
-        f,
+        f: ManuallyDrop::new(f)
     };
 
     let r = __rust_maybe_catch_panic(do_call::<F, R>,
@@ -201,7 +200,7 @@ pub unsafe fn r#try<R, F: FnOnce() -> R>(f: F) -> Result<R, Box<dyn Any + Send>>
 
     return if r == 0 {
         debug_assert!(update_panic_count(0) == 0);
-        Ok(data.r)
+        Ok(ManuallyDrop::into_inner(data.r))
     } else {
         update_panic_count(-1);
         debug_assert!(update_panic_count(0) == 0);
@@ -214,8 +213,8 @@ pub unsafe fn r#try<R, F: FnOnce() -> R>(f: F) -> Result<R, Box<dyn Any + Send>>
     fn do_call<F: FnOnce() -> R, R>(data: *mut u8) {
         unsafe {
             let data = data as *mut Data<F, R>;
-            let f = ptr::read(&mut (*data).f);
-            ptr::write(&mut (*data).r, f());
+            let f = ptr::read(&mut *(*data).f);
+            ptr::write(&mut *(*data).r, f());
         }
     }
 }
@@ -242,9 +241,10 @@ pub fn rust_begin_panic(info: &PanicInfo<'_>) -> ! {
 pub fn begin_panic_fmt(msg: &fmt::Arguments<'_>,
                        file_line_col: &(&'static str, u32, u32)) -> ! {
     let (file, line, col) = *file_line_col;
+    let location = Location::internal_constructor(file, line, col);
     let info = PanicInfo::internal_constructor(
         Some(msg),
-        Location::internal_constructor(file, line, col),
+        &location
     );
     continue_panic_fmt(&info)
 }
@@ -362,9 +362,10 @@ fn rust_panic_with_hook(payload: &mut dyn BoxMeUp,
     }
 
     {
+        let location = Location::internal_constructor(file, line, col);
         let mut info = PanicInfo::internal_constructor(
             message,
-            Location::internal_constructor(file, line, col),
+            &location
         );
         info.set_payload(payload.get());
         panic_handler(&info);

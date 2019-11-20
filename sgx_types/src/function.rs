@@ -169,6 +169,14 @@ extern {
 
     pub fn sgx_verify_report(report: * const sgx_report_t) -> sgx_status_t;
     pub fn sgx_get_key(key_request: * const sgx_key_request_t, key: * mut sgx_key_128bit_t) -> sgx_status_t;
+
+    /* intel sgx sdk 2.7.1 */
+    //
+    // sgx_secure_align_api.h
+    //
+    pub fn sgx_aligned_malloc(size: size_t, alignment: size_t, data: * mut align_req_t, count: size_t) -> * mut c_void;
+    pub fn sgx_aligned_free(ptr: * mut c_void);
+    pub fn sgx_get_aligned_ptr(raw: * mut c_void, raw_size: size_t, allocate_size: size_t, alignment: size_t, data: * mut align_req_t, count: size_t) -> * mut c_void;
 }
 
 //#[link(name = "sgx_tcrypto")]

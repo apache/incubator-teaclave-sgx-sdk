@@ -114,7 +114,7 @@ impl ThreadParam {
     pub fn get_size(&self) -> usize { mem::size_of_val(self) }
 }  
 
- #[no_mangle]
+#[no_mangle]
 pub extern "C" fn t_thread_main(arg: *mut c_void, len: c_int) -> *mut c_void {
     if arg.is_null() || len as usize != mem::size_of::<ThreadParam>() {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER as u32 as *mut c_void;
@@ -126,8 +126,13 @@ pub extern "C" fn t_thread_main(arg: *mut c_void, len: c_int) -> *mut c_void {
         Ok(p) => p,
         Err(ret) => { return ret.raw_sgx_error().unwrap() as u32 as *mut c_void; }
     };
-    unsafe { start_thread(main as *mut u8); }
-    ptr::null_mut()
+
+    if pop_thread_queue(main as *mut usize).is_some() {
+        unsafe { start_thread(main as *mut u8); }
+        ptr::null_mut()
+    } else {
+        sgx_status_t::SGX_ERROR_INVALID_PARAMETER as u32 as *mut c_void
+    }
 }
 
 impl Thread {
@@ -140,9 +145,12 @@ impl Thread {
         if eid == 0 {
             return Err(io::Error::from_sgx_error(sgx_status_t::SGX_ERROR_INVALID_ENCLAVE_ID));
         }
-        let tp = ThreadParam::new(eid, &*p as *const _ as *mut _)?;
+        let main = &*p as *const _ as *mut c_void;
+        let tp = ThreadParam::new(eid, main)?;
+        push_thread_queue(main as *mut usize);
         let ret = libc::pthread_create(&mut native, ptr::null(), ptr::null_mut(), &tp as *const _ as *mut _, tp.get_size() as c_int);                        
         return if ret != 0 {
+            let _ = pop_thread_queue(main as *mut usize);
             Err(io::Error::from_raw_os_error(ret))
         } else {
             mem::forget(p); // ownership passed to pthread_create

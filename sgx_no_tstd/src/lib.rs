@@ -26,13 +26,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-//! # liballoc crate for Rust SGX SDK
-//!
-//! This crate equals to the `liballoc_system` crate in Rust.
-//! It connects Rust memory allocation to Intel SGX's sgx_tstd library.
-//! It is essential, because we depends on Intel SGX's SDK.
-//! 2018-06-22 Add liballoc components here
-
 #![no_std]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 

@@ -1449,3 +1449,14 @@ impl_enum! {
         SGX_QL_QV_RESULT_MAX                        = 0x0000_A0FF,
     }
 }
+
+/* intel sgx sdk 2.7.1 */
+//
+// sgx_secure_align_api.h
+//
+impl_struct! {
+    pub struct align_req_t {
+        pub offset: size_t,
+        pub len: size_t,
+    }
+}

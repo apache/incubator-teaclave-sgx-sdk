@@ -81,7 +81,6 @@
 #![feature(lang_items)]
 #![feature(log_syntax)]
 #![feature(maybe_uninit_ref)]
-//#![feature(mem_take)]
 #![feature(needs_panic_runtime)]
 #![feature(never_type)]
 #![feature(optin_builtin_traits)]
@@ -93,7 +92,6 @@
 #![feature(slice_concat_ext)]
 #![feature(str_internals)]
 #![feature(thread_local)]
-//#![feature(todo_macro)]
 #![feature(toowned_clone_into)]
 #![feature(trace_macros)]
 #![feature(try_reserve)]
@@ -107,9 +105,9 @@
 #![feature(panic_info_message)]
 #![feature(unicode_internals)]
 #![feature(alloc_layout_extra)]
-#![feature(non_exhaustive)]
 #![feature(vec_remove_item)]
 #![feature(int_error_matching)]
+#![feature(drain_filter)]
 #![default_lib_allocator]
 
 // Explicitly import the prelude. The compiler uses this same unstable attribute
