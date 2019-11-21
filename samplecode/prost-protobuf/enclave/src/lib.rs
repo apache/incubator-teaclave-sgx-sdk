@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Copyright (C) 2017-2018 Baidu, Inc. All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,25 +26,44 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef _EDL_DIRENT_H
-#define _EDL_DIRENT_H
+#![crate_name = "helloworldsampleenclave"]
+#![crate_type = "staticlib"]
 
-struct dirent_t
-{
-    uint64_t d_ino;
-    int64_t d_off;
-    unsigned short int d_reclen;
-    unsigned char d_type;
-    char d_name[256];
-};
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
-struct dirent64_t
-{
-    uint64_t d_ino;
-    int64_t d_off;
-    unsigned short int d_reclen;
-    unsigned char d_type;
-    char d_name[256];
-};
+extern crate sgx_types;
+#[cfg(not(target_env = "sgx"))]
+#[macro_use]
+extern crate sgx_tstd as std;
 
-#endif
+use sgx_types::*;
+use std::slice;
+
+extern crate prost;
+extern crate prost_types;
+extern crate bytes;
+
+use prost::Message;
+use prost_types::Timestamp;
+
+mod person {
+    include!(concat!(env!("OUT_DIR"), "/person.rs"));
+}
+
+#[no_mangle]
+pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_status_t {
+    let person_slice = unsafe { slice::from_raw_parts(some_string, some_len) };
+
+    let the_one: person::Person = person::Person::decode(person_slice).unwrap();
+    println!("name: {}, id: 0x{:08X}, email at: {}",
+        the_one.name,
+        the_one.id,
+        the_one.email);
+    println!("{:?}", the_one);
+
+    let ts = Timestamp { seconds: 0x1234, nanos: 0x5678 };
+    println!("well known types ts = {:?}", ts);
+
+    sgx_status_t::SGX_SUCCESS
+}

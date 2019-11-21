@@ -51,7 +51,7 @@ struct stat_t
     int64_t __reserved[3];
 };
 
-struct stat64_t 
+struct stat64_t
 {
     uint64_t st_dev;
     uint64_t st_ino;

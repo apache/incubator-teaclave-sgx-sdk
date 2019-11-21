@@ -28,11 +28,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
- 
+
 enclave {
 
     from "sgx_fd.edl" import *;
-    
+
 	trusted {
         /* define ECALLs here. */
     };

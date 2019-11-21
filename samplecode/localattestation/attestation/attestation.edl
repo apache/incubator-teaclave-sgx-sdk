@@ -44,8 +44,8 @@ enclave  {
     };
 
     untrusted{
-        uint32_t session_request_ocall(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id, [out] sgx_dh_msg1_t *dh_msg1,[out] uint32_t *session_id);
-        uint32_t exchange_report_ocall(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id, [in] sgx_dh_msg2_t *dh_msg2, [out] sgx_dh_msg3_t *dh_msg3, uint32_t session_id);
+        uint32_t session_request_ocall(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id, [out] sgx_dh_msg1_t *dh_msg1);
+        uint32_t exchange_report_ocall(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id, [in] sgx_dh_msg2_t *dh_msg2, [out] sgx_dh_msg3_t *dh_msg3);
         uint32_t end_session_ocall(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id);
     };
 };
