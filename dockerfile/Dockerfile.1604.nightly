@@ -32,10 +32,10 @@
 FROM ubuntu:16.04
 MAINTAINER Yu Ding
 
-ENV sdk_bin https://download.01.org/intel-sgx/linux-2.6/ubuntu16.04-server/sgx_linux_x64_sdk_2.6.100.51363.bin
-ENV psw_deb https://download.01.org/intel-sgx/linux-2.6/ubuntu16.04-server/libsgx-enclave-common_2.6.100.51363-xenial1_amd64.deb
-ENV psw_dev_deb https://download.01.org/intel-sgx/linux-2.6/ubuntu16.04-server/libsgx-enclave-common-dev_2.6.100.51363-xenial1_amd64.deb
-ENV rust_toolchain nightly-2019-08-01
+ENV sdk_bin https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/ubuntu16.04-server/sgx_linux_x64_sdk_2.7.101.3.bin
+ENV psw_deb https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/ubuntu16.04-server/libsgx-enclave-common_2.7.101.3-xenial1_amd64.deb
+ENV psw_dev_deb https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/ubuntu16.04-server/libsgx-enclave-common-dev_2.7.101.3-xenial1_amd64.deb
+ENV rust_toolchain nightly-2019-11-06
 
 RUN apt-get update && \
     apt-get install -y build-essential ocaml automake autoconf libtool wget python libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev sudo kmod vim curl git-core libprotobuf-c0-dev libboost-thread-dev libboost-system-dev liblog4cpp5-dev libjsoncpp-dev alien uuid-dev libxml2-dev cmake pkg-config expect gdb && \
