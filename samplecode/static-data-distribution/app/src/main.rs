@@ -37,6 +37,7 @@ use sgx_crypto_helper::RsaKeyPair;
 use sgx_crypto_helper::rsa3072::{Rsa3072KeyPair, Rsa3072PubKey};
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
+use std::io::Write;
 
 extern "C" {
     fn say_something(
