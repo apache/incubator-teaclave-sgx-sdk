@@ -1,7 +1,7 @@
 [package]
 name = "tr-mpc-client"
 version = "0.1.0"
-authors = ["Webb Shi <bradyjoestar@gmail.com>"]
+authors = ["The Teaclave Authors"]
 
 [dependencies]
 chrono      = "0.4.5"

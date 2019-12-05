@@ -1,5 +1,5 @@
 [package]
-authors = ["Baidu"]
+authors = ["The Teaclave Authors"]
 name = "sgx_types"
 version = "1.1.0"
 repository = "https://github.com/baidu/rust-sgx-sdk"

@@ -1,7 +1,7 @@
 [package]
 name = "sgxwasm"
 version = "0.1.0"
-authors = ["Baidu"]
+authors = ["The Teaclave Authors"]
 
 [dependencies]
 wasmi = { git = "https://github.com/mesalock-linux/wasmi-sgx" }
