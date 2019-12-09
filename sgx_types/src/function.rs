@@ -174,9 +174,9 @@ extern {
     //
     // sgx_secure_align_api.h
     //
-    pub fn sgx_aligned_malloc(size: size_t, alignment: size_t, data: * mut align_req_t, count: size_t) -> * mut c_void;
+    pub fn sgx_aligned_malloc(size: size_t, alignment: size_t, data: * const align_req_t, count: size_t) -> * mut c_void;
     pub fn sgx_aligned_free(ptr: * mut c_void);
-    pub fn sgx_get_aligned_ptr(raw: * mut c_void, raw_size: size_t, allocate_size: size_t, alignment: size_t, data: * mut align_req_t, count: size_t) -> * mut c_void;
+    pub fn sgx_get_aligned_ptr(raw: * mut c_void, raw_size: size_t, allocate_size: size_t, alignment: size_t, data: * const align_req_t, count: size_t) -> * mut c_void;
 }
 
 //#[link(name = "sgx_tcrypto")]

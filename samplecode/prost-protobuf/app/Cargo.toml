@@ -7,13 +7,13 @@ build = "build.rs"
 [dependencies]
 sgx_types = { rev = "v1.0.9", git = "https://github.com/baidu/rust-sgx-sdk.git" }
 sgx_urts = { rev = "v1.0.9", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-prost = "*"
-prost-types = "*"
-bytes = "*"
+prost = "0.5"
+prost-types = "0.5"
+bytes = "0.4"
 
 [patch.'https://github.com/baidu/rust-sgx-sdk.git']
 sgx_types = { path = "../../../sgx_types" }
 sgx_urts = { path = "../../../sgx_urts" }
 
 [build-dependencies]
-prost-build = "*"
+prost-build = "0.5"

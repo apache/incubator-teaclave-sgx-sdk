@@ -19,10 +19,12 @@ sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
 sgx_rand = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
 sgx_tseal = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
 sgx_serialize = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tse= { git = "https://github.com/baidu/rust-sgx-sdk.git" }
 
 [dependencies]
 sgx_serialize_derive = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
 rand = { version = "0.5.5", default-features = false }
+memoffset = "0.5"
 
 [patch.'https://github.com/baidu/rust-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }

@@ -49,6 +49,10 @@ extern crate sgx_rand;
 extern crate sgx_tseal;
 extern crate rand;
 
+#[macro_use]
+extern crate memoffset;
+extern crate sgx_tse;
+
 extern crate sgx_serialize;
 pub use sgx_serialize::*;
 #[macro_use]
@@ -104,6 +108,9 @@ use test_thread::*;
 
 mod test_mpsc;
 use test_mpsc::*;
+
+mod test_alignbox;
+use test_alignbox::*;
 
 #[no_mangle]
 pub extern "C"
@@ -327,6 +334,12 @@ fn test_main_entrance() -> size_t {
                     test_mpsc_sync_try_send2,
                     test_mpsc_sync_try_send3,
                     test_mpsc_sync_issue_15761,
+                    //test alignbox
+                    test_alignbox,
+                    test_alignbox_heap_init,
+                    test_alignbox_clone,
+                    test_alignbox_clonefrom,
+                    test_alignbox_clonefrom_no_eq_size,
                     )
 }
 

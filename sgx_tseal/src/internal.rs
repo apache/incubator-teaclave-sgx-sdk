@@ -498,8 +498,7 @@ impl SgxInternalSealedData {
                     payload_iv: &[u8],
                     key_request: &sgx_key_request_t) -> SgxResult<Self>  {
 
-
-        let mut seal_key = rsgx_get_key(key_request).map_err(|ret| {
+        let mut seal_key = rsgx_get_align_key(key_request).map_err(|ret| {
             if ret != sgx_status_t::SGX_ERROR_OUT_OF_MEMORY {
                 sgx_status_t::SGX_ERROR_UNEXPECTED
             } else {
@@ -510,14 +509,14 @@ impl SgxInternalSealedData {
         let mut sealed_data = SgxInternalSealedData::default();
         sealed_data.payload_data.encrypt = vec![0_u8; encrypt_text.len()].into_boxed_slice();
 
-        let error = rsgx_rijndael128GCM_encrypt(&seal_key,
+        let error = rsgx_rijndael128GCM_encrypt(&seal_key.key,
                                                 encrypt_text,
                                                 payload_iv,
                                                 &additional_text,
                                                 &mut sealed_data.payload_data.encrypt,
                                                 &mut sealed_data.payload_data.payload_tag);
         if error.is_err() {
-            seal_key = sgx_key_128bit_t::default();
+            seal_key.key = sgx_key_128bit_t::default();
             return Err(error.unwrap_err());
         }
 
@@ -526,14 +525,14 @@ impl SgxInternalSealedData {
             sealed_data.payload_data.additional = additional_text.to_vec().into_boxed_slice();
         }
 
-        seal_key = sgx_key_128bit_t::default();
+        seal_key.key = sgx_key_128bit_t::default();
 
         Ok(sealed_data)
     }
 
     fn unseal_data_helper(&self) -> SgxResult<SgxInternalUnsealedData> {
 
-        let mut seal_key = rsgx_get_key(self.get_key_request()).map_err(|ret| {
+        let mut seal_key = rsgx_get_align_key(self.get_key_request()).map_err(|ret| {
             if (ret == sgx_status_t::SGX_ERROR_INVALID_CPUSVN) ||
                (ret == sgx_status_t::SGX_ERROR_INVALID_ISVSVN) ||
                (ret == sgx_status_t::SGX_ERROR_OUT_OF_MEMORY) {
@@ -555,14 +554,14 @@ impl SgxInternalSealedData {
         let mut unsealed_data: SgxInternalUnsealedData = SgxInternalUnsealedData::default();
         unsealed_data.decrypt = vec![0_u8; self.payload_data.encrypt.len()].into_boxed_slice();
 
-        let error = rsgx_rijndael128GCM_decrypt(&seal_key,
+        let error = rsgx_rijndael128GCM_decrypt(&seal_key.key,
                                                 self.get_encrypt_txt(),
                                                 &payload_iv,
                                                 self.get_additional_txt(),
                                                 self.get_payload_tag(),
                                                 &mut unsealed_data.decrypt);
         if error.is_err() {
-            seal_key = sgx_key_128bit_t::default();
+            seal_key.key = sgx_key_128bit_t::default();
             return Err(error.unwrap_err());
         }
 
@@ -571,7 +570,7 @@ impl SgxInternalSealedData {
         }
         unsealed_data.payload_size = self.get_payload_size();
 
-        seal_key = sgx_key_128bit_t::default();
+        seal_key.key = sgx_key_128bit_t::default();
 
         Ok(unsealed_data)
     }

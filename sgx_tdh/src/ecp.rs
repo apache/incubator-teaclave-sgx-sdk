@@ -37,7 +37,7 @@ pub const EC_DERIVATION_BUFFER_SIZE: usize = 7;
 
 #[allow(clippy::trivially_copy_pass_by_ref)]
 pub fn derive_key(shared_key: &sgx_ec256_dh_shared_t,
-                  label: &[u8; EC_LABEL_LENGTH]) -> SgxResult<sgx_ec_key_128bit_t> {
+                  label: &[u8; EC_LABEL_LENGTH]) -> SgxResult<sgx_align_key_128bit_t> {
 
     let cmac_key = sgx_cmac_128bit_key_t::default();
     let mut key_derive_key = rsgx_rijndael128_cmac_msg(&cmac_key, shared_key).map_err(set_error)?;
@@ -52,13 +52,18 @@ pub fn derive_key(shared_key: &sgx_ec256_dh_shared_t,
     derivation_buffer[5] = 0x80;
     derivation_buffer[6] = 0x00;
 
-    let result = rsgx_rijndael128_cmac_slice(&key_derive_key, &derivation_buffer).map_err(set_error);
+    let result = rsgx_rijndael128_align_cmac_slice(&key_derive_key, &derivation_buffer)
+        .map(|align_mac| {
+            let mut align_key = sgx_align_key_128bit_t::default();
+            align_key.key = align_mac.mac;
+            align_key
+        })
+        .map_err(set_error);
     key_derive_key = Default::default();
     result
 }
 
 fn set_error(sgx_ret: sgx_status_t) -> sgx_status_t {
-
     match sgx_ret {
         sgx_status_t::SGX_ERROR_OUT_OF_MEMORY => sgx_status_t::SGX_ERROR_OUT_OF_MEMORY,
         _ => sgx_status_t::SGX_ERROR_UNEXPECTED,

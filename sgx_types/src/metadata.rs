@@ -7,7 +7,7 @@ pub const SE_KEY_SIZE       :usize =  384;
 pub const SE_EXPONENT_SIZE  :usize =  4;
 
 /* arch.h */
-#[repr(packed)]
+#[repr(C, packed)]
 pub struct tcs_t {
     pub reserved0      :u64,
     pub flags          :u64,
@@ -24,7 +24,7 @@ pub struct tcs_t {
 }
 
 /* arch.h */
-#[repr(packed)]
+#[repr(C, packed)]
 pub struct css_header_t {
     pub header          :[u8; 12],
     pub css_type        :u32,  // type
@@ -35,14 +35,14 @@ pub struct css_header_t {
     pub reserved        :[u8; 84],
 }
 
-#[repr(packed)]
+#[repr(C, packed)]
 pub struct css_key_t {
     pub modulus         :[u8; SE_KEY_SIZE],
     pub exponent        :[u8; SE_EXPONENT_SIZE],
     pub signature       :[u8; SE_KEY_SIZE],
 }
 
-#[repr(packed)]
+#[repr(C, packed)]
 pub struct css_body_t {
     pub misc_select     :sgx_misc_select_t,
     pub misc_mask       :sgx_misc_select_t,
@@ -57,14 +57,14 @@ pub struct css_body_t {
     pub isv_svn         :u16,
 }
 
-#[repr(packed)]
+#[repr(C, packed)]
 pub struct css_buffer_t {
     pub reserved        :[u8; 12],
     pub q1              :[u8; SE_KEY_SIZE],
     pub q2              :[u8; SE_KEY_SIZE],
 }
 
-#[repr(packed)]
+#[repr(C, packed)]
 pub struct enclave_css_t {
     pub header          :css_header_t,
     pub key             :css_key_t,

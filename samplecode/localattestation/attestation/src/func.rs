@@ -78,7 +78,7 @@ pub fn create_session(src_enclave_id: sgx_enclave_id_t, dest_enclave_id: sgx_enc
 
     let mut dh_msg1: SgxDhMsg1 = SgxDhMsg1::default(); //Diffie-Hellman Message 1
     let mut dh_msg2: SgxDhMsg2 = SgxDhMsg2::default(); //Diffie-Hellman Message 2
-    let mut dh_aek: sgx_key_128bit_t = sgx_key_128bit_t::default(); // Session Key
+    let mut dh_aek: sgx_align_key_128bit_t = sgx_align_key_128bit_t::default(); // Session Key
     let mut responder_identity: sgx_dh_session_enclave_identity_t = sgx_dh_session_enclave_identity_t::default();
     let mut ret = 0;
 
@@ -114,7 +114,7 @@ pub fn create_session(src_enclave_id: sgx_enclave_id_t, dest_enclave_id: sgx_enc
     }
     let dh_msg3 = dh_msg3.unwrap();
 
-    let status = initiator.proc_msg3(&dh_msg3, &mut dh_aek, &mut responder_identity);
+    let status = initiator.proc_msg3(&dh_msg3, &mut dh_aek.key, &mut responder_identity);
     if status.is_err() {
         return ATTESTATION_STATUS::ATTESTATION_ERROR;
     }
@@ -169,7 +169,7 @@ pub extern "C" fn session_request(src_enclave_id: sgx_enclave_id_t, dh_msg1: *mu
 #[allow(unused_variables)]
 fn exchange_report_safe(src_enclave_id: sgx_enclave_id_t, dh_msg2: &mut sgx_dh_msg2_t , dh_msg3: &mut sgx_dh_msg3_t, session_info: &mut DhSessionInfo) -> ATTESTATION_STATUS {
 
-    let mut dh_aek = sgx_key_128bit_t::default() ;   // Session key
+    let mut dh_aek = sgx_align_key_128bit_t::default() ;   // Session key
     let mut initiator_identity = sgx_dh_session_enclave_identity_t::default();
 
     let mut responder = match session_info.session.session_status {
@@ -180,7 +180,7 @@ fn exchange_report_safe(src_enclave_id: sgx_enclave_id_t, dh_msg2: &mut sgx_dh_m
     };
 
     let mut dh_msg3_r = SgxDhMsg3::default();
-    let status = responder.proc_msg2(dh_msg2, &mut dh_msg3_r, &mut dh_aek, &mut initiator_identity);
+    let status = responder.proc_msg2(dh_msg2, &mut dh_msg3_r, &mut dh_aek.key, &mut initiator_identity);
     if status.is_err() {
         return ATTESTATION_STATUS::ATTESTATION_ERROR;
     }

@@ -38,7 +38,6 @@ fn max_len() -> usize {
 }
 
 unsafe fn rsgx_fopen(filename: &CStr, mode: &CStr, key: &sgx_key_128bit_t) -> SysResult<SGX_FILE> {
-
     let file = sgx_fopen(filename.as_ptr(), mode.as_ptr(), key as * const sgx_key_128bit_t);
     if file.is_null() {
         Err(errno())
@@ -48,7 +47,6 @@ unsafe fn rsgx_fopen(filename: &CStr, mode: &CStr, key: &sgx_key_128bit_t) -> Sy
 }
 
 unsafe fn rsgx_fopen_auto_key(filename: &CStr, mode: &CStr) -> SysResult<SGX_FILE> {
-
     let file = sgx_fopen_auto_key(filename.as_ptr(), mode.as_ptr());
     if file.is_null() {
         Err(errno())
@@ -58,7 +56,6 @@ unsafe fn rsgx_fopen_auto_key(filename: &CStr, mode: &CStr) -> SysResult<SGX_FIL
 }
 
 unsafe fn rsgx_fwrite(stream: SGX_FILE, buf: &[u8]) -> SysResult<usize> {
-
     if stream.is_null() || buf.is_empty() {
         return Err(libc::EINVAL);
     }
@@ -73,7 +70,6 @@ unsafe fn rsgx_fwrite(stream: SGX_FILE, buf: &[u8]) -> SysResult<usize> {
 }
 
 unsafe fn rsgx_fread(stream: SGX_FILE, buf: &mut [u8]) -> SysResult<usize> {
-
     if stream.is_null() || buf.is_empty() {
         return Err(libc::EINVAL);
     }
@@ -95,7 +91,6 @@ unsafe fn rsgx_fread(stream: SGX_FILE, buf: &mut [u8]) -> SysResult<usize> {
 }
 
 unsafe fn rsgx_ftell(stream: SGX_FILE) -> SysResult<i64> {
-
     if stream.is_null() {
         return Err(libc::EINVAL);
     }
@@ -109,7 +104,6 @@ unsafe fn rsgx_ftell(stream: SGX_FILE) -> SysResult<i64> {
 }
 
 unsafe fn rsgx_fseek(stream: SGX_FILE, offset: i64, origin: i32) -> SysError {
-
     if stream.is_null() {
         return Err(libc::EINVAL);
     }
@@ -123,7 +117,6 @@ unsafe fn rsgx_fseek(stream: SGX_FILE, offset: i64, origin: i32) -> SysError {
 }
 
 unsafe fn rsgx_fflush(stream: SGX_FILE) -> SysError {
-
     let ret = sgx_fflush(stream);
     if ret == 0 {
         Ok(())
@@ -135,7 +128,6 @@ unsafe fn rsgx_fflush(stream: SGX_FILE) -> SysError {
 }
 
 unsafe fn rsgx_ferror(stream: SGX_FILE) -> i32 {
-
     let mut err = sgx_ferror(stream);
     if err == -1 {
         err = libc::EINVAL;
@@ -144,7 +136,6 @@ unsafe fn rsgx_ferror(stream: SGX_FILE) -> i32 {
 }
 
 unsafe fn rsgx_feof(stream: SGX_FILE) -> SysResult<bool> {
-
     if stream.is_null() {
         return Err(libc::EINVAL);
     }
@@ -161,7 +152,6 @@ unsafe fn rsgx_clearerr(stream: SGX_FILE) {
 }
 
 unsafe fn rsgx_fclose(stream: SGX_FILE) -> SysError {
-
     if stream.is_null() {
         return Err(libc::EINVAL);
     }
@@ -175,7 +165,6 @@ unsafe fn rsgx_fclose(stream: SGX_FILE) -> SysError {
 }
 
 unsafe fn rsgx_fclear_cache(stream: SGX_FILE) -> SysError {
-
     if stream.is_null() {
         return Err(libc::EINVAL);
     }
@@ -189,7 +178,6 @@ unsafe fn rsgx_fclear_cache(stream: SGX_FILE) -> SysError {
 }
 
 unsafe fn rsgx_remove(filename: &CStr) -> SysError {
-
     let ret = sgx_remove(filename.as_ptr());
     if ret == 0 {
         Ok(())
@@ -199,7 +187,6 @@ unsafe fn rsgx_remove(filename: &CStr) -> SysError {
 }
 
 unsafe fn rsgx_fexport_auto_key(filename: &CStr, key: &mut sgx_key_128bit_t) -> SysError {
-
     let ret = sgx_fexport_auto_key(filename.as_ptr(), key as * mut sgx_key_128bit_t);
     if ret == 0 {
         Ok(())
@@ -209,7 +196,6 @@ unsafe fn rsgx_fexport_auto_key(filename: &CStr, key: &mut sgx_key_128bit_t) -> 
 }
 
 unsafe fn rsgx_fimport_auto_key(filename: &CStr, key: &sgx_key_128bit_t) -> SysError {
-
     let ret = sgx_fimport_auto_key(filename.as_ptr(), key as * const sgx_key_128bit_t);
     if ret == 0 {
         Ok(())
@@ -597,10 +583,16 @@ pub fn remove(filename: &CStr) -> SysError {
 /// otherwise, error code is returned.
 ///
 pub fn export_auto_key(filename: &CStr) -> SysResult<sgx_key_128bit_t> {
-
     let mut key: sgx_key_128bit_t = Default::default();
     unsafe {
         rsgx_fexport_auto_key(filename, &mut key).map(|_| key)
+    }
+}
+
+pub fn export_align_auto_key(filename: &CStr) -> SysResult<sgx_align_key_128bit_t> {
+    let mut align_key: sgx_align_key_128bit_t = Default::default();
+    unsafe {
+        rsgx_fexport_auto_key(filename, &mut align_key.key).map(|_| align_key)
     }
 }
 

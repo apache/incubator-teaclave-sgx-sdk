@@ -213,20 +213,20 @@ enum SgxDhSessionState {
 #[derive(Copy, Clone)]
 pub struct SgxDhResponder {
     state: SgxDhSessionState,
-    prv_key: sgx_ec256_private_t,
+    prv_key: sgx_align_ec256_private_t,
     pub_key: sgx_ec256_public_t,
-    smk_aek: sgx_key_128bit_t,
-    shared_key: sgx_ec256_dh_shared_t,
+    smk_aek: sgx_align_key_128bit_t,
+    shared_key: sgx_align_ec256_dh_shared_t,
 }
 
 impl Default for SgxDhResponder {
     fn default() -> Self {
         SgxDhResponder {
            state: SgxDhSessionState::SGX_DH_SESSION_STATE_RESET,
-           prv_key: sgx_ec256_private_t::default(),
+           prv_key: sgx_align_ec256_private_t::default(),
            pub_key: sgx_ec256_public_t::default(),
-           smk_aek: sgx_key_128bit_t::default(),
-           shared_key: sgx_ec256_dh_shared_t::default(),
+           smk_aek: sgx_align_key_128bit_t::default(),
+           shared_key: sgx_align_ec256_dh_shared_t::default(),
         }
     }
 }
@@ -408,9 +408,9 @@ impl SgxDhResponder {
 
         let ecc_state = SgxEccHandle::new();
         ecc_state.open().map_err(|ret| self.set_error(ret))?;
-        self.shared_key = ecc_state.compute_shared_dhkey(&self.prv_key, &msg2.g_b).map_err(|ret| self.set_error(ret))?;
+        self.shared_key = ecc_state.compute_align_shared_dhkey(&self.prv_key.key, &msg2.g_b).map_err(|ret| self.set_error(ret))?;
 
-        self.smk_aek = derive_key(&self.shared_key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret))?;
+        self.smk_aek = derive_key(&self.shared_key.key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret))?;
 
         #[cfg(feature = "use_lav2")]
         self.lav2_verify_message2(msg2).map_err(|ret| self.set_error(ret))?;
@@ -428,8 +428,8 @@ impl SgxDhResponder {
         #[cfg(not(feature = "use_lav2"))]
         self.dh_generate_message3(msg2, msg3).map_err(|ret| self.set_error(ret))?;
 
-        * aek = derive_key(&self.shared_key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret))?;
-
+        let align_aek = derive_key(&self.shared_key.key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret))?;
+        *aek = align_aek.key;
         *self = Self::default();
         self.state = SgxDhSessionState::SGX_DH_SESSION_ACTIVE;
 
@@ -449,7 +449,7 @@ impl SgxDhResponder {
 
         let ecc_state = SgxEccHandle::new();
         ecc_state.open()?;
-        let (prv_key, pub_key) = ecc_state.create_key_pair()?;
+        let (prv_key, pub_key) = ecc_state.create_align_key_pair()?;
 
         self.prv_key = prv_key;
         self.pub_key = pub_key;
@@ -469,7 +469,7 @@ impl SgxDhResponder {
         }
 
         let report = msg2.report;
-        let data_mac = rsgx_rijndael128_cmac_msg(&self.smk_aek, &report)?;
+        let data_mac = rsgx_rijndael128_cmac_msg(&self.smk_aek.key, &report)?;
         if !data_mac.consttime_memeq(&msg2.cmac) {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
@@ -502,7 +502,7 @@ impl SgxDhResponder {
         report.body.report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
 
         rsgx_verify_report(&report)?;
-        let data_mac = rsgx_rijndael128_cmac_msg(&self.smk_aek, &msg2.g_b)?;
+        let data_mac = rsgx_rijndael128_cmac_msg(&self.smk_aek.key, &msg2.g_b)?;
         if !data_mac.consttime_memeq(&msg2.cmac) {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
@@ -536,7 +536,7 @@ impl SgxDhResponder {
 
         let add_prop_len = msg3.msg3_body.additional_prop.len() as u32;
         let cmac_handle = SgxCmacHandle::new();
-        cmac_handle.init(&self.smk_aek)?;
+        cmac_handle.init(&self.smk_aek.key)?;
         cmac_handle.update_msg(&msg3.msg3_body.report)?;
         cmac_handle.update_msg(&add_prop_len)?;
         if add_prop_len > 0 {
@@ -568,7 +568,7 @@ impl SgxDhResponder {
         msg3.msg3_body.report = rsgx_create_report(&target, &report_data)?;
 
         let cmac_handle = SgxCmacHandle::new();
-        cmac_handle.init(&self.smk_aek)?;
+        cmac_handle.init(&self.smk_aek.key)?;
         if msg3.msg3_body.additional_prop.len() > 0 {
             cmac_handle.update_slice(&msg3.msg3_body.additional_prop)?;
         }
@@ -594,20 +594,20 @@ impl SgxDhResponder {
 #[derive(Copy, Clone)]
 pub struct SgxDhInitiator {
     state: SgxDhSessionState,
-    smk_aek: sgx_key_128bit_t,
+    smk_aek: sgx_align_key_128bit_t,
     pub_key: sgx_ec256_public_t,
     peer_pub_key: sgx_ec256_public_t,
-    shared_key: sgx_ec256_dh_shared_t,
+    shared_key: sgx_align_ec256_dh_shared_t,
 }
 
 impl Default for SgxDhInitiator {
     fn default() -> Self {
         SgxDhInitiator {
            state: SgxDhSessionState::SGX_DH_SESSION_INITIATOR_WAIT_M1,
-           smk_aek: sgx_key_128bit_t::default(),
+           smk_aek: sgx_align_key_128bit_t::default(),
            pub_key: sgx_ec256_public_t::default(),
            peer_pub_key: sgx_ec256_public_t::default(),
-           shared_key: sgx_ec256_dh_shared_t::default(),
+           shared_key: sgx_align_ec256_dh_shared_t::default(),
         }
     }
 }
@@ -686,12 +686,12 @@ impl SgxDhInitiator {
 
         let ecc_state = SgxEccHandle::new();
         ecc_state.open().map_err(|ret| self.set_error(ret))?;
-        let (mut prv_key, pub_key) = ecc_state.create_key_pair().map_err(|ret| self.set_error(ret))?;
-        self.shared_key = ecc_state.compute_shared_dhkey(&prv_key, &msg1.g_a).map_err(|ret| self.set_error(ret))?;
+        let (mut prv_key, pub_key) = ecc_state.create_align_key_pair().map_err(|ret| self.set_error(ret))?;
+        self.shared_key = ecc_state.compute_align_shared_dhkey(&prv_key.key, &msg1.g_a).map_err(|ret| self.set_error(ret))?;
 
-        prv_key = sgx_ec256_private_t::default();
+        prv_key = sgx_align_ec256_private_t::default();
         self.pub_key = pub_key;
-        self.smk_aek = derive_key(&self.shared_key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret))?;
+        self.smk_aek = derive_key(&self.shared_key.key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret))?;
 
         #[cfg(feature = "use_lav2")]
         self.lav2_generate_message2(msg1, msg2).map_err(|ret| self.set_error(ret))?;
@@ -797,7 +797,8 @@ impl SgxDhInitiator {
         #[cfg(not(feature = "use_lav2"))]
         self.dh_verify_message3(msg3).map_err(|ret| self.set_error(ret))?;
 
-        * aek = derive_key(&self.shared_key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret))?;
+        let align_aek = derive_key(&self.shared_key.key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret))?;
+        *aek = align_aek.key;
 
         *self = Self::default();
         self.state = SgxDhSessionState::SGX_DH_SESSION_ACTIVE;
@@ -832,7 +833,7 @@ impl SgxDhInitiator {
         let target = msg1.target;
         msg2.report = rsgx_create_report(&target, &report_data)?;
         let report = msg2.report;
-        msg2.cmac = rsgx_rijndael128_cmac_msg(&self.smk_aek, &report)?;
+        msg2.cmac = rsgx_rijndael128_cmac_msg(&self.smk_aek.key, &report)?;
 
         Ok(())
     }
@@ -856,7 +857,7 @@ impl SgxDhInitiator {
         msg2.report = rsgx_create_report(&target, &report_data)?;
         // Replace report_data with proto_spec
         unsafe {msg2.report.body.report_data = SGX_LAV2_PROTO_SPEC.to_report_data();}
-        msg2.cmac = rsgx_rijndael128_cmac_msg(&self.smk_aek, &msg2.g_b)?;
+        msg2.cmac = rsgx_rijndael128_cmac_msg(&self.smk_aek.key, &msg2.g_b)?;
 
         Ok(())
     }
@@ -866,7 +867,7 @@ impl SgxDhInitiator {
         let add_prop_len = msg3.msg3_body.additional_prop.len() as u32;
 
         let cmac_handle = SgxCmacHandle::new();
-        cmac_handle.init(&self.smk_aek)?;
+        cmac_handle.init(&self.smk_aek.key)?;
         cmac_handle.update_msg(&msg3.msg3_body.report)?;
         cmac_handle.update_msg(&add_prop_len)?;
         if add_prop_len > 0 {
@@ -913,7 +914,7 @@ impl SgxDhInitiator {
         rsgx_verify_report(&report)?;
 
         let cmac_handle = SgxCmacHandle::new();
-        cmac_handle.init(&self.smk_aek)?;
+        cmac_handle.init(&self.smk_aek.key)?;
         if msg3.msg3_body.additional_prop.len() > 0 {
             cmac_handle.update_slice(&msg3.msg3_body.additional_prop)?;
         }

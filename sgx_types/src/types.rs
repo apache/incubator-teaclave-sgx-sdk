@@ -74,6 +74,7 @@ impl_struct! {
 //
 // tseal_migration_attr.h
 //
+
 pub const FLAGS_NON_SECURITY_BITS: uint64_t   = (0x00FF_FFFF_FFFF_FFC0
                                                 | SGX_FLAGS_MODE64BIT
                                                 | SGX_FLAGS_PROVISION_KEY
@@ -172,7 +173,6 @@ impl_enum! {
 // sgx_ecp_types.h
 //
 
-
 pub const SGX_FEBITSIZE: uint32_t = 256;
 
 impl_struct!{
@@ -192,13 +192,11 @@ pub type sgx_ec_key_128bit_t = [uint8_t; SGX_CMAC_KEY_SIZE];
 // sgx_eid.h
 //
 
-
 pub type sgx_enclave_id_t = uint64_t;
 
 //
 // sgx_key.h
 //
-
 
 // Key Name
 pub const SGX_KEYSELECT_LICENSE: uint16_t          = 0x0000;
@@ -262,7 +260,6 @@ impl_struct_ContiguousMemory! {
 // sgx_key_exchange.h
 //
 
-
 pub type sgx_ra_context_t = uint32_t;
 pub type sgx_ra_key_128_t = sgx_key_128bit_t;
 
@@ -313,7 +310,6 @@ impl_struct_ContiguousMemory! {
 //
 // sgx_quote.h
 //
-
 
 pub type sgx_epid_group_id_t = [uint8_t; 4];
 pub const SGX_PLATFORM_INFO_SIZE: size_t = 101;
@@ -402,7 +398,6 @@ impl_struct_ContiguousMemory! {
 //
 // sgx_report.h
 //
-
 
 pub const SGX_HASH_SIZE: size_t   = 32;
 pub const SGX_MAC_SIZE: size_t    = 16;
@@ -502,7 +497,6 @@ impl_struct_ContiguousMemory! {
 // sgx_spinlock.h
 //
 
-// typedef volatile uint32_t sgx_spinlock_t;
 pub type sgx_spinlock_t = uint32_t;
 
 pub const SGX_SPINLOCK_INITIALIZER: uint32_t    = 0;
@@ -842,7 +836,6 @@ pub const SGX_THREAD_COND_INITIALIZER: sgx_thread_cond_t = sgx_thread_cond_t {
 //
 // sgx_tkey_exchange.h
 //
-
 
 pub type sgx_ra_derive_secret_keys_t = extern "C" fn(p_shared_key: * const sgx_ec256_dh_shared_t,
                                                      kdf_id: uint16_t,
@@ -1252,6 +1245,7 @@ pub struct sgx_ql_qve_collateral_t {
 //
 // sgx_quote_3.h
 //
+
 pub const REF_QUOTE_MAX_AUTHENTICATON_DATA_SIZE: uint16_t = 64;
 
 impl_enum! {
@@ -1390,6 +1384,7 @@ impl_struct_ContiguousMemory! {
 //
 // sgx_ql_quote.h
 //
+
 impl_copy_clone! {
     #[repr(packed)]
     pub struct sgx_ql_qe_report_info_t {
@@ -1460,3 +1455,56 @@ impl_struct! {
         pub len: size_t,
     }
 }
+
+pub type sgx_mac_128bit_t = [uint8_t; 16];
+pub type sgx_key_256bit_t = [uint8_t; 32];
+pub type sgx_mac_256bit_t = [uint8_t; 32];
+
+#[repr(C, align(32))]
+#[derive(Copy, Clone, Default)]
+pub struct sgx_align_key_128bit_t {
+    _pad: [uint8_t; 16],
+    pub key: sgx_key_128bit_t,
+}
+
+#[repr(C, align(32))]
+#[derive(Copy, Clone, Default)]
+pub struct sgx_align_mac_128bit_t {
+    _pad: [uint8_t; 16],
+    pub mac: sgx_mac_128bit_t,
+}
+
+#[repr(C, align(64))]
+#[derive(Copy, Clone, Default)]
+pub struct sgx_align_key_256bit_t {
+    _pad: [uint8_t; 8],
+    pub key: sgx_key_256bit_t,
+}
+
+#[repr(C, align(64))]
+#[derive(Copy, Clone, Default)]
+pub struct sgx_align_mac_256bit_t {
+    _pad: [uint8_t; 8],
+    pub mac: sgx_mac_256bit_t,
+}
+
+#[repr(C, align(64))]
+#[derive(Copy, Clone, Default)]
+pub struct sgx_align_ec256_dh_shared_t {
+    _pad: [uint8_t; 8],
+    pub key: sgx_ec256_dh_shared_t,
+}
+
+#[repr(C, align(64))]
+#[derive(Copy, Clone, Default)]
+pub struct sgx_align_ec256_private_t {
+    _pad: [uint8_t; 8],
+    pub key: sgx_ec256_private_t,
+}
+
+unsafe impl ContiguousMemory for sgx_align_key_128bit_t {}
+unsafe impl ContiguousMemory for sgx_align_mac_128bit_t {}
+unsafe impl ContiguousMemory for sgx_align_key_256bit_t {}
+unsafe impl ContiguousMemory for sgx_align_mac_256bit_t {}
+unsafe impl ContiguousMemory for sgx_align_ec256_dh_shared_t {}
+unsafe impl ContiguousMemory for sgx_align_ec256_private_t {}

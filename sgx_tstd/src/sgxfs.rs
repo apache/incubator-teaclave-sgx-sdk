@@ -28,7 +28,7 @@
 
 //! Filesystem manipulation operations.
 
-use sgx_types::sgx_key_128bit_t;
+use sgx_types::{sgx_key_128bit_t, sgx_align_key_128bit_t};
 use crate::io::{self, SeekFrom, Seek, Read, Initializer, Write};
 use crate::path::Path;
 use crate::sys::sgxfs as fs_imp;
@@ -305,6 +305,10 @@ pub fn remove<P: AsRef<Path>>(path: P) -> io::Result<()> {
 
 pub fn export_auto_key<P: AsRef<Path>>(path: P) -> io::Result<sgx_key_128bit_t> {
     fs_imp::export_auto_key(path.as_ref())
+}
+
+pub fn export_align_auto_key<P: AsRef<Path>>(path: P) -> io::Result<sgx_align_key_128bit_t> {
+    fs_imp::export_align_auto_key(path.as_ref())
 }
 
 pub fn import_auto_key<P: AsRef<Path>>(path: P, key: &sgx_key_128bit_t) -> io::Result<()> {

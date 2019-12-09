@@ -22,7 +22,7 @@ const SIZE_MAX: size_t = std::usize::MAX;
 #[allow(clippy::absurd_extreme_comparisons)]
 #[no_mangle]
 pub extern "C"
-fn memset_s(p : *mut c_void,
+fn memset_s(p: *mut c_void,
             destsz: size_t,
             ch: c_int,
             count: size_t) -> errno_t {

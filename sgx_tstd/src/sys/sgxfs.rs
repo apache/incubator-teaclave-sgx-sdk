@@ -26,7 +26,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use sgx_types::{sgx_status_t, sgx_key_128bit_t};
+use sgx_types::{sgx_status_t, sgx_key_128bit_t, sgx_align_key_128bit_t};
 use sgx_trts::libc;
 use sgx_tprotected_fs::{self, SgxFileStream};
 use crate::os::unix::prelude::*;
@@ -257,6 +257,24 @@ pub fn export_auto_key(path: &Path) -> io::Result<sgx_key_128bit_t> {
 
     let path = cstr(path)?;
     sgx_tprotected_fs::export_auto_key(&path).map_err(|err| {
+        match err {
+            1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
+            2 => Error::from_raw_os_error(libc::ENOENT),
+            3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
+            4 | 5 => Error::from_raw_os_error(err),
+            r if r > 4096 => {
+                let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
+                Error::from_sgx_error(status)
+            },
+            _ => Error::from_raw_os_error(err),
+        }
+    })
+}
+
+pub fn export_align_auto_key(path: &Path) -> io::Result<sgx_align_key_128bit_t> {
+
+    let path = cstr(path)?;
+    sgx_tprotected_fs::export_align_auto_key(&path).map_err(|err| {
         match err {
             1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
             2 => Error::from_raw_os_error(libc::ENOENT),

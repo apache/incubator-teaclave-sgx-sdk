@@ -66,7 +66,7 @@ pub struct Callback {
 pub enum DhSessionStatus {
     Closed,
     InProgress(SgxDhResponder),
-    Active(sgx_key_128bit_t),
+    Active(sgx_align_key_128bit_t),
 }
 
 impl Default for DhSessionStatus {
