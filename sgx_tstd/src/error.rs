@@ -261,11 +261,11 @@ impl Error for string::FromUtf16Error {
     }
 }
 
-impl Error for string::ParseError {
-    fn description(&self) -> &str {
-        match *self {}
-    }
-}
+//impl Error for string::ParseError {
+//    fn description(&self) -> &str {
+//        match *self {}
+//    }
+//}
 
 impl Error for char::DecodeUtf16Error {
     fn description(&self) -> &str {
