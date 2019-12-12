@@ -22,10 +22,6 @@ extern crate sgx_urts;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
-use std::io::{Read, Write};
-use std::fs;
-use std::path;
-
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
 extern {

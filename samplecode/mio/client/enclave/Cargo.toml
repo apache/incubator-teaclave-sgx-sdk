@@ -14,7 +14,7 @@ default = []
 sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", features = ["net"] }
 
 [dependencies]
-mio = { git = "https://github.com/mesalock-linux/mio-sgx", branch = "v0.6.19_sgx1.0.8" }
+mio = { git = "https://github.com/mesalock-linux/mio-sgx", tag = "sgx_1.0.9" }
 rustls = { git = "https://github.com/mesalock-linux/rustls", branch = "mesalock_sgx" }
 webpki = { git = "https://github.com/mesalock-linux/webpki", branch = "mesalock_sgx" }
 log = { git = "https://github.com/mesalock-linux/log-sgx" }

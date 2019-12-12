@@ -60,13 +60,13 @@ impl_struct! {
     //align
     {
         let aligned_box: Option<AlignBox<struct_align_128_t>> = AlignBox::<struct_align_128_t>::new();
-        assert_eq!(aligned_box.is_some(), true);
+        assert!(aligned_box.is_some());
     }
     //no align
     {
         let str_slice: &[align_req_t] = &[];
         let aligned_box: Option<AlignBox<user_struct>> = AlignBox::<user_struct>::new_with_req(1, &str_slice);
-        assert_eq!(aligned_box.is_none(), true);
+        assert!(aligned_box.is_none());
     }
     //align
     {
@@ -85,7 +85,7 @@ impl_struct! {
             }
         ];
         let aligned_box: Option<AlignBox<user_struct>> = AlignBox::<user_struct>::new_with_req(1, &str_slice);
-        assert_eq!(aligned_box.is_some(), true);
+        assert!(aligned_box.is_some());
     }
     //no align
     {
@@ -104,7 +104,7 @@ impl_struct! {
             }
         ];
         let aligned_box: Option<AlignBox<user_struct>>  = AlignBox::<user_struct>::new_with_req(16, &str_slice);
-        assert_eq!(aligned_box.is_none(), true);
+        assert!(aligned_box.is_none());
     }
     //no align
     {
@@ -127,7 +127,7 @@ impl_struct! {
             }
         ];
         let aligned_box: Option<AlignBox<struct_align_t>>  = AlignBox::<struct_align_t>::new_with_req(32, &str_slice);
-        assert_eq!(aligned_box.is_none(), true);
+        assert!(aligned_box.is_none());
     }
     //align
     {
@@ -150,7 +150,7 @@ impl_struct! {
             }
         ];
         let aligned_box: Option<AlignBox<struct_align_t>>  = AlignBox::<struct_align_t>::new_with_req(16, &str_slice);
-        assert_eq!(aligned_box.is_some(), true);
+        assert!(aligned_box.is_some());
     }
 }
 
@@ -192,7 +192,7 @@ pub fn test_alignbox_heap_init() {
         t.pad3 = [0x00; 16];
         t.key4 = [0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff];
     }, 16, &str_slice);
-    assert_eq!(heap_align_obj.is_some(), true);
+    assert!(heap_align_obj.is_some());
     assert_eq!(stack_align_obj, *(heap_align_obj.unwrap()));
 }
 
@@ -224,7 +224,7 @@ pub fn test_alignbox_clone() {
         t.pad3 = [0x00; 16];
         t.key4 = [0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff];
     }, 16, &str_slice);
-    assert_eq!(heap_align_obj.is_some(), true);
+    assert!(heap_align_obj.is_some());
     let align_box_clone = heap_align_obj.clone();
    assert_eq!(*align_box_clone.unwrap(), *heap_align_obj.unwrap());
 }
@@ -257,10 +257,10 @@ pub fn test_alignbox_clonefrom() {
         t.pad3 = [0x00; 16];
         t.key4 = [0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff];
     }, 16, &str_slice);
-    assert_eq!(heap_align_obj.is_some(), true);
+    assert!(heap_align_obj.is_some());
 
     let mut heap_align_zero_obj = AlignBox::<struct_align_t>::new_with_req(16, &str_slice);
-    assert_eq!(heap_align_zero_obj.is_some(), true);
+    assert!(heap_align_zero_obj.is_some());
     heap_align_zero_obj.clone_from(&heap_align_obj);
     assert_eq!(*(heap_align_zero_obj.unwrap()), *(heap_align_obj.unwrap()));
 }
@@ -293,10 +293,10 @@ pub fn test_alignbox_clonefrom_no_eq_size() {
         t.pad3 = [0x00; 16];
         t.key4 = [0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff];
     }, 16, &str_slice);
-    assert_eq!(heap_align_obj.is_some(), true);
+    assert!(heap_align_obj.is_some());
 
     let mut heap_align_zero_obj = AlignBox::<struct_align_t>::new_with_req(1, &str_slice);
-    assert_eq!(heap_align_zero_obj.is_some(), true);
+    assert!(heap_align_zero_obj.is_some());
     heap_align_zero_obj.clone_from(&heap_align_obj);
     assert_eq!(*(heap_align_zero_obj.unwrap()), *(heap_align_obj.unwrap()));
 }
