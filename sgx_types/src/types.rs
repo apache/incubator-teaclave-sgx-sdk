@@ -1,30 +1,19 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 use core::default::Default;
 use crate::error::*;
@@ -70,6 +59,23 @@ impl_struct! {
         pub misc_select: sgx_misc_select_t,
     }
 }
+
+//
+// tseal_migration_attr.h
+//
+
+pub const FLAGS_NON_SECURITY_BITS: uint64_t   = (0x00FF_FFFF_FFFF_FFC0
+                                                | SGX_FLAGS_MODE64BIT
+                                                | SGX_FLAGS_PROVISION_KEY
+                                                | SGX_FLAGS_EINITTOKEN_KEY);
+pub const TSEAL_DEFAULT_FLAGSMASK: uint64_t   = (!FLAGS_NON_SECURITY_BITS);
+pub const FLAGS_SECURITY_BITS_RESERVED: uint64_t = (!(FLAGS_NON_SECURITY_BITS
+                                                   | SGX_FLAGS_INITTED
+                                                   | SGX_FLAGS_DEBUG
+                                                   | SGX_FLAGS_KSS));
+pub const MISC_NON_SECURITY_BITS: uint32_t     = 0x0FFFFFFF;
+pub const TSEAL_DEFAULT_MISCMASK: uint32_t     = (!MISC_NON_SECURITY_BITS);
+
 
 //
 // sgx_dh.h
@@ -156,7 +162,6 @@ impl_enum! {
 // sgx_ecp_types.h
 //
 
-
 pub const SGX_FEBITSIZE: uint32_t = 256;
 
 impl_struct!{
@@ -176,13 +181,11 @@ pub type sgx_ec_key_128bit_t = [uint8_t; SGX_CMAC_KEY_SIZE];
 // sgx_eid.h
 //
 
-
 pub type sgx_enclave_id_t = uint64_t;
 
 //
 // sgx_key.h
 //
-
 
 // Key Name
 pub const SGX_KEYSELECT_LICENSE: uint16_t          = 0x0000;
@@ -246,7 +249,6 @@ impl_struct_ContiguousMemory! {
 // sgx_key_exchange.h
 //
 
-
 pub type sgx_ra_context_t = uint32_t;
 pub type sgx_ra_key_128_t = sgx_key_128bit_t;
 
@@ -297,7 +299,6 @@ impl_struct_ContiguousMemory! {
 //
 // sgx_quote.h
 //
-
 
 pub type sgx_epid_group_id_t = [uint8_t; 4];
 pub const SGX_PLATFORM_INFO_SIZE: size_t = 101;
@@ -386,7 +387,6 @@ impl_struct_ContiguousMemory! {
 //
 // sgx_report.h
 //
-
 
 pub const SGX_HASH_SIZE: size_t   = 32;
 pub const SGX_MAC_SIZE: size_t    = 16;
@@ -486,7 +486,6 @@ impl_struct_ContiguousMemory! {
 // sgx_spinlock.h
 //
 
-// typedef volatile uint32_t sgx_spinlock_t;
 pub type sgx_spinlock_t = uint32_t;
 
 pub const SGX_SPINLOCK_INITIALIZER: uint32_t    = 0;
@@ -827,7 +826,6 @@ pub const SGX_THREAD_COND_INITIALIZER: sgx_thread_cond_t = sgx_thread_cond_t {
 // sgx_tkey_exchange.h
 //
 
-
 pub type sgx_ra_derive_secret_keys_t = extern "C" fn(p_shared_key: * const sgx_ec256_dh_shared_t,
                                                      kdf_id: uint16_t,
                                                      p_smk_key: * mut sgx_ec_key_128bit_t,
@@ -945,9 +943,8 @@ impl_struct! {
 }
 
 //
-// sgx_uae_service.h
+// sgx_uae_platform.h
 //
-
 
 pub const PS_CAP_TRUSTED_TIME: size_t        = 0x1;
 pub const PS_CAP_MONOTONIC_COUNTER: size_t   = 0x2;
@@ -962,7 +959,6 @@ impl_struct! {
 //
 // sgx_ukey_exchange.h
 //
-
 
 pub type sgx_ecall_get_ga_trusted_t = unsafe extern "C" fn(eid: sgx_enclave_id_t,
                                                            retval: * mut sgx_status_t,
@@ -1216,10 +1212,29 @@ pub struct sgx_ql_config_t {
     pub p_cert_data: * mut uint8_t,
 }
 
+#[repr(C)]
+pub struct sgx_ql_qve_collateral_t {
+    pub version: uint32_t,                  // version = 1.  PCK Cert chain is in the Quote.
+    pub pck_crl_issuer_chain: * mut char,
+    pub pck_crl_issuer_chain_size: uint32_t,
+    pub root_ca_crl: * mut char,            // Root CA CRL
+    pub root_ca_crl_size: uint32_t,
+    pub pck_crl: * mut char,                // PCK Cert CRL
+    pub pck_crl_size: uint32_t,
+    pub tcb_info_issuer_chain: * mut char,
+    pub tcb_info_issuer_chain_size: uint32_t,
+    pub tcb_info: * mut char,               // TCB Info structure
+    pub tcb_info_size: uint32_t,
+    pub qe_identity_issuer_chain: * mut char,
+    pub qe_identity_issuer_chain_size: uint32_t,
+    pub qe_identity: * mut char,            // QE Identity Structure
+    pub qe_identity_size: uint32_t,
+}
 
 //
 // sgx_quote_3.h
 //
+
 pub const REF_QUOTE_MAX_AUTHENTICATON_DATA_SIZE: uint16_t = 64;
 
 impl_enum! {
@@ -1244,9 +1259,9 @@ impl_enum! {
         PCK_CLEARTEXT           = 4,
         PCK_CERT_CHAIN          = 5,
         ECDSA_SIG_AUX_DATA      = 6,
+        QL_CERT_KEY_TYPE_MAX    = 16,
     }
 }
-
 
 impl_copy_clone! {
     #[repr(packed)]
@@ -1354,3 +1369,131 @@ impl_struct_default! {
 impl_struct_ContiguousMemory! {
     sgx_quote3_t;
 }
+
+//
+// sgx_ql_quote.h
+//
+
+impl_copy_clone! {
+    #[repr(packed)]
+    pub struct sgx_ql_qe_report_info_t {
+        pub nonce: sgx_quote_nonce_t,
+        pub app_enclave_target_info: sgx_target_info_t,
+        pub qe_report: sgx_report_t,
+    }
+}
+
+impl_struct_default! {
+    sgx_ql_qe_report_info_t, 960;
+}
+
+impl_struct_ContiguousMemory! {
+    sgx_ql_qe_report_info_t;
+}
+
+//
+// qve_header.h
+//
+impl_copy_clone! {
+    pub struct sgx_ql_qv_supplemental_t {
+        pub version: uint32_t,
+        pub earliest_issue_date: time_t,
+        pub tcb_level_date_tag: time_t,
+        pub pck_crl_num: uint32_t,
+        pub root_ca_crl_num: uint32_t,
+        pub tcb_eval_ref_num: uint32_t,
+        pub root_key_id: [uint8_t; 48],
+        pub pck_ppid: sgx_key_128bit_t,
+        pub tcb_cpusvn: sgx_cpu_svn_t,
+        pub tcb_pce_isvsvn: sgx_isv_svn_t,
+        pub pce_id: uint16_t,
+    }
+}
+
+impl_struct_default! {
+    sgx_ql_qv_supplemental_t, 120;
+}
+
+impl_struct_ContiguousMemory! {
+    sgx_ql_qv_supplemental_t;
+}
+
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
+    pub enum sgx_ql_qv_result_t {
+        SGX_QL_QV_RESULT_OK                         = 0x0000_0000,
+//      SGX_QL_QV_RESULT_MIN                        = 0x0000_A001,
+        SGX_QL_QV_RESULT_CONFIG_NEEDED              = 0x0000_A001,
+        SGX_QL_QV_RESULT_OUT_OF_DATE                = 0x0000_A002,
+        SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED  = 0x0000_A003,
+        SGX_QL_QV_RESULT_INVALID_SIGNATURE          = 0x0000_A004,
+        SGX_QL_QV_RESULT_REVOKED                    = 0x0000_A005,
+        SGX_QL_QV_RESULT_UNSPECIFIED                = 0x0000_A006,
+        SGX_QL_QV_RESULT_MAX                        = 0x0000_A0FF,
+    }
+}
+
+/* intel sgx sdk 2.7.1 */
+//
+// sgx_secure_align_api.h
+//
+impl_struct! {
+    pub struct align_req_t {
+        pub offset: size_t,
+        pub len: size_t,
+    }
+}
+
+pub type sgx_mac_128bit_t = [uint8_t; 16];
+pub type sgx_key_256bit_t = [uint8_t; 32];
+pub type sgx_mac_256bit_t = [uint8_t; 32];
+
+#[repr(C, align(32))]
+#[derive(Copy, Clone, Default)]
+pub struct sgx_align_key_128bit_t {
+    _pad: [uint8_t; 16],
+    pub key: sgx_key_128bit_t,
+}
+
+#[repr(C, align(32))]
+#[derive(Copy, Clone, Default)]
+pub struct sgx_align_mac_128bit_t {
+    _pad: [uint8_t; 16],
+    pub mac: sgx_mac_128bit_t,
+}
+
+#[repr(C, align(64))]
+#[derive(Copy, Clone, Default)]
+pub struct sgx_align_key_256bit_t {
+    _pad: [uint8_t; 8],
+    pub key: sgx_key_256bit_t,
+}
+
+#[repr(C, align(64))]
+#[derive(Copy, Clone, Default)]
+pub struct sgx_align_mac_256bit_t {
+    _pad: [uint8_t; 8],
+    pub mac: sgx_mac_256bit_t,
+}
+
+#[repr(C, align(64))]
+#[derive(Copy, Clone, Default)]
+pub struct sgx_align_ec256_dh_shared_t {
+    _pad: [uint8_t; 8],
+    pub key: sgx_ec256_dh_shared_t,
+}
+
+#[repr(C, align(64))]
+#[derive(Copy, Clone, Default)]
+pub struct sgx_align_ec256_private_t {
+    _pad: [uint8_t; 8],
+    pub key: sgx_ec256_private_t,
+}
+
+unsafe impl ContiguousMemory for sgx_align_key_128bit_t {}
+unsafe impl ContiguousMemory for sgx_align_mac_128bit_t {}
+unsafe impl ContiguousMemory for sgx_align_key_256bit_t {}
+unsafe impl ContiguousMemory for sgx_align_mac_256bit_t {}
+unsafe impl ContiguousMemory for sgx_align_ec256_dh_shared_t {}
+unsafe impl ContiguousMemory for sgx_align_ec256_private_t {}

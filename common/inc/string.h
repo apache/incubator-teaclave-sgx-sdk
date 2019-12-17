@@ -1,5 +1,5 @@
-/*	$OpenBSD: string.h,v 1.20 2010/09/24 13:33:00 matthew Exp $	*/
-/*	$NetBSD: string.h,v 1.6 1994/10/26 00:56:30 cgd Exp $	*/
+/*  $OpenBSD: string.h,v 1.20 2010/09/24 13:33:00 matthew Exp $ */
+/*  $NetBSD: string.h,v 1.6 1994/10/26 00:56:30 cgd Exp $       */
 
 /*-
  * Copyright (c) 1990 The Regents of the University of California.
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)string.h	5.10 (Berkeley) 3/9/91
+ *  @(#)string.h    5.10 (Berkeley) 3/9/91
  */
 
 #ifndef _STRING_H_

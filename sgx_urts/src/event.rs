@@ -1,11 +1,11 @@
 use std::sync::Mutex;
-use std::time::Duration;
 use std::sync::atomic::{AtomicI32, Ordering};
-use libc::{self, c_int, c_void, time_t};
+use libc::{self, c_int, c_void};
 use std::io::Error;
 use std::slice;
 use std::sync::Once;
-use std::cmp;
+use libc::timespec;
+
 static mut GLOBAL_TCS_CACHE: *mut SgxTcsInfoCache = 0 as *mut SgxTcsInfoCache;
 static INIT: Once = Once::new();
 
@@ -23,41 +23,41 @@ impl SeEvent {
         }
     }
 
-    pub fn wait_timeout(&self, dur: Duration) -> i32 {
+    pub fn wait_timeout(&self, timeout: &timespec) -> i32 {
         if self.event.fetch_add(-1, Ordering::SeqCst) == 0 {
-
-            if dur.as_millis() == 0 {
-                unsafe {
-                    libc::syscall(libc::SYS_futex,
-                                  self,
-                                  FUTEX_WAIT,
-                                  -1,
-                                  0,
-                                  0,
-                                  0);
+            let ret = unsafe {
+                libc::syscall(libc::SYS_futex,
+                              self,
+                              FUTEX_WAIT,
+                              -1,
+                              timeout as * const timespec,
+                              0,
+                              0)
+            };
+            if ret < 0 {
+                let err = Error::last_os_error().raw_os_error().unwrap_or(0);
+                if err == libc::ETIMEDOUT {
+                    self.event.fetch_add(1, Ordering::SeqCst);
+                    return -1;
                 }
-            } else {
-                 let timeout: libc::timespec = libc::timespec {
-                    tv_sec: cmp::min(dur.as_secs(), time_t::max_value() as u64) as time_t,
-                    tv_nsec: dur.subsec_nanos() as libc::c_long,
-                };
+            }
+        }
+        0
+    }
 
-                let ret = unsafe {
-                    libc::syscall(libc::SYS_futex,
-                                  self,
-                                  FUTEX_WAIT,
-                                  -1,
-                                  &timeout,
-                                  0,
-                                  0)
-                };
-                if ret < 0 {
-                    let _err = Error::last_os_error().raw_os_error().unwrap_or(0);
-                    if _err == libc::ETIMEDOUT {
-                        self.event.fetch_add(1, Ordering::SeqCst);
-                        return _err;
-                    }
-                }
+    pub fn wait(&self) -> i32 {
+        if self.event.fetch_add(-1, Ordering::SeqCst) == 0 {
+            let ret = unsafe {
+                libc::syscall(libc::SYS_futex,
+                              self,
+                              FUTEX_WAIT,
+                              -1,
+                              0,
+                              0,
+                              0)
+            };
+            if ret < 0 {
+                let _err = Error::last_os_error().raw_os_error().unwrap_or(0);
             }
         }
         0
@@ -67,12 +67,12 @@ impl SeEvent {
         if self.event.fetch_add(1, Ordering::SeqCst) != 0 {
            unsafe {
                libc::syscall(libc::SYS_futex,
-                              self,
-                              FUTEX_WAKE,
-                              1,
-                              0,
-                              0,
-                              0)
+                             self,
+                             FUTEX_WAKE,
+                             1,
+                             0,
+                             0,
+                             0)
             };
         }
         0
@@ -122,7 +122,7 @@ pub fn get_tcs_event(_tcs: usize) -> & 'static SeEvent {
 }
 
 #[no_mangle]
-pub	extern	"C" fn u_thread_set_event_ocall(error: * mut c_int, tcs: * const c_void) -> c_int {
+pub extern "C" fn u_thread_set_event_ocall(error: * mut c_int, tcs: * const c_void) -> c_int {
     if tcs.is_null() {
         if !error.is_null() {
             unsafe { *error = libc::EINVAL; }
@@ -133,36 +133,41 @@ pub	extern	"C" fn u_thread_set_event_ocall(error: * mut c_int, tcs: * const c_vo
     if result != 0 {
         if !error.is_null() {
             unsafe { *error = Error::last_os_error().raw_os_error().unwrap_or(0); }
-            return -1;
         }
+        -1
+    } else {
+        if !error.is_null() {
+            unsafe { *error = 0; }
+        }
+        result as c_int
     }
-    if !error.is_null() {
-        unsafe { *error = 0; }
-    }
-    result as c_int
 }
 
 #[no_mangle]
-pub	extern	"C" fn u_thread_wait_event_ocall(error: * mut c_int, tcs: * const c_void, timeout: c_int) -> c_int {
+pub extern "C" fn u_thread_wait_event_ocall(error: * mut c_int, tcs: * const c_void, timeout: * const timespec) -> c_int {
     if tcs.is_null() {
         if !error.is_null() {
             unsafe { *error = libc::EINVAL; }
         }
         return -1;
     }
-    let result = get_tcs_event(tcs as usize).wait_timeout(Duration::from_millis(timeout as u64));
+
+    let result = if timeout.is_null() {
+        get_tcs_event(tcs as usize).wait()
+    } else {
+        get_tcs_event(tcs as usize).wait_timeout(unsafe{&*timeout})
+    };
     if result != 0 {
         if !error.is_null() {
             unsafe { *error = Error::last_os_error().raw_os_error().unwrap_or(0); }
-            return -1;
         }
+        -1
+    } else {
+        if !error.is_null() {
+            unsafe { *error = 0; }
+        }
+        result as c_int
     }
-
-    if !error.is_null() {
-        unsafe { *error = 0; }
-    }
-
-    result as c_int
 }
 
 #[no_mangle]
@@ -182,9 +187,9 @@ pub extern "C" fn u_thread_set_multiple_events_ocall(error: * mut c_int, tcss: *
         if result != 0 {
             if !error.is_null() {
                 unsafe { *error = Error::last_os_error().raw_os_error().unwrap_or(0); }
-                return -1;
             }
-         }
+            return -1;
+        }
     }
 
     if !error.is_null() {
@@ -197,7 +202,7 @@ pub extern "C" fn u_thread_set_multiple_events_ocall(error: * mut c_int, tcss: *
 pub extern "C" fn u_thread_setwait_events_ocall(error: * mut c_int,
                                                 waiter_tcs: * const c_void,
                                                 self_tcs: * const c_void,
-                                                timeout: c_int) -> c_int {
+                                                timeout: * const timespec) -> c_int {
 
     let result = u_thread_set_event_ocall(error, waiter_tcs);
     if result < 0 {

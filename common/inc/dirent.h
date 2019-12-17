@@ -29,7 +29,7 @@ struct dirent
 #endif
     unsigned short int d_reclen;
     unsigned char d_type;
-    char d_name[256];		/* We must not include limits.h! */
+    char d_name[256];       /* We must not include limits.h! */
 };
 
 //#ifdef __USE_LARGEFILE64
@@ -39,11 +39,11 @@ struct dirent64
     __off64_t d_off;
     unsigned short int d_reclen;
     unsigned char d_type;
-    char d_name[256];		/* We must not include limits.h! */
+    char d_name[256];       /* We must not include limits.h! */
 };
 //#endif
 
-#define d_fileno	d_ino	/* Backwards compatibility.  */
+#define d_fileno	d_ino   /* Backwards compatibility.  */
 
 #undef  _DIRENT_HAVE_D_NAMLEN
 #define _DIRENT_HAVE_D_RECLEN
@@ -52,8 +52,8 @@ struct dirent64
 
 #if defined __OFF_T_MATCHES_OFF64_T && defined __INO_T_MATCHES_INO64_T
 /* Inform libc code that these two types are effectively identical.  */
-# define _DIRENT_MATCHES_DIRENT64	1
+# define _DIRENT_MATCHES_DIRENT64   1
 #else
-# define _DIRENT_MATCHES_DIRENT64	0
+# define _DIRENT_MATCHES_DIRENT64   0
 #endif
 #endif

@@ -1,5 +1,5 @@
-/*	$OpenBSD: types.h,v 1.31 2008/03/16 19:42:57 otto Exp $	*/
-/*	$NetBSD: types.h,v 1.29 1996/11/15 22:48:25 jtc Exp $	*/
+/*  $OpenBSD: types.h,v 1.31 2008/03/16 19:42:57 otto Exp $ */
+/*  $NetBSD: types.h,v 1.29 1996/11/15 22:48:25 jtc Exp $   */
 
 /*-
  * Copyright (c) 1982, 1986, 1991, 1993
@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)types.h	8.4 (Berkeley) 1/21/94
+ *  @(#)types.h 8.4 (Berkeley) 1/21/94
  */
 
 #ifndef _SYS_TYPES_H_

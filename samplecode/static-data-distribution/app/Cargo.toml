@@ -1,17 +1,16 @@
 [package]
 name = "app"
 version = "1.0.0"
-authors = ["Baidu"]
+authors = ["The Teaclave Authors"]
 build = "build.rs"
 
 [dependencies]
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_crypto_helper = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_crypto_helper = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 serde_json = "1.0"
-dirs = "1.0.2"
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }
 sgx_backtrace = { path = "../../../sgx_backtrace" }
 sgx_backtrace_sys = { path = "../../../sgx_backtrace_sys" }

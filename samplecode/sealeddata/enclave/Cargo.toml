@@ -1,7 +1,7 @@
 [package]
 name = "Sealdatasampleenclave"
 version = "1.0.0"
-authors = ["Baidu"]
+authors = ["The Teaclave Authors"]
 
 [lib]
 name = "sealdatasampleenclave"
@@ -11,17 +11,17 @@ crate-type = ["staticlib"]
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tseal = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_rand = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tseal = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
 [dependencies]
 serde = { git = "https://github.com/mesalock-linux/serde-sgx" }
 serde_derive = { git = "https://github.com/mesalock-linux/serde-sgx" }
 serde_cbor = { git = "https://github.com/mesalock-linux/cbor-sgx" }
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }
 sgx_backtrace = { path = "../../../sgx_backtrace" }
 sgx_backtrace_sys = { path = "../../../sgx_backtrace_sys" }

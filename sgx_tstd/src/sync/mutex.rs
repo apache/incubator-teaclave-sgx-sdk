@@ -1,30 +1,19 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 //!
 //! The Intel(R) Software Guard Extensions SDK already supports mutex and conditional
@@ -38,31 +27,32 @@
 //! Synchronization library supports, as well as the OCALLs that each API function needs.
 //!
 use sgx_types::{self, SysError, sgx_status_t, sgx_thread_t, SGX_THREAD_T_NULL};
-use crate::panic::{UnwindSafe, RefUnwindSafe};
-use crate::sys_common::poison::{self, TryLockError, TryLockResult, LockResult};
+use sgx_types::{c_void, c_int, c_long};
+use sgx_trts::libc;
+use sgx_trts::error::set_errno;
+use sgx_trts::enclave::SgxThreadData;
+use sgx_libc::{time_t, timespec};
 use core::cell::UnsafeCell;
 use core::mem;
 use core::ptr;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 use core::marker;
+use core::cmp;
 use alloc_crate::boxed::Box;
-use sgx_trts::libc;
+use crate::panic::{UnwindSafe, RefUnwindSafe};
+use crate::sys_common::poison::{self, TryLockError, TryLockResult, LockResult};
 use crate::sync::SgxThreadSpinlock;
 use crate::thread::{self, rsgx_thread_self};
-use sgx_types::{c_void, c_int, c_long};
 use crate::io::{self, Error, ErrorKind};
-use sgx_trts::error::set_errno;
-use sgx_trts::enclave::SgxThreadData;
-
 use crate::time::Duration;
-
+use crate::u64;
 
 extern "C" {
     pub fn u_thread_wait_event_ocall(result: * mut c_int,
                                      error: * mut c_int,
                                      tcs: * const c_void,
-                                     timeout: c_int) -> sgx_status_t;
+                                     timeout: * const timespec) -> sgx_status_t;
 
     pub fn u_thread_set_event_ocall(result: * mut c_int,
                                     error: * mut c_int,
@@ -77,18 +67,25 @@ extern "C" {
                                          error: * mut c_int,
                                          wait_tcs: * const c_void,
                                          self_tcs: * const c_void,
-                                         timeout: c_int) -> sgx_status_t;
+                                         timeout: * const timespec) -> sgx_status_t;
 }
 
 pub unsafe fn thread_wait_event(tcs: usize, dur: Duration) -> c_int {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
+    let mut timeout = timespec { tv_sec: 0, tv_nsec: 0 };
+    let timeout_ptr: * const timespec = if dur != Duration::new(u64::MAX, 1_000_000_000 - 1) {
+        timeout.tv_sec = cmp::min(dur.as_secs(), time_t::max_value() as u64) as time_t;
+        timeout.tv_nsec = dur.subsec_nanos() as c_long;
+        &timeout as * const timespec
+    } else {
+        ptr::null()
+    };
 
-    let timeout_ms = dur.as_millis();
     let status = u_thread_wait_event_ocall(&mut result as * mut c_int,
                                            &mut error as * mut c_int,
                                            tcs as * const c_void,
-                                           timeout_ms as c_int);
+                                           timeout_ptr);
     if status == sgx_status_t::SGX_SUCCESS {
         if result == -1 {
             set_errno(error);
@@ -139,12 +136,20 @@ pub unsafe fn thread_set_multiple_events(tcss: &[usize]) -> c_int {
 pub unsafe fn thread_setwait_events(wait_tcs: usize, self_tcs: usize, dur: Duration) -> c_int {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
+    let mut timeout = timespec { tv_sec: 0, tv_nsec: 0 };
+    let timeout_ptr: * const timespec = if dur != Duration::new(u64::MAX, 1_000_000_000 - 1) {
+        timeout.tv_sec = cmp::min(dur.as_secs(), time_t::max_value() as u64) as time_t;
+        timeout.tv_nsec = dur.subsec_nanos() as c_long;
+        &timeout as * const timespec
+    } else {
+        ptr::null()
+    };
 
     let status = u_thread_setwait_events_ocall(&mut result as * mut c_int,
                                                &mut error as * mut c_int,
                                                wait_tcs as * const c_void,
                                                self_tcs as * const c_void,
-                                               dur.as_millis() as c_int);
+                                               timeout_ptr);
     if status == sgx_status_t::SGX_SUCCESS {
         if result == -1 {
             set_errno(error);
@@ -220,7 +225,7 @@ impl SgxThreadMutexInner {
                 self.thread_vec.push(rsgx_thread_self());
             }
             self.spinlock.unlock();
-            thread_wait_event(SgxThreadData::new().get_tcs(), Duration::from_secs(0));
+            thread_wait_event(SgxThreadData::current().get_tcs(), Duration::new(u64::MAX, 1_000_000_000 - 1));
         }
     }
 

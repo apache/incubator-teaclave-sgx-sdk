@@ -1,35 +1,25 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 use sgx_types::{self, sgx_status_t};
 use super::*;
 use alloc::slice;
 use alloc::vec::Vec;
+use alloc::boxed::Box;
 use core::ptr;
 use core::mem;
 
@@ -62,6 +52,7 @@ extern "C" {
                             length: size_t,
                             prot: c_int) -> sgx_status_t;
     // env
+    pub fn u_getuid_ocall(result: * mut uid_t) -> sgx_status_t;
     pub fn u_environ_ocall(result: * mut * const * const c_char) -> sgx_status_t;
     pub fn u_getenv_ocall(result: * mut * const c_char,
                           name: * const c_char) -> sgx_status_t;
@@ -73,6 +64,14 @@ extern "C" {
     pub fn u_unsetenv_ocall(result: * mut c_int,
                             error: * mut c_int,
                             name: * const c_char) -> sgx_status_t;
+    pub fn u_getcwd_ocall(result: *mut *mut c_char,  error: * mut c_int, buf: *mut c_char, size: size_t) -> sgx_status_t;
+    pub fn u_chdir_ocall(result: * mut c_int,  error: * mut c_int, dir: *const c_char) -> sgx_status_t;
+    pub fn u_getpwuid_r_ocall(result: * mut c_int,
+                              uid: uid_t,
+                              pwd: *mut passwd,
+                              buf: *mut c_char,
+                              buflen: size_t,
+                              passwd_result: *mut *mut passwd) -> sgx_status_t;
     // file
     pub fn u_open_ocall(result: * mut c_int,
                         error: * mut c_int,
@@ -181,7 +180,6 @@ extern "C" {
                            error: * mut c_int,
                            pathname: * const c_char) -> sgx_status_t;
     pub fn u_readdir64_r_ocall(result: * mut c_int,
-                               error: * mut c_int,
                                dirp: * mut DIR,
                                entry: * mut dirent64,
                                dirresult: * mut * mut  dirent64) -> sgx_status_t;
@@ -378,13 +376,21 @@ extern "C" {
                             errno: * mut c_int,
                             sockfd: c_int,
                             how: c_int) -> sgx_status_t;
+    // net
+    pub fn u_getaddrinfo_ocall(result: * mut c_int,
+                               errno: * mut c_int,
+                               node: * const c_char,
+                               service: * const c_char,
+                               hints: * const addrinfo,
+                               res: * mut * mut addrinfo) -> sgx_status_t;
+    pub fn u_freeaddrinfo_ocall(res: * mut addrinfo) -> sgx_status_t;
+    pub fn u_gai_strerror_ocall(result: * mut * const c_char, errcode: c_int) -> sgx_status_t;
     // async io
     pub fn u_poll_ocall(result: * mut c_int,
                         errno: * mut c_int,
                         fds: * mut pollfd,
                         nfds: nfds_t,
                         timeout: c_int) -> sgx_status_t;
-
     pub fn u_epoll_create1_ocall(result: * mut c_int,
                                  error: * mut c_int,
                                  flags: c_int) -> sgx_status_t;
@@ -404,16 +410,39 @@ extern "C" {
     pub fn u_sysconf_ocall(result: * mut c_long,
                            error: * mut c_int,
                            name: c_int) -> sgx_status_t;
-
+    pub fn u_prctl_ocall(result: * mut c_int,
+                         error: * mut c_int,
+                         option: c_int,
+                         arg2: c_ulong,
+                         arg3: c_ulong,
+                         arg4: c_ulong,
+                         arg5: c_ulong) -> sgx_status_t;
     // pipe
     pub fn u_pipe_ocall(result: * mut c_int,
                         error: * mut c_int,
                         fds: * mut c_int) -> sgx_status_t;
-
     pub fn u_pipe2_ocall(result: * mut c_int,
                          error: * mut c_int,
                          fds: * mut c_int,
                          flags: c_int) -> sgx_status_t;
+    //thread
+    pub  fn u_pthread_create_ocall(result: * mut c_int,
+                                   native: * mut pthread_t,
+                                   attr: * const pthread_attr_t,
+                                   f: * mut c_void,
+                                   value: * mut c_void,
+                                   len: c_int) -> sgx_status_t;
+    pub  fn u_pthread_join_ocall(result: * mut c_int,
+                                 native: pthread_t,
+                                 value: *mut *mut c_void) -> sgx_status_t;
+    pub  fn u_pthread_detach_ocall(result: * mut c_int,
+                                   native: pthread_t) -> sgx_status_t;
+    pub  fn u_sched_yield_ocall(result: * mut c_int,
+                                error: * mut c_int) -> sgx_status_t;
+    pub  fn u_nanosleep_ocall(result: * mut c_int,
+                              error: * mut c_int,
+                              rqtp: *const timespec,
+                              rmtp: *mut timespec) -> sgx_status_t;
 }
 
 pub unsafe fn malloc(size: size_t) -> * mut c_void {
@@ -520,6 +549,15 @@ pub unsafe fn mprotect(addr: * mut c_void, length: size_t, prot: c_int) -> c_int
     result
 }
 
+pub unsafe fn getuid() -> uid_t {
+    let mut result: uid_t = 0;
+    let status = u_getuid_ocall(&mut result as * mut uid_t);
+    if status != sgx_status_t::SGX_SUCCESS {
+         set_errno(ESGX);
+         result = 0;
+    }
+    result
+}
 pub unsafe fn environ() -> * const * const c_char {
     let mut result: * const * const c_char = ptr::null();
     let status = u_environ_ocall(&mut result as * mut * const * const c_char);
@@ -574,6 +612,95 @@ pub unsafe fn unsetenv(name: * const c_char) -> c_int {
     } else {
         set_errno(ESGX);
         result = -1;
+    }
+    result
+}
+
+pub unsafe fn getcwd(buf: * mut c_char, size: size_t) -> * mut c_char {
+    let mut result: * mut c_char = ptr::null_mut();
+    let mut error: c_int = 0;
+    let status = u_getcwd_ocall(&mut result as * mut * mut c_char, &mut error as * mut c_int, buf, size);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result.is_null() {
+            set_errno(error);
+        } else {
+            result = buf;
+        }
+    } else {
+        set_errno(ESGX);
+        result = ptr::null_mut();
+    }
+    result
+}
+
+pub unsafe fn chdir(dir: * const c_char) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_chdir_ocall(&mut result as * mut c_int, &mut error as * mut c_int, dir);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn getpwuid_r(uid: uid_t,
+                         pwd: * mut passwd,
+                         buf: * mut c_char,
+                         buflen: size_t,
+                         passwd_result:  *mut * mut passwd) -> c_int {
+    let mut result: c_int = 0;
+    let status = u_getpwuid_r_ocall(&mut result as * mut c_int,
+                                    uid,
+                                    pwd,
+                                    buf,
+                                    buflen,
+                                    passwd_result);
+    if status == sgx_status_t::SGX_SUCCESS && result == 0 {
+        let pwd_ret = *passwd_result;
+        if !pwd_ret.is_null() {
+            let mut temp_pwd = &mut *pwd;
+            let mut temp_buf = buf;
+            if temp_pwd.pw_name as usize != -1_isize as usize {
+                temp_pwd.pw_name = temp_buf.offset(temp_pwd.pw_name as isize);
+            } else {
+                temp_pwd.pw_name = ptr::null_mut();
+            }
+            temp_buf = buf;
+            if temp_pwd.pw_passwd as usize != -1_isize as usize {
+                temp_pwd.pw_passwd = temp_buf.offset(temp_pwd.pw_passwd as isize);
+            } else {
+                temp_pwd.pw_passwd = ptr::null_mut();
+            }
+            temp_buf = buf;
+            if temp_pwd.pw_gecos as usize != -1_isize as usize {
+                temp_pwd.pw_gecos = temp_buf.offset(temp_pwd.pw_gecos as isize);
+            } else {
+                temp_pwd.pw_gecos = ptr::null_mut();
+            }
+            temp_buf = buf;
+            if temp_pwd.pw_dir as usize != -1_isize as usize {
+                temp_pwd.pw_dir = temp_buf.offset(temp_pwd.pw_dir as isize);
+            } else {
+                temp_pwd.pw_dir = ptr::null_mut();
+            }
+            temp_buf = buf;
+            if temp_pwd.pw_shell as usize != -1_isize as usize {
+                temp_pwd.pw_shell = temp_buf.offset(temp_pwd.pw_shell as isize);
+            } else {
+                temp_pwd.pw_shell = ptr::null_mut();
+            }
+            *passwd_result = pwd;
+        }
+    } else {
+        *passwd_result = ptr::null_mut();
+        if status != sgx_status_t::SGX_SUCCESS {
+            result = ESGX;
+        }
     }
     result
 }
@@ -1091,22 +1218,22 @@ pub unsafe fn opendir(pathname: * const c_char) -> * mut DIR {
 
 pub unsafe fn readdir64_r(dirp: * mut DIR,
                           entry: * mut dirent64,
-                          dirresult: * mut  *mut dirent64) -> c_int {
+                          dirresult: * mut * mut dirent64) -> c_int {
     let mut result: c_int = 0;
-    let mut error: c_int = 0;
     let status = u_readdir64_r_ocall(&mut result as * mut c_int,
-                                     &mut error as * mut c_int,
                                      dirp,
                                      entry,
                                      dirresult);
-
-    if status == sgx_status_t::SGX_SUCCESS {
-        if result == -1 {
-            set_errno(error);
+    if status == sgx_status_t::SGX_SUCCESS && result == 0 {
+        let dir_ret = *dirresult;
+        if !dir_ret.is_null() {
+            *dirresult = entry;
         }
     } else {
-        set_errno(ESGX);
-        result = -1;
+        *dirresult = ptr::null_mut();
+        if status != sgx_status_t::SGX_SUCCESS {
+            result = ESGX;
+        }
     }
     result
 }
@@ -2212,6 +2339,120 @@ pub unsafe fn shutdown(sockfd: c_int, how: c_int) -> c_int {
     result
 }
 
+pub unsafe fn getaddrinfo(node: * const c_char, service: * const c_char, hints: * const addrinfo, res: * mut * mut addrinfo) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let mut ret_res: * mut addrinfo = ptr::null_mut();
+    let hint: addrinfo = addrinfo {
+        ai_flags: (*hints).ai_flags,
+        ai_family: (*hints).ai_family,
+        ai_socktype: (*hints).ai_socktype,
+        ai_protocol: (*hints).ai_protocol,
+        ai_addrlen: 0,
+        ai_addr: ptr::null_mut(),
+        ai_canonname: ptr::null_mut(),
+        ai_next: ptr::null_mut(),
+    };
+
+    let status = u_getaddrinfo_ocall(&mut result as * mut c_int,
+                                     &mut error as * mut c_int,
+                                     node,
+                                     service,
+                                     &hint as * const addrinfo,
+                                     &mut ret_res as * mut * mut addrinfo);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == 0 {
+            *res = ptr::null_mut();
+            let mut cur_ptr: * mut addrinfo = ret_res;
+            let mut addrinfo_vec: Vec<Box<addrinfo>> = Vec::new();
+            while cur_ptr != ptr::null_mut() {
+                let cur: &addrinfo = &*cur_ptr;
+                let mut info = addrinfo {
+                    ai_flags: cur.ai_flags,
+                    ai_family: cur.ai_family,
+                    ai_socktype: cur.ai_socktype,
+                    ai_protocol: cur.ai_protocol,
+                    ai_addrlen: 0,
+                    ai_addr: ptr::null_mut(),
+                    ai_canonname: ptr::null_mut(),
+                    ai_next: ptr::null_mut(),
+                };
+
+                if !cur.ai_addr.is_null() && cur.ai_addrlen > 0 {
+                    let mut addr_vec = vec![0u8; cur.ai_addrlen as usize];
+                    let addr_slice: &[u8] = slice::from_raw_parts(cur.ai_addr as * const u8, cur.ai_addrlen as usize);
+                    addr_vec.copy_from_slice(addr_slice);
+                    addr_vec.shrink_to_fit();
+                    info.ai_addrlen = cur.ai_addrlen;
+                    info.ai_addr = addr_vec.as_mut_ptr() as * mut sockaddr;
+                    mem::forget(addr_vec);
+                }
+
+                if !cur.ai_canonname.is_null() {
+                    let len: usize = strlen(cur.ai_canonname) + 1;
+                    let mut name_vec = vec![0u8; len];
+                    let name_slice: &[u8] = slice::from_raw_parts(cur.ai_canonname as * const u8, len);
+                    name_vec.copy_from_slice(name_slice);
+                    name_vec.shrink_to_fit();
+                    info.ai_canonname = name_vec.as_mut_ptr() as * mut c_char;
+                    mem::forget(name_vec);
+                }
+
+                addrinfo_vec.push(Box::new(info));
+                cur_ptr = cur.ai_next;
+            }
+
+            if addrinfo_vec.len() > 0 {
+                for i in 0..addrinfo_vec.len() - 1 {
+                    addrinfo_vec[i].ai_next = addrinfo_vec[i + 1].as_mut() as * mut addrinfo;
+                }
+                *res = addrinfo_vec[0].as_mut() as * mut addrinfo;
+
+                for info in addrinfo_vec {
+                    let _ = Box::into_raw(info);
+                }
+            }
+            let _ = u_freeaddrinfo_ocall(ret_res);
+
+        } else if result == EAI_SYSTEM {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = EAI_SYSTEM;
+    }
+    result
+}
+
+pub unsafe fn freeaddrinfo(res: * mut addrinfo ) {
+    let mut cur_ptr: * mut addrinfo = res;
+    let mut addrinfo_vec: Vec<Box<addrinfo>> = Vec::new();
+    while cur_ptr != ptr::null_mut() {
+        let cur: &addrinfo = &*cur_ptr;
+        if !cur.ai_addr.is_null() && cur.ai_addrlen > 0 {
+            let addr_vec = Vec::from_raw_parts(cur.ai_addr as * mut u8, cur.ai_addrlen as usize, cur.ai_addrlen as usize);
+            drop(addr_vec);
+        }
+        if !cur.ai_canonname.is_null() {
+            let len: usize = strlen(cur.ai_canonname) + 1;
+            let name_vec = Vec::from_raw_parts(cur.ai_canonname as * mut u8, len, len);
+            drop(name_vec);
+        }
+        addrinfo_vec.push(Box::from_raw(cur_ptr));
+        cur_ptr = cur.ai_next;
+    }
+    drop(addrinfo_vec);
+}
+
+pub unsafe fn gai_strerror(errcode: c_int) -> * const c_char {
+    let mut result: * const c_char = ptr::null();
+    let status = u_gai_strerror_ocall(&mut result as * mut * const c_char, errcode);
+    if status != sgx_status_t::SGX_SUCCESS {
+        set_errno(ESGX);
+    }
+    result
+}
+
 pub unsafe fn poll(fds: * mut pollfd, nfds: nfds_t, timeout: c_int) -> c_int {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
@@ -2295,7 +2536,6 @@ pub unsafe fn sysconf(name: c_int) -> c_long {
     let status = u_sysconf_ocall(&mut result as * mut c_long,
                                  &mut error as * mut c_int,
                                  name);
-
     if status == sgx_status_t::SGX_SUCCESS {
         if result == -1 {
             set_errno(error);
@@ -2306,6 +2546,32 @@ pub unsafe fn sysconf(name: c_int) -> c_long {
     }
     result
 }
+
+pub unsafe fn prctl(option: c_int,
+                    arg2: c_ulong,
+                    arg3: c_ulong,
+                    arg4: c_ulong,
+                    arg5: c_ulong) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_prctl_ocall(&mut result as * mut c_int,
+                               &mut error as * mut c_int,
+                               option,
+                               arg2,
+                               arg3,
+                               arg4,
+                               arg5);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
 
 pub unsafe fn pipe(fds: * mut c_int) -> c_int {
     let mut result: c_int = 0;
@@ -2331,6 +2597,78 @@ pub unsafe fn pipe2(fds: * mut c_int, flags: c_int) -> c_int {
                                &mut error as * mut c_int,
                                fds,
                                flags);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn pthread_create(native: * mut pthread_t,
+                             attr: * const pthread_attr_t,
+                             f: * mut c_void,
+                             value: * mut c_void,
+                             len: c_int) -> c_int {
+    let mut result: c_int = 0;
+    let status = u_pthread_create_ocall(&mut result as * mut c_int,
+                                        native,
+                                        attr,
+                                        f,
+                                        value,
+                                        len);
+    if status != sgx_status_t::SGX_SUCCESS {
+       result = ESGX;
+    }
+    result
+}
+
+pub unsafe fn pthread_join(native: pthread_t, value: * mut * mut c_void) -> c_int {
+    let mut result: c_int = 0;
+    let status = u_pthread_join_ocall(&mut result as * mut c_int,
+                                      native,
+                                      value);
+    if status != sgx_status_t::SGX_SUCCESS {
+       result = ESGX;
+    }
+    result
+}
+
+pub unsafe fn pthread_detach(native: pthread_t) -> c_int {
+    let mut result: c_int = 0;
+    let status = u_pthread_detach_ocall(&mut result as * mut c_int, native);
+    if status != sgx_status_t::SGX_SUCCESS {
+       result = ESGX;
+    }
+    result
+}
+
+pub unsafe fn sched_yield() -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_sched_yield_ocall(&mut result as * mut c_int,
+                                     &mut error as * mut c_int);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn nanosleep(rqtp: * const timespec, rmtp: * mut timespec) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_nanosleep_ocall(&mut result as * mut c_int,
+                                   &mut error as * mut c_int,
+                                   rqtp,
+                                   rmtp);
     if status == sgx_status_t::SGX_SUCCESS {
         if result == -1 {
             set_errno(error);

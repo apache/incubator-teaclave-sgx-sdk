@@ -15,7 +15,9 @@ macro_rules! cfg_if {
         ( $( $( #[cfg($meta)] $it1)* $( #[cfg(not($meta))] $it2)* )* )
 }
 
-use sgx_trts::libc::{c_int, c_void, uintptr_t};
+use core::ffi::c_void;
+type c_int = i32;
+type uintptr_t = usize;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq)]

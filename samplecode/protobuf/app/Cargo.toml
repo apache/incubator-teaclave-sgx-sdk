@@ -1,12 +1,11 @@
 [package]
 name = "app"
 version = "1.0.0"
-authors = ["Baidu"]
+authors = ["The Teaclave Authors"]
 build = "build.rs"
 
 [dependencies]
 sgx_types = { path = "../../../sgx_types" }
 sgx_urts = { path = "../../../sgx_urts" }
 protobuf = "=2.8.1"
-dirs = "1.0.2"
 hex = "0.3.2"

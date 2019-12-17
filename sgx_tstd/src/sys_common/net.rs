@@ -1,30 +1,19 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 #![allow(dead_code)]
 
@@ -32,9 +21,12 @@ use sgx_trts::libc::{c_int, c_uint, c_void};
 use core::cmp;
 use core::fmt;
 use core::mem;
+use core::ptr;
+use core::convert::{TryFrom, TryInto};
+use crate::ffi::CString;
 use crate::io::{self, Error, ErrorKind, IoSlice, IoSliceMut};
 use crate::net::{SocketAddr, Shutdown, Ipv4Addr, Ipv6Addr};
-use crate::sys::net::{cvt, cvt_r, Socket, wrlen_t};
+use crate::sys::net::{cvt, cvt_r, cvt_gai, Socket, init, wrlen_t};
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 use crate::time::Duration;
 
@@ -101,6 +93,91 @@ pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage, len: usize) -> io::Res
 
 fn to_ipv6mr_interface(value: u32) -> c_uint {
     value as c_uint
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// get_host_addresses
+////////////////////////////////////////////////////////////////////////////////
+
+pub struct LookupHost {
+    original: *mut libc::addrinfo,
+    cur: *mut libc::addrinfo,
+    port: u16
+}
+
+impl LookupHost {
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+}
+
+impl Iterator for LookupHost {
+    type Item = SocketAddr;
+    fn next(&mut self) -> Option<SocketAddr> {
+        loop {
+            unsafe {
+                let cur = self.cur.as_ref()?;
+                self.cur = cur.ai_next;
+                match sockaddr_to_addr(mem::transmute(cur.ai_addr),
+                                       cur.ai_addrlen as usize)
+                {
+                    Ok(addr) => return Some(addr),
+                    Err(_) => continue,
+                }
+            }
+        }
+    }
+}
+
+unsafe impl Sync for LookupHost {}
+unsafe impl Send for LookupHost {}
+
+impl Drop for LookupHost {
+    fn drop(&mut self) {
+        unsafe { libc::freeaddrinfo(self.original) }
+    }
+}
+
+impl TryFrom<&str> for LookupHost {
+    type Error = io::Error;
+
+    fn try_from(s: &str) -> io::Result<LookupHost> {
+        macro_rules! try_opt {
+            ($e:expr, $msg:expr) => (
+                match $e {
+                    Some(r) => r,
+                    None => return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                                                      $msg)),
+                }
+            )
+        }
+
+        // split the string by ':' and convert the second part to u16
+        let mut parts_iter = s.rsplitn(2, ':');
+        let port_str = try_opt!(parts_iter.next(), "invalid socket address");
+        let host = try_opt!(parts_iter.next(), "invalid socket address");
+        let port: u16 = try_opt!(port_str.parse().ok(), "invalid port value");
+
+        (host, port).try_into()
+    }
+}
+
+impl<'a> TryFrom<(&'a str, u16)> for LookupHost {
+    type Error = io::Error;
+
+    fn try_from((host, port): (&'a str, u16)) -> io::Result<LookupHost> {
+        init();
+
+        let c_host = CString::new(host)?;
+        let mut hints: libc::addrinfo = unsafe { mem::zeroed() };
+        hints.ai_socktype = libc::SOCK_STREAM;
+        let mut res = ptr::null_mut();
+        unsafe {
+            cvt_gai(libc::getaddrinfo(c_host.as_ptr(), ptr::null(), &hints, &mut res)).map(|_| {
+                LookupHost { original: res, cur: res, port }
+            })
+        }
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -640,5 +717,5 @@ impl fmt::Debug for UdpSocket {
 mod libc {
     pub use sgx_trts::libc::*;
     pub use sgx_trts::libc::ocall::{bind, listen, connect, setsockopt, getsockopt, send, sendto,
-                                    getpeername, getsockname};
+                                    getpeername, getsockname, getaddrinfo, freeaddrinfo};
 }

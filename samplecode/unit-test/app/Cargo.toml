@@ -1,14 +1,13 @@
 [package]
 name = "app"
 version = "1.0.0"
-authors = ["Baidu"]
+authors = ["The Teaclave Authors"]
 build = "build.rs"
 
 [dependencies]
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-dirs = "1.0.2"
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git",  features = ["global_init"] }
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_types = { path = "../../../sgx_types" }
 sgx_urts = { path = "../../../sgx_urts" }

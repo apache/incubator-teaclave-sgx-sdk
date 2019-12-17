@@ -1,30 +1,19 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 //! # The Rust SGX SDK Standard Library
 //!
@@ -56,13 +45,11 @@
 
 #![feature(alloc_error_handler)]
 #![feature(panic_unwind)]
-#![feature(__rust_unstable_column)]
 #![feature(allocator_api)]
 #![feature(allow_internal_unsafe)]
 #![feature(allocator_internals)]
 #![feature(allow_internal_unstable)]
 #![feature(array_error_internals)]
-#![feature(bind_by_move_pattern_guards)]
 #![feature(asm)]
 #![feature(box_syntax)]
 #![feature(c_variadic)]
@@ -83,9 +70,7 @@
 #![feature(lang_items)]
 #![feature(log_syntax)]
 #![feature(maybe_uninit_ref)]
-#![feature(mem_take)]
 #![feature(needs_panic_runtime)]
-#![feature(never_type)]
 #![feature(optin_builtin_traits)]
 #![feature(prelude_import)]
 #![feature(ptr_internals)]
@@ -95,7 +80,6 @@
 #![feature(slice_concat_ext)]
 #![feature(str_internals)]
 #![feature(thread_local)]
-#![feature(todo_macro)]
 #![feature(toowned_clone_into)]
 #![feature(trace_macros)]
 #![feature(try_reserve)]
@@ -109,14 +93,10 @@
 #![feature(panic_info_message)]
 #![feature(unicode_internals)]
 #![feature(alloc_layout_extra)]
-#![feature(non_exhaustive)]
-#![feature(const_vec_new)]
 #![feature(vec_remove_item)]
 #![feature(int_error_matching)]
+#![feature(drain_filter)]
 #![default_lib_allocator]
-
-#[global_allocator]
-static ALLOC: sgx_alloc::System = sgx_alloc::System;
 
 // Explicitly import the prelude. The compiler uses this same unstable attribute
 // to import the prelude implicitly when building crates that depend on std.
@@ -141,20 +121,19 @@ extern crate sgx_unwind;
 extern crate sgx_backtrace_sys;
 #[cfg(feature = "backtrace")]
 extern crate sgx_demangle;
-
 extern crate sgx_alloc;
 
 #[macro_use]
 extern crate sgx_types;
-
 pub use sgx_types::{cfg_if, __cfg_if_items, __cfg_if_apply};
 
 #[macro_use]
 extern crate sgx_trts;
-pub use sgx_trts::{global_ctors_object, global_dtors_object};
+pub use sgx_trts::{global_ctors_object, global_dtors_object, is_x86_feature_detected, is_cpu_feature_supported};
 
 extern crate sgx_tprotected_fs;
 extern crate sgx_libc;
+extern crate sgx_tseal;
 
 // The standard macros that are not built-in to the compiler.
 #[macro_use]

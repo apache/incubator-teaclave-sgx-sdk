@@ -1,4 +1,4 @@
-/*	$OpenBSD: math.h,v 1.27 2010/12/14 11:16:15 martynas Exp $	*/
+/*  $OpenBSD: math.h,v 1.27 2010/12/14 11:16:15 martynas Exp $  */
 /*
  * ====================================================
  * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -145,7 +145,7 @@ double _TLIBC_CDECL_ tgamma(double);
 
 double _TLIBC_CDECL_ nearbyint(double);
 double _TLIBC_CDECL_ rint(double);
-long int _TLIBC_CDECL_ lrint(double); 
+long int _TLIBC_CDECL_ lrint(double);
 long long int _TLIBC_CDECL_ llrint(double);
 double _TLIBC_CDECL_ round(double);
 long int _TLIBC_CDECL_ lround(double);

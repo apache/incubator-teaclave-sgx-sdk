@@ -1,5 +1,5 @@
-/*	$OpenBSD: stdio.h,v 1.38 2009/11/09 00:18:27 kurt Exp $	*/
-/*	$NetBSD: stdio.h,v 1.18 1996/04/25 18:29:21 jtc Exp $	*/
+/*  $OpenBSD: stdio.h,v 1.38 2009/11/09 00:18:27 kurt Exp $ */
+/*  $NetBSD: stdio.h,v 1.18 1996/04/25 18:29:21 jtc Exp $   */
 
 /*-
  * Copyright (c) 1990 The Regents of the University of California.
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)stdio.h	5.17 (Berkeley) 6/3/91
+ *  @(#)stdio.h 5.17 (Berkeley) 6/3/91
  */
 
 #ifndef _STDIO_H_

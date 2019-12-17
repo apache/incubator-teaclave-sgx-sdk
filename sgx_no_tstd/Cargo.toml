@@ -1,0 +1,23 @@
+[package]
+name = "sgx_no_tstd"
+version = "1.1.0"
+authors = ["The Teaclave Authors"]
+build = "build.rs"
+repository = "https://github.com/apache/teaclave-sgx-sdk"
+license-file = "LICENSE"
+documentation = "https://dingelish.github.io/"
+description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
+edition = "2018"
+
+[lib]
+name = "sgx_no_tstd"
+crate-type = ["rlib"]
+
+[features]
+default = []
+
+[build-dependencies]
+sgx_build_helper = { path = "../sgx_build_helper" }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_alloc = { path = "../sgx_alloc" }

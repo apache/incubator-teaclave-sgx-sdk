@@ -1,5 +1,5 @@
-/*	$OpenBSD: time.h,v 1.18 2006/01/06 18:53:04 millert Exp $	*/
-/*	$NetBSD: time.h,v 1.9 1994/10/26 00:56:35 cgd Exp $	*/
+/*  $OpenBSD: time.h,v 1.18 2006/01/06 18:53:04 millert Exp $   */
+/*  $NetBSD: time.h,v 1.9 1994/10/26 00:56:35 cgd Exp $ */
 
 /*
  * Copyright (c) 1989 The Regents of the University of California.
@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)time.h	5.12 (Berkeley) 3/9/91
+ *  @(#)time.h  5.12 (Berkeley) 3/9/91
  */
 
 #ifndef _TIME_H_

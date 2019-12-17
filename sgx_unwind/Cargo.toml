@@ -1,9 +1,9 @@
 [package]
 name = "sgx_unwind"
-version = "0.0.1"
-authors = ["Baidu"]
+version = "0.1.0"
+authors = ["The Teaclave Authors"]
 build = "build.rs"
-repository = "https://github.com/baidu/rust-sgx-sdk"
+repository = "https://github.com/apache/teaclave-sgx-sdk"
 license-file = "LICENSE"
 documentation = "https://dingelish.github.io/"
 description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
@@ -27,6 +27,3 @@ doc = false
 
 [build-dependencies]
 sgx_build_helper = { path = "../sgx_build_helper" }
-
-[target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_trts = { path = "../sgx_trts" }

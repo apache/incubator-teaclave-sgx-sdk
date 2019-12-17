@@ -1,3 +1,19 @@
+# Rust SGX SDK v1.1.0
+
+**Supports Intel SGX SDK v2.7.1**
+
+**Supports Rust nightly-2019-11-25**
+
+**Fedora 27 supported** Added dockerfile for Fedora 27.
+
+**Threading and synchronization** We implemented `thread::spawn` and ported `std::sync::mpsc`. Please look into unittest for usage.
+
+**`is_x86_feature_detected`** We found a global feature indicator [`g_cpu_feature_indicator`](https://github.com/apache/teaclave-sgx-sdk/wiki/%60is_x86_feature_detected%60-in-Rust-SGX-SDK) and enabled `is_x86_feature_detected` without triggering `cpuid` instruction.
+
+**New aligned allocator primitives and data structures** To mitigate [Intel-SA-00219](https://www.intel.com/content/www/us/en/security-center/advisory/intel-sa-00219.html), we provided `AlignBox<T>` for dynamic allocation, and aligned key types such as `sgx_align_key_256bit_t`, `sgx_align_key_128bit_t` for static allocation. To help understand this vulnerability, please look into the wiki article [Mitigation of Intel SA 00219 in Rust SGX](https://github.com/apache/teaclave-sgx-sdk/wiki/Mitigation-of-Intel-SA-00219-in-Rust-SGX).
+
+**Link flag change** In this version, `-lsgx_tcxx` must be placed before `-lsgx_tstdc`. We've changed all `Makefile`s.
+
 # Rust SGX SDK v1.0.9 Release Notes
 
 **Supports Rust nightly-2019-08-01** in master branch (rustc 1.38.0). Stable branch would be pushed later.

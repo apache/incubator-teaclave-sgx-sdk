@@ -1,30 +1,19 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 use sgx_trts::libc as c;
 use core::fmt;
@@ -32,11 +21,15 @@ use core::hash;
 use core::mem;
 use core::option;
 use core::iter;
+#[cfg(feature = "net")]
+use core::convert::TryInto;
 use alloc_crate::vec;
 use alloc_crate::slice;
 use crate::io;
 use crate::net::{ntoh, hton, IpAddr, Ipv4Addr, Ipv6Addr};
 use crate::sys_common::{FromInner, AsInner, IntoInner};
+#[cfg(feature = "net")]
+use crate::sys_common::net::LookupHost;
 
 /// An internet socket address, either IPv4 or IPv6.
 ///
@@ -497,6 +490,13 @@ impl ToSocketAddrs for (Ipv6Addr, u16) {
     }
 }
 
+#[cfg(feature = "net")]
+fn resolve_socket_addr(lh: LookupHost) -> io::Result<vec::IntoIter<SocketAddr>> {
+    let p = lh.port();
+    let v: Vec<_> = lh.map(|mut a| { a.set_port(p); a }).collect();
+    Ok(v.into_iter())
+}
+
 impl ToSocketAddrs for (&str, u16) {
     type Iter = vec::IntoIter<SocketAddr>;
     fn to_socket_addrs(&self) -> io::Result<vec::IntoIter<SocketAddr>> {
@@ -512,12 +512,15 @@ impl ToSocketAddrs for (&str, u16) {
             return Ok(vec![SocketAddr::V6(addr)].into_iter())
         }
 
-        Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid socket address"))
+        #[cfg(not(feature = "net"))]
+        let r = Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid socket address"));
+        #[cfg(feature = "net")]
+        let r = resolve_socket_addr((host, port).try_into()?);
+        r
     }
 }
 
 // accepts strings like 'localhost:12345'
-#[allow(unused_variables)]
 impl ToSocketAddrs for str {
     type Iter = vec::IntoIter<SocketAddr>;
     fn to_socket_addrs(&self) -> io::Result<vec::IntoIter<SocketAddr>> {
@@ -526,22 +529,11 @@ impl ToSocketAddrs for str {
             return Ok(vec![addr].into_iter());
         }
 
-        macro_rules! try_opt {
-            ($e:expr, $msg:expr) => (
-                match $e {
-                    Some(r) => r,
-                    None => return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                                      $msg)),
-                }
-            )
-        }
-
-        // split the string by ':' and convert the second part to u16
-        let mut parts_iter = self.rsplitn(2, ':');
-        let port_str = try_opt!(parts_iter.next(), "invalid socket address");
-        let host = try_opt!(parts_iter.next(), "invalid socket address");
-        let port: u16 = try_opt!(port_str.parse().ok(), "invalid port value");
-        Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid socket address"))
+        #[cfg(not(feature = "net"))]
+        let r = Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid socket address"));
+        #[cfg(feature = "net")]
+        let r = resolve_socket_addr(self.try_into()?);
+        r
     }
 }
 

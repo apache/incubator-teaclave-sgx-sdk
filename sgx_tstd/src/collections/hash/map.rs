@@ -1,30 +1,19 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 use self::Entry::*;
 use self::VacantEntryState::*;
@@ -39,7 +28,7 @@ use core::hash::{Hash, Hasher, BuildHasher, SipHasher13};
 use core::iter::{FromIterator, FusedIterator};
 use core::mem::{self, replace};
 use core::ops::{Deref, DerefMut, Index};
-use crate::collections::CollectionAllocErr;
+use crate::collections::TryReserveError;
 use crate::sys;
 
 use super::table::{self, Bucket, EmptyBucket, Fallibility, FullBucket, FullBucketMut, RawTable,
@@ -64,7 +53,7 @@ impl DefaultResizePolicy {
     /// provide that capacity, accounting for maximum loading. The raw capacity
     /// is always zero or a power of two.
     #[inline]
-    fn try_raw_capacity(&self, len: usize) -> Result<usize, CollectionAllocErr> {
+    fn try_raw_capacity(&self, len: usize) -> Result<usize, TryReserveError> {
         if len == 0 {
             Ok(0)
         } else {
@@ -74,7 +63,7 @@ impl DefaultResizePolicy {
             let mut raw_cap = len.checked_mul(11)
                 .map(|l| l / 10)
                 .and_then(|l| l.checked_next_power_of_two())
-                .ok_or(CollectionAllocErr::CapacityOverflow)?;
+                .ok_or(TryReserveError::CapacityOverflow)?;
 
             raw_cap = max(MIN_NONZERO_RAW_CAPACITY, raw_cap);
             Ok(raw_cap)
@@ -731,8 +720,8 @@ impl<K, V, S> HashMap<K, V, S>
     #[inline]
     pub fn reserve(&mut self, additional: usize) {
         match self.reserve_internal(additional, Infallible) {
-            Err(CollectionAllocErr::CapacityOverflow) => panic!("capacity overflow"),
-            Err(CollectionAllocErr::AllocErr) => unreachable!(),
+            Err(TryReserveError::CapacityOverflow) => panic!("capacity overflow"),
+            Err(TryReserveError::AllocError{layout:_, non_exhaustive:_}) => unreachable!(),
             Ok(()) => { /* yay */ }
         }
     }
@@ -746,19 +735,19 @@ impl<K, V, S> HashMap<K, V, S>
     /// If the capacity overflows, or the allocator reports a failure, then an error
     /// is returned.
     ///
-    pub fn try_reserve(&mut self, additional: usize) -> Result<(), CollectionAllocErr> {
+    pub fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         self.reserve_internal(additional, Fallible)
     }
 
     #[inline]
     fn reserve_internal(&mut self, additional: usize, fallibility: Fallibility)
-        -> Result<(), CollectionAllocErr> {
+        -> Result<(), TryReserveError> {
 
         let remaining = self.capacity() - self.len(); // this can't overflow
         if remaining < additional {
             let min_cap = self.len()
                 .checked_add(additional)
-                .ok_or(CollectionAllocErr::CapacityOverflow)?;
+                .ok_or(TryReserveError::CapacityOverflow)?;
             let raw_cap = self.resize_policy.try_raw_capacity(min_cap)?;
             self.try_resize(raw_cap, fallibility)?;
         } else if self.table.tag() && remaining <= self.len() {
@@ -781,7 +770,7 @@ impl<K, V, S> HashMap<K, V, S>
         &mut self,
         new_raw_cap: usize,
         fallibility: Fallibility,
-    ) -> Result<(), CollectionAllocErr> {
+    ) -> Result<(), TryReserveError> {
         assert!(self.table.size() <= new_raw_cap);
         assert!(new_raw_cap.is_power_of_two() || new_raw_cap == 0);
 
@@ -1484,7 +1473,7 @@ impl<'a, K, V, S> RawEntryBuilder<'a, K, V, S>
     fn search<F>(self, hash: u64, is_match: F, compare_hashes: bool) -> Option<(&'a K, &'a V)>
         where F: FnMut(&K) -> bool
     {
-        if unsafe { unlikely(self.map.table.size() == 0) } {
+        if unlikely(self.map.table.size() == 0) {
             return None;
         }
         match search_hashed_nonempty(&self.map.table,
@@ -1919,7 +1908,7 @@ impl<'a, K, V> Iterator for Keys<'a, K, V> {
     type Item = &'a K;
 
     #[inline]
-    fn next(&mut self) -> Option<(&'a K)> {
+    fn next(&mut self) -> Option<&'a K> {
         self.inner.next().map(|(k, _)| k)
     }
     #[inline]
@@ -1942,7 +1931,7 @@ impl<'a, K, V> Iterator for Values<'a, K, V> {
     type Item = &'a V;
 
     #[inline]
-    fn next(&mut self) -> Option<(&'a V)> {
+    fn next(&mut self) -> Option<&'a V> {
         self.inner.next().map(|(_, v)| v)
     }
     #[inline]
@@ -1964,7 +1953,7 @@ impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
     type Item = &'a mut V;
 
     #[inline]
-    fn next(&mut self) -> Option<(&'a mut V)> {
+    fn next(&mut self) -> Option<&'a mut V> {
         self.inner.next().map(|(_, v)| v)
     }
     #[inline]

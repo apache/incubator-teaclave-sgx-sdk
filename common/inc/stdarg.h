@@ -1,5 +1,5 @@
-/*	$OpenBSD: stdarg.h,v 1.14 2010/12/30 05:01:36 tedu Exp $	*/
-/*	$NetBSD: stdarg.h,v 1.12 1995/12/25 23:15:31 mycroft Exp $	*/
+/*  $OpenBSD: stdarg.h,v 1.14 2010/12/30 05:01:36 tedu Exp $    */
+/*  $NetBSD: stdarg.h,v 1.12 1995/12/25 23:15:31 mycroft Exp $  */
 
 /*-
  * Copyright (c) 1991, 1993
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)stdarg.h	8.1 (Berkeley) 6/10/93
+ *  @(#)stdarg.h    8.1 (Berkeley) 6/10/93
  */
 
 #ifndef _STDARG_H_

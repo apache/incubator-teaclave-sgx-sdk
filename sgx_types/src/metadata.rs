@@ -2,11 +2,29 @@ use crate::types::*;
 use core::default::Default;
 
 /* arch .h*/
+pub const SE_PAGE_SIZE      :usize =  0x1000;
 pub const SE_KEY_SIZE       :usize =  384;
 pub const SE_EXPONENT_SIZE  :usize =  4;
 
 /* arch.h */
-#[repr(packed)]
+#[repr(C, packed)]
+pub struct tcs_t {
+    pub reserved0      :u64,
+    pub flags          :u64,
+    pub ossa           :u64,
+    pub cssa           :u32,
+    pub nssa           :u32,
+    pub oentry         :u64,
+    pub reserved1      :u64,
+    pub ofs_base       :u64,
+    pub ogs_base       :u64,
+    pub ofs_limit      :u32,
+    pub ogs_limit      :u32,
+    pub reserved       :[u8; 4024],
+}
+
+/* arch.h */
+#[repr(C, packed)]
 pub struct css_header_t {
     pub header          :[u8; 12],
     pub css_type        :u32,  // type
@@ -17,14 +35,14 @@ pub struct css_header_t {
     pub reserved        :[u8; 84],
 }
 
-#[repr(packed)]
+#[repr(C, packed)]
 pub struct css_key_t {
     pub modulus         :[u8; SE_KEY_SIZE],
     pub exponent        :[u8; SE_EXPONENT_SIZE],
     pub signature       :[u8; SE_KEY_SIZE],
 }
 
-#[repr(packed)]
+#[repr(C, packed)]
 pub struct css_body_t {
     pub misc_select     :sgx_misc_select_t,
     pub misc_mask       :sgx_misc_select_t,
@@ -39,14 +57,14 @@ pub struct css_body_t {
     pub isv_svn         :u16,
 }
 
-#[repr(packed)]
+#[repr(C, packed)]
 pub struct css_buffer_t {
     pub reserved        :[u8; 12],
     pub q1              :[u8; SE_KEY_SIZE],
     pub q2              :[u8; SE_KEY_SIZE],
 }
 
-#[repr(packed)]
+#[repr(C, packed)]
 pub struct enclave_css_t {
     pub header          :css_header_t,
     pub key             :css_key_t,
@@ -157,18 +175,18 @@ impl_struct! {
         pub entry_count    :u16,
         pub load_times     :u32,
         pub load_step      :u64,
-        pub reserved       :[u32;4],
+        pub reserved       :[u32; 4],
     }
 }
 
 #[allow(unused)]
-#[repr(C,packed)]
+#[repr(C, packed)]
 pub union layout_t {
-    entry :layout_entry_t,
-    group :layout_group_t,
+    pub entry :layout_entry_t,
+    pub group :layout_group_t,
 }
 
-#[repr(packed)]
+#[repr(C, packed)]
 pub struct patch_entry_t {
     pub dst     :u64,
     pub src     :u32,
@@ -176,7 +194,7 @@ pub struct patch_entry_t {
     pub reserved:[u32; 4],
 }
 
-#[repr(packed)]
+#[repr(C, packed)]
 pub struct metadata_t {
     pub magic_num               :u64,
     pub version                 :u64,
@@ -192,3 +210,41 @@ pub struct metadata_t {
     pub dirs                    :[data_directory_t; dir_index_t::DIR_NUM as usize],
     pub data                    :[u8; 18592],
 }
+
+/* based on 2.6 */
+/* se_page_attr.h */
+pub const PAGE_ATTR_EADD        :u16 = (1<<0);
+pub const PAGE_ATTR_EEXTEND     :u16 = (1<<1);
+pub const PAGE_ATTR_EREMOVE     :u16 = (1<<2);
+pub const PAGE_ATTR_POST_ADD    :u16 = (1<<3);
+pub const PAGE_ATTR_POST_REMOVE :u16 = (1<<4);
+pub const PAGE_ATTR_DYN_THREAD  :u16 = (1<<5);
+pub const PAGE_DIR_GROW_DOWN    :u16 = (1<<6);
+pub const ADD_PAGE_ONLY         :u16 = PAGE_ATTR_EADD;
+pub const ADD_EXTEND_PAGE       :u16 = (PAGE_ATTR_EADD | PAGE_ATTR_EEXTEND);
+pub const PAGE_ATTR_MASK        :u16 = !(PAGE_ATTR_EADD | PAGE_ATTR_EEXTEND | PAGE_ATTR_EREMOVE | PAGE_ATTR_POST_ADD | PAGE_ATTR_POST_REMOVE | PAGE_ATTR_DYN_THREAD | PAGE_DIR_GROW_DOWN);
+
+/* based on 2.6 */
+/* arch.h */
+pub const SI_FLAG_NONE          :u64 = 0x0;
+pub const SI_FLAG_R             :u64 = 0x1;             /* Read Access */
+pub const SI_FLAG_W             :u64 = 0x2;             /* Write Access */
+pub const SI_FLAG_X             :u64 = 0x4;             /* Execute Access */
+pub const SI_FLAG_PT_LOW_BIT    :u64 = 0x8;                             /* PT low bit */
+pub const SI_FLAG_PT_MASK       :u64 = (0xFF<<SI_FLAG_PT_LOW_BIT) ;     /* Page Type Mask [15:8] */
+pub const SI_FLAG_SECS          :u64 = (0x00<<SI_FLAG_PT_LOW_BIT);      /* SECS */
+pub const SI_FLAG_TCS           :u64 = (0x01<<SI_FLAG_PT_LOW_BIT);      /* TCS */
+pub const SI_FLAG_REG           :u64 = (0x02<<SI_FLAG_PT_LOW_BIT);      /* Regular Page */
+pub const SI_FLAG_TRIM          :u64 = (0x04<<SI_FLAG_PT_LOW_BIT);      /* Trim Page */
+pub const SI_FLAG_PENDING       :u64 = 0x8;
+pub const SI_FLAG_MODIFIED      :u64 = 0x10;
+pub const SI_FLAG_PR            :u64 = 0x20;
+
+pub const SI_FLAGS_EXTERNAL     :u64 = (SI_FLAG_PT_MASK | SI_FLAG_R | SI_FLAG_W | SI_FLAG_X);   /* Flags visible/usable by instructions */
+pub const SI_FLAGS_R            :u64 = (SI_FLAG_R|SI_FLAG_REG);
+pub const SI_FLAGS_RW           :u64 = (SI_FLAG_R|SI_FLAG_W|SI_FLAG_REG);
+pub const SI_FLAGS_RX           :u64 = (SI_FLAG_R|SI_FLAG_X|SI_FLAG_REG);
+pub const SI_FLAGS_TCS          :u64 = (SI_FLAG_TCS);
+pub const SI_FLAGS_SECS         :u64 = (SI_FLAG_SECS);
+pub const SI_MASK_TCS           :u64 = (SI_FLAG_PT_MASK);
+pub const SI_MASK_MEM_ATTRIBUTE :u64 = (0x7);

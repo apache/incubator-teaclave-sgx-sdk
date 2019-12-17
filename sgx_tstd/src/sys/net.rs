@@ -1,36 +1,26 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 #![allow(dead_code)]
-
 use sgx_trts::libc::{c_int, size_t, c_void};
 use core::mem;
 use core::cmp;
+use core::str;
+use crate::ffi::CStr;
 use crate::io::{self, IoSlice, IoSliceMut};
 use crate::net::{SocketAddr, Shutdown};
 use crate::sys::fd::FileDesc;
@@ -43,6 +33,34 @@ pub use crate::sys::{cvt, cvt_r};
 pub type wrlen_t = size_t;
 
 pub struct Socket(FileDesc);
+
+pub fn init() {}
+
+pub fn cvt_gai(err: c_int) -> io::Result<()> {
+    if err == 0 {
+        return Ok(())
+    }
+
+    // We may need to trigger a glibc workaround. See on_resolver_failure() for details.
+    // on_resolver_failure();
+
+    if err == libc::EAI_SYSTEM {
+        return Err(io::Error::last_os_error())
+    }
+
+    let detail = unsafe {
+        let strerr = libc::gai_strerror(err);
+        if strerr.is_null() {
+            return Err(io::Error::from_raw_os_error(libc::ESGX))
+        }
+
+        str::from_utf8(CStr::from_ptr(strerr).to_bytes()).unwrap()
+            .to_owned()
+    };
+    Err(io::Error::new(io::ErrorKind::Other,
+                       &format!("failed to lookup address information: {}",
+                                detail)[..]))
+}
 
 impl Socket {
 
@@ -357,5 +375,5 @@ impl IntoInner<c_int> for Socket {
 mod libc {
     pub use sgx_trts::libc::*;
     pub use sgx_trts::libc::ocall::{socket, socketpair, connect, accept4, recv, recvfrom, shutdown,
-                                    ioctl_arg1, poll};
+                                    ioctl_arg1, poll, gai_strerror};
 }

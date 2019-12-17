@@ -1,30 +1,19 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 //! # Trusted SE Library
 //!
@@ -33,192 +22,14 @@
 
 #![no_std]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
+#![allow(non_camel_case_types)]
+#![feature(ptr_internals)]
+#![feature(dropck_eyepatch)]
 
+extern crate alloc;
 extern crate sgx_types;
-use sgx_types::*;
 
-///
-/// The rsgx_create_report function tries to use the information of the target enclave and other information
-/// to create a cryptographic report of the enclave.
-///
-/// This function is a wrapper for the SGX EREPORT instruction.
-///
-/// # Description
-///
-/// Use the function rsgx_create_report to create a cryptographic report that describes the contents of the
-/// calling enclave. The report can be used by other enclaves to verify that the enclave is running on the
-/// same platform. When an enclave calls rsgx_verify_report to verify a report, it will succeed only if
-/// the report was generated using the target_info for said enclave. This function is a wrapper for the SGX EREPORT
-/// instruction.
-///
-/// Before the source enclave calls rsgx_create_report to generate a report, it needs to populate target_info with
-/// information about the target enclave that will verify the report. The target enclave may obtain this information
-/// calling rsgx_create_report with a default value for target_info and pass it to the source enclave at the beginning
-/// of the inter-enclave attestation process.
-///
-/// # Parameters
-///
-/// **target_info**
-///
-/// A pointer to the sgx_target_info_t object that contains the information of the target enclave,
-/// which will be able to cryptographically verify the report calling rsgx_verify_report.efore calling this function.
-///
-/// If value is default, sgx_create_report retrieves information about the calling enclave,
-/// but the generated report cannot be verified by any enclave.
-///
-/// **report_data**
-///
-/// A pointer to the sgx_report_data_t object which contains a set of data used for communication between the enclaves.
-///
-/// # Requirements
-///
-/// Library: libsgx_tservice.a
-///
-/// # Return value
-///
-/// Cryptographic report of the enclave
-///
-/// # Errors
-///
-/// **SGX_ERROR_INVALID_PARAMETER**
-///
-/// An error is reported if any of the parameters memory is not within the enclave or the reserved fields
-/// of the data structure are not set to zero.
-///
-/// **SGX_ERROR_OUT_OF_MEMORY**
-///
-/// Indicates that the enclave is out of memory.
-///
-pub fn rsgx_create_report(target_info: &sgx_target_info_t, report_data: &sgx_report_data_t) -> SgxResult<sgx_report_t> {
-
-    let mut report = sgx_report_t::default();
-    let ret = unsafe {
-        sgx_create_report(target_info as * const sgx_target_info_t,
-                          report_data as * const sgx_report_data_t,
-                          &mut report as * mut sgx_report_t)
-
-    };
-    match ret {
-        sgx_status_t::SGX_SUCCESS => Ok(report),
-        _ => Err(ret),
-    }
-}
-
-///
-/// The rsgx_verify_report function provides software verification for the report which is expected to be
-/// generated by the rsgx_create_report function.
-///
-/// # Description
-///
-/// The rsgx_verify_report performs a cryptographic CMAC function of the input sgx_report_data_t object
-/// in the report using the report key. Then the function compares the input report MAC value with the
-/// calculated MAC value to determine whether the report is valid or not.
-///
-/// # Parameters
-///
-/// **report**
-///
-/// A pointer to an sgx_report_t object that contains the cryptographic report to be verified.
-/// The report buffer must be within the enclave.
-///
-/// # Requirements
-///
-/// Library: libsgx_tservice.a
-///
-/// # Errors
-///
-/// **SGX_ERROR_INVALID_PARAMETER**
-///
-/// The report object is invalid.
-///
-/// **SGX_ERROR_MAC_MISMATCH**
-///
-/// Indicates report verification error.
-///
-/// **SGX_ERROR_UNEXPECTED**
-///
-/// Indicates an unexpected error occurs during the report verification process.
-///
-pub fn rsgx_verify_report(report: &sgx_report_t) -> SgxError {
-
-    let ret = unsafe { sgx_verify_report(report as * const sgx_report_t) };
-    match ret {
-        sgx_status_t::SGX_SUCCESS => Ok(()),
-        _ => Err(ret),
-    }
-}
-
-///
-/// The rsgx_get_key function generates a 128-bit secret key using the input information.
-///
-/// This function is a wrapper for the SGX EGETKEY instruction.
-///
-/// # Description
-///
-/// The rsgx_get_key function generates a 128-bit secret key from the processor specific key hierarchy with
-/// the key_request information. If the function fails with an error code, the key buffer will be filled with
-/// random numbers. The key_request structure needs to be initialized properly to obtain the requested key type.
-/// See sgx_key_request_t for structure details.
-///
-/// # Parameters
-///
-/// **key_request**
-///
-/// A pointer to a sgx_key_request_t object used for selecting the appropriate key and any additional parameters
-/// required in the derivation of that key. The pointer must be located within the enclave.
-///
-/// See details on the sgx_key_request_t to understand initializing this structure before calling this function.
-///
-/// # Requirements
-///
-/// Library: libsgx_tservice.a
-///
-/// # Return value
-///
-/// Cryptographic key
-///
-/// # Errors
-///
-/// **SGX_ERROR_INVALID_PARAMETER**
-///
-/// Indicates an error that the input parameters are invalid.
-///
-/// **SGX_ERROR_OUT_OF_MEMORY**
-///
-/// Indicates an error that the enclave is out of memory.
-///
-/// **SGX_ERROR_INVALID_ATTRIBUTE**
-///
-/// Indicates the key_request requests a key for a KEYNAME which the enclave is not authorized.
-///
-/// **SGX_ERROR_INVALID_CPUSVN**
-///
-/// Indicates key_request->cpu_svn is beyond platform CPUSVN value
-///
-/// **SGX_ERROR_INVALID_ISVSVN**
-///
-/// Indicates key_request->isv_svn is greater than the enclave’s ISVSVN
-///
-/// **SGX_ERROR_INVALID_KEYNAME**
-///
-/// Indicates key_request->key_name is an unsupported value
-///
-/// **SGX_ERROR_UNEXPECTED**
-///
-/// Indicates an unexpected error occurs during the key generation process.
-///
-pub fn rsgx_get_key(key_request: &sgx_key_request_t) -> SgxResult<sgx_key_128bit_t> {
-
-    let mut key = sgx_key_128bit_t::default();
-    let ret = unsafe { sgx_get_key(key_request as * const sgx_key_request_t, &mut key as * mut sgx_key_128bit_t) };
-    match ret {
-        sgx_status_t::SGX_SUCCESS => Ok(key),
-        _ => Err(ret),
-    }
-}
-
-pub fn rsgx_self_report() -> sgx_report_t {
-
-    unsafe { * sgx_self_report() }
-}
-
+mod se;
+pub use self::se::*;
+pub mod alignalloc;
+pub mod alignbox;

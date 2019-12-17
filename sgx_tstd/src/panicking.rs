@@ -1,37 +1,26 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 //! Implementation of various bits and pieces of the `panic!` macro and
 //! associated runtime pieces.
 
 use sgx_trts::trts::rsgx_abort;
 use core::panic::BoxMeUp;
-use core::mem;
+use core::mem::{self, ManuallyDrop};
 use core::fmt;
 use core::panic::{PanicInfo, Location};
 use core::any::Any;
@@ -41,6 +30,7 @@ use core::sync::atomic::{AtomicPtr, Ordering};
 use alloc_crate::boxed::Box;
 use alloc_crate::string::String;
 use crate::sys::stdio::panic_output;
+use crate::sys_common::thread_info;
 use crate::sys_common::util;
 use crate::thread;
 
@@ -101,9 +91,12 @@ fn default_panic_handler(info: &PanicInfo<'_>) {
         }
     };
 
+    let thread = thread_info::current_thread();
+    let name = thread.as_ref().and_then(|t| t.name()).unwrap_or("<unnamed>");
+
     let write = |err: &mut dyn (crate::io::Write)| {
-        let _ = writeln!(err, "thread panicked at '{}', {}",
-                        msg, location);
+        let _ = writeln!(err, "thread '{}' panicked at '{}', {}",
+                         name, msg, location);
 
         #[cfg(feature = "backtrace")]
         {
@@ -153,10 +146,9 @@ pub fn update_panic_count(amt: isize) -> usize {
 
 /// Invoke a closure, capturing the cause of an unwinding panic if one occurs.
 pub unsafe fn r#try<R, F: FnOnce() -> R>(f: F) -> Result<R, Box<dyn Any + Send>> {
-    #[allow(unions_with_drop_fields)]
     union Data<F, R> {
-        f: F,
-        r: R,
+        f: ManuallyDrop<F>,
+        r: ManuallyDrop<R>,
     }
 
     // We do some sketchy operations with ownership here for the sake of
@@ -187,7 +179,7 @@ pub unsafe fn r#try<R, F: FnOnce() -> R>(f: F) -> Result<R, Box<dyn Any + Send>>
     let mut any_data = 0;
     let mut any_vtable = 0;
     let mut data = Data {
-        f,
+        f: ManuallyDrop::new(f)
     };
 
     let r = __rust_maybe_catch_panic(do_call::<F, R>,
@@ -197,7 +189,7 @@ pub unsafe fn r#try<R, F: FnOnce() -> R>(f: F) -> Result<R, Box<dyn Any + Send>>
 
     return if r == 0 {
         debug_assert!(update_panic_count(0) == 0);
-        Ok(data.r)
+        Ok(ManuallyDrop::into_inner(data.r))
     } else {
         update_panic_count(-1);
         debug_assert!(update_panic_count(0) == 0);
@@ -210,8 +202,8 @@ pub unsafe fn r#try<R, F: FnOnce() -> R>(f: F) -> Result<R, Box<dyn Any + Send>>
     fn do_call<F: FnOnce() -> R, R>(data: *mut u8) {
         unsafe {
             let data = data as *mut Data<F, R>;
-            let f = ptr::read(&mut (*data).f);
-            ptr::write(&mut (*data).r, f());
+            let f = ptr::read(&mut *(*data).f);
+            ptr::write(&mut *(*data).r, f());
         }
     }
 }
@@ -238,9 +230,10 @@ pub fn rust_begin_panic(info: &PanicInfo<'_>) -> ! {
 pub fn begin_panic_fmt(msg: &fmt::Arguments<'_>,
                        file_line_col: &(&'static str, u32, u32)) -> ! {
     let (file, line, col) = *file_line_col;
+    let location = Location::internal_constructor(file, line, col);
     let info = PanicInfo::internal_constructor(
         Some(msg),
-        Location::internal_constructor(file, line, col),
+        &location
     );
     continue_panic_fmt(&info)
 }
@@ -358,9 +351,10 @@ fn rust_panic_with_hook(payload: &mut dyn BoxMeUp,
     }
 
     {
+        let location = Location::internal_constructor(file, line, col);
         let mut info = PanicInfo::internal_constructor(
             message,
-            Location::internal_constructor(file, line, col),
+            &location
         );
         info.set_payload(payload.get());
         panic_handler(&info);

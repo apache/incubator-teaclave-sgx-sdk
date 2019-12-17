@@ -1,5 +1,5 @@
-/*	$OpenBSD: cdefs.h,v 1.34 2012/08/14 20:11:37 matthew Exp $	*/
-/*	$NetBSD: cdefs.h,v 1.16 1996/04/03 20:46:39 christos Exp $	*/
+/*  $OpenBSD: cdefs.h,v 1.34 2012/08/14 20:11:37 matthew Exp $  */
+/*  $NetBSD: cdefs.h,v 1.16 1996/04/03 20:46:39 christos Exp $  */
 
 /*
  * Copyright (c) 1991, 1993
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)cdefs.h	8.7 (Berkeley) 1/21/94
+ *  @(#)cdefs.h 8.7 (Berkeley) 1/21/94
  */
 
 #ifndef _SYS_CDEFS_H_
@@ -122,11 +122,11 @@
  *	  larger code.
  */
 #if defined(__GNUC__) && __GNUC_PREREQ__(2, 96)
-#define __predict_true(exp)	__builtin_expect(((exp) != 0), 1)
-#define __predict_false(exp)	__builtin_expect(((exp) != 0), 0)
+#define __predict_true(exp)     __builtin_expect(((exp) != 0), 1)
+#define __predict_false(exp)    __builtin_expect(((exp) != 0), 0)
 #else
-#define __predict_true(exp)	((exp) != 0)
-#define __predict_false(exp)	((exp) != 0)
+#define __predict_true(exp)     ((exp) != 0)
+#define __predict_false(exp)    ((exp) != 0)
 #endif
 
 #endif /* !_SYS_CDEFS_H_ */

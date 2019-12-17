@@ -1,30 +1,19 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 use sgx_types::*;
 use sgx_trts::trts::*;
@@ -34,22 +23,6 @@ use core::mem;
 use core::ptr;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-
-//const SGX_MISCSEL_EXINFO: uint32_t     = 0x00000001;
-//const TSEAL_DEFAULT_MISCMASK: uint32_t = (!SGX_MISCSEL_EXINFO);
-
-/* intel sgx sdk 1.8 */
-/* Set the bits which have no security implications to 0 for sealed data migration */
-/* Bits which have no security implications in attributes.flags:
- *    Reserved bit[55:6]  - 0xFFFFFFFFFFFFC0ULL
- *    SGX_FLAGS_MODE64BIT
- *    SGX_FLAGS_PROVISION_KEY
- *    SGX_FLAGS_EINITTOKEN_KEY */
-const FLAGS_NON_SECURITY_BITS: uint64_t = (0x00FF_FFFF_FFFF_FFC0 | SGX_FLAGS_MODE64BIT | SGX_FLAGS_PROVISION_KEY| SGX_FLAGS_EINITTOKEN_KEY);
-const TSEAL_DEFAULT_FLAGSMASK: uint64_t = (!FLAGS_NON_SECURITY_BITS);
-
-const MISC_NON_SECURITY_BITS: uint32_t =  0x0FFF_FFFF;  /* bit[27:0]: have no security implications */
-const TSEAL_DEFAULT_MISCMASK: uint32_t =  (!MISC_NON_SECURITY_BITS);
 
 /* intel sgx sdk 2.4 */
 const KEY_POLICY_KSS: uint16_t = (SGX_KEYPOLICY_CONFIGID | SGX_KEYPOLICY_ISVFAMILYID | SGX_KEYPOLICY_ISVEXTPRODID);
@@ -514,8 +487,7 @@ impl SgxInternalSealedData {
                     payload_iv: &[u8],
                     key_request: &sgx_key_request_t) -> SgxResult<Self>  {
 
-
-        let mut seal_key = rsgx_get_key(key_request).map_err(|ret| {
+        let mut seal_key = rsgx_get_align_key(key_request).map_err(|ret| {
             if ret != sgx_status_t::SGX_ERROR_OUT_OF_MEMORY {
                 sgx_status_t::SGX_ERROR_UNEXPECTED
             } else {
@@ -526,14 +498,14 @@ impl SgxInternalSealedData {
         let mut sealed_data = SgxInternalSealedData::default();
         sealed_data.payload_data.encrypt = vec![0_u8; encrypt_text.len()].into_boxed_slice();
 
-        let error = rsgx_rijndael128GCM_encrypt(&seal_key,
+        let error = rsgx_rijndael128GCM_encrypt(&seal_key.key,
                                                 encrypt_text,
                                                 payload_iv,
                                                 &additional_text,
                                                 &mut sealed_data.payload_data.encrypt,
                                                 &mut sealed_data.payload_data.payload_tag);
         if error.is_err() {
-            seal_key = sgx_key_128bit_t::default();
+            seal_key.key = sgx_key_128bit_t::default();
             return Err(error.unwrap_err());
         }
 
@@ -542,14 +514,14 @@ impl SgxInternalSealedData {
             sealed_data.payload_data.additional = additional_text.to_vec().into_boxed_slice();
         }
 
-        seal_key = sgx_key_128bit_t::default();
+        seal_key.key = sgx_key_128bit_t::default();
 
         Ok(sealed_data)
     }
 
     fn unseal_data_helper(&self) -> SgxResult<SgxInternalUnsealedData> {
 
-        let mut seal_key = rsgx_get_key(self.get_key_request()).map_err(|ret| {
+        let mut seal_key = rsgx_get_align_key(self.get_key_request()).map_err(|ret| {
             if (ret == sgx_status_t::SGX_ERROR_INVALID_CPUSVN) ||
                (ret == sgx_status_t::SGX_ERROR_INVALID_ISVSVN) ||
                (ret == sgx_status_t::SGX_ERROR_OUT_OF_MEMORY) {
@@ -571,14 +543,14 @@ impl SgxInternalSealedData {
         let mut unsealed_data: SgxInternalUnsealedData = SgxInternalUnsealedData::default();
         unsealed_data.decrypt = vec![0_u8; self.payload_data.encrypt.len()].into_boxed_slice();
 
-        let error = rsgx_rijndael128GCM_decrypt(&seal_key,
+        let error = rsgx_rijndael128GCM_decrypt(&seal_key.key,
                                                 self.get_encrypt_txt(),
                                                 &payload_iv,
                                                 self.get_additional_txt(),
                                                 self.get_payload_tag(),
                                                 &mut unsealed_data.decrypt);
         if error.is_err() {
-            seal_key = sgx_key_128bit_t::default();
+            seal_key.key = sgx_key_128bit_t::default();
             return Err(error.unwrap_err());
         }
 
@@ -587,7 +559,7 @@ impl SgxInternalSealedData {
         }
         unsealed_data.payload_size = self.get_payload_size();
 
-        seal_key = sgx_key_128bit_t::default();
+        seal_key.key = sgx_key_128bit_t::default();
 
         Ok(unsealed_data)
     }

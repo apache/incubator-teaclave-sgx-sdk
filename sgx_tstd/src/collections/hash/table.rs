@@ -1,33 +1,22 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 use crate::alloc::{Global, Alloc, Layout, LayoutErr, handle_alloc_error};
-use crate::collections::CollectionAllocErr;
+use crate::collections::TryReserveError;
 use core::hash::{BuildHasher, Hash, Hasher};
 use core::marker;
 use core::mem::{self, size_of, needs_drop};
@@ -690,7 +679,7 @@ impl<K, V> RawTable<K, V> {
     unsafe fn new_uninitialized_internal(
         capacity: usize,
         fallibility: Fallibility,
-    ) -> Result<RawTable<K, V>, CollectionAllocErr> {
+    ) -> Result<RawTable<K, V>, TryReserveError> {
         if capacity == 0 {
             return Ok(RawTable {
                 size: 0,
@@ -705,9 +694,9 @@ impl<K, V> RawTable<K, V> {
         // we just allocate a single array, and then have the subarrays
         // point into it.
         let (layout, _) = calculate_layout::<K, V>(capacity)?;
-        let buffer = Global.alloc(layout).map_err(|e| match fallibility {
+        let buffer = Global.alloc(layout).map_err(|_e| match fallibility {
             Infallible => handle_alloc_error(layout),
-            Fallible => e,
+            Fallible => TryReserveError::AllocError { layout, non_exhaustive: () },
         })?;
 
         Ok(RawTable {
@@ -722,8 +711,8 @@ impl<K, V> RawTable<K, V> {
     /// at the very least, set every hash to EMPTY_BUCKET.
     unsafe fn new_uninitialized(capacity: usize) -> RawTable<K, V> {
         match Self::new_uninitialized_internal(capacity, Infallible) {
-            Err(CollectionAllocErr::CapacityOverflow) => panic!("capacity overflow"),
-            Err(CollectionAllocErr::AllocErr) => unreachable!(),
+            Err(TryReserveError::CapacityOverflow) => panic!("capacity overflow"),
+            Err(TryReserveError::AllocError { layout:_, non_exhaustive:_ }) => unreachable!(),
             Ok(table) => { table }
         }
     }
@@ -747,7 +736,7 @@ impl<K, V> RawTable<K, V> {
     fn new_internal(
         capacity: usize,
         fallibility: Fallibility,
-    ) -> Result<RawTable<K, V>, CollectionAllocErr> {
+    ) -> Result<RawTable<K, V>, TryReserveError> {
         unsafe {
             let ret = RawTable::new_uninitialized_internal(capacity, fallibility)?;
             if capacity > 0 {
@@ -760,7 +749,7 @@ impl<K, V> RawTable<K, V> {
     /// Tries to create a new raw table from a given capacity. If it cannot allocate,
     /// it returns with AllocErr.
     #[inline]
-    pub fn try_new(capacity: usize) -> Result<RawTable<K, V>, CollectionAllocErr> {
+    pub fn try_new(capacity: usize) -> Result<RawTable<K, V>, TryReserveError> {
         Self::new_internal(capacity, Fallible)
     }
 
@@ -769,8 +758,8 @@ impl<K, V> RawTable<K, V> {
     #[inline]
     pub fn new(capacity: usize) -> RawTable<K, V> {
         match Self::new_internal(capacity, Infallible) {
-            Err(CollectionAllocErr::CapacityOverflow) => panic!("capacity overflow"),
-            Err(CollectionAllocErr::AllocErr) => unreachable!(),
+            Err(TryReserveError::CapacityOverflow) => panic!("capacity overflow"),
+            Err(TryReserveError::AllocError{layout:_, non_exhaustive:_}) => unreachable!(),
             Ok(table) => { table }
         }
     }

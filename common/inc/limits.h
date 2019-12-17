@@ -1,5 +1,5 @@
-/*	$OpenBSD: limits.h,v 1.15 2008/02/10 09:59:54 kettenis Exp $	*/
-/*	$NetBSD: limits.h,v 1.7 1994/10/26 00:56:00 cgd Exp $	*/
+/*  $OpenBSD: limits.h,v 1.15 2008/02/10 09:59:54 kettenis Exp $    */
+/*  $NetBSD: limits.h,v 1.7 1994/10/26 00:56:00 cgd Exp $           */
 
 /*
  * Copyright (c) 1988 The Regents of the University of California.
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)limits.h	5.9 (Berkeley) 4/3/91
+ *  @(#)limits.h    5.9 (Berkeley) 4/3/91
  */
 
 

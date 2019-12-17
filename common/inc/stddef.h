@@ -1,5 +1,5 @@
-/*	$OpenBSD: stddef.h,v 1.10 2009/09/22 21:40:02 jsg Exp $	*/
-/*	$NetBSD: stddef.h,v 1.4 1994/10/26 00:56:26 cgd Exp $	*/
+/*  $OpenBSD: stddef.h,v 1.10 2009/09/22 21:40:02 jsg Exp $ */
+/*  $NetBSD: stddef.h,v 1.4 1994/10/26 00:56:26 cgd Exp $   */
 
 /*-
  * Copyright (c) 1990 The Regents of the University of California.
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)stddef.h	5.5 (Berkeley) 4/3/91
+ *  @(#)stddef.h    5.5 (Berkeley) 4/3/91
  */
 
 #ifndef _STDDEF_H_

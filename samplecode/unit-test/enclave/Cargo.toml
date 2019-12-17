@@ -1,7 +1,7 @@
 [package]
 name = "Unittestsampleenclave"
 version = "1.0.0"
-authors = ["Baidu"]
+authors = ["The Teaclave Authors"]
 
 [lib]
 name = "unittestsampleenclave"
@@ -11,20 +11,22 @@ crate-type = ["staticlib"]
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", features = ["untrusted_fs"] }
-sgx_tcrypto = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tunittest = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_rand = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tseal = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_serialize = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = ["untrusted_fs", "thread"] }
+sgx_tcrypto = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tunittest = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tseal = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_serialize = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tse= { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
 [dependencies]
-sgx_serialize_derive = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_serialize_derive = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 rand = { version = "0.5.5", default-features = false }
+memoffset = "0.5"
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }
 sgx_backtrace = { path = "../../../sgx_backtrace" }
 sgx_backtrace_sys = { path = "../../../sgx_backtrace_sys" }

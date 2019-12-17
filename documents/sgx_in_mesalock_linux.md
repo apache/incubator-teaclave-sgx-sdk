@@ -57,7 +57,7 @@ Rust SGX SDK and docker
 Step 1 : build SGX application in Rust SGX dev docker container.
 
 ```bash
-$ git pull git@github.com:baidu/rust-sgx-sdk.git
+$ git pull git@github.com:apache/teaclave-sgx-sdk.git
 $ docker run -v /path/to/rust-sgx-sdk:/root/sgx -ti --device /dev/isgx baiduxlab/sgx-rust
 ```
 

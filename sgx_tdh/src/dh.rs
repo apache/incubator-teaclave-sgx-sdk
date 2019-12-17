@@ -1,30 +1,19 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 //! # Diffie–Hellman (DH) Session Establishment Functions
 //!
@@ -213,20 +202,20 @@ enum SgxDhSessionState {
 #[derive(Copy, Clone)]
 pub struct SgxDhResponder {
     state: SgxDhSessionState,
-    prv_key: sgx_ec256_private_t,
+    prv_key: sgx_align_ec256_private_t,
     pub_key: sgx_ec256_public_t,
-    smk_aek: sgx_key_128bit_t,
-    shared_key: sgx_ec256_dh_shared_t,
+    smk_aek: sgx_align_key_128bit_t,
+    shared_key: sgx_align_ec256_dh_shared_t,
 }
 
 impl Default for SgxDhResponder {
     fn default() -> Self {
         SgxDhResponder {
            state: SgxDhSessionState::SGX_DH_SESSION_STATE_RESET,
-           prv_key: sgx_ec256_private_t::default(),
+           prv_key: sgx_align_ec256_private_t::default(),
            pub_key: sgx_ec256_public_t::default(),
-           smk_aek: sgx_key_128bit_t::default(),
-           shared_key: sgx_ec256_dh_shared_t::default(),
+           smk_aek: sgx_align_key_128bit_t::default(),
+           shared_key: sgx_align_ec256_dh_shared_t::default(),
         }
     }
 }
@@ -408,9 +397,9 @@ impl SgxDhResponder {
 
         let ecc_state = SgxEccHandle::new();
         ecc_state.open().map_err(|ret| self.set_error(ret))?;
-        self.shared_key = ecc_state.compute_shared_dhkey(&self.prv_key, &msg2.g_b).map_err(|ret| self.set_error(ret))?;
+        self.shared_key = ecc_state.compute_align_shared_dhkey(&self.prv_key.key, &msg2.g_b).map_err(|ret| self.set_error(ret))?;
 
-        self.smk_aek = derive_key(&self.shared_key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret))?;
+        self.smk_aek = derive_key(&self.shared_key.key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret))?;
 
         #[cfg(feature = "use_lav2")]
         self.lav2_verify_message2(msg2).map_err(|ret| self.set_error(ret))?;
@@ -428,8 +417,8 @@ impl SgxDhResponder {
         #[cfg(not(feature = "use_lav2"))]
         self.dh_generate_message3(msg2, msg3).map_err(|ret| self.set_error(ret))?;
 
-        * aek = derive_key(&self.shared_key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret))?;
-
+        let align_aek = derive_key(&self.shared_key.key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret))?;
+        *aek = align_aek.key;
         *self = Self::default();
         self.state = SgxDhSessionState::SGX_DH_SESSION_ACTIVE;
 
@@ -449,7 +438,7 @@ impl SgxDhResponder {
 
         let ecc_state = SgxEccHandle::new();
         ecc_state.open()?;
-        let (prv_key, pub_key) = ecc_state.create_key_pair()?;
+        let (prv_key, pub_key) = ecc_state.create_align_key_pair()?;
 
         self.prv_key = prv_key;
         self.pub_key = pub_key;
@@ -469,7 +458,7 @@ impl SgxDhResponder {
         }
 
         let report = msg2.report;
-        let data_mac = rsgx_rijndael128_cmac_msg(&self.smk_aek, &report)?;
+        let data_mac = rsgx_rijndael128_cmac_msg(&self.smk_aek.key, &report)?;
         if !data_mac.consttime_memeq(&msg2.cmac) {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
@@ -502,7 +491,7 @@ impl SgxDhResponder {
         report.body.report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
 
         rsgx_verify_report(&report)?;
-        let data_mac = rsgx_rijndael128_cmac_msg(&self.smk_aek, &msg2.g_b)?;
+        let data_mac = rsgx_rijndael128_cmac_msg(&self.smk_aek.key, &msg2.g_b)?;
         if !data_mac.consttime_memeq(&msg2.cmac) {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
@@ -536,7 +525,7 @@ impl SgxDhResponder {
 
         let add_prop_len = msg3.msg3_body.additional_prop.len() as u32;
         let cmac_handle = SgxCmacHandle::new();
-        cmac_handle.init(&self.smk_aek)?;
+        cmac_handle.init(&self.smk_aek.key)?;
         cmac_handle.update_msg(&msg3.msg3_body.report)?;
         cmac_handle.update_msg(&add_prop_len)?;
         if add_prop_len > 0 {
@@ -568,7 +557,7 @@ impl SgxDhResponder {
         msg3.msg3_body.report = rsgx_create_report(&target, &report_data)?;
 
         let cmac_handle = SgxCmacHandle::new();
-        cmac_handle.init(&self.smk_aek)?;
+        cmac_handle.init(&self.smk_aek.key)?;
         if msg3.msg3_body.additional_prop.len() > 0 {
             cmac_handle.update_slice(&msg3.msg3_body.additional_prop)?;
         }
@@ -594,20 +583,20 @@ impl SgxDhResponder {
 #[derive(Copy, Clone)]
 pub struct SgxDhInitiator {
     state: SgxDhSessionState,
-    smk_aek: sgx_key_128bit_t,
+    smk_aek: sgx_align_key_128bit_t,
     pub_key: sgx_ec256_public_t,
     peer_pub_key: sgx_ec256_public_t,
-    shared_key: sgx_ec256_dh_shared_t,
+    shared_key: sgx_align_ec256_dh_shared_t,
 }
 
 impl Default for SgxDhInitiator {
     fn default() -> Self {
         SgxDhInitiator {
            state: SgxDhSessionState::SGX_DH_SESSION_INITIATOR_WAIT_M1,
-           smk_aek: sgx_key_128bit_t::default(),
+           smk_aek: sgx_align_key_128bit_t::default(),
            pub_key: sgx_ec256_public_t::default(),
            peer_pub_key: sgx_ec256_public_t::default(),
-           shared_key: sgx_ec256_dh_shared_t::default(),
+           shared_key: sgx_align_ec256_dh_shared_t::default(),
         }
     }
 }
@@ -686,12 +675,12 @@ impl SgxDhInitiator {
 
         let ecc_state = SgxEccHandle::new();
         ecc_state.open().map_err(|ret| self.set_error(ret))?;
-        let (mut prv_key, pub_key) = ecc_state.create_key_pair().map_err(|ret| self.set_error(ret))?;
-        self.shared_key = ecc_state.compute_shared_dhkey(&prv_key, &msg1.g_a).map_err(|ret| self.set_error(ret))?;
+        let (mut prv_key, pub_key) = ecc_state.create_align_key_pair().map_err(|ret| self.set_error(ret))?;
+        self.shared_key = ecc_state.compute_align_shared_dhkey(&prv_key.key, &msg1.g_a).map_err(|ret| self.set_error(ret))?;
 
-        prv_key = sgx_ec256_private_t::default();
+        prv_key = sgx_align_ec256_private_t::default();
         self.pub_key = pub_key;
-        self.smk_aek = derive_key(&self.shared_key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret))?;
+        self.smk_aek = derive_key(&self.shared_key.key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret))?;
 
         #[cfg(feature = "use_lav2")]
         self.lav2_generate_message2(msg1, msg2).map_err(|ret| self.set_error(ret))?;
@@ -797,7 +786,8 @@ impl SgxDhInitiator {
         #[cfg(not(feature = "use_lav2"))]
         self.dh_verify_message3(msg3).map_err(|ret| self.set_error(ret))?;
 
-        * aek = derive_key(&self.shared_key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret))?;
+        let align_aek = derive_key(&self.shared_key.key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret))?;
+        *aek = align_aek.key;
 
         *self = Self::default();
         self.state = SgxDhSessionState::SGX_DH_SESSION_ACTIVE;
@@ -832,7 +822,7 @@ impl SgxDhInitiator {
         let target = msg1.target;
         msg2.report = rsgx_create_report(&target, &report_data)?;
         let report = msg2.report;
-        msg2.cmac = rsgx_rijndael128_cmac_msg(&self.smk_aek, &report)?;
+        msg2.cmac = rsgx_rijndael128_cmac_msg(&self.smk_aek.key, &report)?;
 
         Ok(())
     }
@@ -856,7 +846,7 @@ impl SgxDhInitiator {
         msg2.report = rsgx_create_report(&target, &report_data)?;
         // Replace report_data with proto_spec
         unsafe {msg2.report.body.report_data = SGX_LAV2_PROTO_SPEC.to_report_data();}
-        msg2.cmac = rsgx_rijndael128_cmac_msg(&self.smk_aek, &msg2.g_b)?;
+        msg2.cmac = rsgx_rijndael128_cmac_msg(&self.smk_aek.key, &msg2.g_b)?;
 
         Ok(())
     }
@@ -866,7 +856,7 @@ impl SgxDhInitiator {
         let add_prop_len = msg3.msg3_body.additional_prop.len() as u32;
 
         let cmac_handle = SgxCmacHandle::new();
-        cmac_handle.init(&self.smk_aek)?;
+        cmac_handle.init(&self.smk_aek.key)?;
         cmac_handle.update_msg(&msg3.msg3_body.report)?;
         cmac_handle.update_msg(&add_prop_len)?;
         if add_prop_len > 0 {
@@ -913,7 +903,7 @@ impl SgxDhInitiator {
         rsgx_verify_report(&report)?;
 
         let cmac_handle = SgxCmacHandle::new();
-        cmac_handle.init(&self.smk_aek)?;
+        cmac_handle.init(&self.smk_aek.key)?;
         if msg3.msg3_body.additional_prop.len() > 0 {
             cmac_handle.update_slice(&msg3.msg3_body.additional_prop)?;
         }

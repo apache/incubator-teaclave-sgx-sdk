@@ -1,6 +1,6 @@
 //
 // Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 //
 
 /***
@@ -80,4 +80,4 @@ extern errno_t memmove_s( void * dst, size_t sizeInBytes, const void * src, size
     }
 #endif
 
-#endif	/* MBUSAFECRT_H */
+#endif  /* MBUSAFECRT_H */

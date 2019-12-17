@@ -1,5 +1,5 @@
-/*	$OpenBSD: wchar.h,v 1.11 2010/07/24 09:58:39 guenther Exp $	*/
-/*	$NetBSD: wchar.h,v 1.16 2003/03/07 07:11:35 tshiozak Exp $	*/
+/*  $OpenBSD: wchar.h,v 1.11 2010/07/24 09:58:39 guenther Exp $ */
+/*  $NetBSD: wchar.h,v 1.16 2003/03/07 07:11:35 tshiozak Exp $  */
 
 /*-
  * Copyright (c)1999 Citrus Project,

@@ -1,5 +1,5 @@
-/*	$OpenBSD: ieee.h,v 1.2 2008/09/07 20:36:06 martynas Exp $ */
-/*	$NetBSD: ieee.h,v 1.1 1996/09/30 16:34:25 ws Exp $ */
+/*  $OpenBSD: ieee.h,v 1.2 2008/09/07 20:36:06 martynas Exp $   */
+/*  $NetBSD: ieee.h,v 1.1 1996/09/30 16:34:25 ws Exp $  */
 
 /*
  * Copyright (c) 1992, 1993
@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ieee.h	8.1 (Berkeley) 6/11/93
+ *  @(#)ieee.h  8.1 (Berkeley) 6/11/93
  */
 
 /*
@@ -50,27 +50,27 @@
 /*
  * Define the number of bits in each fraction and exponent.
  *
- *		     k	         k+1
+ *              k           k+1
  * Note that  1.0 x 2  == 0.1 x 2      and that denorms are represented
  *
- *					  (-exp_bias+1)
+ *                          (-exp_bias+1)
  * as fractions that look like 0.fffff x 2             .  This means that
  *
- *			 -126
+ *              -126
  * the number 0.10000 x 2    , for instance, is the same as the normalized
  *
- *		-127			   -128
+ *              -127        -128
  * float 1.0 x 2    .  Thus, to represent 2    , we need one leading zero
  *
- *				  -129
+ *              -129
  * in the fraction; to represent 2    , we need two, and so on.  This
  *
- *						     (-exp_bias-fracbits+1)
+ *                          (-exp_bias-fracbits+1)
  * implies that the smallest denormalized number is 2
  *
  * for whichever format we are talking about: for single precision, for
  *
- *						-126		-149
+ *              -126        -149
  * instance, we get .00000000000000000000001 x 2    , or 1.0 x 2    , and
  *
  * -149 == -127 - 23 + 1.

@@ -1,4 +1,4 @@
-/*	$OpenBSD: errno.h,v 1.1 2005/12/28 16:33:56 millert Exp $	*/
+/*  $OpenBSD: errno.h,v 1.1 2005/12/28 16:33:56 millert Exp $   */
 
 /*
  * Copyright (c) 1982, 1986, 1989, 1993
@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)errno.h	8.5 (Berkeley) 1/21/94
+ *  @(#)errno.h 8.5 (Berkeley) 1/21/94
  */
 
 #ifndef	_ERRNO_H_
@@ -180,7 +180,7 @@ __BEGIN_DECLS
 
 #ifndef errno
 int * _TLIBC_CDECL_ __errno(void);
-#define	errno (*__errno())
+#define errno   (*__errno())
 #endif /* errno */
 __END_DECLS
 

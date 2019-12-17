@@ -1,7 +1,7 @@
 [package]
 name = "MutualRA"
 version = "1.0.0"
-authors = ["Baidu"]
+authors = ["The Teaclave Authors"]
 
 [lib]
 name = "mra"
@@ -11,12 +11,12 @@ crate-type = ["staticlib"]
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types   = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_trts    = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tstd    = { git = "https://github.com/baidu/rust-sgx-sdk.git", features = ["net", "backtrace"] }
-sgx_tcrypto = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tse     = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_rand    = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_types   = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_trts    = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tstd    = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = ["net", "backtrace"] }
+sgx_tcrypto = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tse     = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_rand    = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
 [dependencies]
 chrono = { git = "https://github.com/mesalock-linux/chrono-sgx" }
@@ -36,7 +36,7 @@ git = "https://github.com/mesalock-linux/rustls"
 branch = "mesalock_sgx"
 features = ["dangerous_configuration"]
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }
 sgx_backtrace = { path = "../../../sgx_backtrace" }
 sgx_backtrace_sys = { path = "../../../sgx_backtrace_sys" }

@@ -1,30 +1,19 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 //! This mod provides the interface connecting Rust's memory management system
 //! to the Intel's SGX SDK's malloc system.
@@ -36,6 +25,7 @@ pub use sgx_types::{int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32
 pub use sgx_types::{c_void, c_schar, c_char, c_uchar, c_short, c_ushort, c_int, c_uint, c_float,
                     c_double, c_longlong, c_ulonglong, intmax_t, uintmax_t, c_ulong, c_long};
 pub use sgx_types::{size_t, ptrdiff_t, intptr_t, uintptr_t, ssize_t};
+pub use sgx_types::time_t;
 
 use core::ptr;
 use core::mem;
@@ -131,7 +121,6 @@ pub type in_port_t = u16;
 pub type sa_family_t = u16;
 pub type socklen_t = u32;
 pub type off64_t = i64;
-pub type time_t = i64;
 pub type clockid_t = i32;
 pub type suseconds_t = i64;
 pub type dev_t = u64;
@@ -146,11 +135,16 @@ pub type uid_t = u32;
 pub type gid_t = u32;
 pub type ino64_t = u64;
 pub type nfds_t = c_ulong;
+pub type pthread_t = c_ulong;
 
 #[derive(Copy, Clone, Debug)]
 pub enum DIR {}
 
 s! {
+    #[cfg(target_arch = "x86_64")]
+    pub struct pthread_attr_t {
+       __size: [u64; 7],
+    }
     pub struct stat {
         pub st_dev: dev_t,
         pub st_ino: ino_t,
@@ -395,6 +389,16 @@ s! {
         pub d_reclen: c_ushort,
         pub d_type: c_uchar,
         pub d_name: [c_char; 256],
+    }
+
+    pub struct passwd {
+        pub pw_name: *mut c_char,
+        pub pw_passwd: *mut c_char,
+        pub pw_uid: uid_t,
+        pub pw_gid: gid_t,
+        pub pw_gecos: *mut c_char,
+        pub pw_dir: *mut c_char,
+        pub pw_shell: *mut c_char,
     }
 }
 

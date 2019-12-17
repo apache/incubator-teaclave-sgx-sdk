@@ -1,7 +1,7 @@
 [package]
 name = "Machinelearningsampleenclave"
 version = "1.0.0"
-authors = ["Baidu"]
+authors = ["The Teaclave Authors"]
 
 [lib]
 name = "machinelearningsampleenclave"
@@ -14,9 +14,9 @@ default = []
 lto = true
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_rand = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
 [dependencies]
 # Choose the instruction set by specifying "fallback", "sse", "avx", "fma"
@@ -27,7 +27,7 @@ rusty-machine = { git = "https://github.com/mesalock-linux/rusty-machine-sgx", d
 serde         = { git = "https://github.com/mesalock-linux/serde-sgx" }
 serde_json    = { git = "https://github.com/mesalock-linux/serde-json-sgx" }
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }
 sgx_backtrace = { path = "../../../sgx_backtrace" }
 sgx_backtrace_sys = { path = "../../../sgx_backtrace_sys" }

@@ -31,24 +31,24 @@ typedef __socklen_t socklen_t;
 /* Structure describing a generic socket address.  */
 struct sockaddr
 {
-    __SOCKADDR_COMMON (sa_);	/* Common data: address family and length.  */
-    char sa_data[14];		    /* Address data.  */
+    __SOCKADDR_COMMON (sa_);    /* Common data: address family and length.  */
+    char sa_data[14];           /* Address data.  */
 };
 
 struct msghdr
 {
-    void *msg_name;		    /* Address to send to/receive from.  */
-    socklen_t msg_namelen;	/* Length of address data.  */
+    void *msg_name;         /* Address to send to/receive from.  */
+    socklen_t msg_namelen;  /* Length of address data.  */
 
-    struct iovec *msg_iov;	/* Vector of data to send/receive into.  */
-    size_t msg_iovlen;		/* Number of elements in the vector.  */
+    struct iovec *msg_iov;  /* Vector of data to send/receive into.  */
+    size_t msg_iovlen;      /* Number of elements in the vector.  */
 
-    void *msg_control;		/* Ancillary data (eg BSD filedesc passing). */
-    size_t msg_controllen;	/* Ancillary data buffer length.
-				            !! The type should be socklen_t but the
+    void *msg_control;      /* Ancillary data (eg BSD filedesc passing). */
+    size_t msg_controllen;  /* Ancillary data buffer length.
+                            !! The type should be socklen_t but the
                             definition of the kernel is incompatible
                             with this.  */
-    int msg_flags;		/* Flags on received message.  */
+    int msg_flags;          /* Flags on received message.  */
 };
 
 #endif

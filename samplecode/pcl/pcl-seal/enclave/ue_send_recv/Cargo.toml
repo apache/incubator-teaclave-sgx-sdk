@@ -1,7 +1,7 @@
 [package]
 name = "ue_send_recv"
 version = "0.1.0"
-authors = ["Yu Ding <dingyu02@baidu.com>"]
+authors = ["The Teaclave Authors"]
 
 [lib]
 name = "ue_send_recv"
@@ -17,9 +17,9 @@ rustls = { git = "https://github.com/mesalock-linux/rustls", branch = "mesalock_
 cfg-if = "*"
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_tstd    = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tstd    = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_alloc = { path = "../../../../../sgx_alloc" }
 sgx_build_helper = { path = "../../../../../sgx_build_helper" }
 sgx_cov = { path = "../../../../../sgx_cov" }

@@ -1,7 +1,7 @@
 [package]
 name = "server"
 version = "1.0.0"
-authors = ["Baidu"]
+authors = ["The Teaclave Authors"]
 
 [lib]
 name = "server"
@@ -11,16 +11,16 @@ crate-type = ["staticlib"]
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", features = ["net"] }
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = ["net"] }
 
 [dependencies]
-mio = { git = "https://github.com/mesalock-linux/mio-sgx", branch = "v0.6.19_sgx1.0.8" }
+mio = { git = "https://github.com/mesalock-linux/mio-sgx", tag = "sgx_1.0.9" }
 rustls = { git = "https://github.com/mesalock-linux/rustls", branch = "mesalock_sgx" }
 webpki = { git = "https://github.com/mesalock-linux/webpki", branch = "mesalock_sgx" }
 log = { git = "https://github.com/mesalock-linux/log-sgx" }
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_alloc = { path = "../../../../sgx_alloc" }
 sgx_backtrace = { path = "../../../../sgx_backtrace" }
 sgx_backtrace_sys = { path = "../../../../sgx_backtrace_sys" }

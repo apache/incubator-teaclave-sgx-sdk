@@ -1,30 +1,19 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 use crate::types::*;
 use crate::*;
@@ -64,10 +53,8 @@ extern {
     pub fn sgx_thread_equal(a: sgx_thread_t, b: sgx_thread_t)  -> int32_t;
 }
 
-
 //#[link(name = "sgx_tservice")]
 extern {
-
     //
     // sgx_dh.h
     //
@@ -110,7 +97,6 @@ extern {
     pub fn sgx_destroy_monotonic_counter(counter_uuid: * const sgx_mc_uuid_t) -> sgx_status_t;
     pub fn sgx_increment_monotonic_counter(counter_uuid: * const sgx_mc_uuid_t, counter_value: * mut uint32_t) -> sgx_status_t;
     pub fn sgx_read_monotonic_counter(counter_uuid: * const sgx_mc_uuid_t, counter_value: * mut uint32_t) -> sgx_status_t;
-
 
     //
     // sgx_tseal.h
@@ -172,12 +158,18 @@ extern {
 
     pub fn sgx_verify_report(report: * const sgx_report_t) -> sgx_status_t;
     pub fn sgx_get_key(key_request: * const sgx_key_request_t, key: * mut sgx_key_128bit_t) -> sgx_status_t;
-}
 
+    /* intel sgx sdk 2.7.1 */
+    //
+    // sgx_secure_align_api.h
+    //
+    pub fn sgx_aligned_malloc(size: size_t, alignment: size_t, data: * const align_req_t, count: size_t) -> * mut c_void;
+    pub fn sgx_aligned_free(ptr: * mut c_void);
+    pub fn sgx_get_aligned_ptr(raw: * mut c_void, raw_size: size_t, allocate_size: size_t, alignment: size_t, data: * const align_req_t, count: size_t) -> * mut c_void;
+}
 
 //#[link(name = "sgx_tcrypto")]
 extern {
-
     //
     // sgx_tcrypto.h
     //
@@ -387,34 +379,26 @@ extern {
                                      aes_gcm_state: sgx_aes_state_handle_t) -> sgx_status_t;
 }
 
-
 //#[link(name = "sgx_tkey_exchange")]
 extern {
-
     //
     // sgx_tkey_exchange.h
     //
     pub fn sgx_ra_init(p_pub_key: * const sgx_ec256_public_t, b_pse: int32_t, p_context: * mut sgx_ra_context_t) -> sgx_status_t;
-
     pub fn sgx_ra_init_ex(p_pub_key: * const sgx_ec256_public_t,
                           b_pse: int32_t,
                           derive_key_cb: sgx_ra_derive_secret_keys_t,
                           p_context: * mut sgx_ra_context_t) -> sgx_status_t;
-
     pub fn sgx_ra_get_keys(context: sgx_ra_context_t,
                            keytype: sgx_ra_key_type_t,
                            p_key: * mut sgx_ra_key_128_t) -> sgx_status_t;
-
     pub fn sgx_ra_close(context: sgx_ra_context_t) -> sgx_status_t;
-
     pub fn sgx_ra_get_ga(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
                          context: sgx_ra_context_t, g_a: *mut sgx_ec256_public_t) -> sgx_status_t;
 }
 
-
 //#[link(name = "sgx_trts")]
 extern {
-
     //
     // sgx_trts.h
     //
@@ -424,13 +408,11 @@ extern {
     /* intel sgx sdk 2.1.2 */
     pub fn sgx_is_enclave_crashed() -> int32_t;
 
-
     //
     // sgx_trts_exception.h
     //
     pub fn sgx_register_exception_handler(is_first_handler: uint32_t,
                                           exception_handler: sgx_exception_handler_t) -> * const c_void;
-
     pub fn sgx_unregister_exception_handler(handler: * const c_void) -> uint32_t;
 
     //
@@ -440,12 +422,10 @@ extern {
     pub fn sgx_ocfree();
 }
 
-
-//#[link(name = "sgx_uae_service")]
+//#[link(name = "sgx_epid")]
 extern {
-
     //
-    // sgx_uae_service.h
+    // sgx_uae_epid.h
     //
     pub fn sgx_init_quote(p_target_info: * mut sgx_target_info_t, p_gid: * mut sgx_epid_group_id_t) -> sgx_status_t;
 
@@ -463,11 +443,7 @@ extern {
                          p_quote: * mut sgx_quote_t,
                          quote_size: uint32_t) -> sgx_status_t;
 
-    pub fn sgx_get_ps_cap(p_sgx_ps_cap: * mut sgx_ps_cap_t) -> sgx_status_t;
-    pub fn sgx_get_whitelist_size(p_whitelist_size: * mut uint32_t) -> sgx_status_t;
-    pub fn sgx_get_whitelist(p_whitelist: * mut uint8_t, whitelist_size: uint32_t) -> sgx_status_t;
     pub fn sgx_get_extended_epid_group_id(p_extended_epid_group_id: * mut uint32_t) -> sgx_status_t;
-
     pub fn sgx_report_attestation_status(p_platform_info: * const sgx_platform_info_t,
                                          attestation_status: int32_t,
                                          p_update_info: * mut sgx_update_info_bit_t) -> sgx_status_t;
@@ -477,10 +453,35 @@ extern {
                                    p_update_info: * mut sgx_update_info_bit_t,
                                    config: uint32_t,
                                    p_status: * mut uint32_t) -> sgx_status_t;
+}
+
+//#[link(name = "sgx_launch")]
+extern {
+    //
+    // sgx_uae_launch.h
+    //
+
+    pub fn sgx_get_whitelist_size(p_whitelist_size: * mut uint32_t) -> sgx_status_t;
+    pub fn sgx_get_whitelist(p_whitelist: * mut uint8_t, whitelist_size: uint32_t) -> sgx_status_t;
 
     /* intel sgx sdk 2.1 */
     pub fn sgx_register_wl_cert_chain(p_wl_cert_chain: * const uint8_t,
                                       wl_cert_chain_size: uint32_t) -> sgx_status_t;
+}
+
+//#[link(name = "sgx_platform")]
+extern {
+    //
+    // sgx_uae_platform.h
+    //
+    pub fn sgx_get_ps_cap(p_sgx_ps_cap: * mut sgx_ps_cap_t) -> sgx_status_t;
+}
+
+//#[link(name = "sgx_quote_ex")]
+extern {
+    //
+    // sgx_uae_quote_ex.h
+    //
 
     /* intel sgx sdk 2.5 */
     pub fn sgx_select_att_key_id(p_att_key_id_list: * const uint8_t,
@@ -501,10 +502,19 @@ extern {
                             quote_size: uint32_t) -> sgx_status_t;
 }
 
+//#[link(name = "sgx_uae_service")]
+extern {
+    //
+    // sgx_uae_service.h
+    //
+
+    // intel sgx sdk 2.7
+    // Split libsgx_uae_service.so to libsgx_epid.so, libsgx_launch.so, libsgx_platform.so and libsgx_quote_ex.so.
+    //
+}
 
 //#[link(name = "sgx_ukey_exchange")]
 extern {
-
     //
     // sgx_ukey_exchange.h
     //
@@ -543,7 +553,6 @@ extern {
 
 //#[link(name = "sgx_urts")]
 extern {
-
     //
     // sgx_urts.h
     //
@@ -591,7 +600,6 @@ extern {
 /* intel sgx sdk 1.9 */
 //#[link(name = "sgx_tprotected_fs")]
 extern {
-
     //
     // sgx_tprotected_fs.h
     //
@@ -627,7 +635,9 @@ extern {
 /* intel sgx sdk 2.0 */
 //#[link(name = "sgx_capable")]
 extern {
-
+    //
+    // sgx_capable.h
+    //
     pub fn sgx_is_capable(sgx_capable: * mut int32_t) -> sgx_status_t;
     pub fn sgx_cap_enable_device(sgx_device_status: * mut sgx_device_status_t) -> sgx_status_t;
     pub fn sgx_cap_get_status(sgx_device_status: * mut sgx_device_status_t) -> sgx_status_t;
@@ -635,7 +645,6 @@ extern {
 
 //#[link(name = "sgx_pce_wrapper")]
 extern {
-
     //
     // sgx_pce.h
     //
@@ -662,7 +671,6 @@ extern {
 
 //#[link(name = "sgx_dcap_ql")]
 extern {
-
     //
     // sgx_dcap_ql_wrapper.h
     //
@@ -671,4 +679,63 @@ extern {
     pub fn sgx_qe_get_quote_size(p_quote_size: * mut uint32_t) -> sgx_quote3_error_t;
     pub fn sgx_qe_get_quote(p_app_report: * const sgx_report_t, quote_size: uint32_t, p_quote: * mut uint8_t) -> sgx_quote3_error_t;
     pub fn sgx_qe_cleanup_by_policy() -> sgx_quote3_error_t;
+}
+
+//#[link(name = "dcap_quoteprov")]
+extern {
+    //
+    // sgx_default_quote_provider.h
+    //
+    pub fn sgx_ql_get_quote_config(p_pck_cert_id: * const sgx_ql_pck_cert_id_t, pp_quote_config: * mut * mut sgx_ql_config_t) -> sgx_quote3_error_t;
+    pub fn sgx_ql_free_quote_config(p_quote_config: * const sgx_ql_config_t) -> sgx_quote3_error_t;
+    pub fn sgx_ql_get_quote_verification_collateral(fmspc: * const uint8_t,
+                                                    fmspc_size: uint16_t,
+                                                    pck_ra: * const char,
+                                                    pp_quote_collateral: * mut * mut sgx_ql_qve_collateral_t) -> sgx_quote3_error_t;
+    pub fn sgx_ql_free_quote_verification_collateral(p_quote_collateral: * const sgx_ql_qve_collateral_t) -> sgx_quote3_error_t;
+    pub fn sgx_ql_get_qve_identity(pp_qve_identity: * mut * mut char,
+                                   p_qve_identity_size: * mut uint32_t,
+                                   pp_qve_identity_issuer_chain: * mut * mut char,
+                                   p_qve_identity_issuer_chain_size: * mut uint32_t) -> sgx_quote3_error_t;
+    pub fn sgx_ql_free_qve_identity(p_qve_identity: * const char, p_qve_identity_issuer_chain: * const char) -> sgx_quote3_error_t;
+}
+
+//#[link(name = "sgx_default_qcnl_wrapper")]
+extern {
+    //
+    // sgx_default_qcnl_wrapper.h
+    //
+    pub fn sgx_qcnl_get_pck_cert_chain(p_pck_cert_id: * const sgx_ql_pck_cert_id_t, pp_quote_config: * mut * mut sgx_ql_config_t) -> sgx_qcnl_error_t;
+    pub fn sgx_qcnl_free_pck_cert_chain(p_quote_config: * const sgx_ql_config_t);
+    pub fn sgx_qcnl_get_pck_crl_chain(ca: * const char, ca_size: uint16_t, p_crl_chain: * mut * mut uint8_t, p_crl_chain_size: * mut uint16_t) -> sgx_qcnl_error_t;
+    pub fn sgx_qcnl_free_pck_crl_chain(p_crl_chain: * const uint8_t);
+    pub fn sgx_qcnl_get_tcbinfo(fmspc: * const char, fmspc_size: uint16_t, p_tcbinfo: * mut * mut uint8_t, p_tcbinfo_size: * mut uint16_t) -> sgx_qcnl_error_t;
+    pub fn sgx_qcnl_free_tcbinfo(p_tcbinfo: * const uint8_t);
+    pub fn sgx_qcnl_get_qe_identity(qe_type: uint8_t, p_qe_identity: * mut * mut uint8_t, p_qe_identity_size: * mut uint16_t) -> sgx_qcnl_error_t;
+    pub fn sgx_qcnl_free_qe_identity(p_qe_identity: * const uint8_t);
+    pub fn sgx_qcnl_get_qve_identity(pp_qve_identity: * mut * mut char,
+                                     p_qve_identity_size: * mut uint32_t,
+                                     pp_qve_identity_issuer_chain: * mut * mut char,
+                                     p_qve_identity_issuer_chain_size: * mut uint32_t) -> sgx_qcnl_error_t;
+    pub fn sgx_qcnl_free_qve_identity(p_qve_identity: * const char, p_qve_identity_issuer_chain: * const char);
+    pub fn sgx_qcnl_get_root_ca_crl(p_root_ca_crl: * mut * mut uint8_t, p_root_ca_cal_size: * mut uint16_t) -> sgx_qcnl_error_t;
+    pub fn sgx_qcnl_free_root_ca_crl(p_root_ca_crl: * const uint8_t);
+}
+
+//#[link(name = "dcap_quoteverify")]
+extern {
+    //
+    // sgx_dcap_quoteverify.h
+    //
+    pub fn sgx_qv_verify_quote(p_quote: * const uint8_t,
+                               quote_size: uint32_t,
+                               p_quote_collateral: * const sgx_ql_qve_collateral_t,
+                               expiration_check_date: time_t,
+                               p_collateral_expiration_status: * mut uint32_t,
+                               p_quote_verification_result: * mut sgx_ql_qv_result_t,
+                               p_qve_report_info: * mut sgx_ql_qe_report_info_t,
+                               supplemental_data_size: uint32_t,
+                               p_supplemental_data: * mut uint8_t) -> sgx_quote3_error_t;
+    pub fn sgx_qv_get_quote_supplemental_data_size(p_data_size: * mut uint32_t) -> sgx_quote3_error_t;
+    pub fn sgx_qv_set_enclave_load_policy(policy: sgx_ql_request_policy_t) -> sgx_quote3_error_t;
 }

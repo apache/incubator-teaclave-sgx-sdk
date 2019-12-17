@@ -3,29 +3,37 @@
 [![Gitter](https://badges.gitter.im/rust-sgx-sdk/community.svg)](https://gitter.im/rust-sgx-sdk/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 # Rust SGX SDK
-Rust SGX SDK helps developers write Intel SGX applications in Rust programming language. [[Paper pdf]](documents/ccsp17.pdf)
+Rust SGX SDK helps developers write Intel SGX applications in Rust programming language. [[CCS'17 Paper pdf]](documents/ccsp17.pdf) [[CCS'19 Paper pdf]](https://dingelish.com/ccs19.pdf)
 
-Good news! Our paper "Towards Memory Safety for Enclave Programs with Rust-SGX" has been accepted in ACM CCS'19. See you guys in London!
+Good News! Our paper "Building and Maintaining a Third-Party Library Supply Chain for Productive and Secure SGX Enclave Development" has been accepted by ICSE'20 SEIP track. See you guys in Seoul!
 
 We open-sourced [gbdt-rs](https://github.com/mesalock-linux/gbdt-rs), a light-weight, amazingly fast, memory safe, and trustworthy gradient boosting decision tree implementation and the [paper](documents/gbdt.pdf) has been accepted by IEEE S&P'19! It is optimized for SGX!
 
-To achieve better security, we recommend developers to apply [Non-bypassable Security Paradigm (NbSP)](https://github.com/baidu/rust-sgx-sdk/blob/master/documents/nbsp.pdf) to the system design and implementation.
+To achieve better security, we recommend developers to apply [Non-bypassable Security Paradigm (NbSP)](https://github.com/apache/teaclave-sgx-sdk/blob/master/documents/nbsp.pdf) to the system design and implementation.
 
-To help understand this project and know how to use it, we are writing some [wiki](https://github.com/baidu/rust-sgx-sdk/wiki) articles. Please [send me an email](mailto:rustsgx@gmail.com?subject=Wiki%20page%20needed:) if you'd like to see other topics. We'll add it as soon as possible.
+To help understand this project and know how to use it, we are writing some [wiki](https://github.com/apache/teaclave-sgx-sdk/wiki) articles. Please [send me an email](mailto:rustsgx@gmail.com?subject=Wiki%20page%20needed:) if you'd like to see other topics. We'll add it as soon as possible.
 
 Current wiki pages:
 
-* [The World of Forked crates](https://github.com/baidu/rust-sgx-sdk/wiki/The-World-of-Forked-crates) introduces the forked crate ecosystem, and provides some guidelines and usage, and show how we secure them.
+* [Mitigation of Intel SA 00219 in Rust SGX](https://github.com/apache/incubator-mesatee-sgx/wiki/Mitigation-of-Intel-SA-00219-in-Rust-SGX)
 
-* [Setup gdb 7.11 on Ubuntu 18.04 for VSCode sgx-gdb remote debugging](https://github.com/baidu/rust-sgx-sdk/wiki/Setup-gdb-7.11-on-Ubuntu-18.04-for-VSCode---sgx-gdb-remote-debugging) If you encounter errors like `gdb.error: syntax error in expression, near )0x7ffff4127370 = 0.`, probably you need to follow this instruction to setup gdb 7. Thanks to @akoskinas for this great instruction!
+* [`is_x86_feature_detected` in Rust SGX SDK](https://github.com/apache/incubator-mesatee-sgx/wiki/%60is_x86_feature_detected%60-in-Rust-SGX-SDK)
 
-* [Performance Optimization Tips](https://github.com/baidu/rust-sgx-sdk/wiki/Performance-Optimization-Tips)
+* [The World of Forked crates](https://github.com/apache/teaclave-sgx-sdk/wiki/The-World-of-Forked-crates) introduces the forked crate ecosystem, and provides some guidelines and usage, and show how we secure them.
 
-* [Use VSCode rls+rust-analysis+sgx-gdb for graphic developing (not in docker)](https://github.com/baidu/rust-sgx-sdk/wiki/Use-VSCode---rls---rust-analysis---sgx-gdb-for-graphic-developing-(not-in-docker))
+* [Setup gdb 7.11 on Ubuntu 18.04 for VSCode sgx-gdb remote debugging](https://github.com/apache/teaclave-sgx-sdk/wiki/Setup-gdb-7.11-on-Ubuntu-18.04-for-VSCode---sgx-gdb-remote-debugging) If you encounter errors like `gdb.error: syntax error in expression, near )0x7ffff4127370 = 0.`, probably you need to follow this instruction to setup gdb 7. Thanks to @akoskinas for this great instruction!
 
-* [Debugging local enclave in docker](https://github.com/baidu/rust-sgx-sdk/wiki/Debugging-a-local-Rust-SGX-enclave-in-docker-with-sgx-gdb)
+* [Performance Optimization Tips](https://github.com/apache/teaclave-sgx-sdk/wiki/Performance-Optimization-Tips)
 
-* Everything about [environment setup](https://github.com/baidu/rust-sgx-sdk/wiki/Environment-Setup)
+* [Use VSCode rls+rust-analysis+sgx-gdb for graphic developing (not in docker)](https://github.com/apache/teaclave-sgx-sdk/wiki/Use-VSCode---rls---rust-analysis---sgx-gdb-for-graphic-developing-(not-in-docker))
+
+* [Debugging local enclave in docker](https://github.com/apache/teaclave-sgx-sdk/wiki/Debugging-a-local-Rust-SGX-enclave-in-docker-with-sgx-gdb)
+
+* Everything about [environment setup](https://github.com/apache/teaclave-sgx-sdk/wiki/Environment-Setup)
+
+## v1.1.0
+
+Supports Intel SGX SDK v2.7.1, and Rust nightly-2019-11-25. v1.1.0 brings up dynamic static supports by `thread::spawn`, and almost everything of `std::sync`. Also v1.1.0 benefits from Intel SGX SDK's aligned memory allocation primitives to mitigate [INTEL-SA-00219](https://github.com/apache/incubator-mesatee-sgx/wiki/Mitigation-of-Intel-SA-00219-in-Rust-SGX). Besides, we enabled [`is_x86_feature_detected!`](https://github.com/apache/incubator-mesatee-sgx/wiki/%60is_x86_feature_detected%60-in-Rust-SGX-SDK) by parsing a hidden global CPU feature indicator initialized by Intel SGX urts/trts. And we provided Dockerfile for Fedora 27. For detailed information, please refer to [release_notes](release_notes.md) for more details.
 
 ## v1.0.9 Release
 
@@ -64,7 +72,7 @@ This version supports Rust nightly build (nightly-2018-10-01) in the master bran
 This version supports the Rust nightly build (nightly-2018-07-16) in master branch and the most recent Rust stable build (stable-2018-07-10). And it supports the latest Intel SGX SDK **v2.2**. New third party libraries include: bytes, http, iovec, rust-crypto, rust-fnv and rust-threshold-secret-sharing. New code sample 'secretsharing' and 'rust-threshold-secret-sharing' is provided by @davidp94. Please refer to [release_notes](release_notes.md) for further details.
 
 ## v1.0.0 Release
-We proudly announce v1.0.0 of rust-sgx-sdk! We port Parity's [Webassembly Interpreter](https://github.com/paritytech/wasmi) to Intel SGX and provide a full functional in-enclave [wasmi sample](samplecode/wasmi), and a [sample solution](samplecode/psi) of two-party private-set-intersection resisting side-channel attacks! From this version, we start to support most recent stable branch of Rust instead of nightly for better stability and future production use. Thus, the [stable branch](https://github.com/baidu/rust-sgx-sdk/tree/rust-stable) of v1.0.0 supports the most recent Rust stable toolchain (1.26.0 stable-2018-05-07), while the master only supports Rust nightly toolchain of nightly-2018-04-11. Please refer to [release_notes](release_notes.md) for further details.
+We proudly announce v1.0.0 of rust-sgx-sdk! We port Parity's [Webassembly Interpreter](https://github.com/paritytech/wasmi) to Intel SGX and provide a full functional in-enclave [wasmi sample](samplecode/wasmi), and a [sample solution](samplecode/psi) of two-party private-set-intersection resisting side-channel attacks! From this version, we start to support most recent stable branch of Rust instead of nightly for better stability and future production use. Thus, the [stable branch](https://github.com/apache/teaclave-sgx-sdk/tree/rust-stable) of v1.0.0 supports the most recent Rust stable toolchain (1.26.0 stable-2018-05-07), while the master only supports Rust nightly toolchain of nightly-2018-04-11. Please refer to [release_notes](release_notes.md) for further details.
 
 ## v0.9.8 Release
 This version provides security updates regards to recent Spectre attacks in Intel SGX, and supports **Rust stable (2018-03-01)** (in branch named 'rust-stable'). It contains support of [Intel SGX SDK 2.1.2](https://download.01.org/intel-sgx/linux-2.1.2/) and a series of API functions to stop speculative execution on demand. In addition, we provide a ported version of [rust-protobuf](https://crates.io/crates/protobuf) v1.4.4. Please refer to [release_notes](release_notes.md) for further details.
@@ -237,8 +245,6 @@ Baidu Rust-SGX SDK is provided under the BSD license. Please refer to the [Licen
 # Authors
 
 Ran Duan, Long Li, Shi Jia, Yu Ding, Yulong Zhang, Yueqiang Cheng, Lenx Wei, Tanghui Chen
-
-![Baidu X-Lab Logo](https://raw.githubusercontent.com/baidu/rust-sgx-sdk/master/logo_25.png)
 
 # Acknowledgement
 

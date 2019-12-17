@@ -1,3 +1,3 @@
 # Note
 
-Please visit our [homepage](https://github.com/baidu/rust-sgx-sdk) for usage. Thanks!
+Please visit our [homepage](https://github.com/apache/teaclave-sgx-sdk) for usage. Thanks!

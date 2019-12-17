@@ -1,30 +1,19 @@
-// Copyright (C) 2017-2019 Baidu, Inc. All Rights Reserved.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in
-//    the documentation and/or other materials provided with the
-//    distribution.
-//  * Neither the name of Baidu, Inc., nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 //use core::mem;
 //use core::sync::atomic::{AtomicPtr, Ordering};
@@ -78,7 +67,7 @@ pub fn create_session(src_enclave_id: sgx_enclave_id_t, dest_enclave_id: sgx_enc
 
     let mut dh_msg1: SgxDhMsg1 = SgxDhMsg1::default(); //Diffie-Hellman Message 1
     let mut dh_msg2: SgxDhMsg2 = SgxDhMsg2::default(); //Diffie-Hellman Message 2
-    let mut dh_aek: sgx_key_128bit_t = sgx_key_128bit_t::default(); // Session Key
+    let mut dh_aek: sgx_align_key_128bit_t = sgx_align_key_128bit_t::default(); // Session Key
     let mut responder_identity: sgx_dh_session_enclave_identity_t = sgx_dh_session_enclave_identity_t::default();
     let mut ret = 0;
 
@@ -114,7 +103,7 @@ pub fn create_session(src_enclave_id: sgx_enclave_id_t, dest_enclave_id: sgx_enc
     }
     let dh_msg3 = dh_msg3.unwrap();
 
-    let status = initiator.proc_msg3(&dh_msg3, &mut dh_aek, &mut responder_identity);
+    let status = initiator.proc_msg3(&dh_msg3, &mut dh_aek.key, &mut responder_identity);
     if status.is_err() {
         return ATTESTATION_STATUS::ATTESTATION_ERROR;
     }
@@ -169,7 +158,7 @@ pub extern "C" fn session_request(src_enclave_id: sgx_enclave_id_t, dh_msg1: *mu
 #[allow(unused_variables)]
 fn exchange_report_safe(src_enclave_id: sgx_enclave_id_t, dh_msg2: &mut sgx_dh_msg2_t , dh_msg3: &mut sgx_dh_msg3_t, session_info: &mut DhSessionInfo) -> ATTESTATION_STATUS {
 
-    let mut dh_aek = sgx_key_128bit_t::default() ;   // Session key
+    let mut dh_aek = sgx_align_key_128bit_t::default() ;   // Session key
     let mut initiator_identity = sgx_dh_session_enclave_identity_t::default();
 
     let mut responder = match session_info.session.session_status {
@@ -180,7 +169,7 @@ fn exchange_report_safe(src_enclave_id: sgx_enclave_id_t, dh_msg2: &mut sgx_dh_m
     };
 
     let mut dh_msg3_r = SgxDhMsg3::default();
-    let status = responder.proc_msg2(dh_msg2, &mut dh_msg3_r, &mut dh_aek, &mut initiator_identity);
+    let status = responder.proc_msg2(dh_msg2, &mut dh_msg3_r, &mut dh_aek.key, &mut initiator_identity);
     if status.is_err() {
         return ATTESTATION_STATUS::ATTESTATION_ERROR;
     }
