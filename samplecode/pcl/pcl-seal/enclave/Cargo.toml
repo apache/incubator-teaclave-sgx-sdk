@@ -11,12 +11,12 @@ crate-type = ["staticlib"]
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types       = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tstd        = { git = "https://github.com/baidu/rust-sgx-sdk.git", features = ["net"] }
-sgx_tcrypto     = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tse         = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_rand        = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tseal       = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_types       = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tstd        = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = ["net"] }
+sgx_tcrypto     = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tse         = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_rand        = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tseal       = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
 [dependencies]
 chrono          = { git = "https://github.com/mesalock-linux/chrono-sgx" }
@@ -31,7 +31,7 @@ rustls          = { git = "https://github.com/mesalock-linux/rustls", branch = "
 webpki-roots    = { git = "https://github.com/mesalock-linux/webpki-roots", branch = "mesalock_sgx" }
 ue_send_recv    = { path = "ue_send_recv" }
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_alloc = { path = "../../../../sgx_alloc" }
 sgx_build_helper = { path = "../../../../sgx_build_helper" }
 sgx_cov = { path = "../../../../sgx_cov" }

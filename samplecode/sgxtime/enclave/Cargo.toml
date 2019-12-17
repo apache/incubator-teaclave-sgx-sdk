@@ -11,11 +11,11 @@ crate-type = ["staticlib"]
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tservice = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tservice = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }
 sgx_backtrace = { path = "../../../sgx_backtrace" }
 sgx_backtrace_sys = { path = "../../../sgx_backtrace_sys" }

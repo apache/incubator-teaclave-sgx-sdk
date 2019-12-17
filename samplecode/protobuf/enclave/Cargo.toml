@@ -17,7 +17,7 @@ sgx_tstd = { path = "../../../sgx_tstd" }
 [dependencies]
 protobuf = { git = "https://github.com/mesalock-linux/rust-protobuf-sgx", branch = "v2.8" }
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_alloc = { path = "../../../sgx_alloc" }
 sgx_backtrace = { path = "../../../sgx_backtrace" }
 sgx_backtrace_sys = { path = "../../../sgx_backtrace_sys" }

@@ -5,14 +5,14 @@ authors = ["The Teaclave Authors"]
 build = "build.rs"
 
 [dependencies]
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 wabt = "0.6.0"
 serde = {version = "1.0"}
 serde_json = {version = "1.0"}
 serde_derive = {version = "1.0"}
 nan-preserving-float = "0.1.0"
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_types = { path = "../../../sgx_types" }
 sgx_urts = { path = "../../../sgx_urts" }

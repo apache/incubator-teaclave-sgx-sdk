@@ -8,12 +8,12 @@ chrono      = "0.4.5"
 webpki      = "0.21"
 rustls      = { version = "0.16",features = ["dangerous_configuration"] }
 itertools   = "*"
-sgx_types   =  { git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_types   =  { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 base64      = "0.9.2"
 serde_json  = "1.0"
 num-bigint  = "*"
 bit-vec     = "*"
 hex         = "*"
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_types = { path = "../../../sgx_types" }

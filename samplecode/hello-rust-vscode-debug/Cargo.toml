@@ -5,7 +5,7 @@ members = [
     "enclave",
 ]
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_alloc = { path = "../../sgx_alloc" }
 sgx_build_helper = { path = "../../sgx_build_helper" }
 sgx_cov = { path = "../../sgx_cov" }

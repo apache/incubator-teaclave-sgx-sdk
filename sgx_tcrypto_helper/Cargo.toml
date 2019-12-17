@@ -2,7 +2,7 @@
 name = "sgx_tcrypto_helper"
 version = "1.1.0"
 authors = ["The Teaclave Authors"]
-repository = "https://github.com/baidu/rust-sgx-sdk"
+repository = "https://github.com/apache/teaclave-sgx-sdk"
 license-file = "LICENSE"
 documentation = "https://dingelish.github.io/"
 description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
@@ -18,9 +18,9 @@ default = ["mesalock_sgx"]
 mesalock_sgx = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_tcrypto = { rev = "v1.1.0", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_tstd    = { rev = "v1.1.0", git = "https://github.com/baidu/rust-sgx-sdk.git" }
-sgx_types   = { rev = "v1.1.0", git = "https://github.com/baidu/rust-sgx-sdk.git" }
+sgx_tcrypto = { rev = "v1.1.0", git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tstd    = { rev = "v1.1.0", git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_types   = { rev = "v1.1.0", git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
 [dependencies]
 serde = { git = "https://github.com/mesalock-linux/serde-sgx" }
@@ -28,7 +28,7 @@ serde_derive = { git = "https://github.com/mesalock-linux/serde-sgx" }
 itertools = { version = "*", default-features = false }
 serde-big-array = { git = "https://github.com/mesalock-linux/serde-big-array-sgx" }
 
-[patch.'https://github.com/baidu/rust-sgx-sdk.git']
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_alloc = { path = "../sgx_alloc" }
 sgx_backtrace = { path = "../sgx_backtrace" }
 sgx_backtrace_sys = { path = "../sgx_backtrace_sys" }
