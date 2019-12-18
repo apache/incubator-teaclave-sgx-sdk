@@ -5,7 +5,7 @@ authors = ["The Teaclave Authors"]
 
 [dependencies]
 wasmi = { git = "https://github.com/mesalock-linux/wasmi-sgx" }
-wabt = { git = "https://github.com/mesalock-linux/wabt-rs-sgx", branch = "v0.6.0-core" }
+wabt = { git = "https://github.com/mesalock-linux/wabt-rs-sgx", branch = "v0.9-core" }
 serde = { git = "https://github.com/mesalock-linux/serde-sgx" }
 serde_derive = { git = "https://github.com/mesalock-linux/serde-sgx" }
 

@@ -152,6 +152,7 @@ pub fn spec_to_runtime_value(value: Value) -> RuntimeValue {
         Value::I64(v) => RuntimeValue::I64(v),
         Value::F32(v) => RuntimeValue::F32(v.into()),
         Value::F64(v) => RuntimeValue::F64(v.into()),
+        _             => panic!("Not supported yet!"),
     }
 }
 
