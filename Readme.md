@@ -240,7 +240,7 @@ We provide eighteen sample codes to help developers understand how to write Encl
 
 # License
 
-Baidu Rust-SGX SDK is provided under the BSD license. Please refer to the [License file](LICENSE) for details.
+The Apache Teaclave Rust-SGX SDK is provided under the Apache license. Please refer to the [License file](LICENSE) for details.
 
 # Authors
 
