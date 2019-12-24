@@ -20,6 +20,7 @@ pub use core::marker::Copy;
 pub use core::default::Default;
 pub use core::ptr;
 pub use core::mem::transmute;
+pub use core::mem::size_of;
 pub use crate::marker::ContiguousMemory;
 
 #[macro_export]
@@ -109,10 +110,10 @@ macro_rules! impl_struct {
 }
 
 macro_rules! impl_struct_default {
-    ($($t:ty, $size:expr;)*) => {$(
+    ($($t:ty;)*) => {$(
         impl Default for $t {
             fn default() -> $t {
-                unsafe{macros::transmute([0u8; $size])}
+                unsafe{macros::transmute([0u8; macros::size_of::<$t>()])}
             }
         }
     )*}
