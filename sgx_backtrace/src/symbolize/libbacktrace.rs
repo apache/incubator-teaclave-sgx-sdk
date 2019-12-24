@@ -343,6 +343,15 @@ pub unsafe fn resolve(what: ResolveWhat, cb: &mut dyn FnMut(&super::Symbol)) {
 static mut ENCLAVE_PATH: Option<CString> = None;
 
 pub fn set_enclave_path(path: &str) -> bool {
+    #[cfg(feature = "std")]
+    {
+        use std::path::Path;
+        use std::untrusted::path::PathEx;
+        let p: &Path = path.as_ref();
+        if !p.exists() {
+            return false;
+        }
+    }
     unsafe {
         if ENCLAVE_PATH.is_none() {
             match CString::new(path) {
