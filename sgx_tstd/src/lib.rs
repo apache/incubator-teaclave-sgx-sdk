@@ -71,6 +71,7 @@
 #![feature(log_syntax)]
 #![feature(maybe_uninit_ref)]
 #![feature(needs_panic_runtime)]
+#![feature(never_type)]
 #![feature(optin_builtin_traits)]
 #![feature(prelude_import)]
 #![feature(ptr_internals)]

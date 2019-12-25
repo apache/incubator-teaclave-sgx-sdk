@@ -262,7 +262,7 @@ fn continue_panic_fmt(info: &PanicInfo<'_>) -> ! {
     }
 
     unsafe impl<'a> BoxMeUp for PanicPayload<'a> {
-        fn box_me_up(&mut self) -> *mut (dyn Any + Send) {
+        fn take_box(&mut self) -> *mut (dyn Any + Send) {
             let contents = mem::take(self.fill());
             Box::into_raw(Box::new(contents))
         }
@@ -310,7 +310,7 @@ pub fn begin_panic<M: Any + Send>(msg: M, file_line_col: &(&'static str, u32, u3
     }
 
     unsafe impl<A: Send + 'static> BoxMeUp for PanicPayload<A> {
-        fn box_me_up(&mut self) -> *mut (dyn Any + Send) {
+        fn take_box(&mut self) -> *mut (dyn Any + Send) {
             let data = match self.inner.take() {
                 Some(a) => Box::new(a) as Box<dyn Any + Send>,
                 None => Box::new(()),
@@ -380,7 +380,7 @@ pub fn update_count_then_panic(msg: Box<dyn Any + Send>) -> ! {
     struct RewrapBox(Box<dyn Any + Send>);
 
     unsafe impl BoxMeUp for RewrapBox {
-        fn box_me_up(&mut self) -> *mut (dyn Any + Send) {
+        fn take_box(&mut self) -> *mut (dyn Any + Send) {
             Box::into_raw(mem::replace(&mut self.0, Box::new(())))
         }
 
