@@ -16,6 +16,7 @@ exclude = [
     "libunwind/INSTALL",
     "libunwind/Makefile.in",
     "libunwind/src/Makefile.in",
+    "libunwind/include/config.h.in*",
 ]
 
 [lib]
