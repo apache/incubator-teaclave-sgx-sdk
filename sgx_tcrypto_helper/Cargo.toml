@@ -10,7 +10,6 @@ edition = "2018"
 
 [lib]
 name = "sgx_tcrypto_helper"
-path = "../sgx_crypto_helper/src/lib.rs"
 crate-type = ["staticlib","rlib"]
 
 [features]
