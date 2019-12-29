@@ -18,8 +18,8 @@
 //! # Cryptography Library Helper
 //!
 //! This crate provides helper functions to simplify key distribution and
-//! encryption/decryption. It utilizes sgx_tcrypto and sgx_ucrypto to provide
-//! a uniform interface to both enclave and untrusted app. It provides key
+//! encryption/decryption. It utilizes sgx_tcrypto to provide
+//! a interface to enclave app. It provides key
 //! serialization/deserialization by serde.
 //!
 //! The Intel(R) Software Guard Extensions SDK includes a trusted cryptography
