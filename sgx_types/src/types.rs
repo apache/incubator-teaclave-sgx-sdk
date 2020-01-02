@@ -1419,18 +1419,26 @@ impl_struct_ContiguousMemory! {
 }
 
 impl_enum! {
+    // The SGX_QL_MK_ERROR in qve_header.h has the same name as it in
+    // sgx_ql_lib_common.h, so it will never be defined as (0x0000A000|(x)).
+    // As a workaround, to make the enum consistent with the current released
+    // DCAP, we define the result in (0x0000E000|(x)).
+    //
+    // https://github.com/intel/SGXDataCenterAttestationPrimitives/pull/61
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
     pub enum sgx_ql_qv_result_t {
         SGX_QL_QV_RESULT_OK                         = 0x0000_0000,
-//      SGX_QL_QV_RESULT_MIN                        = 0x0000_A001,
-        SGX_QL_QV_RESULT_CONFIG_NEEDED              = 0x0000_A001,
-        SGX_QL_QV_RESULT_OUT_OF_DATE                = 0x0000_A002,
-        SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED  = 0x0000_A003,
-        SGX_QL_QV_RESULT_INVALID_SIGNATURE          = 0x0000_A004,
-        SGX_QL_QV_RESULT_REVOKED                    = 0x0000_A005,
-        SGX_QL_QV_RESULT_UNSPECIFIED                = 0x0000_A006,
-        SGX_QL_QV_RESULT_MAX                        = 0x0000_A0FF,
+        // Same value of the enum definition in qve_header.h
+        // https://github.com/intel/SGXDataCenterAttestationPrimitives/blob/c2bab2b3ccd80e45dbd5b7bf61d28f92a96d776e/QuoteVerification/QvE/Include/qve_header.h#L91
+        // SGX_QL_QV_RESULT_MIN                        = 0x0000_E001,
+        SGX_QL_QV_RESULT_CONFIG_NEEDED              = 0x0000_E001,
+        SGX_QL_QV_RESULT_OUT_OF_DATE                = 0x0000_E002,
+        SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED  = 0x0000_E003,
+        SGX_QL_QV_RESULT_INVALID_SIGNATURE          = 0x0000_E004,
+        SGX_QL_QV_RESULT_REVOKED                    = 0x0000_E005,
+        SGX_QL_QV_RESULT_UNSPECIFIED                = 0x0000_E006,
+        SGX_QL_QV_RESULT_MAX                        = 0x0000_E0FF,
     }
 }
 
