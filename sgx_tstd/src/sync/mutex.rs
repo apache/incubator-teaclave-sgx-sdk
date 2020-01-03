@@ -801,9 +801,12 @@ impl<T: ?Sized> DerefMut for SgxMutexGuard<'_, T> {
 impl<T: ?Sized> Drop for SgxMutexGuard<'_, T> {
     #[inline]
     fn drop(&mut self) {
-        unsafe {
+        let result = unsafe {
             self.__lock.poison.done(&self.__poison);
-            self.__lock.inner.unlock();
+            self.__lock.inner.unlock()
+        };
+        if let Err(err) = result {
+            panic!("Error when unlocking an SgxMutex: {}", err);
         }
     }
 }
