@@ -22,6 +22,7 @@ pipe = []
 thread = []
 untrusted_fs = []
 untrusted_time = []
+occlum = ["sgx_tprotected_fs/occlum", "sgx_types/occlum"]
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { path = "../sgx_types" }

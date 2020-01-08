@@ -13,5 +13,6 @@ name = "sgx_types"
 
 [features]
 default = []
+occlum = []
 
 [dependencies]

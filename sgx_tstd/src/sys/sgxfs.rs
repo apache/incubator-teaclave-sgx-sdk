@@ -16,6 +16,8 @@
 // under the License..
 
 use sgx_types::{sgx_status_t, sgx_key_128bit_t, sgx_align_key_128bit_t};
+#[cfg(feature = "occlum")]
+use sgx_types::sgx_aes_gcm_128bit_tag_t;
 use sgx_trts::libc;
 use sgx_tprotected_fs::{self, SgxFileStream};
 use crate::os::unix::prelude::*;
@@ -76,7 +78,12 @@ impl SgxFile {
         let path = cstr(path)?;
         let mode = opts.get_access_mode()?;
         let opts = CString::new(mode.as_bytes())?;
-        SgxFile::open_c(&path, &opts, &sgx_key_128bit_t::default(), true)
+
+        #[cfg(not(feature = "occlum"))]
+        return SgxFile::open_c(&path, &opts, &sgx_key_128bit_t::default(), true);
+
+        #[cfg(feature = "occlum")]
+        return SgxFile::open_c(&path, &opts, &sgx_key_128bit_t::default(), true, false);
     }
 
     pub fn open_ex(path: &Path, opts: &OpenOptions, key: &sgx_key_128bit_t) -> io::Result<SgxFile> {
@@ -84,12 +91,53 @@ impl SgxFile {
         let path = cstr(path)?;
         let mode = opts.get_access_mode()?;
         let opts = CString::new(mode.as_bytes())?;
-        SgxFile::open_c(&path, &opts, key, false)
+        #[cfg(not(feature = "occlum"))]
+        return SgxFile::open_c(&path, &opts, key, false);
+        #[cfg(feature = "occlum")]
+        return SgxFile::open_c(&path, &opts, key, false, true);
     }
 
+    #[cfg(feature = "occlum")]
+    pub fn open_integrity_only(path: &Path, opts: &OpenOptions) -> io::Result<SgxFile> {
+
+        let path = cstr(path)?;
+        let mode = opts.get_access_mode()?;
+        let opts = CString::new(mode.as_bytes())?;
+        SgxFile::open_c(&path, &opts, &sgx_key_128bit_t::default(), false, true)
+
+    }
+
+    #[cfg(not(feature = "occlum"))]
     pub fn open_c(path: &CStr, opts: &CStr, key: &sgx_key_128bit_t, auto: bool) -> io::Result<SgxFile> {
 
         let file = if auto == true {
+            SgxFileStream::open_auto_key(path, opts)
+        } else {
+            SgxFileStream::open(path, opts, key)
+        };
+
+        file.map(|stream| SgxFile(stream))
+            .map_err(|err| {
+                match err {
+                    1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
+                    2 => Error::from_raw_os_error(libc::ENOENT),
+                    3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
+                    4 | 5 => Error::from_raw_os_error(err),
+                    r if r > 4096 => {
+                        let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
+                        Error::from_sgx_error(status)
+                    },
+                    _ => Error::from_raw_os_error(err),
+                }
+            })
+    }
+
+    #[cfg(feature = "occlum")]
+    pub fn open_c(path: &CStr, opts: &CStr, key: &sgx_key_128bit_t, auto: bool, integrity_only: bool) -> io::Result<SgxFile> {
+
+        let file = if integrity_only == true {
+            SgxFileStream::open_integrity_only(path, opts)
+        } else if auto == true {
             SgxFileStream::open_auto_key(path, opts)
         } else {
             SgxFileStream::open(path, opts, key)
@@ -209,6 +257,24 @@ impl SgxFile {
     pub fn clear_cache(&self) -> io::Result<()> {
 
         self.0.clear_cache().map_err(|err| {
+            match err {
+                1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
+                2 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_INVALID_PARAMETER),
+                3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
+                4 | 5 => Error::from_raw_os_error(err),
+                r if r > 4096 => {
+                    let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
+                    Error::from_sgx_error(status)
+                },
+                _ => Error::from_raw_os_error(err),
+            }
+        })
+    }
+
+    #[cfg(feature = "occlum")]
+    pub fn get_mac(&self) -> io::Result<sgx_aes_gcm_128bit_tag_t> {
+
+        self.0.get_mac().map_err(|err| {
             match err {
                 1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
                 2 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_INVALID_PARAMETER),

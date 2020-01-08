@@ -157,6 +157,9 @@ fn test_main_entrance() -> size_t {
                     test_serialize_enum,
                     // std::sgxfs
                     test_sgxfs,
+                    // std::sgxfs in integrity-only mode
+                    // for occlum only
+                    || { #[cfg(feature = "occlum")] test_sgxfs_integrity_only() },
                     // std::fs
                     test_fs,
                     // std::fs untrusted mode

@@ -128,3 +128,45 @@ pub fn test_fs_untrusted_fs_feature_enabled() {
         assert!(f.is_ok());
     }
 }
+
+#[cfg(feature = "occlum")]
+pub fn test_sgxfs_integrity_only() {
+    let write_data = {
+        let read_result = std::fs::read_to_string("../Makefile");
+        assert!(read_result.is_ok());
+        read_result.unwrap()
+    };
+    let path = "sgx_file_integrity_only.data";
+    let mut new_file = {
+        let create_result = SgxFile::create_integrity_only(path);
+        assert!(create_result.is_ok());
+        create_result.unwrap()
+    };
+    let _ = new_file.write_all(&write_data.as_bytes());
+    let write_mac = {
+        let mac_result = new_file.get_mac();
+        assert!(mac_result.is_ok());
+        mac_result.unwrap()
+    };
+    drop(new_file);
+
+    let mut read_data = String::new();
+    let mut open_file = {
+        let open_result = SgxFile::open_integrity_only(path);
+        assert!(open_result.is_ok());
+        open_result.unwrap()
+    };
+    let _ = open_file.read_to_string(&mut read_data);
+    let read_mac = {
+        let mac_result = open_file.get_mac();
+        assert!(mac_result.is_ok());
+        mac_result.unwrap()
+    };
+    drop(open_file);
+
+    assert_eq!(&write_data[..], &read_data[..]);
+    assert_eq!(&write_mac, &read_mac);
+
+    let remove_result = remove_file(path);
+    assert!(remove_result.is_ok());
+}
