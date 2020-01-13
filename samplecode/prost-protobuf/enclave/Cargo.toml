@@ -16,7 +16,7 @@ bytes = { git = "https://github.com/mesalock-linux/bytes-sgx" }
 prost-types = { git = "https://github.com/mesalock-linux/prost-sgx" }
 
 [build-dependencies]
-prost-build = "*"
+prost-build = "0.6"
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { rev = "v1.0.9", git = "https://github.com/apache/teaclave-sgx-sdk.git" }
