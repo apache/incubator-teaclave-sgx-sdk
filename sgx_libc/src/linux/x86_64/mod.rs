@@ -400,6 +400,12 @@ s! {
         pub pw_dir: *mut c_char,
         pub pw_shell: *mut c_char,
     }
+
+    pub struct ucred {
+        pub pid: pid_t,
+        pub uid: uid_t,
+        pub gid: gid_t,
+    }
 }
 
 pub const AT_FDCWD: c_int = -100;
