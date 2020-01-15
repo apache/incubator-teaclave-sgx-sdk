@@ -229,7 +229,7 @@ impl_enum! {
         /* 16-bit floating-point conversions instructions */
         f16c = 16,            /* 0x00008000 */
         /* AVX instructions - SNB */
-        avx1 = 17,            /* 0x00010000 */
+        avx = 17,            /* 0x00010000 */
         /* RDRND (read random value) instruction */
         rdrand = 18,          /* 0x00020000 */
         /* FMA, may need more precise name - HSW */
