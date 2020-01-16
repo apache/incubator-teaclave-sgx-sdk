@@ -136,6 +136,7 @@ pub type gid_t = u32;
 pub type ino64_t = u64;
 pub type nfds_t = c_ulong;
 pub type pthread_t = c_ulong;
+pub type pid_t = i32;
 
 #[derive(Copy, Clone, Debug)]
 pub enum DIR {}
