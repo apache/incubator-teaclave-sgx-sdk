@@ -136,6 +136,7 @@ pub type gid_t = u32;
 pub type ino64_t = u64;
 pub type nfds_t = c_ulong;
 pub type pthread_t = c_ulong;
+pub type pid_t = i32;
 
 #[derive(Copy, Clone, Debug)]
 pub enum DIR {}
@@ -399,6 +400,12 @@ s! {
         pub pw_gecos: *mut c_char,
         pub pw_dir: *mut c_char,
         pub pw_shell: *mut c_char,
+    }
+
+    pub struct ucred {
+        pub pid: pid_t,
+        pub uid: uid_t,
+        pub gid: gid_t,
     }
 }
 
