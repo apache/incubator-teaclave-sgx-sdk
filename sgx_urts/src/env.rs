@@ -103,27 +103,27 @@ pub extern "C" fn u_getpwuid_r_ocall(uid: uid_t,
                 let mut temp_pwd = &mut *pwd;
                 let p = -1_isize as usize;
                 if !temp_pwd.pw_name.is_null() {
-                    temp_pwd.pw_name = temp_pwd.pw_name.offset_from(buf) as * mut c_char;
+                    temp_pwd.pw_name = usize::checked_sub(temp_pwd.pw_name as _, buf as _).unwrap() as * mut c_char;
                 } else {
                     temp_pwd.pw_name = p as usize as * mut c_char;
                 }
                 if !temp_pwd.pw_passwd.is_null() {
-                    temp_pwd.pw_passwd = temp_pwd.pw_passwd.offset_from(buf) as * mut c_char;
+                    temp_pwd.pw_passwd = usize::checked_sub(temp_pwd.pw_passwd as _, buf as _).unwrap() as * mut c_char;
                 } else {
                     temp_pwd.pw_passwd = p as usize as * mut c_char;
                 }
                 if !temp_pwd.pw_gecos.is_null() {
-                    temp_pwd.pw_gecos = temp_pwd.pw_gecos.offset_from(buf) as * mut c_char;
+                    temp_pwd.pw_gecos = usize::checked_sub(temp_pwd.pw_gecos as _, buf as _).unwrap() as * mut c_char;
                 } else {
                     temp_pwd.pw_gecos = p as * mut c_char;
                 }
                 if !temp_pwd.pw_dir.is_null() {
-                    temp_pwd.pw_dir = temp_pwd.pw_dir.offset_from(buf) as * mut c_char;
+                    temp_pwd.pw_dir = usize::checked_sub(temp_pwd.pw_dir as _, buf as _).unwrap() as * mut c_char;
                 } else {
                     temp_pwd.pw_dir = p as * mut c_char;
                 }
                 if !temp_pwd.pw_shell.is_null() {
-                    temp_pwd.pw_shell = temp_pwd.pw_shell.offset_from(buf) as * mut c_char;
+                    temp_pwd.pw_shell = usize::checked_sub(temp_pwd.pw_shell as _, buf as _).unwrap() as * mut c_char;
                 } else {
                     temp_pwd.pw_shell = p as * mut c_char;
                 }
