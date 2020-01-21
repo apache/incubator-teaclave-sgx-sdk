@@ -43,7 +43,9 @@ pub struct global_data_t {
     pub heap_size: usize,
     pub rsrv_offset: usize,
     pub rsrv_size: usize,
+    pub rsrv_executable: usize,
     pub thread_policy: usize,
+    pub tcs_max_num: usize,
     pub td_template: thread_data_t,
     pub tcs_template: [u8; TCS_TEMPLATE_SIZE], // 72
     pub layout_entry_num: u32,
