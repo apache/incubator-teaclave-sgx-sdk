@@ -21,8 +21,6 @@ use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
 use std::ffi::CString;
-use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
-use std::os::unix::io::AsRawFd;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
@@ -30,7 +28,6 @@ extern "C" {
     fn send_http_request(
         eid: sgx_enclave_id_t,
         retval: *mut sgx_status_t,
-        fd: c_int,
         hostname: *const c_char,
     ) -> sgx_status_t;
 }
@@ -49,17 +46,6 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
                        &mut misc_attr)
 }
 
-fn lookup_ipv4(host: &str, port: u16) -> SocketAddr {
-    let addrs = (host, port).to_socket_addrs().unwrap();
-    for addr in addrs {
-        if let SocketAddr::V4(_) = addr {
-            return addr;
-        }
-    }
-
-    unreachable!("Cannot lookup address");
-}
-
 fn main() {
     let enclave = match init_enclave() {
         Ok(r) => {
@@ -76,17 +62,14 @@ fn main() {
 
     let hostname = "example.com";
     let port = 443;
-    let socket_addr = lookup_ipv4(hostname, port);
-    let socket = TcpStream::connect(&socket_addr).unwrap();
 
-    let hostname = format!("https://{}", hostname);
+    let hostname = format!("https://{}:{}", hostname, port);
     let c_hostname = CString::new(hostname.to_string()).unwrap();
 
     let result = unsafe {
         send_http_request(
             enclave.geteid(),
             &mut retval,
-            socket.as_raw_fd(),
             c_hostname.as_ptr() as *const c_char,
         )
     };

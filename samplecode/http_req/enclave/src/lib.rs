@@ -35,15 +35,18 @@ use std::os::raw::c_char;
 use std::prelude::v1::*;
 
 #[no_mangle]
-pub extern "C" fn send_http_request(fd: c_int, hostname: *const c_char) -> sgx_status_t {
+pub extern "C" fn send_http_request(hostname: *const c_char) -> sgx_status_t {
     let hostname = unsafe { CStr::from_ptr(hostname).to_str() };
     let hostname = hostname.expect("Failed to recover hostname");
 
     //Parse uri and assign it to variable `addr`
     let addr: Uri = hostname.parse().unwrap();
 
+    //Construct a domain:ip string for tcp connection
+    let conn_addr = format!("{}:{}", addr.host().unwrap(), addr.port().unwrap());
+
     //Connect to remote host
-    let stream = TcpStream::new(fd).unwrap();
+    let stream = TcpStream::connect(conn_addr).unwrap();
 
     //Open secure connection over TlsStream, because of `addr` (https)
     let mut stream = tls::Config::default()
