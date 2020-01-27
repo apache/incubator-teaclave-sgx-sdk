@@ -1,5 +1,5 @@
 ######## SGX SDK Settings ########
-SGX_SDK_RUST ?= $(HOME)/incubator-teaclave-sgx-sdk
+SGX_SDK_RUST ?= $(HOME)/sgx
 SGX_SDK ?= /opt/sgxsdk
 SGX_MODE ?= HW
 SGX_ARCH ?= x64
