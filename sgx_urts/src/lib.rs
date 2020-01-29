@@ -16,7 +16,6 @@
 // under the License..
 
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
-#![feature(ptr_offset_from)]
 extern crate libc;
 extern crate sgx_types;
 

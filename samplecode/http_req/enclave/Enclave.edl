@@ -22,6 +22,6 @@ enclave {
     from "sgx_tstdc.edl" import *;
 
     trusted {
-        public sgx_status_t send_http_request(int fd, [in, string]char* hostname);
+        public sgx_status_t send_http_request([in, string]char* hostname);
     };
 };

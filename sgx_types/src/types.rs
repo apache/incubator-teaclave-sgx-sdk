@@ -132,12 +132,12 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_dh_msg1_t, 576;
-    sgx_dh_msg2_t, 512;
-    sgx_dh_msg3_body_t, 436;
-    sgx_dh_msg3_t, 452;
-    sgx_dh_session_enclave_identity_t, 260;
-    sgx_dh_session_t, 200;
+    sgx_dh_msg1_t; //576
+    sgx_dh_msg2_t; //512
+    sgx_dh_msg3_body_t; //436
+    sgx_dh_msg3_t; //452
+    sgx_dh_session_enclave_identity_t; //260
+    sgx_dh_session_t; //200
 }
 
 impl_struct_ContiguousMemory! {
@@ -238,7 +238,7 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_key_request_t, 512;
+    sgx_key_request_t; //512
 }
 
 impl_struct_ContiguousMemory! {
@@ -289,7 +289,7 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_ra_msg3_t, 336;
+    sgx_ra_msg3_t; //336
 }
 
 impl_struct_ContiguousMemory! {
@@ -371,10 +371,10 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_quote_t, 436;
-    sgx_platform_info_t, 101;
-    sgx_att_key_id_t, 256;
-    sgx_qe_report_info_t, 960;
+    sgx_quote_t; //436
+    sgx_platform_info_t; //101
+    sgx_att_key_id_t; //256
+    sgx_qe_report_info_t; //960
 }
 
 impl_struct_ContiguousMemory! {
@@ -414,7 +414,7 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_report_data_t, 64;
+    sgx_report_data_t; //64
 }
 
 impl_struct_ContiguousMemory! {
@@ -471,9 +471,9 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_target_info_t, 512;
-    sgx_report_body_t, 384;
-    sgx_report_t, 432;
+    sgx_target_info_t; //512
+    sgx_report_body_t; //384
+    sgx_report_t; //432
 }
 
 impl_struct_ContiguousMemory! {
@@ -524,8 +524,8 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_ps_sec_prop_desc_t, 256;
-    sgx_ps_sec_prop_desc_ex_t, 292;
+    sgx_ps_sec_prop_desc_t; //256
+    sgx_ps_sec_prop_desc_ex_t; //292
 }
 
 impl_struct_ContiguousMemory! {
@@ -610,9 +610,9 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_rsa3072_public_key_t, 388;
-    sgx_rsa3072_key_t, 772;
-    sgx_rsa3072_signature_t, 384;
+    sgx_rsa3072_public_key_t; //388
+    sgx_rsa3072_key_t; //772
+    sgx_rsa3072_signature_t; //384
 }
 
 impl_struct_ContiguousMemory! {
@@ -727,7 +727,7 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    rsa_params_t, 1732;
+    rsa_params_t; //1732
 }
 
 impl_struct_ContiguousMemory! {
@@ -1010,7 +1010,7 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_kss_config_t, 66;
+    sgx_kss_config_t; //66
 }
 
 impl_struct_ContiguousMemory! {
@@ -1294,9 +1294,9 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_ql_att_key_id_t, 158;
-    sgx_att_key_id_ext_t, 256;
-    sgx_ql_ppid_rsa3072_encrypted_cert_info_t, 404;
+    sgx_ql_att_key_id_t; //158
+    sgx_att_key_id_ext_t; //256
+    sgx_ql_ppid_rsa3072_encrypted_cert_info_t; //404
 }
 
 impl_struct_ContiguousMemory! {
@@ -1332,7 +1332,7 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_ql_ecdsa_sig_data_t, 576;
+    sgx_ql_ecdsa_sig_data_t; //576
 }
 
 impl_struct_ContiguousMemory! {
@@ -1363,7 +1363,7 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_quote3_t, 436;
+    sgx_quote3_t; //436
 }
 
 impl_struct_ContiguousMemory! {
@@ -1384,7 +1384,7 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_ql_qe_report_info_t, 960;
+    sgx_ql_qe_report_info_t; //960
 }
 
 impl_struct_ContiguousMemory! {
@@ -1411,7 +1411,7 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_ql_qv_supplemental_t, 120;
+    sgx_ql_qv_supplemental_t; //120
 }
 
 impl_struct_ContiguousMemory! {
@@ -1419,18 +1419,26 @@ impl_struct_ContiguousMemory! {
 }
 
 impl_enum! {
+    // The SGX_QL_MK_ERROR in qve_header.h has the same name as it in
+    // sgx_ql_lib_common.h, so it will never be defined as (0x0000A000|(x)).
+    // As a workaround, to make the enum consistent with the current released
+    // DCAP, we define the result in (0x0000E000|(x)).
+    //
+    // https://github.com/intel/SGXDataCenterAttestationPrimitives/pull/61
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
     pub enum sgx_ql_qv_result_t {
         SGX_QL_QV_RESULT_OK                         = 0x0000_0000,
-//      SGX_QL_QV_RESULT_MIN                        = 0x0000_A001,
-        SGX_QL_QV_RESULT_CONFIG_NEEDED              = 0x0000_A001,
-        SGX_QL_QV_RESULT_OUT_OF_DATE                = 0x0000_A002,
-        SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED  = 0x0000_A003,
-        SGX_QL_QV_RESULT_INVALID_SIGNATURE          = 0x0000_A004,
-        SGX_QL_QV_RESULT_REVOKED                    = 0x0000_A005,
-        SGX_QL_QV_RESULT_UNSPECIFIED                = 0x0000_A006,
-        SGX_QL_QV_RESULT_MAX                        = 0x0000_A0FF,
+        // Same value of the enum definition in qve_header.h
+        // https://github.com/intel/SGXDataCenterAttestationPrimitives/blob/c2bab2b3ccd80e45dbd5b7bf61d28f92a96d776e/QuoteVerification/QvE/Include/qve_header.h#L91
+        // SGX_QL_QV_RESULT_MIN                        = 0x0000_E001,
+        SGX_QL_QV_RESULT_CONFIG_NEEDED              = 0x0000_E001,
+        SGX_QL_QV_RESULT_OUT_OF_DATE                = 0x0000_E002,
+        SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED  = 0x0000_E003,
+        SGX_QL_QV_RESULT_INVALID_SIGNATURE          = 0x0000_E004,
+        SGX_QL_QV_RESULT_REVOKED                    = 0x0000_E005,
+        SGX_QL_QV_RESULT_UNSPECIFIED                = 0x0000_E006,
+        SGX_QL_QV_RESULT_MAX                        = 0x0000_E0FF,
     }
 }
 

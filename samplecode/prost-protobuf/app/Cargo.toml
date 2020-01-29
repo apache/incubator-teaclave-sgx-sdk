@@ -5,15 +5,15 @@ authors = ["The Teaclave Authors"]
 build = "build.rs"
 
 [dependencies]
-sgx_types = { rev = "v1.0.9", git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-sgx_urts = { rev = "v1.0.9", git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-prost = "0.5"
-prost-types = "0.5"
-bytes = "0.4"
+sgx_types = { rev = "v1.1.0", git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_urts = { rev = "v1.1.0", git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+prost = "0.6"
+prost-types = "0.6"
+bytes = "0.5"
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_types = { path = "../../../sgx_types" }
 sgx_urts = { path = "../../../sgx_urts" }
 
 [build-dependencies]
-prost-build = "0.5"
+prost-build = "0.6"
