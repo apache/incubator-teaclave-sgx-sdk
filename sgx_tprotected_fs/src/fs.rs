@@ -45,7 +45,7 @@ unsafe fn rsgx_fopen_auto_key(filename: &CStr, mode: &CStr) -> SysResult<SGX_FIL
 }
 
 unsafe fn rsgx_fwrite(stream: SGX_FILE, buf: &[u8]) -> SysResult<usize> {
-    if stream.is_null() || buf.is_empty() {
+    if stream.is_null() {
         return Err(libc::EINVAL);
     }
 
@@ -59,7 +59,7 @@ unsafe fn rsgx_fwrite(stream: SGX_FILE, buf: &[u8]) -> SysResult<usize> {
 }
 
 unsafe fn rsgx_fread(stream: SGX_FILE, buf: &mut [u8]) -> SysResult<usize> {
-    if stream.is_null() || buf.is_empty() {
+    if stream.is_null() {
         return Err(libc::EINVAL);
     }
 
@@ -67,7 +67,6 @@ unsafe fn rsgx_fread(stream: SGX_FILE, buf: &mut [u8]) -> SysResult<usize> {
     let ret_size = sgx_fread(buf.as_mut_ptr() as * mut c_void, 1, read_size, stream);
 
     if ret_size != read_size {
-
         let is_eof = rsgx_feof(stream)?;
         if is_eof {
             Ok(ret_size)
