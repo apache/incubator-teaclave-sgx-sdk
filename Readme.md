@@ -33,6 +33,10 @@ Current wiki pages:
 
 ## v1.1.0
 
+Supports Intel SGX SDK v2.9, and Rust nightly-2020-03-12.
+
+## v1.1.0
+
 Supports Intel SGX SDK v2.7.1, and Rust nightly-2019-11-25. v1.1.0 brings up dynamic static supports by `thread::spawn`, and almost everything of `std::sync`. Also v1.1.0 benefits from Intel SGX SDK's aligned memory allocation primitives to mitigate [INTEL-SA-00219](https://github.com/apache/incubator-mesatee-sgx/wiki/Mitigation-of-Intel-SA-00219-in-Rust-SGX). Besides, we enabled [`is_x86_feature_detected!`](https://github.com/apache/incubator-mesatee-sgx/wiki/%60is_x86_feature_detected%60-in-Rust-SGX-SDK) by parsing a hidden global CPU feature indicator initialized by Intel SGX urts/trts. And we provided Dockerfile for Fedora 27. For detailed information, please refer to [release_notes](release_notes.md) for more details.
 
 ## v1.0.9 Release
