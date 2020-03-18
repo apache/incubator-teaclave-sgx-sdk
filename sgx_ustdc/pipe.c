@@ -21,7 +21,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-int u_pipe_ocall(int * error, int pipefd[2])
+int u_pipe_ocall(int *error, int pipefd[2])
 {
     int ret = pipe(pipefd);
     if (error) {
@@ -30,7 +30,7 @@ int u_pipe_ocall(int * error, int pipefd[2])
     return ret;
 }
 
-int u_pipe2_ocall(int * error, int pipefd[2], int flags)
+int u_pipe2_ocall(int *error, int pipefd[2], int flags)
 {
     int ret = pipe2(pipefd, flags);
     if (error) {

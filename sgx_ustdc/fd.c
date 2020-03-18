@@ -24,7 +24,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-ssize_t u_read_ocall(int * error, int fd, void * buf, size_t count)
+ssize_t u_read_ocall(int *error, int fd, void *buf, size_t count)
 {
     ssize_t ret = read(fd, buf, count);
     if (error) {
@@ -33,7 +33,7 @@ ssize_t u_read_ocall(int * error, int fd, void * buf, size_t count)
     return ret;
 }
 
-ssize_t u_pread64_ocall(int * error, int fd, void * buf, size_t count, off64_t offset)
+ssize_t u_pread64_ocall(int *error, int fd, void *buf, size_t count, off64_t offset)
 {
     ssize_t ret = pread64(fd, buf, count, offset);
     if (error) {
@@ -42,7 +42,7 @@ ssize_t u_pread64_ocall(int * error, int fd, void * buf, size_t count, off64_t o
     return ret;
 }
 
-ssize_t u_readv_ocall(int * error, int fd, const struct iovec * iov, int iovcnt)
+ssize_t u_readv_ocall(int *error, int fd, const struct iovec *iov, int iovcnt)
 {
     ssize_t ret = readv(fd, iov, iovcnt);
     if (error) {
@@ -51,7 +51,7 @@ ssize_t u_readv_ocall(int * error, int fd, const struct iovec * iov, int iovcnt)
     return ret;
 }
 
-ssize_t u_preadv64_ocall(int * error, int fd, const struct iovec * iov, int iovcnt, off64_t offset)
+ssize_t u_preadv64_ocall(int *error, int fd, const struct iovec *iov, int iovcnt, off64_t offset)
 {
     ssize_t ret = preadv64(fd, iov, iovcnt, offset);
     if (error) {
@@ -60,7 +60,7 @@ ssize_t u_preadv64_ocall(int * error, int fd, const struct iovec * iov, int iovc
     return ret;
 }
 
-ssize_t u_write_ocall(int * error, int fd, const void * buf, size_t count)
+ssize_t u_write_ocall(int *error, int fd, const void *buf, size_t count)
 {
     ssize_t ret = write(fd, buf, count);
     if (error) {
@@ -69,7 +69,7 @@ ssize_t u_write_ocall(int * error, int fd, const void * buf, size_t count)
     return ret;
 }
 
-ssize_t u_pwrite64_ocall(int * error, int fd, const void * buf, size_t count, off64_t offset)
+ssize_t u_pwrite64_ocall(int *error, int fd, const void *buf, size_t count, off64_t offset)
 {
     ssize_t ret = pwrite64(fd, buf, count, offset);
     if (error) {
@@ -78,7 +78,7 @@ ssize_t u_pwrite64_ocall(int * error, int fd, const void * buf, size_t count, of
     return ret;
 }
 
-ssize_t u_writev_ocall(int * error, int fd, const struct iovec * iov, int iovcnt)
+ssize_t u_writev_ocall(int *error, int fd, const struct iovec *iov, int iovcnt)
 {
     ssize_t ret = writev(fd, iov, iovcnt);
     if (error) {
@@ -87,7 +87,7 @@ ssize_t u_writev_ocall(int * error, int fd, const struct iovec * iov, int iovcnt
     return ret;
 }
 
-ssize_t u_pwritev64_ocall(int * error, int fd, const struct iovec * iov, int iovcnt, off64_t offset)
+ssize_t u_pwritev64_ocall(int *error, int fd, const struct iovec *iov, int iovcnt, off64_t offset)
 {
     ssize_t ret = pwritev64(fd, iov, iovcnt, offset);
     if (error) {
@@ -96,7 +96,7 @@ ssize_t u_pwritev64_ocall(int * error, int fd, const struct iovec * iov, int iov
     return ret;
 }
 
-int u_fcntl_arg0_ocall(int * error, int fd, int cmd)
+int u_fcntl_arg0_ocall(int *error, int fd, int cmd)
 {
     int ret = fcntl(fd, cmd);
     if (error) {
@@ -105,7 +105,7 @@ int u_fcntl_arg0_ocall(int * error, int fd, int cmd)
     return ret;
 }
 
-int u_fcntl_arg1_ocall(int * error, int fd, int cmd, int arg)
+int u_fcntl_arg1_ocall(int *error, int fd, int cmd, int arg)
 {
     int ret = fcntl(fd, cmd, arg);
     if (error) {
@@ -114,7 +114,7 @@ int u_fcntl_arg1_ocall(int * error, int fd, int cmd, int arg)
     return ret;
 }
 
-int u_ioctl_arg0_ocall(int * error, int fd, int request)
+int u_ioctl_arg0_ocall(int *error, int fd, int request)
 {
     int ret = ioctl(fd, request);
     if (error) {
@@ -123,7 +123,7 @@ int u_ioctl_arg0_ocall(int * error, int fd, int request)
     return ret;
 }
 
-int u_ioctl_arg1_ocall(int * error, int fd, int request, int * arg)
+int u_ioctl_arg1_ocall(int *error, int fd, int request, int *arg)
 {
     int ret = ioctl(fd, request, arg);
     if (error) {
@@ -132,7 +132,7 @@ int u_ioctl_arg1_ocall(int * error, int fd, int request, int * arg)
     return ret;
 }
 
-int u_close_ocall(int * error, int fd)
+int u_close_ocall(int *error, int fd)
 {
     int ret = close(fd);
     if (error) {

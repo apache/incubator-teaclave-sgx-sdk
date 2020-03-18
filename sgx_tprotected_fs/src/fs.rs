@@ -27,7 +27,7 @@ fn max_len() -> usize {
 }
 
 unsafe fn rsgx_fopen(filename: &CStr, mode: &CStr, key: &sgx_key_128bit_t) -> SysResult<SGX_FILE> {
-    let file = sgx_fopen(filename.as_ptr(), mode.as_ptr(), key as * const sgx_key_128bit_t);
+    let file = sgx_fopen(filename.as_ptr(), mode.as_ptr(), key as *const sgx_key_128bit_t);
     if file.is_null() {
         Err(errno())
     } else {
@@ -50,7 +50,7 @@ unsafe fn rsgx_fwrite(stream: SGX_FILE, buf: &[u8]) -> SysResult<usize> {
     }
 
     let write_size = cmp::min(buf.len(), max_len());
-    let ret_size = sgx_fwrite(buf.as_ptr() as * const c_void, 1, write_size, stream);
+    let ret_size = sgx_fwrite(buf.as_ptr() as *const c_void, 1, write_size, stream);
     if ret_size != write_size {
         Err(rsgx_ferror(stream))
     } else {
@@ -64,7 +64,7 @@ unsafe fn rsgx_fread(stream: SGX_FILE, buf: &mut [u8]) -> SysResult<usize> {
     }
 
     let read_size = cmp::min(buf.len(), max_len());
-    let ret_size = sgx_fread(buf.as_mut_ptr() as * mut c_void, 1, read_size, stream);
+    let ret_size = sgx_fread(buf.as_mut_ptr() as *mut c_void, 1, read_size, stream);
 
     if ret_size != read_size {
         let is_eof = rsgx_feof(stream)?;
@@ -175,7 +175,7 @@ unsafe fn rsgx_remove(filename: &CStr) -> SysError {
 }
 
 unsafe fn rsgx_fexport_auto_key(filename: &CStr, key: &mut sgx_key_128bit_t) -> SysError {
-    let ret = sgx_fexport_auto_key(filename.as_ptr(), key as * mut sgx_key_128bit_t);
+    let ret = sgx_fexport_auto_key(filename.as_ptr(), key as *mut sgx_key_128bit_t);
     if ret == 0 {
         Ok(())
     } else {
@@ -184,7 +184,7 @@ unsafe fn rsgx_fexport_auto_key(filename: &CStr, key: &mut sgx_key_128bit_t) -> 
 }
 
 unsafe fn rsgx_fimport_auto_key(filename: &CStr, key: &sgx_key_128bit_t) -> SysError {
-    let ret = sgx_fimport_auto_key(filename.as_ptr(), key as * const sgx_key_128bit_t);
+    let ret = sgx_fimport_auto_key(filename.as_ptr(), key as *const sgx_key_128bit_t);
     if ret == 0 {
         Ok(())
     } else {

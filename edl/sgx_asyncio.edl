@@ -28,6 +28,6 @@ enclave {
         int u_poll_ocall([out] int *error, [in, out, count=nfds] struct pollfd *fds, nfds_t nfds, int timeout);
         int u_epoll_create1_ocall([out] int *error, int flags);
         int u_epoll_ctl_ocall([out] int *error, int epfd, int op, int fd, [in] struct epoll_event *event);
-        int u_epoll_wait_ocall([out] int *error, int epfd, [out, count=maxevents] struct epoll_event * events, int maxevents, int timeout);
+        int u_epoll_wait_ocall([out] int *error, int epfd, [out, count=maxevents] struct epoll_event *events, int maxevents, int timeout);
     };
 };

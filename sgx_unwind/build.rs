@@ -55,7 +55,20 @@ fn main() {
 }
 
 fn build_libunwind(host: &str, target: &str) -> Result<(), ()> {
-    let native = native_lib_boilerplate("sgx_unwind/libunwind", "libunwind", "unwind", "src/.libs")?;
+    let filter = vec![
+        "config",
+        "autom4te.cache",
+        "Makefile.in",
+        "config.h.in",
+        "configure",
+        "aclocal.m4",
+        "INSTALL"];
+    let native = native_lib_boilerplate(
+                    "sgx_unwind/libunwind",
+                    "libunwind",
+                    "unwind",
+                    "src/.libs",
+                    &filter)?;
     let cflags = env::var("CFLAGS").unwrap_or_default() + " -fvisibility=hidden -O2";
 
     run(Command::new("sh")

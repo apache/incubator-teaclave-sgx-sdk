@@ -18,6 +18,27 @@ big_array! { BigArray; }
 /// implementations. The block size of plain text is 318 bytes
 /// and the block size of cipher text is 256 bytes.
 /// 318 byte = 3072bit - 2*SHA256_BYTE -2
+#[cfg(any(feature = "mesalock_sgx", target_env = "sgx"))]
+#[derive(Serialize, Deserialize, Clone, Copy)]
+#[serde(crate = "serde_sgx")]
+pub struct Rsa3072KeyPair {
+    #[serde(with = "BigArray")]
+    n: [u8; SGX_RSA3072_KEY_SIZE],
+    #[serde(with = "BigArray")]
+    d: [u8; SGX_RSA3072_PRI_EXP_SIZE],
+    e: [u8; SGX_RSA3072_PUB_EXP_SIZE],
+    #[serde(with = "BigArray")]
+    p: [u8; SGX_RSA3072_KEY_SIZE / 2],
+    #[serde(with = "BigArray")]
+    q: [u8; SGX_RSA3072_KEY_SIZE / 2],
+    #[serde(with = "BigArray")]
+    dmp1: [u8; SGX_RSA3072_KEY_SIZE / 2],
+    #[serde(with = "BigArray")]
+    dmq1: [u8; SGX_RSA3072_KEY_SIZE / 2],
+    #[serde(with = "BigArray")]
+    iqmp: [u8; SGX_RSA3072_KEY_SIZE / 2],
+}
+#[cfg(not(any(feature = "mesalock_sgx", target_env = "sgx")))]
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct Rsa3072KeyPair {
     #[serde(with = "BigArray")]
@@ -36,6 +57,7 @@ pub struct Rsa3072KeyPair {
     #[serde(with = "BigArray")]
     iqmp: [u8; SGX_RSA3072_KEY_SIZE / 2],
 }
+
 
 impl Default for Rsa3072KeyPair {
     fn default() -> Self {
@@ -196,6 +218,15 @@ impl Rsa3072KeyPair {
     }
 }
 
+#[cfg(any(feature = "mesalock_sgx", target_env = "sgx"))]
+#[derive(Serialize, Deserialize, Clone, Copy)]
+#[serde(crate = "serde_sgx")]
+pub struct Rsa3072PubKey {
+    #[serde(with = "BigArray")]
+    n: [u8; SGX_RSA3072_KEY_SIZE],
+    e: [u8; SGX_RSA3072_PUB_EXP_SIZE],
+}
+#[cfg(not(any(feature = "mesalock_sgx", target_env = "sgx")))]
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct Rsa3072PubKey {
     #[serde(with = "BigArray")]

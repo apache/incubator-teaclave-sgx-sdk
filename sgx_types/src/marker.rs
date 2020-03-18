@@ -94,8 +94,8 @@ impl_unsafe_marker_for_array! {ContiguousMemory,
 }
 
 /*
-impl<T: ?Sized> !ContiguousMemory for * const T {}
-impl<T: ?Sized> !ContiguousMemory for * mut T {}
+impl<T: ?Sized> !ContiguousMemory for *const T {}
+impl<T: ?Sized> !ContiguousMemory for *mut T {}
 impl<'a, T: 'a + ?Sized> !ContiguousMemory for &'a T {}
 impl<'a, T: 'a + ?Sized> !ContiguousMemory for &'a mut T {}
 */

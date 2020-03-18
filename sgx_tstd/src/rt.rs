@@ -34,7 +34,7 @@ pub extern "C" fn t_global_exit_ecall() {
 }
 
 #[no_mangle]
-pub extern "C" fn t_global_init_ecall(id: u64, path: * const u8, len: usize) {
+pub extern "C" fn t_global_init_ecall(id: u64, path: *const u8, len: usize) {
     INIT.call_once(|| {
         enclave::set_enclave_id(id as sgx_enclave_id_t);
         let s = unsafe {

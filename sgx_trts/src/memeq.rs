@@ -27,15 +27,12 @@ use alloc::slice;
 
 pub trait ConsttimeMemEq<T: BytewiseEquality + ?Sized = Self> {
     fn consttime_memeq(&self, other: &T) -> bool;
-
     fn consttime_memne(&self, other: &T) -> bool { !self.consttime_memeq(other) }
 }
 
 impl<T> ConsttimeMemEq<[T]> for [T]
-    where T: Eq + BytewiseEquality
-{
+    where T: Eq + BytewiseEquality {
     fn consttime_memeq(&self, other: &[T]) -> bool {
-
         if self.len() != other.len() {
             return false;
         }
@@ -43,37 +40,40 @@ impl<T> ConsttimeMemEq<[T]> for [T]
             return true;
         }
         let size = mem::size_of_val(self);
-        consttime_memequal(self.as_ptr() as * const u8,
-                           other.as_ptr() as * const u8,
-                           size) != 0
+        unsafe {
+            consttime_memequal(self.as_ptr() as *const u8,
+                               other.as_ptr() as *const u8,
+                               size) != 0
+        }
     }
 }
 
 impl<T> ConsttimeMemEq<T> for T
-    where T: Eq + BytewiseEquality
-{
+    where T: Eq + BytewiseEquality {
     fn consttime_memeq(&self, other: &T) -> bool {
-
         let size = mem::size_of_val(self);
         if size == 0 {
             return true;
         }
-        consttime_memequal(self as * const T as * const u8,
-                           other as * const T as * const u8,
-                           size) != 0
+        unsafe {
+            consttime_memequal(self as *const T as *const u8,
+                               other as *const T as *const u8,
+                               size) != 0
+        }
     }
 }
 
-fn consttime_memequal(b1: * const u8, b2: * const u8, l: usize) -> i32
-{
-    let mut res: i32 = 0;
+unsafe fn consttime_memequal(b1: *const u8,
+                             b2: *const u8,
+                             l: usize) -> i32 {
+    let mut res: u32 = 0;
     let mut len = l;
-    let p1 = unsafe { slice::from_raw_parts(b1, l) };
-    let p2 = unsafe { slice::from_raw_parts(b2, l) };
+    let p1 = slice::from_raw_parts(b1, l);
+    let p2 = slice::from_raw_parts(b2, l);
 
     while len > 0 {
         len -= 1;
-        res |= i32::from(p1[len] ^ p2[len]);
+        res |= (p1[len] ^ p2[len]) as u32;
     }
     /*
      * Map 0 to 1 and [1, 256) to 0 using only constant-time
@@ -84,5 +84,5 @@ fn consttime_memequal(b1: * const u8, b2: * const u8, l: usize) -> i32
      * advantage of them, certain compilers generate branches on
      * certain CPUs for `!res'.
      */
-    (1 & ((res - 1) >> 8))
+    (1 & ((res - 1) >> 8)) as i32
 }

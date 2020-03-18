@@ -19,7 +19,7 @@
 #include <time.h>
 #include <errno.h>
 
-int u_clock_gettime_ocall(int * error, clockid_t clk_id, struct timespec * tp)
+int u_clock_gettime_ocall(int *error, clockid_t clk_id, struct timespec *tp)
 {
     int ret = clock_gettime(clk_id, tp);
     if (error) {

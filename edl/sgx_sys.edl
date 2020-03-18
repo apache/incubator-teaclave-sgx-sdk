@@ -17,6 +17,8 @@
 
 enclave {
 
+    include "sched.h"
+
 	trusted {
         /* define ECALLs here. */
     };
@@ -24,5 +26,7 @@ enclave {
     untrusted {
         long u_sysconf_ocall([out] int *error, int name);
         int u_prctl_ocall([out] int *error, int option, unsigned long arg2, unsigned long arg3, unsigned long arg4, unsigned long arg5);
+        int u_sched_setaffinity_ocall([out] int *error, pid_t pid, size_t cpusetsize, [in]cpu_set_t *mask);
+        int u_sched_getaffinity_ocall([out] int *error, pid_t pid, size_t cpusetsize, [out]cpu_set_t *mask);
     };
 };

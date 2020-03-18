@@ -160,6 +160,8 @@ typedef unsigned long long int  __ino64_t;
 #endif
 
 typedef unsigned int            __socklen_t;
+typedef int                     __pid_t;
+typedef long                    __cpu_mask;
 #endif /* !_SYS__TYPES_H_ */
 
 

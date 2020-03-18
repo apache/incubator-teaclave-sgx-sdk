@@ -67,9 +67,20 @@ pub trait RsaKeyPair {
     fn decrypt_buffer(self, ciphertext: &[u8], plaintext: &mut Vec<u8>) -> SgxResult<usize>;
 }
 
+#[cfg(any(feature = "mesalock_sgx", target_env = "sgx"))]
+extern crate serde_sgx;
+#[cfg(not(any(feature = "mesalock_sgx", target_env = "sgx")))]
 extern crate serde;
+
+#[cfg(any(feature = "mesalock_sgx", target_env = "sgx"))]
+extern crate serde_derive_sgx as serde_derive;
+#[cfg(not(any(feature = "mesalock_sgx", target_env = "sgx")))]
 extern crate serde_derive;
-extern crate itertools;
+
+#[cfg(any(feature = "mesalock_sgx", target_env = "sgx"))]
+#[macro_use]
+extern crate serde_big_array_sgx as serde_big_array;
+#[cfg(not(any(feature = "mesalock_sgx", target_env = "sgx")))]
 #[macro_use]
 extern crate serde_big_array;
 

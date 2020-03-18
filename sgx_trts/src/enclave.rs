@@ -29,11 +29,14 @@ pub const LAYOUT_ENTRY_NUM : usize = 42;
 extern {
     static g_global_data: global_data_t;
     static g_cpu_feature_indicator: uint64_t;
+    static g_cpu_core_num: uint32_t;
     static EDMM_supported: c_int;
-    pub fn get_thread_data() -> * const c_void;
-    pub fn get_enclave_base() -> * const c_void;
-    pub fn get_heap_base() -> * const c_void;
+    pub fn get_thread_data() -> *const c_void;
+    pub fn get_enclave_base() -> *const c_void;
+    pub fn get_heap_base() -> *const c_void;
     pub fn get_heap_size() -> size_t;
+    pub fn get_rsrv_base() -> *const c_void;
+    pub fn get_rsrv_size() -> size_t;
 }
 
 #[repr(C)]
@@ -43,9 +46,11 @@ pub struct global_data_t {
     pub heap_size: usize,
     pub rsrv_offset: usize,
     pub rsrv_size: usize,
+    pub rsrv_executable: usize,
     pub thread_policy: usize,
+    pub tcs_max_num: usize,
     pub td_template: thread_data_t,
-    pub tcs_template: [u8; TCS_TEMPLATE_SIZE], // 72
+    pub tcs_template: [u8; TCS_TEMPLATE_SIZE],
     pub layout_entry_num: u32,
     pub reserved: u32,
     pub layout_table: [layout_t; LAYOUT_ENTRY_NUM],
@@ -77,10 +82,14 @@ pub struct SgxGlobalData {
     heap_base: usize,
     heap_offset: usize,
     heap_size: usize,
+    rsrv_base: usize,
+    rsrv_offset: usize,
+    rsrv_size: usize,
     thread_policy: SgxThreadPolicy,
     static_tcs_num: u32,  // minpool thread + utility thread
     eremove_tcs_num: u32,
     dyn_tcs_num: u32,
+    max_tcs_num: u32,
 }
 
 impl Default for SgxGlobalData {
@@ -106,10 +115,14 @@ impl SgxGlobalData {
            heap_base: rsgx_get_heap_base() as usize,
            heap_offset: rsgx_get_heap_offset(),
            heap_size: rsgx_get_heap_size(),
+           rsrv_base: rsgx_get_rsrv_base() as usize,
+           rsrv_offset: rsgx_get_rsrv_offset(),
+           rsrv_size: rsgx_get_rsrv_size(),
            thread_policy: rsgx_get_thread_policy(),
            static_tcs_num: static_num,
            eremove_tcs_num: eremove_num,
            dyn_tcs_num: dyn_num,
+           max_tcs_num: rsgx_get_tcs_max_num(),
         }
     }
 
@@ -164,6 +177,36 @@ impl SgxGlobalData {
         self.heap_size
     }
     ///
+    /// rsrv_base is to get rsrv base address.
+    ///
+    /// **Note**
+    ///
+    /// This API is only an experimental funtion.
+    ///
+    pub fn rsrv_base(&self) -> usize {
+        self.rsrv_base
+    }
+    ///
+    /// rsrv_offset is to get heap offset.
+    ///
+    /// **Note**
+    ///
+    /// This API is only an experimental funtion.
+    ///
+    pub fn rsrv_offset(&self) -> usize {
+        self.rsrv_offset
+    }
+    ///
+    /// rsrv_size is to get heap size.
+    ///
+    /// **Note**
+    ///
+    /// This API is only an experimental funtion.
+    ///
+    pub fn rsrv_size(&self) -> usize {
+        self.rsrv_size
+    }
+    ///
     /// thread_policy is to get TCS policy.
     ///
     /// **Note**
@@ -187,15 +230,16 @@ impl SgxGlobalData {
     }
 
     pub fn get_tcs_max_num(&self) -> u32 {
-        if rsgx_is_supported_EDMM() {
-            if self.dyn_tcs_num != 0 {
-                self.static_tcs_num + self.dyn_tcs_num - 1 // - 1 is utility thread
-            } else {
-                self.static_tcs_num
-            }
-        } else {
-            self.static_tcs_num + self.eremove_tcs_num
-        }
+        self.max_tcs_num
+        //if rsgx_is_supported_EDMM() {
+        //    if self.dyn_tcs_num != 0 {
+        //        self.static_tcs_num + self.dyn_tcs_num - 1 // - 1 is utility thread
+        //    } else {
+        //        self.static_tcs_num
+        //    }
+        //} else {
+        //    self.static_tcs_num + self.eremove_tcs_num
+        //}
     }
 }
 
@@ -248,7 +292,7 @@ impl SgxThreadData {
     }
 
     pub unsafe fn from_raw(raw: sgx_thread_t) -> Self {
-        let p = raw as * const thread_data_t;
+        let p = raw as *const thread_data_t;
         let td = &*p;
         SgxThreadData {
             td_addr: td.self_addr,
@@ -346,8 +390,8 @@ pub enum SgxThreadPolicy {
 /// This API is only an experimental funtion.
 ///
 #[inline]
-pub fn rsgx_get_thread_data() -> * const thread_data_t {
-    unsafe { get_thread_data() as * const thread_data_t }
+pub fn rsgx_get_thread_data() -> *const thread_data_t {
+    unsafe { get_thread_data() as *const thread_data_t }
 }
 
 ///
@@ -358,8 +402,8 @@ pub fn rsgx_get_thread_data() -> * const thread_data_t {
 /// This API is only an experimental funtion.
 ///
 #[inline]
-pub fn rsgx_get_enclave_base() -> * const u8 {
-    unsafe { get_enclave_base() as * const u8 }
+pub fn rsgx_get_enclave_base() -> *const u8 {
+    unsafe { get_enclave_base() as *const u8 }
 }
 
 ///
@@ -382,8 +426,8 @@ pub fn rsgx_get_enclave_size() -> usize {
 /// This API is only an experimental funtion.
 ///
 #[inline]
-pub fn rsgx_get_heap_base() -> * const u8 {
-    unsafe { get_heap_base() as * const u8 }
+pub fn rsgx_get_heap_base() -> *const u8 {
+    unsafe { get_heap_base() as *const u8 }
 }
 
 ///
@@ -408,6 +452,42 @@ pub fn rsgx_get_heap_offset() -> usize {
 #[inline]
 pub fn rsgx_get_heap_size() -> usize {
     unsafe { get_heap_size() }
+}
+
+///
+/// rsgx_get_rsrv_base is to get enclave rsrv base address.
+///
+/// **Note**
+///
+/// This API is only an experimental funtion.
+///
+#[inline]
+pub fn rsgx_get_rsrv_base() -> *const u8 {
+    unsafe { get_rsrv_base() as *const u8 }
+}
+
+///
+/// rsgx_get_rsrv_offset is to get enclave rsrv offset.
+///
+/// **Note**
+///
+/// This API is only an experimental funtion.
+///
+#[inline]
+pub fn rsgx_get_rsrv_offset() -> usize {
+    unsafe{ g_global_data.rsrv_offset }
+}
+
+///
+/// rsgx_get_rsrv_size is to get enclave rsrv size.
+///
+/// **Note**
+///
+/// This API is only an experimental funtion.
+///
+#[inline]
+pub fn rsgx_get_rsrv_size() -> usize {
+    unsafe { get_rsrv_size() }
 }
 
 ///
@@ -436,8 +516,20 @@ pub fn rsgx_get_thread_policy() -> SgxThreadPolicy {
 /// This API is only an experimental funtion.
 ///
 #[inline]
-pub fn rsgx_get_global_data() -> * const global_data_t {
-    unsafe { &g_global_data as * const global_data_t }
+pub fn rsgx_get_global_data() -> *const global_data_t {
+    unsafe { &g_global_data as *const global_data_t }
+}
+
+///
+/// rsgx_get_tcs_max_num is to get max tcs number.
+///
+/// **Note**
+///
+/// This API is only an experimental funtion.
+///
+#[inline]
+pub fn rsgx_get_tcs_max_num() -> u32 {
+    unsafe { g_global_data.tcs_max_num as u32 }
 }
 
 pub fn rsgx_get_tcs_num() -> (u32, u32, u32) {
@@ -482,10 +574,19 @@ pub fn rsgx_get_tcs_num() -> (u32, u32, u32) {
 
 #[inline]
 pub fn rsgx_is_supported_EDMM() -> bool {
+    // cpu support
+    // sgx driver support
+    // sgx sdk support ( uRTS and enclave metadata)
+    // hw mode
     unsafe { EDMM_supported != 0 }
 }
 
 #[inline]
 pub fn rsgx_get_cpu_feature() -> u64 {
     unsafe { g_cpu_feature_indicator }
+}
+
+#[inline]
+pub fn rsgx_get_cpu_core_num() -> u32 {
+    unsafe { g_cpu_core_num }
 }

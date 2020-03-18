@@ -70,6 +70,7 @@
 #![feature(lang_items)]
 #![feature(log_syntax)]
 #![feature(maybe_uninit_ref)]
+#![feature(never_type)]
 #![feature(needs_panic_runtime)]
 #![feature(optin_builtin_traits)]
 #![feature(prelude_import)]
@@ -86,7 +87,6 @@
 #![feature(unboxed_closures)]
 #![feature(untagged_unions)]
 #![feature(unwind_attributes)]
-#![feature(slice_patterns)]
 #![feature(libc)]
 #![feature(panic_internals)]
 #![feature(std_internals)]
@@ -108,6 +108,7 @@ use prelude::v1::*;
 pub use core::{assert_eq, assert_ne, debug_assert, debug_assert_eq, debug_assert_ne};
 pub use core::{unreachable, unimplemented, write, writeln, r#try, todo};
 
+extern crate hashbrown;
 
 #[allow(unused_imports)] // macros from `alloc` are not used on all platforms
 #[macro_use]
@@ -133,7 +134,6 @@ pub use sgx_trts::{global_ctors_object, global_dtors_object, is_x86_feature_dete
 
 extern crate sgx_tprotected_fs;
 extern crate sgx_libc;
-extern crate sgx_tseal;
 
 // The standard macros that are not built-in to the compiler.
 #[macro_use]

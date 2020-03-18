@@ -31,16 +31,21 @@ use alloc_crate::str;
 use crate::panic;
 use crate::panicking;
 use crate::sys_common::thread_info;
-use crate::sync::{SgxMutex, SgxCondvar, Once, ONCE_INIT};
+use crate::sync::{SgxThreadMutex, SgxMutex, SgxCondvar};
 use crate::time::Duration;
 #[cfg(feature = "thread")]
 use crate::sys::thread as imp;
-use crate::io::{self, Error, ErrorKind};
+use crate::io;
 use crate::ffi::{CStr, CString};
 use crate::sys_common::{AsInner, IntoInner};
 
 #[macro_use] mod local;
-pub use self::local::{LocalKey, LocalKeyInner, AccessError};
+pub use self::local::{LocalKey, AccessError};
+pub use self::local::statik::Key as __StaticLocalKeyInner;
+#[cfg(feature = "thread")]
+pub use self::local::fast::Key as __FastLocalKeyInner;
+#[cfg(feature = "thread")]
+pub use self::local::os::Key as __OsLocalKeyInner;
 
 #[cfg(feature = "thread")]
 #[derive(Debug)]
@@ -80,7 +85,7 @@ impl Builder {
         let their_thread = my_thread.clone();
 
         let my_packet : Arc<UnsafeCell<Option<Result<T>>>>
-            = Arc::new(UnsafeCell::new(Some(Err(Box::new(Error::from(ErrorKind::SgxError))))));
+            = Arc::new(UnsafeCell::new(None));
         let their_packet = my_packet.clone();
 
         let main = move || {
@@ -245,7 +250,7 @@ const NOTIFIED: usize = 2;
 ///
 /// The API is typically used by acquiring a handle to the current thread,
 /// placing that handle in a shared data structure so that other threads can
-/// find it, and then `park`ing. When some desired condition is met, another
+/// find it, and then `park`ing in a loop. When some desired condition is met, another
 /// thread calls [`unpark`] on the handle.
 ///
 /// The motivation for this design is twofold:
@@ -313,7 +318,7 @@ pub fn park_timeout_ms(ms: u32) {
 /// Blocks unless or until the current thread's token is made available or
 /// the specified duration has been reached (may wake spuriously).
 ///
-/// The semantics of this function are equivalent to [`psgx_tstd::thread::JoinHandleark`][park] except
+/// The semantics of this function are equivalent to [`park`][park] except
 /// that the thread will be blocked for roughly no longer than `dur`. This
 /// method should not be used for precise timing due to anomalies such as
 /// preemption or platform differences that may not cause the maximum
@@ -411,23 +416,17 @@ pub fn park_timeout(dur: Duration) {
 #[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
 pub struct ThreadId(NonZeroU64);
 
-static mut GUARD: *mut SgxMutex<()> = 0 as *mut _;
-static INIT: Once = ONCE_INIT;
 impl ThreadId {
     // Generate a new unique thread ID.
     fn new() -> Self {
         // We never call `GUARD.init()`, so it is UB to attempt to
         // acquire this mutex reentrantly!
-       unsafe {
-            INIT.call_once(|| {
-                GUARD = Box::into_raw(Box::new(SgxMutex::new(())));
-            });
-        }
 
+        static GUARD: SgxThreadMutex = SgxThreadMutex::new();
         static mut COUNTER: u64 = 1;
 
         unsafe {
-            let _guard = (*GUARD).lock();
+            let _ = GUARD.lock();
 
             // If we somehow use up all our bits, panic so that we're not
             // covering up subtle bugs of IDs being reused.
@@ -437,6 +436,8 @@ impl ThreadId {
 
             let id = COUNTER;
             COUNTER += 1;
+
+            GUARD.unlock();
 
             ThreadId(NonZeroU64::new(id).unwrap())
         }
@@ -469,7 +470,7 @@ impl SgxThread {
         });
         SgxThread {
             inner: Arc::new(Inner {
-               name:cname,
+                name:cname,
                 id: ThreadId::new(),
                 state: AtomicUsize::new(EMPTY),
                 lock: SgxMutex::new(()),
@@ -523,7 +524,7 @@ impl SgxThread {
         // parked thread wakes it doesn't get woken only to have to wait for us
         // to release `lock`.
         drop(self.inner.lock.lock().unwrap());
-        self.inner.cvar.signal()
+        self.inner.cvar.notify_one()
     }
 }
 
@@ -598,13 +599,9 @@ struct JoinInner<T> {
 #[cfg(feature = "thread")]
 impl<T> JoinInner<T> {
     fn join(&mut self) -> Result<T> {
-        let reval = self.native.take().unwrap().join();
-        if reval != sgx_status_t::SGX_SUCCESS {
-            Err(Box::new(Error::from(reval)))
-        } else {
-            unsafe {
-                (*self.packet.0.get()).take().unwrap()
-            }
+        self.native.take().unwrap().join();
+        unsafe {
+            (*self.packet.0.get()).take().unwrap()
         }
     }
 }

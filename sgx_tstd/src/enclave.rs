@@ -19,6 +19,7 @@ use sgx_types::*;
 use sgx_trts::enclave;
 use crate::sync::SgxThreadSpinlock;
 use crate::path::{Path, PathBuf};
+use crate::untrusted::fs;
 use crate::io;
 use core::sync::atomic::{AtomicU64, Ordering};
 
@@ -32,7 +33,7 @@ static ENCLAVE_ID: AtomicU64 = AtomicU64::new(0);
 /// get_enclave_base is to get enclave map base address.
 ///
 #[inline]
-pub fn get_enclave_base() -> * const u8 {
+pub fn get_enclave_base() -> *const u8 {
     enclave::rsgx_get_enclave_base()
 }
 
@@ -48,7 +49,7 @@ pub fn get_enclave_size() -> usize {
 /// get_heap_base is to get heap base address.
 ///
 #[inline]
-pub fn get_heap_base() -> * const u8 {
+pub fn get_heap_base() -> *const u8 {
     enclave::rsgx_get_heap_base()
 }
 
@@ -60,6 +61,29 @@ pub fn get_heap_size() -> usize {
     enclave::rsgx_get_heap_size()
 }
 
+///
+/// get_rsrv_base is to get reserved memory base address.
+///
+#[inline]
+pub fn get_rsrv_base() -> *const u8 {
+    enclave::rsgx_get_rsrv_base()
+}
+
+///
+/// get_rsrv_size is to get reserved memory size.
+///
+#[inline]
+pub fn get_rsrv_size() -> usize {
+    enclave::rsgx_get_rsrv_size()
+}
+
+///
+/// get_tcs_max_num is to get max tcs number.
+///
+#[inline]
+pub fn get_tcs_max_num() -> u32 {
+    enclave::rsgx_get_tcs_max_num()
+}
 ///
 /// get_thread_policy is to get TCS policy.
 ///
@@ -98,6 +122,7 @@ pub fn get_enclave_path() -> Option<PathBuf> {
 /// set_enclave_path is to set the path or name of the enclave.
 ///
 pub fn set_enclave_path<P: AsRef<Path>>(path: P) -> io::Result<()> {
+    let _ = fs::metadata(&path)?;
     unsafe {
         LOCK.lock();
         if ENCLAVE_PATH.is_none() {

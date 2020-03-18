@@ -105,7 +105,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
         let aad_slice: &[u8] = unsafe {
-            slice::from_raw_parts(additional_text as * const _ as * const u8, mem::size_of_val(additional_text))
+            slice::from_raw_parts(additional_text as *const _ as *const u8, mem::size_of_val(additional_text))
         };
 
         let result = SgxInternalSealedData::mac_aadata(aad_slice);
@@ -188,7 +188,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
         let aad_slice: &[u8] = unsafe {
-            slice::from_raw_parts(additional_text as * const _ as * const u8, mem::size_of_val(additional_text))
+            slice::from_raw_parts(additional_text as *const _ as *const u8, mem::size_of_val(additional_text))
         };
 
         let result = SgxInternalSealedData::mac_aadata_ex(key_policy,
@@ -255,14 +255,14 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
 
         self.inner.unmac_aadata().map(|x| {
             let ptr = Box::into_raw(x.additional);
-            unsafe{Box::from_raw(ptr as * mut T)}
+            unsafe{Box::from_raw(ptr as *mut T)}
         })
     }
 
     ///
     /// Convert a pointer of sgx_sealed_data_t buffer to SgxMacAadata.
     ///
-    pub unsafe fn from_raw_sealed_data_t(p: * mut sgx_sealed_data_t, len: u32) -> Option<Self> {
+    pub unsafe fn from_raw_sealed_data_t(p: *mut sgx_sealed_data_t, len: u32) -> Option<Self> {
 
         let size = mem::size_of::<T>();
         if size == 0 {
@@ -287,7 +287,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
     ///
     /// # Error
     ///
-    /// **Some(* mut sgx_sealed_data_t)**
+    /// **Some(*mut sgx_sealed_data_t)**
     ///
     /// Indicates the conversion is successfully. The return value is the pointer of sgx_sealed_data_t.
     ///
@@ -295,7 +295,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
     ///
     /// May be the parameter p and len is not avaliable.
     ///
-    pub unsafe fn to_raw_sealed_data_t(&self, p: * mut sgx_sealed_data_t, len: u32) -> Option<* mut sgx_sealed_data_t> {
+    pub unsafe fn to_raw_sealed_data_t(&self, p: *mut sgx_sealed_data_t, len: u32) -> Option<*mut sgx_sealed_data_t> {
         self.inner.to_raw_sealed_data_t(p, len)
     }
 }
@@ -313,7 +313,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
         let aad_slice: &[u8] = unsafe {
-            slice::from_raw_parts(additional_text.as_ptr() as * const u8, len)
+            slice::from_raw_parts(additional_text.as_ptr() as *const u8, len)
         };
 
         let result = SgxInternalSealedData::mac_aadata(aad_slice);
@@ -335,7 +335,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
         let aad_slice: &[u8] = unsafe {
-            slice::from_raw_parts(additional_text.as_ptr() as * const u8, len)
+            slice::from_raw_parts(additional_text.as_ptr() as *const u8, len)
         };
         let result = SgxInternalSealedData::mac_aadata_ex(key_policy,
                                                           attribute_mask,
@@ -364,7 +364,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
             let ptr = Box::into_raw(x.additional);
             unsafe {
                 let slice = slice::from_raw_parts_mut(ptr as *mut T, aad_len/size);
-                Box::from_raw(slice as * mut [T])
+                Box::from_raw(slice as *mut [T])
             }
         })
     }
@@ -372,7 +372,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
     ///
     /// Convert a pointer of sgx_sealed_data_t buffer to SgxMacAadata.
     ///
-    pub unsafe fn from_raw_sealed_data_t(p: * mut sgx_sealed_data_t, len: u32) -> Option<Self> {
+    pub unsafe fn from_raw_sealed_data_t(p: *mut sgx_sealed_data_t, len: u32) -> Option<Self> {
 
         let size = mem::size_of::<T>();
         if size == 0 {
@@ -397,7 +397,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
     ///
     /// # Error
     ///
-    /// **Some(* mut sgx_sealed_data_t)**
+    /// **Some(*mut sgx_sealed_data_t)**
     ///
     /// Indicates the conversion is successfully. The return value is the pointer of sgx_sealed_data_t.
     ///
@@ -405,7 +405,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
     ///
     /// May be the parameter p and len is not avaliable.
     ///
-    pub unsafe fn to_raw_sealed_data_t(&self, p: * mut sgx_sealed_data_t, len: u32) -> Option<* mut sgx_sealed_data_t> {
+    pub unsafe fn to_raw_sealed_data_t(&self, p: *mut sgx_sealed_data_t, len: u32) -> Option<*mut sgx_sealed_data_t> {
         self.inner.to_raw_sealed_data_t(p, len)
     }
 }

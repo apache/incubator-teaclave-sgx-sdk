@@ -20,9 +20,9 @@
 #include <sys/mman.h>
 #include <errno.h>
 
-void *u_malloc_ocall(int * error, size_t size)
+void *u_malloc_ocall(int *error, size_t size)
 {
-    void * ret = malloc(size);
+    void *ret = malloc(size);
     if (error) {
         *error = ret == NULL ? errno : 0;
     }
@@ -33,16 +33,16 @@ void u_free_ocall(void *p)
     free(p);
 }
 
-void *u_mmap_ocall(int * error, void * start, size_t length, int prot, int flags, int fd, off_t offset)
+void *u_mmap_ocall(int *error, void *start, size_t length, int prot, int flags, int fd, off_t offset)
 {
-    void * ret = mmap(start, length, prot, flags, fd, offset);
+    void *ret = mmap(start, length, prot, flags, fd, offset);
     if (error) {
         *error = ret == MAP_FAILED ? errno : 0;
     }
     return ret;
 }
 
-int u_munmap_ocall(int * error, void * start, size_t length)
+int u_munmap_ocall(int *error, void *start, size_t length)
 {
     int ret = munmap(start, length);
     if (error) {
@@ -51,7 +51,7 @@ int u_munmap_ocall(int * error, void * start, size_t length)
     return ret;
 }
 
-int u_msync_ocall(int * error, void * addr, size_t length, int flags)
+int u_msync_ocall(int *error, void *addr, size_t length, int flags)
 {
     int ret = msync(addr, length, flags);
     if (error) {
@@ -60,7 +60,7 @@ int u_msync_ocall(int * error, void * addr, size_t length, int flags)
     return ret;
 }
 
-int u_mprotect_ocall(int * error, void * addr, size_t length, int prot)
+int u_mprotect_ocall(int *error, void *addr, size_t length, int prot)
 {
     int ret = mprotect(addr, length, prot);
     if (error) {

@@ -20,7 +20,7 @@ use core::sync::atomic::{AtomicPtr, Ordering};
 use core::mem;
 use core::alloc::AllocErr;
 
-static SGX_OOM_HANDLER: AtomicPtr<()> = AtomicPtr::new(default_oom_handler as * mut ());
+static SGX_OOM_HANDLER: AtomicPtr<()> = AtomicPtr::new(default_oom_handler as *mut ());
 
 #[allow(clippy::needless_pass_by_value)]
 fn default_oom_handler( _err: AllocErr) -> ! {
@@ -38,5 +38,5 @@ pub fn rsgx_oom(err: AllocErr) -> ! {
 /// To avoid recursive OOM failures, it is critical that the OOM handler does
 /// not allocate any memory itself.
 pub fn set_panic_handler(handler: fn(AllocErr) -> !) {
-    SGX_OOM_HANDLER.store(handler as * mut (), Ordering::SeqCst);
+    SGX_OOM_HANDLER.store(handler as *mut (), Ordering::SeqCst);
 }

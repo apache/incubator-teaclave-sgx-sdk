@@ -54,8 +54,7 @@ pub fn cleanup() {
     for i in 1..=ITERS {
         unsafe {
             LOCK.lock();
-            let queue = QUEUE;
-            QUEUE = mem::replace(&mut QUEUE, if i == ITERS { DONE } else { ptr::null_mut() });
+            let queue = mem::replace(&mut QUEUE, if i == ITERS { DONE } else { ptr::null_mut() });
             LOCK.unlock();
 
             // make sure we're not recursively cleaning up

@@ -19,8 +19,8 @@ use sgx_types::{self, sgx_spinlock_t};
 use core::marker;
 use core::cell::UnsafeCell;
 
-unsafe fn raw_lock(lock: &mut sgx_spinlock_t) -> * mut sgx_spinlock_t {
-    lock as * mut _
+unsafe fn raw_lock(lock: &mut sgx_spinlock_t) -> *mut sgx_spinlock_t {
+    lock as *mut _
 }
 
 ///

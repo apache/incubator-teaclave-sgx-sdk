@@ -259,9 +259,9 @@ pub const CPU_FEATURE_PCONFIG               :uint64_t = 0x80000000000000;
 
 
 // Reserved feature bits
-pub const RESERVED_CPU_FEATURE_BIT          :uint64_t = (!(0x100000000000000 - 1));
+pub const RESERVED_CPU_FEATURE_BIT          :uint64_t = !(0x100000000000000 - 1);
 
 // Incompatible bits which we should unset in trts
-pub const INCOMPAT_FEATURE_BIT              :uint64_t = ((1 << 11) | (1 << 12) | (1 << 25) | (1 << 26) | (1 << 27) | (1 << 28));
+pub const INCOMPAT_FEATURE_BIT              :uint64_t = (1 << 11) | (1 << 12) | (1 << 25) | (1 << 26) | (1 << 27) | (1 << 28);
 
 

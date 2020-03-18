@@ -15,25 +15,6 @@
 // specific language governing permissions and limitations
 // under the License..
 
-pub mod at_exit_imp;
-pub mod os_str_bytes;
-#[cfg(feature = "backtrace")]
-pub mod backtrace;
-#[cfg(feature = "backtrace")]
-pub mod gnu;
-pub mod io;
-pub mod memchr;
-pub mod poison;
-pub mod thread_info;
-#[cfg(feature = "thread")]
-pub mod thread;
-pub mod util;
-pub mod wtf8;
-#[cfg(feature = "net")]
-pub mod net;
-pub mod bytestring;
-pub mod fs;
-
 macro_rules! rtabort {
     ($($t:tt)*) => (crate::sys_common::util::abort(format_args!($($t)*)))
 }
@@ -55,6 +36,27 @@ macro_rules! rtunwrap {
         },
     })
 }
+
+pub mod at_exit_imp;
+pub mod os_str_bytes;
+#[cfg(feature = "backtrace")]
+pub mod backtrace;
+#[cfg(feature = "backtrace")]
+pub mod gnu;
+pub mod io;
+pub mod memchr;
+pub mod poison;
+pub mod thread_info;
+#[cfg(feature = "thread")]
+pub mod thread;
+#[cfg(feature = "thread")]
+pub mod thread_local;
+pub mod util;
+pub mod wtf8;
+#[cfg(feature = "net")]
+pub mod net;
+pub mod bytestring;
+pub mod fs;
 
 /// A trait for viewing representations from std types
 #[doc(hidden)]

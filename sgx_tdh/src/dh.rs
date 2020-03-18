@@ -102,12 +102,12 @@ impl SgxDhMsg3 {
     ///
     /// The parameters p and len are not available for the conversion.
     ///
-    pub unsafe fn to_raw_dh_msg3_t(&self, p: * mut sgx_dh_msg3_t, len: u32) -> Option<* mut sgx_dh_msg3_t> {
+    pub unsafe fn to_raw_dh_msg3_t(&self, p: *mut sgx_dh_msg3_t, len: u32) -> Option<*mut sgx_dh_msg3_t> {
 
         if p.is_null() {
             return None;
         }
-        if !rsgx_raw_is_within_enclave(p as * mut u8, len as usize) {
+        if !rsgx_raw_is_within_enclave(p as *mut u8, len as usize) {
             return None;
         }
 
@@ -126,7 +126,7 @@ impl SgxDhMsg3 {
         dh_msg3.msg3_body.additional_prop_length = additional_prop_len as u32;
 
         if additional_prop_len > 0 {
-            let raw_msg3 = slice::from_raw_parts_mut(p as * mut u8, len as usize);
+            let raw_msg3 = slice::from_raw_parts_mut(p as *mut u8, len as usize);
             raw_msg3[dh_msg3_size..].copy_from_slice(&self.msg3_body.additional_prop);
         }
         Some(p)
@@ -155,12 +155,12 @@ impl SgxDhMsg3 {
     ///
     /// The parameters p and len are not available for the conversion.
     ///
-    pub unsafe fn from_raw_dh_msg3_t(p: * mut sgx_dh_msg3_t, len: u32) -> Option<Self> {
+    pub unsafe fn from_raw_dh_msg3_t(p: *mut sgx_dh_msg3_t, len: u32) -> Option<Self> {
 
         if p.is_null() {
             return None;
         }
-        if !rsgx_raw_is_within_enclave(p as * mut u8, len as usize) {
+        if !rsgx_raw_is_within_enclave(p as *mut u8, len as usize) {
             return None;
         }
 
@@ -180,7 +180,7 @@ impl SgxDhMsg3 {
 
         if additional_prop_len > 0 {
             let mut additional_prop: Vec<u8> = vec![0_u8; additional_prop_len as usize];
-            let ptr_additional_prop = p.offset(1) as * const u8;
+            let ptr_additional_prop = p.offset(1) as *const u8;
             ptr::copy_nonoverlapping(ptr_additional_prop, additional_prop.as_mut_ptr(), additional_prop_len as usize);
             dh_msg3.msg3_body.additional_prop = additional_prop.into_boxed_slice();
         }
@@ -376,7 +376,7 @@ impl SgxDhResponder {
         if !rsgx_data_is_within_enclave(msg2) ||
            !rsgx_data_is_within_enclave(aek) ||
            !rsgx_data_is_within_enclave(initiator_identity) ||
-           !rsgx_raw_is_within_enclave(msg3 as * const _ as * const u8, mem::size_of::<SgxDhMsg3>()) {
+           !rsgx_raw_is_within_enclave(msg3 as *const _ as *const u8, mem::size_of::<SgxDhMsg3>()) {
             *self = Self::default();
             self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -760,7 +760,7 @@ impl SgxDhInitiator {
         if !rsgx_data_is_within_enclave(self) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if !rsgx_raw_is_within_enclave(msg3 as * const _ as * const u8, mem::size_of::<SgxDhMsg3>()) ||
+        if !rsgx_raw_is_within_enclave(msg3 as *const _ as *const u8, mem::size_of::<SgxDhMsg3>()) ||
            !rsgx_data_is_within_enclave(aek) ||
            !rsgx_data_is_within_enclave(responder_identity) {
             *self = Self::default();
@@ -963,8 +963,8 @@ impl SgxLAv2ProtoSpec {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
-        let d = ti as * mut sgx_target_info_t as * mut u8;
-        let f = rpt as * const sgx_report_t as * const u8;
+        let d = ti as *mut sgx_target_info_t as *mut u8;
+        let f = rpt as *const sgx_report_t as *const u8;
         rsgx_lfence();
 
         let mut to: i32 = 0;

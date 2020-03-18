@@ -43,9 +43,7 @@ use sgx_types::*;
 ///
 /// **b_pse**
 ///
-/// If true, platform service information is needed in message 3. The caller should make sure a PSE session
-/// has been established using rsgx_create_pse_session before attempting to establish a remote attestation
-/// and key exchange session involving platform service information.
+/// Reserved for backward compatibility.
 ///
 /// # Requirements
 ///
@@ -77,12 +75,11 @@ use sgx_types::*;
 /// Indicates that an unexpected error occurred.
 ///
 pub fn rsgx_ra_init(p_pub_key: &sgx_ec256_public_t, b_pse: i32) -> SgxResult<sgx_ra_context_t> {
-
     let mut context: sgx_ra_context_t = 0;
     let ret = unsafe {
-        sgx_ra_init(p_pub_key as * const sgx_ec256_public_t,
+        sgx_ra_init(p_pub_key as *const sgx_ec256_public_t,
                     b_pse,
-                    &mut context as * mut sgx_ra_context_t)
+                    &mut context as *mut sgx_ra_context_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(context),
@@ -107,9 +104,7 @@ pub fn rsgx_ra_init(p_pub_key: &sgx_ec256_public_t, b_pse: i32) -> SgxResult<sgx
 ///
 /// **b_pse**
 ///
-/// If true, platform service information is needed in message 3. The caller should make sure a PSE session
-/// has been established using rsgx_create_pse_session before attempting to establish a remote attestation
-/// and key exchange session involving platform service information.
+/// Reserved for backward compatibility.
 ///
 /// **derive_key_cb**
 ///
@@ -149,13 +144,12 @@ pub fn rsgx_ra_init(p_pub_key: &sgx_ec256_public_t, b_pse: i32) -> SgxResult<sgx
 pub fn rsgx_ra_init_ex(p_pub_key: &sgx_ec256_public_t,
                        b_pse: i32,
                        derive_key_cb: sgx_ra_derive_secret_keys_t) -> SgxResult<sgx_ra_context_t> {
-
     let mut context: sgx_ra_context_t = 0;
     let ret = unsafe {
-        sgx_ra_init_ex(p_pub_key as * const sgx_ec256_public_t,
+        sgx_ra_init_ex(p_pub_key as *const sgx_ec256_public_t,
                        b_pse,
                        derive_key_cb,
-                       &mut context as * mut sgx_ra_context_t)
+                       &mut context as *mut sgx_ra_context_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(context),
@@ -206,10 +200,9 @@ pub fn rsgx_ra_init_ex(p_pub_key: &sgx_ec256_public_t,
 /// In other words, sgx_ra_proc_msg2 should have been called and no error returned.
 ///
 pub fn rsgx_ra_get_keys(context: sgx_ra_context_t, keytype: sgx_ra_key_type_t) -> SgxResult<sgx_ra_key_128_t> {
-
     let mut key = sgx_ra_key_128_t::default();
     let ret = unsafe {
-        sgx_ra_get_keys(context, keytype, &mut key as * mut sgx_ra_key_128_t)
+        sgx_ra_get_keys(context, keytype, &mut key as *mut sgx_ra_key_128_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(key),
@@ -247,7 +240,6 @@ pub fn rsgx_ra_get_keys(context: sgx_ra_context_t, keytype: sgx_ra_key_type_t) -
 /// Indicates an error that the input parameters are invalid.
 ///
 pub fn rsgx_ra_close(context: sgx_ra_context_t) -> SgxError {
-
     let ret = unsafe { sgx_ra_close(context) };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(()),

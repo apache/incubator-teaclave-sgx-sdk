@@ -571,7 +571,7 @@ impl CStr {
     /// performing any sanity checks. The provided slice **must** be nul-terminated
     /// and not contain any interior nul bytes.
     ///
-    #[rustc_const_unstable(feature = "const_cstr_unchecked")]
+    //#[rustc_const_unstable(feature = "const_cstr_unchecked")]
     pub const unsafe fn from_bytes_with_nul_unchecked(bytes: &[u8]) -> &CStr {
         &*(bytes as *const [u8] as *const CStr)
     }

@@ -1,6 +1,6 @@
 [package]
 name = "sgx_tstd"
-version = "1.1.0"
+version = "1.1.1"
 authors = ["The Teaclave Authors"]
 build = "build.rs"
 repository = "https://github.com/apache/teaclave-sgx-sdk"
@@ -28,8 +28,10 @@ sgx_types = { path = "../sgx_types" }
 sgx_libc = { path = "../sgx_libc" }
 sgx_trts = { path = "../sgx_trts" }
 sgx_alloc = { path = "../sgx_alloc" }
-sgx_tseal = { path = "../sgx_tseal" }
 sgx_tprotected_fs = { path = "../sgx_tprotected_fs" }
 sgx_backtrace_sys = { path = "../sgx_backtrace_sys" }
 sgx_demangle = { path = "../sgx_demangle" }
 sgx_unwind = { path = "../sgx_unwind" }
+
+[dependencies]
+hashbrown = { path = "./hashbrown", default-features = false, features = ['rustc-dep-of-std'] }

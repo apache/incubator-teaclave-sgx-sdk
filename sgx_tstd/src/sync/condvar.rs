@@ -17,39 +17,30 @@
 
 //!
 //! The Intel(R) Software Guard Extensions SDK already supports mutex and conditional
-//! variable synchronization mechanisms by means of the following APIand data types
+//! variable synchronization mechanisms by means of the following API and data types
 //! defined in the Types and Enumerations section. Some functions included in the
 //! trusted Thread Synchronization library may make calls outside the enclave (OCALLs).
 //! If you use any of the APIs below, you must first import the needed OCALL functions
-//! from sgx_tstdc.edl. Otherwise, you will get a linker error when the enclave is
+//! from sgx_tstd.edl. Otherwise, you will get a linker error when the enclave is
 //! being built; see Calling Functions outside the Enclave for additional details.
 //! The table below illustrates the primitives that the Intel(R) SGX Thread
 //! Synchronization library supports, as well as the OCALLs that each API function needs.
 //!
 
-
-
-use sgx_types::{self, SysError, sgx_thread_t, SGX_THREAD_T_NULL};
-use sgx_trts::enclave::SgxThreadData;
-use sgx_types::{c_void, c_int, c_long};
-use sgx_trts::libc;
+use sgx_types::SysError;
 use sgx_trts::oom;
-use super::mutex::{self, SgxThreadMutex, SgxMutexGuard};
-use crate::sys_common::poison::{self, LockResult, PoisonError};
+use sgx_trts::libc;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use core::cell::UnsafeCell;
 use core::fmt;
-use core::mem;
 use core::alloc::AllocErr;
 use alloc_crate::boxed::Box;
-use crate::sync::SgxThreadSpinlock;
-use crate::io::{self, Error, ErrorKind};
+use crate::sync::mutex::{self, SgxThreadMutex, SgxMutexGuard};
+use crate::sys_common::poison::{self, LockResult, PoisonError};
 use crate::time::Duration;
 use crate::time::Instant;
 use crate::untrusted::time::InstantEx;
-use crate::thread::{self, rsgx_thread_self};
-use crate::u64;
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+use crate::sys::condvar as imp;
 
 /// A type indicating whether a timed wait on a condition variable returned
 /// due to a time out or not.
@@ -57,6 +48,7 @@ use crate::u64;
 /// It is returned by the [`wait_timeout`] method.
 ///
 /// [`wait_timeout`]: struct.Condvar.html#method.wait_timeout
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct WaitTimeoutResult(bool);
 
 impl WaitTimeoutResult {
@@ -67,23 +59,7 @@ impl WaitTimeoutResult {
     }
 }
 
-struct SgxThreadCondvarInner {
-    spinlock: SgxThreadSpinlock,
-    thread_vec: Vec<sgx_thread_t>,
-}
-
-impl SgxThreadCondvarInner {
-    const fn new() -> Self {
-        SgxThreadCondvarInner {
-            spinlock: SgxThreadSpinlock::new(),
-            thread_vec: Vec::new(),
-        }
-    }
-}
-
-pub struct SgxThreadCondvar {
-    inner: UnsafeCell<SgxThreadCondvarInner>,
-}
+pub struct SgxThreadCondvar(imp::SgxThreadCondvar);
 
 unsafe impl Send for SgxThreadCondvar {}
 unsafe impl Sync for SgxThreadCondvar {}
@@ -91,153 +67,42 @@ unsafe impl Sync for SgxThreadCondvar {}
 impl SgxThreadCondvar {
 
     pub const fn new() -> Self {
-        SgxThreadCondvar { inner: UnsafeCell::new(SgxThreadCondvarInner::new()) }
+        SgxThreadCondvar(imp::SgxThreadCondvar::new())
     }
 
+    #[inline]
     pub unsafe fn wait(&self, mutex: &SgxThreadMutex) -> SysError {
-
-        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
-        condvar.spinlock.lock();
-        condvar.thread_vec.push(rsgx_thread_self());
-        let mut waiter: sgx_thread_t = SGX_THREAD_T_NULL;
-
-        mutex.unlock_lazy(&mut waiter).map_err(|ret| {
-            condvar.thread_vec.pop();
-            condvar.spinlock.unlock();
-            ret
-        })?;
-
-        loop {
-            condvar.spinlock.unlock();
-            if waiter == SGX_THREAD_T_NULL {
-                mutex::thread_wait_event(SgxThreadData::current().get_tcs(), Duration::new(u64::MAX, 1_000_000_000 - 1));
-            } else {
-                mutex::thread_setwait_events(SgxThreadData::from_raw(waiter).get_tcs(),
-                                             SgxThreadData::current().get_tcs(),
-                                             Duration::new(u64::MAX, 1_000_000_000 - 1));
-                waiter = SGX_THREAD_T_NULL;
-            }
-            condvar.spinlock.lock();
-            let mut thread_waiter: sgx_thread_t = SGX_THREAD_T_NULL;
-            for tmp in &condvar.thread_vec {
-                if thread::rsgx_thread_equal(*tmp, rsgx_thread_self()) {
-                    thread_waiter = *tmp;
-                    break;
-                }
-            }
-            if thread_waiter == SGX_THREAD_T_NULL {
-                break;
-            }
-        }
-        condvar.spinlock.unlock();
-        mutex.lock();
-        Ok(())
+        self.0.wait(mutex::raw(mutex))
     }
 
+    #[inline]
     pub unsafe fn wait_timeout(&self, mutex: &SgxThreadMutex, dur: Duration) -> SysError {
-
-        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
-        condvar.spinlock.lock();
-        condvar.thread_vec.push(rsgx_thread_self());
-        let mut waiter: sgx_thread_t = SGX_THREAD_T_NULL;
-
-        mutex.unlock_lazy(&mut waiter).map_err(|ret| {
-            condvar.thread_vec.pop();
-            condvar.spinlock.unlock();
-            ret
-        })?;
-        let mut ret = Ok(());
-        loop {
-            condvar.spinlock.unlock();
-            let mut result = 0;
-            if waiter == SGX_THREAD_T_NULL {
-                result = mutex::thread_wait_event(SgxThreadData::current().get_tcs(), dur);
-            } else {
-                result = mutex::thread_setwait_events(SgxThreadData::from_raw(waiter).get_tcs(),
-                                                      SgxThreadData::current().get_tcs(),
-                                                      dur);
-                waiter = SGX_THREAD_T_NULL;
-            }
-
-            condvar.spinlock.lock();
-            let mut thread_waiter: sgx_thread_t = SGX_THREAD_T_NULL;
-            for tmp in &condvar.thread_vec {
-                if thread::rsgx_thread_equal(*tmp, rsgx_thread_self()) {
-                    thread_waiter = *tmp;
-                    break;
-                }
-            }
-
-            if thread_waiter != SGX_THREAD_T_NULL && result < 0 {
-                if Error::last_os_error().kind() == io::ErrorKind::TimedOut {
-                    condvar.thread_vec.remove_item(&thread_waiter);
-                    ret = Err(libc::ETIMEDOUT);
-                    break;
-                }
-            }
-
-            if thread_waiter == SGX_THREAD_T_NULL {
-                break;
-            }
-        }
-        condvar.spinlock.unlock();
-        mutex.lock();
-        ret
+        self.0.wait_timeout(mutex::raw(mutex), dur)
     }
 
+    #[inline]
     pub unsafe fn signal(&self) -> SysError {
-
-        let mut waiter: sgx_thread_t = SGX_THREAD_T_NULL;
-        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
-        condvar.spinlock.lock();
-        if condvar.thread_vec.is_empty() {
-            condvar.spinlock.unlock();
-            return Ok(());
-        }
-
-        waiter = *condvar.thread_vec.first().unwrap();
-        condvar.thread_vec.remove(0);
-        condvar.spinlock.unlock();
-        mutex::thread_set_event(SgxThreadData::from_raw(waiter).get_tcs());
-        Ok(())
+        self.0.signal()
     }
 
+    #[inline]
     pub unsafe fn broadcast(&self) -> SysError {
-
-        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
-        let mut tcs_vec: Vec<usize> = Vec::new();
-        condvar.spinlock.lock();
-        if condvar.thread_vec.is_empty() {
-            condvar.spinlock.unlock();
-            return Ok(());
-        }
-
-        while let Some(waiter) = condvar.thread_vec.pop() {
-           tcs_vec.push(SgxThreadData::from_raw(waiter).get_tcs())
-        }
-        condvar.spinlock.unlock();
-        mutex::thread_set_multiple_events(tcs_vec.as_slice());
-        Ok(())
+        self.0.broadcast()
     }
 
+    #[inline]
     pub unsafe fn notify_one(&self) -> SysError {
         self.signal()
     }
 
+    #[inline]
     pub unsafe fn notify_all(&self) -> SysError {
         self.broadcast()
     }
 
+    #[inline]
     pub unsafe fn destroy(&self) -> SysError {
-
-        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
-        condvar.spinlock.lock();
-        if condvar.thread_vec.first() != Some(&SGX_THREAD_T_NULL) {
-            condvar.spinlock.unlock();
-            return Err(libc::EBUSY);
-        }
-        condvar.spinlock.unlock();
-        Ok(())
+        self.0.destroy()
     }
 }
 
@@ -404,7 +269,6 @@ impl SgxCondvar {
                             -> LockResult<(SgxMutexGuard<'a, T>, WaitTimeoutResult)> {
 
         let (poisoned, result) = unsafe {
-
             let lock = mutex::guard_lock(&guard);
             self.verify(lock);
             let _result = self.inner.wait_timeout(lock, dur);
@@ -516,7 +380,6 @@ impl SgxCondvar {
             let ret = self.inner.broadcast();
             match ret {
                 Err(r) if r == libc::ENOMEM => {
-                    //let _layout = Layout::from_size_align(mem::size_of::<usize>(), 1).unwrap();
                     oom::rsgx_oom(AllocErr)
                 },
                 _ => {},
@@ -524,16 +387,17 @@ impl SgxCondvar {
         }
     }
 
+    #[inline]
     pub fn notify_one(&self) {
         self.signal()
     }
 
+    #[inline]
     pub fn notify_all(&self) {
         self.broadcast()
     }
 
     fn verify(&self, mutex: &SgxThreadMutex) {
-
         let addr = mutex as *const _ as usize;
         match self.mutex.compare_and_swap(0, addr, Ordering::SeqCst) {
             // If we got out 0, then we have successfully bound the mutex to
@@ -565,6 +429,7 @@ impl Default for SgxCondvar {
 
 impl Drop for SgxCondvar {
     fn drop(&mut self) {
-        unsafe { self.inner.destroy(); }
+        let result = unsafe { self.inner.destroy() };
+        debug_assert_eq!(result, Ok(()), "Error when destroy an SgxCondvar: {}", result.unwrap_err());
     }
 }

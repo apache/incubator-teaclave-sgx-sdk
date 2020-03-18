@@ -16,7 +16,7 @@
 # under the License.
 
 COMMON_CFLAGS += -O2
-CFLAGS := $(COMMON_CFLAGS) -fPIC -Wno-attributes -I./inc
+CFLAGS := $(COMMON_CFLAGS) -fPIC -Wno-attributes -Wno-deprecated-declarations -I./inc
 
 SRCS := $(wildcard *.c)
 OBJS := $(sort $(SRCS:.c=.o))

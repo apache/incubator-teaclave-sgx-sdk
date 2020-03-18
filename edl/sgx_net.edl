@@ -30,7 +30,11 @@ enclave {
     };
 
     untrusted {
-        int u_getaddrinfo_ocall([out]int * error,  [in, string] const char * node,  [in, string] const char * service, [in] const struct addrinfo * hints, [out] struct addrinfo ** res);
+        int u_getaddrinfo_ocall([out] int *error,
+                                [in, string] const char *node,
+                                [in, string] const char *service,
+                                [in] const struct addrinfo *hints,
+                                [out] struct addrinfo **res);
         void u_freeaddrinfo_ocall([user_check] struct addrinfo *res);
         char *u_gai_strerror_ocall(int errcode);
     };

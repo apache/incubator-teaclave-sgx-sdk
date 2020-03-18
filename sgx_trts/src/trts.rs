@@ -18,6 +18,7 @@
 use sgx_types::*;
 use sgx_types::marker::ContiguousMemory;
 use core::mem;
+use crate::libc;
 
 ///
 /// rsgx_read_rand function is used to generate a random number inside the enclave.
@@ -51,7 +52,6 @@ use core::mem;
 /// Indicates an unexpected error occurs during the valid random number generation process.
 ///
 pub fn rsgx_read_rand(rand: &mut [u8]) -> SgxError {
-
     let ret = unsafe { sgx_read_rand(rand.as_mut_ptr(), rand.len()) };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(()),
@@ -64,8 +64,7 @@ pub fn rsgx_read_rand(rand: &mut [u8]) -> SgxError {
 ///
 #[inline]
 pub fn rsgx_data_is_within_enclave<T: Copy + ContiguousMemory>(data: &T) -> bool {
-
-    rsgx_raw_is_within_enclave(data as * const _ as * const u8, mem::size_of::<T>())
+    rsgx_raw_is_within_enclave(data as *const _ as *const u8, mem::size_of::<T>())
 }
 
 ///
@@ -73,8 +72,7 @@ pub fn rsgx_data_is_within_enclave<T: Copy + ContiguousMemory>(data: &T) -> bool
 ///
 #[inline]
 pub fn rsgx_slice_is_within_enclave<T: Copy + ContiguousMemory>(data: &[T]) -> bool {
-
-    rsgx_raw_is_within_enclave(data.as_ptr() as * const u8, mem::size_of_val(data))
+    rsgx_raw_is_within_enclave(data.as_ptr() as *const u8, mem::size_of_val(data))
 }
 
 ///
@@ -114,9 +112,8 @@ pub fn rsgx_slice_is_within_enclave<T: Copy + ContiguousMemory>(data: &[T]) -> b
 ///
 /// The whole buffer or part of the buffer is not within the enclave, or the buffer is wrapped around.
 ///
-pub fn rsgx_raw_is_within_enclave(addr: * const u8, size: usize) -> bool {
-
-    let ret = unsafe { sgx_is_within_enclave(addr as * const c_void, size) };
+pub fn rsgx_raw_is_within_enclave(addr: *const u8, size: usize) -> bool {
+    let ret = unsafe { sgx_is_within_enclave(addr as *const c_void, size) };
     ret != 0
 }
 
@@ -125,8 +122,7 @@ pub fn rsgx_raw_is_within_enclave(addr: * const u8, size: usize) -> bool {
 ///
 #[inline]
 pub fn rsgx_data_is_outside_enclave<T: Copy + ContiguousMemory>(data: &T) -> bool {
-
-    rsgx_raw_is_outside_enclave(data as * const _ as * const u8,  mem::size_of::<T>())
+    rsgx_raw_is_outside_enclave(data as *const _ as *const u8,  mem::size_of::<T>())
 }
 
 ///
@@ -134,8 +130,7 @@ pub fn rsgx_data_is_outside_enclave<T: Copy + ContiguousMemory>(data: &T) -> boo
 ///
 #[inline]
 pub fn rsgx_slice_is_outside_enclave<T: Copy + ContiguousMemory>(data: &[T]) -> bool {
-
-    rsgx_raw_is_outside_enclave(data.as_ptr() as * const u8, mem::size_of_val(data))
+    rsgx_raw_is_outside_enclave(data.as_ptr() as *const u8, mem::size_of_val(data))
 }
 
 ///
@@ -173,33 +168,24 @@ pub fn rsgx_slice_is_outside_enclave<T: Copy + ContiguousMemory>(data: &[T]) -> 
 ///
 /// The whole buffer or part of the buffer is not outside the enclave, or the buffer is wrapped around.
 ///
-pub fn rsgx_raw_is_outside_enclave(addr: * const u8, size: usize) -> bool {
-
-    let ret = unsafe { sgx_is_outside_enclave(addr as * const c_void, size) };
+pub fn rsgx_raw_is_outside_enclave(addr: *const u8, size: usize) -> bool {
+    let ret = unsafe { sgx_is_outside_enclave(addr as *const c_void, size) };
     ret != 0
 }
 
 pub fn rsgx_is_enclave_crashed() -> bool {
-
     let ret = unsafe { sgx_is_enclave_crashed() };
     ret != 0
 }
 
-pub type exit_function_t = extern "C" fn();
-
-#[link(name = "sgx_trts")]
-extern {
-    pub fn abort() -> !;
-    pub fn atexit(fun: exit_function_t) -> c_int;
-}
+pub use libc::exit_function_t;
 
 pub fn rsgx_abort() -> ! {
-    unsafe { abort() }
+    unsafe { libc::abort() }
 }
 
 pub fn rsgx_atexit(fun: exit_function_t) -> bool {
-
-    let ret = unsafe { atexit(fun) };
+    let ret = unsafe { libc::atexit(fun) };
     ret >= 0
 }
 

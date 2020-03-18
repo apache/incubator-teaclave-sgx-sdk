@@ -26,7 +26,12 @@ fn main() {
 }
 
 fn build_libbacktrace(_target: &str) -> Result<(), ()> {
-    let native = native_lib_boilerplate("sgx_backtrace_sys/libbacktrace", "libbacktrace", "backtrace", "")?;
+    let native = native_lib_boilerplate(
+                    "sgx_backtrace_sys/libbacktrace",
+                    "libbacktrace",
+                    "backtrace",
+                    "",
+                    &vec![])?;
 
     let mut build = cc::Build::new();
     build

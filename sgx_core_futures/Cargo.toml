@@ -1,0 +1,15 @@
+[package]
+name = "sgx_core_futures"
+version = "1.1.1"
+authors = ["The Teaclave Authors"]
+repository = "https://github.com/apache/teaclave-sgx-sdk"
+license-file = "LICENSE"
+documentation = "https://dingelish.github.io/"
+description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
+edition = "2018"
+
+[lib]
+name = "sgx_core_futures"
+crate-type = ["rlib"]
+
+

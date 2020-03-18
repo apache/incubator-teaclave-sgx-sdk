@@ -16,35 +16,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use alloc_crate::collections::LinkedList;
-use crate::sync::SgxThreadSpinlock;
-
-static QUEUE_LOCK: SgxThreadSpinlock = SgxThreadSpinlock::new();
-static mut THREAD_QUEUE: Option<LinkedList<*mut usize>> = None;
-
 pub unsafe fn start_thread(main: *mut u8) {
     // Finally, let's run some code.
     Box::from_raw(main as *mut Box<dyn FnOnce()>)()
-}
-
-pub fn push_thread_queue(main: *mut usize) {
-    unsafe {
-        QUEUE_LOCK.lock();
-        if THREAD_QUEUE.is_none() {
-            THREAD_QUEUE = Some(LinkedList::<*mut usize>::new());
-        }
-        THREAD_QUEUE.as_mut().map(|q| q.push_back(main));
-        QUEUE_LOCK.unlock();
-    }
-}
-
-pub fn pop_thread_queue(main: *mut usize) -> Option<*mut usize> {
-    unsafe {
-        QUEUE_LOCK.lock();
-        let p = THREAD_QUEUE.as_mut().map_or(None, |q| {
-            q.drain_filter(|x| (*x == main) && (**x == *main)).next()
-        });
-        QUEUE_LOCK.unlock();
-        p
-    }
 }

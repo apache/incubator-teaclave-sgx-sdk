@@ -14,6 +14,7 @@ use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{env, fs};
 use std::thread;
+use std::ffi::OsStr;
 
 /// A helper macro to `unwrap` a result except also print out details like:
 ///
@@ -129,20 +130,27 @@ pub fn output(cmd: &mut Command) -> String {
     String::from_utf8(output.stdout).unwrap()
 }
 
-pub fn rerun_if_changed_anything_in_dir(dir: &Path) {
+pub fn rerun_if_changed_anything_in_dir(dir: &Path, filter: &Vec<&str>) {
     let mut stack = dir.read_dir()
         .unwrap()
         .map(|e| e.unwrap())
-        .filter(|e| &*e.file_name() != ".git")
+        .filter(|e| !is_in_filter_list(&*e.file_name(), filter))
         .collect::<Vec<_>>();
     while let Some(entry) = stack.pop() {
         let path = entry.path();
         if entry.file_type().unwrap().is_dir() {
-            stack.extend(path.read_dir().unwrap().map(|e| e.unwrap()));
+            stack.extend(path.read_dir()
+                .unwrap()
+                .map(|e| e.unwrap())
+                .filter(|e| !is_in_filter_list(&*e.file_name(), filter)));
         } else {
             println!("cargo:rerun-if-changed={}", path.display());
         }
     }
+}
+
+fn is_in_filter_list(elem: &OsStr, filter: &Vec<&str>) -> bool {
+    filter.iter().any(|e| *e == elem) || elem == ".git"
 }
 
 /// Returns the last-modified time for `path`, or zero if it doesn't exist.
@@ -228,10 +236,11 @@ pub fn native_lib_boilerplate(
     out_name: &str,
     link_name: &str,
     search_subdir: &str,
+    filter: &Vec<&str>,
 ) -> Result<NativeLibBoilerplate, ()> {
     let current_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let src_dir = current_dir.join("..").join(src_name);
-    rerun_if_changed_anything_in_dir(&src_dir);
+    rerun_if_changed_anything_in_dir(&src_dir, filter);
 
     let out_dir = env::var_os("RUSTBUILD_NATIVE_DIR").unwrap_or_else(||
         env::var_os("OUT_DIR").unwrap());
@@ -284,6 +293,7 @@ pub fn sanitizer_lib_boilerplate(sanitizer_name: &str)
         sanitizer_name,
         &to_link,
         search_path,
+        &vec![],
     )?;
     Ok((lib, link_name))
 }

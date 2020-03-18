@@ -17,16 +17,14 @@
 enclave {
 
     include "time.h"
-    include "pthread.h"
+
+    from "intel/sgx_pthread.edl" import *;
 
     trusted {
-        public void *t_thread_main([in, size=len]void *arg, int len);
+        /* define ECALLs here. */
     };
 
     untrusted {
-        int u_pthread_create_ocall([out]pthread_t *thread, [in]const pthread_attr_t *attr, [user_check]void *start_routine, [in, size=len]void *arg, int len);
-        int u_pthread_join_ocall(pthread_t thread, [out]void **result);
-        int u_pthread_detach_ocall(pthread_t thread);
         int u_sched_yield_ocall([out]int *error);
         int u_nanosleep_ocall([out]int *error, [in]const struct timespec *req, [out]struct timespec *rem);
     };

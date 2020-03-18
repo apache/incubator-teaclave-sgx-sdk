@@ -52,7 +52,7 @@ enclave {
                                     [out, size=addrlen_in] struct sockaddr *src_addr,
                                     socklen_t addrlen_in,
                                     [out] socklen_t *addrlen_out) transition_using_threads;
-        size_t u_net_recvmsg_ocall([out] int *error, int sockfd, [in, out] struct msghdr * msg, int flags) transition_using_threads;
+        size_t u_net_recvmsg_ocall([out] int *error, int sockfd, [in, out] struct msghdr *msg, int flags) transition_using_threads;
         size_t u_net_send_ocall([out] int *error, int sockfd, [in, size=len] const void *buf, size_t len, int flags) transition_using_threads;
         size_t u_net_sendto_ocall([out] int *error,
                                   int sockfd,
@@ -61,7 +61,7 @@ enclave {
                                   int flags,
                                   [in, size=addrlen] const struct sockaddr *dest_addr,
                                   socklen_t addrlen) transition_using_threads;
-        size_t u_sendmsg_ocall([out] int *error, int sockfd, [in] const struct msghdr * msg, int flags) transition_using_threads;
+        size_t u_sendmsg_ocall([out] int *error, int sockfd, [in] const struct msghdr *msg, int flags) transition_using_threads;
         int u_net_getsockopt_ocall([out] int *error,
                                    int sockfd,
                                    int level,
