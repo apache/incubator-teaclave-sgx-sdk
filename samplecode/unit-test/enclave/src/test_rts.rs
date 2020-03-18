@@ -36,7 +36,7 @@ global_ctors_object! {
 }
 
 // veh
-extern "C" fn sample_exception_handler(_ : *mut sgx_exception_info_t) -> uint32_t {
+extern "C" fn sample_exception_handler(_ : *mut sgx_exception_info_t) -> int32_t {
     0
 }
 

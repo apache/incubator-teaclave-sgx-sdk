@@ -36,12 +36,11 @@ extern crate sgx_tunittest;
 extern crate sgx_trts;
 extern crate sgx_rand;
 extern crate sgx_tseal;
+extern crate sgx_alloc;
+extern crate sgx_align_struct_attribute;
 extern crate rand;
-
 #[macro_use]
 extern crate memoffset;
-extern crate sgx_tse;
-
 extern crate sgx_serialize;
 pub use sgx_serialize::*;
 #[macro_use]
@@ -100,6 +99,9 @@ use test_mpsc::*;
 
 mod test_alignbox;
 use test_alignbox::*;
+
+mod test_alignstruct;
+
 
 #[no_mangle]
 pub extern "C"

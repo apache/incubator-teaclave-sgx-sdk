@@ -16,7 +16,7 @@
 // under the License..
 
 use std::mem;
-use sgx_tse::alignbox::*;
+use sgx_alloc::alignbox::*;
 use sgx_types::*;
 
 impl_struct! {
@@ -64,22 +64,22 @@ impl_struct! {
     }
     //no align
     {
-        let str_slice: &[align_req_t] = &[];
+        let str_slice: &[AlignReq] = &[];
         let aligned_box: Option<AlignBox<user_struct>> = AlignBox::<user_struct>::new_with_req(1, &str_slice);
         assert!(aligned_box.is_none());
     }
     //align
     {
-        let str_slice: &[align_req_t] = &[
-            align_req_t {
+        let str_slice: &[AlignReq] = &[
+            AlignReq {
                 offset:offset_of!(user_struct, a),
                 len:mem::size_of::<u8>(),
             },
-            align_req_t {
+            AlignReq {
                 offset:offset_of!(user_struct, b),
                 len:mem::size_of::<[u16; 2]>(),
             },
-            align_req_t {
+            AlignReq {
                 offset: offset_of!(user_struct, d),
                 len:mem::size_of::<[u64; 6]>(),
             }
@@ -89,16 +89,16 @@ impl_struct! {
     }
     //no align
     {
-        let str_slice: &[align_req_t] = &[
-            align_req_t {
+        let str_slice: &[AlignReq] = &[
+            AlignReq {
                 offset:offset_of!(user_struct, a),
                 len:mem::size_of::<u8>(),
             },
-            align_req_t {
+            AlignReq {
                 offset:offset_of!(user_struct, b),
                 len:mem::size_of::<[u16; 2]>(),
             },
-            align_req_t {
+            AlignReq {
                 offset: offset_of!(user_struct, d),
                 len:mem::size_of::<[u64; 6]>(),
             }
@@ -108,20 +108,20 @@ impl_struct! {
     }
     //no align
     {
-        let str_slice: &[align_req_t] = &[
-            align_req_t {
+        let str_slice: &[AlignReq] = &[
+            AlignReq {
                 offset:offset_of!(struct_align_t, key1),
                 len:mem::size_of::<sgx_key_128bit_t>(),
             },
-            align_req_t {
+            AlignReq {
                 offset: offset_of!(struct_align_t, key2),
                 len:mem::size_of::<sgx_key_128bit_t>(),
             },
-            align_req_t {
+            AlignReq {
                 offset:offset_of!(struct_align_t, key3),
                 len:mem::size_of::<sgx_key_128bit_t>(),
             },
-            align_req_t {
+            AlignReq {
                 offset: offset_of!(struct_align_t, key4),
                 len:mem::size_of::<sgx_key_128bit_t>(),
             }
@@ -131,20 +131,20 @@ impl_struct! {
     }
     //align
     {
-        let str_slice: &[align_req_t] = &[
-            align_req_t {
+        let str_slice: &[AlignReq] = &[
+            AlignReq {
                 offset:offset_of!(struct_align_t, key1),
                 len:mem::size_of::<sgx_key_128bit_t>(),
             },
-            align_req_t {
+            AlignReq {
                 offset: offset_of!(struct_align_t, key2),
                 len:mem::size_of::<sgx_key_128bit_t>(),
             },
-            align_req_t {
+            AlignReq {
                 offset:offset_of!(struct_align_t, key3),
                 len:mem::size_of::<sgx_key_128bit_t>(),
             },
-            align_req_t {
+            AlignReq {
                 offset: offset_of!(struct_align_t, key4),
                 len:mem::size_of::<sgx_key_128bit_t>(),
             }
@@ -155,20 +155,20 @@ impl_struct! {
 }
 
 pub fn test_alignbox_heap_init() {
-    let str_slice: &[align_req_t] = &[
-        align_req_t {
+    let str_slice: &[AlignReq] = &[
+        AlignReq {
             offset:offset_of!(struct_align_t, key1),
             len:mem::size_of::<sgx_key_128bit_t>(),
         },
-        align_req_t {
+        AlignReq {
             offset: offset_of!(struct_align_t, key2),
             len:mem::size_of::<sgx_key_128bit_t>(),
         },
-        align_req_t {
+        AlignReq {
             offset:offset_of!(struct_align_t, key3),
             len:mem::size_of::<sgx_key_128bit_t>(),
         },
-        align_req_t {
+        AlignReq {
             offset: offset_of!(struct_align_t, key4),
             len:mem::size_of::<sgx_key_128bit_t>(),
         }
@@ -197,20 +197,20 @@ pub fn test_alignbox_heap_init() {
 }
 
 pub fn test_alignbox_clone() {
-    let str_slice: &[align_req_t] = &[
-        align_req_t {
+    let str_slice: &[AlignReq] = &[
+        AlignReq {
             offset:offset_of!(struct_align_t, key1),
             len:mem::size_of::<sgx_key_128bit_t>(),
         },
-        align_req_t {
+        AlignReq {
             offset: offset_of!(struct_align_t, key2),
             len:mem::size_of::<sgx_key_128bit_t>(),
         },
-        align_req_t {
+        AlignReq {
             offset:offset_of!(struct_align_t, key3),
             len:mem::size_of::<sgx_key_128bit_t>(),
         },
-        align_req_t {
+        AlignReq {
             offset: offset_of!(struct_align_t, key4),
             len:mem::size_of::<sgx_key_128bit_t>(),
         }
@@ -230,20 +230,20 @@ pub fn test_alignbox_clone() {
 }
 
 pub fn test_alignbox_clonefrom() {
-    let str_slice: &[align_req_t] = &[
-        align_req_t {
+    let str_slice: &[AlignReq] = &[
+        AlignReq {
             offset:offset_of!(struct_align_t, key1),
             len:mem::size_of::<sgx_key_128bit_t>(),
         },
-        align_req_t {
+        AlignReq {
             offset: offset_of!(struct_align_t, key2),
             len:mem::size_of::<sgx_key_128bit_t>(),
         },
-        align_req_t {
+        AlignReq {
             offset:offset_of!(struct_align_t, key3),
             len:mem::size_of::<sgx_key_128bit_t>(),
         },
-        align_req_t {
+        AlignReq {
             offset: offset_of!(struct_align_t, key4),
             len:mem::size_of::<sgx_key_128bit_t>(),
         }
@@ -266,20 +266,20 @@ pub fn test_alignbox_clonefrom() {
 }
 
 pub fn test_alignbox_clonefrom_no_eq_size() {
-    let str_slice: &[align_req_t] = &[
-        align_req_t {
+    let str_slice: &[AlignReq] = &[
+        AlignReq {
             offset:offset_of!(struct_align_t, key1),
             len:mem::size_of::<sgx_key_128bit_t>(),
         },
-        align_req_t {
+        AlignReq {
             offset: offset_of!(struct_align_t, key2),
             len:mem::size_of::<sgx_key_128bit_t>(),
         },
-        align_req_t {
+        AlignReq {
             offset:offset_of!(struct_align_t, key3),
             len:mem::size_of::<sgx_key_128bit_t>(),
         },
-        align_req_t {
+        AlignReq {
             offset: offset_of!(struct_align_t, key4),
             len:mem::size_of::<sgx_key_128bit_t>(),
         }
