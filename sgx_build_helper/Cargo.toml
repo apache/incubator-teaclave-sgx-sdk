@@ -1,6 +1,6 @@
 [package]
 name = "sgx_build_helper"
-version = "0.1.0"
+version = "0.1.3"
 authors = ["The Teaclave Authors"]
 repository = "https://github.com/apache/teaclave-sgx-sdk"
 license-file = "LICENSE"
