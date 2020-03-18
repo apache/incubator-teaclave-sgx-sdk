@@ -16,7 +16,6 @@ sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_tdh = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_tcrypto = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-sgx_tservice = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_tkey_exchange = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
@@ -42,7 +41,6 @@ sgx_tprotected_fs = { path = "../../../../sgx_tprotected_fs" }
 sgx_trts = { path = "../../../../sgx_trts" }
 sgx_tse = { path = "../../../../sgx_tse" }
 sgx_tseal = { path = "../../../../sgx_tseal" }
-sgx_tservice = { path = "../../../../sgx_tservice" }
 sgx_tstd = { path = "../../../../sgx_tstd" }
 sgx_tunittest = { path = "../../../../sgx_tunittest" }
 sgx_types = { path = "../../../../sgx_types" }

@@ -33,10 +33,6 @@ stage = 2
 path = "../../../sgx_tkey_exchange"
 stage = 2
 
-[dependencies.sgx_tservice]
-path = "../../../sgx_tservice"
-stage = 2
-
 [dependencies.sgx_tse]
 path = "../../../sgx_tse"
 stage = 2
