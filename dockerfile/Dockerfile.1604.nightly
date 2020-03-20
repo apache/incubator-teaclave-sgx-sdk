@@ -1,63 +1,307 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License..
-
-
 FROM ubuntu:16.04
-MAINTAINER Yu Ding
 
-ENV sdk_bin https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/ubuntu16.04-server/sgx_linux_x64_sdk_2.7.101.3.bin
-ENV psw_deb https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/ubuntu16.04-server/libsgx-enclave-common_2.7.101.3-xenial1_amd64.deb
-ENV psw_dev_deb https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/ubuntu16.04-server/libsgx-enclave-common-dev_2.7.101.3-xenial1_amd64.deb
-ENV rust_toolchain nightly-2019-11-25
+# First, Debian buster-curl
+RUN apt-get update && apt-get install -y --no-install-recommends \
+		ca-certificates \
+		curl \
+		netbase \
+		wget \
+	&& rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && \
-    apt-get install -y build-essential ocaml automake autoconf libtool wget python libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev sudo kmod vim curl git-core libprotobuf-c0-dev libboost-thread-dev libboost-system-dev liblog4cpp5-dev libjsoncpp-dev alien uuid-dev libxml2-dev cmake pkg-config expect gdb && \
+RUN set -ex; \
+	if ! command -v gpg > /dev/null; then \
+		apt-get update; \
+		apt-get install -y --no-install-recommends \
+			gnupg \
+			dirmngr \
+		; \
+		rm -rf /var/lib/apt/lists/*; \
+	fi
+
+# Second, Debian buster-scm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+		git \
+		mercurial \
+		openssh-client \
+		subversion \
+		\
+		procps \
+	&& rm -rf /var/lib/apt/lists/*
+
+# Third, Debian Buster
+
+RUN set -ex; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+		autoconf \
+		automake \
+		bzip2 \
+		dpkg-dev \
+		file \
+		g++ \
+		gcc \
+		imagemagick \
+		libbz2-dev \
+		libc6-dev \
+		libcurl4-openssl-dev \
+		libdb-dev \
+		libevent-dev \
+		libffi-dev \
+		libgdbm-dev \
+		libglib2.0-dev \
+		libgmp-dev \
+		libjpeg-dev \
+		libkrb5-dev \
+		liblzma-dev \
+		libmagickcore-dev \
+		libmagickwand-dev \
+		libmaxminddb-dev \
+		libncurses5-dev \
+		libncursesw5-dev \
+		libpng-dev \
+		libpq-dev \
+		libreadline-dev \
+		libsqlite3-dev \
+		libssl-dev \
+		libtool \
+		libwebp-dev \
+		libxml2-dev \
+		libxslt-dev \
+		libyaml-dev \
+		make \
+		patch \
+		unzip \
+		xz-utils \
+		zlib1g-dev \
+		\
+# https://lists.debian.org/debian-devel-announce/2016/09/msg00000.html
+		$( \
+# if we use just "apt-cache show" here, it returns zero because "Can't select versions from package 'libmysqlclient-dev' as it is purely virtual", hence the pipe to grep
+			if apt-cache show 'default-libmysqlclient-dev' 2>/dev/null | grep -q '^Version:'; then \
+				echo 'default-libmysqlclient-dev'; \
+			else \
+				echo 'libmysqlclient-dev'; \
+			fi \
+		) \
+	; \
+	rm -rf /var/lib/apt/lists/*
+
+# gcc
+RUN set -ex; \
+	if ! command -v gpg > /dev/null; then \
+		apt-get update; \
+		apt-get install -y --no-install-recommends \
+			gnupg \
+			dirmngr \
+		; \
+		rm -rf /var/lib/apt/lists/*; \
+	fi
+
+# https://gcc.gnu.org/mirrors.html
+ENV GPG_KEYS \
+# 1024D/745C015A 1999-11-09 Gerald Pfeifer <gerald@pfeifer.com>
+	B215C1633BCA0477615F1B35A5B3A004745C015A \
+# 1024D/B75C61B8 2003-04-10 Mark Mitchell <mark@codesourcery.com>
+	B3C42148A44E6983B3E4CC0793FA9B1AB75C61B8 \
+# 1024D/902C9419 2004-12-06 Gabriel Dos Reis <gdr@acm.org>
+	90AA470469D3965A87A5DCB494D03953902C9419 \
+# 1024D/F71EDF1C 2000-02-13 Joseph Samuel Myers <jsm@polyomino.org.uk>
+	80F98B2E0DAB6C8281BDF541A7C8C3B2F71EDF1C \
+# 2048R/FC26A641 2005-09-13 Richard Guenther <richard.guenther@gmail.com>
+	7F74F97C103468EE5D750B583AB00996FC26A641 \
+# 1024D/C3C45C06 2004-04-21 Jakub Jelinek <jakub@redhat.com>
+	33C235A34C46AA3FFB293709A328C3A2C3C45C06
+RUN set -ex; \
+	for key in $GPG_KEYS; do \
+		gpg --batch --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
+	done
+
+# https://gcc.gnu.org/mirrors.html
+ENV GCC_MIRRORS \
+		https://ftpmirror.gnu.org/gcc \
+		https://bigsearcher.com/mirrors/gcc/releases \
+		https://mirrors-usa.go-parts.com/gcc/releases \
+		https://mirrors.concertpass.com/gcc/releases \
+		http://www.netgull.com/gcc/releases
+
+# Last Modified: 2020-03-04
+ENV GCC_VERSION 8.4.0
+# Docker EOL: 2021-09-04
+
+RUN set -ex; \
+	\
+	savedAptMark="$(apt-mark showmanual)"; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+		dpkg-dev \
+		flex \
+	; \
+	rm -r /var/lib/apt/lists/*; \
+	\
+	_fetch() { \
+		local fetch="$1"; shift; \
+		local file="$1"; shift; \
+		for mirror in $GCC_MIRRORS; do \
+			if curl -fL "$mirror/$fetch" -o "$file"; then \
+				return 0; \
+			fi; \
+		done; \
+		echo >&2 "error: failed to download '$fetch' from several mirrors"; \
+		return 1; \
+	}; \
+	\
+	_fetch "gcc-$GCC_VERSION/gcc-$GCC_VERSION.tar.xz.sig" 'gcc.tar.xz.sig' \
+# 6.5.0 (https://mirrors.kernel.org/gnu/gcc/6.5.0/), no gcc- prefix
+		|| _fetch "$GCC_VERSION/gcc-$GCC_VERSION.tar.xz.sig"; \
+	_fetch "gcc-$GCC_VERSION/gcc-$GCC_VERSION.tar.xz" 'gcc.tar.xz' \
+		|| _fetch "$GCC_VERSION/gcc-$GCC_VERSION.tar.xz" 'gcc.tar.xz'; \
+	gpg --batch --verify gcc.tar.xz.sig gcc.tar.xz; \
+	mkdir -p /usr/src/gcc; \
+	tar -xf gcc.tar.xz -C /usr/src/gcc --strip-components=1; \
+	rm gcc.tar.xz*; \
+	\
+	cd /usr/src/gcc; \
+	\
+# "download_prerequisites" pulls down a bunch of tarballs and extracts them,
+# but then leaves the tarballs themselves lying around
+	./contrib/download_prerequisites; \
+	{ rm *.tar.* || true; }; \
+	\
+# explicitly update autoconf config.guess and config.sub so they support more arches/libcs
+	for f in config.guess config.sub; do \
+		wget -O "$f" "https://git.savannah.gnu.org/cgit/config.git/plain/$f?id=7d3d27baf8107b630586c962c057e22149653deb"; \
+# find any more (shallow) copies of the file we grabbed and update them too
+		find -mindepth 2 -name "$f" -exec cp -v "$f" '{}' ';'; \
+	done; \
+	\
+	dir="$(mktemp -d)"; \
+	cd "$dir"; \
+	\
+	extraConfigureArgs=''; \
+	dpkgArch="$(dpkg --print-architecture)"; \
+	case "$dpkgArch" in \
+# with-arch: https://anonscm.debian.org/viewvc/gcccvs/branches/sid/gcc-6/debian/rules2?revision=9450&view=markup#l491
+# with-float: https://anonscm.debian.org/viewvc/gcccvs/branches/sid/gcc-6/debian/rules.defs?revision=9487&view=markup#l416
+# with-mode: https://anonscm.debian.org/viewvc/gcccvs/branches/sid/gcc-6/debian/rules.defs?revision=9487&view=markup#l376
+		armel) \
+			extraConfigureArgs="$extraConfigureArgs --with-arch=armv4t --with-float=soft" \
+			;; \
+		armhf) \
+			extraConfigureArgs="$extraConfigureArgs --with-arch=armv7-a --with-float=hard --with-fpu=vfpv3-d16 --with-mode=thumb" \
+			;; \
+		\
+# with-arch-32: https://anonscm.debian.org/viewvc/gcccvs/branches/sid/gcc-6/debian/rules2?revision=9450&view=markup#l590
+		i386) \
+			osVersionID="$(set -e; . /etc/os-release; echo "$VERSION_ID")"; \
+			case "$osVersionID" in \
+				8) extraConfigureArgs="$extraConfigureArgs --with-arch-32=i586" ;; \
+				*) extraConfigureArgs="$extraConfigureArgs --with-arch-32=i686" ;; \
+			esac; \
+# TODO for some reason, libgo + i386 fails on https://github.com/gcc-mirror/gcc/blob/gcc-7_1_0-release/libgo/runtime/proc.c#L154
+# "error unknown case for SETCONTEXT_CLOBBERS_TLS"
+			;; \
+	esac; \
+	\
+	gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"; \
+	/usr/src/gcc/configure \
+		--build="$gnuArch" \
+		--disable-multilib \
+		--enable-languages=c,c++,fortran,go \
+		$extraConfigureArgs \
+	; \
+	make -j "$(nproc)"; \
+	make install-strip; \
+	\
+	cd ..; \
+	\
+	rm -rf "$dir" /usr/src/gcc; \
+	\
+	apt-mark auto '.*' > /dev/null; \
+	[ -z "$savedAptMark" ] || apt-mark manual $savedAptMark; \
+	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
+
+# gcc installs .so files in /usr/local/lib64...
+RUN set -ex; \
+	echo '/usr/local/lib64' > /etc/ld.so.conf.d/local-lib64.conf; \
+	ldconfig -v
+
+# ensure that alternatives are pointing to the new compiler and that old one is no longer used
+RUN set -ex; \
+	dpkg-divert --divert /usr/bin/gcc.orig --rename /usr/bin/gcc; \
+	dpkg-divert --divert /usr/bin/g++.orig --rename /usr/bin/g++; \
+	dpkg-divert --divert /usr/bin/gfortran.orig --rename /usr/bin/gfortran; \
+	update-alternatives --install /usr/bin/cc cc /usr/local/bin/gcc 999
+
+# Fourth, gnu binutils
+
+RUN cd /root && \
+    apt-get update && apt-get install -y bison texinfo && \
+    git clone git://sourceware.org/git/binutils-gdb.git --branch binutils-2_34-branch && \
+    cd binutils-gdb && \
+    mkdir build && \
+    cd build && \
+    ../configure --prefix=/usr --enable-gold --enable-ld=default --enable-plugins --enable-shared --disable-werror --enable-64-bit-bfd --with-system-zlib && \
+    make -j "$(nproc)" && \
+    make install && \
+    cd /root && \
+    rm -rf binutils-gdb && \
+	rm -rf /var/lib/apt/lists/* && \
+    rm -rf /var/cache/apt/archives/*
+
+# Fifth, Intel SDK with LVI mitigation
+
+RUN apt-get install -y cmake ocaml && \
+    git clone --recursive https://github.com/intel/linux-sgx && \
+    cd linux-sgx && \
+    git checkout sgx_2.9 && \
+    ./download_prebuilt.sh && \
+    make -j "$(nproc)" sdk_install_pkg && \
+    echo -e 'no\n/opt' | ./linux/installer/bin/sgx_linux_x64_sdk_2.9.100.2.bin && \
+    echo 'source /opt/sgxsdk/environment' >> /root/.bashrc && \
+    cd /root && \
+    rm -rf /root/linux-sgx && \
+	rm -rf /var/lib/apt/lists/* && \
+    rm -rf /var/cache/apt/archives/*
+    
+# Sixth, PSW
+
+ENV VERSION         2.9.100.2-bionic1
+
+RUN apt-get install -y dkms gnupg2 apt-transport-https ca-certificates software-properties-common && \
+    curl -fsSL  https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add - && \
+    add-apt-repository "deb https://download.01.org/intel-sgx/sgx_repo/ubuntu xenial main" && \
+    apt-get update && \
+    apt-get install -y \
+        libsgx-aesm-launch-plugin=$VERSION \
+        libsgx-enclave-common=$VERSION \
+        libsgx-enclave-common-dbgsym=$VERSION \
+        libsgx-enclave-common-dev=$VERSION \
+        libsgx-epid=$VERSION \
+        libsgx-epid-dbgsym=$VERSION \
+        libsgx-epid-dev=$VERSION \
+        libsgx-launch=$VERSION \
+        libsgx-launch-dbgsym=$VERSION \
+        libsgx-launch-dev=$VERSION \
+        libsgx-quote-ex=$VERSION \
+        libsgx-quote-ex-dbgsym=$VERSION \
+        libsgx-quote-ex-dev=$VERSION \
+        libsgx-uae-service=$VERSION \
+        libsgx-uae-service-dbgsym=$VERSION \
+        libsgx-urts=$VERSION \
+        libsgx-urts-dbgsym=$VERSION && \
+    mkdir /var/run/aesmd && \
+    mkdir /etc/init && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /var/cache/apt/archives/*
 
+# Seventh, Rust
 
-# Uncomment the following lines for setup iCls
-# Make sure you have put the installer file in this directory with filename iclsClient-1.45.449.12-1.x86_64.rpm
-#RUN mkdir /root/icls
-#ADD iclsClient-1.45.449.12-1.x86_64.rpm /root/icls/
-#RUN cd /root/icls && alien --scripts iclsClient-1.45.449.12-1.x86_64.rpm && dpkg -i iclsclient_1.45.449.12-2_amd64.deb && ldconfig && \
-#    cd /tmp && \
-#    git clone https://github.com/01org/dynamic-application-loader-host-interface.git jhi && \
-#    cd jhi && mkdir build && cd build && cmake .. && make && make install && \
-#    systemctl enable jhi
+ENV rust_toolchain  nightly-2020-03-12
 
-RUN mkdir /root/sgx && \
-    wget -O /root/sgx/psw.deb ${psw_deb} && \
-    wget -O /root/sgx/psw_dev.deb ${psw_dev_deb} && \
-    wget -O /root/sgx/sdk.bin ${sdk_bin} && \
-    cd /root/sgx && \
-    dpkg -i /root/sgx/psw.deb && \
-    dpkg -i /root/sgx/psw_dev.deb && \
-    chmod +x /root/sgx/sdk.bin && \
-    echo -e 'no\n/opt' | /root/sgx/sdk.bin && \
-    echo 'source /opt/sgxsdk/environment' >> /root/.bashrc && \
-    rm -rf /root/sgx/*
-
-
-RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init && \
+RUN curl 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' --output /root/rustup-init && \
     chmod +x /root/rustup-init && \
     echo '1' | /root/rustup-init --default-toolchain ${rust_toolchain} && \
     echo 'source /root/.cargo/env' >> /root/.bashrc && \
     /root/.cargo/bin/rustup component add rust-src rls rust-analysis clippy rustfmt && \
     /root/.cargo/bin/cargo install xargo && \
-    rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git
-WORKDIR /root
+    rm /root/rustup-init && rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git

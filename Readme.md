@@ -53,7 +53,12 @@ Supports Intel SGX SDK v2.5. Master branch supports Rust nightly build (nightly-
 
 We changed the built-in EDL files. Please carefully upgrade your EDL files on `import` statements. If you encountered any problems during compilation, please create issue and let me know. Thanks!
 
-**ATTENTION**: (Ubuntu Channel) Starts from Intel SGX SDK 2.5, `aesmd` requires a environment variable to start. If you are using docker, please start `aesmd` as:
+**ATTENTION**: (Ubuntu Channel) Starts from Intel SGX SDK 2.8, `aesmd` requires a environment variable to start. If you are using docker, please start `aesmd` as:
+```
+LD_LIBRARY_PATH=/opt/intel/sgx-aesm-service/aesm /opt/intel/sgx-aesm-service/aesm/aesm_service
+```
+
+Starts from Intel SGX SDK 2.5, `aesmd` requires a environment variable to start. If you are using docker, please start `aesmd` as:
 ```
 LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service
 ```
