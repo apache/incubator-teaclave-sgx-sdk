@@ -235,7 +235,7 @@ RUN set -ex; \
 # Fourth, gnu binutils
 
 RUN cd /root && \
-    apt-get update && apt-get install -y bison texinfo && \
+    apt-get update && apt-get install -y bison texinfo flex && \
     git clone git://sourceware.org/git/binutils-gdb.git --branch binutils-2_34-branch && \
     cd binutils-gdb && \
     mkdir build && \
