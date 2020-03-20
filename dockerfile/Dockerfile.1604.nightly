@@ -250,7 +250,7 @@ RUN cd /root && \
 
 # Fifth, Intel SDK with LVI mitigation
 
-RUN apt-get install -y cmake ocaml && \
+RUN apt-get update && apt-get install -y cmake ocaml && \
     git clone --recursive https://github.com/intel/linux-sgx && \
     cd linux-sgx && \
     git checkout sgx_2.9 && \
@@ -267,7 +267,7 @@ RUN apt-get install -y cmake ocaml && \
 
 ENV VERSION         2.9.100.2-bionic1
 
-RUN apt-get install -y dkms gnupg2 apt-transport-https ca-certificates software-properties-common && \
+RUN apt-get update && apt-get install -y dkms gnupg2 apt-transport-https software-properties-common && \
     curl -fsSL  https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add - && \
     add-apt-repository "deb https://download.01.org/intel-sgx/sgx_repo/ubuntu xenial main" && \
     apt-get update && \
