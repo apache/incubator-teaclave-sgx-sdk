@@ -236,8 +236,9 @@ RUN set -ex; \
 
 RUN cd /root && \
     apt-get update && apt-get install -y bison texinfo flex && \
-    git clone git://sourceware.org/git/binutils-gdb.git --branch binutils-2_34-branch && \
+    git clone git://sourceware.org/git/binutils-gdb.git && \
     cd binutils-gdb && \
+    git checkout fe26d3a34a223a86fddb59ed70a621a13940a088 && \
     mkdir build && \
     cd build && \
     ../configure --prefix=/usr --enable-gold --enable-ld=default --enable-plugins --enable-shared --disable-werror --enable-64-bit-bfd --with-system-zlib && \
@@ -265,7 +266,7 @@ RUN apt-get update && apt-get install -y cmake ocaml && \
     
 # Sixth, PSW
 
-ENV VERSION         2.9.100.2-bionic1
+ENV VERSION         2.9.100.2-xenial1
 
 RUN apt-get update && apt-get install -y dkms gnupg2 apt-transport-https software-properties-common && \
     curl -fsSL  https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add - && \
@@ -274,23 +275,16 @@ RUN apt-get update && apt-get install -y dkms gnupg2 apt-transport-https softwar
     apt-get install -y \
         libsgx-aesm-launch-plugin=$VERSION \
         libsgx-enclave-common=$VERSION \
-        libsgx-enclave-common-dbgsym=$VERSION \
         libsgx-enclave-common-dev=$VERSION \
         libsgx-epid=$VERSION \
-        libsgx-epid-dbgsym=$VERSION \
         libsgx-epid-dev=$VERSION \
         libsgx-launch=$VERSION \
-        libsgx-launch-dbgsym=$VERSION \
         libsgx-launch-dev=$VERSION \
         libsgx-quote-ex=$VERSION \
-        libsgx-quote-ex-dbgsym=$VERSION \
         libsgx-quote-ex-dev=$VERSION \
         libsgx-uae-service=$VERSION \
-        libsgx-uae-service-dbgsym=$VERSION \
-        libsgx-urts=$VERSION \
-        libsgx-urts-dbgsym=$VERSION && \
+        libsgx-urts=$VERSION && \
     mkdir /var/run/aesmd && \
-    mkdir /etc/init && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /var/cache/apt/archives/*
 
