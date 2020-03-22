@@ -69,7 +69,29 @@ fn build_libunwind(host: &str, target: &str) -> Result<(), ()> {
                     "unwind",
                     "src/.libs",
                     &filter)?;
-    let cflags = env::var("CFLAGS").unwrap_or_default() + " -fvisibility=hidden -O2";
+
+    let mut cflags = String::new();
+    cflags += " -fstack-protector -ffreestanding -nostdinc -fvisibility=hidden -fpie -fno-strict-overflow -fno-delete-null-pointer-checks";
+    cflags += " -O2";
+
+    let mitigation_cflags = " -mindirect-branch-register -mfunction-return=thunk-extern";
+    let mitigation_asflags = " -fno-plt";
+    let mitigation_loadflags = " -Wa,-mlfence-after-load=yes -Wa,-mlfence-before-ret=not";
+    let mitigation_cfflags = " -Wa,-mlfence-before-indirect-branch=register -Wa,-mlfence-before-ret=not";
+    let mitigation = env::var("MITIGATION_CVE_2020_0551").unwrap_or_default();
+    match mitigation.as_ref() {
+        "LOAD" => {
+            cflags += mitigation_cflags;
+            cflags += mitigation_asflags;
+            cflags += mitigation_loadflags;
+        },
+        "CF" => {
+            cflags += mitigation_cflags;
+            cflags += mitigation_asflags;
+            cflags += mitigation_cfflags;
+        },
+        _  => {},
+    }
 
     run(Command::new("sh")
                 .current_dir(&native.out_dir)

@@ -17,9 +17,9 @@
 
 include ../buildenv.mk
 COMMON_DIR := ../common
-CFLAGS   += $(ENCLAVE_CFLAGS)
-CFLAGS   += -O2
-CPPFLAGS += $(ADDED_INC)                \
+RT_CFLAGS := $(CFLAGS)
+RT_CFLAGS += $(ENCLAVE_CFLAGS)
+RT_CFLAGS += $(ADDED_INC)  \
             -I$(COMMON_DIR)/inc/
 
 SRCS := $(wildcard *.c)
@@ -34,7 +34,7 @@ $(TARGET): $(OBJS)
 	$(AR) rcsD $@ $^
 
 $(OBJS): %.o: %.c
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+	$(CC) -c $(RT_CFLAGS) $< -o $@
 
 .PHONY: clean
 clean:

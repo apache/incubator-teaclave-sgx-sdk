@@ -18,6 +18,12 @@ Rust_Enclave_Name := libpsienclave.a
 Rust_Enclave_Files := $(wildcard src/*.rs)
 Rust_Target_Path := $(CURDIR)/../../../../xargo
 
+ifeq ($(MITIGATION-CVE-2020-0551), LOAD)
+export MITIGATION_CVE_2020_0551=LOAD
+else ifeq ($(MITIGATION-CVE-2020-0551), CF)
+export MITIGATION_CVE_2020_0551=CF
+endif
+
 .PHONY: all clean
 
 all: $(Rust_Enclave_Name)
