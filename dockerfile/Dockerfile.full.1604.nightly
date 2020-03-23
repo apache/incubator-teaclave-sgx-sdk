@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y autoconf automake bison build-essential
 ADD 01_gcc_8.sh /root
 RUN bash /root/01_gcc_8.sh
 
-ENV BINUTILS_PREFIX=/usr/lib
+ENV BINUTILS_PREFIX=/usr
 
 ADD 02_binutils.sh /root
 RUN bash /root/02_binutils.sh

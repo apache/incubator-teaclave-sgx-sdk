@@ -9,10 +9,10 @@ cd binutils-gdb && \
 git checkout fe26d3a34a223a86fddb59ed70a621a13940a088 && \
 mkdir build && \
 cd build && \
-../configure --prefix=/usr --enable-gold --enable-ld=default --enable-plugins --enable-shared --disable-werror --enable-64-bit-bfd --with-system-zlib && \
+../configure --prefix=$BINUTILS_PREFIX --enable-gold --enable-ld=default --enable-plugins --enable-shared --disable-werror --enable-64-bit-bfd --with-system-zlib && \
 make -j "$(nproc)" && \
-LD_LIBRARY_PATH=$(BINUTILS_PREFIX) make install && \
+make install && \
 cd /root && \
 rm -rf binutils-gdb && \
-echo 'export LD_LIBRARY_PATH=/usr/lib:$LD_LIBRARY_PATH' >> /root/.bashrc && \
-echo 'export LD_RUN_PATH=/usr/lib:$LD_RUN_PATH' 
+echo 'export LD_LIBRARY_PATH=/usr/lib:$BINUTILS_PREFIX' >> /root/.bashrc && \
+echo 'export LD_RUN_PATH=/usr/lib:$BINUTILS_PREFIX'
