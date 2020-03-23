@@ -1,12 +1,14 @@
 FROM fedora:27
 
 RUN yum install yum-utils -y && \
-    yum install -y bzip2 ocaml ocaml-ocamlbuild wget python2 openssl-devel git protobuf-devel cmake && \
+    yum install -y bzip2 ocaml ocaml-ocamlbuild wget python2 openssl-devel git protobuf-devel cmake ncurses-devel && \
     yum-builddep gcc binutils -y && \
     yum groupinstall -y "Development Tools"
 
 ADD 01_gcc_8.sh /root
 RUN bash /root/01_gcc_8.sh
+
+ENV BINUTILS_PREFIX=/usr/lib
 
 ADD 02_binutils.sh /root
 RUN bash /root/02_binutils.sh

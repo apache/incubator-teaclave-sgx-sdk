@@ -11,7 +11,7 @@ mkdir build && \
 cd build && \
 ../configure --prefix=/usr --enable-gold --enable-ld=default --enable-plugins --enable-shared --disable-werror --enable-64-bit-bfd --with-system-zlib && \
 make -j "$(nproc)" && \
-LD_LIBRARY_PATH=/usr/lib make install && \
+LD_LIBRARY_PATH=$(BINUTILS_PREFIX) make install && \
 cd /root && \
 rm -rf binutils-gdb && \
 echo 'export LD_LIBRARY_PATH=/usr/lib:$LD_LIBRARY_PATH' >> /root/.bashrc && \
