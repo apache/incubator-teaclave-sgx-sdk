@@ -26,4 +26,8 @@ ENV rust_toolchain  nightly-2020-03-12
 ADD 05_rust.sh /root
 RUN bash /root/05_rust.sh
 
+ENV rust_toolchain=
+ENV CODENAME=
+ENV VERSION=
+
 WORKDIR /root
