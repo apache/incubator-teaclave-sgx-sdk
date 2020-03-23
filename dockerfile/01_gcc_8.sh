@@ -5,8 +5,8 @@ cd gcc-8.4.0 && \
 ./contrib/download_prerequisites && \
 mkdir build && \
 cd build && \
-../configure --disable-multilib --enable-languages=c,c++,fortran,go && \
+../configure --prefix=/usr --disable-multilib --enable-languages=c,c++,fortran,go && \
 make -j $(nproc) && \
 make install && \
 cd /root && \
-rm -rf gcc-8.4.0
+rm -rf gcc-8.4.0 gcc.tar.gz
