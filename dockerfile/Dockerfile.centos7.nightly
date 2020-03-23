@@ -1,25 +1,26 @@
 FROM centos:7
 
-RUN yum-builddep gcc binutils -y && \
-    yum install -y bzip2 ocaml ocaml-ocamlbuild wget python2 openssl-devel git protobuf-devel cmake && \
-#    yum groupinstall -y "Development Tools"
+RUN yum install -y bzip2 ocaml ocaml-ocamlbuild wget python2 openssl-devel git protobuf-devel cmake libtool automake && \
+    yum groupinstall -y "Development Tools"
 
 #ADD 01_gcc_8.sh /root
 #RUN bash /root/01_gcc_8.sh
 
-ENV BINUTILS_PREFIX=/opt/rh/devtoolset-8/root/usr/libexec/gcc/x86_64-redhat-linux/8
-
 RUN yum install -y centos-release-scl && \
-    yum install -y devtoolset-8-gcc devtoolset-8-gcc-c++ git make zlib-devel flex bison texinfo wget cmake && \
+    yum install -y devtoolset-8-gcc devtoolset-8-gcc-c++ zlib-devel flex bison texinfo && \
+    mv /usr/bin/gcc /usr/bin/gcc.bak && \
+    mv /usr/bin/g++ /usr/bin/g++.bak && \
     update-alternatives --install /usr/bin/gcc gcc /opt/rh/devtoolset-8/root/usr/bin/gcc 60 --slave /usr/bin/g++ g++ /opt/rh/devtoolset-8/root/usr/bin/g++
+
+ENV BINUTILS_PREFIX=/opt/rh/devtoolset-8/root/usr/libexec/gcc/x86_64-redhat-linux/8
 
 ADD 02_binutils.sh /root
 RUN bash /root/02_binutils.sh
 
-ENV LD_LIBRARY_PATH=/usr/lib
+ENV LD_LIBRARY_PATH=$(BINUTILS_PREFIX)
 
 ADD 03_sdk.sh /root
-#RUN bash /root/03_sdk.sh
+RUN bash /root/03_sdk.sh
 
 # Sixth, PSW
 
