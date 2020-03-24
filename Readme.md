@@ -31,9 +31,9 @@ Current wiki pages:
 
 * Everything about [environment setup](https://github.com/apache/teaclave-sgx-sdk/wiki/Environment-Setup)
 
-## v1.1.0
+## v1.1.1
 
-Supports Intel SGX SDK v2.9, and Rust nightly-2020-03-12.
+Supports Intel SGX SDK v2.9, and Rust nightly-2020-03-12. v1.1.1 contains a bunch of bug fix and new proc macro `sgx_align` to help with aligning given structure. For LVI migigation, it only works on C/C++ parts (EDL headers/Intel's libs) and supports both two modes: `MITIGATION-CVE-2020-0551=LOAD` or `MITIGATION-CVE-2020-0551=CF`. To enable it, one need `env "MITIGATION-CVE-2020-0551=LOAD"` to set this environment variable. For detailed information, please refer to [release_notes](release_notes.md) for more details.
 
 ## v1.1.0
 
