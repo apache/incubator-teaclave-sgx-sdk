@@ -1,19 +1,19 @@
 FROM centos:7
 
-#RUN yum-builddep gcc binutils -y && \
-#    yum install -y bzip2 ocaml ocaml-ocamlbuild wget python2 openssl-devel git protobuf-devel cmake && \
-#    yum groupinstall -y "Development Tools"
+RUN yum-builddep gcc binutils -y && \
+    yum install -y bzip2 ocaml ocaml-ocamlbuild wget python2 openssl-devel git protobuf-devel cmake && \
+    yum groupinstall -y "Development Tools"
 
-#ADD 01_gcc_8.sh /root
-#RUN bash /root/01_gcc_8.sh
+ADD 01_gcc_8.sh /root
+RUN bash /root/01_gcc_8.sh
 
-RUN yum install -y centos-release-scl && \
-    yum install devtoolset-8
+ENV BINUTILS_PREFIX=/opt/binutils
+ENV LD_LIBRARY_PATH=/usr/lib
 
 ADD 02_binutils.sh /root
-RUN bash /root/02_binutils.sh
-
-ENV LD_LIBRARY_PATH=/usr/lib
+RUN bash /root/02_binutils.sh && \
+    cp -r /opt/binutils/bin/* /usr/bin/ && \
+    cp -r /opt/binutils/lib/* /usr/lib/
 
 ADD 03_sdk.sh /root
 RUN bash /root/03_sdk.sh
