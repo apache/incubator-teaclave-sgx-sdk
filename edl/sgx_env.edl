@@ -24,13 +24,17 @@ enclave {
     };
 
     untrusted {
-        char ** u_environ_ocall();
-        char * u_getenv_ocall([in, string] const char *name);
+        char **u_environ_ocall();
+        char *u_getenv_ocall([in, string] const char *name);
         int u_setenv_ocall([out] int *error, [in, string] const char *name, [in, string] const char *value, int overwrite);
         int u_unsetenv_ocall([out] int *error, [in, string] const char *name);
         int u_chdir_ocall([out] int *error, [in, string] const char *dir);
         char *u_getcwd_ocall([out] int *error, [out, size=buflen] char *buf, size_t buflen);
-        int u_getpwuid_r_ocall(unsigned int uid, [out] struct passwd *pwd, [out, size=buflen] char *buf, size_t buflen, [out] struct passwd **passwd_result);
+        int u_getpwuid_r_ocall(unsigned int uid,
+                               [out] struct passwd *pwd,
+                               [out, size=buflen] char *buf,
+                               size_t buflen,
+                               [out] struct passwd **passwd_result);
         unsigned int u_getuid_ocall();
     };
 };

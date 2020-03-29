@@ -22,10 +22,16 @@ enclave {
     };
 
     untrusted {
-        void * u_malloc_ocall([out] int *error, size_t size);
+        void *u_malloc_ocall([out] int *error, size_t size);
         void u_free_ocall([user_check] void *p);
 
-        void * u_mmap_ocall([out] int *error, [user_check] void *start, size_t length, int prot, int flags, int fd, int64_t offset);
+        void *u_mmap_ocall([out] int *error,
+                           [user_check] void *start,
+                           size_t length,
+                           int prot,
+                           int flags,
+                           int fd,
+                           int64_t offset);
         int u_munmap_ocall([out] int *error, [user_check] void *start, size_t length);
 
         int u_msync_ocall([out] int *error, [user_check] void *addr, size_t length, int flags);

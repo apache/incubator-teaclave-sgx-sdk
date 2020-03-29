@@ -17,7 +17,7 @@
 
 use sgx_types::*;
 
-pub type exception_handle = * const c_void;
+pub type exception_handle = *const c_void;
 
 ///
 /// rsgx_register_exception_handler registers an exception handler.
@@ -66,12 +66,14 @@ pub type exception_handle = * const c_void;
 /// The exception handler was not registered.
 ///
 pub fn rsgx_register_exception_handler(is_first_handler: u32, exception_handler: sgx_exception_handler_t) -> Option<exception_handle> {
-
     let handle = unsafe {
         sgx_register_exception_handler(is_first_handler, exception_handler)
     };
-
-    if handle.is_null() { None } else { Some(handle) }
+    if handle.is_null() {
+        None
+    } else {
+        Some(handle)
+    }
 }
 
 ///
@@ -105,7 +107,6 @@ pub fn rsgx_register_exception_handler(is_first_handler: u32, exception_handler:
 /// The exception handler was not unregistered (not a valid pointer, handler not found).
 ///
 pub fn rsgx_unregister_exception_handler(handle: exception_handle) -> bool {
-
     let ret = unsafe { sgx_unregister_exception_handler(handle) };
     ret != 0
 }

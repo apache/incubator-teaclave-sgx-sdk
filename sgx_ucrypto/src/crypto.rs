@@ -78,7 +78,7 @@ pub fn rsgx_sha256_msg<T>(src: &T) -> SgxResult<sgx_sha256_hash_t>
     }
 
     let mut hash = sgx_sha256_hash_t::default();
-    let ret = unsafe { sgx_sha256_msg(src as * const _ as * const u8, size as u32, &mut hash as * mut sgx_sha256_hash_t) };
+    let ret = unsafe { sgx_sha256_msg(src as *const _ as *const u8, size as u32, &mut hash as *mut sgx_sha256_hash_t) };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(hash),
         _ => Err(ret),
@@ -100,7 +100,7 @@ pub fn rsgx_sha256_slice<T>(src: &[T]) -> SgxResult<sgx_sha256_hash_t>
     }
 
     let mut hash = sgx_sha256_hash_t::default();
-    let ret = unsafe { sgx_sha256_msg(src.as_ptr() as * const u8, size as u32, &mut hash as * mut sgx_sha256_hash_t) };
+    let ret = unsafe { sgx_sha256_msg(src.as_ptr() as *const u8, size as u32, &mut hash as *mut sgx_sha256_hash_t) };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(hash),
         _ => Err(ret),
@@ -109,7 +109,7 @@ pub fn rsgx_sha256_slice<T>(src: &[T]) -> SgxResult<sgx_sha256_hash_t>
 
 fn rsgx_sha256_init(sha_handle: &mut sgx_sha_state_handle_t) -> sgx_status_t {
     unsafe {
-        sgx_sha256_init(sha_handle as * mut sgx_sha_state_handle_t)
+        sgx_sha256_init(sha_handle as *mut sgx_sha_state_handle_t)
     }
 }
 
@@ -125,7 +125,7 @@ fn rsgx_sha256_update_msg<T>(src: &T, sha_handle: sgx_sha_state_handle_t) -> sgx
     }
 
     unsafe {
-        sgx_sha256_update(src as * const _ as * const u8, size as u32, sha_handle)
+        sgx_sha256_update(src as *const _ as *const u8, size as u32, sha_handle)
     }
 }
 
@@ -140,12 +140,12 @@ fn rsgx_sha256_update_slice<T>(src: &[T], sha_handle: sgx_sha_state_handle_t) ->
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
     unsafe {
-        sgx_sha256_update(src.as_ptr() as * const u8, size as u32, sha_handle)
+        sgx_sha256_update(src.as_ptr() as *const u8, size as u32, sha_handle)
     }
 }
 
 fn rsgx_sha256_get_hash(sha_handle: sgx_sha_state_handle_t, hash: &mut sgx_sha256_hash_t) -> sgx_status_t {
-    unsafe { sgx_sha256_get_hash(sha_handle, hash as * mut sgx_sha256_hash_t) }
+    unsafe { sgx_sha256_get_hash(sha_handle, hash as *mut sgx_sha256_hash_t) }
 }
 
 fn rsgx_sha256_close(sha_handle: sgx_sha_state_handle_t) -> sgx_status_t {
@@ -164,7 +164,7 @@ pub fn rsgx_sha1_msg<T>(src: &T) -> SgxResult<sgx_sha1_hash_t>
     }
 
     let mut hash = sgx_sha1_hash_t::default();
-    let ret = unsafe { sgx_sha1_msg(src as * const _ as * const u8, size as u32, &mut hash as * mut sgx_sha1_hash_t) };
+    let ret = unsafe { sgx_sha1_msg(src as *const _ as *const u8, size as u32, &mut hash as *mut sgx_sha1_hash_t) };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(hash),
         _ => Err(ret),
@@ -183,7 +183,7 @@ pub fn rsgx_sha1_slice<T>(src: &[T]) -> SgxResult<sgx_sha1_hash_t>
     }
 
     let mut hash = sgx_sha1_hash_t::default();
-    let ret = unsafe { sgx_sha1_msg(src.as_ptr() as * const u8, size as u32, &mut hash as * mut sgx_sha1_hash_t) };
+    let ret = unsafe { sgx_sha1_msg(src.as_ptr() as *const u8, size as u32, &mut hash as *mut sgx_sha1_hash_t) };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(hash),
         _ => Err(ret),
@@ -192,7 +192,7 @@ pub fn rsgx_sha1_slice<T>(src: &[T]) -> SgxResult<sgx_sha1_hash_t>
 
 fn rsgx_sha1_init(sha_handle: &mut sgx_sha_state_handle_t) -> sgx_status_t {
     unsafe {
-        sgx_sha1_init(sha_handle as * mut sgx_sha_state_handle_t)
+        sgx_sha1_init(sha_handle as *mut sgx_sha_state_handle_t)
     }
 }
 
@@ -208,7 +208,7 @@ fn rsgx_sha1_update_msg<T>(src: &T, sha_handle: sgx_sha_state_handle_t) -> sgx_s
     }
 
     unsafe {
-        sgx_sha1_update(src as * const _ as * const u8, size as u32, sha_handle)
+        sgx_sha1_update(src as *const _ as *const u8, size as u32, sha_handle)
     }
 }
 
@@ -223,12 +223,12 @@ fn rsgx_sha1_update_slice<T>(src: &[T], sha_handle: sgx_sha_state_handle_t) -> s
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
     unsafe {
-        sgx_sha1_update(src.as_ptr() as * const u8, size as u32, sha_handle)
+        sgx_sha1_update(src.as_ptr() as *const u8, size as u32, sha_handle)
     }
 }
 
 fn rsgx_sha1_get_hash(sha_handle: sgx_sha_state_handle_t, hash: &mut sgx_sha1_hash_t) -> sgx_status_t {
-    unsafe { sgx_sha1_get_hash(sha_handle, hash as * mut sgx_sha1_hash_t) }
+    unsafe { sgx_sha1_get_hash(sha_handle, hash as *mut sgx_sha1_hash_t) }
 }
 
 fn rsgx_sha1_close(sha_handle: sgx_sha_state_handle_t) -> sgx_status_t {
@@ -698,7 +698,7 @@ pub fn rsgx_rijndael128GCM_encrypt(key: &sgx_aes_gcm_128bit_key_t,
             (ptr::null(), ptr::null_mut())
         };
 
-        sgx_rijndael128GCM_encrypt(key as * const sgx_aes_gcm_128bit_key_t,
+        sgx_rijndael128GCM_encrypt(key as *const sgx_aes_gcm_128bit_key_t,
                                    p_src,
                                    src_len as u32,
                                    p_dst,
@@ -706,7 +706,7 @@ pub fn rsgx_rijndael128GCM_encrypt(key: &sgx_aes_gcm_128bit_key_t,
                                    iv_len as u32,
                                    p_aad,
                                    aad_len as u32,
-                                   mac as * mut sgx_aes_gcm_128bit_tag_t)
+                                   mac as *mut sgx_aes_gcm_128bit_tag_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(()),
@@ -825,7 +825,7 @@ pub fn rsgx_rijndael128GCM_decrypt(key: &sgx_aes_gcm_128bit_key_t,
             (ptr::null(), ptr::null_mut())
         };
 
-        sgx_rijndael128GCM_decrypt(key as * const sgx_aes_gcm_128bit_key_t,
+        sgx_rijndael128GCM_decrypt(key as *const sgx_aes_gcm_128bit_key_t,
                                    p_src,
                                    src_len as u32,
                                    p_dst,
@@ -833,7 +833,7 @@ pub fn rsgx_rijndael128GCM_decrypt(key: &sgx_aes_gcm_128bit_key_t,
                                    iv_len as u32,
                                    p_aad,
                                    aad_len as u32,
-                                   mac as * const sgx_aes_gcm_128bit_tag_t)
+                                   mac as *const sgx_aes_gcm_128bit_tag_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(()),
@@ -898,10 +898,10 @@ pub fn rsgx_rijndael128_cmac_msg<T>(key: &sgx_cmac_128bit_key_t, src: &T) -> Sgx
 
     let mut mac = sgx_cmac_128bit_tag_t::default();
     let ret = unsafe {
-        sgx_rijndael128_cmac_msg(key as * const sgx_cmac_128bit_key_t,
-                                 src as * const _ as * const u8,
+        sgx_rijndael128_cmac_msg(key as *const sgx_cmac_128bit_key_t,
+                                 src as *const _ as *const u8,
                                  size as u32,
-                                 &mut mac as * mut sgx_cmac_128bit_tag_t)
+                                 &mut mac as *mut sgx_cmac_128bit_tag_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(mac),
@@ -925,10 +925,10 @@ pub fn rsgx_rijndael128_cmac_slice<T>(key: &sgx_cmac_128bit_key_t, src: &[T]) ->
 
     let mut mac = sgx_cmac_128bit_tag_t::default();
     let ret = unsafe {
-        sgx_rijndael128_cmac_msg(key as * const sgx_cmac_128bit_key_t,
-                                 src.as_ptr() as * const u8,
+        sgx_rijndael128_cmac_msg(key as *const sgx_cmac_128bit_key_t,
+                                 src.as_ptr() as *const u8,
                                  size as u32,
-                                 &mut mac as * mut sgx_cmac_128bit_tag_t)
+                                 &mut mac as *mut sgx_cmac_128bit_tag_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(mac),
@@ -938,8 +938,8 @@ pub fn rsgx_rijndael128_cmac_slice<T>(key: &sgx_cmac_128bit_key_t, src: &[T]) ->
 
 fn rsgx_cmac128_init(key: &sgx_cmac_128bit_key_t, cmac_handle: &mut sgx_cmac_state_handle_t) -> sgx_status_t {
     unsafe {
-        sgx_cmac128_init(key as * const sgx_cmac_128bit_key_t,
-                         cmac_handle as * mut sgx_cmac_state_handle_t)
+        sgx_cmac128_init(key as *const sgx_cmac_128bit_key_t,
+                         cmac_handle as *mut sgx_cmac_state_handle_t)
     }
 }
 
@@ -954,7 +954,7 @@ fn rsgx_cmac128_update_msg<T>(src: &T, cmac_handle: sgx_cmac_state_handle_t) -> 
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
     unsafe {
-        sgx_cmac128_update(src as * const _ as * const u8, size as u32, cmac_handle)
+        sgx_cmac128_update(src as *const _ as *const u8, size as u32, cmac_handle)
     }
 }
 
@@ -969,12 +969,12 @@ fn rsgx_cmac128_update_slice<T>(src: &[T], cmac_handle: sgx_cmac_state_handle_t)
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
     unsafe {
-        sgx_cmac128_update(src.as_ptr() as * const _ as * const u8, size as u32, cmac_handle)
+        sgx_cmac128_update(src.as_ptr() as *const _ as *const u8, size as u32, cmac_handle)
     }
 }
 
 fn rsgx_cmac128_final(cmac_handle: sgx_cmac_state_handle_t, hash: &mut sgx_cmac_128bit_tag_t) -> sgx_status_t {
-    unsafe { sgx_cmac128_final(cmac_handle, hash as * mut sgx_cmac_128bit_tag_t) }
+    unsafe { sgx_cmac128_final(cmac_handle, hash as *mut sgx_cmac_128bit_tag_t) }
 }
 
 fn rsgx_cmac128_close(cmac_handle: sgx_cmac_state_handle_t) -> sgx_status_t {
@@ -1249,11 +1249,11 @@ pub fn rsgx_hmac_sha256_msg<T>(key: &sgx_hmac_256bit_key_t, src: &T) -> SgxResul
 
     let mut mac = sgx_hmac_256bit_tag_t::default();
     let ret = unsafe {
-        sgx_hmac_sha256_msg(src as * const _ as * const u8,
+        sgx_hmac_sha256_msg(src as *const _ as *const u8,
                             size as i32,
-                            key as * const u8,
+                            key as *const u8,
                             SGX_HMAC256_KEY_SIZE as i32,
-                            &mut mac as * mut sgx_hmac_256bit_tag_t as * mut u8,
+                            &mut mac as *mut sgx_hmac_256bit_tag_t as *mut u8,
                             SGX_HMAC256_MAC_SIZE as i32)
     };
     match ret {
@@ -1275,11 +1275,11 @@ pub fn rsgx_hmac_sha256_slice<T>(key: &sgx_hmac_256bit_key_t, src: &[T]) -> SgxR
 
     let mut mac = sgx_hmac_256bit_tag_t::default();
     let ret = unsafe {
-        sgx_hmac_sha256_msg(src.as_ptr() as * const u8,
+        sgx_hmac_sha256_msg(src.as_ptr() as *const u8,
                             size as i32,
-                            key as * const u8,
+                            key as *const u8,
                             SGX_HMAC256_KEY_SIZE as i32,
-                            &mut mac as * mut sgx_hmac_256bit_tag_t as * mut u8,
+                            &mut mac as *mut sgx_hmac_256bit_tag_t as *mut u8,
                             SGX_HMAC256_MAC_SIZE as i32)
     };
     match ret {
@@ -1290,9 +1290,9 @@ pub fn rsgx_hmac_sha256_slice<T>(key: &sgx_hmac_256bit_key_t, src: &[T]) -> SgxR
 
 fn rsgx_hmac256_init(key: &sgx_hmac_256bit_key_t, hmac_handle: &mut sgx_hmac_state_handle_t) -> sgx_status_t {
     unsafe {
-        sgx_hmac256_init(key as * const sgx_hmac_256bit_key_t as * const u8,
+        sgx_hmac256_init(key as *const sgx_hmac_256bit_key_t as *const u8,
                          SGX_HMAC256_KEY_SIZE as i32,
-                         hmac_handle as * mut sgx_hmac_state_handle_t)
+                         hmac_handle as *mut sgx_hmac_state_handle_t)
     }
 }
 
@@ -1307,7 +1307,7 @@ fn rsgx_hmac256_update_msg<T>(src: &T, hmac_handle: sgx_hmac_state_handle_t) -> 
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
     unsafe {
-        sgx_hmac256_update(src as * const _ as * const u8, size as i32, hmac_handle)
+        sgx_hmac256_update(src as *const _ as *const u8, size as i32, hmac_handle)
     }
 }
 
@@ -1322,13 +1322,13 @@ fn rsgx_hmac256_update_slice<T>(src: &[T], hmac_handle: sgx_hmac_state_handle_t)
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
     unsafe {
-        sgx_hmac256_update(src.as_ptr() as * const _ as * const u8, size as i32, hmac_handle)
+        sgx_hmac256_update(src.as_ptr() as *const _ as *const u8, size as i32, hmac_handle)
     }
 }
 
 fn rsgx_hmac256_final(hmac_handle: sgx_hmac_state_handle_t, hash: &mut sgx_hmac_256bit_tag_t) -> sgx_status_t {
     unsafe {
-        sgx_hmac256_final(hash as * mut sgx_hmac_256bit_tag_t as * mut u8,
+        sgx_hmac256_final(hash as *mut sgx_hmac_256bit_tag_t as *mut u8,
                           SGX_HMAC256_MAC_SIZE as i32,
                           hmac_handle)
     }
@@ -1528,10 +1528,10 @@ pub fn rsgx_aes_ctr_encrypt(key: &sgx_aes_ctr_128bit_key_t,
     }
 
     let ret = unsafe {
-        sgx_aes_ctr_encrypt(key as * const sgx_aes_ctr_128bit_key_t,
+        sgx_aes_ctr_encrypt(key as *const sgx_aes_ctr_128bit_key_t,
                             src.as_ptr(),
                             src_len as u32,
-                            ctr as * const sgx_aes_ctr_128bit_ctr_t as * const u8,
+                            ctr as *const sgx_aes_ctr_128bit_ctr_t as *const u8,
                             ctr_inc_bits,
                             dst.as_mut_ptr())
     };
@@ -1621,10 +1621,10 @@ pub fn rsgx_aes_ctr_decrypt(key: &sgx_aes_ctr_128bit_key_t,
     }
 
     let ret = unsafe {
-        sgx_aes_ctr_decrypt(key as * const sgx_aes_ctr_128bit_key_t,
+        sgx_aes_ctr_decrypt(key as *const sgx_aes_ctr_128bit_key_t,
                             src.as_ptr(),
                             src.len() as u32,
-                            ctr as * const sgx_aes_ctr_128bit_ctr_t as * const u8,
+                            ctr as *const sgx_aes_ctr_128bit_ctr_t as *const u8,
                             ctr_inc_bits,
                             dst.as_mut_ptr())
     };
@@ -1635,7 +1635,7 @@ pub fn rsgx_aes_ctr_decrypt(key: &sgx_aes_ctr_128bit_key_t,
 }
 
 fn rsgx_ecc256_open_context(ecc_handle: &mut sgx_ecc_state_handle_t) -> sgx_status_t {
-    unsafe { sgx_ecc256_open_context(ecc_handle as * mut _ as * mut sgx_ecc_state_handle_t) }
+    unsafe { sgx_ecc256_open_context(ecc_handle as *mut _ as *mut sgx_ecc_state_handle_t) }
 }
 
 fn rsgx_ecc256_close_context(ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t {
@@ -1646,14 +1646,14 @@ fn rsgx_ecc256_create_key_pair(private: &mut sgx_ec256_private_t,
                                public: &mut sgx_ec256_public_t,
                                ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t {
     unsafe {
-        sgx_ecc256_create_key_pair(private as * mut sgx_ec256_private_t,
-                                   public as * mut sgx_ec256_public_t,
+        sgx_ecc256_create_key_pair(private as *mut sgx_ec256_private_t,
+                                   public as *mut sgx_ec256_public_t,
                                    ecc_handle)
     }
 }
 
 fn rsgx_ecc256_check_point(point: &sgx_ec256_public_t, ecc_handle: sgx_ecc_state_handle_t, valid: &mut i32) -> sgx_status_t {
-    unsafe { sgx_ecc256_check_point(point as * const sgx_ec256_public_t, ecc_handle, valid as * mut i32) }
+    unsafe { sgx_ecc256_check_point(point as *const sgx_ec256_public_t, ecc_handle, valid as *mut i32) }
 }
 
 fn rsgx_ecc256_compute_shared_dhkey(private_b: &sgx_ec256_private_t,
@@ -1661,9 +1661,9 @@ fn rsgx_ecc256_compute_shared_dhkey(private_b: &sgx_ec256_private_t,
                                     shared_key: &mut sgx_ec256_dh_shared_t,
                                     ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t {
     unsafe {
-        sgx_ecc256_compute_shared_dhkey(private_b as * const _ as * mut sgx_ec256_private_t,
-                                        public_ga as * const _ as * mut sgx_ec256_public_t,
-                                        shared_key as * mut sgx_ec256_dh_shared_t,
+        sgx_ecc256_compute_shared_dhkey(private_b as *const _ as *mut sgx_ec256_private_t,
+                                        public_ga as *const _ as *mut sgx_ec256_public_t,
+                                        shared_key as *mut sgx_ec256_dh_shared_t,
                                         ecc_handle)
     }
 }
@@ -1674,9 +1674,9 @@ fn rsgx_ecc256_compute_shared_dhkey512(private_b: &sgx_ec256_private_t,
                                        shared_key: &mut sgx_ec256_dh_shared512_t,
                                        ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t {
     unsafe {
-        sgx_ecc256_compute_shared_dhkey512(private_b as * const _ as * mut sgx_ec256_private_t,
-                                           public_ga as * const _ as * mut sgx_ec256_public_t,
-                                           shared_key as * mut sgx_ec256_dh_shared512_t,
+        sgx_ecc256_compute_shared_dhkey512(private_b as *const _ as *mut sgx_ec256_private_t,
+                                           public_ga as *const _ as *mut sgx_ec256_public_t,
+                                           shared_key as *mut sgx_ec256_dh_shared512_t,
                                            ecc_handle)
     }
 }
@@ -1697,10 +1697,10 @@ fn rsgx_ecdsa_sign_msg<T>(data: &T,
     }
 
     unsafe {
-        sgx_ecdsa_sign(data as * const _  as * const u8,
+        sgx_ecdsa_sign(data as *const _  as *const u8,
                        size as u32,
-                       private as * const _ as * mut sgx_ec256_private_t,
-                       signature as * mut sgx_ec256_signature_t,
+                       private as *const _ as *mut sgx_ec256_private_t,
+                       signature as *mut sgx_ec256_signature_t,
                        ecc_handle)
     }
 }
@@ -1720,10 +1720,10 @@ fn rsgx_ecdsa_sign_slice<T>(data: &[T],
     }
 
     unsafe {
-        sgx_ecdsa_sign(data.as_ptr() as * const _  as * const u8,
+        sgx_ecdsa_sign(data.as_ptr() as *const _  as *const u8,
                        size as u32,
-                       private as * const _ as * mut sgx_ec256_private_t,
-                       signature as * mut sgx_ec256_signature_t,
+                       private as *const _ as *mut sgx_ec256_private_t,
+                       signature as *mut sgx_ec256_signature_t,
                        ecc_handle)
     }
 }
@@ -1745,11 +1745,11 @@ fn rsgx_ecdsa_verify_msg<T>(data: &T,
 
     unsafe {
         let mut verify: u8 = 0;
-        let ret = sgx_ecdsa_verify(data as * const _ as * const u8,
+        let ret = sgx_ecdsa_verify(data as *const _ as *const u8,
                                    size as u32,
-                                   public as * const sgx_ec256_public_t,
-                                   signature as * const _ as * mut sgx_ec256_signature_t,
-                                   &mut verify as * mut u8,
+                                   public as *const sgx_ec256_public_t,
+                                   signature as *const _ as *mut sgx_ec256_signature_t,
+                                   &mut verify as *mut u8,
                                    ecc_handle);
         match ret {
             sgx_status_t::SGX_SUCCESS => {
@@ -1779,11 +1779,11 @@ fn rsgx_ecdsa_verify_slice<T>(data: &[T],
 
     unsafe {
         let mut verify: u8 = 0;
-        let ret = sgx_ecdsa_verify(data.as_ptr() as * const _ as * const u8,
+        let ret = sgx_ecdsa_verify(data.as_ptr() as *const _ as *const u8,
                                    size as u32,
-                                   public as * const sgx_ec256_public_t,
-                                   signature as * const _ as * mut sgx_ec256_signature_t,
-                                   &mut verify as * mut u8,
+                                   public as *const sgx_ec256_public_t,
+                                   signature as *const _ as *mut sgx_ec256_signature_t,
+                                   &mut verify as *mut u8,
                                    ecc_handle);
         match ret {
             sgx_status_t::SGX_SUCCESS => {
@@ -1803,10 +1803,10 @@ fn rsgx_ecdsa_verify_hash(hash: &sgx_sha256_hash_t,
                           ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t {
     unsafe {
         let mut verify: u8 = 0;
-        let ret = sgx_ecdsa_verify_hash(hash as * const sgx_sha256_hash_t as * const u8,
-                                        public as * const sgx_ec256_public_t,
-                                        signature as * const _ as * mut sgx_ec256_signature_t,
-                                        &mut verify as * mut u8,
+        let ret = sgx_ecdsa_verify_hash(hash as *const sgx_sha256_hash_t as *const u8,
+                                        public as *const sgx_ec256_public_t,
+                                        signature as *const _ as *mut sgx_ec256_signature_t,
+                                        &mut verify as *mut u8,
                                         ecc_handle);
         match ret {
             sgx_status_t::SGX_SUCCESS => {
@@ -2510,10 +2510,10 @@ pub fn rsgx_rsa3072_sign_msg<T>(data: &T, key: &sgx_rsa3072_key_t) -> SgxResult<
 
     let mut sign = sgx_rsa3072_signature_t::default();
     let ret = unsafe {
-        sgx_rsa3072_sign(data as * const _ as * const u8,
+        sgx_rsa3072_sign(data as *const _ as *const u8,
                          size as u32,
-                         key as * const sgx_rsa3072_key_t,
-                         &mut sign as * mut sgx_rsa3072_signature_t)
+                         key as *const sgx_rsa3072_key_t,
+                         &mut sign as *mut sgx_rsa3072_signature_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(sign),
@@ -2537,10 +2537,10 @@ pub fn rsgx_rsa3072_sign_slice<T>(data: &[T], key: &sgx_rsa3072_key_t) -> SgxRes
 
     let mut sign = sgx_rsa3072_signature_t::default();
     let ret = unsafe {
-        sgx_rsa3072_sign(data.as_ptr() as * const _ as * const u8,
+        sgx_rsa3072_sign(data.as_ptr() as *const _ as *const u8,
                          size as u32,
-                         key as * const sgx_rsa3072_key_t,
-                         &mut sign as * mut sgx_rsa3072_signature_t)
+                         key as *const sgx_rsa3072_key_t,
+                         &mut sign as *mut sgx_rsa3072_signature_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(sign),
@@ -2616,11 +2616,11 @@ pub fn rsgx_rsa3072_verify_msg<T>(data: &T,
     unsafe {
 
         let mut verify = sgx_rsa_result_t::SGX_RSA_INVALID_SIGNATURE;
-        let ret = sgx_rsa3072_verify(data as * const _ as * const u8,
+        let ret = sgx_rsa3072_verify(data as *const _ as *const u8,
                                      size as u32,
-                                     public as * const sgx_rsa3072_public_key_t,
-                                     signature as * const sgx_rsa3072_signature_t,
-                                     &mut verify as * mut sgx_rsa_result_t);
+                                     public as *const sgx_rsa3072_public_key_t,
+                                     signature as *const sgx_rsa3072_signature_t,
+                                     &mut verify as *mut sgx_rsa_result_t);
         match ret {
             sgx_status_t::SGX_SUCCESS => {
                 match verify {
@@ -2652,11 +2652,11 @@ pub fn rsgx_rsa3072_verify_slice<T>(data: &[T],
     unsafe {
 
         let mut verify = sgx_rsa_result_t::SGX_RSA_INVALID_SIGNATURE;
-        let ret = sgx_rsa3072_verify(data.as_ptr() as * const _ as * const u8,
+        let ret = sgx_rsa3072_verify(data.as_ptr() as *const _ as *const u8,
                                      size as u32,
-                                     public as * const sgx_rsa3072_public_key_t,
-                                     signature as * const sgx_rsa3072_signature_t,
-                                     &mut verify as * mut sgx_rsa_result_t);
+                                     public as *const sgx_rsa3072_public_key_t,
+                                     signature as *const sgx_rsa3072_signature_t,
+                                     &mut verify as *mut sgx_rsa_result_t);
         match ret {
             sgx_status_t::SGX_SUCCESS => {
                 match verify {
@@ -2766,7 +2766,7 @@ fn rsgx_create_rsa_priv2_key(mod_size: i32,
                                  dmp1.as_ptr(),
                                  dmq1.as_ptr(),
                                  iqmp.as_ptr(),
-                                 new_pri_key as * mut sgx_rsa_key_t)
+                                 new_pri_key as *mut sgx_rsa_key_t)
     }
 }
 
@@ -2797,7 +2797,7 @@ fn rsgx_create_rsa_priv1_key(n_size: i32,
                                  n.as_ptr(),
                                  e.as_ptr(),
                                  d.as_ptr(),
-                                 new_pri_key as * mut sgx_rsa_key_t)
+                                 new_pri_key as *mut sgx_rsa_key_t)
     }
 }
 
@@ -2821,7 +2821,7 @@ fn rsgx_create_rsa_pub1_key(mod_size: i32,
                                 exp_size,
                                 n.as_ptr(),
                                 e.as_ptr(),
-                                new_pub_key as * mut sgx_rsa_key_t)
+                                new_pub_key as *mut sgx_rsa_key_t)
     }
 }
 
@@ -2850,7 +2850,7 @@ fn rsgx_rsa_priv_decrypt_sha256(rsa_key: sgx_rsa_key_t,
     }
 
     unsafe {
-        let p_out_data: * mut u8 = if *out_len != 0 {
+        let p_out_data: *mut u8 = if *out_len != 0 {
             out_data.as_mut_ptr()
         } else {
             ptr::null_mut()
@@ -2858,7 +2858,7 @@ fn rsgx_rsa_priv_decrypt_sha256(rsa_key: sgx_rsa_key_t,
 
         sgx_rsa_priv_decrypt_sha256(rsa_key,
                                     p_out_data,
-                                    out_len as * mut usize,
+                                    out_len as *mut usize,
                                     in_data.as_ptr(),
                                     in_data.len())
     }
@@ -2876,7 +2876,7 @@ fn rsgx_rsa_pub_encrypt_sha256(rsa_key: sgx_rsa_key_t,
     }
 
     unsafe {
-        let p_out_data: * mut u8 = if *out_len != 0 {
+        let p_out_data: *mut u8 = if *out_len != 0 {
             out_data.as_mut_ptr()
         } else {
             ptr::null_mut()
@@ -2884,7 +2884,7 @@ fn rsgx_rsa_pub_encrypt_sha256(rsa_key: sgx_rsa_key_t,
 
         sgx_rsa_pub_encrypt_sha256(rsa_key,
                                    p_out_data,
-                                   out_len as * mut usize,
+                                   out_len as *mut usize,
                                    in_data.as_ptr(),
                                    in_data.len())
     }
@@ -3211,8 +3211,8 @@ pub fn rsgx_calculate_ecdsa_priv_key(hash_drg: &[u8],
 pub fn rsgx_ecc256_calculate_pub_from_priv(priv_key: &sgx_ec256_private_t,
                                            pub_key: &mut sgx_ec256_public_t) -> SgxError {
     let ret = unsafe {
-        sgx_ecc256_calculate_pub_from_priv(priv_key as * const sgx_ec256_private_t,
-                                           pub_key as * mut sgx_ec256_public_t)
+        sgx_ecc256_calculate_pub_from_priv(priv_key as *const sgx_ec256_private_t,
+                                           pub_key as *mut sgx_ec256_public_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(()),
@@ -3234,7 +3234,7 @@ pub fn rsgx_ecc256_priv_key(hash_drg: &[u8], sgx_nistp256_r_m1: &[u8]) -> SgxRes
                                      hash_drg.len() as i32,
                                      sgx_nistp256_r_m1.as_ptr(),
                                      sgx_nistp256_r_m1.len() as i32,
-                                     &mut priv_key as * mut sgx_ec256_private_t as * mut u8,
+                                     &mut priv_key as *mut sgx_ec256_private_t as *mut u8,
                                      mem::size_of::<sgx_ec256_private_t>() as i32)
     };
     match ret {
@@ -3246,8 +3246,8 @@ pub fn rsgx_ecc256_priv_key(hash_drg: &[u8], sgx_nistp256_r_m1: &[u8]) -> SgxRes
 pub fn rsgx_ecc256_pub_from_priv(priv_key: &sgx_ec256_private_t) -> SgxResult<sgx_ec256_public_t> {
     let mut pub_key = sgx_ec256_public_t::default();
     let ret = unsafe {
-        sgx_ecc256_calculate_pub_from_priv(priv_key as * const sgx_ec256_private_t,
-                                           &mut pub_key as * mut sgx_ec256_public_t)
+        sgx_ecc256_calculate_pub_from_priv(priv_key as *const sgx_ec256_private_t,
+                                           &mut pub_key as *mut sgx_ec256_public_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(pub_key),
@@ -3270,12 +3270,12 @@ fn rsgx_aes_gcm128_enc_init(key: &sgx_aes_gcm_128bit_key_t,
 
     unsafe {
         let p_aad = if !aad.is_empty() { aad.as_ptr() } else { ptr::null() };
-        sgx_aes_gcm128_enc_init(key as * const sgx_aes_gcm_128bit_key_t as * const u8,
+        sgx_aes_gcm128_enc_init(key as *const sgx_aes_gcm_128bit_key_t as *const u8,
                                 iv.as_ptr(),
                                 iv_len as u32,
                                 p_aad,
                                 aad_len as u32,
-                                aes_gcm_state as * mut sgx_aes_state_handle_t)
+                                aes_gcm_state as *mut sgx_aes_state_handle_t)
     }
 }
 
@@ -3308,7 +3308,7 @@ fn rsgx_aes_gcm128_enc_update(src: &[u8],
 fn rsgx_aes_gcm128_enc_get_mac(mac: &mut sgx_aes_gcm_128bit_tag_t,
                                aes_gcm_state: sgx_aes_state_handle_t) -> sgx_status_t {
     unsafe {
-        sgx_aes_gcm128_enc_get_mac(mac as * mut sgx_aes_gcm_128bit_tag_t as * mut u8, aes_gcm_state)
+        sgx_aes_gcm128_enc_get_mac(mac as *mut sgx_aes_gcm_128bit_tag_t as *mut u8, aes_gcm_state)
     }
 }
 

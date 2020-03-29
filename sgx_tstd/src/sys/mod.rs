@@ -20,12 +20,19 @@ use crate::io::ErrorKind;
 
 pub use self::rand::hashmap_random_keys;
 
+pub mod mutex;
+pub mod condvar;
+pub mod rwlock;
 pub mod fd;
 pub mod fs;
 pub mod sgxfs;
 pub mod io;
 #[cfg(feature = "thread")]
 pub mod thread;
+#[cfg(feature = "thread")]
+pub mod fast_thread_local;
+#[cfg(feature = "thread")]
+pub mod thread_local;
 #[cfg(feature = "net")]
 pub mod net;
 pub mod path;

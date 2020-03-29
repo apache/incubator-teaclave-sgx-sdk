@@ -34,6 +34,7 @@ impl_enum! {
         SGX_ERROR_ENCLAVE_LOST              = 0x0000_0004,      /* Enclave lost after power transition or used in child process created by linux:fork() */
         SGX_ERROR_INVALID_STATE             = 0x0000_0005,      /* SGX API is invoked in incorrect order or state */
         SGX_ERROR_FEATURE_NOT_SUPPORTED     = 0x0000_0008,      /* Feature is not supported on this platform */
+        SGX_PTHREAD_EXIT                    = 0x0000_0009,      /* Enclave is exited with pthread_exit() */
 
         SGX_ERROR_INVALID_FUNCTION   = 0x0000_1001,      /* The ecall/ocall index is invalid */
         SGX_ERROR_OUT_OF_TCS         = 0x0000_1003,      /* The enclave is out of TCS */
@@ -129,6 +130,7 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_ENCLAVE_LOST => "Enclave lost after power transition or used in child process created.",
             sgx_status_t::SGX_ERROR_INVALID_STATE => "SGX API is invoked in incorrect order or state.",
             sgx_status_t::SGX_ERROR_FEATURE_NOT_SUPPORTED => "Feature is not supported on this platform.",
+            sgx_status_t::SGX_PTHREAD_EXIT => "Enclave is exited with pthread_exit.",
 
             sgx_status_t::SGX_ERROR_INVALID_FUNCTION => "The ecall/ocall index is invalid.",
             sgx_status_t::SGX_ERROR_OUT_OF_TCS => "The enclave is out of TCS.",
@@ -220,6 +222,7 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_ENCLAVE_LOST => "SGX_ERROR_ENCLAVE_LOST",
             sgx_status_t::SGX_ERROR_INVALID_STATE => "SGX_ERROR_INVALID_STATE",
             sgx_status_t::SGX_ERROR_FEATURE_NOT_SUPPORTED => "SGX_ERROR_FEATURE_NOT_SUPPORTED",
+            sgx_status_t::SGX_PTHREAD_EXIT => "SGX_PTHREAD_EXIT",
 
             sgx_status_t::SGX_ERROR_INVALID_FUNCTION => "SGX_ERROR_INVALID_FUNCTION",
             sgx_status_t::SGX_ERROR_OUT_OF_TCS => "SGX_ERROR_OUT_OF_TCS",
@@ -427,6 +430,7 @@ impl_enum! {
         SGX_QL_CRL_UNSUPPORTED_FORMAT                   = 0x0000_E038,
         SGX_QL_QEIDENTITY_CHAIN_ERROR                   = 0x0000_E039,
         SGX_QL_TCBINFO_CHAIN_ERROR                      = 0x0000_E03A,
+        SGX_QL_ERROR_QVL_QVE_MISMATCH                   = 0x0000_E03B,
         SGX_QL_ERROR_MAX                                = 0x0000_E0FF,
     }
 }
@@ -493,6 +497,7 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_CRL_UNSUPPORTED_FORMAT => "",
             sgx_quote3_error_t::SGX_QL_QEIDENTITY_CHAIN_ERROR => "",
             sgx_quote3_error_t::SGX_QL_TCBINFO_CHAIN_ERROR => "",
+            sgx_quote3_error_t::SGX_QL_ERROR_QVL_QVE_MISMATCH => "QvE returned supplemental data version mismatched between QVL and QvE.",
             sgx_quote3_error_t::SGX_QL_ERROR_MAX => "Indicate max error to allow better translation.",
         }
     }
@@ -558,6 +563,7 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_CRL_UNSUPPORTED_FORMAT => "SGX_QL_CRL_UNSUPPORTED_FORMAT",
             sgx_quote3_error_t::SGX_QL_QEIDENTITY_CHAIN_ERROR => "SGX_QL_QEIDENTITY_CHAIN_ERROR",
             sgx_quote3_error_t::SGX_QL_TCBINFO_CHAIN_ERROR => "SGX_QL_TCBINFO_CHAIN_ERROR",
+            sgx_quote3_error_t::SGX_QL_ERROR_QVL_QVE_MISMATCH => "SGX_QL_ERROR_QVL_QVE_MISMATCH",
             sgx_quote3_error_t::SGX_QL_ERROR_MAX => "SGX_QL_ERROR_MAX",
         }
     }

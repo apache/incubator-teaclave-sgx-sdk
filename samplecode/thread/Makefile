@@ -21,6 +21,9 @@ SGX_SDK ?= /opt/intel/sgxsdk
 SGX_MODE ?= HW
 SGX_ARCH ?= x64
 
+TOP_DIR := ../..
+include $(TOP_DIR)/buildenv.mk
+
 ifeq ($(shell getconf LONG_BIT), 32)
 	SGX_ARCH := x86
 else ifeq ($(findstring -m32, $(CXXFLAGS)), -m32)
@@ -45,14 +48,13 @@ $(error Cannot set SGX_DEBUG and SGX_PRERELEASE at the same time!!)
 endif
 endif
 
-
 ifeq ($(SGX_DEBUG), 1)
 	SGX_COMMON_CFLAGS += -O0 -g
 else
 	SGX_COMMON_CFLAGS += -O2
 endif
 
-SGX_COMMON_CFLAGS += -L./lib
+SGX_COMMON_CFLAGS += -fstack-protector
 
 ######## CUSTOM Settings ########
 
@@ -77,7 +79,7 @@ App_Cpp_Files := $(filter-out ./app/Enclave_u.c, $(wildcard ./app/*.cpp))
 App_Include_Paths := -I ./app -I./include -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH)
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread
+App_Link_Flags := -L$(CUSTOM_LIBRARY_PATH) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
 else
@@ -108,16 +110,12 @@ RustEnclave_C_Objects := $(RustEnclave_C_Files:.c=.o)
 RustEnclave_Include_Paths := -I$(CUSTOM_COMMON_PATH)/inc -I$(CUSTOM_EDL_PATH) -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/stlport -I$(SGX_SDK)/include/epid -I ./enclave -I./include
 
 RustEnclave_Link_Libs := -L$(CUSTOM_LIBRARY_PATH) -lcompiler-rt-patch -lenclave
-RustEnclave_Compile_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(RustEnclave_Include_Paths)
-RustEnclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
+RustEnclave_Compile_Flags := $(SGX_COMMON_CFLAGS) $(ENCLAVE_CFLAGS) $(RustEnclave_Include_Paths)
+RustEnclave_Link_Flags := -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
 	-Wl,--start-group -lsgx_tstdc -l$(Service_Library_Name) -l$(Crypto_Library_Name) $(RustEnclave_Link_Libs) -Wl,--end-group \
-	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
-	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
-	-Wl,--defsym,__ImageBase=0 \
-	-Wl,--gc-sections \
-	-Wl,--version-script=enclave/Enclave.lds
-
+	-Wl,--version-script=enclave/Enclave.lds \
+	$(ENCLAVE_LDFLAGS)
 
 RustEnclave_Name := enclave/enclave.so
 Signed_RustEnclave_Name := bin/enclave.signed.so
@@ -145,8 +143,8 @@ app/%.o: app/%.cpp
 $(App_Name): app/Enclave_u.o $(App_Cpp_Objects) sgx_ustdc
 	cp ../../sgx_ustdc/libsgx_ustdc.a ./lib
 	mkdir -p bin
-	@$(CXX) app/Enclave_u.o $(App_Cpp_Objects) -o $@ $(App_Link_Flags)
-	@echo "LINK =>  $@"
+	$(CXX) app/Enclave_u.o $(App_Cpp_Objects) -o $@ $(App_Link_Flags)
+	echo "LINK =>  $@"
 
 ######## Enclave Objects ########
 

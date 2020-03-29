@@ -6,7 +6,7 @@ use std::slice;
 use std::sync::Once;
 use libc::timespec;
 
-static mut GLOBAL_TCS_CACHE: *mut SgxTcsInfoCache = 0 as *mut SgxTcsInfoCache;
+static mut GLOBAL_TCS_CACHE: Option<SgxTcsInfoCache> = None;
 static INIT: Once = Once::new();
 
 pub const FUTEX_WAIT: usize = 0;
@@ -30,14 +30,14 @@ impl SeEvent {
                               self,
                               FUTEX_WAIT,
                               -1,
-                              timeout as * const timespec,
+                              timeout as *const timespec,
                               0,
                               0)
             };
             if ret < 0 {
                 let err = Error::last_os_error().raw_os_error().unwrap_or(0);
                 if err == libc::ETIMEDOUT {
-                    self.event.fetch_add(1, Ordering::SeqCst);
+                    self.event.compare_and_swap(-1, 0, Ordering::SeqCst);
                     return -1;
                 }
             }
@@ -85,7 +85,7 @@ struct SgxTcsInfo<'a> {
 }
 
 struct SgxTcsInfoCache<'a> {
-    cache:Mutex<Vec<SgxTcsInfo<'a>>>
+    cache: Mutex<Vec<SgxTcsInfo<'a>>>
 }
 
 impl<'a> SgxTcsInfoCache<'a> {
@@ -115,14 +115,17 @@ impl<'a> SgxTcsInfoCache<'a> {
 pub fn get_tcs_event(_tcs: usize) -> & 'static SeEvent {
     unsafe {
         INIT.call_once(|| {
-            GLOBAL_TCS_CACHE = Box::into_raw(Box::new(SgxTcsInfoCache::new())) as * mut SgxTcsInfoCache;
+            GLOBAL_TCS_CACHE = Some(SgxTcsInfoCache::new());
         });
-        (*GLOBAL_TCS_CACHE).get_event(_tcs)
+        GLOBAL_TCS_CACHE
+            .as_ref()
+            .expect("GLOBAL_TCS_CACHE is not initialized.")
+            .get_event(_tcs)
     }
 }
 
 #[no_mangle]
-pub extern "C" fn u_thread_set_event_ocall(error: * mut c_int, tcs: * const c_void) -> c_int {
+pub extern "C" fn u_thread_set_event_ocall(error: *mut c_int, tcs: *const c_void) -> c_int {
     if tcs.is_null() {
         if !error.is_null() {
             unsafe { *error = libc::EINVAL; }
@@ -144,7 +147,7 @@ pub extern "C" fn u_thread_set_event_ocall(error: * mut c_int, tcs: * const c_vo
 }
 
 #[no_mangle]
-pub extern "C" fn u_thread_wait_event_ocall(error: * mut c_int, tcs: * const c_void, timeout: * const timespec) -> c_int {
+pub extern "C" fn u_thread_wait_event_ocall(error: *mut c_int, tcs: *const c_void, timeout: *const timespec) -> c_int {
     if tcs.is_null() {
         if !error.is_null() {
             unsafe { *error = libc::EINVAL; }
@@ -171,7 +174,9 @@ pub extern "C" fn u_thread_wait_event_ocall(error: * mut c_int, tcs: * const c_v
 }
 
 #[no_mangle]
-pub extern "C" fn u_thread_set_multiple_events_ocall(error: * mut c_int, tcss: * const * const c_void, total: c_int) -> c_int {
+pub extern "C" fn u_thread_set_multiple_events_ocall(error: *mut c_int,
+                                                     tcss: *const *const c_void,
+                                                     total: c_int) -> c_int {
 
     if tcss.is_null() {
         if !error.is_null() {
@@ -199,10 +204,10 @@ pub extern "C" fn u_thread_set_multiple_events_ocall(error: * mut c_int, tcss: *
 }
 
 #[no_mangle]
-pub extern "C" fn u_thread_setwait_events_ocall(error: * mut c_int,
-                                                waiter_tcs: * const c_void,
-                                                self_tcs: * const c_void,
-                                                timeout: * const timespec) -> c_int {
+pub extern "C" fn u_thread_setwait_events_ocall(error: *mut c_int,
+                                                waiter_tcs: *const c_void,
+                                                self_tcs: *const c_void,
+                                                timeout: *const timespec) -> c_int {
 
     let result = u_thread_set_event_ocall(error, waiter_tcs);
     if result < 0 {

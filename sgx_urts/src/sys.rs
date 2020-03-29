@@ -16,10 +16,10 @@
 // under the License..
 
 use std::io::Error;
-use libc::{self, c_int, c_long, c_ulong};
+use libc::{self, c_int, c_long, c_ulong, size_t, pid_t, cpu_set_t};
 
 #[no_mangle]
-pub extern "C" fn u_sysconf_ocall(error: * mut c_int, name: c_int) -> c_long {
+pub extern "C" fn u_sysconf_ocall(error: *mut c_int, name: c_int) -> c_long {
     let mut errno = 0;
     let ret = unsafe { libc::sysconf(name) };
     if ret < 0 {
@@ -32,7 +32,7 @@ pub extern "C" fn u_sysconf_ocall(error: * mut c_int, name: c_int) -> c_long {
 }
 
 #[no_mangle]
-pub extern "C" fn  u_prctl_ocall(error: * mut c_int,
+pub extern "C" fn  u_prctl_ocall(error: *mut c_int,
                                  option: c_int,
                                  arg2: c_ulong,
                                  arg3: c_ulong,
@@ -47,4 +47,36 @@ pub extern "C" fn  u_prctl_ocall(error: * mut c_int,
         unsafe { *error = errno; }
     }
     ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_sched_setaffinity_ocall(error: *mut c_int,
+                                            pid: pid_t,
+                                            cpusetsize: size_t,
+                                            mask: *const cpu_set_t) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::sched_setaffinity(pid, cpusetsize, mask) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret                                         
+}
+
+#[no_mangle]
+pub extern "C" fn u_sched_getaffinity_ocall(error: *mut c_int,
+                                            pid: pid_t,
+                                            cpusetsize: size_t,
+                                            mask: *mut cpu_set_t) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::sched_getaffinity(pid, cpusetsize, mask) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe { *error = errno; }
+    }
+    ret                                         
 }

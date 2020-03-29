@@ -54,7 +54,7 @@ pub fn error_string(error: i32) -> String {
             panic!("strerror_r failure");
         }
 
-        let p = buf.as_ptr() as * const _;
+        let p = buf.as_ptr() as *const _;
         str::from_utf8(CStr::from_ptr(p).to_bytes()).unwrap().to_owned()
     }
 }

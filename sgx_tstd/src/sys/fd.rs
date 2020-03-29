@@ -148,8 +148,8 @@ impl FileDesc {
 
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<()> {
         unsafe {
-            let v = nonblocking as c_int;
-            cvt(libc::ioctl_arg1(self.fd, libc::FIONBIO, &v as * const c_int))?;
+            let mut v = nonblocking as c_int;
+            cvt(libc::ioctl_arg1(self.fd, libc::FIONBIO, &mut v as *mut c_int))?;
             Ok(())
         }
     }

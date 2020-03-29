@@ -31,6 +31,10 @@ Current wiki pages:
 
 * Everything about [environment setup](https://github.com/apache/teaclave-sgx-sdk/wiki/Environment-Setup)
 
+## v1.1.1
+
+Supports Intel SGX SDK v2.9, and Rust nightly-2020-03-12. v1.1.1 contains a bunch of bug fix and new proc macro `sgx_align` to help with aligning given structure. For LVI migigation, it only works on C/C++ parts (EDL headers/Intel's libs) and supports both two modes: `MITIGATION-CVE-2020-0551=LOAD` or `MITIGATION-CVE-2020-0551=CF`. To enable it, one need `env "MITIGATION-CVE-2020-0551=LOAD"` to set this environment variable. For detailed information, please refer to [release_notes](release_notes.md) for more details.
+
 ## v1.1.0
 
 Supports Intel SGX SDK v2.7.1, and Rust nightly-2019-11-25. v1.1.0 brings up dynamic static supports by `thread::spawn`, and almost everything of `std::sync`. Also v1.1.0 benefits from Intel SGX SDK's aligned memory allocation primitives to mitigate [INTEL-SA-00219](https://github.com/apache/incubator-mesatee-sgx/wiki/Mitigation-of-Intel-SA-00219-in-Rust-SGX). Besides, we enabled [`is_x86_feature_detected!`](https://github.com/apache/incubator-mesatee-sgx/wiki/%60is_x86_feature_detected%60-in-Rust-SGX-SDK) by parsing a hidden global CPU feature indicator initialized by Intel SGX urts/trts. And we provided Dockerfile for Fedora 27. For detailed information, please refer to [release_notes](release_notes.md) for more details.
@@ -49,7 +53,12 @@ Supports Intel SGX SDK v2.5. Master branch supports Rust nightly build (nightly-
 
 We changed the built-in EDL files. Please carefully upgrade your EDL files on `import` statements. If you encountered any problems during compilation, please create issue and let me know. Thanks!
 
-**ATTENTION**: (Ubuntu Channel) Starts from Intel SGX SDK 2.5, `aesmd` requires a environment variable to start. If you are using docker, please start `aesmd` as:
+**ATTENTION**: (Ubuntu Channel) Starts from Intel SGX SDK 2.8, `aesmd` requires a environment variable to start. If you are using docker, please start `aesmd` as:
+```
+LD_LIBRARY_PATH=/opt/intel/sgx-aesm-service/aesm /opt/intel/sgx-aesm-service/aesm/aesm_service
+```
+
+Starts from Intel SGX SDK 2.5, `aesmd` requires a environment variable to start. If you are using docker, please start `aesmd` as:
 ```
 LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service
 ```
@@ -244,7 +253,7 @@ The Apache Teaclave Rust-SGX SDK is provided under the Apache license. Please re
 
 # Authors
 
-Ran Duan, Long Li, Shi Jia, Yu Ding, Yulong Zhang, Yueqiang Cheng, Lenx Wei, Tanghui Chen
+Ran Duan, Long Li, Chan Zhao, Shi Jia, Yu Ding, Yulong Zhang, Yueqiang Cheng, Lenx Wei, Tanghui Chen
 
 # Acknowledgement
 

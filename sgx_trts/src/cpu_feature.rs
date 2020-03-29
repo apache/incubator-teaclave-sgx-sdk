@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License..
+
 use sgx_types::impl_enum;
 use crate::enclave;
 
@@ -209,102 +210,102 @@ impl_enum! {
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq)]
     pub enum Feature {
-        none = 0,
-        ia32 = 1,             /* 0x00000001 */
-        fpu = 2,              /* 0x00000002 */
-        cmov = 3,             /* 0x00000004 */
-        mmx = 4,              /* 0x00000008 */
-        fxsave = 5,           /* 0x00000010 */
-        sse = 6,              /* 0x00000020 */
-        sse2 = 7,             /* 0x00000040 */
-        sse3 = 8,             /* 0x00000080 */
-        ssse3 = 9,            /* 0x00000100 */
-        sse4_1 = 10,          /* 0x00000200 */
-        sse4_2 = 11,          /* 0x00000400 */
-        movbe = 12,           /* 0x00000800 */
-        popcnt = 13,          /* 0x00001000 */
-        pclmulqdq = 14,       /* 0x00002000 */
-        aes = 15,             /* 0x00004000 */
+        none            = 0,
+        ia32            = 1,        /* 0x00000001 */
+        fpu             = 2,        /* 0x00000002 */
+        cmov            = 3,        /* 0x00000004 */
+        mmx             = 4,        /* 0x00000008 */
+        fxsave          = 5,        /* 0x00000010 */
+        sse             = 6,        /* 0x00000020 */
+        sse2            = 7,        /* 0x00000040 */
+        sse3            = 8,        /* 0x00000080 */
+        ssse3           = 9,        /* 0x00000100 */
+        sse4_1          = 10,       /* 0x00000200 */
+        sse4_2          = 11,       /* 0x00000400 */
+        movbe           = 12,       /* 0x00000800 */
+        popcnt          = 13,       /* 0x00001000 */
+        pclmulqdq       = 14,       /* 0x00002000 */
+        aes             = 15,       /* 0x00004000 */
 
         /* 16-bit floating-point conversions instructions */
-        f16c = 16,            /* 0x00008000 */
+        f16c            = 16,       /* 0x00008000 */
         /* AVX instructions - SNB */
-        avx = 17,            /* 0x00010000 */
+        avx             = 17,       /* 0x00010000 */
         /* RDRND (read random value) instruction */
-        rdrand = 18,          /* 0x00020000 */
+        rdrand          = 18,       /* 0x00020000 */
         /* FMA, may need more precise name - HSW */
-        fma = 19,             /* 0x00040000 */
+        fma             = 19,       /* 0x00040000 */
         /* two groups of advanced bit manipulation extensions */
-        bmi = 20,             /* 0x00080000 */
+        bmi             = 20,       /* 0x00080000 */
         /* LZCNT (leading zeroes count) */
-        lzcnt = 21,           /* 0x00100000 */
+        lzcnt           = 21,       /* 0x00100000 */
         /* HLE (hardware lock elision) */
-        hle = 22,             /* 0x00200000 */
+        hle             = 22,       /* 0x00200000 */
         /* RTM (restricted transactional memory) */
-        rtm = 23,             /* 0x00400000 */
+        rtm             = 23,       /* 0x00400000 */
         /* AVX2 instructions - HSW */
-        avx2 = 24,            /* 0x00800000 */
+        avx2            = 24,       /* 0x00800000 */
         /* AVX512DQ - SKX 512-bit dword/qword vector instructions */
-        avx512dq = 25,        /* 0x01000000 */
+        avx512dq        = 25,       /* 0x01000000 */
         /* Unused, remained from KNF */
-        ptwrite = 26,         /* 0x02000000 */
+        ptwrite         = 26,       /* 0x02000000 */
         /* KNC new instructions */
-        kncni = 27,           /* 0x04000000 */
+        kncni           = 27,       /* 0x04000000 */
         /* AVX-512 foundation instructions - KNL and SKX */
-        avx512f = 28,         /* 0x08000000 */
+        avx512f         = 28,       /* 0x08000000 */
         /* uint add with OF or CF flags (ADOX, ADCX) - BDW */
-        adx = 29,             /* 0x10000000 */
+        adx             = 29,       /* 0x10000000 */
         /* Enhanced non-deterministic rand generator - BDW */
-        rdseed = 30,          /* 0x20000000 */
+        rdseed          = 30,       /* 0x20000000 */
         /* AVX512IFMA52:  vpmadd52huq and vpmadd52luq. */
-        avx512ifma = 31,      /* 0x40000000 */
+        avx512ifma      = 31,       /* 0x40000000 */
         /* Full inorder (like Silverthorne) processor */
-        full_inorder = 32,    /* 0x80000000 */
+        full_inorder    = 32,       /* 0x80000000 */
         /* AVX-512 exponential and reciprocal instructions - KNL */
-        avx512er = 33,        /* 0x100000000 */
+        avx512er        = 33,       /* 0x100000000 */
         /* AVX-512 gather/scatter prefetch instructions - KNL */
-        avx512pf = 34,        /* 0x200000000 */
+        avx512pf        = 34,       /* 0x200000000 */
         /* AVX-512 conflict detection instructions - KNL */
-        avx512cd = 35,        /* 0x400000000 */
+        avx512cd        = 35,       /* 0x400000000 */
         /* Secure Hash Algorithm instructions (SHA) */
-        sha = 36,             /* 0x800000000 */
+        sha             = 36,       /* 0x800000000 */
         /* Memory Protection Extensions (MPX) */
-        mpx = 37,             /* 0x1000000000 */
+        mpx             = 37,       /* 0x1000000000 */
         /* AVX512BW - SKX 512-bit byte/word vector instructions */
-        avx512bw = 38,        /* 0x2000000000 */
+        avx512bw        = 38,       /* 0x2000000000 */
         /* AVX512VL - adds 128/256-bit vector support of other AVX512 instructions. */
-        avx512vl = 39,        /* 0x4000000000 */
+        avx512vl        = 39,       /* 0x4000000000 */
         /* AVX512VBMI:  vpermb, vpermi2b, vpermt2b and vpmultishiftqb. */
-        avx512vbmi = 40,      /* 0x8000000000 */
+        avx512vbmi      = 40,       /* 0x8000000000 */
         /* AVX512_4FMAPS: Single Precision FMA for multivector(4 vector) operand. */
-        avx512_4fmaps = 41,   /* 0x10000000000 */
+        avx512_4fmaps   = 41,       /* 0x10000000000 */
         /* AVX512_4VNNIW: Vector Neural Network Instructions for
         *  multivector(4 vector) operand with word elements. */
-        avx512_4vnniw = 42,   /* 0x20000000000 */
+        avx512_4vnniw   = 42,       /* 0x20000000000 */
         /* AVX512_VPOPCNTDQ: 512-bit vector POPCNT. */
-        avx512_vpopcntdq = 43,   /* 0x40000000000 */
+        avx512_vpopcntdq = 43,      /* 0x40000000000 */
         /* AVX512_BITALG: vector bit algebra in AVX512. */
-        avx512_bitalg = 44,   /* 0x80000000000 */
+        avx512_bitalg   = 44,       /* 0x80000000000 */
         /* AVX512_VBMI2: additional byte, word, dword and qword capabilities */
-        avx512vbmi2 = 45,     /* 0x100000000000 */
+        avx512vbmi2     = 45,       /* 0x100000000000 */
         /* GFNI: Galois Field New Instructions. */
-        gfni = 46,            /* 0x200000000000 */
+        gfni            = 46,       /* 0x200000000000 */
         /* VAES: vector AES instructions */
-        vaes = 47,            /* 0x400000000000 */
+        vaes            = 47,       /* 0x400000000000 */
         /* VPCLMULQDQ: vector PCLMULQDQ instructions. */
-        vpclmulqdq = 48,      /* 0x800000000000 */
+        vpclmulqdq      = 48,       /* 0x800000000000 */
         /* AVX512_VNNI: vector Neural Network Instructions. */
-        avx512vnni = 49,      /* 0x1000000000000 */
+        avx512vnni      = 49,       /* 0x1000000000000 */
         /* CLWB: Cache Line Write Back. */
-        clwb = 50,            /* 0x2000000000000 */
+        clwb            = 50,       /* 0x2000000000000 */
         /* RDPID: Read Processor ID. */
-        rdpid = 51,           /* 0x4000000000000 */
-        ibt = 52,             /* 0x8000000000000 */
-        shstk = 53,
-        sgx = 54,
-        wbnoinvd = 55,
-        pconfig = 56,
-        end = 57,
+        rdpid           = 51,       /* 0x4000000000000 */
+        ibt             = 52,       /* 0x8000000000000 */
+        shstk           = 53,
+        sgx             = 54,
+        wbnoinvd        = 55,
+        pconfig         = 56,
+        end             = 57,
     }
 }
 

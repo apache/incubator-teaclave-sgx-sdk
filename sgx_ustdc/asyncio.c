@@ -24,7 +24,7 @@
 #include <poll.h>
 #include <errno.h>
 
-int u_poll_ocall(int * error, struct pollfd * fds, nfds_t nfds, int timeout)
+int u_poll_ocall(int *error, struct pollfd *fds, nfds_t nfds, int timeout)
 {
     int ret = poll(fds, nfds, timeout);
     if (error) {
@@ -33,7 +33,7 @@ int u_poll_ocall(int * error, struct pollfd * fds, nfds_t nfds, int timeout)
     return ret;
 }
 
-int u_epoll_create1_ocall(int * error, int flags)
+int u_epoll_create1_ocall(int *error, int flags)
 {
     int ret = epoll_create1(flags);
     if (error) {
@@ -42,7 +42,7 @@ int u_epoll_create1_ocall(int * error, int flags)
     return ret;
 }
 
-int u_epoll_ctl_ocall(int * error, int epfd, int op, int fd, struct epoll_event * event)
+int u_epoll_ctl_ocall(int *error, int epfd, int op, int fd, struct epoll_event *event)
 {
     int ret = epoll_ctl(epfd, op, fd, event);
     if (error) {
@@ -51,7 +51,7 @@ int u_epoll_ctl_ocall(int * error, int epfd, int op, int fd, struct epoll_event 
     return ret;
 }
 
-int u_epoll_wait_ocall(int * error, int epfd, struct epoll_event * events, int maxevents, int timeout)
+int u_epoll_wait_ocall(int *error, int epfd, struct epoll_event *events, int maxevents, int timeout)
 {
     int ret = epoll_wait(epfd, events, maxevents, timeout);
     if (error) {

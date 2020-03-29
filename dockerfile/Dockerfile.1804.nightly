@@ -1,67 +1,38 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License..
-
-
 FROM ubuntu:18.04
-MAINTAINER Yu Ding
 
-ENV sdk_bin https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.7.101.3.bin
-ENV psw_deb https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/ubuntu18.04-server/libsgx-enclave-common_2.7.101.3-bionic1_amd64.deb
-ENV psw_dev_deb https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/ubuntu18.04-server/libsgx-enclave-common-dev_2.7.101.3-bionic1_amd64.deb
-ENV psw_dbgsym_deb https://download.01.org/intel-sgx/sgx-linux/2.7.1/distro/ubuntu18.04-server/libsgx-enclave-common-dbgsym_2.7.101.3-bionic1_amd64.ddeb
-ENV rust_toolchain nightly-2019-11-25
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && \
-    apt-get install -y build-essential ocaml ocamlbuild automake autoconf libtool wget python libssl-dev libcurl4-openssl-dev protobuf-compiler libprotobuf-dev sudo kmod vim curl git-core libprotobuf-c0-dev libboost-thread-dev libboost-system-dev liblog4cpp5-dev libjsoncpp-dev alien uuid-dev libxml2-dev cmake pkg-config expect systemd-sysv gdb && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -rf /var/cache/apt/archives/*
+RUN apt update && apt install -y autoconf automake bison build-essential cmake curl dpkg-dev expect flex gcc-8 gdb git git-core gnupg kmod libboost-system-dev libboost-thread-dev libcurl4-openssl-dev libiptcdata0-dev libjsoncpp-dev liblog4cpp5-dev libprotobuf-c0-dev libprotobuf-dev libssl-dev libtool libxml2-dev ocaml ocamlbuild pkg-config protobuf-compiler python sudo systemd-sysv texinfo uuid-dev vim wget && \
+    rm -rf /var/lib/apt/lists/*
 
+#18.04 does have gcc-8
+#ADD 01_gcc_8.sh /root
+#RUN bash /root/01_gcc_8.sh
 
-# Uncomment the following lines for setup iCls
-# Make sure you have put the installer file in this directory with filename iclsClient-1.45.449.12-1.x86_64.rpm
-#RUN mkdir /root/icls
-#ADD iclsClient-1.45.449.12-1.x86_64.rpm /root/icls/
-#RUN cd /root/icls && alien --scripts iclsClient-1.45.449.12-1.x86_64.rpm && dpkg -i iclsclient_1.45.449.12-2_amd64.deb && ldconfig && \
-#    cd /tmp && \
-#    git clone https://github.com/01org/dynamic-application-loader-host-interface.git jhi && \
-#    cd jhi && mkdir build && cd build && cmake .. && make && make install && \
-#    systemctl enable jhi
+ENV BINUTILS_PREFIX=/usr
 
-RUN mkdir /root/sgx && \
-    mkdir /etc/init && \
-    wget -O /root/sgx/psw.deb ${psw_deb} && \
-    wget -O /root/sgx/psw_dev.deb ${psw_dev_deb} && \
-    wget -O /root/sgx/psw_dbgsym.deb ${psw_dbgsym_deb} && \
-    wget -O /root/sgx/sdk.bin ${sdk_bin} && \
-    cd /root/sgx && \
-    dpkg -i /root/sgx/psw.deb && \
-    dpkg -i /root/sgx/psw_dev.deb && \
-    dpkg -i /root/sgx/psw_dbgsym.deb && \
-    chmod +x /root/sgx/sdk.bin && \
-    echo -e 'no\n/opt' | /root/sgx/sdk.bin && \
-    echo 'source /opt/sgxsdk/environment' >> /root/.bashrc && \
-    rm -rf /root/sgx/*
+ADD 02_binutils.sh /root
+RUN bash /root/02_binutils.sh
 
-RUN wget 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init' -O /root/rustup-init && \
-    chmod +x /root/rustup-init && \
-    echo '1' | /root/rustup-init --default-toolchain ${rust_toolchain} && \
-    echo 'source /root/.cargo/env' >> /root/.bashrc && \
-    /root/.cargo/bin/rustup component add rust-src rls rust-analysis clippy rustfmt && \
-    /root/.cargo/bin/cargo install xargo && \
-    rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git
+ADD 03_sdk.sh /root
+RUN bash /root/03_sdk.sh
+    
+# Sixth, PSW
+
+ENV CODENAME        bionic
+ENV VERSION         2.9.100.2-bionic1
+
+ADD 04_psw.sh /root
+RUN bash /root/04_psw.sh
+
+# Seventh, Rust
+
+ENV rust_toolchain  nightly-2020-03-12
+ADD 05_rust.sh /root
+RUN bash /root/05_rust.sh
+
+ENV DEBIAN_FRONTEND=
+ENV CODENAME=
+ENV VERSION=
+
 WORKDIR /root

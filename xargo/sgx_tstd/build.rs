@@ -15,9 +15,21 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use std::env;
+
 fn main() {
     if cfg!(feature = "backtrace") {
         println!("cargo:rustc-cfg=RUST_BACKTRACE=\"1\"");
         //println!("cargo:rustc-cfg=RUST_BACKTRACE=\"full\"");
+    }
+
+    let sdk_dir = env::var("SGX_SDK")
+                    .unwrap_or_else(|_| "/opt/intel/sgxsdk".to_string());
+    let _is_sim = env::var("SGX_MODE")
+                    .unwrap_or_else(|_| "HW".to_string());
+
+    if cfg!(feature = "thread") {
+        println!("cargo:rustc-link-search=native={}/lib64", sdk_dir);
+        println!("cargo:rustc-link-lib=static=sgx_pthread");
     }
 }

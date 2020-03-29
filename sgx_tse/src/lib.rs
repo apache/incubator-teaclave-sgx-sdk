@@ -23,13 +23,8 @@
 #![no_std]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![allow(non_camel_case_types)]
-#![feature(ptr_internals)]
-#![feature(dropck_eyepatch)]
 
-extern crate alloc;
 extern crate sgx_types;
 
 mod se;
 pub use self::se::*;
-pub mod alignalloc;
-pub mod alignbox;

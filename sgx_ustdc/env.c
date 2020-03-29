@@ -27,17 +27,17 @@ uid_t u_getuid_ocall()
     return getuid();
 }
 
-char ** u_environ_ocall()
+char **u_environ_ocall()
 {
     return environ;
 }
 
-char * u_getenv_ocall(const char * name)
+char *u_getenv_ocall(const char *name)
 {
     return getenv(name);
 }
 
-int u_setenv_ocall(int * error, const char * name, const char * value, int overwrite)
+int u_setenv_ocall(int *error, const char *name, const char *value, int overwrite)
 {
     int ret = setenv(name, value, overwrite);
     if (error) {
@@ -46,7 +46,7 @@ int u_setenv_ocall(int * error, const char * name, const char * value, int overw
     return ret;
 }
 
-int u_unsetenv_ocall(int * error, const char * name)
+int u_unsetenv_ocall(int *error, const char *name)
 {
     int ret = unsetenv(name);
     if (error) {
@@ -55,7 +55,7 @@ int u_unsetenv_ocall(int * error, const char * name)
     return ret;
 }
 
-char* u_getcwd_ocall(int *error, char *buf, size_t size)
+char *u_getcwd_ocall(int *error, char *buf, size_t size)
 {
     char *ret = getcwd(buf, size);
     if (error) {

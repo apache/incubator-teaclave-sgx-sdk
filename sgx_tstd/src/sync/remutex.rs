@@ -15,20 +15,18 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_types::{self, SysError, sgx_thread_mutex_t};
-use crate::sync::mutex::*;
-use crate::panic::{UnwindSafe, RefUnwindSafe};
-use crate::sys_common::poison::{self, TryLockError, TryLockResult, LockResult};
+use sgx_types::SysError;
 use core::cell::UnsafeCell;
 use core::fmt;
 use core::ops::Deref;
 use core::marker;
 use alloc_crate::boxed::Box;
+use crate::panic::{UnwindSafe, RefUnwindSafe};
+use crate::sys_common::poison::{self, TryLockError, TryLockResult, LockResult};
+use crate::sys::mutex as sys;
 
 /// The structure of sgx mutex.
-pub struct SgxReentrantThreadMutex {
-    lock: UnsafeCell<SgxThreadMutexInner>,
-}
+pub struct SgxReentrantThreadMutex(sys::SgxThreadMutex);
 
 unsafe impl Send for SgxReentrantThreadMutex {}
 unsafe impl Sync for SgxReentrantThreadMutex {}
@@ -59,9 +57,7 @@ impl SgxReentrantThreadMutex {
     /// The trusted mutex object to be initialized.
     ///
     pub const fn new() -> Self {
-        SgxReentrantThreadMutex{
-            lock: UnsafeCell::new(super::mutex::SgxThreadMutexInner::new(super::mutex::SgxThreadMutexControl::SGX_THREAD_MUTEX_RECURSIVE))
-        }
+        SgxReentrantThreadMutex(sys::SgxThreadMutex::new(sys::SgxThreadMutexControl::SGX_THREAD_MUTEX_RECURSIVE))
     }
 
     ///
@@ -101,8 +97,7 @@ impl SgxReentrantThreadMutex {
     ///
     #[inline]
     pub unsafe fn lock(&self) -> SysError {
-        let remutex: &mut super::mutex::SgxThreadMutexInner = &mut *self.lock.get();
-        remutex.lock()
+        self.0.lock()
     }
 
     ///
@@ -139,8 +134,7 @@ impl SgxReentrantThreadMutex {
     ///
     #[inline]
     pub unsafe fn try_lock(&self) -> SysError {
-        let remutex: &mut super::mutex::SgxThreadMutexInner = &mut *self.lock.get();
-        remutex.try_lock()
+        self.0.try_lock()
     }
 
     ///
@@ -171,8 +165,7 @@ impl SgxReentrantThreadMutex {
     ///
     #[inline]
     pub unsafe fn unlock(&self) -> SysError {
-        let remutex: &mut super::mutex::SgxThreadMutexInner = &mut *self.lock.get();
-        remutex.unlock()
+        self.0.unlock()
     }
 
     ///
@@ -206,8 +199,7 @@ impl SgxReentrantThreadMutex {
     ///
     #[inline]
     pub unsafe fn destroy(&self) -> SysError {
-        let remutex: &mut super::mutex::SgxThreadMutexInner = &mut *self.lock.get();
-        remutex.destroy()
+        self.0.destroy()
     }
 }
 
@@ -227,29 +219,6 @@ unsafe impl<T: Send> Sync for SgxReentrantMutex<T> {}
 
 impl<T> UnwindSafe for SgxReentrantMutex<T> {}
 impl<T> RefUnwindSafe for SgxReentrantMutex<T> {}
-
-
-/// An RAII implementation of a "scoped lock" of a mutex. When this structure is
-/// dropped (falls out of scope), the lock will be unlocked.
-///
-/// The data protected by the mutex can be accessed through this guard via its
-/// Deref implementation.
-///
-/// # Mutability
-///
-/// Unlike `MutexGuard`, `ReentrantMutexGuard` does not implement `DerefMut`,
-/// because implementation of the trait would violate Rust’s reference aliasing
-/// rules. Use interior mutability (usually `RefCell`) in order to mutate the
-/// guarded data.
-#[must_use]
-pub struct SgxReentrantMutexGuard<'a, T: 'a> {
-    // funny underscores due to how Deref currently works (it disregards field
-    // privacy).
-    __lock: &'a SgxReentrantMutex<T>,
-    __poison: poison::Guard,
-}
-
-impl<T> !Send for SgxReentrantMutexGuard<'_, T> {}
 
 impl<T> SgxReentrantMutex<T> {
     /// Creates a new reentrant mutex in an unlocked state.
@@ -303,7 +272,8 @@ impl<T> Drop for SgxReentrantMutex<T> {
         // This is actually safe b/c we know that there is no further usage of
         // this mutex (it's up to the user to arrange for a mutex to get
         // dropped, that's not our job)
-        unsafe { self.inner.destroy(); }
+        let result = unsafe { self.inner.destroy() };
+        debug_assert_eq!(result, Ok(()), "Error when destroy an SgxReentrantMutex: {}", result.unwrap_err());
     }
 }
 
@@ -328,6 +298,28 @@ impl<T: fmt::Debug + 'static> fmt::Debug for SgxReentrantMutex<T> {
     }
 }
 
+/// An RAII implementation of a "scoped lock" of a mutex. When this structure is
+/// dropped (falls out of scope), the lock will be unlocked.
+///
+/// The data protected by the mutex can be accessed through this guard via its
+/// Deref implementation.
+///
+/// # Mutability
+///
+/// Unlike `MutexGuard`, `ReentrantMutexGuard` does not implement `DerefMut`,
+/// because implementation of the trait would violate Rust’s reference aliasing
+/// rules. Use interior mutability (usually `RefCell`) in order to mutate the
+/// guarded data.
+#[must_use]
+pub struct SgxReentrantMutexGuard<'a, T: 'a> {
+    // funny underscores due to how Deref currently works (it disregards field
+    // privacy).
+    __lock: &'a SgxReentrantMutex<T>,
+    __poison: poison::Guard,
+}
+
+impl<T> !Send for SgxReentrantMutexGuard<'_, T> {}
+
 impl<'mutex, T> SgxReentrantMutexGuard<'mutex, T> {
     fn new(lock: &'mutex SgxReentrantMutex<T>) -> LockResult<SgxReentrantMutexGuard<'mutex, T>> {
         poison::map_result(lock.poison.borrow(), |guard| {
@@ -350,10 +342,11 @@ impl<T> Deref for SgxReentrantMutexGuard<'_, T> {
 impl<T> Drop for SgxReentrantMutexGuard<'_, T> {
     #[inline]
     fn drop(&mut self) {
-        unsafe {
+        let result = unsafe {
             self.__lock.poison.done(&self.__poison);
-            self.__lock.inner.unlock();
-        }
+            self.__lock.inner.unlock()
+        };
+        debug_assert_eq!(result, Ok(()), "Error when unlocking an SgxReentrantMutex: {}", result.unwrap_err());
     }
 }
 

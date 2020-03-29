@@ -73,8 +73,7 @@ pub struct enclave_css_t {
 }
 
 /* version of metadata */
-/* based on 2.4 */
-/* https://github.com/intel/linux-sgx/blob/master/common/inc/internal/metadata.h#L41 */
+/* based on 2.8 */
 pub const MAJOR_VERSION         :u32 = 2;
 pub const MINOR_VERSION         :u32 = 4;
 pub const SGX_2_1_MAJOR_VERSION :u32 = 2;   //MAJOR_VERSION should not larger than 0ffffffff
@@ -111,7 +110,7 @@ pub const ISVEXTPRODID_MAX      :u64 = 0xFFFFFFFFFFFFFFFF;
 
 pub const STATIC_STACK_SIZE     :usize = 688;
 pub const SE_GUARD_PAGE_SHIFT   :usize = 16;
-pub const SE_GUARD_PAGE_SIZE    :usize = (1 << SE_GUARD_PAGE_SHIFT);
+pub const SE_GUARD_PAGE_SIZE    :usize = 1 << SE_GUARD_PAGE_SHIFT;
 
 impl_struct! {
     #[repr(packed)]
@@ -131,7 +130,7 @@ impl_enum! {
     }
 }
 
-pub const GROUP_FLAG              :u32 = (1<<12);
+pub const GROUP_FLAG              :u32 = 1<<12;
 pub const LAYOUT_ID_HEAP_MIN      :u32 = 1;
 pub const LAYOUT_ID_HEAP_INIT     :u32 = 2;
 pub const LAYOUT_ID_HEAP_MAX      :u32 = 3;
@@ -211,40 +210,41 @@ pub struct metadata_t {
     pub data                    :[u8; 18592],
 }
 
-/* based on 2.6 */
+/* based on 2.8 */
 /* se_page_attr.h */
-pub const PAGE_ATTR_EADD        :u16 = (1<<0);
-pub const PAGE_ATTR_EEXTEND     :u16 = (1<<1);
-pub const PAGE_ATTR_EREMOVE     :u16 = (1<<2);
-pub const PAGE_ATTR_POST_ADD    :u16 = (1<<3);
-pub const PAGE_ATTR_POST_REMOVE :u16 = (1<<4);
-pub const PAGE_ATTR_DYN_THREAD  :u16 = (1<<5);
-pub const PAGE_DIR_GROW_DOWN    :u16 = (1<<6);
+pub const PAGE_ATTR_EADD        :u16 = 1<<0;
+pub const PAGE_ATTR_EEXTEND     :u16 = 1<<1;
+pub const PAGE_ATTR_EREMOVE     :u16 = 1<<2;
+pub const PAGE_ATTR_POST_ADD    :u16 = 1<<3;
+pub const PAGE_ATTR_POST_REMOVE :u16 = 1<<4;
+pub const PAGE_ATTR_DYN_THREAD  :u16 = 1<<5;
+pub const PAGE_DIR_GROW_DOWN    :u16 = 1<<6;
 pub const ADD_PAGE_ONLY         :u16 = PAGE_ATTR_EADD;
-pub const ADD_EXTEND_PAGE       :u16 = (PAGE_ATTR_EADD | PAGE_ATTR_EEXTEND);
+pub const ADD_EXTEND_PAGE       :u16 = PAGE_ATTR_EADD | PAGE_ATTR_EEXTEND;
 pub const PAGE_ATTR_MASK        :u16 = !(PAGE_ATTR_EADD | PAGE_ATTR_EEXTEND | PAGE_ATTR_EREMOVE | PAGE_ATTR_POST_ADD | PAGE_ATTR_POST_REMOVE | PAGE_ATTR_DYN_THREAD | PAGE_DIR_GROW_DOWN);
 
-/* based on 2.6 */
+/* based on 2.8 */
 /* arch.h */
 pub const SI_FLAG_NONE          :u64 = 0x0;
 pub const SI_FLAG_R             :u64 = 0x1;             /* Read Access */
 pub const SI_FLAG_W             :u64 = 0x2;             /* Write Access */
 pub const SI_FLAG_X             :u64 = 0x4;             /* Execute Access */
 pub const SI_FLAG_PT_LOW_BIT    :u64 = 0x8;                             /* PT low bit */
-pub const SI_FLAG_PT_MASK       :u64 = (0xFF<<SI_FLAG_PT_LOW_BIT) ;     /* Page Type Mask [15:8] */
-pub const SI_FLAG_SECS          :u64 = (0x00<<SI_FLAG_PT_LOW_BIT);      /* SECS */
-pub const SI_FLAG_TCS           :u64 = (0x01<<SI_FLAG_PT_LOW_BIT);      /* TCS */
-pub const SI_FLAG_REG           :u64 = (0x02<<SI_FLAG_PT_LOW_BIT);      /* Regular Page */
-pub const SI_FLAG_TRIM          :u64 = (0x04<<SI_FLAG_PT_LOW_BIT);      /* Trim Page */
+pub const SI_FLAG_PT_MASK       :u64 = 0xFF<<SI_FLAG_PT_LOW_BIT ;     /* Page Type Mask [15:8] */
+pub const SI_FLAG_SECS          :u64 = 0x00<<SI_FLAG_PT_LOW_BIT;      /* SECS */
+pub const SI_FLAG_TCS           :u64 = 0x01<<SI_FLAG_PT_LOW_BIT;      /* TCS */
+pub const SI_FLAG_REG           :u64 = 0x02<<SI_FLAG_PT_LOW_BIT;      /* Regular Page */
+pub const SI_FLAG_TRIM          :u64 = 0x04<<SI_FLAG_PT_LOW_BIT;      /* Trim Page */
 pub const SI_FLAG_PENDING       :u64 = 0x8;
 pub const SI_FLAG_MODIFIED      :u64 = 0x10;
 pub const SI_FLAG_PR            :u64 = 0x20;
 
-pub const SI_FLAGS_EXTERNAL     :u64 = (SI_FLAG_PT_MASK | SI_FLAG_R | SI_FLAG_W | SI_FLAG_X);   /* Flags visible/usable by instructions */
-pub const SI_FLAGS_R            :u64 = (SI_FLAG_R|SI_FLAG_REG);
-pub const SI_FLAGS_RW           :u64 = (SI_FLAG_R|SI_FLAG_W|SI_FLAG_REG);
-pub const SI_FLAGS_RX           :u64 = (SI_FLAG_R|SI_FLAG_X|SI_FLAG_REG);
-pub const SI_FLAGS_TCS          :u64 = (SI_FLAG_TCS);
-pub const SI_FLAGS_SECS         :u64 = (SI_FLAG_SECS);
-pub const SI_MASK_TCS           :u64 = (SI_FLAG_PT_MASK);
-pub const SI_MASK_MEM_ATTRIBUTE :u64 = (0x7);
+pub const SI_FLAGS_EXTERNAL     :u64 = SI_FLAG_PT_MASK | SI_FLAG_R | SI_FLAG_W | SI_FLAG_X;   /* Flags visible/usable by instructions */
+pub const SI_FLAGS_R            :u64 = SI_FLAG_R|SI_FLAG_REG;
+pub const SI_FLAGS_RW           :u64 = SI_FLAG_R|SI_FLAG_W|SI_FLAG_REG;
+pub const SI_FLAGS_RX           :u64 = SI_FLAG_R|SI_FLAG_X|SI_FLAG_REG;
+pub const SI_FLAGS_RWX          :u64 = SI_FLAG_R|SI_FLAG_W|SI_FLAG_X|SI_FLAG_REG;
+pub const SI_FLAGS_TCS          :u64 = SI_FLAG_TCS;
+pub const SI_FLAGS_SECS         :u64 = SI_FLAG_SECS;
+pub const SI_MASK_TCS           :u64 = SI_FLAG_PT_MASK;
+pub const SI_MASK_MEM_ATTRIBUTE :u64 = 0x7;

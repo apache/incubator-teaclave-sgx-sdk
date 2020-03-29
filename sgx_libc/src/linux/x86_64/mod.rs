@@ -27,30 +27,75 @@ pub use sgx_types::{c_void, c_schar, c_char, c_uchar, c_short, c_ushort, c_int, 
 pub use sgx_types::{size_t, ptrdiff_t, intptr_t, uintptr_t, ssize_t};
 pub use sgx_types::time_t;
 
+use sgx_types::{sgx_thread_mutex_t, sgx_thread_mutex_attr_t, sgx_thread_cond_t, sgx_thread_cond_attr_t};
 use core::ptr;
 use core::mem;
 
 extern {
-    pub fn calloc(nobj: size_t, size: size_t) -> * mut c_void;
-    pub fn malloc(size: size_t) -> * mut c_void;
-    pub fn realloc(p: * mut c_void, size: size_t) -> * mut c_void;
-    pub fn free(p: * mut c_void);
+    pub fn calloc(nobj: size_t, size: size_t) -> *mut c_void;
+    pub fn malloc(size: size_t) -> *mut c_void;
+    pub fn realloc(p: *mut c_void, size: size_t) -> *mut c_void;
+    pub fn free(p: *mut c_void);
     pub fn memalign(align: size_t, size: size_t) -> *mut c_void;
+}
+
+#[link(name = "sgx_pthread")]
+extern {
+    pub fn pthread_create(native: *mut pthread_t,
+                          attr: *const pthread_attr_t,
+                          f: extern fn(*mut c_void) -> *mut c_void,
+                          value: *mut c_void) -> c_int;
+    pub fn pthread_join(native: pthread_t,
+                        value: *mut *mut c_void) -> c_int;
+    pub fn pthread_exit(value: *mut c_void);
+    pub fn pthread_self() -> pthread_t;
+    pub fn pthread_equal(t1: pthread_t, t2: pthread_t) -> c_int;
+
+    pub fn pthread_once(once_control: *mut pthread_once_t, init_routine: extern fn()) -> c_int;
+
+    pub fn pthread_key_create(key: *mut pthread_key_t,
+                              dtor: Option<unsafe extern fn(*mut c_void)>) -> c_int;
+    pub fn pthread_key_delete(key: pthread_key_t) -> c_int;
+    pub fn pthread_getspecific(key: pthread_key_t) -> *mut c_void;
+    pub fn pthread_setspecific(key: pthread_key_t, value: *const c_void) -> c_int;
+    
+    pub fn pthread_mutex_init(lock: *mut pthread_mutex_t,
+                              attr: *const pthread_mutexattr_t) -> c_int;
+    pub fn pthread_mutex_destroy(lock: *mut pthread_mutex_t) -> c_int;
+    pub fn pthread_mutex_lock(lock: *mut pthread_mutex_t) -> c_int;
+    pub fn pthread_mutex_trylock(lock: *mut pthread_mutex_t) -> c_int;
+    pub fn pthread_mutex_unlock(lock: *mut pthread_mutex_t) -> c_int;
+
+    pub fn pthread_cond_init(cond: *mut pthread_cond_t,
+                             attr: *const pthread_condattr_t) -> c_int;
+    pub fn pthread_cond_wait(cond: *mut pthread_cond_t,
+                             lock: *mut pthread_mutex_t) -> c_int;
+    pub fn pthread_cond_signal(cond: *mut pthread_cond_t) -> c_int;
+    pub fn pthread_cond_broadcast(cond: *mut pthread_cond_t) -> c_int;
+    pub fn pthread_cond_destroy(cond: *mut pthread_cond_t) -> c_int;
+}
+
+pub type exit_function_t = extern "C" fn();
+
+#[link(name = "sgx_trts")]
+extern {
+    pub fn abort() -> !;
+    pub fn atexit(fun: exit_function_t) -> c_int;
 }
 
 #[link(name = "sgx_tstdc")]
 extern {
-    //pub fn memchr(s: * const c_void, c: c_int, n: size_t) -> *mut c_void;
+    //pub fn memchr(s: *const c_void, c: c_int, n: size_t) -> *mut c_void;
     //pub fn memrchr(cx: *const c_void, c: c_int, n: size_t) -> *mut c_void;
-    pub fn strlen(s: * const c_char) -> size_t;
-    pub fn malloc_usable_size(ptr: * const c_void) -> size_t;
+    pub fn strlen(s: *const c_char) -> size_t;
+    pub fn malloc_usable_size(ptr: *const c_void) -> size_t;
 }
 
 #[link(name = "sgx_tstdc")]
 extern {
     #[cfg_attr(target_os = "linux", link_name = "__errno_location")]
-    fn errno_location() -> * mut c_int;
-    fn strerror_r(errnum: c_int, buf: * mut c_char, buflen: size_t) -> c_int;
+    fn errno_location() -> *mut c_int;
+    fn strerror_r(errnum: c_int, buf: *mut c_char, buflen: size_t) -> c_int;
 }
 
 /// Get the last error number.
@@ -69,16 +114,13 @@ pub fn set_errno(e: i32) {
 
 /// Gets a detailed string description for the given error number.
 pub unsafe fn error_string(errno: i32, buf: &mut [i8]) -> i32 {
-
     let p = buf.as_mut_ptr();
-    strerror_r(errno as c_int, p as * mut c_char, buf.len()) as i32
+    strerror_r(errno as c_int, p as *mut c_char, buf.len()) as i32
 }
 
-pub unsafe fn memchr(s: * const u8, c: u8, n: usize) -> * const u8 {
-
+pub unsafe fn memchr(s: *const u8, c: u8, n: usize) -> *const u8 {
     let mut ret = ptr::null();
     let mut p = s;
-
     for _ in 0..n {
         if *p == c {
             ret = p;
@@ -89,12 +131,10 @@ pub unsafe fn memchr(s: * const u8, c: u8, n: usize) -> * const u8 {
     ret
 }
 
-pub unsafe fn memrchr(s: * const u8, c: u8, n: usize) -> * const u8 {
-
-    if n == 0 {return ptr::null();}
-
+pub unsafe fn memrchr(s: *const u8, c: u8, n: usize) -> *const u8 {
+    if n == 0 { return ptr::null(); }
     let mut ret = ptr::null();
-    let mut p: * const u8 = (s as usize + (n - 1)) as * const u8;
+    let mut p: *const u8 = (s as usize + (n - 1)) as *const u8;
     for _ in 0..n {
         if *p == c {
             ret = p;
@@ -135,17 +175,29 @@ pub type uid_t = u32;
 pub type gid_t = u32;
 pub type ino64_t = u64;
 pub type nfds_t = c_ulong;
-pub type pthread_t = c_ulong;
 pub type pid_t = i32;
+
+pub type pthread_t = *mut c_void;
+pub type pthread_attr_t = *mut c_void;
+pub type pthread_mutex_t = *mut sgx_thread_mutex_t;
+pub type pthread_mutexattr_t = *mut sgx_thread_mutex_attr_t;
+pub type pthread_cond_t = *mut sgx_thread_cond_t;
+pub type pthread_condattr_t = *mut sgx_thread_cond_attr_t;
+pub type pthread_key_t = c_int;
+
+pub const PTHREAD_NEEDS_INIT: c_int = 0;
+pub const PTHREAD_DONE_INIT: c_int = 0;
+pub const PTHREAD_MUTEX_INITIALIZER: pthread_mutex_t = ptr::null_mut();
+pub const PTHREAD_COND_INITIALIZER: pthread_cond_t = ptr::null_mut();
+pub const PTHREAD_ONCE_INIT: pthread_once_t = pthread_once_t {
+    state: PTHREAD_NEEDS_INIT,
+    mutex: PTHREAD_MUTEX_INITIALIZER
+    };
 
 #[derive(Copy, Clone, Debug)]
 pub enum DIR {}
 
 s! {
-    #[cfg(target_arch = "x86_64")]
-    pub struct pthread_attr_t {
-       __size: [u64; 7],
-    }
     pub struct stat {
         pub st_dev: dev_t,
         pub st_ino: ino_t,
@@ -402,10 +454,24 @@ s! {
         pub pw_shell: *mut c_char,
     }
 
+    pub struct cpu_set_t {
+        #[cfg(all(target_pointer_width = "32",
+                  not(target_arch = "x86_64")))]
+        bits: [u32; 32],
+        #[cfg(not(all(target_pointer_width = "32",
+                      not(target_arch = "x86_64"))))]
+        bits: [u64; 16],
+    }
+
     pub struct ucred {
         pub pid: pid_t,
         pub uid: uid_t,
         pub gid: gid_t,
+    }
+
+    pub struct pthread_once_t {
+        pub state: c_int,
+        pub mutex: pthread_mutex_t,
     }
 }
 
@@ -1161,6 +1227,8 @@ pub const _SC_XOPEN_STREAMS: c_int = 246;
 pub const _SC_THREAD_ROBUST_PRIO_INHERIT: c_int = 247;
 pub const _SC_THREAD_ROBUST_PRIO_PROTECT: c_int = 248;
 
+pub const CPU_SETSIZE: c_int = 0x400;
+
 pub const EPERM: int32_t              = 1;
 pub const ENOENT: int32_t             = 2;
 pub const ESRCH: int32_t              = 3;
@@ -1297,7 +1365,7 @@ pub const EHWPOISON: int32_t          = 133;
 pub const ENOTSUP: int32_t            = EOPNOTSUPP;
 pub const ESGX: int32_t               = 0x0000_FFFF;
 
-
+#[inline]
 pub unsafe fn FD_CLR(fd: c_int, set: *mut fd_set) -> () {
     let fd = fd as usize;
     let size = mem::size_of_val(&(*set).fds_bits[0]) * 8;
@@ -1305,12 +1373,14 @@ pub unsafe fn FD_CLR(fd: c_int, set: *mut fd_set) -> () {
     return
 }
 
+#[inline]
 pub unsafe fn FD_ISSET(fd: c_int, set: *mut fd_set) -> bool {
     let fd = fd as usize;
     let size = mem::size_of_val(&(*set).fds_bits[0]) * 8;
     return ((*set).fds_bits[fd / size] & (1 << (fd % size))) != 0
 }
 
+#[inline]
 pub unsafe fn FD_SET(fd: c_int, set: *mut fd_set) -> () {
     let fd = fd as usize;
     let size = mem::size_of_val(&(*set).fds_bits[0]) * 8;
@@ -1318,10 +1388,48 @@ pub unsafe fn FD_SET(fd: c_int, set: *mut fd_set) -> () {
     return
 }
 
+#[inline]
 pub unsafe fn FD_ZERO(set: *mut fd_set) -> () {
     for slot in (*set).fds_bits.iter_mut() {
         *slot = 0;
     }
+}
+
+#[inline]
+pub unsafe fn CPU_ZERO(cpuset: &mut cpu_set_t) -> () {
+    for slot in cpuset.bits.iter_mut() {
+        *slot = 0;
+    }
+}
+
+#[inline]
+pub unsafe fn CPU_SET(cpu: usize, cpuset: &mut cpu_set_t) -> () {
+    let size_in_bits
+        = 8 * mem::size_of_val(&cpuset.bits[0]); // 32, 64 etc
+    let (idx, offset) = (cpu / size_in_bits, cpu % size_in_bits);
+    cpuset.bits[idx] |= 1 << offset;
+    ()
+}
+
+#[inline]
+pub unsafe fn CPU_CLR(cpu: usize, cpuset: &mut cpu_set_t) -> () {
+    let size_in_bits
+        = 8 * mem::size_of_val(&cpuset.bits[0]); // 32, 64 etc
+    let (idx, offset) = (cpu / size_in_bits, cpu % size_in_bits);
+    cpuset.bits[idx] &= !(1 << offset);
+    ()
+}
+
+#[inline]
+pub unsafe fn CPU_ISSET(cpu: usize, cpuset: &cpu_set_t) -> bool {
+    let size_in_bits = 8 * mem::size_of_val(&cpuset.bits[0]);
+    let (idx, offset) = (cpu / size_in_bits, cpu % size_in_bits);
+    0 != (cpuset.bits[idx] & (1 << offset))
+}
+
+#[inline]
+pub unsafe fn CPU_EQUAL(set1: &cpu_set_t, set2: &cpu_set_t) -> bool {
+    set1.bits == set2.bits
 }
 
 pub mod ocall;

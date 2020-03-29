@@ -28,7 +28,7 @@
 #include <stdlib.h>
 #include <dirent.h>
 
-int u_open_ocall(int * error, const char * pathname, int flags)
+int u_open_ocall(int *error, const char *pathname, int flags)
 {
     int ret = open(pathname, flags);
     if (error) {
@@ -46,7 +46,7 @@ int u_open64_ocall(int *error, const char *path, int oflag, int mode)
     return ret;
 }
 
-int u_fstat_ocall(int * error, int fd, struct stat * buf)
+int u_fstat_ocall(int *error, int fd, struct stat *buf)
 {
     int ret = fstat(fd, buf);
     if (error) {
@@ -82,7 +82,7 @@ int u_stat64_ocall(int *error, const char *path, struct stat64 *buf)
     return ret;
 }
 
-int u_lstat_ocall(int * error, const char *path, struct stat * buf)
+int u_lstat_ocall(int *error, const char *path, struct stat *buf)
 {
     int ret = lstat(path, buf);
     if (error) {
@@ -100,7 +100,7 @@ int u_lstat64_ocall(int *error, const char *path, struct stat64 *buf)
     return ret;
 }
 
-off_t u_lseek_ocall(int * error, int fd, off_t offset, int whence)
+off_t u_lseek_ocall(int *error, int fd, off_t offset, int whence)
 {
     off_t ret = lseek(fd, offset, whence);
     if (error) {
@@ -262,7 +262,7 @@ int u_rmdir_ocall(int *error, const char *pathname)
     return ret;
 }
 
-void * u_opendir_ocall(int *error, const char *pathname)
+void *u_opendir_ocall(int *error, const char *pathname)
 {
     DIR *ret = opendir(pathname);
     if (error) {
@@ -294,7 +294,11 @@ int u_dirfd_ocall(int *error, DIR *dirp)
     return ret;
 }
 
-int u_fstatat64_ocall(int *error, int dirfd, const char *pathname, struct stat64 *buf, int flags)
+int u_fstatat64_ocall(int *error,
+                      int dirfd,
+                      const char *pathname,
+                      struct stat64 *buf,
+                      int flags)
 {
     int ret = fstatat64(dirfd, pathname, buf, flags);
      if (error) {

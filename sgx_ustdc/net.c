@@ -20,7 +20,11 @@
 #include <netdb.h>
 #include <errno.h>
 
-int u_getaddrinfo_ocall(int * error, const char * node, const char * service, const struct addrinfo * hints, struct addrinfo ** res)
+int u_getaddrinfo_ocall(int *error,
+                        const char *node,
+                        const char *service,
+                        const struct addrinfo *hints,
+                        struct addrinfo **res)
 {
     int ret = getaddrinfo(node, service, hints, res);
     if (error) {

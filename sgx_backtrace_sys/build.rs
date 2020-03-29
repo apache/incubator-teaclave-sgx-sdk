@@ -26,10 +26,21 @@ fn main() {
 }
 
 fn build_libbacktrace(_target: &str) -> Result<(), ()> {
-    let native = native_lib_boilerplate("sgx_backtrace_sys/libbacktrace", "libbacktrace", "backtrace", "")?;
+    let native = native_lib_boilerplate(
+                    "sgx_backtrace_sys/libbacktrace",
+                    "libbacktrace",
+                    "backtrace",
+                    "",
+                    &vec![])?;
 
     let mut build = cc::Build::new();
     build
+        .opt_level(2)
+        .flag("-fstack-protector")
+        .flag("-ffreestanding")
+        .flag("-fpie")
+        .flag("-fno-strict-overflow")
+        .flag("-fno-delete-null-pointer-checks")
         .flag("-fvisibility=hidden")
         .include("./libbacktrace")
         .include(&native.out_dir)
@@ -43,6 +54,34 @@ fn build_libbacktrace(_target: &str) -> Result<(), ()> {
         .file("./libbacktrace/posix.c")
         .file("./libbacktrace/sort.c")
         .file("./libbacktrace/state.c");
+
+    let mitigation_cflags1 = "-mindirect-branch-register";
+    let mitigation_cflags2 = "-mfunction-return=thunk-extern";
+    let mitigation_asflags = "-fno-plt";
+    let mitigation_loadflags1 = "-Wa,-mlfence-after-load=yes";
+    let mitigation_loadflags2 = "-Wa,-mlfence-before-ret=not";
+    let mitigation_cfflags1 = "-Wa,-mlfence-before-indirect-branch=register";
+    let mitigation_cfflags2 = "-Wa,-mlfence-before-ret=not";
+    let mitigation = env::var("MITIGATION_CVE_2020_0551").unwrap_or_default();
+    match mitigation.as_ref() {
+        "LOAD" => {
+            build
+                .flag(mitigation_cflags1)
+                .flag(mitigation_cflags2)
+                .flag(mitigation_asflags)
+                .flag(mitigation_loadflags1)
+                .flag(mitigation_loadflags2);
+        },
+        "CF" => {
+            build
+                .flag(mitigation_cflags1)
+                .flag(mitigation_cflags2)
+                .flag(mitigation_asflags)
+                .flag(mitigation_cfflags1)
+                .flag(mitigation_cfflags2);
+        },
+        _  => {},
+    }
 
     let any_debug = env::var("RUSTC_DEBUGINFO").unwrap_or_default() == "true" ||
         env::var("RUSTC_DEBUGINFO_LINES").unwrap_or_default() == "true";

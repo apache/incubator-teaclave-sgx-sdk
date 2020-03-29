@@ -202,12 +202,12 @@ pub fn rsgx_create_enclave(file_name: &CStr,
 
     let mut enclave_id: sgx_enclave_id_t = 0;
     let ret = unsafe {
-        sgx_create_enclave(file_name.as_ptr() as * const c_schar,
+        sgx_create_enclave(file_name.as_ptr() as *const c_schar,
                            debug as int32_t,
-                           launch_token as * mut sgx_launch_token_t,
-                           launch_token_updated as * mut int32_t,
-                           &mut enclave_id as * mut sgx_enclave_id_t,
-                           misc_attr as * mut sgx_misc_attribute_t)
+                           launch_token as *mut sgx_launch_token_t,
+                           launch_token_updated as *mut int32_t,
+                           &mut enclave_id as *mut sgx_enclave_id_t,
+                           misc_attr as *mut sgx_misc_attribute_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(enclave_id),
@@ -224,13 +224,13 @@ pub fn rsgx_create_encrypted_enclave(file_name: &CStr,
 
     let mut enclave_id: sgx_enclave_id_t = 0;
     let ret = unsafe {
-        sgx_create_encrypted_enclave(file_name.as_ptr() as * const c_schar,
+        sgx_create_encrypted_enclave(file_name.as_ptr() as *const c_schar,
                                      debug as int32_t,
-                                     launch_token as * mut sgx_launch_token_t,
-                                     launch_token_updated as * mut int32_t,
-                                     &mut enclave_id as * mut sgx_enclave_id_t,
-                                     misc_attr as * mut sgx_misc_attribute_t,
-                                     sealed_key as * const uint8_t)
+                                     launch_token as *mut sgx_launch_token_t,
+                                     launch_token_updated as *mut int32_t,
+                                     &mut enclave_id as *mut sgx_enclave_id_t,
+                                     misc_attr as *mut sgx_misc_attribute_t,
+                                     sealed_key as *const uint8_t)
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(enclave_id),
@@ -435,14 +435,14 @@ pub fn rsgx_create_enclave_with_workers(file_name: &CStr,
 
     let mut enclave_id: sgx_enclave_id_t = 0;
     let ret = unsafe {
-        sgx_create_enclave_ex(file_name.as_ptr() as * const c_schar,
+        sgx_create_enclave_ex(file_name.as_ptr() as *const c_schar,
                               debug as int32_t,
-                              launch_token as * mut sgx_launch_token_t,
-                              launch_token_updated as * mut int32_t,
-                              &mut enclave_id as * mut sgx_enclave_id_t,
-                              misc_attr as * mut sgx_misc_attribute_t,
+                              launch_token as *mut sgx_launch_token_t,
+                              launch_token_updated as *mut int32_t,
+                              &mut enclave_id as *mut sgx_enclave_id_t,
+                              misc_attr as *mut sgx_misc_attribute_t,
                               SGX_CREATE_ENCLAVE_EX_SWITCHLESS,
-                              &enclave_ex_p as * const [*const c_void ;32])
+                              &enclave_ex_p as *const [*const c_void ;32])
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(enclave_id),
@@ -469,10 +469,10 @@ pub fn rsgx_create_enclave_from_buffer_ex(buffer: &[u8],
         sgx_create_enclave_from_buffer_ex(buffer.as_ptr(),
                                           buf_len,
                                           debug,
-                                          &mut enclave_id as * mut sgx_enclave_id_t,
-                                          misc_attr as * mut sgx_misc_attribute_t,
+                                          &mut enclave_id as *mut sgx_enclave_id_t,
+                                          misc_attr as *mut sgx_misc_attribute_t,
                                           ex_features,
-                                          ex_features_p as * const [*const c_void ;32])
+                                          ex_features_p as *const [*const c_void ;32])
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(enclave_id),
@@ -525,7 +525,7 @@ pub fn rsgx_destroy_enclave(enclave_id: sgx_enclave_id_t) -> SgxError {
 pub fn rsgx_get_target_info(enclave_id: sgx_enclave_id_t) -> SgxResult<sgx_target_info_t> {
 
     let mut target_info = sgx_target_info_t::default();
-    let ret = unsafe { sgx_get_target_info(enclave_id, &mut target_info as * mut sgx_target_info_t) };
+    let ret = unsafe { sgx_get_target_info(enclave_id, &mut target_info as *mut sgx_target_info_t) };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(target_info),
         _ => Err(ret),
@@ -675,7 +675,7 @@ impl SgxEnclave {
         #[cfg(feature = "global_init")]
         {
             extern {
-                fn t_global_init_ecall(eid: sgx_enclave_id_t, id: u64, path: * const u8, len: usize) -> sgx_status_t;
+                fn t_global_init_ecall(eid: sgx_enclave_id_t, id: u64, path: *const u8, len: usize) -> sgx_status_t;
             }
             unsafe {
                 let _ = t_global_init_ecall(self.id,

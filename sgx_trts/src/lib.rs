@@ -68,9 +68,9 @@
 
 #![feature(allocator_api)]
 #![feature(asm)]
-#![feature(rustc_const_unstable)]
+//#![feature(rustc_const_unstable)]
 #![feature(const_raw_ptr_deref)]
-#![feature(const_cstr_unchecked)]
+//#![feature(const_cstr_unchecked)]
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 #![allow(overflowing_literals)]
@@ -96,6 +96,7 @@ pub mod memchr;
 pub mod ascii;
 pub mod c_str;
 pub mod cpu_feature;
+pub mod cpuid;
 
 #[cfg(not(target_env = "sgx"))]
 pub use sgx_libc as libc;

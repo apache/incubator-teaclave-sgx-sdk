@@ -27,13 +27,13 @@ enclave {
     };
 
     untrusted {
-        size_t u_read_ocall([out] int *error, int fd, [out, size=count] void *buf, size_t count);
-        size_t u_pread64_ocall([out] int *error, int fd, [out, size=count] void *buf, size_t count, int64_t offset);
+        size_t u_read_ocall([out] int *error, int fd, [user_check] void *buf, size_t count);
+        size_t u_pread64_ocall([out] int *error, int fd, [user_check] void *buf, size_t count, int64_t offset);
         size_t u_readv_ocall([out] int *error, int fd, [in, count=iovcnt] const struct iovec *iov, int iovcnt);
         size_t u_preadv64_ocall([out] int *error, int fd, [in, count=iovcnt] const struct iovec *iov, int iovcnt, int64_t offset);
 
-        size_t u_write_ocall([out] int *error, int fd, [in, size=count] const void *buf, size_t count);
-        size_t u_pwrite64_ocall([out] int *error, int fd, [in, size=count] const void *buf, size_t count, int64_t offset);
+        size_t u_write_ocall([out] int *error, int fd, [user_check] const void *buf, size_t count);
+        size_t u_pwrite64_ocall([out] int *error, int fd, [user_check] const void *buf, size_t count, int64_t offset);
         size_t u_writev_ocall([out] int *error, int fd, [in, count=iovcnt] const struct iovec *iov, int iovcnt);
         size_t u_pwritev64_ocall([out] int *error, int fd, [in, count=iovcnt] const struct iovec *iov, int iovcnt, int64_t offset);
 

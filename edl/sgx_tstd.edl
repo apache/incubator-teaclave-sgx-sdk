@@ -28,8 +28,11 @@ enclave {
     untrusted {
         /* define OCALLs here. */
         int u_thread_set_event_ocall([out] int *error, [user_check] const void *tcs);
-        int u_thread_wait_event_ocall([out] int *error, [user_check] const void *tcs, [in]const struct timespec *timeout);
-        int u_thread_set_multiple_events_ocall([out]int *error, [in, count=total]const void ** tcss, int total);
-        int u_thread_setwait_events_ocall([out]int *error, [user_check]const void * waiter_tcs, [user_check]const void * self_tcs, [in]const struct timespec *timeout);
+        int u_thread_wait_event_ocall([out] int *error, [user_check] const void *tcs, [in] const struct timespec *timeout);
+        int u_thread_set_multiple_events_ocall([out] int *error, [in, count=total] const void **tcss, int total);
+        int u_thread_setwait_events_ocall([out] int *error,
+                                          [user_check] const void *waiter_tcs,
+                                          [user_check] const void *self_tcs,
+                                          [in] const struct timespec *timeout);
     };
 };

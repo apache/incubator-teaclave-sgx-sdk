@@ -20,6 +20,9 @@ SGX_SDK ?= /opt/intel/sgxsdk
 SGX_MODE ?= SIM
 SGX_ARCH ?= x64
 
+TOP_DIR := ../../..
+include $(TOP_DIR)/buildenv.mk
+
 ifeq ($(shell getconf LONG_BIT), 32)
 	SGX_ARCH := x86
 else ifeq ($(findstring -m32, $(CXXFLAGS)), -m32)
@@ -54,6 +57,7 @@ ifeq ($(SUPPLIED_KEY_DERIVATION), 1)
 	SGX_COMMON_CFLAGS += -DSUPPLIED_KEY_DERIVATION
 endif
 
+SGX_COMMON_CFLAGS += -fstack-protector
 
 ######## App Settings ########
 ifneq ($(SGX_MODE), HW)
@@ -84,7 +88,7 @@ else
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11 -DEnableClient
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread -lservice_provider \
+App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread -lservice_provider \
 -Wl,-rpath=$(CURDIR)/sample_libcrypto -Wl,-rpath=$(CURDIR) -llog4cpp -lboost_system -L/usr/lib -lssl -lcrypto -lboost_thread -lprotobuf -L /usr/local/lib -ljsoncpp -lcurl
 
 ifneq ($(SGX_MODE), HW)
@@ -96,7 +100,6 @@ endif
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 
 App_Name := app
-
 
 
 ######## Service Provider Settings ########
@@ -149,7 +152,6 @@ $(App_Name): $(App_Cpp_Objects)
 	@echo "LINK =>  $@"
 
 
-
 ######## Service Provider Objects ########
 service_provider/%.o: service_provider/%.cpp
 	@$(CXX) $(ServiceProvider_Cpp_Flags) -c $< -o $@
@@ -163,6 +165,3 @@ libservice_provider.so: $(ServiceProvider_Cpp_Objects)
 
 clean:
 	@rm -f $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) isv_app/isv_enclave_u.* $(Enclave_Cpp_Objects) isv_enclave/isv_enclave_t.* libservice_provider.* $(ServiceProvider_Cpp_Objects)
-
-
-

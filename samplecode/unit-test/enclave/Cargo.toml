@@ -19,14 +19,16 @@ sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_tseal = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_serialize = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-sgx_tse= { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_alloc = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
 [dependencies]
 sgx_serialize_derive = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 rand = { version = "0.5.5", default-features = false }
 memoffset = "0.5"
+sgx_align_struct_attribute = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']
+sgx_align_struct_attribute = { path = "../../../sgx_align_struct_attribute" }
 sgx_alloc = { path = "../../../sgx_alloc" }
 sgx_backtrace = { path = "../../../sgx_backtrace" }
 sgx_backtrace_sys = { path = "../../../sgx_backtrace_sys" }
@@ -35,6 +37,7 @@ sgx_cov = { path = "../../../sgx_cov" }
 sgx_crypto_helper = { path = "../../../sgx_crypto_helper" }
 sgx_demangle = { path = "../../../sgx_demangle" }
 sgx_libc = { path = "../../../sgx_libc" }
+sgx_no_tstd = { path = "../../../sgx_no_tstd" }
 sgx_rand = { path = "../../../sgx_rand" }
 sgx_rand_derive = { path = "../../../sgx_rand_derive" }
 sgx_serialize = { path = "../../../sgx_serialize" }
@@ -48,7 +51,6 @@ sgx_tprotected_fs = { path = "../../../sgx_tprotected_fs" }
 sgx_trts = { path = "../../../sgx_trts" }
 sgx_tse = { path = "../../../sgx_tse" }
 sgx_tseal = { path = "../../../sgx_tseal" }
-sgx_tservice = { path = "../../../sgx_tservice" }
 sgx_tstd = { path = "../../../sgx_tstd" }
 sgx_tunittest = { path = "../../../sgx_tunittest" }
 sgx_types = { path = "../../../sgx_types" }

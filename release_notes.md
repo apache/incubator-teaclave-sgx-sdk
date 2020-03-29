@@ -1,3 +1,19 @@
+# Rust SGX SDK v1.1.1
+
+**Supports Intel SGX SDK v2.9**
+
+**Supports Rust nightly-2020-03-12**
+
+**Docker images refactored** Due to the requirement of LVI mitigation, the docker image has to contain very new version of GCC/G++ and GNU binutils with LVI patch. We shipped our docker images with two options: (1) build gcc from source, or (2) use gcc from well-known repo. Please use at your own choice.
+
+**New proc macro `sgx_align`** `sgx_align` can help with mitigate INTEL-SA-00219. Please refer to the [unit test codes](samplecode/unit-test/enclave/src/test_alignstruct.rs) for sample usage.
+
+**Use hashbrown to replace old std::collections** We move to hashbrown v0.7 and skipped v0.6.
+
+**sgx_core_futures** provides basic future primitive. We'll provide some samples later.
+
+**sgx_crypto_helper** is working on both trusted/untrusted side now.
+
 # Rust SGX SDK v1.1.0
 
 **Supports Intel SGX SDK v2.7.1**

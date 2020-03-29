@@ -31,14 +31,9 @@ INCLUDE :=
 COMMON_FLAGS += -fstack-protector
 
 ifdef DEBUG
-    COMMON_FLAGS += -ggdb -DDEBUG -UNDEBUG
-    COMMON_FLAGS += -DSE_DEBUG_LEVEL=SE_TRACE_DEBUG
+    COMMON_FLAGS += -O0 -g -DDEBUG -UNDEBUG
 else
-    COMMON_FLAGS += -O2   -UDEBUG -DNDEBUG
-endif
-
-ifdef SE_SIM
-    COMMON_FLAGS += -DSE_SIM
+    COMMON_FLAGS += -O2 -D_FORTIFY_SOURCE=2 -UDEBUG -DNDEBUG
 endif
 
 # turn on compiler warnings as much as possible
@@ -101,6 +96,58 @@ endif
 CFLAGS   += $(COMMON_FLAGS)
 CXXFLAGS += $(COMMON_FLAGS)
 
+# Enable the security flags
+COMMON_LDFLAGS := -Wl,-z,relro,-z,now,-z,noexecstack
+
+# mitigation options
+MITIGATION_INDIRECT ?= 0
+MITIGATION_RET ?= 0
+MITIGATION_C ?= 0
+MITIGATION_ASM ?= 0
+MITIGATION_AFTERLOAD ?= 0
+MITIGATION_LIB_PATH :=
+
+ifeq ($(MITIGATION-CVE-2020-0551), LOAD)
+    MITIGATION_C := 1
+    MITIGATION_ASM := 1
+    MITIGATION_INDIRECT := 1
+    MITIGATION_RET := 1
+    MITIGATION_AFTERLOAD := 1
+    MITIGATION_LIB_PATH := cve_2020_0551_load
+else ifeq ($(MITIGATION-CVE-2020-0551), CF)
+    MITIGATION_C := 1
+    MITIGATION_ASM := 1
+    MITIGATION_INDIRECT := 1
+    MITIGATION_RET := 1
+    MITIGATION_AFTERLOAD := 0
+    MITIGATION_LIB_PATH := cve_2020_0551_cf
+endif
+
+MITIGATION_CFLAGS :=
+MITIGATION_ASFLAGS :=
+ifeq ($(MITIGATION_C), 1)
+ifeq ($(MITIGATION_INDIRECT), 1)
+    MITIGATION_CFLAGS += -mindirect-branch-register
+endif
+ifeq ($(MITIGATION_RET), 1)
+    MITIGATION_CFLAGS += -mfunction-return=thunk-extern
+endif
+endif
+
+ifeq ($(MITIGATION_ASM), 1)
+    MITIGATION_ASFLAGS += -fno-plt
+ifeq ($(MITIGATION_AFTERLOAD), 1)
+    MITIGATION_ASFLAGS += -Wa,-mlfence-after-load=yes
+else
+    MITIGATION_ASFLAGS += -Wa,-mlfence-before-indirect-branch=register
+endif
+ifeq ($(MITIGATION_RET), 1)
+    MITIGATION_ASFLAGS += -Wa,-mlfence-before-ret=not
+endif
+endif
+
+MITIGATION_CFLAGS += $(MITIGATION_ASFLAGS)
+
 # Compiler and linker options for an Enclave
 #
 # We are using '--export-dynamic' so that `g_global_data_sim' etc.
@@ -109,10 +156,13 @@ CXXFLAGS += $(COMMON_FLAGS)
 # When `pie' is enabled, the linker (both BFD and Gold) under Ubuntu 14.04
 # will hide all symbols from dynamic symbol table even if they are marked
 # as `global' in the LD version script.
-ENCLAVE_CFLAGS   = -ffreestanding -nostdinc -fvisibility=hidden -fpie
+ENCLAVE_CFLAGS   = -ffreestanding -nostdinc -fvisibility=hidden -fpie -fno-strict-overflow -fno-delete-null-pointer-checks
 ENCLAVE_CXXFLAGS = $(ENCLAVE_CFLAGS) -nostdinc++
-ENCLAVE_LDFLAGS  = -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
+ENCLAVE_LDFLAGS  = $(COMMON_LDFLAGS) -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
                    -Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
                    -Wl,--gc-sections \
                    -Wl,--defsym,__ImageBase=0
+
+ENCLAVE_CFLAGS += $(MITIGATION_CFLAGS)
+ENCLAVE_ASFLAGS = $(MITIGATION_ASFLAGS)
 

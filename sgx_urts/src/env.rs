@@ -24,20 +24,20 @@ pub extern "C" fn u_getuid_ocall() -> uid_t {
 }
 
 #[no_mangle]
-pub extern "C" fn u_environ_ocall() -> * const * const c_char {
-    extern { static environ: * const * const c_char; }
+pub extern "C" fn u_environ_ocall() -> *const *const c_char {
+    extern { static environ: *const *const c_char; }
     unsafe { environ }
 }
 
 #[no_mangle]
-pub extern "C" fn u_getenv_ocall(name: * const c_char) -> * const c_char {
+pub extern "C" fn u_getenv_ocall(name: *const c_char) -> *const c_char {
     unsafe { libc::getenv(name) }
 }
 
 #[no_mangle]
-pub extern "C" fn u_setenv_ocall(error: * mut c_int,
-                                 name: * const c_char,
-                                 value: * const c_char,
+pub extern "C" fn u_setenv_ocall(error: *mut c_int,
+                                 name: *const c_char,
+                                 value: *const c_char,
                                  overwrite: c_int) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::setenv(name, value, overwrite) };
@@ -51,7 +51,7 @@ pub extern "C" fn u_setenv_ocall(error: * mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_unsetenv_ocall(error: * mut c_int, name: * const c_char) -> c_int {
+pub extern "C" fn u_unsetenv_ocall(error: *mut c_int, name: *const c_char) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::unsetenv(name) };
     if ret < 0 {
@@ -64,7 +64,7 @@ pub extern "C" fn u_unsetenv_ocall(error: * mut c_int, name: * const c_char) -> 
 }
 
 #[no_mangle]
-pub extern "C" fn  u_getcwd_ocall(error: * mut c_int, buf: *mut c_char, size: size_t) -> *mut c_char {
+pub extern "C" fn  u_getcwd_ocall(error: *mut c_int, buf: *mut c_char, size: size_t) -> *mut c_char {
     let mut errno = 0;
     let ret = unsafe { libc::getcwd(buf, size) };
     if ret.is_null() {
@@ -77,7 +77,7 @@ pub extern "C" fn  u_getcwd_ocall(error: * mut c_int, buf: *mut c_char, size: si
 }
 
 #[no_mangle]
-pub extern "C" fn u_chdir_ocall(error: * mut c_int, dir: *const c_char) -> c_int {
+pub extern "C" fn u_chdir_ocall(error: *mut c_int, dir: *const c_char) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::chdir(dir) };
     if ret < 0 {
@@ -103,29 +103,29 @@ pub extern "C" fn u_getpwuid_r_ocall(uid: uid_t,
                 let mut temp_pwd = &mut *pwd;
                 let p = -1_isize as usize;
                 if !temp_pwd.pw_name.is_null() {
-                    temp_pwd.pw_name = usize::checked_sub(temp_pwd.pw_name as _, buf as _).unwrap_or(p) as * mut c_char;
+                    temp_pwd.pw_name = usize::checked_sub(temp_pwd.pw_name as _, buf as _).unwrap_or(p) as *mut c_char;
                 } else {
-                    temp_pwd.pw_name = p as * mut c_char;
+                    temp_pwd.pw_name = p as *mut c_char;
                 }
                 if !temp_pwd.pw_passwd.is_null() {
-                    temp_pwd.pw_passwd = usize::checked_sub(temp_pwd.pw_passwd as _, buf as _).unwrap_or(p) as * mut c_char;
+                    temp_pwd.pw_passwd = usize::checked_sub(temp_pwd.pw_passwd as _, buf as _).unwrap_or(p) as *mut c_char;
                 } else {
-                    temp_pwd.pw_passwd = p as * mut c_char;
+                    temp_pwd.pw_passwd = p as *mut c_char;
                 }
                 if !temp_pwd.pw_gecos.is_null() {
-                    temp_pwd.pw_gecos = usize::checked_sub(temp_pwd.pw_gecos as _, buf as _).unwrap_or(p) as * mut c_char;
+                    temp_pwd.pw_gecos = usize::checked_sub(temp_pwd.pw_gecos as _, buf as _).unwrap_or(p) as *mut c_char;
                 } else {
-                    temp_pwd.pw_gecos = p as * mut c_char;
+                    temp_pwd.pw_gecos = p as *mut c_char;
                 }
                 if !temp_pwd.pw_dir.is_null() {
-                    temp_pwd.pw_dir = usize::checked_sub(temp_pwd.pw_dir as _, buf as _).unwrap_or(p) as * mut c_char;
+                    temp_pwd.pw_dir = usize::checked_sub(temp_pwd.pw_dir as _, buf as _).unwrap_or(p) as *mut c_char;
                 } else {
-                    temp_pwd.pw_dir = p as * mut c_char;
+                    temp_pwd.pw_dir = p as *mut c_char;
                 }
                 if !temp_pwd.pw_shell.is_null() {
-                    temp_pwd.pw_shell = usize::checked_sub(temp_pwd.pw_shell as _, buf as _).unwrap_or(p) as * mut c_char;
+                    temp_pwd.pw_shell = usize::checked_sub(temp_pwd.pw_shell as _, buf as _).unwrap_or(p) as *mut c_char;
                 } else {
-                    temp_pwd.pw_shell = p as * mut c_char;
+                    temp_pwd.pw_shell = p as *mut c_char;
                 }
             }
         }

@@ -20,6 +20,9 @@ SGX_SDK ?= /opt/intel/sgxsdk
 SGX_MODE ?= HW
 SGX_ARCH ?= x64
 
+TOP_DIR := ../../..
+include $(TOP_DIR)/buildenv.mk
+
 ifeq ($(shell getconf LONG_BIT), 32)
 	SGX_ARCH := x86
 else ifeq ($(findstring -m32, $(CXXFLAGS)), -m32)
@@ -54,6 +57,7 @@ ifeq ($(SUPPLIED_KEY_DERIVATION), 1)
 	SGX_COMMON_CFLAGS += -DSUPPLIED_KEY_DERIVATION
 endif
 
+SGX_COMMON_CFLAGS += -fstack-protector
 
 ######## App Settings ########
 ifneq ($(SGX_MODE), HW)
@@ -84,7 +88,7 @@ else
 endif
 
 App_Cpp_Flags := $(App_C_Flags) -std=c++11 -DEnableClient
-App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread -lworker \
+App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -L. -lsgx_ukey_exchange -lpthread -lworker \
 -Wl,-rpath=$(CURDIR)/sample_libcrypto -Wl,-rpath=$(CURDIR) -llog4cpp -lboost_system -L/usr/lib -lssl -lcrypto -lboost_thread -lprotobuf -L /usr/local/lib -ljsoncpp -lcurl
 
 ifneq ($(SGX_MODE), HW)
@@ -97,8 +101,6 @@ App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 
 App_Name := app
 
-
-
 ######## Worker Settings ########
 Worker_Cpp_Files := worker/ecp.cpp ../Util/LogBase.cpp \
 worker/ias_ra.cpp ../Util/UtilityFunctions.cpp ../WebService/WebService.cpp worker/sha256.cpp worker/Worker.cpp \
@@ -109,15 +111,13 @@ Worker_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes -I$(SGX_SDK)/includ
 -I../WebService -I../Networking
 
 Worker_Cpp_Flags := $(Worker_C_Flags) -std=c++11
-Worker_Link_Flags :=  -shared $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -lsample_libcrypto -Lsample_libcrypto -llog4cpp
+Worker_Link_Flags :=  -shared -L$(SGX_LIBRARY_PATH) -lsample_libcrypto -Lsample_libcrypto -llog4cpp
 
 Worker_Cpp_Objects := $(Worker_Cpp_Files:.cpp=.o)
 
 .PHONY: all run
 
 all: libworker.so $(App_Name)
-
-
 
 ######## App Objects ########
 isv_app/%.o: isv_app/%.cpp
@@ -158,6 +158,5 @@ libworker.so: $(Worker_Cpp_Objects)
 
 clean:
 	@rm -f $(App_Name) $(Enclave_Name) $(Signed_Enclave_Name) $(App_Cpp_Objects) isv_app/isv_enclave_u.* $(Enclave_Cpp_Objects) isv_enclave/isv_enclave_t.* libworker.* $(Worker_Cpp_Objects)
-
 
 
