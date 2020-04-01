@@ -168,12 +168,13 @@ impl SgxThreadCondvarInner {
 
     pub unsafe fn destroy(&mut self) -> SysError {
         self.spinlock.lock();
-        if self.thread_vec.first() != Some(&SGX_THREAD_T_NULL) {
-            self.spinlock.unlock();
-            return Err(libc::EBUSY);
-        }
+        let ret = if self.thread_vec.is_empty() {
+            Ok(())
+        } else {
+            Err(libc::EBUSY)
+        };
         self.spinlock.unlock();
-        Ok(())
+        ret
     }
 }
 
