@@ -34,4 +34,4 @@ sgx_demangle = "=1.1.1"
 sgx_unwind = "=1.1.1"
 
 [dependencies]
-hashbrown = { package = "hashbrown_tstd", path = "./hashbrown", default-features = false, features = ['rustc-dep-of-std'] }
+hashbrown = { version = "0.7.1", package = "hashbrown_tstd", path = "./hashbrown", default-features = false, features = ['rustc-dep-of-std'] }
