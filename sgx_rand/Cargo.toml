@@ -16,7 +16,7 @@ crate-type = ["rlib"]
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { path = "../sgx_types" }
-sgx_trts = { path = "../sgx_trts" }
-sgx_tstd = { path = "../sgx_tstd" }
+sgx_types = "=1.1.1"
+sgx_trts = "=1.1.1"
+sgx_tstd = "=1.1.1"
 
