@@ -27,4 +27,4 @@ bench = false
 doc = false
 
 [build-dependencies]
-sgx_build_helper = { path = "../sgx_build_helper" }
+sgx_build_helper = "0.1.3"
