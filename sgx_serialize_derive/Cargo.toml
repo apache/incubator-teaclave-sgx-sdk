@@ -15,4 +15,4 @@ proc-macro = true
 [dependencies]
 quote = "0.3.8"
 syn = "0.11"
-sgx_serialize_derive_internals = { path = "../sgx_serialize_derive_internals" }
+sgx_serialize_derive_internals = "=1.1.1"
