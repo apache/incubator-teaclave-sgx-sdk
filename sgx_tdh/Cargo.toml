@@ -18,7 +18,7 @@ default = []
 use_lav2 = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { path = "../sgx_types" }
-sgx_trts = { path = "../sgx_trts" }
-sgx_tcrypto = { path = "../sgx_tcrypto" }
-sgx_tse = { path = "../sgx_tse" }
+sgx_types = "=1.1.1"
+sgx_trts = "=1.1.1"
+sgx_tcrypto = "=1.1.1"
+sgx_tse = "=1.1.1"
