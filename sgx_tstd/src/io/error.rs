@@ -343,7 +343,10 @@ impl fmt::Debug for Repr {
                     .field("message", &sys::os::error_string(code)).finish(),
             Repr::Custom(ref c) => fmt::Debug::fmt(&c, fmt),
             Repr::Simple(kind) => fmt.debug_tuple("Kind").field(&kind).finish(),
-            Repr::SgxStatus(status) => fmt.debug_tuple("Sgx").field(&status).finish(),
+            Repr::SgxStatus(status) =>
+                fmt.debug_struct("Sgx")
+                    .field("code", &status)
+                    .field("message", &status.__description().to_owned()).finish(),
         }
     }
 }
@@ -353,11 +356,14 @@ impl fmt::Display for Error {
         match self.repr {
             Repr::Os(code) => {
                 let detail = sys::os::error_string(code);
-                write!(fmt, "{} (os error {})", detail, code)
-            }
+                write!(fmt, "{} (os error: {})", detail, code)
+            },
             Repr::Custom(ref c) => c.error.fmt(fmt),
             Repr::Simple(kind) => write!(fmt, "{}", kind.as_str()),
-            Repr::SgxStatus(status) => write!(fmt, "{}", status.as_str()),
+            Repr::SgxStatus(status) => {
+                let detail = status.__description();
+                write!(fmt, "{} (sgx error: {})", detail, status)
+            },
         }
     }
 }
