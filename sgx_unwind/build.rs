@@ -64,7 +64,7 @@ fn build_libunwind(host: &str, target: &str) -> Result<(), ()> {
         "aclocal.m4",
         "INSTALL"];
     let native = native_lib_boilerplate(
-                    "sgx_unwind/libunwind",
+                    "sgx_unwind-1.1.1/libunwind",
                     "libunwind",
                     "unwind",
                     "src/.libs",
