@@ -10,14 +10,14 @@ description = "Rust SGX SDK provides the ability to write Intel SGX applications
 edition = "2018"
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_demangle = { path = "../sgx_demangle" }
-sgx_backtrace_sys = { path = "../sgx_backtrace_sys" }
-sgx_libc = { path = "../sgx_libc" }
-sgx_unwind = { path = "../sgx_unwind" }
-sgx_types = { path = "../sgx_types" }
-sgx_trts = { path = "../sgx_trts" }
-sgx_tstd = { path = "../sgx_tstd" }
-sgx_serialize = { path = "../sgx_serialize", optional = true }
+sgx_demangle = "=1.1.1"
+sgx_backtrace_sys = "=1.1.1"
+sgx_libc = "=1.1.1"
+sgx_unwind = "=1.1.1"
+sgx_types = "=1.1.1"
+sgx_trts = "=1.1.1"
+sgx_tstd = "=1.1.1"
+sgx_serialize = { version = "=1.1.1", optional = true }
 
 [dependencies]
 sgx_serialize_derive = { path = "../sgx_serialize_derive" }
