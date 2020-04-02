@@ -27,7 +27,7 @@ fn main() {
 
 fn build_libbacktrace(_target: &str) -> Result<(), ()> {
     let native = native_lib_boilerplate(
-                    "sgx_backtrace_sys/libbacktrace",
+                    "sgx_backtrace_sys-1.1.1/libbacktrace",
                     "libbacktrace",
                     "backtrace",
                     "",
