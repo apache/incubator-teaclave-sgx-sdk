@@ -19,5 +19,5 @@ global_exit = []
 
 
 [dependencies]
-sgx_types = { path = "../sgx_types" }
+sgx_types = "=1.1.1"
 libc = "0.2.40"
