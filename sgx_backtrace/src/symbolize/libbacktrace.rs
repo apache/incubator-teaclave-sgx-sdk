@@ -346,7 +346,6 @@ pub fn set_enclave_path(path: &str) -> bool {
     #[cfg(feature = "std")]
     {
         use std::path::Path;
-        #[cfg(not(target_env = "sgx"))]
         use std::untrusted::path::PathEx;
         let p: &Path = path.as_ref();
         if !p.exists() {
