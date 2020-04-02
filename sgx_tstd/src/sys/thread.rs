@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use sgx_types::sgx_status_t;
 use core::cmp;
 use core::mem;
 use core::ptr;
@@ -41,7 +42,11 @@ impl Thread {
         let ret = libc::pthread_create(&mut native, &attr, thread_start,
                                        &*p as *const _ as *mut _);
         return if ret != 0 {
-            Err(io::Error::from_raw_os_error(ret))
+            if ret == libc::EAGAIN {
+                Err(io::Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_TCS))
+            } else {
+                Err(io::Error::from_raw_os_error(ret))
+            }
         } else {
             mem::forget(p); // ownership passed to pthread_create
             Ok(Thread { id: native })
