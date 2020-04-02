@@ -19,7 +19,7 @@ default = []
 
 [build-dependencies]
 cc = "1.0"
-sgx_build_helper = { path = "../sgx_build_helper" }
+sgx_build_helper = "0.1.3"
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_libc = { path = "../sgx_libc" }
+sgx_libc = "=1.1.1"
