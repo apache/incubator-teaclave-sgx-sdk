@@ -15,5 +15,5 @@ name = "sgx_trts"
 default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { path = "../sgx_types" }
-sgx_libc = { path = "../sgx_libc" }
+sgx_types = "=1.1.1"
+sgx_libc = "=1.1.1"
