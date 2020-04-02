@@ -24,14 +24,14 @@ untrusted_fs = []
 untrusted_time = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { path = "../sgx_types" }
-sgx_libc = { path = "../sgx_libc" }
-sgx_trts = { path = "../sgx_trts" }
-sgx_alloc = { path = "../sgx_alloc" }
-sgx_tprotected_fs = { path = "../sgx_tprotected_fs" }
-sgx_backtrace_sys = { path = "../sgx_backtrace_sys" }
-sgx_demangle = { path = "../sgx_demangle" }
-sgx_unwind = { path = "../sgx_unwind" }
+sgx_types = "=1.1.1"
+sgx_libc = "=1.1.1"
+sgx_trts = "=1.1.1"
+sgx_alloc = "=1.1.1"
+sgx_tprotected_fs = "=1.1.1"
+sgx_backtrace_sys = "=1.1.1"
+sgx_demangle = "=1.1.1"
+sgx_unwind = "=1.1.1"
 
 [dependencies]
-hashbrown = { path = "./hashbrown", default-features = false, features = ['rustc-dep-of-std'] }
+hashbrown = { package = "hashbrown_tstd", path = "./hashbrown", default-features = false, features = ['rustc-dep-of-std'] }
