@@ -348,7 +348,7 @@ pub fn set_enclave_path(path: &str) -> bool {
         use std::path::Path;
         use std::untrusted::path::PathEx;
         let p: &Path = path.as_ref();
-        if !p.exists() {
+        if !PathEx::exists(p) {
             return false;
         }
     }
