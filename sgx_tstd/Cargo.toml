@@ -31,7 +31,7 @@ sgx_alloc = "=1.1.1"
 sgx_tprotected_fs = "=1.1.1"
 sgx_backtrace_sys = "=1.1.1"
 sgx_demangle = "=1.1.1"
-sgx_unwind = "=1.1.1"
+sgx_unwind = "0.1"
 
 [dependencies]
 hashbrown = { version = "0.7.1", package = "hashbrown_tstd", default-features = false, features = ['rustc-dep-of-std'] }
