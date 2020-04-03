@@ -34,4 +34,4 @@ sgx_demangle = { path = "../sgx_demangle" }
 sgx_unwind = { path = "../sgx_unwind" }
 
 [dependencies]
-hashbrown = { path = "./hashbrown", default-features = false, features = ['rustc-dep-of-std'] }
+hashbrown = { package = "hashbrown_tstd", path = "./hashbrown", default-features = false, features = ['rustc-dep-of-std'] }

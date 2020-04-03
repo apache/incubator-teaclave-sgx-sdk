@@ -12,7 +12,7 @@
 
 [package]
 edition = "2018"
-name = "hashbrown"
+name = "hashbrown_tstd"
 version = "0.7.1"
 authors = ["Amanieu d'Antras <amanieu@gmail.com>"]
 build = "build.rs"
