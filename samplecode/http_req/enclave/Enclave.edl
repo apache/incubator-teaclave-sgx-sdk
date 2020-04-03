@@ -20,6 +20,7 @@ enclave {
     from "sgx_net.edl" import *;
     from "sgx_pipe.edl" import *;
     from "sgx_tstdc.edl" import *;
+    from "sgx_file.edl" import *;
 
     trusted {
         public sgx_status_t send_http_request([in, string]char* hostname);
