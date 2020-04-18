@@ -14,19 +14,30 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 enclave {
-
-    include "time.h"
-
-    from "intel/sgx_pthread.edl" import *;
-    from "sgx_sys.edl" import *;
+    include "signal.h"
 
     trusted {
         /* define ECALLs here. */
+        public int t_signal_handler_ecall([in]const siginfo_t *info);
     };
 
     untrusted {
-        int u_sched_yield_ocall([out]int *error);
-        int u_nanosleep_ocall([out]int *error, [in]const struct timespec *req, [out]struct timespec *rem);
+        int u_sigaction_ocall([out]int *error,
+                              int signum,
+                              [in] const struct sigaction *act,
+                              [out] struct sigaction *oldact,
+                              uint64_t enclave_id);
+
+        int u_sigprocmask_ocall([out]int *error,
+                                int signum,
+                                [in] const sigset_t *set,
+                                [out] sigset_t *oldset);
+            
+        int u_raise_ocall(int signum) allow(t_signal_handler_ecall);
+
+        void u_signal_clear_ocall(uint64_t enclave_id);
     };
 };
+
