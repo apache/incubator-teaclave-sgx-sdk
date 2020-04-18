@@ -15,8 +15,6 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use core::mem;
-use crate::sys::time;
 use crate::time::{Instant, SystemTime, SystemTimeError, Duration};
 
 pub trait InstantEx {
@@ -28,8 +26,7 @@ impl InstantEx for Instant {
     /// Returns an instant corresponding to "now".
     ///
     fn now() -> Instant {
-        let instant = inner::Instant(time::Instant::now());
-        unsafe { mem::transmute(instant) }
+        Instant::_now()
     }
 
     /// Returns the amount of time elapsed since this instant was created.
@@ -41,7 +38,7 @@ impl InstantEx for Instant {
     /// produced synthetically.
     ///
     fn elapsed(&self) -> Duration {
-        Instant::now() - *self
+        Instant::_now() - *self
     }
 }
 
@@ -54,8 +51,7 @@ impl SystemTimeEx for SystemTime {
     /// Returns the system time corresponding to "now".
     ///
     fn now() -> SystemTime {
-        let systemtime = inner::SystemTime(time::SystemTime::now());
-        unsafe { mem::transmute(systemtime) }
+        SystemTime::_now()
     }
 
     /// Returns the amount of time elapsed since this system time was created.
@@ -70,12 +66,6 @@ impl SystemTimeEx for SystemTime {
     /// the error contains how far from the current system time `self` is.
     ///
     fn elapsed(&self) -> Result<Duration, SystemTimeError> {
-        SystemTime::now().duration_since(*self)
+        SystemTime::_now().duration_since(*self)
     }
-}
-
-mod inner {
-    use crate::sys::time;
-    pub struct Instant(pub time::Instant);
-    pub struct SystemTime(pub time::SystemTime);
 }

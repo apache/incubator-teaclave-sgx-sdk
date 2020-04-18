@@ -16,19 +16,18 @@
 // under the License..
 
 use core::{fmt, str};
+use alloc::vec::Vec;
 
 cfg_if! {
     if #[cfg(feature = "std")] {
         use std::path::Path;
         use std::prelude::v1::*;
-    } else {
-
     }
 }
 
 use crate::backtrace::Frame;
 use crate::types::BytesOrWideString;
-use sgx_libc::c_void;
+use core::ffi::c_void;
 use sgx_demangle::{try_demangle, Demangle};
 
 /// Resolve an address to a symbol, passing the symbol to the specified
@@ -210,7 +209,10 @@ pub struct Symbol {
     // TODO: this lifetime bound needs to be persisted eventually to `Symbol`,
     // but that's currently a breaking change. For now this is safe since
     // `Symbol` is only ever handed out by reference and can't be cloned.
-    inner: SymbolImp,
+    name: Option<Vec<u8>>,
+    addr: Option<*mut c_void>,
+    filename: Option<Vec<u8>>,
+    lineno: Option<u32>,
 }
 
 impl Symbol {
@@ -224,18 +226,18 @@ impl Symbol {
     ///   utf-8).
     /// * The raw bytes for the symbol name can be accessed.
     pub fn name(&self) -> Option<SymbolName> {
-        self.inner.name()
+        self.name.as_ref().map(|m| SymbolName::new(m.as_slice()))
     }
 
     /// Returns the starting address of this function.
     pub fn addr(&self) -> Option<*mut c_void> {
-        self.inner.addr().map(|p| p as *mut _)
+       self.addr
     }
 
     /// Returns the raw filename as a slice. This is mainly useful for `no_std`
     /// environments.
     pub fn filename_raw(&self) -> Option<BytesOrWideString> {
-        self.inner.filename_raw()
+        self.filename.as_ref().map(|f| BytesOrWideString::Bytes(f.as_slice()))
     }
 
     /// Returns the line number for where this symbol is currently executing.
@@ -243,7 +245,7 @@ impl Symbol {
     /// This return value is typically `Some` if `filename` returns `Some`, and
     /// is consequently subject to similar caveats.
     pub fn lineno(&self) -> Option<u32> {
-        self.inner.lineno()
+        self.lineno
     }
 
     /// Returns the file name where this function was defined.
@@ -260,7 +262,10 @@ impl Symbol {
     #[cfg(feature = "std")]
     #[allow(unreachable_code)]
     pub fn filename(&self) -> Option<&Path> {
-        self.inner.filename()
+        use std::ffi::OsStr;
+        use std::os::unix::prelude::*;
+
+        self.filename.as_ref().map(|f| Path::new(OsStr::from_bytes(f.as_slice())))
     }
 }
 
@@ -392,7 +397,6 @@ pub fn clear_symbol_cache() {
 
 mod libbacktrace;
 use self::libbacktrace::resolve as resolve_imp;
-use self::libbacktrace::Symbol as SymbolImp;
 pub use libbacktrace::set_enclave_path;
 
 #[allow(dead_code)]

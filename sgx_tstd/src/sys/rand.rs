@@ -21,11 +21,10 @@ use alloc_crate::slice;
 pub fn hashmap_random_keys() -> (u64, u64) {
     let mut v = (0, 0);
     unsafe {
-        let view = slice::from_raw_parts_mut(&mut v as *mut _ as *mut u8,
-                                             mem::size_of_val(&v));
+        let view = slice::from_raw_parts_mut(&mut v as *mut _ as *mut u8, mem::size_of_val(&v));
         imp::fill_bytes(view);
     }
-    return v
+    v
 }
 
 mod imp {

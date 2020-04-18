@@ -141,15 +141,19 @@ pub fn rsgx_ra_init(p_pub_key: &sgx_ec256_public_t, b_pse: i32) -> SgxResult<sgx
 ///
 /// Indicates that an unexpected error occurred.
 ///
-pub fn rsgx_ra_init_ex(p_pub_key: &sgx_ec256_public_t,
-                       b_pse: i32,
-                       derive_key_cb: sgx_ra_derive_secret_keys_t) -> SgxResult<sgx_ra_context_t> {
+pub fn rsgx_ra_init_ex(
+    p_pub_key: &sgx_ec256_public_t,
+    b_pse: i32,
+    derive_key_cb: sgx_ra_derive_secret_keys_t,
+) -> SgxResult<sgx_ra_context_t> {
     let mut context: sgx_ra_context_t = 0;
     let ret = unsafe {
-        sgx_ra_init_ex(p_pub_key as *const sgx_ec256_public_t,
-                       b_pse,
-                       derive_key_cb,
-                       &mut context as *mut sgx_ra_context_t)
+        sgx_ra_init_ex(
+            p_pub_key as *const sgx_ec256_public_t,
+            b_pse,
+            derive_key_cb,
+            &mut context as *mut sgx_ra_context_t,
+        )
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(context),
@@ -246,3 +250,4 @@ pub fn rsgx_ra_close(context: sgx_ra_context_t) -> SgxError {
         _ => Err(ret),
     }
 }
+

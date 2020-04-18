@@ -22,11 +22,12 @@ use core::cmp;
 use core::str;
 use crate::ffi::CStr;
 use crate::io::{self, IoSlice, IoSliceMut};
-use crate::net::{SocketAddr, Shutdown};
+use crate::net::{Shutdown, SocketAddr};
 use crate::sys::fd::FileDesc;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 use crate::sys_common::net::{getsockopt, setsockopt, sockaddr_to_addr};
 use crate::time::{Duration, Instant};
+#[cfg(not(feature = "untrusted_time"))]
 use crate::untrusted::time::InstantEx;
 pub use crate::sys::{cvt, cvt_r};
 
@@ -38,41 +39,36 @@ pub fn init() {}
 
 pub fn cvt_gai(err: c_int) -> io::Result<()> {
     if err == 0 {
-        return Ok(())
+        return Ok(());
     }
 
     // We may need to trigger a glibc workaround. See on_resolver_failure() for details.
     // on_resolver_failure();
 
     if err == libc::EAI_SYSTEM {
-        return Err(io::Error::last_os_error())
+        return Err(io::Error::last_os_error());
     }
 
     let detail = unsafe {
         let strerr = libc::gai_strerror(err);
         if strerr.is_null() {
-            return Err(io::Error::from_raw_os_error(libc::ESGX))
+            return Err(io::Error::from_raw_os_error(libc::ESGX));
         }
-
-        str::from_utf8(CStr::from_ptr(strerr).to_bytes()).unwrap()
-            .to_owned()
+        str::from_utf8(CStr::from_ptr(strerr).to_bytes()).unwrap().to_owned()
     };
-    Err(io::Error::new(io::ErrorKind::Other,
-                       &format!("failed to lookup address information: {}",
-                                detail)[..]))
+    Err(io::Error::new(
+        io::ErrorKind::Other,
+        &format!("failed to lookup address information: {}", detail)[..],
+    ))
 }
 
 impl Socket {
-
     pub fn new(sockfd: c_int) -> io::Result<Socket> {
         let fd = FileDesc::new(sockfd);
         fd.set_cloexec()?;
         Ok(Socket(fd))
     }
 
-    // YU: Added to support net
-    //     TcpListener::bind -> Socket::new
-    //     I renamed new as new_socket_addr_type for better naming
     pub fn new_socket_addr_type(addr: &SocketAddr, ty: c_int) -> io::Result<Socket> {
         let fam = match *addr {
             SocketAddr::V4(..) => libc::AF_INET,
@@ -81,9 +77,6 @@ impl Socket {
         Socket::new_raw(fam, ty)
     }
 
-    // YU: Added to support net
-    //     TcpListener::bind -> Socket::new -> Socket::new_raw
-    //     Naming seems good
     pub fn new_raw(fam: c_int, ty: c_int) -> io::Result<Socket> {
         unsafe {
             // On linux we first attempt to pass the SOCK_CLOEXEC flag to
@@ -115,7 +108,7 @@ impl Socket {
                 Ok(_) => {
                     return Ok((Socket(FileDesc::new(fds[0])), Socket(FileDesc::new(fds[1]))));
                 }
-                Err(ref e) if e.raw_os_error() == Some(libc::EINVAL) => {},
+                Err(ref e) if e.raw_os_error() == Some(libc::EINVAL) => {}
                 Err(e) => return Err(e),
             }
 
@@ -143,15 +136,13 @@ impl Socket {
             Err(e) => return Err(e),
         }
 
-        let mut pollfd = libc::pollfd {
-            fd: self.0.raw(),
-            events: libc::POLLOUT,
-            revents: 0,
-        };
+        let mut pollfd = libc::pollfd { fd: self.0.raw(), events: libc::POLLOUT, revents: 0 };
 
         if timeout.as_secs() == 0 && timeout.subsec_nanos() == 0 {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                      "cannot set a 0 duration timeout"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "cannot set a 0 duration timeout",
+            ));
         }
 
         let start = Instant::now();
@@ -163,7 +154,8 @@ impl Socket {
             }
 
             let timeout = timeout - elapsed;
-            let mut timeout = timeout.as_secs()
+            let mut timeout = timeout
+                .as_secs()
                 .saturating_mul(1_000)
                 .saturating_add(timeout.subsec_nanos() as u64 / 1_000_000);
             if timeout == 0 {
@@ -184,10 +176,9 @@ impl Socket {
                     // linux returns POLLOUT|POLLERR|POLLHUP for refused connections (!), so look
                     // for POLLHUP rather than read readiness
                     if pollfd.revents & libc::POLLHUP != 0 {
-                        let e = self.take_error()?
-                            .unwrap_or_else(|| {
-                                io::Error::new(io::ErrorKind::Other, "no error set after POLLHUP")
-                            });
+                        let e = self.take_error()?.unwrap_or_else(|| {
+                            io::Error::new(io::ErrorKind::Other, "no error set after POLLHUP")
+                        });
                         return Err(e);
                     }
 
@@ -197,20 +188,16 @@ impl Socket {
         }
     }
 
-    // YU: Added to support net
-    //     TcpListener::accept -> Socket::accept
-    //     Naming seems good
-    //     We don't support linux kernel < 2.6.28.
-    //     So we only use accept4
     // Attention:
-    //     this function is a blocking function, which make an OCALL
-    //     and block itself **in the untrusted OS**. This is very much
-    //     dangerous and is misleading.
-    //     In SGX programming, execution is by default in enclave and
-    //     cannot leak information by design. Howeverm, this function
-    //     is not. It leaks events.
-    //     This function is guarded by feature `net2` and should only
-    //     be used on demand.
+    // this function is a blocking function, which make an OCALL
+    // and block itself **in the untrusted OS**. This is very much
+    // dangerous and is misleading.
+    // In SGX programming, execution is by default in enclave and
+    // cannot leak information by design. Howeverm, this function
+    // is not. It leaks events.
+    // This function is guarded by feature `net` and should only
+    // be used on demand.
+    // We don't support linux kernel < 2.6.28. So we only use accept4.
     pub fn accept(&self, storage: *mut libc::sockaddr, len: *mut libc::socklen_t) -> io::Result<Socket> {
         let res = cvt_r(|| unsafe {
             libc::accept4(self.0.raw(), storage, len, libc::SOCK_CLOEXEC)
@@ -221,9 +208,13 @@ impl Socket {
         }
     }
 
-    pub fn raw(&self) -> c_int { self.0.raw() }
+    pub fn raw(&self) -> c_int {
+        self.0.raw()
+    }
 
-    pub fn into_raw(self) -> c_int { self.0.into_raw() }
+    pub fn into_raw(self) -> c_int {
+        self.0.into_raw()
+    }
 
     pub fn duplicate(&self) -> io::Result<Socket> {
         self.0.duplicate().map(Socket)
@@ -231,10 +222,7 @@ impl Socket {
 
     fn recv_with_flags(&self, buf: &mut [u8], flags: c_int) -> io::Result<usize> {
         let ret = cvt(unsafe {
-            libc::recv(self.0.raw(),
-                       buf.as_mut_ptr() as *mut c_void,
-                       buf.len(),
-                       flags)
+            libc::recv(self.0.raw(), buf.as_mut_ptr() as *mut c_void, buf.len(), flags)
         })?;
         Ok(ret as usize)
     }
@@ -251,18 +239,23 @@ impl Socket {
         self.0.read_vectored(bufs)
     }
 
-    fn recv_from_with_flags(&self, buf: &mut [u8], flags: c_int)
-                            -> io::Result<(usize, SocketAddr)> {
+    fn recv_from_with_flags(
+        &self,
+        buf: &mut [u8],
+        flags: c_int,
+    ) -> io::Result<(usize, SocketAddr)> {
         let mut storage: libc::sockaddr_storage = unsafe { mem::zeroed() };
         let mut addrlen = mem::size_of_val(&storage) as libc::socklen_t;
 
         let n = cvt(unsafe {
-            libc::recvfrom(self.0.raw(),
-                        buf.as_mut_ptr() as *mut c_void,
-                        buf.len(),
-                        flags,
-                        &mut storage as *mut _ as *mut _,
-                        &mut addrlen)
+            libc::recvfrom(
+                self.0.raw(),
+                buf.as_mut_ptr() as *mut c_void,
+                buf.len(),
+                flags,
+                &mut storage as *mut _ as *mut _,
+                &mut addrlen,
+            )
         })?;
         Ok((n as usize, sockaddr_to_addr(&storage, addrlen as usize)?))
     }
@@ -287,8 +280,10 @@ impl Socket {
         let timeout = match dur {
             Some(dur) => {
                 if dur.as_secs() == 0 && dur.subsec_nanos() == 0 {
-                    return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                              "cannot set a 0 duration timeout"));
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "cannot set a 0 duration timeout",
+                    ));
                 }
 
                 let secs = if dur.as_secs() > libc::time_t::max_value() as u64 {
@@ -298,19 +293,14 @@ impl Socket {
                 };
                 let mut timeout = libc::timeval {
                     tv_sec: secs,
-                    tv_usec: (dur.subsec_nanos() / 1000) as libc::suseconds_t,
+                    tv_usec: dur.subsec_micros() as libc::suseconds_t,
                 };
                 if timeout.tv_sec == 0 && timeout.tv_usec == 0 {
                     timeout.tv_usec = 1;
                 }
                 timeout
             }
-            None => {
-                libc::timeval {
-                    tv_sec: 0,
-                    tv_usec: 0,
-                }
-            }
+            None => libc::timeval { tv_sec: 0, tv_usec: 0 },
         };
         setsockopt(self, libc::SOL_SOCKET, kind, timeout)
     }
@@ -347,29 +337,31 @@ impl Socket {
 
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<()> {
         let mut nonblocking = nonblocking as c_int;
-        cvt(unsafe { libc::ioctl_arg1(*self.as_inner(), libc::FIONBIO, &mut nonblocking) }).map(|_| ())
+        cvt(unsafe { libc::ioctl_arg1(*self.as_inner(), libc::FIONBIO, &mut nonblocking) }).map(drop)
     }
 
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
         let raw: c_int = getsockopt(self, libc::SOL_SOCKET, libc::SO_ERROR)?;
-        if raw == 0 {
-            Ok(None)
-        } else {
-            Ok(Some(io::Error::from_raw_os_error(raw as i32)))
-        }
+        if raw == 0 { Ok(None) } else { Ok(Some(io::Error::from_raw_os_error(raw as i32))) }
     }
 }
 
 impl AsInner<c_int> for Socket {
-    fn as_inner(&self) -> &c_int { self.0.as_inner() }
+    fn as_inner(&self) -> &c_int {
+        self.0.as_inner()
+    }
 }
 
 impl FromInner<c_int> for Socket {
-    fn from_inner(fd: c_int) -> Socket { Socket(FileDesc::new(fd)) }
+    fn from_inner(fd: c_int) -> Socket {
+        Socket(FileDesc::new(fd))
+    }
 }
 
 impl IntoInner<c_int> for Socket {
-    fn into_inner(self) -> c_int { self.0.into_raw() }
+    fn into_inner(self) -> c_int {
+        self.0.into_raw()
+    }
 }
 
 mod libc {

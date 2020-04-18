@@ -15,11 +15,12 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::{resolve, resolve_frame, trace, Symbol, SymbolName};
-use std::fmt;
+use crate::PrintFmt;
+use crate::{resolve, resolve_frame, trace, BacktraceFmt, Symbol, SymbolName};
 use std::path::{Path, PathBuf};
 use std::prelude::v1::*;
-use sgx_libc::c_void;
+use core::ffi::c_void;
+use core::fmt;
 
 /// Representation of an owned and self-contained backtrace.
 ///
@@ -136,7 +137,6 @@ impl Backtrace {
     /// enabled, and the `std` feature is enabled by default.
     #[inline(never)] // want to make sure there's a frame here to remove
     pub fn new() -> Backtrace {
-        let _guard = lock_and_platform_init();
         let mut bt = Self::create(Self::new as usize);
         bt.resolve();
         bt
@@ -167,7 +167,6 @@ impl Backtrace {
     /// enabled, and the `std` feature is enabled by default.
     #[inline(never)] // want to make sure there's a frame here to remove
     pub fn new_unresolved() -> Backtrace {
-        let _guard = lock_and_platform_init();
         Self::create(Self::new_unresolved as usize)
     }
 
@@ -217,7 +216,6 @@ impl Backtrace {
     /// This function requires the `std` feature of the `backtrace` crate to be
     /// enabled, and the `std` feature is enabled by default.
     pub fn resolve(&mut self) {
-        let _guard = lock_and_platform_init();
         for frame in self.frames.iter_mut().filter(|f| f.symbols.is_none()) {
             let mut symbols = Vec::new();
             {
@@ -340,55 +338,36 @@ impl BacktraceSymbol {
 
 impl fmt::Debug for Backtrace {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "stack backtrace:")?;
-
-        let iter = if fmt.alternate() {
-            self.frames.iter()
+        let full = fmt.alternate();
+        let (frames, style) = if full {
+            (&self.frames[..], PrintFmt::Full)
         } else {
-            self.frames[self.actual_start_index..].iter()
+            (&self.frames[self.actual_start_index..], PrintFmt::Short)
         };
 
-        for (idx, frame) in iter.enumerate() {
-            // To reduce TCB size in Sgx enclave, we do not want to implement symbol resolution functionality.
-            // Rather, we can print the offset of the address here, which could be later mapped to
-            // correct function.
-            let ip: *mut c_void = frame.ip();
+        // When printing paths we try to strip the cwd if it exists, otherwise
+        // we just print the path as-is. Note that we also only do this for the
+        // short format, because if it's full we presumably want to print
+        // everything.
+        // let cwd = std::env::current_dir();
+        let mut print_path = move |fmt: &mut fmt::Formatter, path: crate::BytesOrWideString| {
+            let path = path.into_path_buf();
+            // if !full {
+            //     if let Ok(cwd) = &cwd {
+            //         if let Ok(suffix) = path.strip_prefix(cwd) {
+            //             return fmt::Display::fmt(&suffix.display(), fmt);
+            //         }
+            //     }
+            // }
+            fmt::Display::fmt(&path.display(), fmt)
+        };
 
-            write!(fmt, "\n{:4}: ", idx)?;
-
-            let symbols = match frame.symbols {
-                Some(ref s) => s,
-                None => {
-                    write!(fmt, "<unresolved> ({:?})", ip)?;
-                    continue;
-                }
-            };
-            if symbols.len() == 0 {
-                write!(fmt, "<no info> ({:?})", ip)?;
-                continue;
-            }
-
-            for (idx, symbol) in symbols.iter().enumerate() {
-                if idx != 0 {
-                    write!(fmt, "\n      ")?;
-                }
-
-                if let Some(name) = symbol.name() {
-                    write!(fmt, "{}", name)?;
-                } else {
-                    write!(fmt, "<unknown>")?;
-                }
-
-                if idx == 0 {
-                    write!(fmt, " ({:?})", ip)?;
-                }
-
-                if let (Some(file), Some(line)) = (symbol.filename(), symbol.lineno()) {
-                    write!(fmt, "\n             at {}:{}", file.display(), line)?;
-                }
-            }
+        let mut f = BacktraceFmt::new(fmt, style, &mut print_path);
+        f.add_context()?;
+        for frame in frames {
+            f.frame().backtrace_frame(frame)?;
         }
-
+        f.finish()?;
         Ok(())
     }
 }
@@ -418,8 +397,6 @@ impl fmt::Debug for BacktraceSymbol {
             .finish()
     }
 }
-
-fn lock_and_platform_init() {}
 
 #[cfg(feature = "serialize")]
 mod sgx_serialize_impls {

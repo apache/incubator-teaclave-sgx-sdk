@@ -40,6 +40,8 @@ pub use core::ffi::c_void;
 
 pub type dev_t = u64;
 pub type mode_t = u32;
+pub type pthread_t = *mut c_void;
+
 pub use self::arch::{off_t, ino_t, nlink_t, blksize_t, blkcnt_t, stat, time_t};
 
 mod arch {

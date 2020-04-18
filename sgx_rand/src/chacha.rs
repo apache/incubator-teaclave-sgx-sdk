@@ -20,7 +20,7 @@
 use std::num::Wrapping as w;
 use crate::{Rng, SeedableRng, Rand, w32};
 
-const KEY_WORDS    : usize =  8; // 8 words for the 256-bit key
+const KEY_WORDS    : usize = 8; // 8 words for the 256-bit key
 const STATE_WORDS  : usize = 16;
 const CHACHA_ROUNDS: u32 = 20; // Cryptographically secure from 8 upwards as of this writing
 
@@ -35,9 +35,9 @@ const CHACHA_ROUNDS: u32 = 20; // Cryptographically secure from 8 upwards as of 
 /// Salsa20*](http://cr.yp.to/chacha.html)
 #[derive(Copy, Clone, Debug)]
 pub struct ChaChaRng {
-    buffer:  [w32; STATE_WORDS], // Internal buffer of output
-    state:   [w32; STATE_WORDS], // Initial state
-    index:   usize,                 // Index into state
+    buffer: [w32; STATE_WORDS], // Internal buffer of output
+    state: [w32; STATE_WORDS],  // Initial state
+    index: usize,               // Index into state
 }
 
 static EMPTY: ChaChaRng = ChaChaRng {

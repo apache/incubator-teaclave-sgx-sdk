@@ -32,5 +32,6 @@ pub mod pipe;
 pub mod event;
 pub mod thread;
 pub mod net;
+pub mod signal;
+pub mod process;
 pub use enclave::*;
-

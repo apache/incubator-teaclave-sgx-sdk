@@ -20,7 +20,7 @@ use crate::io::prelude::*;
 use sgx_trts::libc::c_int;
 use core::fmt;
 use crate::io::{self, Initializer, IoSlice, IoSliceMut};
-use crate::net::{ToSocketAddrs, SocketAddr, Shutdown};
+use crate::net::{Shutdown, SocketAddr, ToSocketAddrs};
 use crate::sys_common::net as net_imp;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 use crate::time::Duration;
@@ -74,10 +74,11 @@ pub struct TcpListener(net_imp::TcpListener);
 /// [`incoming`]: ../../std/net/struct.TcpListener.html#method.incoming
 /// [`TcpListener`]: ../../std/net/struct.TcpListener.html
 #[derive(Debug)]
-pub struct Incoming<'a> { listener: &'a TcpListener }
+pub struct Incoming<'a> {
+    listener: &'a TcpListener,
+}
 
 impl TcpStream {
-
     pub fn new(sockfd: c_int) -> io::Result<TcpStream> {
         net_imp::TcpStream::new(sockfd).map(TcpStream)
     }
@@ -90,9 +91,13 @@ impl TcpStream {
         net_imp::TcpStream::new_v6().map(TcpStream)
     }
 
-    pub fn raw(&self) -> c_int { self.0.raw() }
+    pub fn raw(&self) -> c_int {
+        self.0.raw()
+    }
 
-    pub fn into_raw(self) -> c_int { self.0.into_raw() }
+    pub fn into_raw(self) -> c_int {
+        self.0.into_raw()
+    }
 
     /// Opens a TCP connection to a remote host.
     ///
@@ -136,6 +141,7 @@ impl TcpStream {
     /// then uses an OS-specific mechanism to await the completion of the
     /// connection request.
     ///
+    /// [`SocketAddr`]: ../../std/net/enum.SocketAddr.html
     pub fn connect_timeout(addr: &SocketAddr, timeout: Duration) -> io::Result<TcpStream> {
         net_imp::TcpStream::connect_timeout(addr, timeout).map(TcpStream)
     }
@@ -355,7 +361,9 @@ impl TcpStream {
 }
 
 impl Read for TcpStream {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> { self.0.read(buf) }
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.0.read(buf)
+    }
 
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         self.0.read_vectored(bufs)
@@ -368,17 +376,23 @@ impl Read for TcpStream {
 }
 
 impl Write for TcpStream {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> { self.0.write(buf) }
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0.write(buf)
+    }
 
     fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
         self.0.write_vectored(bufs)
     }
 
-    fn flush(&mut self) -> io::Result<()> { Ok(()) }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 impl Read for &TcpStream {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> { self.0.read(buf) }
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.0.read(buf)
+    }
 
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         self.0.read_vectored(bufs)
@@ -391,25 +405,35 @@ impl Read for &TcpStream {
 }
 
 impl Write for &TcpStream {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> { self.0.write(buf) }
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0.write(buf)
+    }
 
     fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
         self.0.write_vectored(bufs)
     }
 
-    fn flush(&mut self) -> io::Result<()> { Ok(()) }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 impl AsInner<net_imp::TcpStream> for TcpStream {
-    fn as_inner(&self) -> &net_imp::TcpStream { &self.0 }
+    fn as_inner(&self) -> &net_imp::TcpStream {
+        &self.0
+    }
 }
 
 impl FromInner<net_imp::TcpStream> for TcpStream {
-    fn from_inner(inner: net_imp::TcpStream) -> TcpStream { TcpStream(inner) }
+    fn from_inner(inner: net_imp::TcpStream) -> TcpStream {
+        TcpStream(inner)
+    }
 }
 
 impl IntoInner<net_imp::TcpStream> for TcpStream {
-    fn into_inner(self) -> net_imp::TcpStream { self.0 }
+    fn into_inner(self) -> net_imp::TcpStream {
+        self.0
+    }
 }
 
 impl fmt::Debug for TcpStream {
@@ -419,7 +443,6 @@ impl fmt::Debug for TcpStream {
 }
 
 impl TcpListener {
-
     pub fn new(sockfd: c_int) -> io::Result<TcpListener> {
         net_imp::TcpListener::new(sockfd).map(TcpListener)
     }
@@ -432,9 +455,13 @@ impl TcpListener {
         net_imp::TcpListener::new_v6().map(TcpListener)
     }
 
-    pub fn raw(&self) -> c_int { self.0.raw() }
+    pub fn raw(&self) -> c_int {
+        self.0.raw()
+    }
 
-    pub fn into_raw(self) -> c_int { self.0.into_raw() }
+    pub fn into_raw(self) -> c_int {
+        self.0.into_raw()
+    }
 
     /// Creates a new `TcpListener` which will be bound to the specified
     /// address.
@@ -586,7 +613,9 @@ impl<'a> Iterator for Incoming<'a> {
 }
 
 impl AsInner<net_imp::TcpListener> for TcpListener {
-    fn as_inner(&self) -> &net_imp::TcpListener { &self.0 }
+    fn as_inner(&self) -> &net_imp::TcpListener {
+        &self.0
+    }
 }
 
 impl FromInner<net_imp::TcpListener> for TcpListener {
@@ -596,7 +625,9 @@ impl FromInner<net_imp::TcpListener> for TcpListener {
 }
 
 impl IntoInner<net_imp::TcpListener> for TcpListener {
-    fn into_inner(self) -> net_imp::TcpListener { self.0 }
+    fn into_inner(self) -> net_imp::TcpListener {
+        self.0
+    }
 }
 
 impl fmt::Debug for TcpListener {

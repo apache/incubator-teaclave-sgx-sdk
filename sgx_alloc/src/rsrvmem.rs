@@ -117,7 +117,7 @@ mod platform {
     type int32_t = i32;
     type sgx_status_t = u32;
 
-    extern {
+    extern "C" {
         pub fn sgx_alloc_rsrv_mem(length: size_t) -> *mut c_void;
         pub fn sgx_free_rsrv_mem(addr: *const c_void, length: size_t) -> int32_t;
         pub fn sgx_tprotect_rsrv_mem(addr: *const c_void, length: size_t, prot: i32) -> sgx_status_t;  

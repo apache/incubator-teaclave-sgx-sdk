@@ -19,22 +19,21 @@ use sgx_trts::error as trts_error;
 use sgx_types::metadata;
 use crate::os::unix::prelude::*;
 use crate::error::Error as StdError;
-use crate::ffi::{CString, CStr, OsString, OsStr};
+use crate::ffi::{CStr, CString, OsStr, OsString};
 use crate::path::{self, PathBuf};
 use crate::sync::SgxThreadMutex;
-use crate::sys::{cvt, fd};
+use crate::sys::cvt;
 use crate::memchr;
 use crate::io;
 use core::marker::PhantomData;
 use core::fmt;
 use core::iter;
 use core::ptr;
+use core::mem;
 use alloc_crate::slice;
 use alloc_crate::string::String;
 use alloc_crate::str;
 use alloc_crate::vec::{self, Vec};
-use crate::mem;
-use libc::{c_int, c_char, c_void};
 
 const TMPBUF_SZ: usize = 128;
 static ENV_LOCK: SgxThreadMutex = SgxThreadMutex::new();
@@ -146,18 +145,20 @@ pub fn env() -> Env {
         ENV_LOCK.lock();
         let mut environ = environ();
         let mut result = Vec::new();
-        while environ != ptr::null() && *environ != ptr::null() {
-            if let Some(key_value) = parse(CStr::from_ptr(*environ).to_bytes()) {
-                result.push(key_value);
+        if !environ.is_null() {
+            while !(*environ).is_null() {
+                if let Some(key_value) = parse(CStr::from_ptr(*environ).to_bytes()) {
+                    result.push(key_value);
+                }
+                environ = environ.add(1);
             }
-            environ = environ.offset(1);
         }
         let ret = Env {
             iter: result.into_iter(),
             _dont_send_or_sync_me: PhantomData,
         };
         ENV_LOCK.unlock();
-        return ret
+        return ret;
     }
 
     fn parse(input: &[u8]) -> Option<(OsString, OsString)> {
@@ -169,10 +170,12 @@ pub fn env() -> Env {
             return None;
         }
         let pos = memchr::memchr(b'=', &input[1..]).map(|p| p + 1);
-        pos.map(|p| (
-            OsStringExt::from_vec(input[..p].to_vec()),
-            OsStringExt::from_vec(input[p+1..].to_vec()),
-        ))
+        pos.map(|p| {
+            (
+                OsStringExt::from_vec(input[..p].to_vec()),
+                OsStringExt::from_vec(input[p + 1..].to_vec()),
+            )
+        })
     }
 }
 
@@ -199,7 +202,7 @@ pub fn setenv(k: &OsStr, v: &OsStr) -> io::Result<()> {
 
     unsafe {
         ENV_LOCK.lock();
-        let ret = cvt(libc::setenv(k.as_ptr(), v.as_ptr(), 1)).map(|_| ());
+        let ret = cvt(libc::setenv(k.as_ptr(), v.as_ptr(), 1)).map(drop);
         ENV_LOCK.unlock();
         ret
     }
@@ -210,7 +213,7 @@ pub fn unsetenv(n: &OsStr) -> io::Result<()> {
 
     unsafe {
         ENV_LOCK.lock();
-        let ret = cvt(libc::unsetenv(nbuf.as_ptr())).map(|_| ());
+        let ret = cvt(libc::unsetenv(nbuf.as_ptr())).map(drop);
         ENV_LOCK.unlock();
         ret
     }
@@ -256,7 +259,7 @@ pub fn chdir(p: &path::Path) -> io::Result<()> {
     let p: &OsStr = p.as_ref();
     let p = CString::new(p.as_bytes())?;
     unsafe {
-        match libc::chdir(p.as_ptr()) == (0 as c_int) {
+        match libc::chdir(p.as_ptr()) == (0 as libc::c_int) {
             true => Ok(()),
             false => Err(io::Error::last_os_error()),
         }
@@ -275,13 +278,18 @@ pub fn home_dir() -> Option<PathBuf> {
         let mut buf = Vec::with_capacity(amt);
         let mut passwd: libc::passwd = mem::zeroed();
         let mut result = ptr::null_mut();
-        match libc::getpwuid_r(libc::getuid(), &mut passwd, buf.as_mut_ptr(),
-                               buf.capacity(), &mut result) {
+        match libc::getpwuid_r(
+            libc::getuid(),
+            &mut passwd,
+            buf.as_mut_ptr(),
+            buf.capacity(),
+            &mut result
+        ) {
             0 if !result.is_null() => {
                 let ptr = passwd.pw_dir as *const _;
                 let bytes = CStr::from_ptr(ptr).to_bytes().to_vec();
                 Some(OsStringExt::from_vec(bytes))
-            },
+            }
             _ => None,
         }
     }

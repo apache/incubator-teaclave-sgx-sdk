@@ -16,7 +16,7 @@
 // under the License..
 
 use core::fmt;
-use crate::sync::{SgxMutex, SgxCondvar};
+use crate::sync::{SgxCondvar, SgxMutex};
 
 /// A barrier enables multiple threads to synchronize the beginning
 /// of some computation.
@@ -57,10 +57,7 @@ impl Barrier {
     ///
     pub fn new(n: usize) -> Barrier {
         Barrier {
-            lock: SgxMutex::new(BarrierState {
-                count: 0,
-                generation_id: 0,
-            }),
+            lock: SgxMutex::new(BarrierState { count: 0, generation_id: 0 }),
             cvar: SgxCondvar::new(),
             num_threads: n,
         }
@@ -86,15 +83,14 @@ impl Barrier {
         if lock.count < self.num_threads {
             // We need a while loop to guard against spurious wakeups.
             // http://en.wikipedia.org/wiki/Spurious_wakeup
-            while local_gen == lock.generation_id &&
-                  lock.count < self.num_threads {
+            while local_gen == lock.generation_id && lock.count < self.num_threads {
                 lock = self.cvar.wait(lock).unwrap();
             }
             BarrierWaitResult(false)
         } else {
             lock.count = 0;
             lock.generation_id = lock.generation_id.wrapping_add(1);
-            self.cvar.broadcast();
+            self.cvar.notify_all();
             BarrierWaitResult(true)
         }
     }
@@ -102,9 +98,7 @@ impl Barrier {
 
 impl fmt::Debug for BarrierWaitResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("BarrierWaitResult")
-            .field("is_leader", &self.is_leader())
-            .finish()
+        f.debug_struct("BarrierWaitResult").field("is_leader", &self.is_leader()).finish()
     }
 }
 
@@ -116,5 +110,7 @@ impl BarrierWaitResult {
     ///
     /// [`wait`]: struct.Barrier.html#method.wait
     ///
-    pub fn is_leader(&self) -> bool { self.0 }
+    pub fn is_leader(&self) -> bool {
+        self.0
+    }
 }

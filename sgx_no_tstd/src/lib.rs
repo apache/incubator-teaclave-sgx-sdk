@@ -38,7 +38,7 @@ pub use sgx_alloc::System;
 static ALLOC: sgx_alloc::System = sgx_alloc::System;
 
 #[panic_handler]
-fn rust_begin_panic(_info: &PanicInfo<'_>) -> ! {
+fn begin_panic_handler(_info: &PanicInfo<'_>) -> ! {
     sgx_abort();
 }
 
@@ -92,7 +92,9 @@ pub fn rust_oom(layout: Layout) -> ! {
 }
 
 #[link(name = "sgx_trts")]
-extern { pub fn abort() -> !; }
+extern "C" {
+    pub fn abort() -> !;
+}
 
 fn sgx_abort() -> ! {
     unsafe { abort() }

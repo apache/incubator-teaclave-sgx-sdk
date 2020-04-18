@@ -23,7 +23,7 @@ use std::ffi::OsStr;
 /// * The error itself
 ///
 /// This is currently used judiciously throughout the build system rather than
-/// using a `Result` with `r#try!`, but this may change one day...
+/// using a `Result` with `try!`, but this may change one day...
 #[macro_export]
 macro_rules! t {
     ($e:expr) => {
@@ -32,6 +32,38 @@ macro_rules! t {
             Err(e) => panic!("{} failed with {}", stringify!($e), e),
         }
     };
+    // it can show extra info in the second parameter
+    ($e:expr, $extra:expr) => {
+        match $e {
+            Ok(e) => e,
+            Err(e) => panic!("{} failed with {} ({:?})", stringify!($e), e, $extra),
+        }
+    };
+}
+
+// Because Cargo adds the compiler's dylib path to our library search path, llvm-config may
+// break: the dylib path for the compiler, as of this writing, contains a copy of the LLVM
+// shared library, which means that when our freshly built llvm-config goes to load it's
+// associated LLVM, it actually loads the compiler's LLVM. In particular when building the first
+// compiler (i.e., in stage 0) that's a problem, as the compiler's LLVM is likely different from
+// the one we want to use. As such, we restore the environment to what bootstrap saw. This isn't
+// perfect -- we might actually want to see something from Cargo's added library paths -- but
+// for now it works.
+pub fn restore_library_path() {
+    println!("cargo:rerun-if-env-changed=REAL_LIBRARY_PATH_VAR");
+    println!("cargo:rerun-if-env-changed=REAL_LIBRARY_PATH");
+    let key = env::var_os("REAL_LIBRARY_PATH_VAR").expect("REAL_LIBRARY_PATH_VAR");
+    if let Some(env) = env::var_os("REAL_LIBRARY_PATH") {
+        env::set_var(&key, &env);
+    } else {
+        env::remove_var(&key);
+    }
+}
+
+/// Run the command, printing what we are running.
+pub fn run_verbose(cmd: &mut Command) {
+    println!("running: {:?}", cmd);
+    run_silent(cmd);
 }
 
 pub fn run(cmd: &mut Command) {
@@ -103,8 +135,10 @@ pub fn gnu_target(target: &str) -> &str {
 }
 
 pub fn make(host: &str) -> PathBuf {
-    if host.contains("dragonfly") || host.contains("freebsd")
-        || host.contains("netbsd") || host.contains("openbsd")
+    if host.contains("dragonfly")
+        || host.contains("freebsd")
+        || host.contains("netbsd")
+        || host.contains("openbsd")
     {
         PathBuf::from("gmake")
     } else {
@@ -131,7 +165,8 @@ pub fn output(cmd: &mut Command) -> String {
 }
 
 pub fn rerun_if_changed_anything_in_dir(dir: &Path, filter: &Vec<&str>) {
-    let mut stack = dir.read_dir()
+    let mut stack = dir
+        .read_dir()
         .unwrap()
         .map(|e| e.unwrap())
         .filter(|e| !is_in_filter_list(&*e.file_name(), filter))
@@ -160,7 +195,7 @@ pub fn mtime(path: &Path) -> SystemTime {
         .unwrap_or(UNIX_EPOCH)
 }
 
-/// Returns whether `dst` is up to date given that the file or files in `src`
+/// Returns `true` if `dst` is up to date given that the file or files in `src`
 /// are used to generate it.
 ///
 /// Uses last-modified time checks to verify this.

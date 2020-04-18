@@ -18,7 +18,6 @@
 use sgx_types::{SysError, sgx_thread_t, SGX_THREAD_T_NULL};
 use sgx_trts::enclave::SgxThreadData;
 use sgx_trts::libc;
-use sgx_libc::{c_void, c_int, c_long};
 use core::cell::UnsafeCell;
 use crate::io::{self, Error};
 use crate::sys::mutex::{self, SgxThreadMutex};
@@ -33,7 +32,6 @@ struct SgxThreadCondvarInner {
 }
 
 impl SgxThreadCondvarInner {
-
     pub const fn new() -> Self {
         SgxThreadCondvarInner {
             spinlock: SgxThreadSpinlock::new(),
@@ -57,9 +55,11 @@ impl SgxThreadCondvarInner {
             if waiter == SGX_THREAD_T_NULL {
                 mutex::thread_wait_event(SgxThreadData::current().get_tcs(), Duration::new(u64::MAX, 1_000_000_000 - 1));
             } else {
-                mutex::thread_setwait_events(SgxThreadData::from_raw(waiter).get_tcs(),
-                                             SgxThreadData::current().get_tcs(),
-                                             Duration::new(u64::MAX, 1_000_000_000 - 1));
+                mutex::thread_setwait_events(
+                    SgxThreadData::from_raw(waiter).get_tcs(),
+                    SgxThreadData::current().get_tcs(),
+                    Duration::new(u64::MAX, 1_000_000_000 - 1),
+                );
                 waiter = SGX_THREAD_T_NULL;
             }
             self.spinlock.lock();
@@ -96,9 +96,11 @@ impl SgxThreadCondvarInner {
             if waiter == SGX_THREAD_T_NULL {
                 result = mutex::thread_wait_event(SgxThreadData::current().get_tcs(), dur);
             } else {
-                result = mutex::thread_setwait_events(SgxThreadData::from_raw(waiter).get_tcs(),
-                                                      SgxThreadData::current().get_tcs(),
-                                                      dur);
+                result = mutex::thread_setwait_events(
+                    SgxThreadData::from_raw(waiter).get_tcs(),
+                    SgxThreadData::current().get_tcs(),
+                    dur,
+                );
                 waiter = SGX_THREAD_T_NULL;
             }
 
@@ -183,7 +185,6 @@ pub struct SgxThreadCondvar {
 }
 
 impl SgxThreadCondvar {
-
     pub const fn new() -> Self {
         SgxThreadCondvar { inner: UnsafeCell::new(SgxThreadCondvarInner::new()) }
     }

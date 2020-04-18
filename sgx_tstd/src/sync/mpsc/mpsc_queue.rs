@@ -61,15 +61,12 @@ pub struct Queue<T> {
     tail: UnsafeCell<*mut Node<T>>,
 }
 
-unsafe impl<T: Send> Send for Queue<T> { }
-unsafe impl<T: Send> Sync for Queue<T> { }
+unsafe impl<T: Send> Send for Queue<T> {}
+unsafe impl<T: Send> Sync for Queue<T> {}
 
 impl<T> Node<T> {
     unsafe fn new(v: Option<T>) -> *mut Node<T> {
-        Box::into_raw(box Node {
-            next: AtomicPtr::new(ptr::null_mut()),
-            value: v,
-        })
+        Box::into_raw(box Node { next: AtomicPtr::new(ptr::null_mut()), value: v })
     }
 }
 
@@ -78,10 +75,7 @@ impl<T> Queue<T> {
     /// one consumer.
     pub fn new() -> Queue<T> {
         let stub = unsafe { Node::new(None) };
-        Queue {
-            head: AtomicPtr::new(stub),
-            tail: UnsafeCell::new(stub),
-        }
+        Queue { head: AtomicPtr::new(stub), tail: UnsafeCell::new(stub) }
     }
 
     /// Pushes a new value onto this queue.
@@ -117,7 +111,7 @@ impl<T> Queue<T> {
                 return Data(ret);
             }
 
-            if self.head.load(Ordering::Acquire) == tail {Empty} else {Inconsistent}
+            if self.head.load(Ordering::Acquire) == tail { Empty } else { Inconsistent }
         }
     }
 }

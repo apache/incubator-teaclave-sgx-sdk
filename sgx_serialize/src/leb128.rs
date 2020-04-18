@@ -32,7 +32,8 @@ fn write_to_vec(vec: &mut Vec<u8>, position: usize, byte: u8) {
 /// The callback function `write` is called once on writing one byte out.
 #[inline]
 pub fn write_unsigned_leb128_to<W>(mut value: u128, mut write: W) -> usize
-    where W: FnMut(usize, u8)
+where
+    W: FnMut(usize, u8),
 {
     let mut position = 0;
     loop {
@@ -86,7 +87,8 @@ pub fn read_unsigned_leb128(data: &[u8], start_position: usize) -> (u128, usize)
 /// The callback function `write` is called once on writing one byte out.
 #[inline]
 pub fn write_signed_leb128_to<W>(mut value: i128, mut write: W) -> usize
-    where W: FnMut(usize, u8)
+where
+    W: FnMut(usize, u8),
 {
     let mut position = 0;
 

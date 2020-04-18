@@ -444,6 +444,21 @@ extern "C" {
                               error: *mut c_int,
                               rqtp: *const timespec,
                               rmtp: *mut timespec) -> sgx_status_t;
+    //signal
+    pub fn u_sigaction_ocall(result: *mut c_int,
+                             error: *mut c_int,
+                             signum: c_int,
+                             act: *const sigaction,
+                             oldact: *mut sigaction,
+                             enclave_id: uint64_t) -> sgx_status_t;
+    pub fn u_sigprocmask_ocall(result: *mut c_int,
+                                error: *mut c_int,
+                                signum: c_int,
+                                set: *const sigset_t,
+                                oldset: *mut sigset_t) -> sgx_status_t;
+    pub fn u_raise_ocall(result: *mut c_int, signum: c_int) -> sgx_status_t;
+    //process
+    pub fn u_getpid_ocall(result: *mut pid_t) -> sgx_status_t;
 }
 
 pub unsafe fn malloc(size: size_t) -> *mut c_void {
@@ -2581,15 +2596,28 @@ pub unsafe fn getaddrinfo(node: *const c_char,
     let mut result: c_int = 0;
     let mut error: c_int = 0;
     let mut ret_res: *mut addrinfo = ptr::null_mut();
-    let hint: addrinfo = addrinfo {
-        ai_flags: (*hints).ai_flags,
-        ai_family: (*hints).ai_family,
-        ai_socktype: (*hints).ai_socktype,
-        ai_protocol: (*hints).ai_protocol,
-        ai_addrlen: 0,
-        ai_addr: ptr::null_mut(),
-        ai_canonname: ptr::null_mut(),
-        ai_next: ptr::null_mut(),
+    let hint: addrinfo = if !hints.is_null() {
+        addrinfo {
+            ai_flags: (*hints).ai_flags,
+            ai_family: (*hints).ai_family,
+            ai_socktype: (*hints).ai_socktype,
+            ai_protocol: (*hints).ai_protocol,
+            ai_addrlen: 0,
+            ai_addr: ptr::null_mut(),
+            ai_canonname: ptr::null_mut(),
+            ai_next: ptr::null_mut(),
+        }
+    } else {
+        addrinfo {
+            ai_flags: AI_V4MAPPED | AI_ADDRCONFIG,
+            ai_family: AF_UNSPEC,
+            ai_socktype: 0,
+            ai_protocol: 0,
+            ai_addrlen: 0,
+            ai_addr: ptr::null_mut(),
+            ai_canonname: ptr::null_mut(),
+            ai_next: ptr::null_mut(),
+        }
     };
 
     let status = u_getaddrinfo_ocall(&mut result as *mut c_int,
@@ -2644,11 +2672,12 @@ pub unsafe fn getaddrinfo(node: *const c_char,
                 for i in 0..addrinfo_vec.len() - 1 {
                     addrinfo_vec[i].ai_next = addrinfo_vec[i + 1].as_mut() as *mut addrinfo;
                 }
-                *res = addrinfo_vec[0].as_mut() as *mut addrinfo;
+                let res_ptr = addrinfo_vec[0].as_mut() as *mut addrinfo;
 
                 for info in addrinfo_vec {
                     let _ = Box::into_raw(info);
                 }
+                *res = res_ptr;
             }
             let _ = u_freeaddrinfo_ocall(ret_res);
 
@@ -2918,6 +2947,72 @@ pub unsafe fn nanosleep(rqtp: *const timespec, rmtp: *mut timespec) -> c_int {
         }
     } else {
         set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn sigaction(signum: c_int,
+                        act: *const sigaction,
+                        oldact: *mut sigaction,
+                        enclave_id: uint64_t) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_sigaction_ocall(&mut result as *mut c_int,
+                                   &mut error as *mut c_int,
+                                   signum,
+                                   act,
+                                   oldact,
+                                   enclave_id);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn sigprocmask(signum: c_int,
+                          set: *const sigset_t,
+                          oldset: *mut sigset_t) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status =  u_sigprocmask_ocall(&mut result as *mut c_int,
+                                      &mut error as *mut c_int,
+                                      signum,
+                                      set,
+                                      oldset);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn raise(signum: c_int) -> c_int {
+    let mut result: c_int = -1;
+    let status = u_raise_ocall(&mut result as *mut c_int, signum);
+    if status != sgx_status_t::SGX_SUCCESS {
+       result = -1;
+    }
+    result
+}
+
+pub unsafe fn pthread_sigmask(signum: c_int, set: &sigset_t, oldset: &mut sigset_t) -> c_int {
+    sigprocmask(signum, set, oldset)
+}
+
+pub unsafe fn getpid() -> pid_t {
+    let mut result = -1;
+    let status = u_getpid_ocall(&mut result as *mut pid_t);
+    if status != sgx_status_t::SGX_SUCCESS {
         result = -1;
     }
     result

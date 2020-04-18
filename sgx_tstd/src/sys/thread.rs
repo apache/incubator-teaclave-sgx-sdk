@@ -23,7 +23,6 @@ use crate::ffi::CStr;
 use crate::io;
 use crate::sys::os;
 use crate::time::Duration;
-use crate::sys_common::thread::*;
 
 pub struct Thread {
     id: libc::pthread_t,
@@ -36,24 +35,29 @@ unsafe impl Sync for Thread {}
 impl Thread {
     // unsafe: see thread::Builder::spawn_unchecked for safety requirements
     pub unsafe fn new(p: Box<dyn FnOnce()>) -> io::Result<Thread> {
-        let p = box p;
+        let p = Box::into_raw(box p);
         let mut native: libc::pthread_t = mem::zeroed();
         let attr: libc::pthread_attr_t = mem::zeroed();
-        let ret = libc::pthread_create(&mut native, &attr, thread_start,
-                                       &*p as *const _ as *mut _);
+        let ret = libc::pthread_create(&mut native, &attr, thread_start, p as *mut _);
+
         return if ret != 0 {
+            // The thread failed to start and as a result p was not consumed. Therefore, it is
+            // safe to reconstruct the box so that it gets deallocated.
+            drop(Box::from_raw(p));
             if ret == libc::EAGAIN {
                 Err(io::Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_TCS))
             } else {
                 Err(io::Error::from_raw_os_error(ret))
             }
         } else {
-            mem::forget(p); // ownership passed to pthread_create
             Ok(Thread { id: native })
         };
 
-        extern fn thread_start(main: *mut libc::c_void) -> *mut libc::c_void {
-            unsafe { start_thread(main as *mut u8); }
+        extern "C" fn thread_start(main: *mut libc::c_void) -> *mut libc::c_void {
+            unsafe {
+                // Finally, let's run some code.
+                Box::from_raw(main as *mut Box<dyn FnOnce()>)();
+            }
             ptr::null_mut()
         }
     }
@@ -100,12 +104,13 @@ impl Thread {
         unsafe {
             let ret = libc::pthread_join(self.id, ptr::null_mut());
             mem::forget(self);
-            assert!(ret == 0,
-                    "failed to join thread: {}", io::Error::from_raw_os_error(ret));
+            assert!(ret == 0, "failed to join thread: {}", io::Error::from_raw_os_error(ret));
         }
     }
 
-    pub fn id(&self) -> libc::pthread_t { self.id }
+    pub fn id(&self) -> libc::pthread_t {
+        self.id
+    }
 
     pub fn into_id(self) -> libc::pthread_t {
         let id = self.id;

@@ -17,30 +17,36 @@
 
 //! Panic support in the standard library
 
+use crate::collections;
 use crate::panicking;
 use crate::thread::Result;
+use crate::sync::{SgxMutex, SgxReentrantMutex, SgxRwLock};
 use core::any::Any;
 use core::cell::UnsafeCell;
-use crate::collections;
 use core::fmt;
-use core::pin::Pin;
-use core::ops::{Deref, DerefMut, Fn};
-use core::ptr::{Unique, NonNull};
-use core::sync::atomic;
 use core::future::Future;
+use core::ops::{Deref, DerefMut};
+use core::pin::Pin;
+use core::ptr::{NonNull, Unique};
+use core::sync::atomic;
 use core::task::{Context, Poll};
 use alloc_crate::boxed::Box;
 use alloc_crate::rc::Rc;
 use alloc_crate::sync::Arc;
 
-pub use crate::panicking::set_panic_handler;
-pub use core::panic::{PanicInfo, Location};
+pub use crate::panicking::{set_panic_handler, take_panic_handler};
+pub use core::panic::{Location, PanicInfo};
+
 /// A marker trait which represents "panic safe" types in Rust.
 ///
 /// This trait is implemented by default for many types and behaves similarly in
 /// terms of inference of implementation to the [`Send`] and [`Sync`] traits. The
 /// purpose of this trait is to encode what types are safe to cross a [`catch_unwind`]
 /// boundary with no fear of unwind safety.
+///
+/// [`Send`]: ../marker/trait.Send.html
+/// [`Sync`]: ../marker/trait.Sync.html
+/// [`catch_unwind`]: ./fn.catch_unwind.html
 ///
 /// ## What is unwind safety?
 ///
@@ -96,7 +102,7 @@ pub use core::panic::{PanicInfo, Location};
 /// easy to witness a broken invariant outside of `catch_unwind` as the data is
 /// simply accessed as usual.
 ///
-/// Types like `&SgxMutex<T>`, however, are unwind safe because they implement
+/// Types like `&Mutex<T>`, however, are unwind safe because they implement
 /// poisoning by default. They still allow witnessing a broken invariant, but
 /// they already provide their own "speed bumps" to do so.
 ///
@@ -153,6 +159,9 @@ impl<T: RefUnwindSafe + ?Sized> UnwindSafe for *const T {}
 impl<T: RefUnwindSafe + ?Sized> UnwindSafe for *mut T {}
 impl<T: UnwindSafe + ?Sized> UnwindSafe for Unique<T> {}
 impl<T: RefUnwindSafe + ?Sized> UnwindSafe for NonNull<T> {}
+impl<T: ?Sized> UnwindSafe for SgxMutex<T> {}
+impl<T> UnwindSafe for SgxReentrantMutex<T> {}
+impl<T: ?Sized> UnwindSafe for SgxRwLock<T> {}
 impl<T> UnwindSafe for AssertUnwindSafe<T> {}
 
 // not covered via the Shared impl above b/c the inner contents use
@@ -169,40 +178,49 @@ impl<T: RefUnwindSafe + ?Sized> UnwindSafe for Arc<T> {}
 impl<T: ?Sized> !RefUnwindSafe for UnsafeCell<T> {}
 impl<T> RefUnwindSafe for AssertUnwindSafe<T> {}
 
-#[cfg(target_has_atomic = "ptr")]
+impl<T: ?Sized> RefUnwindSafe for SgxMutex<T> {}
+impl<T> RefUnwindSafe for SgxReentrantMutex<T> {}
+impl<T: ?Sized> RefUnwindSafe for SgxRwLock<T> {}
+
+#[cfg(target_has_atomic_load_store = "ptr")]
 impl RefUnwindSafe for atomic::AtomicIsize {}
-#[cfg(target_has_atomic = "8")]
+#[cfg(target_has_atomic_load_store = "8")]
 impl RefUnwindSafe for atomic::AtomicI8 {}
-#[cfg(target_has_atomic = "16")]
+#[cfg(target_has_atomic_load_store = "16")]
 impl RefUnwindSafe for atomic::AtomicI16 {}
-#[cfg(target_has_atomic = "32")]
+#[cfg(target_has_atomic_load_store = "32")]
 impl RefUnwindSafe for atomic::AtomicI32 {}
-#[cfg(target_has_atomic = "64")]
+#[cfg(target_has_atomic_load_store = "64")]
 impl RefUnwindSafe for atomic::AtomicI64 {}
-#[cfg(target_has_atomic = "128")]
+#[cfg(target_has_atomic_load_store = "128")]
 impl RefUnwindSafe for atomic::AtomicI128 {}
 
-#[cfg(target_has_atomic = "ptr")]
+#[cfg(target_has_atomic_load_store = "ptr")]
 impl RefUnwindSafe for atomic::AtomicUsize {}
-#[cfg(target_has_atomic = "8")]
+#[cfg(target_has_atomic_load_store = "8")]
 impl RefUnwindSafe for atomic::AtomicU8 {}
-#[cfg(target_has_atomic = "16")]
+#[cfg(target_has_atomic_load_store = "16")]
 impl RefUnwindSafe for atomic::AtomicU16 {}
-#[cfg(target_has_atomic = "32")]
+#[cfg(target_has_atomic_load_store = "32")]
 impl RefUnwindSafe for atomic::AtomicU32 {}
-#[cfg(target_has_atomic = "64")]
+#[cfg(target_has_atomic_load_store = "64")]
 impl RefUnwindSafe for atomic::AtomicU64 {}
-#[cfg(target_has_atomic = "128")]
+#[cfg(target_has_atomic_load_store = "128")]
 impl RefUnwindSafe for atomic::AtomicU128 {}
 
-#[cfg(target_has_atomic = "8")]
+#[cfg(target_has_atomic_load_store = "8")]
 impl RefUnwindSafe for atomic::AtomicBool {}
 
-#[cfg(target_has_atomic = "ptr")]
+#[cfg(target_has_atomic_load_store = "ptr")]
 impl<T> RefUnwindSafe for atomic::AtomicPtr<T> {}
 
 impl<K, V, S> UnwindSafe for collections::HashMap<K, V, S>
-    where K: UnwindSafe, V: UnwindSafe, S: UnwindSafe {}
+where
+    K: UnwindSafe,
+    V: UnwindSafe,
+    S: UnwindSafe,
+{
+}
 
 impl<T> Deref for AssertUnwindSafe<T> {
     type Target = T;
@@ -228,9 +246,7 @@ impl<R, F: FnOnce() -> R> FnOnce<()> for AssertUnwindSafe<F> {
 
 impl<T: fmt::Debug> fmt::Debug for AssertUnwindSafe<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("AssertUnwindSafe")
-            .field(&self.0)
-            .finish()
+        f.debug_tuple("AssertUnwindSafe").field(&self.0).finish()
     }
 }
 
@@ -282,9 +298,7 @@ impl<F: Future> Future for AssertUnwindSafe<F> {
 /// not those that abort the process.
 ///
 pub fn catch_unwind<F: FnOnce() -> R + UnwindSafe, R>(f: F) -> Result<R> {
-    unsafe {
-        panicking::r#try(f)
-    }
+    unsafe { panicking::r#try(f) }
 }
 
 /// Triggers a panic without invoking the panic hook.
@@ -302,5 +316,5 @@ pub fn catch_unwind<F: FnOnce() -> R + UnwindSafe, R>(f: F) -> Result<R> {
 /// not trigger an unwind.
 ///
 pub fn resume_unwind(payload: Box<dyn Any + Send>) -> ! {
-    panicking::update_count_then_panic(payload)
+    panicking::rust_panic_without_hook(payload)
 }

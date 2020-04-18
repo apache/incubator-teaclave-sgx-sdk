@@ -19,11 +19,13 @@ use std::io::Error;
 use libc::{self, c_int, c_char, addrinfo};
 
 #[no_mangle]
-pub extern "C" fn u_getaddrinfo_ocall(error: *mut c_int,
-                                      node: *const c_char,
-                                      service: *const c_char,
-                                      hints: *const addrinfo,
-                                      res: *mut *mut addrinfo) -> c_int {
+pub extern "C" fn u_getaddrinfo_ocall(
+    error: *mut c_int,
+    node: *const c_char,
+    service: *const c_char,
+    hints: *const addrinfo,
+    res: *mut *mut addrinfo,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::getaddrinfo(node, service, hints, res) };
     if ret == libc::EAI_SYSTEM {

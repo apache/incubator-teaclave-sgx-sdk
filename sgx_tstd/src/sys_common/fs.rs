@@ -19,16 +19,12 @@
 use crate::fs;
 #[cfg(not(feature = "untrusted_fs"))]
 use crate::untrusted::fs;
-use crate::io::{self, Error, ErrorKind};
+use crate::io;
 use crate::path::Path;
 
 pub fn remove_dir_all(path: &Path) -> io::Result<()> {
     let filetype = fs::symlink_metadata(path)?.file_type();
-    if filetype.is_symlink() {
-        fs::remove_file(path)
-    } else {
-        remove_dir_all_recursive(path)
-    }
+    if filetype.is_symlink() { fs::remove_file(path) } else { remove_dir_all_recursive(path) }
 }
 
 fn remove_dir_all_recursive(path: &Path) -> io::Result<()> {

@@ -31,7 +31,9 @@ pub trait ConsttimeMemEq<T: BytewiseEquality + ?Sized = Self> {
 }
 
 impl<T> ConsttimeMemEq<[T]> for [T]
-    where T: Eq + BytewiseEquality {
+where
+    T: Eq + BytewiseEquality,
+{
     fn consttime_memeq(&self, other: &[T]) -> bool {
         if self.len() != other.len() {
             return false;
@@ -41,31 +43,39 @@ impl<T> ConsttimeMemEq<[T]> for [T]
         }
         let size = mem::size_of_val(self);
         unsafe {
-            consttime_memequal(self.as_ptr() as *const u8,
-                               other.as_ptr() as *const u8,
-                               size) != 0
+            consttime_memequal(
+                self.as_ptr() as *const u8,
+                other.as_ptr() as *const u8,
+                size,
+            ) != 0
         }
     }
 }
 
 impl<T> ConsttimeMemEq<T> for T
-    where T: Eq + BytewiseEquality {
+where
+    T: Eq + BytewiseEquality,
+{
     fn consttime_memeq(&self, other: &T) -> bool {
         let size = mem::size_of_val(self);
         if size == 0 {
             return true;
         }
         unsafe {
-            consttime_memequal(self as *const T as *const u8,
-                               other as *const T as *const u8,
-                               size) != 0
+            consttime_memequal(
+                self as *const T as *const u8,
+                other as *const T as *const u8,
+                size,
+            ) != 0
         }
     }
 }
 
-unsafe fn consttime_memequal(b1: *const u8,
-                             b2: *const u8,
-                             l: usize) -> i32 {
+unsafe fn consttime_memequal(
+    b1: *const u8,
+    b2: *const u8,
+    l: usize,
+) -> i32 {
     let mut res: u32 = 0;
     let mut len = l;
     let p1 = slice::from_raw_parts(b1, l);

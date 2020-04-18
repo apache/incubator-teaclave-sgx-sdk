@@ -21,8 +21,8 @@ use sgx_rand::*;
 // pub use os::SgxRng
 pub fn test_rand_os_sgxrng(){
     let mut os_rng = os::SgxRng::new().unwrap();
-    let mut checksum_u32 : u32 = 0;
-    let mut checksum_u64 : u64 = 0;
+    let mut checksum_u32: u32 = 0;
+    let mut checksum_u64: u64 = 0;
     let testcount = 1000;
     for _ in 0..testcount {
         checksum_u32 |= os_rng.next_u32();
@@ -31,10 +31,10 @@ pub fn test_rand_os_sgxrng(){
     assert_ne!(checksum_u32, 0);
     assert_ne!(checksum_u64, 0);
 
-    let mut rand_arr = [0;1000];
+    let mut rand_arr = [0; 1000];
     os_rng.fill_bytes(&mut rand_arr[..]);
-    let x = rand_arr.iter().fold(0, |sum, &x| sum + x);
-    assert_ne!(x, 0);
+    let cmp = [0; 1000].iter().zip(rand_arr.iter()).all(|(x, y)| x == y);
+    assert_ne!(cmp, true);
 }
 
 // pub mod distribution
@@ -45,8 +45,8 @@ pub fn test_rand_distributions () {
     use sgx_rand::*;
 
     // From rust-src/librand/distributions/rand.rs
-    should_panic!(Range::new(10,10));
-    should_panic!(Range::new(10,5));
+    should_panic!(Range::new(10, 10));
+    should_panic!(Range::new(10, 5));
     let mut rng = thread_rng();
     macro_rules! t {
         ($($ty:ident),*) => {{

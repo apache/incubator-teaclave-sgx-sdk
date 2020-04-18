@@ -17,7 +17,7 @@ pub struct SeEvent {
 }
 
 impl SeEvent {
-    pub fn new() -> Self {
+    pub fn new() -> SeEvent {
         SeEvent{
             event: AtomicI32::new(0),
         }
@@ -26,13 +26,15 @@ impl SeEvent {
     pub fn wait_timeout(&self, timeout: &timespec) -> i32 {
         if self.event.fetch_add(-1, Ordering::SeqCst) == 0 {
             let ret = unsafe {
-                libc::syscall(libc::SYS_futex,
-                              self,
-                              FUTEX_WAIT,
-                              -1,
-                              timeout as *const timespec,
-                              0,
-                              0)
+                libc::syscall(
+                    libc::SYS_futex,
+                    self,
+                    FUTEX_WAIT,
+                    -1,
+                    timeout as *const timespec,
+                    0,
+                    0,
+                )
             };
             if ret < 0 {
                 let err = Error::last_os_error().raw_os_error().unwrap_or(0);
@@ -48,13 +50,15 @@ impl SeEvent {
     pub fn wait(&self) -> i32 {
         if self.event.fetch_add(-1, Ordering::SeqCst) == 0 {
             let ret = unsafe {
-                libc::syscall(libc::SYS_futex,
-                              self,
-                              FUTEX_WAIT,
-                              -1,
-                              0,
-                              0,
-                              0)
+                libc::syscall(
+                    libc::SYS_futex,
+                    self,
+                    FUTEX_WAIT,
+                    -1,
+                    0,
+                    0,
+                    0,
+                )
             };
             if ret < 0 {
                 let _err = Error::last_os_error().raw_os_error().unwrap_or(0);
@@ -66,13 +70,15 @@ impl SeEvent {
     pub fn wake(&self) -> i32 {
         if self.event.fetch_add(1, Ordering::SeqCst) != 0 {
            unsafe {
-               libc::syscall(libc::SYS_futex,
-                             self,
-                             FUTEX_WAKE,
-                             1,
-                             0,
-                             0,
-                             0)
+               libc::syscall(
+                   libc::SYS_futex,
+                    self,
+                    FUTEX_WAKE,
+                    1,
+                    0,
+                    0,
+                    0,
+                )
             };
         }
         0
@@ -89,7 +95,7 @@ struct SgxTcsInfoCache<'a> {
 }
 
 impl<'a> SgxTcsInfoCache<'a> {
-    fn new() -> Self {
+    fn new() -> SgxTcsInfoCache<'a> {
         SgxTcsInfoCache {
             cache: Mutex::new(Vec::new()),
         }
@@ -102,9 +108,10 @@ impl<'a> SgxTcsInfoCache<'a> {
             Some(i) => v[i].se_event,
             None => {
                 let event: &SeEvent = unsafe { &*Box::into_raw(Box::new(SeEvent::new())) };
-                v.push(SgxTcsInfo{
-                        tcs: tcs,
-                        se_event: event});
+                v.push(SgxTcsInfo {
+                    tcs: tcs,
+                    se_event: event,
+                });
                 let len = v.len();
                 v[len -1].se_event
             },
@@ -112,7 +119,7 @@ impl<'a> SgxTcsInfoCache<'a> {
     }
 }
 
-pub fn get_tcs_event(_tcs: usize) -> & 'static SeEvent {
+pub fn get_tcs_event(_tcs: usize) -> &'static SeEvent {
     unsafe {
         INIT.call_once(|| {
             GLOBAL_TCS_CACHE = Some(SgxTcsInfoCache::new());
@@ -174,10 +181,11 @@ pub extern "C" fn u_thread_wait_event_ocall(error: *mut c_int, tcs: *const c_voi
 }
 
 #[no_mangle]
-pub extern "C" fn u_thread_set_multiple_events_ocall(error: *mut c_int,
-                                                     tcss: *const *const c_void,
-                                                     total: c_int) -> c_int {
-
+pub extern "C" fn u_thread_set_multiple_events_ocall(
+    error: *mut c_int,
+    tcss: *const *const c_void,
+    total: c_int,
+) -> c_int {
     if tcss.is_null() {
         if !error.is_null() {
             unsafe { *error = libc::EINVAL; }
@@ -204,11 +212,12 @@ pub extern "C" fn u_thread_set_multiple_events_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_thread_setwait_events_ocall(error: *mut c_int,
-                                                waiter_tcs: *const c_void,
-                                                self_tcs: *const c_void,
-                                                timeout: *const timespec) -> c_int {
-
+pub extern "C" fn u_thread_setwait_events_ocall(
+    error: *mut c_int,
+    waiter_tcs: *const c_void,
+    self_tcs: *const c_void,
+    timeout: *const timespec,
+) -> c_int {
     let result = u_thread_set_event_ocall(error, waiter_tcs);
     if result < 0 {
         result

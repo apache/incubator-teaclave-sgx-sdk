@@ -19,6 +19,7 @@ use crate::memchr;
 use core::cmp;
 use core::fmt;
 use core::ptr;
+use core::mem;
 use core::ops::{Deref, DerefMut};
 use alloc_crate::slice;
 use alloc_crate::vec::Vec;
@@ -26,21 +27,19 @@ use alloc_crate::str;
 use alloc_crate::string::String;
 use crate::sys;
 
-pub use self::buffered::{BufReader, BufWriter, LineWriter};
 pub use self::buffered::IntoInnerError;
+pub use self::buffered::{BufReader, BufWriter, LineWriter};
 pub use self::cursor::Cursor;
-pub use self::error::{Result, Error, ErrorKind};
-pub use self::util::{copy, sink, Sink, empty, Empty, repeat, Repeat};
+pub use self::error::{Error, ErrorKind, Result};
 pub use self::lazy::{Lazy};
-
 pub use sys::os::{errno, set_errno, error_string};
 #[cfg(feature = "stdio")]
-pub use self::stdio::{stdin, stdout, stderr, Stdin, Stdout, Stderr};
+pub use self::stdio::{stderr, stdin, stdout, Stderr, Stdin, Stdout};
 #[cfg(feature = "stdio")]
-pub use self::stdio::{StdoutLock, StderrLock, StdinLock};
+pub use self::stdio::{StderrLock, StdinLock, StdoutLock};
 #[cfg(feature = "stdio")]
-pub use self::stdio::{_print, _eprint};
-//pub use self::stdio::{set_panic, set_print};
+pub use self::stdio::{_eprint, _print};
+pub use self::util::{copy, empty, repeat, sink, Empty, Repeat, Sink};
 
 pub mod prelude;
 mod buffered;
@@ -48,17 +47,22 @@ mod cursor;
 mod error;
 mod impls;
 mod lazy;
-mod util;
 #[cfg(feature = "stdio")]
 mod stdio;
+mod util;
 
 const DEFAULT_BUF_SIZE: usize = crate::sys_common::io::DEFAULT_BUF_SIZE;
 
-struct Guard<'a> { buf: &'a mut Vec<u8>, len: usize }
+struct Guard<'a> {
+    buf: &'a mut Vec<u8>,
+    len: usize,
+}
 
 impl Drop for Guard<'_> {
     fn drop(&mut self) {
-        unsafe { self.buf.set_len(self.len); }
+        unsafe {
+            self.buf.set_len(self.len);
+        }
     }
 }
 
@@ -81,15 +85,15 @@ impl Drop for Guard<'_> {
 //    the function only *appends* bytes to the buffer. We'll get undefined
 //    behavior if existing bytes are overwritten to have non-UTF-8 data.
 fn append_to_string<F>(buf: &mut String, f: F) -> Result<usize>
-    where F: FnOnce(&mut Vec<u8>) -> Result<usize>
+where
+    F: FnOnce(&mut Vec<u8>) -> Result<usize>,
 {
     unsafe {
         let mut g = Guard { len: buf.len(), buf: buf.as_mut_vec() };
         let ret = f(g.buf);
         if str::from_utf8(&g.buf[g.len..]).is_err() {
             ret.and_then(|_| {
-                Err(Error::new(ErrorKind::InvalidData,
-                               "stream did not contain valid UTF-8"))
+                Err(Error::new(ErrorKind::InvalidData, "stream did not contain valid UTF-8"))
             })
         } else {
             g.len = g.buf.len();
@@ -108,20 +112,33 @@ fn append_to_string<F>(buf: &mut String, f: F) -> Result<usize>
 // Because we're extending the buffer with uninitialized data for trusted
 // readers, we need to make sure to truncate that if any of this panics.
 fn read_to_end<R: Read + ?Sized>(r: &mut R, buf: &mut Vec<u8>) -> Result<usize> {
-    read_to_end_with_reservation(r, buf, 32)
+    read_to_end_with_reservation(r, buf, |_| 32)
 }
 
-fn read_to_end_with_reservation<R: Read + ?Sized>(r: &mut R,
-                                                  buf: &mut Vec<u8>,
-                                                  reservation_size: usize) -> Result<usize>
+fn read_to_end_with_reservation<R, F>(
+    r: &mut R,
+    buf: &mut Vec<u8>,
+    mut reservation_size: F,
+) -> Result<usize>
+where
+    R: Read + ?Sized,
+    F: FnMut(&R) -> usize,
 {
     let start_len = buf.len();
-    let mut g = Guard { len: buf.len(), buf: buf };
+    let mut g = Guard { len: buf.len(), buf };
     let ret;
     loop {
         if g.len == g.buf.len() {
             unsafe {
-                g.buf.reserve(reservation_size);
+                // FIXME(danielhenrymantilla): #42788
+                //
+                //   - This creates a (mut) reference to a slice of
+                //     _uninitialized_ integers, which is **undefined behavior**
+                //
+                //   - Only the standard library gets to soundly "ignore" this,
+                //     based on its privileged knowledge of unstable rustc
+                //     internals;
+                g.buf.reserve(reservation_size(r));
                 let capacity = g.buf.capacity();
                 g.buf.set_len(capacity);
                 r.initializer().initialize(&mut g.buf[g.len..]);
@@ -147,23 +164,17 @@ fn read_to_end_with_reservation<R: Read + ?Sized>(r: &mut R,
 
 pub(crate) fn default_read_vectored<F>(read: F, bufs: &mut [IoSliceMut<'_>]) -> Result<usize>
 where
-    F: FnOnce(&mut [u8]) -> Result<usize>
+    F: FnOnce(&mut [u8]) -> Result<usize>,
 {
-    let buf = bufs
-        .iter_mut()
-        .find(|b| !b.is_empty())
-        .map_or(&mut [][..], |b| &mut **b);
+    let buf = bufs.iter_mut().find(|b| !b.is_empty()).map_or(&mut [][..], |b| &mut **b);
     read(buf)
 }
 
 pub(crate) fn default_write_vectored<F>(write: F, bufs: &[IoSlice<'_>]) -> Result<usize>
 where
-    F: FnOnce(&[u8]) -> Result<usize>
+    F: FnOnce(&[u8]) -> Result<usize>,
 {
-    let buf = bufs
-        .iter()
-        .find(|b| !b.is_empty())
-        .map_or(&[][..], |b| &**b);
+    let buf = bufs.iter().find(|b| !b.is_empty()).map_or(&[][..], |b| &**b);
     write(buf)
 }
 
@@ -190,7 +201,7 @@ pub trait Read {
     /// how many bytes were read.
     ///
     /// This function does not provide any guarantees about whether it blocks
-    /// waiting for data, but if an object needs to block for a read but cannot
+    /// waiting for data, but if an object needs to block for a read and cannot,
     /// it will typically signal this via an [`Err`] return value.
     ///
     /// If the return value of this method is [`Ok(n)`], then it must be
@@ -205,8 +216,17 @@ pub trait Read {
     ///
     /// No guarantees are provided about the contents of `buf` when this
     /// function is called, implementations cannot rely on any property of the
-    /// contents of `buf` being true. It is recommended that implementations
+    /// contents of `buf` being true. It is recommended that *implementations*
     /// only write data to `buf` instead of reading its contents.
+    ///
+    /// Correspondingly, however, *callers* of this method may not assume any guarantees
+    /// about how the implementation uses `buf`. The trait is safe to implement,
+    /// so it is possible that the code that's supposed to write to the buffer might also read
+    /// from it. It is your responsibility to make sure that `buf` is initialized
+    /// before calling `read`. Calling `read` with an uninitialized `buf` (of the kind one
+    /// obtains via [`MaybeUninit<T>`]) is not safe, and can lead to undefined behavior.
+    ///
+    /// [`MaybeUninit<T>`]: ../mem/union.MaybeUninit.html
     ///
     /// # Errors
     ///
@@ -339,14 +359,16 @@ pub trait Read {
         while !buf.is_empty() {
             match self.read(buf) {
                 Ok(0) => break,
-                Ok(n) => { let tmp = buf; buf = &mut tmp[n..]; }
+                Ok(n) => {
+                    let tmp = buf;
+                    buf = &mut tmp[n..];
+                }
                 Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
                 Err(e) => return Err(e),
             }
         }
         if !buf.is_empty() {
-            Err(Error::new(ErrorKind::UnexpectedEof,
-                           "failed to fill whole buffer"))
+            Err(Error::new(ErrorKind::UnexpectedEof, "failed to fill whole buffer"))
         } else {
             Ok(())
         }
@@ -357,7 +379,12 @@ pub trait Read {
     /// The returned adaptor also implements `Read` and will simply borrow this
     /// current reader.
     ///
-    fn by_ref(&mut self) -> &mut Self where Self: Sized { self }
+    fn by_ref(&mut self) -> &mut Self
+    where
+        Self: Sized,
+    {
+        self
+    }
 
     /// Transforms this `Read` instance to an [`Iterator`] over its bytes.
     ///
@@ -366,7 +393,10 @@ pub trait Read {
     /// The yielded item is [`Ok`] if a byte was successfully read and [`Err`]
     /// otherwise. EOF is mapped to returning [`None`] from this iterator.
     ///
-    fn bytes(self) -> Bytes<Self> where Self: Sized {
+    fn bytes(self) -> Bytes<Self>
+    where
+        Self: Sized,
+    {
         Bytes { inner: self }
     }
 
@@ -376,7 +406,10 @@ pub trait Read {
     /// until EOF is encountered. Afterwards the output is equivalent to the
     /// output of `next`.
     ///
-    fn chain<R: Read>(self, next: R) -> Chain<Self, R> where Self: Sized {
+    fn chain<R: Read>(self, next: R) -> Chain<Self, R>
+    where
+        Self: Sized,
+    {
         Chain { first: self, second: next, done_first: false }
     }
 
@@ -387,8 +420,11 @@ pub trait Read {
     /// read errors will not count towards the number of bytes read and future
     /// calls to [`read()`] may succeed.
     ///
-    fn take(self, limit: u64) -> Take<Self> where Self: Sized {
-        Take { inner: self, limit: limit }
+    fn take(self, limit: u64) -> Take<Self>
+    where
+        Self: Sized,
+    {
+        Take { inner: self, limit }
     }
 }
 
@@ -399,6 +435,10 @@ pub trait Read {
 /// Windows.
 #[repr(transparent)]
 pub struct IoSliceMut<'a>(sys::io::IoSliceMut<'a>);
+
+unsafe impl<'a> Send for IoSliceMut<'a> {}
+
+unsafe impl<'a> Sync for IoSliceMut<'a> {}
 
 impl<'a> fmt::Debug for IoSliceMut<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -415,6 +455,38 @@ impl<'a> IoSliceMut<'a> {
     #[inline]
     pub fn new(buf: &'a mut [u8]) -> IoSliceMut<'a> {
         IoSliceMut(sys::io::IoSliceMut::new(buf))
+    }
+
+    /// Advance the internal cursor of the slice.
+    ///
+    /// # Notes
+    ///
+    /// Elements in the slice may be modified if the cursor is not advanced to
+    /// the end of the slice. For example if we have a slice of buffers with 2
+    /// `IoSliceMut`s, both of length 8, and we advance the cursor by 10 bytes
+    /// the first `IoSliceMut` will be untouched however the second will be
+    /// modified to remove the first 2 bytes (10 - 8).
+    ///
+    #[inline]
+    pub fn advance<'b>(bufs: &'b mut [IoSliceMut<'a>], n: usize) -> &'b mut [IoSliceMut<'a>] {
+        // Number of buffers to remove.
+        let mut remove = 0;
+        // Total length of all the to be removed buffers.
+        let mut accumulated_len = 0;
+        for buf in bufs.iter() {
+            if accumulated_len + buf.len() > n {
+                break;
+            } else {
+                accumulated_len += buf.len();
+                remove += 1;
+            }
+        }
+
+        let bufs = &mut bufs[remove..];
+        if !bufs.is_empty() {
+            bufs[0].0.advance(n - accumulated_len)
+        }
+        bufs
     }
 }
 
@@ -439,8 +511,13 @@ impl<'a> DerefMut for IoSliceMut<'a> {
 /// It is semantically a wrapper around an `&[u8]`, but is guaranteed to be
 /// ABI compatible with the `iovec` type on Unix platforms and `WSABUF` on
 /// Windows.
+#[derive(Copy, Clone)]
 #[repr(transparent)]
 pub struct IoSlice<'a>(sys::io::IoSlice<'a>);
+
+unsafe impl<'a> Send for IoSlice<'a> {}
+
+unsafe impl<'a> Sync for IoSlice<'a> {}
 
 impl<'a> fmt::Debug for IoSlice<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -457,6 +534,38 @@ impl<'a> IoSlice<'a> {
     #[inline]
     pub fn new(buf: &'a [u8]) -> IoSlice<'a> {
         IoSlice(sys::io::IoSlice::new(buf))
+    }
+
+    /// Advance the internal cursor of the slice.
+    ///
+    /// # Notes
+    ///
+    /// Elements in the slice may be modified if the cursor is not advanced to
+    /// the end of the slice. For example if we have a slice of buffers with 2
+    /// `IoSlice`s, both of length 8, and we advance the cursor by 10 bytes the
+    /// first `IoSlice` will be untouched however the second will be modified to
+    /// remove the first 2 bytes (10 - 8).
+    ///
+    #[inline]
+    pub fn advance<'b>(bufs: &'b mut [IoSlice<'a>], n: usize) -> &'b mut [IoSlice<'a>] {
+        // Number of buffers to remove.
+        let mut remove = 0;
+        // Total length of all the to be removed buffers.
+        let mut accumulated_len = 0;
+        for buf in bufs.iter() {
+            if accumulated_len + buf.len() > n {
+                break;
+            } else {
+                accumulated_len += buf.len();
+                remove += 1;
+            }
+        }
+
+        let bufs = &mut bufs[remove..];
+        if !bufs.is_empty() {
+            bufs[0].0.advance(n - accumulated_len)
+        }
+        bufs
     }
 }
 
@@ -542,7 +651,7 @@ pub trait Write {
     /// an [`Err`] variant.
     ///
     /// If the return value is [`Ok(n)`] then it must be guaranteed that
-    /// `0 <= n <= buf.len()`. A return value of `0` typically means that the
+    /// `n <= buf.len()`. A return value of `0` typically means that the
     /// underlying object is no longer able to accept bytes and will likely not
     /// be able to in the future as well, or that the buffer provided is empty.
     ///
@@ -566,7 +675,7 @@ pub trait Write {
 
     /// Like `write`, except that it writes from a slice of buffers.
     ///
-    /// Data is copied to from each buffer in order, with the final buffer
+    /// Data is copied from each buffer in order, with the final buffer
     /// read from possibly being only partially consumed. This method must
     /// behave as a call to `write` with the buffers concatenated would.
     ///
@@ -595,6 +704,8 @@ pub trait Write {
     /// not of [`ErrorKind::Interrupted`] kind generated from this method will be
     /// returned.
     ///
+    /// If the buffer contains no data, this will never call [`write`].
+    ///
     /// # Errors
     ///
     /// This function will return the first error of
@@ -606,9 +717,52 @@ pub trait Write {
     fn write_all(&mut self, mut buf: &[u8]) -> Result<()> {
         while !buf.is_empty() {
             match self.write(buf) {
-                Ok(0) => return Err(Error::new(ErrorKind::WriteZero,
-                                               "failed to write whole buffer")),
+                Ok(0) => {
+                    return Err(Error::new(ErrorKind::WriteZero, "failed to write whole buffer"));
+                }
                 Ok(n) => buf = &buf[n..],
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(())
+    }
+
+    /// Attempts to write multiple buffers into this writer.
+    ///
+    /// This method will continuously call [`write_vectored`] until there is no
+    /// more data to be written or an error of non-[`ErrorKind::Interrupted`]
+    /// kind is returned. This method will not return until all buffers have
+    /// been successfully written or such an error occurs. The first error that
+    /// is not of [`ErrorKind::Interrupted`] kind generated from this method
+    /// will be returned.
+    ///
+    /// If the buffer contains no data, this will never call [`write_vectored`].
+    ///
+    /// [`write_vectored`]: #method.write_vectored
+    /// [`ErrorKind::Interrupted`]: ../../std/io/enum.ErrorKind.html#variant.Interrupted
+    ///
+    /// # Notes
+    ///
+    ///
+    /// Unlike `io::Write::write_vectored`, this takes a *mutable* reference to
+    /// a slice of `IoSlice`s, not an immutable one. That's because we need to
+    /// modify the slice to keep track of the bytes already written.
+    ///
+    /// Once this function returns, the contents of `bufs` are unspecified, as
+    /// this depends on how many calls to `write_vectored` were necessary. It is
+    /// best to understand this function as taking ownership of `bufs` and to
+    /// not use `bufs` afterwards. The underlying buffers, to which the
+    /// `IoSlice`s point (but not the `IoSlice`s themselves), are unchanged and
+    /// can be reused.
+    ///
+    fn write_all_vectored(&mut self, mut bufs: &mut [IoSlice<'_>]) -> Result<()> {
+        while !bufs.is_empty() {
+            match self.write_vectored(bufs) {
+                Ok(0) => {
+                    return Err(Error::new(ErrorKind::WriteZero, "failed to write whole buffer"));
+                }
+                Ok(n) => bufs = IoSlice::advance(mem::take(&mut bufs), n),
                 Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
                 Err(e) => return Err(e),
             }
@@ -677,7 +831,12 @@ pub trait Write {
     /// The returned adaptor also implements `Write` and will simply borrow this
     /// current writer.
     ///
-    fn by_ref(&mut self) -> &mut Self where Self: Sized { self }
+    fn by_ref(&mut self) -> &mut Self
+    where
+        Self: Sized,
+    {
+        self
+    }
 }
 
 /// The `Seek` trait provides a cursor which can be moved within a stream of
@@ -767,15 +926,14 @@ pub enum SeekFrom {
     Current(i64),
 }
 
-fn read_until<R: BufRead + ?Sized>(r: &mut R, delim: u8, buf: &mut Vec<u8>)
-                                   -> Result<usize> {
+fn read_until<R: BufRead + ?Sized>(r: &mut R, delim: u8, buf: &mut Vec<u8>) -> Result<usize> {
     let mut read = 0;
     loop {
         let (done, used) = {
             let available = match r.fill_buf() {
                 Ok(n) => n,
                 Err(ref e) if e.kind() == ErrorKind::Interrupted => continue,
-                Err(e) => return Err(e)
+                Err(e) => return Err(e),
             };
             match memchr::memchr(delim, available) {
                 Some(i) => {
@@ -905,7 +1063,10 @@ pub trait BufRead: Read {
     /// [`Vec<u8>`]: ../vec/struct.Vec.html
     /// [`read_until`]: #method.read_until
     ///
-    fn split(self, byte: u8) -> Split<Self> where Self: Sized {
+    fn split(self, byte: u8) -> Split<Self>
+    where
+        Self: Sized,
+    {
         Split { buf: self, delim: byte }
     }
 
@@ -923,7 +1084,10 @@ pub trait BufRead: Read {
     /// Each line of the iterator has the same error semantics as [`BufRead::read_line`].
     ///
     /// [`BufRead::read_line`]: trait.BufRead.html#method.read_line
-    fn lines(self) -> Lines<Self> where Self: Sized {
+    fn lines(self) -> Lines<Self>
+    where
+        Self: Sized,
+    {
         Lines { buf: self }
     }
 }
@@ -966,10 +1130,7 @@ impl<T, U> Chain<T, U> {
 
 impl<T: fmt::Debug, U: fmt::Debug> fmt::Debug for Chain<T, U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Chain")
-            .field("t", &self.first)
-            .field("u", &self.second)
-            .finish()
+        f.debug_struct("Chain").field("t", &self.first).field("u", &self.second).finish()
     }
 }
 
@@ -977,7 +1138,7 @@ impl<T: Read, U: Read> Read for Chain<T, U> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         if !self.done_first {
             match self.first.read(buf)? {
-                0 if buf.len() != 0 => self.done_first = true,
+                0 if !buf.is_empty() => self.done_first = true,
                 n => return Ok(n),
             }
         }
@@ -996,11 +1157,7 @@ impl<T: Read, U: Read> Read for Chain<T, U> {
 
     unsafe fn initializer(&self) -> Initializer {
         let initializer = self.first.initializer();
-        if initializer.should_initialize() {
-            initializer
-        } else {
-            self.second.initializer()
-        }
+        if initializer.should_initialize() { initializer } else { self.second.initializer() }
     }
 }
 
@@ -1008,7 +1165,9 @@ impl<T: BufRead, U: BufRead> BufRead for Chain<T, U> {
     fn fill_buf(&mut self) -> Result<&[u8]> {
         if !self.done_first {
             match self.first.fill_buf()? {
-                buf if buf.len() == 0 => { self.done_first = true; }
+                buf if buf.is_empty() => {
+                    self.done_first = true;
+                }
                 buf => return Ok(buf),
             }
         }
@@ -1016,11 +1175,7 @@ impl<T: BufRead, U: BufRead> BufRead for Chain<T, U> {
     }
 
     fn consume(&mut self, amt: usize) {
-        if !self.done_first {
-            self.first.consume(amt)
-        } else {
-            self.second.consume(amt)
-        }
+        if !self.done_first { self.first.consume(amt) } else { self.second.consume(amt) }
     }
 }
 
@@ -1047,7 +1202,9 @@ impl<T> Take<T> {
     ///
     /// [`Read`]: ../../std/io/trait.Read.html
     ///
-    pub fn limit(&self) -> u64 { self.limit }
+    pub fn limit(&self) -> u64 {
+        self.limit
+    }
 
     /// Sets the number of bytes that can be read before this instance will
     /// return EOF. This is the same as constructing a new `Take` instance, so
@@ -1099,9 +1256,10 @@ impl<T: Read> Read for Take<T> {
     }
 
     fn read_to_end(&mut self, buf: &mut Vec<u8>) -> Result<usize> {
-        let reservation_size = cmp::min(self.limit, 32) as usize;
-
-        read_to_end_with_reservation(self, buf, reservation_size)
+        // Pass in a reservation_size closure that respects the current value
+        // of limit for each read. If we hit the read limit, this prevents the
+        // final zero-byte read from allocating again.
+        read_to_end_with_reservation(self, buf, |self_| cmp::min(self_.limit, 32) as usize)
     }
 }
 
@@ -1155,10 +1313,10 @@ impl<R: Read> Iterator for Bytes<R> {
 /// An iterator over the contents of an instance of `BufRead` split on a
 /// particular byte.
 ///
-/// This struct is generally created by calling [`split`][split] on a
-/// `BufRead`. Please see the documentation of `split()` for more details.
+/// This struct is generally created by calling [`split`] on a `BufRead`.
+/// Please see the documentation of [`split`] for more details.
 ///
-/// [split]: trait.BufRead.html#method.split
+/// [`split`]: trait.BufRead.html#method.split
 #[derive(Debug)]
 pub struct Split<B> {
     buf: B,
@@ -1178,17 +1336,17 @@ impl<B: BufRead> Iterator for Split<B> {
                 }
                 Some(Ok(buf))
             }
-            Err(e) => Some(Err(e))
+            Err(e) => Some(Err(e)),
         }
     }
 }
 
 /// An iterator over the lines of an instance of `BufRead`.
 ///
-/// This struct is generally created by calling [`lines`][lines] on a
-/// `BufRead`. Please see the documentation of `lines()` for more details.
+/// This struct is generally created by calling [`lines`] on a `BufRead`.
+/// Please see the documentation of [`lines`] for more details.
 ///
-/// [lines]: trait.BufRead.html#method.lines
+/// [`lines`]: trait.BufRead.html#method.lines
 #[derive(Debug)]
 pub struct Lines<B> {
     buf: B,
@@ -1202,15 +1360,15 @@ impl<B: BufRead> Iterator for Lines<B> {
         match self.buf.read_line(&mut buf) {
             Ok(0) => None,
             Ok(_n) => {
-                if buf.ends_with("\n") {
+                if buf.ends_with('\n') {
                     buf.pop();
-                    if buf.ends_with("\r") {
+                    if buf.ends_with('\r') {
                         buf.pop();
                     }
                 }
                 Some(Ok(buf))
             }
-            Err(e) => Some(Err(e))
+            Err(e) => Some(Err(e)),
         }
     }
 }

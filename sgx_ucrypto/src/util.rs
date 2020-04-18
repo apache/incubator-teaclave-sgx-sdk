@@ -22,11 +22,12 @@ const SIZE_MAX: size_t = std::usize::MAX;
 // here as well as these comments is better.
 #[allow(clippy::absurd_extreme_comparisons)]
 #[no_mangle]
-pub unsafe extern "C"
-fn memset_s(p: *mut c_void,
-            destsz: size_t,
-            ch: c_int,
-            count: size_t) -> errno_t {
+pub unsafe extern "C" fn memset_s(
+    p: *mut c_void,
+    destsz: size_t,
+    ch: c_int,
+    count: size_t,
+) -> errno_t {
     if p.is_null() {
         return EINVAL;
     }
@@ -41,10 +42,11 @@ fn memset_s(p: *mut c_void,
 }
 
 #[no_mangle]
-pub unsafe extern "C"
-fn consttime_memequal(b1: *const u8,
-                      b2: *const u8,
-                      l: usize) -> i32 {
+pub unsafe extern "C" fn consttime_memequal(
+    b1: *const u8,
+    b2: *const u8,
+    l: usize,
+) -> i32 {
     let mut res: u32 = 0;
     let mut len = l;
     let p1 = slice::from_raw_parts(b1, l);
@@ -68,8 +70,7 @@ fn consttime_memequal(b1: *const u8,
 
 
 #[no_mangle]
-pub unsafe extern "C"
-fn sgx_read_rand(rand: *mut u8, len: size_t) -> sgx_status_t {
+pub unsafe extern "C" fn sgx_read_rand(rand: *mut u8, len: size_t) -> sgx_status_t {
     if rand.is_null() || len == 0 || len > std::u32::MAX as usize {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }

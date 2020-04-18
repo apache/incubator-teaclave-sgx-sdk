@@ -20,7 +20,7 @@
 //! This crate provides similar functionalities as `librand` in Rust
 
 #![cfg_attr(not(target_env = "sgx"), no_std)]
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+#![cfg_attr(all(target_env = "sgx", target_vendor = "mesalock"), feature(rustc_private))]
 
 extern crate sgx_types;
 extern crate sgx_trts;

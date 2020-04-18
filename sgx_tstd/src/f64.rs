@@ -18,19 +18,23 @@
 //! This module provides constants which are specific to the implementation
 //! of the `f64` floating point data type.
 //!
+//! *[See also the `f64` primitive type](../../std/primitive.f64.html).*
+//!
 //! Mathematically significant numbers are provided in the `consts` sub-module.
 //!
+//! Although using these constants won’t cause compilation warnings,
+//! new code should use the associated constants directly on the primitive type.
 
 #![allow(missing_docs)]
 
 use core::intrinsics;
 use crate::sys::cmath;
 
-pub use core::f64::{RADIX, MANTISSA_DIGITS, DIGITS, EPSILON};
-pub use core::f64::{MIN_EXP, MAX_EXP, MIN_10_EXP};
-pub use core::f64::{MAX_10_EXP, NAN, INFINITY, NEG_INFINITY};
-pub use core::f64::{MIN, MIN_POSITIVE, MAX};
 pub use core::f64::consts;
+pub use core::f64::{DIGITS, EPSILON, MANTISSA_DIGITS, RADIX};
+pub use core::f64::{INFINITY, MAX_10_EXP, NAN, NEG_INFINITY};
+pub use core::f64::{MAX, MIN, MIN_POSITIVE};
+pub use core::f64::{MAX_EXP, MIN_10_EXP, MIN_EXP};
 
 #[lang = "f64_runtime"]
 impl f64 {
@@ -66,7 +70,9 @@ impl f64 {
     /// Returns the fractional part of a number.
     ///
     #[inline]
-    pub fn fract(self) -> f64 { self - self.trunc() }
+    pub fn fract(self) -> f64 {
+        self - self.trunc()
+    }
 
     /// Computes the absolute value of `self`. Returns `NAN` if the
     /// number is `NAN`.
@@ -84,11 +90,7 @@ impl f64 {
     ///
     #[inline]
     pub fn signum(self) -> f64 {
-        if self.is_nan() {
-            NAN
-        } else {
-            1.0_f64.copysign(self)
-        }
+        if self.is_nan() { NAN } else { 1.0_f64.copysign(self) }
     }
 
     /// Returns a number composed of the magnitude of `self` and the sign of
@@ -99,7 +101,6 @@ impl f64 {
     /// `sign` is returned.
     ///
     #[inline]
-    #[must_use]
     pub fn copysign(self, sign: f64) -> f64 {
         unsafe { intrinsics::copysignf64(self, sign) }
     }
@@ -126,7 +127,7 @@ impl f64 {
     pub fn div_euclid(self, rhs: f64) -> f64 {
         let q = (self / rhs).trunc();
         if self % rhs < 0.0 {
-            return if rhs > 0.0 { q - 1.0 } else { q + 1.0 }
+            return if rhs > 0.0 { q - 1.0 } else { q + 1.0 };
         }
         q
     }
@@ -145,11 +146,7 @@ impl f64 {
     #[inline]
     pub fn rem_euclid(self, rhs: f64) -> f64 {
         let r = self % rhs;
-        if r < 0.0 {
-            r + rhs.abs()
-        } else {
-            r
-        }
+        if r < 0.0 { r + rhs.abs() } else { r }
     }
 
     /// Raises a number to an integer power.
@@ -168,17 +165,13 @@ impl f64 {
         unsafe { intrinsics::powf64(self, n) }
     }
 
-    /// Takes the square root of a number.
+    /// Returns the square root of a number.
     ///
     /// Returns NaN if `self` is a negative number.
     ///
     #[inline]
     pub fn sqrt(self) -> f64 {
-        if self < 0.0 {
-            NAN
-        } else {
-            unsafe { intrinsics::sqrtf64(self) }
-        }
+        unsafe { intrinsics::sqrtf64(self) }
     }
 
     /// Returns `e^(self)`, (the exponential function).
@@ -199,7 +192,7 @@ impl f64 {
     ///
     #[inline]
     pub fn ln(self) -> f64 {
-        self.log_wrapper(|n| { unsafe { intrinsics::logf64(n) } })
+        self.log_wrapper(|n| unsafe { intrinsics::logf64(n) })
     }
 
     /// Returns the logarithm of the number with respect to an arbitrary base.
@@ -209,7 +202,9 @@ impl f64 {
     /// `self.log10()` can produce more accurate results for base 10.
     ///
     #[inline]
-    pub fn log(self, base: f64) -> f64 { self.ln() / base.ln() }
+    pub fn log(self, base: f64) -> f64 {
+        self.ln() / base.ln()
+    }
 
     /// Returns the base 2 logarithm of the number.
     ///
@@ -227,7 +222,7 @@ impl f64 {
     ///
     #[inline]
     pub fn log10(self) -> f64 {
-        self.log_wrapper(|n| { unsafe { intrinsics::log10f64(n) } })
+        self.log_wrapper(|n| unsafe { intrinsics::log10f64(n) })
     }
 
     /// The positive difference of two numbers.
@@ -236,11 +231,11 @@ impl f64 {
     /// * Else: `self - other`
     ///
     #[inline]
-     pub fn abs_sub(self, other: f64) -> f64 {
-         unsafe { cmath::fdim(self, other) }
-     }
+    pub fn abs_sub(self, other: f64) -> f64 {
+        unsafe { cmath::fdim(self, other) }
+    }
 
-    /// Takes the cubic root of a number.
+    /// Returns the cubic root of a number.
     ///
     #[inline]
     pub fn cbrt(self) -> f64 {
@@ -366,7 +361,7 @@ impl f64 {
         if self == NEG_INFINITY {
             NEG_INFINITY
         } else {
-            (self + ((self * self) + 1.0).sqrt()).ln()
+            (self + ((self * self) + 1.0).sqrt()).ln().copysign(self)
         }
     }
 
@@ -374,10 +369,7 @@ impl f64 {
     ///
     #[inline]
     pub fn acosh(self) -> f64 {
-        match self {
-            x if x < 1.0 => NAN,
-            x => (x + ((x * x) - 1.0).sqrt()).ln(),
-        }
+        if self < 1.0 { NAN } else { (self + ((self * self) - 1.0).sqrt()).ln() }
     }
 
     /// Inverse hyperbolic tangent function.
@@ -403,8 +395,12 @@ impl f64 {
     pub fn clamp(self, min: f64, max: f64) -> f64 {
         assert!(min <= max);
         let mut x = self;
-        if x < min { x = min; }
-        if x > max { x = max; }
+        if x < min {
+            x = min;
+        }
+        if x > max {
+            x = max;
+        }
         x
     }
 

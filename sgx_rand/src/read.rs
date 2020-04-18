@@ -75,8 +75,10 @@ impl<R: Read> Rng for ReadRng<R> {
 fn fill(r: &mut dyn Read, mut buf: &mut [u8]) -> io::Result<()> {
     while buf.len() > 0 {
         match (r.read(buf))? {
-            0 => return Err(io::Error::new(io::ErrorKind::Other,
-                                           "end of file reached")),
+            0 => return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "end of file reached",
+            )),
             n => buf = &mut mem::replace(&mut buf, &mut [])[n..],
         }
     }

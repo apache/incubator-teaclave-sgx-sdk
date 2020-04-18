@@ -16,7 +16,7 @@
 // under the License..
 
 use crate::sys::os_str::{Buf, Slice};
-use crate::sys_common::{AsInner, IntoInner, FromInner};
+use crate::sys_common::{AsInner, FromInner, IntoInner};
 use core::ops;
 use core::cmp;
 use core::hash::{Hash, Hasher};
@@ -33,7 +33,7 @@ use alloc_crate::sync::Arc;
 ///
 #[derive(Clone)]
 pub struct OsString {
-    inner: Buf
+    inner: Buf,
 }
 
 /// Borrowed reference to an OS string (see [`OsString`]).
@@ -52,7 +52,7 @@ pub struct OsString {
 /// [`String`]: ../string/struct.String.html
 /// [conversions]: index.html#conversions
 pub struct OsStr {
-    inner: Slice
+    inner: Slice,
 }
 
 impl OsString {
@@ -77,7 +77,7 @@ impl OsString {
     /// [`String`]: ../../std/string/struct.String.html
     ///
     pub fn into_string(self) -> Result<String, OsString> {
-        self.inner.into_string().map_err(|buf| OsString { inner: buf} )
+        self.inner.into_string().map_err(|buf| OsString { inner: buf })
     }
 
     /// Extends the string with the given [`&OsStr`] slice.
@@ -97,9 +97,7 @@ impl OsString {
     /// See main `OsString` documentation information about encoding.
     ///
     pub fn with_capacity(capacity: usize) -> OsString {
-        OsString {
-            inner: Buf::with_capacity(capacity)
-        }
+        OsString { inner: Buf::with_capacity(capacity) }
     }
 
     /// Truncates the `OsString` to zero length.
@@ -170,6 +168,8 @@ impl From<String> for OsString {
     /// Converts a [`String`] into a [`OsString`].
     ///
     /// The conversion copies the data, and includes an allocation on the heap.
+    ///
+    /// [`OsString`]: ../../std/ffi/struct.OsString.html
     fn from(s: String) -> OsString {
         OsString { inner: Buf::from_string(s) }
     }
@@ -190,12 +190,26 @@ impl ops::Index<ops::RangeFull> for OsString {
     }
 }
 
+impl ops::IndexMut<ops::RangeFull> for OsString {
+    #[inline]
+    fn index_mut(&mut self, _index: ops::RangeFull) -> &mut OsStr {
+        OsStr::from_inner_mut(self.inner.as_mut_slice())
+    }
+}
+
 impl ops::Deref for OsString {
     type Target = OsStr;
 
     #[inline]
     fn deref(&self) -> &OsStr {
         &self[..]
+    }
+}
+
+impl ops::DerefMut for OsString {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut OsStr {
+        &mut self[..]
     }
 }
 
@@ -251,13 +265,21 @@ impl PartialOrd for OsString {
         (&**self).partial_cmp(&**other)
     }
     #[inline]
-    fn lt(&self, other: &OsString) -> bool { &**self < &**other }
+    fn lt(&self, other: &OsString) -> bool {
+        &**self < &**other
+    }
     #[inline]
-    fn le(&self, other: &OsString) -> bool { &**self <= &**other }
+    fn le(&self, other: &OsString) -> bool {
+        &**self <= &**other
+    }
     #[inline]
-    fn gt(&self, other: &OsString) -> bool { &**self > &**other }
+    fn gt(&self, other: &OsString) -> bool {
+        &**self > &**other
+    }
     #[inline]
-    fn ge(&self, other: &OsString) -> bool { &**self >= &**other }
+    fn ge(&self, other: &OsString) -> bool {
+        &**self >= &**other
+    }
 }
 
 impl PartialOrd<str> for OsString {
@@ -288,8 +310,20 @@ impl OsStr {
         s.as_ref()
     }
 
+    #[inline]
     fn from_inner(inner: &Slice) -> &OsStr {
+        // Safety: OsStr is just a wrapper of Slice,
+        // therefore converting &Slice to &OsStr is safe.
         unsafe { &*(inner as *const Slice as *const OsStr) }
+    }
+
+    #[inline]
+    fn from_inner_mut(inner: &mut Slice) -> &mut OsStr {
+        // Safety: OsStr is just a wrapper of Slice,
+        // therefore converting &mut Slice to &mut OsStr is safe.
+        // Any method that mutates OsStr must be careful not to
+        // break platform-specific encoding, in particular Wtf8 on Windows.
+        unsafe { &mut *(inner as *mut Slice as *mut OsStr) }
     }
 
     /// Yields a [`&str`] slice if the `OsStr` is valid Unicode.
@@ -334,7 +368,7 @@ impl OsStr {
     /// Note that this does **not** return the number of bytes in the string in
     /// OS string form.
     ///
-    /// The length returned is that of the underlying storage used by `OsStr`;
+    /// The length returned is that of the underlying storage used by `OsStr`.
     /// As discussed in the [`OsString`] introduction, [`OsString`] and `OsStr`
     /// store strings in a form best suited for cheap inter-conversion between
     /// native-platform and Rust string forms, which may differ significantly
@@ -363,8 +397,80 @@ impl OsStr {
     ///
     /// Note: it is *crucial* that this API is private, to avoid
     /// revealing the internal, platform-specific encodings.
+    #[inline]
     fn bytes(&self) -> &[u8] {
         unsafe { &*(&self.inner as *const _ as *const [u8]) }
+    }
+
+    /// Converts this string to its ASCII lower case equivalent in-place.
+    ///
+    /// ASCII letters 'A' to 'Z' are mapped to 'a' to 'z',
+    /// but non-ASCII letters are unchanged.
+    ///
+    /// To return a new lowercased value without modifying the existing one, use
+    /// [`to_ascii_lowercase`].
+    ///
+    /// [`to_ascii_lowercase`]: #method.to_ascii_lowercase
+    ///
+    pub fn make_ascii_lowercase(&mut self) {
+        self.inner.make_ascii_lowercase()
+    }
+
+    /// Converts this string to its ASCII upper case equivalent in-place.
+    ///
+    /// ASCII letters 'a' to 'z' are mapped to 'A' to 'Z',
+    /// but non-ASCII letters are unchanged.
+    ///
+    /// To return a new uppercased value without modifying the existing one, use
+    /// [`to_ascii_uppercase`].
+    ///
+    /// [`to_ascii_uppercase`]: #method.to_ascii_uppercase
+    ///
+    pub fn make_ascii_uppercase(&mut self) {
+        self.inner.make_ascii_uppercase()
+    }
+
+    /// Returns a copy of this string where each character is mapped to its
+    /// ASCII lower case equivalent.
+    ///
+    /// ASCII letters 'A' to 'Z' are mapped to 'a' to 'z',
+    /// but non-ASCII letters are unchanged.
+    ///
+    /// To lowercase the value in-place, use [`make_ascii_lowercase`].
+    ///
+    /// [`make_ascii_lowercase`]: #method.make_ascii_lowercase
+    ///
+    pub fn to_ascii_lowercase(&self) -> OsString {
+        OsString::from_inner(self.inner.to_ascii_lowercase())
+    }
+
+    /// Returns a copy of this string where each character is mapped to its
+    /// ASCII upper case equivalent.
+    ///
+    /// ASCII letters 'a' to 'z' are mapped to 'A' to 'Z',
+    /// but non-ASCII letters are unchanged.
+    ///
+    /// To uppercase the value in-place, use [`make_ascii_uppercase`].
+    ///
+    /// [`make_ascii_uppercase`]: #method.make_ascii_uppercase
+    ///
+    pub fn to_ascii_uppercase(&self) -> OsString {
+        OsString::from_inner(self.inner.to_ascii_uppercase())
+    }
+
+    /// Checks if all characters in this string are within the ASCII range.
+    ///
+    pub fn is_ascii(&self) -> bool {
+        self.inner.is_ascii()
+    }
+
+    /// Checks that two strings are an ASCII case-insensitive match.
+    ///
+    /// Same as `to_ascii_lowercase(a) == to_ascii_lowercase(b)`,
+    /// but without allocating and copying temporaries.
+    ///
+    pub fn eq_ignore_ascii_case<S: ?Sized + AsRef<OsStr>>(&self, other: &S) -> bool {
+        self.inner.eq_ignore_ascii_case(&other.as_ref().inner)
     }
 }
 
@@ -376,10 +482,11 @@ impl From<&OsStr> for Box<OsStr> {
 }
 
 impl From<Box<OsStr>> for OsString {
-    /// Converts a `Box<OsStr>` into a `OsString` without copying or allocating.
+    /// Converts a [`Box`]`<`[`OsStr`]`>` into a `OsString` without copying or
+    /// allocating.
     ///
     /// [`Box`]: ../boxed/struct.Box.html
-    /// [`OsString`]: ../ffi/struct.OsString.html
+    /// [`OsStr`]: ../ffi/struct.OsStr.html
     fn from(boxed: Box<OsStr>) -> OsString {
         boxed.into_os_string()
     }
@@ -492,12 +599,14 @@ impl PartialEq for OsStr {
 }
 
 impl PartialEq<str> for OsStr {
+    #[inline]
     fn eq(&self, other: &str) -> bool {
         *self == *OsStr::new(other)
     }
 }
 
 impl PartialEq<OsStr> for str {
+    #[inline]
     fn eq(&self, other: &OsStr) -> bool {
         *other == *OsStr::new(self)
     }
@@ -511,13 +620,21 @@ impl PartialOrd for OsStr {
         self.bytes().partial_cmp(other.bytes())
     }
     #[inline]
-    fn lt(&self, other: &OsStr) -> bool { self.bytes().lt(other.bytes()) }
+    fn lt(&self, other: &OsStr) -> bool {
+        self.bytes().lt(other.bytes())
+    }
     #[inline]
-    fn le(&self, other: &OsStr) -> bool { self.bytes().le(other.bytes()) }
+    fn le(&self, other: &OsStr) -> bool {
+        self.bytes().le(other.bytes())
+    }
     #[inline]
-    fn gt(&self, other: &OsStr) -> bool { self.bytes().gt(other.bytes()) }
+    fn gt(&self, other: &OsStr) -> bool {
+        self.bytes().gt(other.bytes())
+    }
     #[inline]
-    fn ge(&self, other: &OsStr) -> bool { self.bytes().ge(other.bytes()) }
+    fn ge(&self, other: &OsStr) -> bool {
+        self.bytes().ge(other.bytes())
+    }
 }
 
 impl PartialOrd<str> for OsStr {
@@ -532,19 +649,25 @@ impl PartialOrd<str> for OsStr {
 
 impl Ord for OsStr {
     #[inline]
-    fn cmp(&self, other: &OsStr) -> cmp::Ordering { self.bytes().cmp(other.bytes()) }
+    fn cmp(&self, other: &OsStr) -> cmp::Ordering {
+        self.bytes().cmp(other.bytes())
+    }
 }
 
 macro_rules! impl_cmp {
     ($lhs:ty, $rhs: ty) => {
         impl<'a, 'b> PartialEq<$rhs> for $lhs {
             #[inline]
-            fn eq(&self, other: &$rhs) -> bool { <OsStr as PartialEq>::eq(self, other) }
+            fn eq(&self, other: &$rhs) -> bool {
+                <OsStr as PartialEq>::eq(self, other)
+            }
         }
 
         impl<'a, 'b> PartialEq<$lhs> for $rhs {
             #[inline]
-            fn eq(&self, other: &$lhs) -> bool { <OsStr as PartialEq>::eq(self, other) }
+            fn eq(&self, other: &$lhs) -> bool {
+                <OsStr as PartialEq>::eq(self, other)
+            }
         }
 
         impl<'a, 'b> PartialOrd<$rhs> for $lhs {
@@ -560,7 +683,7 @@ macro_rules! impl_cmp {
                 <OsStr as PartialOrd>::partial_cmp(self, other)
             }
         }
-    }
+    };
 }
 
 impl_cmp!(OsString, OsStr);
@@ -589,7 +712,9 @@ impl OsStr {
 }
 
 impl Borrow<OsStr> for OsString {
-    fn borrow(&self) -> &OsStr { &self[..] }
+    fn borrow(&self) -> &OsStr {
+        &self[..]
+    }
 }
 
 impl ToOwned for OsStr {
@@ -598,8 +723,7 @@ impl ToOwned for OsStr {
         self.to_os_string()
     }
     fn clone_into(&self, target: &mut OsString) {
-        target.clear();
-        target.push(self);
+        self.inner.clone_into(&mut target.inner)
     }
 }
 
@@ -610,18 +734,21 @@ impl AsRef<OsStr> for OsStr {
 }
 
 impl AsRef<OsStr> for OsString {
+    #[inline]
     fn as_ref(&self) -> &OsStr {
         self
     }
 }
 
 impl AsRef<OsStr> for str {
+    #[inline]
     fn as_ref(&self) -> &OsStr {
         OsStr::from_inner(Slice::from_str(self))
     }
 }
 
 impl AsRef<OsStr> for String {
+    #[inline]
     fn as_ref(&self) -> &OsStr {
         (&**self).as_ref()
     }

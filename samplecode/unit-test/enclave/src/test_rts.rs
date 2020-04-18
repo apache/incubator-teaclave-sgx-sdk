@@ -88,20 +88,20 @@ pub fn test_register_multiple_exception_handler() {
 pub fn test_read_rand(){
     let mut rand_arr = [0; 100];
     assert_eq!(rsgx_read_rand(&mut rand_arr[..]), Ok(()));
-    let x = rand_arr.iter().fold(0, |sum, &x| sum + x);
     // Cannot all be zero
-    assert_ne!(x, 0);
+    let cmp = [0; 100].iter().zip(rand_arr.iter()).all(|(x, y)| x == y);
+    assert_ne!(cmp, true);
 }
 
 pub fn test_data_is_within_enclave() {
     #[derive(Clone, Copy)]
     struct SampleDs{
-        x : i32,
-        y : i32,
-        z : [i32;100],
+        x: i32,
+        y: i32,
+        z: [i32; 100],
     };
     unsafe impl marker::ContiguousMemory for SampleDs{};
-    let mut sample_object : SampleDs = SampleDs{ x : 0, y : 0, z : [0;100]};
+    let mut sample_object : SampleDs = SampleDs{ x: 0, y: 0, z: [0; 100]};
     sample_object.x = 100;
     sample_object.y = 100;
     sample_object.z[0] = 100;
@@ -140,12 +140,12 @@ pub fn test_raw_is_within_enclave(){
 pub fn test_data_is_outside_enclave() {
     #[derive(Clone, Copy)]
     struct SampleDs{
-        x : i32,
-        y : i32,
-        z : [i32;100],
+        x: i32,
+        y: i32,
+        z: [i32; 100],
     };
     unsafe impl marker::ContiguousMemory for SampleDs{};
-    let mut sample_object : SampleDs = SampleDs{ x : 0, y : 0, z : [0;100]};
+    let mut sample_object : SampleDs = SampleDs{ x: 0, y: 0, z: [0; 100]};
     sample_object.x = 100;
     sample_object.y = 100;
     sample_object.z[0] = 100;

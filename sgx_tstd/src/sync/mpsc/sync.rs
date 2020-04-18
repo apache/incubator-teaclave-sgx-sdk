@@ -44,12 +44,11 @@ pub use self::Failure::*;
 use self::Blocker::*;
 
 use core::intrinsics::abort;
-use core::isize;
 use core::mem;
 use core::ptr;
-use core::sync::atomic::{Ordering, AtomicUsize};
+use core::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::sync::mpsc::blocking::{self, WaitToken, SignalToken};
+use crate::sync::mpsc::blocking::{self, SignalToken, WaitToken};
 use crate::sync::{SgxMutex, SgxMutexGuard};
 use crate::time::Instant;
 
@@ -63,9 +62,9 @@ pub struct Packet<T> {
     lock: SgxMutex<State<T>>,
 }
 
-unsafe impl<T: Send> Send for Packet<T> { }
+unsafe impl<T: Send> Send for Packet<T> {}
 
-unsafe impl<T: Send> Sync for Packet<T> { }
+unsafe impl<T: Send> Sync for Packet<T> {}
 
 struct State<T> {
     disconnected: bool, // Is the channel disconnected yet?
@@ -89,7 +88,7 @@ unsafe impl<T: Send> Send for State<T> {}
 enum Blocker {
     BlockedSender(SignalToken),
     BlockedReceiver(SignalToken),
-    NoneBlocked
+    NoneBlocked,
 }
 
 /// Simple queue for threading threads together. Nodes are stack-allocated, so
@@ -121,35 +120,35 @@ pub enum Failure {
 
 /// Atomically blocks the current thread, placing it into `slot`, unlocking `lock`
 /// in the meantime. This re-locks the mutex upon returning.
-fn wait<'a, 'b, T>(lock: &'a SgxMutex<State<T>>,
-                   mut guard: SgxMutexGuard<'b, State<T>>,
-                   f: fn(SignalToken) -> Blocker)
-                   -> SgxMutexGuard<'a, State<T>>
-{
+fn wait<'a, 'b, T>(
+    lock: &'a SgxMutex<State<T>>,
+    mut guard: SgxMutexGuard<'b, State<T>>,
+    f: fn(SignalToken) -> Blocker,
+) -> SgxMutexGuard<'a, State<T>> {
     let (wait_token, signal_token) = blocking::tokens();
     match mem::replace(&mut guard.blocker, f(signal_token)) {
         NoneBlocked => {}
         _ => unreachable!(),
     }
-    drop(guard);         // unlock
-    wait_token.wait();   // block
+    drop(guard); // unlock
+    wait_token.wait(); // block
     lock.lock().unwrap() // relock
 }
 
 /// Same as wait, but waiting at most until `deadline`.
-fn wait_timeout_receiver<'a, 'b, T>(lock: &'a SgxMutex<State<T>>,
-                                    deadline: Instant,
-                                    mut guard: SgxMutexGuard<'b, State<T>>,
-                                    success: &mut bool)
-                                    -> SgxMutexGuard<'a, State<T>>
-{
+fn wait_timeout_receiver<'a, 'b, T>(
+    lock: &'a SgxMutex<State<T>>,
+    deadline: Instant,
+    mut guard: SgxMutexGuard<'b, State<T>>,
+    success: &mut bool,
+) -> SgxMutexGuard<'a, State<T>> {
     let (wait_token, signal_token) = blocking::tokens();
     match mem::replace(&mut guard.blocker, BlockedReceiver(signal_token)) {
         NoneBlocked => {}
         _ => unreachable!(),
     }
-    drop(guard);         // unlock
-    *success = wait_token.wait_max_until(deadline);   // block
+    drop(guard); // unlock
+    *success = wait_token.wait_max_until(deadline); // block
     let mut new_guard = lock.lock().unwrap(); // relock
     if !*success {
         abort_selection(&mut new_guard);
@@ -157,14 +156,17 @@ fn wait_timeout_receiver<'a, 'b, T>(lock: &'a SgxMutex<State<T>>,
     new_guard
 }
 
-fn abort_selection<'a, T>(guard: &mut SgxMutexGuard<'a , State<T>>) -> bool {
+fn abort_selection<T>(guard: &mut SgxMutexGuard<'_, State<T>>) -> bool {
     match mem::replace(&mut guard.blocker, NoneBlocked) {
         NoneBlocked => true,
         BlockedSender(token) => {
             guard.blocker = BlockedSender(token);
             true
         }
-        BlockedReceiver(token) => { drop(token); false }
+        BlockedReceiver(token) => {
+            drop(token);
+            false
+        }
     }
 }
 
@@ -177,20 +179,17 @@ fn wakeup<T>(token: SignalToken, guard: SgxMutexGuard<'_, State<T>>) {
 }
 
 impl<T> Packet<T> {
-    pub fn new(cap: usize) -> Packet<T> {
+    pub fn new(capacity: usize) -> Packet<T> {
         Packet {
             channels: AtomicUsize::new(1),
             lock: SgxMutex::new(State {
                 disconnected: false,
                 blocker: NoneBlocked,
-                cap,
+                cap: capacity,
                 canceled: None,
-                queue: Queue {
-                    head: ptr::null_mut(),
-                    tail: ptr::null_mut(),
-                },
+                queue: Queue { head: ptr::null_mut(), tail: ptr::null_mut() },
                 buf: Buffer {
-                    buf: (0..cap + if cap == 0 {1} else {0}).map(|_| None).collect(),
+                    buf: (0..capacity + if capacity == 0 { 1 } else { 0 }).map(|_| None).collect(),
                     start: 0,
                     size: 0,
                 },
@@ -205,7 +204,7 @@ impl<T> Packet<T> {
         loop {
             let mut guard = self.lock.lock().unwrap();
             // are we ready to go?
-            if guard.disconnected || guard.buf.size() < guard.buf.cap() {
+            if guard.disconnected || guard.buf.size() < guard.buf.capacity() {
                 return guard;
             }
             // no room; actually block
@@ -217,7 +216,9 @@ impl<T> Packet<T> {
 
     pub fn send(&self, t: T) -> Result<(), T> {
         let mut guard = self.acquire_send_slot();
-        if guard.disconnected { return Err(t) }
+        if guard.disconnected {
+            return Err(t);
+        }
         guard.buf.enqueue(t);
 
         match mem::replace(&mut guard.blocker, NoneBlocked) {
@@ -230,14 +231,17 @@ impl<T> Packet<T> {
                 assert!(guard.canceled.is_none());
                 guard.canceled = Some(unsafe { mem::transmute(&mut canceled) });
                 let mut guard = wait(&self.lock, guard, BlockedSender);
-                if canceled {Err(guard.buf.dequeue())} else {Ok(())}
+                if canceled { Err(guard.buf.dequeue()) } else { Ok(()) }
             }
 
             // success, we buffered some data
             NoneBlocked => Ok(()),
 
             // success, someone's about to receive our buffered data.
-            BlockedReceiver(token) => { wakeup(token, guard); Ok(()) }
+            BlockedReceiver(token) => {
+                wakeup(token, guard);
+                Ok(())
+            }
 
             BlockedSender(..) => panic!("lolwut"),
         }
@@ -247,7 +251,7 @@ impl<T> Packet<T> {
         let mut guard = self.lock.lock().unwrap();
         if guard.disconnected {
             Err(super::TrySendError::Disconnected(t))
-        } else if guard.buf.size() == guard.buf.cap() {
+        } else if guard.buf.size() == guard.buf.capacity() {
             Err(super::TrySendError::Full(t))
         } else if guard.cap == 0 {
             // With capacity 0, even though we have buffer space we can't
@@ -265,7 +269,7 @@ impl<T> Packet<T> {
             // If the buffer has some space and the capacity isn't 0, then we
             // just enqueue the data for later retrieval, ensuring to wake up
             // any blocked receiver if there is one.
-            assert!(guard.buf.size() < guard.buf.cap());
+            assert!(guard.buf.size() < guard.buf.capacity());
             guard.buf.enqueue(t);
             match mem::replace(&mut guard.blocker, NoneBlocked) {
                 BlockedReceiver(token) => wakeup(token, guard),
@@ -288,10 +292,8 @@ impl<T> Packet<T> {
         // while loop because we're the only receiver.
         if !guard.disconnected && guard.buf.size() == 0 {
             if let Some(deadline) = deadline {
-                guard = wait_timeout_receiver(&self.lock,
-                                              deadline,
-                                              guard,
-                                              &mut woke_up_after_waiting);
+                guard =
+                    wait_timeout_receiver(&self.lock, deadline, guard, &mut woke_up_after_waiting);
             } else {
                 guard = wait(&self.lock, guard, BlockedReceiver);
                 woke_up_after_waiting = true;
@@ -307,7 +309,9 @@ impl<T> Packet<T> {
         // Pick up the data, wake up our neighbors, and carry on
         assert!(guard.buf.size() > 0 || (deadline.is_some() && !woke_up_after_waiting));
 
-        if guard.buf.size() == 0 { return Err(Empty); }
+        if guard.buf.size() == 0 {
+            return Err(Empty);
+        }
 
         let ret = guard.buf.dequeue();
         self.wakeup_senders(woke_up_after_waiting, guard);
@@ -318,8 +322,12 @@ impl<T> Packet<T> {
         let mut guard = self.lock.lock().unwrap();
 
         // Easy cases first
-        if guard.disconnected && guard.buf.size() == 0 { return Err(Disconnected) }
-        if guard.buf.size() == 0 { return Err(Empty) }
+        if guard.disconnected && guard.buf.size() == 0 {
+            return Err(Disconnected);
+        }
+        if guard.buf.size() == 0 {
+            return Err(Empty);
+        }
 
         // Be sure to wake up neighbors
         let ret = Ok(guard.buf.dequeue());
@@ -374,12 +382,14 @@ impl<T> Packet<T> {
         // Only flag the channel as disconnected if we're the last channel
         match self.channels.fetch_sub(1, Ordering::SeqCst) {
             1 => {}
-            _ => return
+            _ => return,
         }
 
         // Not much to do other than wake up a receiver if one's there
         let mut guard = self.lock.lock().unwrap();
-        if guard.disconnected { return }
+        if guard.disconnected {
+            return;
+        }
         guard.disconnected = true;
         match mem::replace(&mut guard.blocker, NoneBlocked) {
             NoneBlocked => {}
@@ -391,7 +401,9 @@ impl<T> Packet<T> {
     pub fn drop_port(&self) {
         let mut guard = self.lock.lock().unwrap();
 
-        if guard.disconnected { return }
+        if guard.disconnected {
+            return;
+        }
         guard.disconnected = true;
 
         // If the capacity is 0, then the sender may want its data back after
@@ -399,15 +411,9 @@ impl<T> Packet<T> {
         // the buffered data. As with many other portions of this code, this
         // needs to be careful to destroy the data *outside* of the lock to
         // prevent deadlock.
-        let _data = if guard.cap != 0 {
-            mem::replace(&mut guard.buf.buf, Vec::new())
-        } else {
-            Vec::new()
-        };
-        let mut queue = mem::replace(&mut guard.queue, Queue {
-            head: ptr::null_mut(),
-            tail: ptr::null_mut(),
-        });
+        let _data = if guard.cap != 0 { mem::take(&mut guard.buf.buf) } else { Vec::new() };
+        let mut queue =
+            mem::replace(&mut guard.queue, Queue { head: ptr::null_mut(), tail: ptr::null_mut() });
 
         let waiter = match mem::replace(&mut guard.blocker, NoneBlocked) {
             NoneBlocked => None,
@@ -419,7 +425,9 @@ impl<T> Packet<T> {
         };
         mem::drop(guard);
 
-        while let Some(token) = queue.dequeue() { token.signal(); }
+        while let Some(token) = queue.dequeue() {
+            token.signal();
+        }
         waiter.map(|t| t.signal());
     }
 }
@@ -432,7 +440,6 @@ impl<T> Drop for Packet<T> {
         assert!(guard.canceled.is_none());
     }
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Buffer, a simple ring buffer backed by Vec<T>
@@ -454,8 +461,12 @@ impl<T> Buffer<T> {
         result.take().unwrap()
     }
 
-    fn size(&self) -> usize { self.size }
-    fn cap(&self) -> usize { self.buf.len() }
+    fn size(&self) -> usize {
+        self.size
+    }
+    fn capacity(&self) -> usize {
+        self.buf.len()
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -483,7 +494,7 @@ impl Queue {
 
     fn dequeue(&mut self) -> Option<SignalToken> {
         if self.head.is_null() {
-            return None
+            return None;
         }
         let node = self.head;
         self.head = unsafe { (*node).next };

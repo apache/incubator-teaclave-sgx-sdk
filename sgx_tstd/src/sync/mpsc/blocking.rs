@@ -22,6 +22,7 @@ use core::mem;
 use alloc_crate::sync::Arc;
 use crate::thread::{self, SgxThread};
 use crate::time::Instant;
+#[cfg(not(feature = "untrusted_time"))]
 use crate::untrusted::time::InstantEx;
 
 struct Inner {
@@ -46,16 +47,9 @@ impl !Send for WaitToken {}
 impl !Sync for WaitToken {}
 
 pub fn tokens() -> (WaitToken, SignalToken) {
-    let inner = Arc::new(Inner {
-        thread: thread::current(),
-        woken: AtomicBool::new(false),
-    });
-    let wait_token = WaitToken {
-        inner: inner.clone(),
-    };
-    let signal_token = SignalToken {
-        inner,
-    };
+    let inner = Arc::new(Inner { thread: thread::current(), woken: AtomicBool::new(false) });
+    let wait_token = WaitToken { inner: inner.clone() };
+    let signal_token = SignalToken { inner };
     (wait_token, signal_token)
 }
 
@@ -97,7 +91,7 @@ impl WaitToken {
             if now >= end {
                 return false;
             }
-            thread::park_timeout(end - now);
+            thread::park_timeout(end - now)
         }
         true
     }

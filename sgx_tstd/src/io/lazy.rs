@@ -28,7 +28,9 @@ pub struct Lazy<T> {
 }
 
 #[inline]
-const fn done<T>() -> *mut Arc<T> { 1_usize as *mut _ }
+const fn done<T>() -> *mut Arc<T> {
+    1_usize as *mut _
+}
 
 unsafe impl<T> Sync for Lazy<T> {}
 
@@ -106,7 +108,6 @@ impl<T> LazyStatic<T> {
 impl<T: Send + Sync + 'static> LazyStatic<T> {
 
     pub unsafe fn get(&'static self, init: fn() -> Arc<T>) -> Option<Arc<T>> {
-     
         let r = self.lock.lock();
         if r.is_err() {
             return None;
@@ -120,7 +121,6 @@ impl<T: Send + Sync + 'static> LazyStatic<T> {
     }
 
     unsafe fn init(&'static self, init: fn() -> Arc<T>) -> Arc<T> {
-
         let ret = init();
         *self.opt.get() = Some(ret.clone());
         ret

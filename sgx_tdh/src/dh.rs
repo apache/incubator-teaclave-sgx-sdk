@@ -55,7 +55,7 @@ impl SgxDhMsg3 {
     ///
     /// Create a SgxDhMsg3 with default values.
     ///
-    pub fn new() -> Self {
+    pub fn new() -> SgxDhMsg3 {
         SgxDhMsg3::default()
     }
 
@@ -67,7 +67,6 @@ impl SgxDhMsg3 {
     /// The size of sgx_dh_msg3_t needed.
     ///
     pub fn calc_raw_sealed_data_size(&self) -> u32 {
-
         let max = u32::max_value();
         let dh_msg3_size = mem::size_of::<sgx_dh_msg3_t>();
         let additional_prop_len = self.msg3_body.additional_prop.len();
@@ -103,7 +102,6 @@ impl SgxDhMsg3 {
     /// The parameters p and len are not available for the conversion.
     ///
     pub unsafe fn to_raw_dh_msg3_t(&self, p: *mut sgx_dh_msg3_t, len: u32) -> Option<*mut sgx_dh_msg3_t> {
-
         if p.is_null() {
             return None;
         }
@@ -155,8 +153,7 @@ impl SgxDhMsg3 {
     ///
     /// The parameters p and len are not available for the conversion.
     ///
-    pub unsafe fn from_raw_dh_msg3_t(p: *mut sgx_dh_msg3_t, len: u32) -> Option<Self> {
-
+    pub unsafe fn from_raw_dh_msg3_t(p: *mut sgx_dh_msg3_t, len: u32) -> Option<SgxDhMsg3> {
         if p.is_null() {
             return None;
         }
@@ -209,7 +206,7 @@ pub struct SgxDhResponder {
 }
 
 impl Default for SgxDhResponder {
-    fn default() -> Self {
+    fn default() -> SgxDhResponder {
         SgxDhResponder {
            state: SgxDhSessionState::SGX_DH_SESSION_STATE_RESET,
            prv_key: sgx_align_ec256_private_t::default(),
@@ -234,7 +231,7 @@ impl SgxDhResponder {
     ///
     /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
     ///
-    pub fn init_session() -> Self {
+    pub fn init_session() -> SgxDhResponder {
         Self::default()
     }
     ///
@@ -272,7 +269,6 @@ impl SgxDhResponder {
     /// An unexpected error occurred.
     ///
     pub fn gen_msg1(&mut self, msg1: &mut SgxDhMsg1) -> SgxError {
-
         if !rsgx_data_is_within_enclave(self) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
@@ -364,12 +360,13 @@ impl SgxDhResponder {
     ///
     /// An unexpected error occurred.
     ///
-    pub fn proc_msg2(&mut self,
-                     msg2: &SgxDhMsg2,
-                     msg3: &mut SgxDhMsg3,
-                     aek: &mut sgx_key_128bit_t,
-                     initiator_identity: &mut sgx_dh_session_enclave_identity_t) -> SgxError {
-
+    pub fn proc_msg2(
+        &mut self,
+        msg2: &SgxDhMsg2,
+        msg3: &mut SgxDhMsg3,
+        aek: &mut sgx_key_128bit_t,
+        initiator_identity: &mut sgx_dh_session_enclave_identity_t,
+    ) -> SgxError {
         if !rsgx_data_is_within_enclave(self) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
@@ -426,7 +423,6 @@ impl SgxDhResponder {
     }
 
     fn dh_generate_message1(&mut self, msg1: &mut SgxDhMsg1) -> SgxError {
-
         msg1.target = Default::default();
         msg1.g_a = Default::default();
 
@@ -449,7 +445,6 @@ impl SgxDhResponder {
     }
 
     fn dh_verify_message2(&self, msg2: &SgxDhMsg2) -> SgxError {
-
         let kdf_id = &msg2.report.body.report_data.d[SGX_SHA256_HASH_SIZE..SGX_SHA256_HASH_SIZE + 2];
         let data_hash = &msg2.report.body.report_data.d[..SGX_SHA256_HASH_SIZE];
 
@@ -479,7 +474,6 @@ impl SgxDhResponder {
     }
 
     fn lav2_verify_message2(&self, msg2: &SgxDhMsg2) -> SgxError {
-
         let sha_handle = SgxShaHandle::new();
         sha_handle.init()?;
         sha_handle.update_msg(&msg2.report.body.report_data)?;
@@ -505,7 +499,6 @@ impl SgxDhResponder {
     }
 
     fn dh_generate_message3(&self, msg2: &SgxDhMsg2, msg3: &mut SgxDhMsg3) -> SgxError {
-
         msg3.cmac = Default::default();
         msg3.msg3_body.report = Default::default();
 
@@ -537,7 +530,6 @@ impl SgxDhResponder {
     }
 
     fn lav2_generate_message3(&self, msg2: &SgxDhMsg2, msg3: &mut SgxDhMsg3) -> SgxError {
-
         msg3.cmac = Default::default();
         msg3.msg3_body.report = Default::default();
 
@@ -568,7 +560,6 @@ impl SgxDhResponder {
     }
 
     fn set_error(&mut self, sgx_ret: sgx_status_t) -> sgx_status_t {
-
         *self = Self::default();
         self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
         match sgx_ret {
@@ -590,7 +581,7 @@ pub struct SgxDhInitiator {
 }
 
 impl Default for SgxDhInitiator {
-    fn default() -> Self {
+    fn default() -> SgxDhInitiator {
         SgxDhInitiator {
            state: SgxDhSessionState::SGX_DH_SESSION_INITIATOR_WAIT_M1,
            smk_aek: sgx_align_key_128bit_t::default(),
@@ -615,7 +606,7 @@ impl SgxDhInitiator {
     ///
     /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
     ///
-    pub fn init_session() -> Self {
+    pub fn init_session() -> SgxDhInitiator {
         Self::default()
     }
 
@@ -656,7 +647,6 @@ impl SgxDhInitiator {
     /// An unexpected error occurred.
     ///
     pub fn proc_msg1(&mut self, msg1: &SgxDhMsg1, msg2: &mut SgxDhMsg2) -> SgxError {
-
         if !rsgx_data_is_within_enclave(self) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
@@ -752,11 +742,12 @@ impl SgxDhInitiator {
     ///
     /// An unexpected error occurred.
     ///
-    pub fn proc_msg3(&mut self,
-                     msg3: &SgxDhMsg3,
-                     aek: &mut sgx_key_128bit_t,
-                     responder_identity: &mut sgx_dh_session_enclave_identity_t) -> SgxError {
-
+    pub fn proc_msg3(
+        &mut self,
+        msg3: &SgxDhMsg3,
+        aek: &mut sgx_key_128bit_t,
+        responder_identity: &mut sgx_dh_session_enclave_identity_t,
+    ) -> SgxError {
         if !rsgx_data_is_within_enclave(self) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
@@ -804,7 +795,6 @@ impl SgxDhInitiator {
     }
 
     fn dh_generate_message2(&self, msg1: &SgxDhMsg1, msg2: &mut SgxDhMsg2) -> SgxError {
-
         msg2.report = Default::default();
         msg2.cmac = Default::default();
         msg2.g_b = self.pub_key;
@@ -828,7 +818,6 @@ impl SgxDhInitiator {
     }
 
     fn lav2_generate_message2(&self, msg1: &SgxDhMsg1, msg2: &mut SgxDhMsg2) -> SgxError {
-
         msg2.report = Default::default();
         msg2.cmac = Default::default();
         msg2.g_b = self.pub_key;
@@ -852,7 +841,6 @@ impl SgxDhInitiator {
     }
 
     fn dh_verify_message3(&self, msg3: &SgxDhMsg3) -> SgxError {
-
         let add_prop_len = msg3.msg3_body.additional_prop.len() as u32;
 
         let cmac_handle = SgxCmacHandle::new();
@@ -885,7 +873,6 @@ impl SgxDhInitiator {
     }
 
     fn lav2_verify_message3(&self, msg3: &SgxDhMsg3) -> SgxError {
-
         let sha_handle = SgxShaHandle::new();
         sha_handle.init()?;
         sha_handle.update_msg(&self.peer_pub_key)?;
@@ -918,7 +905,6 @@ impl SgxDhInitiator {
     }
 
     fn set_error(&mut self, sgx_ret: sgx_status_t) -> sgx_status_t {
-
         *self = Self::default();
         self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
         match sgx_ret {
@@ -927,7 +913,6 @@ impl SgxDhInitiator {
         }
     }
 }
-
 
 #[derive(Copy, Clone, Default)]
 struct SgxLAv2ProtoSpec {
@@ -940,12 +925,11 @@ struct SgxLAv2ProtoSpec {
 unsafe impl ContiguousMemory for SgxLAv2ProtoSpec {}
 
 impl SgxLAv2ProtoSpec {
-
     pub unsafe fn to_report_data(&self) -> sgx_report_data_t {
         mem::transmute::<SgxLAv2ProtoSpec, sgx_report_data_t>(*self)
     }
 
-    pub unsafe fn from_report_data(data: &sgx_report_data_t) -> Self {
+    pub unsafe fn from_report_data(data: &sgx_report_data_t) -> SgxLAv2ProtoSpec {
         mem::transmute::<sgx_report_data_t, SgxLAv2ProtoSpec>(*data)
     }
 
@@ -958,7 +942,6 @@ impl SgxLAv2ProtoSpec {
     }
 
     pub fn make_target_info(&self, rpt: &sgx_report_t, ti: &mut sgx_target_info_t) -> SgxError {
-
         if !self.is_valid() {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
@@ -969,7 +952,6 @@ impl SgxLAv2ProtoSpec {
 
         let mut to: i32 = 0;
         for i in 1..(self.ts_count() + 1) as usize {
-
             let size: i32 = 1 << (self.target_spec[i] & 0xF);
             to += size - 1;
             to &= -size;
@@ -1013,7 +995,6 @@ const SGX_LAV2_PROTO_SPEC: SgxLAv2ProtoSpec = SgxLAv2ProtoSpec {
 };
 
 pub fn rsgx_self_target() -> SgxResult<sgx_target_info_t> {
-
     let mut target_info = sgx_target_info_t::default();
     let report = rsgx_self_report();
     SGX_LAV2_PROTO_SPEC.make_target_info(&report, &mut target_info).map(|_| target_info)

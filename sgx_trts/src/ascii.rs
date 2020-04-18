@@ -34,12 +34,12 @@
 use alloc::vec::Vec;
 use alloc::string::String;
 
-pub use core::ascii::{EscapeDefault, escape_default};
+pub use core::ascii::{escape_default, EscapeDefault};
 
 /// Extension methods for ASCII-subset only operations.
 ///
 /// Be aware that operations on seemingly non-ASCII characters can sometimes
-/// have unexpected results.
+/// have unexpected results. Consider this example:
 ///
 pub trait AsciiExt {
     /// Container type for copied ASCII characters.

@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_trts::libc::c_int;
 use crate::io::{self, IoSlice, IoSliceMut};
 use crate::sys::fd::FileDesc;
 use crate::sys::{cvt, cvt_r};
@@ -55,15 +54,15 @@ impl AnonPipe {
         self.0.write_vectored(bufs)
     }
 
-    pub fn fd(&self) -> &FileDesc { &self.0 }
-    pub fn into_fd(self) -> FileDesc { self.0 }
+    pub fn fd(&self) -> &FileDesc {
+        &self.0
+    }
+    pub fn into_fd(self) -> FileDesc {
+        self.0
+    }
 }
 
-pub fn read2(p1: AnonPipe,
-             v1: &mut Vec<u8>,
-             p2: AnonPipe,
-             v2: &mut Vec<u8>) -> io::Result<()> {
-
+pub fn read2(p1: AnonPipe, v1: &mut Vec<u8>, p2: AnonPipe, v2: &mut Vec<u8>) -> io::Result<()> {
     // Set both pipes into nonblocking mode as we're gonna be reading from both
     // in the `select` loop below, and we wouldn't want one to block the other!
     let p1 = p1.into_fd();
@@ -82,11 +81,11 @@ pub fn read2(p1: AnonPipe,
 
         if fds[0].revents != 0 && read(&p1, v1)? {
             p2.set_nonblocking(false)?;
-            return p2.read_to_end(v2).map(|_| ());
+            return p2.read_to_end(v2).map(drop);
         }
         if fds[1].revents != 0 && read(&p2, v2)? {
             p1.set_nonblocking(false)?;
-            return p1.read_to_end(v1).map(|_| ());
+            return p1.read_to_end(v1).map(drop);
         }
     }
 
@@ -99,8 +98,9 @@ pub fn read2(p1: AnonPipe,
         match fd.read_to_end(dst) {
             Ok(_) => Ok(true),
             Err(e) => {
-                if e.raw_os_error() == Some(libc::EWOULDBLOCK) ||
-                   e.raw_os_error() == Some(libc::EAGAIN) {
+                if e.raw_os_error() == Some(libc::EWOULDBLOCK)
+                    || e.raw_os_error() == Some(libc::EAGAIN)
+                {
                     Ok(false)
                 } else {
                     Err(e)

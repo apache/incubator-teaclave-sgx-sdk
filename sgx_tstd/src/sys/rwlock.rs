@@ -252,7 +252,6 @@ pub struct SgxThreadRwLock {
 }
 
 impl SgxThreadRwLock {
-
     /// Creates a new reader-writer lock for use.
     pub const fn new() -> Self {
         SgxThreadRwLock { 

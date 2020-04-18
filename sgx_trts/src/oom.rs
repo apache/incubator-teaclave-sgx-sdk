@@ -18,25 +18,34 @@
 use crate::trts;
 use core::sync::atomic::{AtomicPtr, Ordering};
 use core::mem;
+use core::ptr;
 use core::alloc::AllocErr;
 
-static SGX_OOM_HANDLER: AtomicPtr<()> = AtomicPtr::new(default_oom_handler as *mut ());
+static SGX_OOM_HANDLER: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());
 
 #[allow(clippy::needless_pass_by_value)]
-fn default_oom_handler( _err: AllocErr) -> ! {
+fn default_oom_handler(_err: AllocErr) -> ! {
     trts::rsgx_abort()
 }
 
 pub fn rsgx_oom(err: AllocErr) -> ! {
-    let value = SGX_OOM_HANDLER.load(Ordering::SeqCst);
-    let handler: fn(AllocErr) -> ! = unsafe { mem::transmute(value) };
-    handler(err);
+    let hook = SGX_OOM_HANDLER.load(Ordering::SeqCst);
+    let handler: fn(AllocErr) -> ! =
+        if hook.is_null() { default_oom_handler } else { unsafe { mem::transmute(hook) } };
+    handler(err)
 }
 
 /// Set a custom handler for out-of-memory conditions
 ///
 /// To avoid recursive OOM failures, it is critical that the OOM handler does
 /// not allocate any memory itself.
-pub fn set_panic_handler(handler: fn(AllocErr) -> !) {
+pub fn set_oom_handler(handler: fn(AllocErr) -> !) {
     SGX_OOM_HANDLER.store(handler as *mut (), Ordering::SeqCst);
+}
+
+/// Unregisters the current custom handler, returning it.
+///
+pub fn take_oom_handler() -> fn(AllocErr) -> ! {
+    let hook = SGX_OOM_HANDLER.swap(ptr::null_mut(), Ordering::SeqCst);
+    if hook.is_null() { default_oom_handler } else { unsafe { mem::transmute(hook) } }
 }

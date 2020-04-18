@@ -39,6 +39,7 @@
 //! platforms. In libstd though this is the default strategy for OSX.
 
 #![allow(bad_style)]
+#![allow(dead_code)]
 
 use core::{ptr, slice};
 use crate::bt;
@@ -63,22 +64,22 @@ pub enum Symbol {
 
 impl Symbol {
     pub fn name(&self) -> Option<SymbolName> {
-        let symbol = |ptr: *const c_char| {
-            unsafe {
-                if ptr.is_null() {
-                    None
-                } else {
-                    let len = sgx_libc::strlen(ptr);
-                    Some(SymbolName::new(slice::from_raw_parts(
-                        ptr as *const u8,
-                        len,
-                    )))
-                }
+        let symbol = |ptr: *const c_char| unsafe {
+            if ptr.is_null() {
+                None
+            } else {
+                let len = sgx_libc::strlen(ptr);
+                Some(SymbolName::new(slice::from_raw_parts(
+                    ptr as *const u8,
+                    len,
+                )))
             }
         };
         match *self {
             Symbol::Syminfo { symname, .. } => symbol(symname),
-            Symbol::Pcinfo { function, symname, .. } => {
+            Symbol::Pcinfo {
+                function, symname, ..
+            } => {
                 // If possible prefer the `function` name which comes from
                 // debuginfo and can typically be more accurate for inline
                 // frames for example. If that's not present though fall back to
@@ -89,7 +90,41 @@ impl Symbol {
                 // isntead of `std::panicking::try::do_call`. It's not really
                 // clear why, but overall the `function` name seems more accurate.
                 if let Some(sym) = symbol(function) {
-                    return Some(sym)
+                    return Some(sym);
+                }
+                symbol(symname)
+            }
+        }
+    }
+
+    pub fn name_bytes(&self) -> Option<&[u8]> {
+        let symbol = |ptr: *const c_char| unsafe {
+            if ptr.is_null() {
+                None
+            } else {
+                let len = sgx_libc::strlen(ptr);
+                Some(slice::from_raw_parts(
+                    ptr as *const u8,
+                    len,
+                ))
+            }
+        };
+        match *self {
+            Symbol::Syminfo { symname, .. } => symbol(symname),
+            Symbol::Pcinfo {
+                function, symname, ..
+            } => {
+                // If possible prefer the `function` name which comes from
+                // debuginfo and can typically be more accurate for inline
+                // frames for example. If that's not present though fall back to
+                // the symbol table name specified in `symname`.
+                //
+                // Note that sometimes `function` can feel somewhat less
+                // accurate, for example being listed as `try<i32,closure>`
+                // isntead of `std::panicking::try::do_call`. It's not really
+                // clear why, but overall the `function` name seems more accurate.
+                if let Some(sym) = symbol(function) {
+                    return Some(sym);
                 }
                 symbol(symname)
             }
@@ -108,11 +143,14 @@ impl Symbol {
         }
     }
 
-    fn filename_bytes(&self) -> Option<&[u8]> {
+    pub fn filename_bytes(&self) -> Option<&[u8]> {
         match *self {
             Symbol::Syminfo { .. } => None,
             Symbol::Pcinfo { filename, .. } => {
                 let ptr = filename as *const u8;
+                if ptr.is_null() {
+                    return None;
+                }
                 unsafe {
                     let len = sgx_libc::strlen(filename);
                     Some(slice::from_raw_parts(ptr, len))
@@ -129,7 +167,6 @@ impl Symbol {
     pub fn filename(&self) -> Option<&::std::path::Path> {
         use std::path::Path;
 
-        #[cfg(unix)]
         fn bytes2path(bytes: &[u8]) -> Option<&Path> {
             use std::ffi::OsStr;
             use std::os::unix::prelude::*;
@@ -192,11 +229,15 @@ extern "C" fn syminfo_cb(
             &mut pcinfo_state as *mut _ as *mut _,
         );
         if !pcinfo_state.called {
+            let inner = Symbol::Syminfo {
+                pc: pc,
+                symname: symname,
+            };
             (pcinfo_state.cb)(&super::Symbol {
-                inner: Symbol::Syminfo {
-                    pc: pc,
-                    symname: symname,
-                },
+                name: inner.name_bytes().map(|m| m.to_vec()),
+                addr: inner.addr(),
+                filename: inner.filename_bytes().map(|m| m.to_vec()),
+                lineno: inner.lineno(),
             });
         }
     }
@@ -226,14 +267,18 @@ extern "C" fn pcinfo_cb(
     unsafe {
         let state = &mut *(data as *mut PcinfoState);
         state.called = true;
+        let inner = Symbol::Pcinfo {
+            pc: pc,
+            filename: filename,
+            lineno: lineno,
+            symname: state.symname,
+            function,
+        };
         (state.cb)(&super::Symbol {
-            inner: Symbol::Pcinfo {
-                pc: pc,
-                filename: filename,
-                lineno: lineno,
-                symname: state.symname,
-                function,
-            },
+            name: inner.name_bytes().map(|m| m.to_vec()),
+            addr: inner.addr(),
+            filename: inner.filename_bytes().map(|m| m.to_vec()),
+            lineno: inner.lineno(),
         });
     }
 
@@ -261,8 +306,13 @@ unsafe fn init_state() -> *mut bt::backtrace_state {
         return STATE;
     }
 
+    let filename = load_filename();
+    if filename.is_null() {
+        return ptr::null_mut();
+    }
+
     STATE = bt::backtrace_create_state(
-        load_filename(),
+        filename,
         // Don't exercise threadsafe capabilities of libbacktrace since
         // we're always calling it in a synchronized fashion.
         0,

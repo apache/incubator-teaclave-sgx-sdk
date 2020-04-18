@@ -48,7 +48,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! sgx_backtrace = "1.0.8"
+//! sgx_backtrace = "1.1.2"
 //! ```
 //!
 //! Next:
@@ -80,8 +80,9 @@
 //! # }
 //! ```
 #![no_std]
-#![feature(panic_unwind)]
-#![cfg_attr(all(target_env = "sgx", feature = "std"), feature(rustc_private))]
+
+#![cfg_attr(all(target_env = "sgx", target_vendor = "mesalock", feature = "std"), feature(rustc_private))]
+#![cfg_attr(feature = "nostd", feature(panic_unwind))]
 
 #[cfg(all(not(target_env = "sgx"), feature = "std"))]
 #[macro_use]
@@ -90,9 +91,13 @@ extern crate sgx_tstd as std;
 #[macro_use]
 extern crate std;
 
+extern crate alloc;
 extern crate sgx_backtrace_sys as bt;
+
+#[cfg(feature = "nostd")]
 #[allow(unused_extern_crates)]
 extern crate sgx_unwind;
+
 #[macro_use]
 extern crate sgx_types;
 extern crate sgx_trts;
@@ -119,14 +124,14 @@ mod types;
 #[cfg(feature = "std")]
 pub use crate::symbolize::clear_symbol_cache;
 
+mod print;
+pub use print::{BacktraceFmt, BacktraceFrameFmt, PrintFmt};
 cfg_if! {
     if #[cfg(feature = "std")] {
         pub use crate::backtrace::trace;
         pub use crate::symbolize::{resolve, resolve_frame};
         pub use crate::capture::{Backtrace, BacktraceFrame, BacktraceSymbol};
         mod capture;
-    } else {
-
     }
 }
 
@@ -149,12 +154,12 @@ impl Drop for Bomb {
 mod lock {
     use std::boxed::Box;
     use std::cell::Cell;
-    use std::sync::{SgxMutex, SgxMutexGuard, Once, ONCE_INIT};
+    use std::sync::{SgxMutex, SgxMutexGuard, Once};
 
     pub struct LockGuard(Option<SgxMutexGuard<'static, ()>>);
 
     static mut LOCK: *mut SgxMutex<()> = 0 as *mut _;
-    static INIT: Once = ONCE_INIT;
+    static INIT: Once = Once::new();
     thread_local!(static LOCK_HELD: Cell<bool> = Cell::new(false));
 
     impl Drop for LockGuard {

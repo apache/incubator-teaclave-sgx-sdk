@@ -30,10 +30,9 @@ use self::StartResult::*;
 
 use core::cmp;
 use core::intrinsics::abort;
-use core::isize;
 use core::cell::UnsafeCell;
 use core::ptr;
-use core::sync::atomic::{AtomicUsize, AtomicIsize, AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
 use crate::sync::mpsc::blocking::{self, SignalToken};
 use crate::sync::mpsc::mpsc_queue as mpsc;
 use crate::sync::{SgxMutex, SgxMutexGuard};
@@ -48,9 +47,9 @@ const MAX_STEALS: isize = 1 << 20;
 
 pub struct Packet<T> {
     queue: mpsc::Queue<T>,
-    cnt: AtomicIsize, // How many items are on this channel
+    cnt: AtomicIsize,          // How many items are on this channel
     steals: UnsafeCell<isize>, // How many times has a port received without blocking?
-    to_wake: AtomicUsize, // SignalToken for wake up
+    to_wake: AtomicUsize,      // SignalToken for wake up
 
     // The number of channels which are currently using this packet.
     channels: AtomicUsize,
@@ -106,9 +105,7 @@ impl<T> Packet<T> {
     // threads in select().
     //
     // This can only be called at channel-creation time
-    pub fn inherit_blocker(&self,
-                           token: Option<SignalToken>,
-                           guard: SgxMutexGuard<'_, ()>) {
+    pub fn inherit_blocker(&self, token: Option<SignalToken>, guard: SgxMutexGuard<'_, ()>) {
         token.map(|token| {
             assert_eq!(self.cnt.load(Ordering::SeqCst), 0);
             assert_eq!(self.to_wake.load(Ordering::SeqCst), 0);
@@ -133,7 +130,9 @@ impl<T> Packet<T> {
             // To offset this bad increment, we initially set the steal count to
             // -1. You'll find some special code in abort_selection() as well to
             // ensure that this -1 steal count doesn't escape too far.
-            unsafe { *self.steals.get() = -1; }
+            unsafe {
+                *self.steals.get() = -1;
+            }
         });
 
         // When the shared packet is constructed, we grabbed this lock. The
@@ -146,7 +145,9 @@ impl<T> Packet<T> {
 
     pub fn send(&self, t: T) -> Result<(), T> {
         // See Port::drop for what's going on
-        if self.port_dropped.load(Ordering::SeqCst) { return Err(t) }
+        if self.port_dropped.load(Ordering::SeqCst) {
+            return Err(t);
+        }
 
         // Note that the multiple sender case is a little trickier
         // semantically than the single sender case. The logic for
@@ -174,7 +175,7 @@ impl<T> Packet<T> {
         // received". Once we get beyond this check, we have permanently
         // entered the realm of "this may be received"
         if self.cnt.load(Ordering::SeqCst) < DISCONNECTED + FUDGE {
-            return Err(t)
+            return Err(t);
         }
 
         self.queue.push(t);
@@ -211,7 +212,7 @@ impl<T> Packet<T> {
                         // maybe we're done, if we're not the last ones
                         // here, then we need to go try again.
                         if self.sender_drain.fetch_sub(1, Ordering::SeqCst) == 1 {
-                            break
+                            break;
                         }
                     }
 
@@ -250,7 +251,10 @@ impl<T> Packet<T> {
         }
 
         match self.try_recv() {
-            data @ Ok(..) => unsafe { *self.steals.get() -= 1; data },
+            data @ Ok(..) => unsafe {
+                *self.steals.get() -= 1;
+                data
+            },
             data => data,
         }
     }
@@ -266,12 +270,16 @@ impl<T> Packet<T> {
             let steals = ptr::replace(self.steals.get(), 0);
 
             match self.cnt.fetch_sub(1 + steals, Ordering::SeqCst) {
-                DISCONNECTED => { self.cnt.store(DISCONNECTED, Ordering::SeqCst); }
+                DISCONNECTED => {
+                    self.cnt.store(DISCONNECTED, Ordering::SeqCst);
+                }
                 // If we factor in our steals and notice that the channel has no
                 // data, we successfully sleep
                 n => {
                     assert!(n >= 0);
-                    if n - steals <= 0 { return Installed }
+                    if n - steals <= 0 {
+                        return Installed;
+                    }
                 }
             }
 
@@ -304,7 +312,10 @@ impl<T> Packet<T> {
                 loop {
                     thread::yield_now();
                     match self.queue.pop() {
-                        mpsc::Data(t) => { data = t; break }
+                        mpsc::Data(t) => {
+                            data = t;
+                            break;
+                        }
                         mpsc::Empty => panic!("inconsistent => empty"),
                         mpsc::Inconsistent => {}
                     }
@@ -375,9 +386,13 @@ impl<T> Packet<T> {
         }
 
         match self.cnt.swap(DISCONNECTED, Ordering::SeqCst) {
-            -1 => { self.take_to_wake().signal(); }
+            -1 => {
+                self.take_to_wake().signal();
+            }
             DISCONNECTED => {}
-            n => { assert!(n >= 0); }
+            n => {
+                assert!(n >= 0);
+            }
         }
     }
 
@@ -394,7 +409,9 @@ impl<T> Packet<T> {
             // control of this thread.
             loop {
                 match self.queue.pop() {
-                    mpsc::Data(..) => { steals += 1; }
+                    mpsc::Data(..) => {
+                        steals += 1;
+                    }
                     mpsc::Empty | mpsc::Inconsistent => break,
                 }
             }
@@ -420,7 +437,7 @@ impl<T> Packet<T> {
                 self.cnt.store(DISCONNECTED, Ordering::SeqCst);
                 DISCONNECTED
             }
-            n => n
+            n => n,
         }
     }
 
@@ -446,7 +463,7 @@ impl<T> Packet<T> {
         // positive.
         let steals = {
             let cnt = self.cnt.load(Ordering::SeqCst);
-            if cnt < 0 && cnt != DISCONNECTED {-cnt} else {0}
+            if cnt < 0 && cnt != DISCONNECTED { -cnt } else { 0 }
         };
         let prev = self.bump(steals + 1);
 

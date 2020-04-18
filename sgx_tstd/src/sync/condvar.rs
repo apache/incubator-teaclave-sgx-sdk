@@ -31,16 +31,16 @@ use sgx_types::SysError;
 use sgx_trts::oom;
 use sgx_trts::libc;
 use core::sync::atomic::{AtomicUsize, Ordering};
-use core::cell::UnsafeCell;
 use core::fmt;
 use core::alloc::AllocErr;
 use alloc_crate::boxed::Box;
-use crate::sync::mutex::{self, SgxThreadMutex, SgxMutexGuard};
+use crate::sync::{mutex, SgxThreadMutex, SgxMutexGuard};
 use crate::sys_common::poison::{self, LockResult, PoisonError};
 use crate::time::Duration;
 use crate::time::Instant;
-use crate::untrusted::time::InstantEx;
 use crate::sys::condvar as imp;
+#[cfg(not(feature = "untrusted_time"))]
+use crate::untrusted::time::InstantEx;
 
 /// A type indicating whether a timed wait on a condition variable returned
 /// due to a time out or not.
@@ -65,8 +65,7 @@ unsafe impl Send for SgxThreadCondvar {}
 unsafe impl Sync for SgxThreadCondvar {}
 
 impl SgxThreadCondvar {
-
-    pub const fn new() -> Self {
+    pub const fn new() -> SgxThreadCondvar {
         SgxThreadCondvar(imp::SgxThreadCondvar::new())
     }
 
@@ -131,7 +130,7 @@ impl SgxCondvar {
     ///
     /// Creates a new condition variable which is ready to be waited on and notified.
     ///
-    pub fn new() -> Self {
+    pub fn new() -> SgxCondvar {
         SgxCondvar {
             inner: Box::new(SgxThreadCondvar::new()),
             mutex: AtomicUsize::new(0),
@@ -143,7 +142,7 @@ impl SgxCondvar {
     ///
     /// This function will atomically unlock the mutex specified (represented by
     /// `guard`) and block the current thread. This means that any calls
-    /// to [`signal`] or [`broadcast`] which happen logically after the
+    /// to [`notify_one`] or [`notify_all`] which happen logically after the
     /// mutex is unlocked are candidates to wake this thread up. When this
     /// function call returns, the lock specified will have been re-acquired.
     ///
@@ -171,11 +170,7 @@ impl SgxCondvar {
             self.inner.wait(lock);
             mutex::guard_poison(&guard).get()
         };
-        if poisoned {
-            Err(PoisonError::new(guard))
-        } else {
-            Ok(guard)
-        }
+        if poisoned { Err(PoisonError::new(guard)) } else { Ok(guard) }
     }
 
     /// Blocks the current thread until this condition variable receives a
@@ -185,7 +180,7 @@ impl SgxCondvar {
     ///
     /// This function will atomically unlock the mutex specified (represented by
     /// `guard`) and block the current thread. This means that any calls
-    /// to [`signal`] or [`broadcast`] which happen logically after the
+    /// to [`notify_one`] or [`notify_all`] which happen logically after the
     /// mutex is unlocked are candidates to wake this thread up. When this
     /// function call returns, the lock specified will have been re-acquired.
     ///
@@ -195,15 +190,54 @@ impl SgxCondvar {
     /// poisoned when this thread re-acquires the lock. For more information,
     /// see information about [poisoning] on the [`Mutex`] type.
     ///
-    pub fn wait_until<'a, T, F>(&self, mut guard: SgxMutexGuard<'a, T>,
-                                mut condition: F)
-                                -> LockResult<SgxMutexGuard<'a, T>>
-                                where F: FnMut(&mut T) -> bool {
+    pub fn wait_until<'a, T, F>(
+        &self,
+        mut guard: SgxMutexGuard<'a, T>,
+        mut condition: F
+    ) -> LockResult<SgxMutexGuard<'a, T>>
+    where
+        F: FnMut(&mut T) -> bool,
+    {
         while !condition(&mut *guard) {
             guard = self.wait(guard)?;
         }
         Ok(guard)
     }
+
+    /// Blocks the current thread until this condition variable receives a
+    /// notification and the provided condition is false.
+    ///
+    /// This function will atomically unlock the mutex specified (represented by
+    /// `guard`) and block the current thread. This means that any calls
+    /// to [`notify_one`] or [`notify_all`] which happen logically after the
+    /// mutex is unlocked are candidates to wake this thread up. When this
+    /// function call returns, the lock specified will have been re-acquired.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the mutex being waited on is
+    /// poisoned when this thread re-acquires the lock. For more information,
+    /// see information about [poisoning] on the [`Mutex`] type.
+    ///
+    /// [`notify_one`]: #method.notify_one
+    /// [`notify_all`]: #method.notify_all
+    /// [poisoning]: ../sync/struct.Mutex.html#poisoning
+    /// [`Mutex`]: ../sync/struct.Mutex.html
+    ///
+    pub fn wait_while<'a, T, F>(
+        &self,
+        mut guard: SgxMutexGuard<'a, T>,
+        mut condition: F,
+    ) -> LockResult<SgxMutexGuard<'a, T>>
+    where
+        F: FnMut(&mut T) -> bool,
+    {
+        while condition(&mut *guard) {
+            guard = self.wait(guard)?;
+        }
+        Ok(guard)
+    }
+
     /// Waits on this condition variable for a notification, timing out after a
     /// specified duration.
     ///
@@ -226,13 +260,15 @@ impl SgxCondvar {
     ///
     /// [`wait`]: #method.wait
     ///
-    pub fn wait_timeout_ms<'a, T>(&self, guard: SgxMutexGuard<'a, T>, ms: u32)
-                                  -> LockResult<(SgxMutexGuard<'a, T>, bool)> {
+    pub fn wait_timeout_ms<'a, T>(
+        &self,
+        guard: SgxMutexGuard<'a, T>,
+        ms: u32,
+    ) -> LockResult<(SgxMutexGuard<'a, T>, bool)> {
         let res = self.wait_timeout(guard, Duration::from_millis(ms as u64));
-        poison::map_result(res, |(a, b)| {
-            (a, !b.timed_out())
-        })
+        poison::map_result(res, |(a, b)| (a, !b.timed_out()))
     }
+
     /// Waits on this condition variable for a notification, timing out after a
     /// specified duration.
     ///
@@ -244,15 +280,14 @@ impl SgxCondvar {
     ///
     /// Note that the best effort is made to ensure that the time waited is
     /// measured with a monotonic clock, and not affected by the changes made to
-    /// the system time.  This function is susceptible to spurious wakeups.
+    /// the system time. This function is susceptible to spurious wakeups.
     /// Condition variables normally have a boolean predicate associated with
     /// them, and the predicate must always be checked each time this function
-    /// returns to protect against spurious wakeups.  Additionally, it is
-    /// typically desirable for the time-out to not exceed some duration in
+    /// returns to protect against spurious wakeups. Additionally, it is
+    /// typically desirable for the timeout to not exceed some duration in
     /// spite of spurious wakes, thus the sleep-duration is decremented by the
-    /// amount slept.  Alternatively, use the `wait_timeout_until` method
-    /// to wait until a condition is met with a total time-out regardless
-    /// of spurious wakes.
+    /// amount slept. Alternatively, use the `wait_timeout_while` method
+    /// to wait with a timeout while a predicate is true.
     ///
     /// The returned [`WaitTimeoutResult`] value indicates if the timeout is
     /// known to have elapsed.
@@ -261,25 +296,21 @@ impl SgxCondvar {
     /// returns, regardless of whether the timeout elapsed or not.
     ///
     /// [`wait`]: #method.wait
-    /// [`wait_timeout_until`]: #method.wait_timeout_until
+    /// [`wait_timeout_while`]: #method.wait_timeout_while
     /// [`WaitTimeoutResult`]: struct.WaitTimeoutResult.html
     ///
-    pub fn wait_timeout<'a, T>(&self, guard: SgxMutexGuard<'a, T>,
-                            dur: Duration)
-                            -> LockResult<(SgxMutexGuard<'a, T>, WaitTimeoutResult)> {
-
+    pub fn wait_timeout<'a, T>(
+        &self,
+        guard: SgxMutexGuard<'a, T>,
+        dur: Duration,
+    ) -> LockResult<(SgxMutexGuard<'a, T>, WaitTimeoutResult)> {
         let (poisoned, result) = unsafe {
             let lock = mutex::guard_lock(&guard);
             self.verify(lock);
-            let _result = self.inner.wait_timeout(lock, dur);
-
-            (mutex::guard_poison(&guard).get(), WaitTimeoutResult(_result.err() == Some(libc::ETIMEDOUT)))
+            let result = self.inner.wait_timeout(lock, dur);
+            (mutex::guard_poison(&guard).get(), WaitTimeoutResult(result.err() == Some(libc::ETIMEDOUT)))
         };
-        if poisoned {
-            Err(PoisonError::new((guard, result)))
-        } else {
-            Ok((guard, result))
-        }
+        if poisoned { Err(PoisonError::new((guard, result))) } else { Ok((guard, result)) }
     }
 
     /// Waits on this condition variable for a notification, timing out after a
@@ -306,49 +337,64 @@ impl SgxCondvar {
     /// [`wait_timeout`]: #method.wait_timeout
     /// [`WaitTimeoutResult`]: struct.WaitTimeoutResult.html
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// #![feature(wait_timeout_until)]
-    ///
-    /// use std::sync::{Arc, Mutex, Condvar};
-    /// use std::thread;
-    /// use std::time::Duration;
-    ///
-    /// let pair = Arc::new((Mutex::new(false), Condvar::new()));
-    /// let pair2 = pair.clone();
-    ///
-    /// thread::spawn(move|| {
-    ///     let &(ref lock, ref cvar) = &*pair2;
-    ///     let mut started = lock.lock().unwrap();
-    ///     *started = true;
-    ///     // We notify the condvar that the value has changed.
-    ///     cvar.notify_one();
-    /// });
-    ///
-    /// // wait for the thread to start up
-    /// let &(ref lock, ref cvar) = &*pair;
-    /// let result = cvar.wait_timeout_until(
-    ///     lock.lock().unwrap(),
-    ///     Duration::from_millis(100),
-    ///     |&mut started| started,
-    /// ).unwrap();
-    /// if result.1.timed_out() {
-    ///     // timed-out without the condition ever evaluating to true.
-    /// }
-    /// // access the locked mutex via result.0
-    /// ```
-
-    pub fn wait_timeout_until<'a, T, F>(&self, mut guard: SgxMutexGuard<'a, T>,
-                                        dur: Duration, mut condition: F)
-                                        -> LockResult<(SgxMutexGuard<'a, T>, WaitTimeoutResult)>
-                                        where F: FnMut(&mut T) -> bool {
+    pub fn wait_timeout_until<'a, T, F>(
+    	&self,
+    	mut guard: SgxMutexGuard<'a, T>,
+        dur: Duration, mut condition: F,
+	) -> LockResult<(SgxMutexGuard<'a, T>, WaitTimeoutResult)>
+	where
+	    F: FnMut(&mut T) -> bool,
+	{
         let start = Instant::now();
         loop {
             if condition(&mut *guard) {
                 return Ok((guard, WaitTimeoutResult(false)));
             }
+            let timeout = match dur.checked_sub(start.elapsed()) {
+                Some(timeout) => timeout,
+                None => return Ok((guard, WaitTimeoutResult(true))),
+            };
+            guard = self.wait_timeout(guard, timeout)?.0;
+        }
+    }
 
+    /// Waits on this condition variable for a notification, timing out after a
+    /// specified duration.
+    ///
+    /// The semantics of this function are equivalent to [`wait_while`] except
+    /// that the thread will be blocked for roughly no longer than `dur`. This
+    /// method should not be used for precise timing due to anomalies such as
+    /// preemption or platform differences that may not cause the maximum
+    /// amount of time waited to be precisely `dur`.
+    ///
+    /// Note that the best effort is made to ensure that the time waited is
+    /// measured with a monotonic clock, and not affected by the changes made to
+    /// the system time.
+    ///
+    /// The returned [`WaitTimeoutResult`] value indicates if the timeout is
+    /// known to have elapsed without the condition being met.
+    ///
+    /// Like [`wait_while`], the lock specified will be re-acquired when this
+    /// function returns, regardless of whether the timeout elapsed or not.
+    ///
+    /// [`wait_while`]: #method.wait_while
+    /// [`wait_timeout`]: #method.wait_timeout
+    /// [`WaitTimeoutResult`]: struct.WaitTimeoutResult.html
+    ///
+    pub fn wait_timeout_while<'a, T, F>(
+        &self,
+        mut guard: SgxMutexGuard<'a, T>,
+        dur: Duration,
+        mut condition: F,
+    ) -> LockResult<(SgxMutexGuard<'a, T>, WaitTimeoutResult)>
+    where
+        F: FnMut(&mut T) -> bool,
+    {
+        let start = Instant::now();
+        loop {
+            if !condition(&mut *guard) {
+                return Ok((guard, WaitTimeoutResult(false)));
+            }
             let timeout = match dur.checked_sub(start.elapsed()) {
                 Some(timeout) => timeout,
                 None => return Ok((guard, WaitTimeoutResult(true))),
@@ -360,8 +406,8 @@ impl SgxCondvar {
     /// Wakes up one blocked thread on this condvar.
     ///
     /// If there is a blocked thread on this condition variable, then it will
-    /// be woken up from its call to [`wait`]. Calls to `signal` are not buffered
-    /// in any way.
+    /// be woken up from its call to [`wait`] or [`wait_timeout`]. Calls to
+    /// `notify_one` are not buffered in any way.
     ///
     /// To wake up all threads, see [`broadcast`].
     pub fn signal(&self) {
@@ -402,13 +448,18 @@ impl SgxCondvar {
         match self.mutex.compare_and_swap(0, addr, Ordering::SeqCst) {
             // If we got out 0, then we have successfully bound the mutex to
             // this cvar.
-            0 => {},
+            0 => {}
+
             // If we get out a value that's the same as `addr`, then someone
             // already beat us to the punch.
-            n if n == addr => {},
+            n if n == addr => {}
+
             // Anything else and we're using more than one mutex on this cvar,
             // which is currently disallowed.
-            _ => panic!("attempted to use a condition variable with two mutexes."),
+            _ => panic!(
+                "attempted to use a condition variable with two \
+                         mutexes"
+            ),
         }
     }
 }
@@ -422,7 +473,7 @@ impl fmt::Debug for SgxCondvar {
 
 impl Default for SgxCondvar {
     /// Creates a `Condvar` which is ready to be waited on and notified.
-    fn default() -> Self {
+    fn default() -> SgxCondvar {
         SgxCondvar::new()
     }
 }

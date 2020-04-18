@@ -17,15 +17,17 @@
 
 use sgx_trts::libc::{c_int, mode_t, time_t, stat64, off64_t, DIR, dirent64};
 use crate::os::unix::prelude::*;
-use crate::ffi::{CString, CStr, OsString, OsStr};
-use crate::io::{self, Error, ErrorKind, SeekFrom, IoSlice, IoSliceMut};
+use crate::ffi::{CStr, CString, OsStr, OsString};
+use crate::io::{self, Error, ErrorKind, IoSlice, IoSliceMut, SeekFrom};
 use crate::path::{Path, PathBuf};
 use crate::sys::fd::FileDesc;
 use crate::sys::time::SystemTime;
 use crate::sys::{cvt, cvt_r};
-pub use crate::sys_common::{AsInner, FromInner, fs::remove_dir_all};
+use crate::sys_common::{AsInner, FromInner};
 use core::{fmt, mem, ptr};
 use alloc_crate::sync::Arc;
+
+pub use crate::sys_common::fs::remove_dir_all;
 
 pub struct File(FileDesc);
 
@@ -76,13 +78,25 @@ pub struct OpenOptions {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct FilePermissions { mode: mode_t }
+pub struct FilePermissions {
+    mode: mode_t,
+}
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct FileType { mode: mode_t }
+pub struct FileType {
+    mode: mode_t,
+}
 
 impl FileAttr {
-    pub fn size(&self) -> u64 { self.stat.st_size as u64 }
+    fn from_stat64(stat: stat64) -> Self {
+        Self { stat }
+    }
+}
+
+impl FileAttr {
+    pub fn size(&self) -> u64 {
+        self.stat.st_size as u64
+    }
     pub fn perm(&self) -> FilePermissions {
         FilePermissions { mode: (self.stat.st_mode as mode_t) }
     }
@@ -108,14 +122,18 @@ impl FileAttr {
     }
 
     pub fn created(&self) -> io::Result<SystemTime> {
-        Err(io::Error::new(io::ErrorKind::Other,
-                           "creation time is not available on this platform \
-                            currently"))
+        Err(io::Error::new(
+            io::ErrorKind::Other,
+            "creation time is not available on this platform \
+                            currently",
+        ))
     }
 }
 
 impl AsInner<stat64> for FileAttr {
-    fn as_inner(&self) -> &stat64 { &self.stat }
+    fn as_inner(&self) -> &stat64 {
+        &self.stat
+    }
 }
 
 impl FilePermissions {
@@ -133,15 +151,25 @@ impl FilePermissions {
             self.mode |= 0o222;
         }
     }
-    pub fn mode(&self) -> u32 { self.mode as u32 }
+    pub fn mode(&self) -> u32 {
+        self.mode as u32
+    }
 }
 
 impl FileType {
-    pub fn is_dir(&self) -> bool { self.is(libc::S_IFDIR) }
-    pub fn is_file(&self) -> bool { self.is(libc::S_IFREG) }
-    pub fn is_symlink(&self) -> bool { self.is(libc::S_IFLNK) }
+    pub fn is_dir(&self) -> bool {
+        self.is(libc::S_IFDIR)
+    }
+    pub fn is_file(&self) -> bool {
+        self.is(libc::S_IFREG)
+    }
+    pub fn is_symlink(&self) -> bool {
+        self.is(libc::S_IFLNK)
+    }
 
-    pub fn is(&self, mode: mode_t) -> bool { self.mode & libc::S_IFMT == mode }
+    pub fn is(&self, mode: mode_t) -> bool {
+        self.mode & libc::S_IFMT == mode
+    }
 }
 
 impl FromInner<u32> for FilePermissions {
@@ -167,10 +195,7 @@ impl Iterator for ReadDir {
         }
 
         unsafe {
-            let mut ret = DirEntry {
-                entry: mem::zeroed(),
-                dir: self.clone(),
-            };
+            let mut ret = DirEntry { entry: mem::zeroed(), dir: self.clone() };
             let mut entry_ptr = ptr::null_mut();
             loop {
                 if libc::readdir64_r(self.inner.dirp.0, &mut ret.entry, &mut entry_ptr) != 0 {
@@ -181,13 +206,13 @@ impl Iterator for ReadDir {
                         // (instead of looping forever)
                         self.end_of_stream = true;
                     }
-                    return Some(Err(Error::last_os_error()))
+                    return Some(Err(Error::last_os_error()));
                 }
                 if entry_ptr.is_null() {
-                    return None
+                    return None;
                 }
                 if ret.name_bytes() != b"." && ret.name_bytes() != b".." {
-                    return Some(Ok(ret))
+                    return Some(Ok(ret));
                 }
             }
         }
@@ -237,11 +262,10 @@ impl DirEntry {
     }
 
     fn name_bytes(&self) -> &[u8] {
-        unsafe {
-            CStr::from_ptr(self.entry.d_name.as_ptr()).to_bytes()
-        }
+        unsafe { CStr::from_ptr(self.entry.d_name.as_ptr()).to_bytes() }
     }
 }
+
 impl OpenOptions {
     pub fn new() -> OpenOptions {
         OpenOptions {
@@ -258,15 +282,31 @@ impl OpenOptions {
         }
     }
 
-    pub fn read(&mut self, read: bool) { self.read = read; }
-    pub fn write(&mut self, write: bool) { self.write = write; }
-    pub fn append(&mut self, append: bool) { self.append = append; }
-    pub fn truncate(&mut self, truncate: bool) { self.truncate = truncate; }
-    pub fn create(&mut self, create: bool) { self.create = create; }
-    pub fn create_new(&mut self, create_new: bool) { self.create_new = create_new; }
+    pub fn read(&mut self, read: bool) {
+        self.read = read;
+    }
+    pub fn write(&mut self, write: bool) {
+        self.write = write;
+    }
+    pub fn append(&mut self, append: bool) {
+        self.append = append;
+    }
+    pub fn truncate(&mut self, truncate: bool) {
+        self.truncate = truncate;
+    }
+    pub fn create(&mut self, create: bool) {
+        self.create = create;
+    }
+    pub fn create_new(&mut self, create_new: bool) {
+        self.create_new = create_new;
+    }
 
-    pub fn custom_flags(&mut self, flags: i32) { self.custom_flags = flags; }
-    pub fn mode(&mut self, mode: u32) { self.mode = mode as mode_t; }
+    pub fn custom_flags(&mut self, flags: i32) {
+        self.custom_flags = flags;
+    }
+    pub fn mode(&mut self, mode: u32) {
+        self.mode = mode as mode_t;
+    }
 
     fn get_access_mode(&self) -> io::Result<c_int> {
         match (self.read, self.write, self.append) {
@@ -282,14 +322,16 @@ impl OpenOptions {
     fn get_creation_mode(&self) -> io::Result<c_int> {
         match (self.write, self.append) {
             (true, false) => {}
-            (false, false) =>
+            (false, false) => {
                 if self.truncate || self.create || self.create_new {
                     return Err(Error::from_raw_os_error(libc::EINVAL));
-                },
-            (_, true) =>
+                }
+            }
+            (_, true) => {
                 if self.truncate && !self.create_new {
                     return Err(Error::from_raw_os_error(libc::EINVAL));
-                },
+                }
+            }
         }
 
         Ok(match (self.create, self.truncate, self.create_new) {
@@ -309,13 +351,11 @@ impl File {
     }
 
     pub fn open_c(path: &CStr, opts: &OpenOptions) -> io::Result<File> {
-        let flags = libc::O_CLOEXEC |
-                    opts.get_access_mode()? |
-                    opts.get_creation_mode()? |
-                    (opts.custom_flags as c_int & !libc::O_ACCMODE);
-        let fd = cvt_r(|| unsafe {
-            libc::open64(path.as_ptr(), flags, opts.mode as c_int)
-        })?;
+        let flags = libc::O_CLOEXEC
+            | opts.get_access_mode()?
+            | opts.get_creation_mode()?
+            | (opts.custom_flags as c_int & !libc::O_ACCMODE);
+        let fd = cvt_r(|| unsafe { libc::open64(path.as_ptr(), flags, opts.mode as c_int) })?;
         let fd = FileDesc::new(fd);
 
         // Currently the standard library supports Linux 2.6.18 which did not
@@ -339,12 +379,15 @@ impl File {
             match OPEN_CLOEXEC.load(Ordering::Relaxed) {
                 OPEN_CLOEXEC_UNKNOWN => {
                     need_to_set = !fd.get_cloexec()?;
-                    OPEN_CLOEXEC.store(if need_to_set {
-                        OPEN_CLOEXEC_NOTSUPPORTED
-                    } else {
-                        OPEN_CLOEXEC_SUPPORTED
-                    }, Ordering::Relaxed);
-                },
+                    OPEN_CLOEXEC.store(
+                        if need_to_set {
+                            OPEN_CLOEXEC_NOTSUPPORTED
+                        } else {
+                            OPEN_CLOEXEC_SUPPORTED
+                        },
+                        Ordering::Relaxed,
+                    );
+                }
                 OPEN_CLOEXEC_SUPPORTED => need_to_set = false,
                 OPEN_CLOEXEC_NOTSUPPORTED => need_to_set = true,
                 _ => unreachable!(),
@@ -361,10 +404,8 @@ impl File {
 
     pub fn file_attr(&self) -> io::Result<FileAttr> {
         let mut stat: stat64 = unsafe { mem::zeroed() };
-        cvt(unsafe {
-            libc::fstat64(self.0.raw(), &mut stat)
-        })?;
-        Ok(FileAttr { stat })
+        cvt(unsafe { libc::fstat64(self.0.raw(), &mut stat) })?;
+        Ok(FileAttr::from_stat64(stat))
     }
 
     pub fn fsync(&self) -> io::Result<()> {
@@ -376,13 +417,16 @@ impl File {
         cvt_r(|| unsafe { os_datasync(self.0.raw()) })?;
         return Ok(());
 
-        unsafe fn os_datasync(fd: c_int) -> c_int { libc::fdatasync(fd) }
+        unsafe fn os_datasync(fd: c_int) -> c_int {
+            libc::fdatasync(fd)
+        }
     }
 
     pub fn truncate(&self, size: u64) -> io::Result<()> {
-        return cvt_r(|| unsafe {
-            libc::ftruncate64(self.0.raw(), size as off64_t)
-        }).map(|_| ());
+        use crate::convert::TryInto;
+            let size: off64_t =
+                size.try_into().map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
+            cvt_r(|| unsafe { libc::ftruncate64(self.0.raw(), size) }).map(drop)
     }
 
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
@@ -404,12 +448,14 @@ impl File {
     pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
         self.0.write_vectored(bufs)
     }
-    
+
     pub fn write_at(&self, buf: &[u8], offset: u64) -> io::Result<usize> {
         self.0.write_at(buf, offset)
     }
 
-    pub fn flush(&self) -> io::Result<()> { Ok(()) }
+    pub fn flush(&self) -> io::Result<()> {
+        Ok(())
+    }
 
     pub fn seek(&self, pos: SeekFrom) -> io::Result<u64> {
         let (whence, pos) = match pos {
@@ -428,9 +474,13 @@ impl File {
         self.0.duplicate().map(File)
     }
 
-    pub fn fd(&self) -> &FileDesc { &self.0 }
+    pub fn fd(&self) -> &FileDesc {
+        &self.0
+    }
 
-    pub fn into_fd(self) -> FileDesc { self.0 }
+    pub fn into_fd(self) -> FileDesc {
+        self.0
+    }
 
     pub fn set_permissions(&self, perm: FilePermissions) -> io::Result<()> {
         cvt_r(|| unsafe { libc::fchmod(self.0.raw(), perm.mode) })?;
@@ -481,7 +531,7 @@ impl fmt::Debug for File {
                 libc::O_RDONLY => Some((true, false)),
                 libc::O_RDWR => Some((true, true)),
                 libc::O_WRONLY => Some((false, true)),
-                _ => None
+                _ => None,
             }
         }
 
@@ -507,13 +557,11 @@ pub fn readdir(p: &Path) -> io::Result<ReadDir> {
             Err(Error::last_os_error())
         } else {
             let inner = InnerReadDir { dirp: Dir(ptr), root };
-            Ok(ReadDir{
-                inner: Arc::new(inner),
-                end_of_stream: false,
-            })
+            Ok(ReadDir { inner: Arc::new(inner), end_of_stream: false })
         }
     }
 }
+
 pub fn unlink(p: &Path) -> io::Result<()> {
     let p = cstr(p)?;
     cvt(unsafe { libc::unlink(p.as_ptr()) })?;
@@ -546,11 +594,12 @@ pub fn readlink(p: &Path) -> io::Result<PathBuf> {
     let mut buf = Vec::with_capacity(256);
 
     loop {
-        let buf_read = cvt(unsafe {
-            libc::readlink(p, buf.as_mut_ptr() as *mut _, buf.capacity())
-        })? as usize;
+        let buf_read =
+            cvt(unsafe { libc::readlink(p, buf.as_mut_ptr() as *mut _, buf.capacity()) })? as usize;
 
-        unsafe { buf.set_len(buf_read); }
+        unsafe {
+            buf.set_len(buf_read);
+        }
 
         if buf_read != buf.capacity() {
             buf.shrink_to_fit();
@@ -582,19 +631,15 @@ pub fn link(src: &Path, dst: &Path) -> io::Result<()> {
 pub fn stat(p: &Path) -> io::Result<FileAttr> {
     let p = cstr(p)?;
     let mut stat: stat64 = unsafe { mem::zeroed() };
-    cvt(unsafe {
-        libc::stat64(p.as_ptr(), &mut stat as *mut _)
-    })?;
-    Ok(FileAttr { stat })
+    cvt(unsafe { libc::stat64(p.as_ptr(), &mut stat as *mut _) })?;
+    Ok(FileAttr::from_stat64(stat))
 }
 
 pub fn lstat(p: &Path) -> io::Result<FileAttr> {
     let p = cstr(p)?;
     let mut stat: stat64 = unsafe { mem::zeroed() };
-    cvt(unsafe {
-        libc::lstat64(p.as_ptr(), &mut stat as *mut _)
-    })?;
-    Ok(FileAttr { stat })
+    cvt(unsafe { libc::lstat64(p.as_ptr(), &mut stat as *mut _) })?;
+    Ok(FileAttr::from_stat64(stat))
 }
 
 pub fn canonicalize(p: &Path) -> io::Result<PathBuf> {
@@ -603,7 +648,7 @@ pub fn canonicalize(p: &Path) -> io::Result<PathBuf> {
     unsafe {
         let r = libc::realpath(path.as_ptr());
         if r.is_null() {
-            return Err(io::Error::last_os_error())
+            return Err(io::Error::last_os_error());
         }
         buf = CStr::from_ptr(r).to_bytes().to_vec();
         libc::free(r as *mut _);
@@ -612,7 +657,6 @@ pub fn canonicalize(p: &Path) -> io::Result<PathBuf> {
 }
 
 pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
-
     cfg_if! {
         if #[cfg(feature = "untrusted_fs")] {
             use crate::fs::File;
@@ -623,8 +667,10 @@ pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
     }
 
     if !from.is_file() {
-        return Err(Error::new(ErrorKind::InvalidInput,
-                              "the source path is not an existing regular file"))
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "the source path is not an existing regular file",
+        ));
     }
 
     let mut reader = File::open(from)?;

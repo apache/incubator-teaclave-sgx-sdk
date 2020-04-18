@@ -15,18 +15,24 @@
 // specific language governing permissions and limitations
 // under the License..
 
-pub mod io;
 pub mod ffi;
 pub mod fs;
+pub mod io;
 #[cfg(feature = "net")]
 pub mod net;
+pub mod raw;
+#[cfg(feature = "thread")]
+pub mod thread;
 
 /// A prelude for conveniently writing platform-specific code.
 ///
 /// Includes all extension traits, and some important type definitions.
 pub mod prelude {
-    pub use super::io::{RawFd, AsRawFd, FromRawFd, IntoRawFd};
     pub use super::ffi::{OsStrExt, OsStringExt};
-    pub use super::fs::{PermissionsExt, OpenOptionsExt, MetadataExt, FileTypeExt};
+    pub use super::fs::DirEntryExt;
     pub use super::fs::FileExt;
+    pub use super::fs::{FileTypeExt, MetadataExt, OpenOptionsExt, PermissionsExt};
+    pub use super::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
+    #[cfg(feature = "thread")]
+    pub use super::thread::JoinHandleExt;
 }

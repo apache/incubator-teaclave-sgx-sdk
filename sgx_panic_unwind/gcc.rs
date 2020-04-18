@@ -4,7 +4,7 @@
 //! "Exception Handling in LLVM" (llvm.org/docs/ExceptionHandling.html) and
 //! documents linked from it.
 //! These are also good reads:
-//!     http://mentorembedded.github.io/cxx-abi/abi-eh.html
+//!     https://itanium-cxx-abi.github.io/cxx-abi/abi-eh.html
 //!     http://monoinfinito.wordpress.com/series/exception-handling-in-c/
 //!     http://www.airs.com/blog/index.php?s=exception+frames
 //!
@@ -44,18 +44,17 @@
 //! end of the landing pads. `eh_unwind_resume` is used only if
 //! `custom_unwind_resume` flag in the target options is set.
 
-use core::any::Any;
-use core::ptr;
 use alloc::boxed::Box;
+use core::any::Any;
 
-use sgx_unwind as uw;
+use crate::dwarf::eh::{self, EHAction, EHContext};
 use sgx_libc::{c_int, uintptr_t};
-use crate::dwarf::eh::{self, EHContext, EHAction};
+use sgx_unwind as uw;
 
 #[repr(C)]
 struct Exception {
     _uwe: uw::_Unwind_Exception,
-    cause: Option<Box<dyn Any + Send>>,
+    cause: Box<dyn Any + Send>,
 }
 
 pub unsafe fn panic(data: Box<dyn Any + Send>) -> u32 {
@@ -65,28 +64,25 @@ pub unsafe fn panic(data: Box<dyn Any + Send>) -> u32 {
             exception_cleanup,
             private: [0; uw::unwinder_private_data_size],
         },
-        cause: Some(data),
+        cause: data,
     });
     let exception_param = Box::into_raw(exception) as *mut uw::_Unwind_Exception;
     return uw::_Unwind_RaiseException(exception_param) as u32;
 
-    extern "C" fn exception_cleanup(_unwind_code: uw::_Unwind_Reason_Code,
-                                    exception: *mut uw::_Unwind_Exception) {
+    extern "C" fn exception_cleanup(
+        _unwind_code: uw::_Unwind_Reason_Code,
+        exception: *mut uw::_Unwind_Exception,
+    ) {
         unsafe {
             let _: Box<Exception> = Box::from_raw(exception as *mut Exception);
+            super::__rust_drop_panic();
         }
     }
 }
 
-pub fn payload() -> *mut u8 {
-    ptr::null_mut()
-}
-
 pub unsafe fn cleanup(ptr: *mut u8) -> Box<dyn Any + Send> {
-    let my_ep = ptr as *mut Exception;
-    let cause = (*my_ep).cause.take();
-    uw::_Unwind_DeleteException(ptr as *mut _);
-    cause.unwrap()
+    let exception = Box::from_raw(ptr as *mut Exception);
+    exception.cause
 }
 
 // Rust's exception class identifier.  This is used by personality routines to
@@ -95,7 +91,6 @@ fn rust_exception_class() -> uw::_Unwind_Exception_Class {
     // M O Z \0  R U S T -- vendor, language
     0x4d4f5a_00_52555354
 }
-
 
 // Register ids were lifted from LLVM's TargetLowering::getExceptionPointerRegister()
 // and TargetLowering::getExceptionSelectorRegister() for each architecture,
@@ -113,49 +108,64 @@ const UNWIND_DATA_REG: (i32, i32) = (0, 1); // RAX, RDX
 // https://github.com/gcc-mirror/gcc/blob/master/libstdc++-v3/libsupc++/eh_personality.cc
 // https://github.com/gcc-mirror/gcc/blob/trunk/libgcc/unwind-c.c
 
-// The personality routine for most of our targets
-#[lang = "eh_personality"]
-#[no_mangle]
-#[allow(unused)]
-unsafe extern "C" fn rust_eh_personality(version: c_int,
-                                         actions: uw::_Unwind_Action,
-                                         exception_class: uw::_Unwind_Exception_Class,
-                                         exception_object: *mut uw::_Unwind_Exception,
-                                         context: *mut uw::_Unwind_Context)
-                                         -> uw::_Unwind_Reason_Code {
+unsafe extern "C" fn rust_eh_personality_impl(
+    version: c_int,
+    actions: uw::_Unwind_Action,
+    exception_class: uw::_Unwind_Exception_Class,
+    exception_object: *mut uw::_Unwind_Exception,
+    context: *mut uw::_Unwind_Context)
+-> uw::_Unwind_Reason_Code {
     if version != 1 {
         return uw::_URC_FATAL_PHASE1_ERROR;
     }
-    let eh_action = match find_eh_action(context) {
+    let foreign_exception = exception_class != rust_exception_class();
+    let eh_action = match find_eh_action(context, foreign_exception) {
         Ok(action) => action,
         Err(_) => return uw::_URC_FATAL_PHASE1_ERROR,
     };
     if actions as i32 & uw::_UA_SEARCH_PHASE as i32 != 0 {
         match eh_action {
             EHAction::None |
-            EHAction::Cleanup(_) => return uw::_URC_CONTINUE_UNWIND,
-            EHAction::Catch(_) => return uw::_URC_HANDLER_FOUND,
-            EHAction::Terminate => return uw::_URC_FATAL_PHASE1_ERROR,
+            EHAction::Cleanup(_) => uw::_URC_CONTINUE_UNWIND,
+            EHAction::Catch(_) => uw::_URC_HANDLER_FOUND,
+            EHAction::Terminate => uw::_URC_FATAL_PHASE1_ERROR,
         }
     } else {
         match eh_action {
-            EHAction::None => return uw::_URC_CONTINUE_UNWIND,
+            EHAction::None => uw::_URC_CONTINUE_UNWIND,
             EHAction::Cleanup(lpad) |
             EHAction::Catch(lpad) => {
-                uw::_Unwind_SetGR(context, UNWIND_DATA_REG.0, exception_object as uintptr_t);
+                uw::_Unwind_SetGR(context, UNWIND_DATA_REG.0,
+                    exception_object as uintptr_t);
                 uw::_Unwind_SetGR(context, UNWIND_DATA_REG.1, 0);
                 uw::_Unwind_SetIP(context, lpad);
-                return uw::_URC_INSTALL_CONTEXT;
+                uw::_URC_INSTALL_CONTEXT
             }
-            EHAction::Terminate => return uw::_URC_FATAL_PHASE2_ERROR,
+            EHAction::Terminate => uw::_URC_FATAL_PHASE2_ERROR,
         }
     }
 }
 
+#[lang = "eh_personality"]
+unsafe extern "C" fn rust_eh_personality(
+    version: c_int,
+    actions: uw::_Unwind_Action,
+    exception_class: uw::_Unwind_Exception_Class,
+    exception_object: *mut uw::_Unwind_Exception,
+    context: *mut uw::_Unwind_Context)
+-> uw::_Unwind_Reason_Code {
+    rust_eh_personality_impl(
+        version,
+        actions,
+        exception_class,
+        exception_object,
+        context)
+}
 
-unsafe fn find_eh_action(context: *mut uw::_Unwind_Context)
-    -> Result<EHAction, ()>
-{
+unsafe fn find_eh_action(
+    context: *mut uw::_Unwind_Context,
+    foreign_exception: bool,
+) -> Result<EHAction, ()> {
     let lsda = uw::_Unwind_GetLanguageSpecificData(context) as *const u8;
     let mut ip_before_instr: c_int = 0;
     let ip = uw::_Unwind_GetIPInfo(context, &mut ip_before_instr);
@@ -167,5 +177,5 @@ unsafe fn find_eh_action(context: *mut uw::_Unwind_Context)
         get_text_start: &|| uw::_Unwind_GetTextRelBase(context),
         get_data_start: &|| uw::_Unwind_GetDataRelBase(context),
     };
-    eh::find_eh_action(lsda, &eh_context)
+    eh::find_eh_action(lsda, &eh_context, foreign_exception)
 }

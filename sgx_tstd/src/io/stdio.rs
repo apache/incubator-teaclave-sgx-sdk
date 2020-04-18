@@ -17,7 +17,7 @@
 
 use crate::io::prelude::*;
 use crate::io::lazy::LazyStatic;
-use crate::io::{self, Initializer, BufReader, LineWriter, IoSlice, IoSliceMut};
+use crate::io::{self, BufReader, Initializer, IoSlice, IoSliceMut, LineWriter};
 use crate::sync::{SgxMutex, SgxMutexGuard, SgxReentrantMutex, SgxReentrantMutexGuard};
 use crate::sys::stdio;
 use core::cell::RefCell;
@@ -48,7 +48,9 @@ struct StderrRaw(stdio::Stderr);
 /// handles is **not** available to raw handles returned from this function.
 ///
 /// The returned handle has no external synchronization or buffering.
-fn stdin_raw() -> io::Result<StdinRaw> { stdio::Stdin::new().map(StdinRaw) }
+fn stdin_raw() -> io::Result<StdinRaw> {
+    stdio::Stdin::new().map(StdinRaw)
+}
 
 /// Constructs a new raw handle to the standard output stream of this process.
 ///
@@ -59,7 +61,9 @@ fn stdin_raw() -> io::Result<StdinRaw> { stdio::Stdin::new().map(StdinRaw) }
 ///
 /// The returned handle has no external synchronization or buffering layered on
 /// top.
-fn stdout_raw() -> io::Result<StdoutRaw> { stdio::Stdout::new().map(StdoutRaw) }
+fn stdout_raw() -> io::Result<StdoutRaw> {
+    stdio::Stdout::new().map(StdoutRaw)
+}
 
 /// Constructs a new raw handle to the standard error stream of this process.
 ///
@@ -68,10 +72,14 @@ fn stdout_raw() -> io::Result<StdoutRaw> { stdio::Stdout::new().map(StdoutRaw) }
 ///
 /// The returned handle has no external synchronization or buffering layered on
 /// top.
-fn stderr_raw() -> io::Result<StderrRaw> { stdio::Stderr::new().map(StderrRaw) }
+fn stderr_raw() -> io::Result<StderrRaw> {
+    stdio::Stderr::new().map(StderrRaw)
+}
 
 impl Read for StdinRaw {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> { self.0.read(buf) }
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.0.read(buf)
+    }
 
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         self.0.read_vectored(bufs)
@@ -83,22 +91,30 @@ impl Read for StdinRaw {
     }
 }
 impl Write for StdoutRaw {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> { self.0.write(buf) }
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0.write(buf)
+    }
 
     fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
         self.0.write_vectored(bufs)
     }
 
-    fn flush(&mut self) -> io::Result<()> { self.0.flush() }
+    fn flush(&mut self) -> io::Result<()> {
+        self.0.flush()
+    }
 }
 impl Write for StderrRaw {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> { self.0.write(buf) }
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0.write(buf)
+    }
 
     fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
         self.0.write_vectored(bufs)
     }
 
-    fn flush(&mut self) -> io::Result<()> { self.0.flush() }
+    fn flush(&mut self) -> io::Result<()> {
+        self.0.flush()
+    }
 }
 
 enum Maybe<T> {
@@ -110,7 +126,7 @@ impl<W: io::Write> io::Write for Maybe<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         match *self {
             Maybe::Real(ref mut w) => handle_ebadf(w.write(buf), buf.len()),
-            Maybe::Fake => Ok(buf.len())
+            Maybe::Fake => Ok(buf.len()),
         }
     }
 
@@ -125,7 +141,7 @@ impl<W: io::Write> io::Write for Maybe<W> {
     fn flush(&mut self) -> io::Result<()> {
         match *self {
             Maybe::Real(ref mut w) => handle_ebadf(w.flush(), ()),
-            Maybe::Fake => Ok(())
+            Maybe::Fake => Ok(()),
         }
     }
 }
@@ -134,14 +150,14 @@ impl<R: io::Read> io::Read for Maybe<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match *self {
             Maybe::Real(ref mut r) => handle_ebadf(r.read(buf), 0),
-            Maybe::Fake => Ok(0)
+            Maybe::Fake => Ok(0),
         }
     }
 
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         match self {
             Maybe::Real(r) => handle_ebadf(r.read_vectored(bufs), 0),
-            Maybe::Fake => Ok(0)
+            Maybe::Fake => Ok(0),
         }
     }
 }
@@ -149,7 +165,7 @@ impl<R: io::Read> io::Read for Maybe<R> {
 fn handle_ebadf<T>(r: io::Result<T>, default: T) -> io::Result<T> {
     match r {
         Err(ref e) if stdio::is_ebadf(e) => Ok(default),
-        r => r
+        r => r,
     }
 }
 
@@ -197,9 +213,9 @@ pub struct StdinLock<'a> {
 ///
 /// Each handle returned is a reference to a shared global buffer whose access
 /// is synchronized via a mutex. If you need more explicit control over
-/// locking, see the [`lock() method`][lock].
+/// locking, see the [`Stdin::lock`] method.
 ///
-/// [lock]: struct.Stdin.html#method.lock
+/// [`Stdin::lock`]: struct.Stdin.html#method.lock
 ///
 /// ### Note: Windows Portability Consideration
 /// When operating in a console, the Windows implementation of this stream does not support
@@ -209,16 +225,14 @@ pub struct StdinLock<'a> {
 pub fn stdin() -> Stdin {
     static INSTANCE: LazyStatic<SgxMutex<BufReader<Maybe<StdinRaw>>>> = LazyStatic::new();
     return Stdin {
-        inner: unsafe {
-            INSTANCE.get(stdin_init).expect("cannot access stdin during shutdown")
-        },
+        inner: unsafe { INSTANCE.get(stdin_init).expect("cannot access stdin during shutdown") },
     };
 
     fn stdin_init() -> Arc<SgxMutex<BufReader<Maybe<StdinRaw>>>> {
         // This must not reentrantly access `INSTANCE`
         let stdin = match stdin_raw() {
             Ok(stdin) => Maybe::Real(stdin),
-            _ => Maybe::Fake
+            _ => Maybe::Fake,
         };
 
         Arc::new(SgxMutex::new(BufReader::with_capacity(stdio::STDIN_BUF_SIZE, stdin)))
@@ -240,7 +254,7 @@ impl Stdin {
         StdinLock { inner: self.inner.lock().unwrap_or_else(|e| e.into_inner()) }
     }
 
-    /// Locks this handle and reads a line of input into the specified buffer.
+    /// Locks this handle and reads a line of input, appending it to the specified buffer.
     ///
     /// For detailed semantics of this method, see the documentation on
     /// [`BufRead::read_line`].
@@ -296,8 +310,12 @@ impl Read for StdinLock<'_> {
 }
 
 impl BufRead for StdinLock<'_> {
-    fn fill_buf(&mut self) -> io::Result<&[u8]> { self.inner.fill_buf() }
-    fn consume(&mut self, n: usize) { self.inner.consume(n) }
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        self.inner.fill_buf()
+    }
+    fn consume(&mut self, n: usize) {
+        self.inner.consume(n)
+    }
 }
 
 impl fmt::Debug for StdinLock<'_> {
@@ -348,9 +366,9 @@ pub struct StdoutLock<'a> {
 ///
 /// Each handle returned is a reference to a shared global buffer whose access
 /// is synchronized via a mutex. If you need more explicit control over
-/// locking, see the [Stdout::lock] method.
+/// locking, see the [`Stdout::lock`] method.
 ///
-/// [Stdout::lock]: struct.Stdout.html#method.lock
+/// [`Stdout::lock`]: struct.Stdout.html#method.lock
 ///
 /// ### Note: Windows Portability Consideration
 /// When operating in a console, the Windows implementation of this stream does not support
@@ -360,9 +378,7 @@ pub struct StdoutLock<'a> {
 pub fn stdout() -> Stdout {
     static INSTANCE: LazyStatic<SgxReentrantMutex<RefCell<LineWriter<Maybe<StdoutRaw>>>>> = LazyStatic::new();
     return Stdout {
-        inner: unsafe {
-            INSTANCE.get(stdout_init).expect("cannot access stdout during shutdown")
-        },
+        inner: unsafe { INSTANCE.get(stdout_init).expect("cannot access stdout during shutdown") },
     };
 
     fn stdout_init() -> Arc<SgxReentrantMutex<RefCell<LineWriter<Maybe<StdoutRaw>>>>> {
@@ -464,9 +480,7 @@ pub struct StderrLock<'a> {
 pub fn stderr() -> Stderr {
     static INSTANCE: LazyStatic<SgxReentrantMutex<RefCell<Maybe<StderrRaw>>>> = LazyStatic::new();
     return Stderr {
-        inner: unsafe {
-            INSTANCE.get(stderr_init).expect("cannot access stderr during shutdown")
-        },
+        inner: unsafe { INSTANCE.get(stderr_init).expect("cannot access stderr during shutdown") },
     };
 
     fn stderr_init() -> Arc<SgxReentrantMutex<RefCell<Maybe<StderrRaw>>>> {
@@ -537,7 +551,7 @@ impl fmt::Debug for StderrLock<'_> {
 /// otherwise. `label` identifies the stream in a panic message.
 ///
 /// This function is used to print error messages, so it takes extra
-/// care to avoid causing a panic when `local_stream` is unusable.
+/// care to avoid causing a panic when `local_s` is unusable.
 /// For instance, if the TLS key for the local stream is
 /// already destroyed, or if the local stream is locked by another
 /// thread, it will just fall back to the global stream.
@@ -547,11 +561,9 @@ fn print_to<T>(
     args: fmt::Arguments<'_>,
     global_s: fn() -> T,
     label: &str,
-)
-where
+) where
     T: Write,
 {
-
     let result = global_s().write_fmt(args);
     if let Err(e) = result {
         panic!("failed printing to {}: {}", label, e);
@@ -563,6 +575,5 @@ pub fn _print(args: fmt::Arguments<'_>) {
 }
 
 pub fn _eprint(args: fmt::Arguments<'_>) {
-
     print_to(args, stderr, "stderr");
 }

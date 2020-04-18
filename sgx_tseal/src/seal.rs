@@ -123,7 +123,6 @@ impl<'a, T: 'a + Clone + ?Sized> Clone for SgxSealedData<'a, T> {
 
 /// The encrypt_text to seal is T, and T must have Copy and ContiguousMemory trait.
 impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, T> {
-
     ///
     /// This function is used to AES-GCM encrypt the input data. Two input data sets
     /// are provided: one is the data to be encrypted; the second is optional additional data
@@ -182,7 +181,6 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, T> {
     /// random number.
     ///
     pub fn seal_data(additional_text: &[u8], encrypt_text: &'a T) -> SgxResult<Self> {
-
         let size = mem::size_of::<T>();
         if size == 0 {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -273,12 +271,13 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, T> {
     /// Indicates a crypto library failure or the RDRAND instruction fails to generate a
     /// random number.
     ///
-    pub fn seal_data_ex(key_policy: u16,
-                        attribute_mask: sgx_attributes_t,
-                        misc_mask: sgx_misc_select_t,
-                        additional_text: &[u8],
-                        encrypt_text: &'a T) -> SgxResult<Self> {
-
+    pub fn seal_data_ex(
+        key_policy: u16,
+        attribute_mask: sgx_attributes_t,
+        misc_mask: sgx_misc_select_t,
+        additional_text: &[u8],
+        encrypt_text: &'a T,
+    ) -> SgxResult<Self> {
         let size = mem::size_of::<T>();
         if size == 0 {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -286,11 +285,14 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, T> {
         let encrypt_slice: &[u8] = unsafe {
             slice::from_raw_parts(encrypt_text as *const _ as *const u8, mem::size_of_val(encrypt_text))
         };
-        let result = SgxInternalSealedData::seal_data_ex(key_policy,
-                                                         attribute_mask,
-                                                         misc_mask,
-                                                         additional_text,
-                                                         encrypt_slice);
+        let result =
+            SgxInternalSealedData::seal_data_ex(
+                key_policy,
+                attribute_mask,
+                misc_mask,
+                additional_text,
+                encrypt_slice,
+            );
         result.map(|x| {
             SgxSealedData {
                 inner: x,
@@ -348,7 +350,6 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, T> {
     /// random number.
     ///
     pub fn unseal_data(&self) -> SgxResult<SgxUnsealedData<'a, T>> {
-
         let size = mem::size_of::<T>();
         if size == 0 {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -396,7 +397,6 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, T> {
     /// Maybe the size of T is zero.
     ///
     pub unsafe fn from_raw_sealed_data_t(p: *mut sgx_sealed_data_t, len: u32) -> Option<Self> {
-
         let size = mem::size_of::<T>();
         if size == 0 {
             return None;
@@ -439,7 +439,6 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, T> {
 
 /// The encrypt_text to seal is [T], and T must have Copy and ContiguousMemory trait.
 impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
-
     ///
     /// This function is used to AES-GCM encrypt the input data. Two input data sets
     /// are provided: one is the data to be encrypted; the second is optional additional data
@@ -498,7 +497,6 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
     /// random number.
     ///
     pub fn seal_data(additional_text: &[u8], encrypt_text: &'a [T]) -> SgxResult<Self> {
-
         let size = mem::size_of::<T>();
         let len = mem::size_of_val(encrypt_text);
         if size == 0 || len == 0 {
@@ -591,12 +589,13 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
     /// Indicates a crypto library failure or the RDRAND instruction fails to generate a
     /// random number.
     ///
-    pub fn seal_data_ex(key_policy: u16,
-                        attribute_mask: sgx_attributes_t,
-                        misc_mask: sgx_misc_select_t,
-                        additional_text: &[u8],
-                        encrypt_text: &'a [T]) -> SgxResult<Self> {
-
+    pub fn seal_data_ex(
+        key_policy: u16,
+        attribute_mask: sgx_attributes_t,
+        misc_mask: sgx_misc_select_t,
+        additional_text: &[u8],
+        encrypt_text: &'a [T],
+    ) -> SgxResult<Self> {
         let size = mem::size_of::<T>();
         let len = mem::size_of_val(encrypt_text);
         if size == 0 || len == 0 {
@@ -606,11 +605,14 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
             slice::from_raw_parts(encrypt_text.as_ptr() as *const u8, len)
         };
 
-        let result = SgxInternalSealedData::seal_data_ex(key_policy,
-                                                         attribute_mask,
-                                                         misc_mask,
-                                                         additional_text,
-                                                         encrypt_slice);
+        let result =
+            SgxInternalSealedData::seal_data_ex(
+                key_policy,
+                attribute_mask,
+                misc_mask,
+                additional_text,
+                encrypt_slice,
+            );
         result.map(|x| {
             SgxSealedData {
                 inner: x,
@@ -668,7 +670,6 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
     /// random number.
     ///
     pub fn unseal_data(&self) -> SgxResult<SgxUnsealedData<'a, [T]>> {
-
         let size = mem::size_of::<T>();
         if size == 0 {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -721,16 +722,16 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
     /// Maybe the size of T is zero.
     ///
     pub unsafe fn from_raw_sealed_data_t(p: *mut sgx_sealed_data_t, len: u32) -> Option<Self> {
-
         let size = mem::size_of::<T>();
         if size == 0 {
             return None;
         }
         let opt = SgxInternalSealedData::from_raw_sealed_data_t(p, len);
         opt.map(|x| {
-            SgxSealedData{
+            SgxSealedData {
                 inner: x,
-                marker: PhantomData}
+                marker: PhantomData,
+            }
         })
     }
 
@@ -763,7 +764,6 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
 }
 
 impl<'a, T: 'a + ?Sized> SgxSealedData<'a, T> {
-
     ///
     /// Create a SgxSealedData with default values.
     ///

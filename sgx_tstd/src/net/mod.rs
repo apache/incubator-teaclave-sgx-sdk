@@ -59,28 +59,22 @@ pub enum Shutdown {
     Both,
 }
 
-#[doc(hidden)]
-trait NetInt {
-    fn from_be(i: Self) -> Self;
-    fn to_be(&self) -> Self;
+#[inline]
+const fn htons(i: u16) -> u16 {
+    i.to_be()
 }
-macro_rules! doit {
-    ($($t:ident)*) => ($(impl NetInt for $t {
-        fn from_be(i: Self) -> Self { <$t>::from_be(i) }
-        fn to_be(&self) -> Self { <$t>::to_be(*self) }
-    })*)
+#[inline]
+const fn ntohs(i: u16) -> u16 {
+    u16::from_be(i)
 }
-doit! { i8 i16 i32 i64 isize u8 u16 u32 u64 usize }
-
-fn hton<I: NetInt>(i: I) -> I { i.to_be() }
-fn ntoh<I: NetInt>(i: I) -> I { I::from_be(i) }
 
 fn each_addr<A: ToSocketAddrs, F, T>(addr: A, mut f: F) -> io::Result<T>
-    where F: FnMut(io::Result<&SocketAddr>) -> io::Result<T>
+where
+    F: FnMut(io::Result<&SocketAddr>) -> io::Result<T>,
 {
     let addrs = match addr.to_socket_addrs() {
         Ok(addrs) => addrs,
-        Err(e) => return f(Err(e))
+        Err(e) => return f(Err(e)),
     };
     let mut last_err = None;
     for addr in addrs {
@@ -90,7 +84,6 @@ fn each_addr<A: ToSocketAddrs, F, T>(addr: A, mut f: F) -> io::Result<T>
         }
     }
     Err(last_err.unwrap_or_else(|| {
-        Error::new(ErrorKind::InvalidInput,
-                   "could not resolve to any addresses")
+        Error::new(ErrorKind::InvalidInput, "could not resolve to any addresses")
     }))
 }

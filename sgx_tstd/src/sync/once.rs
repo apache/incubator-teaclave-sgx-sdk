@@ -69,25 +69,24 @@
 // You'll find a few more details in the implementation, but that's the gist of
 // it!
 
-use core::marker;
-use core::ptr;
+use core::cell::Cell;
 use core::fmt;
-use core::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
+use core::marker;
+use crate::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use crate::thread::{self, SgxThread};
 
 /// A synchronization primitive which can be used to run a one-time global
 /// initialization. Useful for one-time initialization for FFI or related
-/// functionality. This type can only be constructed with the [`ONCE_INIT`]
-/// value or the equivalent [`Once::new`] constructor.
+/// functionality. This type can only be constructed with the [`Once::new`]
+/// constructor.
 ///
-/// [`ONCE_INIT`]: constant.ONCE_INIT.html
 /// [`Once::new`]: struct.Once.html#method.new
 ///
 pub struct Once {
-    // This `state` word is actually an encoded version of just a pointer to a
-    // `Waiter`, so we add the `PhantomData` appropriately.
-    state: AtomicUsize,
-    _marker: marker::PhantomData<*mut Waiter>,
+    // `state_and_queue` is actually an a pointer to a `Waiter` with extra state
+    // bits, so we add the `PhantomData` appropriately.
+    state_and_queue: AtomicUsize,
+    _marker: marker::PhantomData<*const Waiter>,
 }
 
 // The `PhantomData` of a raw pointer removes these two auto traits, but we
@@ -111,8 +110,8 @@ pub struct OnceState {
 ///
 pub const ONCE_INIT: Once = Once::new();
 
-// Four states that a Once can be in, encoded into the lower bits of `state` in
-// the Once structure.
+// Four states that a Once can be in, encoded into the lower bits of
+// `state_and_queue` in the Once structure.
 const INCOMPLETE: usize = 0x0;
 const POISONED: usize = 0x1;
 const RUNNING: usize = 0x2;
@@ -122,27 +121,31 @@ const COMPLETE: usize = 0x3;
 // this is in the RUNNING state.
 const STATE_MASK: usize = 0x3;
 
-// Representation of a node in the linked list of waiters in the RUNNING state.
+// Representation of a node in the linked list of waiters, used while in the
+// RUNNING state.
+// Note: `Waiter` can't hold a mutable pointer to the next thread, because then
+// `wait` would both hand out a mutable reference to its `Waiter` node, and keep
+// a shared reference to check `signaled`. Instead we hold shared references and
+// use interior mutability.
+#[repr(align(4))] // Ensure the two lower bits are free to use as state bits.
 struct Waiter {
-    thread: Option<SgxThread>,
+    thread: Cell<Option<SgxThread>>,
     signaled: AtomicBool,
-    next: *mut Waiter,
+    next: *const Waiter,
 }
 
-// Helper struct used to clean up after a closure call with a `Drop`
-// implementation to also run on panic.
-struct Finish<'a> {
-    panicked: bool,
-    me: &'a Once,
+// Head of a linked list of waiters.
+// Every node is a struct on the stack of a waiting thread.
+// Will wake up the waiters when it gets dropped, i.e. also on panic.
+struct WaiterQueue<'a> {
+    state_and_queue: &'a AtomicUsize,
+    set_state_on_drop_to: usize,
 }
 
 impl Once {
     /// Creates a new `Once` value.
     pub const fn new() -> Once {
-        Once {
-            state: AtomicUsize::new(INCOMPLETE),
-            _marker: marker::PhantomData,
-        }
+        Once { state_and_queue: AtomicUsize::new(INCOMPLETE), _marker: marker::PhantomData }
     }
 
     /// Performs an initialization routine once and only once. The given closure
@@ -173,7 +176,10 @@ impl Once {
     /// This is similar to [poisoning with mutexes][poison].
     ///
     /// [poison]: struct.Mutex.html#poisoning
-    pub fn call_once<F>(&self, f: F) where F: FnOnce() {
+    pub fn call_once<F>(&self, f: F)
+    where
+        F: FnOnce(),
+    {
         // Fast path check
         if self.is_completed() {
             return;
@@ -199,16 +205,17 @@ impl Once {
     /// [`call_once`]: struct.Once.html#method.call_once
     /// [`OnceState`]: struct.OnceState.html
     ///
-    pub fn call_once_force<F>(&self, f: F) where F: FnOnce(&OnceState) {
+    pub fn call_once_force<F>(&self, f: F)
+    where
+        F: FnOnce(&OnceState),
+    {
         // Fast path check
         if self.is_completed() {
             return;
         }
 
         let mut f = Some(f);
-        self.call_inner(true, &mut |p| {
-            f.take().unwrap()(&OnceState { poisoned: p })
-        });
+        self.call_inner(true, &mut |p| f.take().unwrap()(&OnceState { poisoned: p }));
     }
 
     /// Returns `true` if some `call_once` call has completed
@@ -218,8 +225,10 @@ impl Once {
     ///   * `call_once` was called, but has not yet completed,
     ///   * the `Once` instance is poisoned
     ///
-    /// It is also possible that immediately after `is_completed`
-    /// returns false, some other thread finishes executing
+    /// This function returning `false` does not mean that `Once` has not been
+    /// executed. For example, it may have been executed in the time between
+    /// when `is_completed` starts executing and when it returns, in which case
+    /// the `false` return value would be stale (but still permissible).
     /// `call_once`.
     ///
     #[inline]
@@ -227,8 +236,8 @@ impl Once {
         // An `Acquire` load is enough because that makes all the initialization
         // operations visible to us, and, this being a fast path, weaker
         // ordering helps with performance. This `Acquire` synchronizes with
-        // `SeqCst` operations on the slow path.
-        self.state.load(Ordering::Acquire) == COMPLETE
+        // `Release` operations on the slow path.
+        self.state_and_queue.load(Ordering::Acquire) == COMPLETE
     }
 
     // This is a non-generic function to reduce the monomorphization cost of
@@ -243,91 +252,89 @@ impl Once {
     // currently no way to take an `FnOnce` and call it via virtual dispatch
     // without some allocation overhead.
     #[cold]
-    fn call_inner(&self,
-                  ignore_poisoning: bool,
-                  init: &mut dyn FnMut(bool)) {
-
-        // This cold path uses SeqCst consistently because the
-        // performance difference really does not matter there, and
-        // SeqCst minimizes the chances of something going wrong.
-        let mut state = self.state.load(Ordering::SeqCst);
-
-        'outer: loop {
-            match state {
-                // If we're complete, then there's nothing to do, we just
-                // jettison out as we shouldn't run the closure.
-                COMPLETE => return,
-
-                // If we're poisoned and we're not in a mode to ignore
-                // poisoning, then we panic here to propagate the poison.
+    fn call_inner(&self, ignore_poisoning: bool, init: &mut dyn FnMut(bool)) {
+        let mut state_and_queue = self.state_and_queue.load(Ordering::Acquire);
+        loop {
+            match state_and_queue {
+                COMPLETE => break,
                 POISONED if !ignore_poisoning => {
+                    // Panic to propagate the poison.
                     panic!("Once instance has previously been poisoned");
                 }
-
-                // Otherwise if we see a poisoned or otherwise incomplete state
-                // we will attempt to move ourselves into the RUNNING state. If
-                // we succeed, then the queue of waiters starts at null (all 0
-                // bits).
-                POISONED |
-                INCOMPLETE => {
-                    let old = self.state.compare_and_swap(state, RUNNING,
-                                                          Ordering::SeqCst);
-                    if old != state {
-                        state = old;
-                        continue
+                POISONED | INCOMPLETE => {
+                    // Try to register this thread as the one RUNNING.
+                    let old = self.state_and_queue.compare_and_swap(
+                        state_and_queue,
+                        RUNNING,
+                        Ordering::Acquire,
+                    );
+                    if old != state_and_queue {
+                        state_and_queue = old;
+                        continue;
                     }
-
-                    // Run the initialization routine, letting it know if we're
-                    // poisoned or not. The `Finish` struct is then dropped, and
-                    // the `Drop` implementation here is responsible for waking
-                    // up other waiters both in the normal return and panicking
-                    // case.
-                    let mut complete = Finish {
-                        panicked: true,
-                        me: self,
+                    // `waiter_queue` will manage other waiting threads, and
+                    // wake them up on drop.
+                    let mut waiter_queue = WaiterQueue {
+                        state_and_queue: &self.state_and_queue,
+                        set_state_on_drop_to: POISONED,
                     };
-                    init(state == POISONED);
-                    complete.panicked = false;
-                    return
+                    // Run the initialization function, letting it know if we're
+                    // poisoned or not.
+                    init(state_and_queue == POISONED);
+                    waiter_queue.set_state_on_drop_to = COMPLETE;
+                    break;
                 }
-
-                // All other values we find should correspond to the RUNNING
-                // state with an encoded waiter list in the more significant
-                // bits. We attempt to enqueue ourselves by moving us to the
-                // head of the list and bail out if we ever see a state that's
-                // not RUNNING.
                 _ => {
-                    assert!(state & STATE_MASK == RUNNING);
-                    let mut node = Waiter {
-                        thread: Some(thread::current()),
-                        signaled: AtomicBool::new(false),
-                        next: ptr::null_mut(),
-                    };
-                    let me = &mut node as *mut Waiter as usize;
-                    assert!(me & STATE_MASK == 0);
-
-                    while state & STATE_MASK == RUNNING {
-                        node.next = (state & !STATE_MASK) as *mut Waiter;
-                        let old = self.state.compare_and_swap(state,
-                                                              me | RUNNING,
-                                                              Ordering::SeqCst);
-                        if old != state {
-                            state = old;
-                            continue
-                        }
-
-                        // Once we've enqueued ourselves, wait in a loop.
-                        // Afterwards reload the state and continue with what we
-                        // were doing from before.
-                        while !node.signaled.load(Ordering::SeqCst) {
-                            thread::park();
-                        }
-                        state = self.state.load(Ordering::SeqCst);
-                        continue 'outer
-                    }
+                    // All other values must be RUNNING with possibly a
+                    // pointer to the waiter queue in the more significant bits.
+                    assert!(state_and_queue & STATE_MASK == RUNNING);
+                    wait(&self.state_and_queue, state_and_queue);
+                    state_and_queue = self.state_and_queue.load(Ordering::Acquire);
                 }
             }
         }
+    }
+}
+
+fn wait(state_and_queue: &AtomicUsize, mut current_state: usize) {
+    // Note: the following code was carefully written to avoid creating a
+    // mutable reference to `node` that gets aliased.
+    loop {
+        // Don't queue this thread if the status is no longer running,
+        // otherwise we will not be woken up.
+        if current_state & STATE_MASK != RUNNING {
+            return;
+        }
+
+        // Create the node for our current thread.
+        let node = Waiter {
+            thread: Cell::new(Some(thread::current())),
+            signaled: AtomicBool::new(false),
+            next: (current_state & !STATE_MASK) as *const Waiter,
+        };
+        let me = &node as *const Waiter as usize;
+
+        // Try to slide in the node at the head of the linked list, making sure
+        // that another thread didn't just replace the head of the linked list.
+        let old = state_and_queue.compare_and_swap(current_state, me | RUNNING, Ordering::Release);
+        if old != current_state {
+            current_state = old;
+            continue;
+        }
+
+        // We have enqueued ourselves, now lets wait.
+        // It is important not to return before being signaled, otherwise we
+        // would drop our `Waiter` node and leave a hole in the linked list
+        // (and a dangling reference). Guard against spurious wakeups by
+        // reparking ourselves until we are signaled.
+        while !node.signaled.load(Ordering::Acquire) {
+            // If the managing thread happens to signal and unpark us before we
+            // can park ourselves, the result could be this thread never gets
+            // unparked. Luckily `park` comes with the guarantee that if it got
+            // an `unpark` just before on an unparked thread is does not park.
+            thread::park();
+        }
+        break;
     }
 }
 
@@ -337,29 +344,31 @@ impl fmt::Debug for Once {
     }
 }
 
-impl Drop for Finish<'_> {
+impl Drop for WaiterQueue<'_> {
     fn drop(&mut self) {
-        // Swap out our state with however we finished. We should only ever see
-        // an old state which was RUNNING.
-        let queue = if self.panicked {
-            self.me.state.swap(POISONED, Ordering::SeqCst)
-        } else {
-            self.me.state.swap(COMPLETE, Ordering::SeqCst)
-        };
-        assert_eq!(queue & STATE_MASK, RUNNING);
+        // Swap out our state with however we finished.
+        let state_and_queue =
+            self.state_and_queue.swap(self.set_state_on_drop_to, Ordering::AcqRel);
 
-        // Decode the RUNNING to a list of waiters, then walk that entire list
-        // and wake them up. Note that it is crucial that after we store `true`
-        // in the node it can be free'd! As a result we load the `thread` to
-        // signal ahead of time and then unpark it after the store.
+        // We should only ever see an old state which was RUNNING.
+        assert_eq!(state_and_queue & STATE_MASK, RUNNING);
+
+        // Walk the entire linked list of waiters and wake them up (in lifo
+        // order, last to register is first to wake up).
         unsafe {
-            let mut queue = (queue & !STATE_MASK) as *mut Waiter;
+            // Right after setting `node.signaled = true` the other thread may
+            // free `node` if there happens to be has a spurious wakeup.
+            // So we have to take out the `thread` field and copy the pointer to
+            // `next` first.
+            let mut queue = (state_and_queue & !STATE_MASK) as *const Waiter;
             while !queue.is_null() {
                 let next = (*queue).next;
-                let thread = (*queue).thread.take().unwrap();
-                (*queue).signaled.store(true, Ordering::SeqCst);
-                thread.unpark();
+                let thread = (*queue).thread.replace(None).unwrap();
+                (*queue).signaled.store(true, Ordering::Release);
+                // ^- FIXME (maybe): This is another case of issue #55005
+                // `store()` has a potentially dangling ref to `signaled`.
                 queue = next;
+                thread.unpark();
             }
         }
     }

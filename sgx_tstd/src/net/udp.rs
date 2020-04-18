@@ -18,7 +18,7 @@
 use sgx_trts::libc::c_int;
 use core::fmt;
 use crate::io::{self, Error, ErrorKind};
-use crate::net::{ToSocketAddrs, SocketAddr, Ipv4Addr, Ipv6Addr};
+use crate::net::{Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
 use crate::sys_common::net as net_imp;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 use crate::time::Duration;
@@ -29,11 +29,27 @@ use crate::time::Duration;
 /// [sent to] and [received from] any other socket address.
 ///
 /// Although UDP is a connectionless protocol, this implementation provides an interface
-/// to set an address where data should be sent and received from.
+/// to set an address where data should be sent and received from. After setting a remote
+/// address with [`connect`], data can be sent to and received from that address with
+/// [`send`] and [`recv`].
+///
+/// As stated in the User Datagram Protocol's specification in [IETF RFC 768], UDP is
+/// an unordered, unreliable protocol; refer to [`TcpListener`] and [`TcpStream`] for TCP
+/// primitives.
+///
+/// [`bind`]: #method.bind
+/// [`connect`]: #method.connect
+/// [IETF RFC 768]: https://tools.ietf.org/html/rfc768
+/// [`recv`]: #method.recv
+/// [received from]: #method.recv_from
+/// [`send`]: #method.send
+/// [sent to]: #method.send_to
+/// [`TcpListener`]: ../../std/net/struct.TcpListener.html
+/// [`TcpStream`]: ../../std/net/struct.TcpStream.html
+///
 pub struct UdpSocket(net_imp::UdpSocket);
 
 impl UdpSocket {
-
     pub fn new(sockfd: c_int) -> io::Result<UdpSocket> {
         net_imp::UdpSocket::new(sockfd).map(UdpSocket)
     }
@@ -46,9 +62,13 @@ impl UdpSocket {
         net_imp::UdpSocket::new_v6().map(UdpSocket)
     }
 
-    pub fn raw(&self) -> c_int { self.0.raw() }
+    pub fn raw(&self) -> c_int {
+        self.0.raw()
+    }
 
-    pub fn into_raw(self) -> c_int { self.0.into_raw() }
+    pub fn into_raw(self) -> c_int {
+        self.0.into_raw()
+    }
 
     /// Creates a UDP socket from the given address.
     ///
@@ -115,12 +135,10 @@ impl UdpSocket {
     ///
     /// [`ToSocketAddrs`]: ../../std/net/trait.ToSocketAddrs.html
     ///
-    pub fn send_to<A: ToSocketAddrs>(&self, buf: &[u8], addr: A)
-                                     -> io::Result<usize> {
+    pub fn send_to<A: ToSocketAddrs>(&self, buf: &[u8], addr: A) -> io::Result<usize> {
         match addr.to_socket_addrs()?.next() {
             Some(addr) => self.0.send_to(buf, &addr),
-            None => Err(Error::new(ErrorKind::InvalidInput,
-                                   "no addresses to send data to")),
+            None => Err(Error::new(ErrorKind::InvalidInput, "no addresses to send data to")),
         }
     }
 
@@ -237,7 +255,7 @@ impl UdpSocket {
     /// Sets the value of the `IP_MULTICAST_LOOP` option for this socket.
     ///
     /// If enabled, multicast packets will be looped back to the local socket.
-    /// Note that this may not have any affect on IPv6 sockets.
+    /// Note that this may not have any effect on IPv6 sockets.
     ///
     pub fn set_multicast_loop_v4(&self, multicast_loop_v4: bool) -> io::Result<()> {
         self.0.set_multicast_loop_v4(multicast_loop_v4)
@@ -260,7 +278,7 @@ impl UdpSocket {
     /// this socket. The default value is 1 which means that multicast packets
     /// don't leave the local network unless explicitly requested.
     ///
-    /// Note that this may not have any affect on IPv6 sockets.
+    /// Note that this may not have any effect on IPv6 sockets.
     ///
     pub fn set_multicast_ttl_v4(&self, multicast_ttl_v4: u32) -> io::Result<()> {
         self.0.set_multicast_ttl_v4(multicast_ttl_v4)
@@ -308,6 +326,7 @@ impl UdpSocket {
 
     /// Gets the value of the `IP_TTL` option for this socket.
     ///
+    /// For more information about this option, see [`set_ttl`][link].
     ///
     /// [link]: #method.set_ttl
     ///
@@ -386,6 +405,8 @@ impl UdpSocket {
     /// The [`connect`] method will connect this socket to a remote address. This
     /// method will fail if the socket is not connected.
     ///
+    /// [`connect`]: #method.connect
+    ///
     pub fn send(&self, buf: &[u8]) -> io::Result<usize> {
         self.0.send(buf)
     }
@@ -453,15 +474,21 @@ impl UdpSocket {
 }
 
 impl AsInner<net_imp::UdpSocket> for UdpSocket {
-    fn as_inner(&self) -> &net_imp::UdpSocket { &self.0 }
+    fn as_inner(&self) -> &net_imp::UdpSocket {
+        &self.0
+    }
 }
 
 impl FromInner<net_imp::UdpSocket> for UdpSocket {
-    fn from_inner(inner: net_imp::UdpSocket) -> UdpSocket { UdpSocket(inner) }
+    fn from_inner(inner: net_imp::UdpSocket) -> UdpSocket {
+        UdpSocket(inner)
+    }
 }
 
 impl IntoInner<net_imp::UdpSocket> for UdpSocket {
-    fn into_inner(self) -> net_imp::UdpSocket { self.0 }
+    fn into_inner(self) -> net_imp::UdpSocket {
+        self.0
+    }
 }
 
 impl fmt::Debug for UdpSocket {

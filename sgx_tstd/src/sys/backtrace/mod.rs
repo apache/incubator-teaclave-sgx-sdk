@@ -90,13 +90,46 @@
 /// to symbols. This is a bit of a hokey implementation as-is, but it works for
 /// all unix platforms we support right now, so it at least gets the job done.
 
-pub use self::tracing::unwind_backtrace;
-pub use self::printing::{foreach_symbol_fileline, resolve_symname, init_state};
+pub use self::tracing::{trace_unsynchronized, Frame};
+pub use self::printing::{BacktraceFmt, BacktraceFrameFmt, PrintFmt};
 
 // tracing impls:
 mod tracing;
 // symbol resolvers:
 mod printing;
+
+/// A platform independent representation of a string. When working with `std`
+/// enabled it is recommended to the convenience methods for providing
+/// conversions to `std` types.
+#[derive(Debug)]
+pub enum BytesOrWideString<'a> {
+    /// A slice, typically provided on Unix platforms.
+    Bytes(&'a [u8]),
+    /// Wide strings typically from Windows.
+    Wide(&'a [u16]),
+}
+
+pub struct Bomb {
+    enabled: bool,
+}
+
+impl Bomb {
+    pub fn new(enabled: bool) -> Bomb {
+        Bomb { enabled }
+    }
+
+    pub fn set(&mut self, enabled: bool) {
+        self.enabled = enabled;
+    }
+}
+
+impl Drop for Bomb {
+    fn drop(&mut self) {
+        if self.enabled {
+            panic!("cannot panic during the backtrace function");
+        }
+    }
+}
 
 pub mod gnu {
     use crate::ffi::CString;
@@ -107,7 +140,6 @@ pub mod gnu {
     use sgx_trts::libc::c_char;
 
     pub fn get_enclave_filename() -> io::Result<Vec<c_char>> {
-
         let p = enclave::get_enclave_path();
         let result = match p {
             None => { Err(Error::new(ErrorKind::Other, "Not implemented")) },
