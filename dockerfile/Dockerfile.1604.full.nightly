@@ -17,14 +17,14 @@ RUN bash /root/03_sdk.sh
 # Sixth, PSW
 
 ENV CODENAME        xenial
-ENV VERSION         2.9.100.2-xenial1
+ENV VERSION         2.9.101.2-xenial1
 
 ADD 04_psw.sh /root
 RUN bash /root/04_psw.sh
 
 # Seventh, Rust
 
-ENV rust_toolchain  nightly-2020-03-12
+ENV rust_toolchain  nightly-2020-04-07
 ADD 05_rust.sh /root
 RUN bash /root/05_rust.sh
 

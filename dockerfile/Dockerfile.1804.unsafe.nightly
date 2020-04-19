@@ -20,9 +20,9 @@ FROM ubuntu:18.04
 MAINTAINER Yu Ding
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV VERSION         2.9.100.2-bionic1
-ENV rust_toolchain  nightly-2020-03-12
-ENV sdk_bin         https://download.01.org/intel-sgx/sgx-linux/2.9/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.9.100.2.bin
+ENV VERSION         2.9.101.2-bionic1
+ENV rust_toolchain  nightly-2020-04-07
+ENV sdk_bin         https://download.01.org/intel-sgx/sgx-linux/2.9.1/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.9.101.2.bin
 
 RUN apt-get update && \
     apt-get install -y gnupg2 apt-transport-https ca-certificates curl software-properties-common build-essential automake autoconf libtool protobuf-compiler libprotobuf-dev git-core libprotobuf-c0-dev cmake pkg-config expect gdb && \
