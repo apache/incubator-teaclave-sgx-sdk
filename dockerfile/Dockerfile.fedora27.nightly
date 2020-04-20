@@ -7,7 +7,7 @@ RUN yum install yum-utils bzip2 ocaml ocaml-ocamlbuild wget python2 openssl-deve
 ADD 01_gcc_8.sh /root
 RUN bash /root/01_gcc_8.sh
 
-ENV BINUTILS_PREFIX=/usr/lib
+ENV BINUTILS_PREFIX=/usr
 
 ADD 02_binutils.sh /root
 RUN bash /root/02_binutils.sh
@@ -19,7 +19,7 @@ RUN bash /root/03_sdk.sh
 
 ENV PSW_REPO=https://download.01.org/intel-sgx/sgx-linux/2.9.1/distro/fedora27-server/sgx_rpm_local_repo.tgz
 
-RUN wget --output /root/repo.tgz $PSW_REPO && \
+RUN curl --output /root/repo.tgz $PSW_REPO && \
     cd /root && \
     tar xzf repo.tgz && \
     cd sgx_rpm_local_repo && \

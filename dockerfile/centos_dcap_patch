@@ -1,0 +1,34 @@
+diff --git a/QuoteGeneration/installer/linux/rpm/libsgx-pce-logic/libsgx-pce-logic.spec b/QuoteGeneration/installer/linux/rpm/libsgx-pce-logic/libsgx-pce-logic.spec
+index 2423e17..bc5e65e 100644
+--- a/QuoteGeneration/installer/linux/rpm/libsgx-pce-logic/libsgx-pce-logic.spec
++++ b/QuoteGeneration/installer/linux/rpm/libsgx-pce-logic/libsgx-pce-logic.spec
+@@ -43,6 +43,8 @@ Source0:        %{name}-%{version}.tar.gz
+ %description
+ Intel(R) Software Guard Extensions PCE logic
+
++%undefine _missing_build_ids_terminate_build
++
+ %prep
+ %setup -qc
+
+@@ -57,6 +59,7 @@ done
+
+ %debug_package
+
++
+ %changelog
+ * Tue Jan 21 2020 SGX Team
+ - Initial Release
+diff --git a/QuoteGeneration/installer/linux/rpm/libsgx-qe3-logic/libsgx-qe3-logic.spec b/QuoteGeneration/installer/linux/rpm/libsgx-qe3-logic/libsgx-qe3-logic.spec
+index b108e4d..a0e15af 100644
+--- a/QuoteGeneration/installer/linux/rpm/libsgx-qe3-logic/libsgx-qe3-logic.spec
++++ b/QuoteGeneration/installer/linux/rpm/libsgx-qe3-logic/libsgx-qe3-logic.spec
+@@ -43,6 +43,8 @@ Source0:        %{name}-%{version}.tar.gz
+ %description
+ Intel(R) Software Guard Extensions QE3 logic
+
++%undefine _missing_build_ids_terminate_build
++
+ %prep
+ %setup -qc
+
