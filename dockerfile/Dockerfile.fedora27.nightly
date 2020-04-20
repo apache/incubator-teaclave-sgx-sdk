@@ -1,6 +1,6 @@
 FROM fedora:27
 
-RUN yum install yum-utils bzip2 ocaml ocaml-ocamlbuild wget python2 openssl-devel git protobuf-devel ncurses-devel libtool automake redhat-rpm-config rpm-build cmake perl && \
+RUN yum install -y yum-utils bzip2 ocaml ocaml-ocamlbuild wget python2 openssl-devel git protobuf-devel ncurses-devel libtool automake redhat-rpm-config rpm-build cmake perl && \
     yum-builddep gcc binutils -y && \
     yum groupinstall -y 'C Development Tools and Libraries'
 
