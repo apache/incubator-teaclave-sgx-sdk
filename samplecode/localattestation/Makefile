@@ -108,6 +108,7 @@ RustEnclave_C_Files := $(wildcard ./enclave1/*.c ./enclave2/*.c ./enclave3/*.c .
 RustEnclave_C_Objects := $(RustEnclave_C_Files:.c=.o)
 RustEnclave_Include_Paths := -I$(CUSTOM_COMMON_PATH)/inc -I$(CUSTOM_EDL_PATH) -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/stlport -I$(SGX_SDK)/include/epid
 
+RustEnclave_Link_Libs := -L$(CUSTOM_LIBRARY_PATH)
 RustEnclave_Compile_Flags := $(SGX_COMMON_CFLAGS) $(ENCLAVE_CFLAGS) $(RustEnclave_Include_Paths)
 RustEnclave_Link_Flags := -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
@@ -175,6 +176,7 @@ enclave1/Enclave1_t.o: enclave1/Enclave1_t.c
 	@$(CC) $(RustEnclave_Compile_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
+$(RustEnclave1_Name): enclave1 enclave1/Enclave1_t.o
 	@$(CXX) enclave1/Enclave1_t.o -o $@ -lenclave1 $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
@@ -190,6 +192,7 @@ enclave2/Enclave2_t.o: enclave2/Enclave2_t.c
 	@$(CC) $(RustEnclave_Compile_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
+$(RustEnclave2_Name): enclave2 enclave2/Enclave2_t.o
 	@$(CXX) enclave2/Enclave2_t.o -o $@ -lenclave2 $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
@@ -204,6 +207,7 @@ enclave3/Enclave3_t.o: enclave3/Enclave3_t.c
 	@$(CC) $(RustEnclave_Compile_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
+$(RustEnclave3_Name): enclave3 enclave3/Enclave3_t.o
 	@$(CXX) enclave3/Enclave3_t.o -o $@ -lenclave3 $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
@@ -223,7 +227,6 @@ enclave2:
 .PHONY: enclave3
 enclave3:
 	$(MAKE) -C ./enclave3/
-
 
 .PHONY: sgx_ustdc
 sgx_ustdc:
