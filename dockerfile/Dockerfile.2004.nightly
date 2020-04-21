@@ -1,0 +1,40 @@
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt update && apt install -y lsb-release debhelper cmake reprepro autoconf automake bison build-essential curl dpkg-dev expect flex gcc-8 gdb git git-core gnupg kmod libboost-system-dev libboost-thread-dev libcurl4-openssl-dev libiptcdata0-dev libjsoncpp-dev liblog4cpp5-dev libprotobuf-dev libssl-dev libtool libxml2-dev ocaml ocamlbuild pkg-config protobuf-compiler python sudo systemd-sysv texinfo uuid-dev vim wget && \
+    rm -rf /var/lib/apt/lists/*
+
+#20.04 does have gcc-9
+#ADD 01_gcc_8.sh /root
+#RUN bash /root/01_gcc_8.sh
+
+ENV BINUTILS_PREFIX=/usr
+
+ADD 02_binutils.sh /root
+RUN bash /root/02_binutils.sh
+
+ADD 03_sdk_gcc9.sh /root
+ADD gcc9_patch /root
+RUN bash /root/03_sdk_gcc9.sh
+    
+# Sixth, PSW
+
+ENV CODENAME        bionic
+ENV VERSION         2.9.101.2-bionic1
+
+ADD 04_psw_deb.sh /root
+ADD focal_psw_patch /root
+RUN bash /root/04_psw_deb.sh
+
+# Seventh, Rust
+
+ENV rust_toolchain  nightly-2020-04-07
+ADD 05_rust.sh /root
+RUN bash /root/05_rust.sh
+
+ENV DEBIAN_FRONTEND=
+ENV CODENAME=
+ENV VERSION=
+
+WORKDIR /root
