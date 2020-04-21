@@ -138,7 +138,7 @@ Enclave_Cpp_Flags := $(Enclave_C_Flags) -std=c++11 -nostdinc++
 # Otherwise, you may get some undesirable errors.
 Enclave_Link_Flags := -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group -lsgx_tcxx -lsgx_tstdc -l$(KeyExchange_Library_Name) -l$(Crypto_Library_Name) -l$(Service_Library_Name) -L./lib -lcompiler-rt-patch -lraenclave -Wl,--end-group \
+	-Wl,--start-group -lsgx_tcxx -lsgx_tstdc -l$(KeyExchange_Library_Name) -l$(Crypto_Library_Name) -l$(Service_Library_Name) -L./lib -lraenclave -Wl,--end-group \
 	-Wl,--version-script=enclave/enclave.lds \
 	$(ENCLAVE_LDFLAGS)
 
@@ -226,8 +226,6 @@ enclave/%.o: enclave/%.cpp enclave/enclave_t.c
 	@$(CXX) $(Enclave_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(Enclave_Name): raenclave enclave/enclave_t.o compiler-rt $(Enclave_Cpp_Objects)
-	cp ../../../compiler-rt/libcompiler-rt-patch.a ./lib/
 	$(CXX) enclave/enclave_t.o -o $@ $(Enclave_Link_Flags)
 	@echo "LINK =>  $@"
 
@@ -236,9 +234,6 @@ $(Signed_Enclave_Name): $(Enclave_Name)
 	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/enclave_private.pem -enclave $(Enclave_Name) -out $@ -config $(Enclave_Config_File)
 	@echo "SIGN =>  $@"
 
-.PHONY: compiler-rt
-compiler-rt:
-	$(MAKE) -C ../../../compiler-rt/ 2> /dev/null
 
 .PHONY: raenclave
 raenclave:
