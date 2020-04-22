@@ -233,7 +233,6 @@ MIT License
 -----------
 
 samplecode/remoteattestation
-compiler_rt
 
 
 OpenBSD* Copyright Policy
@@ -246,10 +245,3 @@ BSD 2-Clauses License
 ---------------------
 
 common/inc
-
-
-The University of Illinois "BSD-Like" license
----------------------------------------------
-
-compiler_rt
-
