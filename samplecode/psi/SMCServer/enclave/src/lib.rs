@@ -31,14 +31,12 @@ extern crate sgx_trts;
 extern crate sgx_tstd as std;
 extern crate sgx_tdh;
 extern crate sgx_tcrypto;
-extern crate sgx_tservice;
 extern crate sgx_tkey_exchange;
 extern crate sgx_rand;
 
 use sgx_types::*;
 use sgx_trts::memeq::ConsttimeMemEq;
 use sgx_tcrypto::*;
-use sgx_tservice::*;
 use sgx_tkey_exchange::*;
 use sgx_rand::{Rng, StdRng};
 use std::slice;
@@ -128,28 +126,8 @@ fn uninitialize() {
 
 #[no_mangle]
 pub extern "C"
-fn enclave_init_ra(b_pse: i32,
-                   p_context: &mut sgx_ra_context_t)
-                   -> sgx_status_t {
-    let mut ret:sgx_status_t = sgx_status_t::SGX_SUCCESS;
-
-    if b_pse != 0 {
-        for _ in 0..2 {
-            match rsgx_create_pse_session() {
-                Ok(()) => {
-                    ret = sgx_status_t::SGX_SUCCESS;
-                    break;
-                },
-                Err(x) => {ret = x;}
-            }
-
-        }
-
-        if ret != sgx_status_t::SGX_SUCCESS {
-            return ret;
-        }
-    }
-
+fn enclave_init_ra(b_pse: i32, p_context: &mut sgx_ra_context_t) -> sgx_status_t {
+    let mut ret: sgx_status_t = sgx_status_t::SGX_SUCCESS;
     match rsgx_ra_init(&G_SP_PUB_KEY, b_pse) {
         Ok(p) => {
             *p_context = p;
@@ -160,16 +138,12 @@ fn enclave_init_ra(b_pse: i32,
             return ret;
         }
     }
-
-    if b_pse != 0 {
-        let _ = rsgx_close_pse_session();
-    }
     ret
 }
 
 #[no_mangle]
 pub extern "C"
-fn enclave_ra_close(context : sgx_ra_context_t) -> sgx_status_t {
+fn enclave_ra_close(context: sgx_ra_context_t) -> sgx_status_t {
     match rsgx_ra_close(context) {
         Ok(()) => sgx_status_t::SGX_SUCCESS,
         Err(x) => x
