@@ -1,3 +1,19 @@
+# Rust SGX SDK v1.1.2
+
+**Supports Intel SGX SDK v2.9.1**
+
+**Supports Rust nightly-2020-04-07**
+
+**Docker images** We provide docker images: 1604-1.1.2/1804-1.1.2/2004-1.1.2/fedora27-1.1.2. CentOS support is unfinished. Contribution is welcome!
+
+**sgx_signal** enables signal handling. It'll be pretty handy when debugging with `ud2` or `SIGILL` events! Please look at [signal sample](samplecode/unit-test/enclave/src/test_signal.rs) for usage.
+
+**Removed sgx_core_futures** since Rust supports `async`/`await` in `no_std` environment.
+
+**Bug fixes**
+
+**Removed compiler-rt patch**
+
 # Rust SGX SDK v1.1.1
 
 **Supports Intel SGX SDK v2.9**
