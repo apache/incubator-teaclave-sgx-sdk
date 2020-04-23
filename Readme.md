@@ -100,7 +100,7 @@ This version provides a new namespace: `sgx_tstd::untrusted`, including `sgx_tst
 
 Ubuntu 16.04 or 18.04
 
-[Intel SGX SDK 2.5 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
+[Intel SGX SDK 2.9.1 for Linux](https://01.org/intel-software-guard-extensions/downloads) installed
 
 Docker (Recommended)
 
@@ -115,11 +115,9 @@ Install Intel SGX driver and SDK first. And refer to [Dockerfile](dockerfile/Doc
 
 ### Using docker (Recommended) without ME support
 
-* As of v1.0.7, we provide 4 docker images: `baiduxlab/sgx-rust:1604-1.0.7` `baiduxlab/sgx-rust:1804-1.0.7` `baiduxlab/sgx-rust-stable:1604-1.0.7` `baiduxlab/sgx-rust-stable:1804-1.0.7`. The `latest` tag pins on `baiduxlab/sgx-rust:1604-1.0.7`.
+* As of v1.1.2, we provide 4 docker images: `baiduxlab/sgx-rust:1604-1.1.2` `baiduxlab/sgx-rust:1804-1.1.2` `baiduxlab/sgx-rust:2004-1.1.2` `baiduxlab/sgx-rust:fedora27-1.1.2`. The `latest` tag pins on `baiduxlab/sgx-rust:1804-1.1.2`.
 
-First, make sure Intel SGX Driver 2.5 is installed and functions well. `/dev/isgx` should appear.
-
-Second, pull the docker image. If you'd like to work on stable branch of Rust and `rust-stable` branch of this SDK, please pull `baiduxlab/sgx-rust-stable` instead.
+First, make sure Intel SGX Driver for 2.9.1 is installed and functions well. `/dev/isgx` should appear. If you use DCAP driver, please ensure `/dev/sgx/enclave` and `/dev/sgx/provision` both appear.
 
 `$ docker pull baiduxlab/sgx-rust`
 
@@ -127,9 +125,13 @@ Third, start a docker with sgx device support and the Rust SGX SDK.
 
 `$ docker run -v /your/path/to/rust-sgx:/root/sgx -ti --device /dev/isgx baiduxlab/sgx-rust`
 
+If you use DCAP, the command is:
+
+`$ docker run -v /your/path/to/rust-sgx:/root/sgx -ti --device /dev/sgx/enclave --device /dev/sgx/provision baiduxlab/sgx-rust`
+
 Next, start the aesm service inside the docker
 
-`root@docker:/# LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service &`
+`root@docker:/# LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service &
 
 Finally, check if the sample code works
 
@@ -217,7 +219,7 @@ We provide eighteen sample codes to help developers understand how to write Encl
 
 * `sgxtime` shows how to acquire trusted timestamp via Intel ME. Please refer to this [instruction](documents/sgxtime.md) for detail.
 
-* `protobuf` shows how to use the ported `rust-protobuf` to pass messages to the enclave using protobuf. Please install protobuf-compiler by `apt-get install protobuf-compiler` and protobuf-codegen by `cargo install protobuf-codegen --vers=2.0.3` before compiling this sample.
+* `protobuf` shows how to use the ported `rust-protobuf` to pass messages to the enclave using protobuf. Please install protobuf-compiler by `apt-get install protobuf-compiler` and protobuf-codegen by `cargo install protobuf-codegen --vers=2.8.1` before compiling this sample.
 
 * `wasmi` shows how to pass WebAssembly test suites using the ported WebAssembly interpreter.
 
