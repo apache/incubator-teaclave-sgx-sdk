@@ -291,6 +291,7 @@ use core::mem;
 use core::cell::UnsafeCell;
 use crate::error;
 use crate::time::{Duration, Instant};
+#[cfg(not(feature = "untrusted_time"))]
 use crate::untrusted::time::InstantEx;
 mod blocking;
 mod oneshot;
@@ -302,7 +303,7 @@ mod spsc_queue;
 
 mod cache_aligned;
 
-/// The receiving half of Rust's [`channel`][] (or [`sync_channel`]) type.
+/// The receiving half of Rust's [`channel`] (or [`sync_channel`]) type.
 /// This half can only be owned by one thread.
 ///
 /// Messages sent to the channel can be retrieved using [`recv`].
@@ -336,9 +337,9 @@ pub struct Receiver<T> {
 
 // The receiver port can be sent from place to place, so long as it
 // is not used to receive non-sendable things.
-unsafe impl<T: Send> Send for Receiver<T> { }
+unsafe impl<T: Send> Send for Receiver<T> {}
 
-impl<T> !Sync for Receiver<T> { }
+impl<T> !Sync for Receiver<T> {}
 
 /// An iterator over messages on a [`Receiver`], created by [`iter`].
 ///
@@ -371,7 +372,7 @@ impl<T> !Sync for Receiver<T> { }
 /// ```
 #[derive(Debug)]
 pub struct Iter<'a, T: 'a> {
-    rx: &'a Receiver<T>
+    rx: &'a Receiver<T>,
 }
 
 /// An iterator that attempts to yield all pending values for a [`Receiver`],
@@ -415,7 +416,7 @@ pub struct Iter<'a, T: 'a> {
 /// ```
 #[derive(Debug)]
 pub struct TryIter<'a, T: 'a> {
-    rx: &'a Receiver<T>
+    rx: &'a Receiver<T>,
 }
 
 /// An owning iterator over messages on a [`Receiver`],
@@ -449,7 +450,7 @@ pub struct TryIter<'a, T: 'a> {
 /// ```
 #[derive(Debug)]
 pub struct IntoIter<T> {
-    rx: Receiver<T>
+    rx: Receiver<T>,
 }
 
 /// The sending-half of Rust's asynchronous [`channel`] type. This half can only be
@@ -490,9 +491,9 @@ pub struct Sender<T> {
 
 // The send port can be sent from place to place, so long as it
 // is not used to send non-sendable things.
-unsafe impl<T: Send> Send for Sender<T> { }
+unsafe impl<T: Send> Send for Sender<T> {}
 
-impl<T> !Sync for Sender<T> { }
+impl<T> !Sync for Sender<T> {}
 
 /// The sending-half of Rust's synchronous [`sync_channel`] type.
 ///
@@ -562,7 +563,7 @@ pub struct SendError<T>(pub T);
 /// An error returned from the [`recv`] function on a [`Receiver`].
 ///
 /// The [`recv`] operation can only fail if the sending half of a
-/// [`channel`][`channel`] (or [`sync_channel`]) is disconnected, implying that no further
+/// [`channel`] (or [`sync_channel`]) is disconnected, implying that no further
 /// messages will ever be received.
 ///
 /// [`recv`]: struct.Receiver.html#method.recv
@@ -763,9 +764,7 @@ pub fn sync_channel<T>(bound: usize) -> (SyncSender<T>, Receiver<T>) {
 
 impl<T> Sender<T> {
     fn new(inner: Flavor<T>) -> Sender<T> {
-        Sender {
-            inner: UnsafeCell::new(inner),
-        }
+        Sender { inner: UnsafeCell::new(inner) }
     }
 
     /// Attempts to send a value on this channel, returning it back if it could
@@ -845,8 +844,7 @@ impl<T> Clone for Sender<T> {
                     let guard = a.postinit_lock();
                     let rx = Receiver::new(Flavor::Shared(a.clone()));
                     let sleeper = match p.upgrade(rx) {
-                        oneshot::UpSuccess |
-                        oneshot::UpDisconnected => None,
+                        oneshot::UpSuccess | oneshot::UpDisconnected => None,
                         oneshot::UpWoke(task) => Some(task),
                     };
                     a.inherit_blocker(sleeper, guard);
@@ -859,8 +857,7 @@ impl<T> Clone for Sender<T> {
                     let guard = a.postinit_lock();
                     let rx = Receiver::new(Flavor::Shared(a.clone()));
                     let sleeper = match p.upgrade(rx) {
-                        stream::UpSuccess |
-                        stream::UpDisconnected => None,
+                        stream::UpSuccess | stream::UpDisconnected => None,
                         stream::UpWoke(task) => Some(task),
                     };
                     a.inherit_blocker(sleeper, guard);
@@ -1059,48 +1056,31 @@ impl<T> Receiver<T> {
     pub fn try_recv(&self) -> Result<T, TryRecvError> {
         loop {
             let new_port = match *unsafe { self.inner() } {
-                Flavor::Oneshot(ref p) => {
-                    match p.try_recv() {
-                        Ok(t) => return Ok(t),
-                        Err(oneshot::Empty) => return Err(TryRecvError::Empty),
-                        Err(oneshot::Disconnected) => {
-                            return Err(TryRecvError::Disconnected)
-                        }
-                        Err(oneshot::Upgraded(rx)) => rx,
-                    }
-                }
-                Flavor::Stream(ref p) => {
-                    match p.try_recv() {
-                        Ok(t) => return Ok(t),
-                        Err(stream::Empty) => return Err(TryRecvError::Empty),
-                        Err(stream::Disconnected) => {
-                            return Err(TryRecvError::Disconnected)
-                        }
-                        Err(stream::Upgraded(rx)) => rx,
-                    }
-                }
-                Flavor::Shared(ref p) => {
-                    match p.try_recv() {
-                        Ok(t) => return Ok(t),
-                        Err(shared::Empty) => return Err(TryRecvError::Empty),
-                        Err(shared::Disconnected) => {
-                            return Err(TryRecvError::Disconnected)
-                        }
-                    }
-                }
-                Flavor::Sync(ref p) => {
-                    match p.try_recv() {
-                        Ok(t) => return Ok(t),
-                        Err(sync::Empty) => return Err(TryRecvError::Empty),
-                        Err(sync::Disconnected) => {
-                            return Err(TryRecvError::Disconnected)
-                        }
-                    }
-                }
+                Flavor::Oneshot(ref p) => match p.try_recv() {
+                    Ok(t) => return Ok(t),
+                    Err(oneshot::Empty) => return Err(TryRecvError::Empty),
+                    Err(oneshot::Disconnected) => return Err(TryRecvError::Disconnected),
+                    Err(oneshot::Upgraded(rx)) => rx,
+                },
+                Flavor::Stream(ref p) => match p.try_recv() {
+                    Ok(t) => return Ok(t),
+                    Err(stream::Empty) => return Err(TryRecvError::Empty),
+                    Err(stream::Disconnected) => return Err(TryRecvError::Disconnected),
+                    Err(stream::Upgraded(rx)) => rx,
+                },
+                Flavor::Shared(ref p) => match p.try_recv() {
+                    Ok(t) => return Ok(t),
+                    Err(shared::Empty) => return Err(TryRecvError::Empty),
+                    Err(shared::Disconnected) => return Err(TryRecvError::Disconnected),
+                },
+                Flavor::Sync(ref p) => match p.try_recv() {
+                    Ok(t) => return Ok(t),
+                    Err(sync::Empty) => return Err(TryRecvError::Empty),
+                    Err(sync::Disconnected) => return Err(TryRecvError::Disconnected),
+                },
             };
             unsafe {
-                mem::swap(self.inner_mut(),
-                          new_port.inner_mut());
+                mem::swap(self.inner_mut(), new_port.inner_mut());
             }
         }
     }
@@ -1110,7 +1090,7 @@ impl<T> Receiver<T> {
     ///
     /// This function will always block the current thread if there is no data
     /// available and it's possible for more data to be sent. Once a message is
-    /// sent to the corresponding [`Sender`][] (or [`SyncSender`]), then this
+    /// sent to the corresponding [`Sender`] (or [`SyncSender`]), then this
     /// receiver will wake up and return that message.
     ///
     /// If the corresponding [`Sender`] has disconnected, or it disconnects while
@@ -1165,29 +1145,23 @@ impl<T> Receiver<T> {
     pub fn recv(&self) -> Result<T, RecvError> {
         loop {
             let new_port = match *unsafe { self.inner() } {
-                Flavor::Oneshot(ref p) => {
-                    match p.recv(None) {
-                        Ok(t) => return Ok(t),
-                        Err(oneshot::Disconnected) => return Err(RecvError),
-                        Err(oneshot::Upgraded(rx)) => rx,
-                        Err(oneshot::Empty) => unreachable!(),
-                    }
-                }
-                Flavor::Stream(ref p) => {
-                    match p.recv(None) {
-                        Ok(t) => return Ok(t),
-                        Err(stream::Disconnected) => return Err(RecvError),
-                        Err(stream::Upgraded(rx)) => rx,
-                        Err(stream::Empty) => unreachable!(),
-                    }
-                }
-                Flavor::Shared(ref p) => {
-                    match p.recv(None) {
-                        Ok(t) => return Ok(t),
-                        Err(shared::Disconnected) => return Err(RecvError),
-                        Err(shared::Empty) => unreachable!(),
-                    }
-                }
+                Flavor::Oneshot(ref p) => match p.recv(None) {
+                    Ok(t) => return Ok(t),
+                    Err(oneshot::Disconnected) => return Err(RecvError),
+                    Err(oneshot::Upgraded(rx)) => rx,
+                    Err(oneshot::Empty) => unreachable!(),
+                },
+                Flavor::Stream(ref p) => match p.recv(None) {
+                    Ok(t) => return Ok(t),
+                    Err(stream::Disconnected) => return Err(RecvError),
+                    Err(stream::Upgraded(rx)) => rx,
+                    Err(stream::Empty) => unreachable!(),
+                },
+                Flavor::Shared(ref p) => match p.recv(None) {
+                    Ok(t) => return Ok(t),
+                    Err(shared::Disconnected) => return Err(RecvError),
+                    Err(shared::Empty) => unreachable!(),
+                },
                 Flavor::Sync(ref p) => return p.recv(None).map_err(|_| RecvError),
             };
             unsafe {
@@ -1201,7 +1175,7 @@ impl<T> Receiver<T> {
     ///
     /// This function will always block the current thread if there is no data
     /// available and it's possible for more data to be sent. Once a message is
-    /// sent to the corresponding [`Sender`][] (or [`SyncSender`]), then this
+    /// sent to the corresponding [`Sender`] (or [`SyncSender`]), then this
     /// receiver will wake up and return that message.
     ///
     /// If the corresponding [`Sender`] has disconnected, or it disconnects while
@@ -1301,7 +1275,7 @@ impl<T> Receiver<T> {
     ///
     /// This function will always block the current thread if there is no data
     /// available and it's possible for more data to be sent. Once a message is
-    /// sent to the corresponding [`Sender`][] (or [`SyncSender`]), then this
+    /// sent to the corresponding [`Sender`] (or [`SyncSender`]), then this
     /// receiver will wake up and return that message.
     ///
     /// If the corresponding [`Sender`] has disconnected, or it disconnects while
@@ -1361,36 +1335,28 @@ impl<T> Receiver<T> {
 
         loop {
             let port_or_empty = match *unsafe { self.inner() } {
-                Flavor::Oneshot(ref p) => {
-                    match p.recv(Some(deadline)) {
-                        Ok(t) => return Ok(t),
-                        Err(oneshot::Disconnected) => return Err(Disconnected),
-                        Err(oneshot::Upgraded(rx)) => Some(rx),
-                        Err(oneshot::Empty) => None,
-                    }
-                }
-                Flavor::Stream(ref p) => {
-                    match p.recv(Some(deadline)) {
-                        Ok(t) => return Ok(t),
-                        Err(stream::Disconnected) => return Err(Disconnected),
-                        Err(stream::Upgraded(rx)) => Some(rx),
-                        Err(stream::Empty) => None,
-                    }
-                }
-                Flavor::Shared(ref p) => {
-                    match p.recv(Some(deadline)) {
-                        Ok(t) => return Ok(t),
-                        Err(shared::Disconnected) => return Err(Disconnected),
-                        Err(shared::Empty) => None,
-                    }
-                }
-                Flavor::Sync(ref p) => {
-                    match p.recv(Some(deadline)) {
-                        Ok(t) => return Ok(t),
-                        Err(sync::Disconnected) => return Err(Disconnected),
-                        Err(sync::Empty) => None,
-                    }
-                }
+                Flavor::Oneshot(ref p) => match p.recv(Some(deadline)) {
+                    Ok(t) => return Ok(t),
+                    Err(oneshot::Disconnected) => return Err(Disconnected),
+                    Err(oneshot::Upgraded(rx)) => Some(rx),
+                    Err(oneshot::Empty) => None,
+                },
+                Flavor::Stream(ref p) => match p.recv(Some(deadline)) {
+                    Ok(t) => return Ok(t),
+                    Err(stream::Disconnected) => return Err(Disconnected),
+                    Err(stream::Upgraded(rx)) => Some(rx),
+                    Err(stream::Empty) => None,
+                },
+                Flavor::Shared(ref p) => match p.recv(Some(deadline)) {
+                    Ok(t) => return Ok(t),
+                    Err(shared::Disconnected) => return Err(Disconnected),
+                    Err(shared::Empty) => None,
+                },
+                Flavor::Sync(ref p) => match p.recv(Some(deadline)) {
+                    Ok(t) => return Ok(t),
+                    Err(sync::Disconnected) => return Err(Disconnected),
+                    Err(sync::Empty) => None,
+                },
             };
 
             if let Some(new_port) = port_or_empty {
@@ -1478,34 +1444,41 @@ impl<T> Receiver<T> {
     pub fn try_iter(&self) -> TryIter<'_, T> {
         TryIter { rx: self }
     }
-
 }
 
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = T;
 
-    fn next(&mut self) -> Option<T> { self.rx.recv().ok() }
+    fn next(&mut self) -> Option<T> {
+        self.rx.recv().ok()
+    }
 }
 
 impl<'a, T> Iterator for TryIter<'a, T> {
     type Item = T;
 
-    fn next(&mut self) -> Option<T> { self.rx.try_recv().ok() }
+    fn next(&mut self) -> Option<T> {
+        self.rx.try_recv().ok()
+    }
 }
 
 impl<'a, T> IntoIterator for &'a Receiver<T> {
     type Item = T;
     type IntoIter = Iter<'a, T>;
 
-    fn into_iter(self) -> Iter<'a, T> { self.iter() }
+    fn into_iter(self) -> Iter<'a, T> {
+        self.iter()
+    }
 }
 
 impl<T> Iterator for IntoIter<T> {
     type Item = T;
-    fn next(&mut self) -> Option<T> { self.rx.recv().ok() }
+    fn next(&mut self) -> Option<T> {
+        self.rx.recv().ok()
+    }
 }
 
-impl <T> IntoIterator for Receiver<T> {
+impl<T> IntoIterator for Receiver<T> {
     type Item = T;
     type IntoIter = IntoIter<T>;
 
@@ -1547,10 +1520,6 @@ impl<T: Send> error::Error for SendError<T> {
     fn description(&self) -> &str {
         "sending on a closed channel"
     }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
-        None
-    }
 }
 
 impl<T> fmt::Debug for TrySendError<T> {
@@ -1565,12 +1534,8 @@ impl<T> fmt::Debug for TrySendError<T> {
 impl<T> fmt::Display for TrySendError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            TrySendError::Full(..) => {
-                "sending on a full channel".fmt(f)
-            }
-            TrySendError::Disconnected(..) => {
-                "sending on a closed channel".fmt(f)
-            }
+            TrySendError::Full(..) => "sending on a full channel".fmt(f),
+            TrySendError::Disconnected(..) => "sending on a closed channel".fmt(f),
         }
     }
 }
@@ -1579,12 +1544,8 @@ impl<T: Send> error::Error for TrySendError<T> {
 
     fn description(&self) -> &str {
         match *self {
-            TrySendError::Full(..) => {
-                "sending on a full channel"
-            }
-            TrySendError::Disconnected(..) => {
-                "sending on a closed channel"
-            }
+            TrySendError::Full(..) => "sending on a full channel",
+            TrySendError::Disconnected(..) => "sending on a closed channel",
         }
     }
 
@@ -1612,21 +1573,13 @@ impl error::Error for RecvError {
     fn description(&self) -> &str {
         "receiving on a closed channel"
     }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
-        None
-    }
 }
 
 impl fmt::Display for TryRecvError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            TryRecvError::Empty => {
-                "receiving on an empty channel".fmt(f)
-            }
-            TryRecvError::Disconnected => {
-                "receiving on a closed channel".fmt(f)
-            }
+            TryRecvError::Empty => "receiving on an empty channel".fmt(f),
+            TryRecvError::Disconnected => "receiving on a closed channel".fmt(f),
         }
     }
 }
@@ -1635,17 +1588,9 @@ impl error::Error for TryRecvError {
 
     fn description(&self) -> &str {
         match *self {
-            TryRecvError::Empty => {
-                "receiving on an empty channel"
-            }
-            TryRecvError::Disconnected => {
-                "receiving on a closed channel"
-            }
+            TryRecvError::Empty => "receiving on an empty channel",
+            TryRecvError::Disconnected => "receiving on a closed channel",
         }
-    }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
-        None
     }
 }
 
@@ -1660,12 +1605,8 @@ impl From<RecvError> for TryRecvError {
 impl fmt::Display for RecvTimeoutError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            RecvTimeoutError::Timeout => {
-                "timed out waiting on channel".fmt(f)
-            }
-            RecvTimeoutError::Disconnected => {
-                "channel is empty and sending half is closed".fmt(f)
-            }
+            RecvTimeoutError::Timeout => "timed out waiting on channel".fmt(f),
+            RecvTimeoutError::Disconnected => "channel is empty and sending half is closed".fmt(f),
         }
     }
 }
@@ -1673,17 +1614,9 @@ impl fmt::Display for RecvTimeoutError {
 impl error::Error for RecvTimeoutError {
     fn description(&self) -> &str {
         match *self {
-            RecvTimeoutError::Timeout => {
-                "timed out waiting on channel"
-            }
-            RecvTimeoutError::Disconnected => {
-                "channel is empty and sending half is closed"
-            }
+            RecvTimeoutError::Timeout => "timed out waiting on channel",
+            RecvTimeoutError::Disconnected => "channel is empty and sending half is closed",
         }
-    }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
-        None
     }
 }
 
@@ -1694,4 +1627,5 @@ impl From<RecvError> for RecvTimeoutError {
         }
     }
 }
+
 

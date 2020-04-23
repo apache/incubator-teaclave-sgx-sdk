@@ -25,6 +25,8 @@ enclave {
     from "sgx_thread.edl" import *;
     from "sgx_sys.edl" import *;
     from "sgx_backtrace.edl" import *;
+    from "sgx_signal.edl" import*;
+    from "sgx_process.edl" import*;
     trusted {
         /* define ECALLs here. */
 

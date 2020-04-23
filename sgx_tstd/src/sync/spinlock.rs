@@ -43,7 +43,6 @@ unsafe fn raw_lock(lock: &mut sgx_spinlock_t) -> *mut sgx_spinlock_t {
 /// Library: libsgx_tstdc.a
 ///
 unsafe fn rsgx_spin_lock(lock: &mut sgx_spinlock_t) {
-
     sgx_types::sgx_spin_lock(raw_lock(lock));
 }
 
@@ -67,7 +66,6 @@ unsafe fn rsgx_spin_lock(lock: &mut sgx_spinlock_t) {
 /// Library: libsgx_tstdc.a
 ///
 unsafe fn rsgx_spin_unlock(lock: &mut sgx_spinlock_t) {
-
     sgx_types::sgx_spin_unlock(raw_lock(lock));
 }
 
@@ -80,7 +78,7 @@ unsafe impl Sync for SgxThreadSpinlock {}
 
 impl SgxThreadSpinlock {
 
-    pub const fn new() -> Self {
+    pub const fn new() -> SgxThreadSpinlock {
         SgxThreadSpinlock{ lock: UnsafeCell::new(sgx_types::SGX_SPINLOCK_INITIALIZER) }
     }
 
@@ -102,8 +100,7 @@ unsafe impl Send for SgxSpinlock {}
 unsafe impl Sync for SgxSpinlock {}
 
 impl SgxSpinlock {
-
-    pub fn new() -> Self {
+    pub fn new() -> SgxSpinlock {
         SgxSpinlock{inner: SgxThreadSpinlock::new()}
     }
 
@@ -112,7 +109,6 @@ impl SgxSpinlock {
             self.inner.lock();
             SgxSpinlockGuard::new(self)
         }
-
     }
 }
 
@@ -141,3 +137,4 @@ impl<'a> Drop for SgxSpinlockGuard<'a> {
         }
     }
 }
+

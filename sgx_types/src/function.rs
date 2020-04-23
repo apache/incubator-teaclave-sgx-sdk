@@ -15,11 +15,12 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use crate::metadata::*;
 use crate::types::*;
 use crate::*;
 
 //#[link(name = "sgx_tstdc")]
-extern {
+extern "C" {
     //
     // sgx_cpuid.h
     //
@@ -51,10 +52,18 @@ extern {
 
     pub fn sgx_thread_self() -> sgx_thread_t;
     pub fn sgx_thread_equal(a: sgx_thread_t, b: sgx_thread_t) -> int32_t;
+
+    /* intel sgx sdk 2.8 */
+    //
+    // sgx_rsrv_mem_mngr.h
+    //
+    pub fn sgx_alloc_rsrv_mem(length: size_t) -> *mut c_void;
+    pub fn sgx_free_rsrv_mem(addr: *const c_void, length: size_t) -> int32_t;
+    pub fn sgx_tprotect_rsrv_mem(addr: *const c_void, length: size_t, prot: int32_t) -> sgx_status_t;
 }
 
 //#[link(name = "sgx_tservice")]
-extern {
+extern "C" {
     //
     // sgx_dh.h
     //
@@ -172,7 +181,7 @@ extern {
 }
 
 //#[link(name = "sgx_tcrypto")]
-extern {
+extern "C" {
     //
     // sgx_tcrypto.h
     //
@@ -383,7 +392,7 @@ extern {
 }
 
 //#[link(name = "sgx_tkey_exchange")]
-extern {
+extern "C" {
     //
     // sgx_tkey_exchange.h
     //
@@ -401,7 +410,7 @@ extern {
 }
 
 //#[link(name = "sgx_trts")]
-extern {
+extern "C" {
     //
     // sgx_trts.h
     //
@@ -426,7 +435,7 @@ extern {
 }
 
 //#[link(name = "sgx_epid")]
-extern {
+extern "C" {
     //
     // sgx_uae_epid.h
     //
@@ -459,7 +468,7 @@ extern {
 }
 
 //#[link(name = "sgx_launch")]
-extern {
+extern "C" {
     //
     // sgx_uae_launch.h
     //
@@ -473,7 +482,7 @@ extern {
 }
 
 //#[link(name = "sgx_platform")]
-extern {
+extern "C" {
     //
     // sgx_uae_platform.h
     //
@@ -481,7 +490,7 @@ extern {
 }
 
 //#[link(name = "sgx_quote_ex")]
-extern {
+extern "C" {
     //
     // sgx_uae_quote_ex.h
     //
@@ -503,10 +512,15 @@ extern {
                             p_qe_report_info: *mut sgx_qe_report_info_t,
                             p_quote: *mut uint8_t,
                             quote_size: uint32_t) -> sgx_status_t;
+
+     /* intel sgx sdk 2.9.1 */
+     pub fn sgx_get_supported_att_key_id_num(p_att_key_id_num: *mut uint32_t) -> sgx_status_t;
+     pub fn sgx_get_supported_att_key_ids(p_att_key_id_list: *mut sgx_att_key_id_ext_t,
+                                          att_key_id_num: uint32_t) -> sgx_status_t;
 }
 
 //#[link(name = "sgx_uae_service")]
-extern {
+extern "C" {
     //
     // sgx_uae_service.h
     //
@@ -517,7 +531,7 @@ extern {
 }
 
 //#[link(name = "sgx_ukey_exchange")]
-extern {
+extern "C" {
     //
     // sgx_ukey_exchange.h
     //
@@ -555,7 +569,7 @@ extern {
 
 
 //#[link(name = "sgx_urts")]
-extern {
+extern "C" {
     //
     // sgx_urts.h
     //
@@ -598,11 +612,14 @@ extern {
 
     /* intel sgx sdk 2.4 */
     pub fn sgx_get_target_info(enclave_id: sgx_enclave_id_t, target_info: *mut sgx_target_info_t) -> sgx_status_t;
+
+    /* intel sgx sdk 2.9.1 */
+    pub fn sgx_get_metadata(enclave_file: *const char, metadata: *mut metadata_t) -> sgx_status_t;
 }
 
 /* intel sgx sdk 1.9 */
 //#[link(name = "sgx_tprotected_fs")]
-extern {
+extern "C" {
     //
     // sgx_tprotected_fs.h
     //
@@ -637,7 +654,7 @@ extern {
 
 /* intel sgx sdk 2.0 */
 //#[link(name = "sgx_capable")]
-extern {
+extern "C" {
     //
     // sgx_capable.h
     //
@@ -647,7 +664,7 @@ extern {
 }
 
 //#[link(name = "sgx_pce_wrapper")]
-extern {
+extern "C" {
     //
     // sgx_pce.h
     //
@@ -676,7 +693,7 @@ extern {
 }
 
 //#[link(name = "sgx_dcap_ql")]
-extern {
+extern "C" {
     //
     // sgx_dcap_ql_wrapper.h
     //
@@ -685,10 +702,13 @@ extern {
     pub fn sgx_qe_get_quote_size(p_quote_size: *mut uint32_t) -> sgx_quote3_error_t;
     pub fn sgx_qe_get_quote(p_app_report: *const sgx_report_t, quote_size: uint32_t, p_quote: *mut uint8_t) -> sgx_quote3_error_t;
     pub fn sgx_qe_cleanup_by_policy() -> sgx_quote3_error_t;
+
+    /* intel DCAP 1.6 */
+    pub fn sgx_ql_set_path(path_type: sgx_ql_path_type_t, p_path: *const char) -> sgx_quote3_error_t;
 }
 
 //#[link(name = "dcap_quoteprov")]
-extern {
+extern "C" {
     //
     // sgx_default_quote_provider.h
     //
@@ -711,7 +731,7 @@ extern {
 }
 
 //#[link(name = "sgx_default_qcnl_wrapper")]
-extern {
+extern "C" {
     //
     // sgx_default_qcnl_wrapper.h
     //
@@ -738,7 +758,7 @@ extern {
 }
 
 //#[link(name = "dcap_quoteverify")]
-extern {
+extern "C" {
     //
     // sgx_dcap_quoteverify.h
     //
@@ -765,16 +785,7 @@ extern {
     pub fn sgx_qv_free_qve_identity(p_qveid: *const uint8_t,
                                     p_qveid_issue_chain: *const uint8_t,
                                     p_root_ca_crl: *const uint8_t) -> sgx_quote3_error_t;
-}
 
-//#[link(name = "sgx_tstdc")]
-extern {
-    /* intel sgx sdk 2.8 */
-
-    //
-    // sgx_rsrv_mem_mngr.h
-    //
-    pub fn sgx_alloc_rsrv_mem(length: size_t) -> *mut c_void;
-    pub fn sgx_free_rsrv_mem(addr: *const c_void, length: size_t) -> int32_t;
-    pub fn sgx_tprotect_rsrv_mem(addr: *const c_void, length: size_t, prot: int32_t) -> sgx_status_t;  
+    /* intel DCAP 1.6 */
+    pub fn sgx_qv_set_path(path_type: sgx_qv_path_type_t, p_path: *const char) -> sgx_quote3_error_t;
 }

@@ -15,8 +15,3 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License..
-
-pub unsafe fn start_thread(main: *mut u8) {
-    // Finally, let's run some code.
-    Box::from_raw(main as *mut Box<dyn FnOnce()>)()
-}

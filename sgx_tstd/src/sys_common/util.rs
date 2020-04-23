@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_trts::trts;
 use core::fmt;
 use crate::io::prelude::*;
 #[cfg(feature = "stdio")]
@@ -35,10 +34,12 @@ pub fn dumb_print(args: fmt::Arguments<'_>) {
 
 // Other platforms should use the appropriate platform-specific mechanism for
 // aborting the process.  If no platform-specific mechanism is available,
-// ::intrinsics::abort() may be used instead.  The above implementations cover
+// crate::intrinsics::abort() may be used instead.  The above implementations cover
 // all targets currently supported by libstd.
 
 pub fn abort(args: fmt::Arguments<'_>) -> ! {
     dumb_print(format_args!("fatal runtime error: {}\n", args));
-    trts::rsgx_abort()
+    unsafe {
+        crate::sys::abort_internal();
+    }
 }

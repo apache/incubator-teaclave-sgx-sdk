@@ -28,21 +28,21 @@ use alloc_crate::boxed::Box;
 /// A specialized [`Result`](../result/enum.Result.html) type for I/O
 /// operations.
 ///
-/// This type is broadly used across `std::io` for any operation which may
+/// This type is broadly used across [`std::io`] for any operation which may
 /// produce an error.
 ///
-/// This typedef is generally used to avoid writing out `io::Error` directly and
-/// is otherwise a direct mapping to `Result`.
+/// This typedef is generally used to avoid writing out [`io::Error`] directly and
+/// is otherwise a direct mapping to [`Result`].
 ///
-/// While usual Rust style is to import types directly, aliases of `Result`
-/// often are not, to make it easier to distinguish between them. `Result` is
-/// generally assumed to be `std::result::Result`, and so users of this alias
+/// While usual Rust style is to import types directly, aliases of [`Result`]
+/// often are not, to make it easier to distinguish between them. [`Result`] is
+/// generally assumed to be [`std::result::Result`][`Result`], and so users of this alias
 /// will generally use `io::Result` instead of shadowing the prelude's import
-/// of `std::result::Result`.
+/// of [`std::result::Result`][`Result`].
 ///
 pub type Result<T> = result::Result<T, Error>;
 
-/// The error type for I/O operations of the `Read`, `Write`, `Seek`, and
+/// The error type for I/O operations of the [`Read`], [`Write`], [`Seek`], and
 /// associated traits.
 ///
 /// Errors mostly originate from the underlying OS, but custom instances of
@@ -70,7 +70,7 @@ enum Repr {
 #[derive(Debug)]
 struct Custom {
     kind: ErrorKind,
-    error: Box<dyn error::Error+Send+Sync>,
+    error: Box<dyn error::Error + Send + Sync>,
 }
 
 /// A list specifying general categories of I/O error.
@@ -188,18 +188,14 @@ impl From<ErrorKind> for Error {
     ///
     #[inline]
     fn from(kind: ErrorKind) -> Error {
-        Error {
-            repr: Repr::Simple(kind)
-        }
+        Error { repr: Repr::Simple(kind) }
     }
 }
 
 impl From<sgx_status_t> for Error {
     #[inline]
     fn from(status: sgx_status_t) -> Error {
-        Error {
-            repr: Repr::SgxStatus(status)
-        }
+        Error { repr: Repr::SgxStatus(status) }
     }
 }
 
@@ -212,18 +208,14 @@ impl Error {
     /// payload which will be contained in this `Error`.
     ///
     pub fn new<E>(kind: ErrorKind, error: E) -> Error
-        where E: Into<Box<dyn error::Error+Send+Sync>>
+    where
+        E: Into<Box<dyn error::Error + Send + Sync>>,
     {
         Self::_new(kind, error.into())
     }
 
-    fn _new(kind: ErrorKind, error: Box<dyn error::Error+Send+Sync>) -> Error {
-        Error {
-            repr: Repr::Custom(Box::new(Custom {
-                kind,
-                error,
-            }))
-        }
+    fn _new(kind: ErrorKind, error: Box<dyn error::Error + Send + Sync>) -> Error {
+        Error { repr: Repr::Custom(Box::new(Custom { kind, error })) }
     }
 
     /// Returns an error representing the last OS error which occurred.
@@ -298,7 +290,7 @@ impl Error {
     /// If this `Error` was constructed via `new` then this function will
     /// return `Some`, otherwise it will return `None`.
     ///
-    pub fn get_mut(&mut self) -> Option<&mut (dyn error::Error+Send+Sync+'static)> {
+    pub fn get_mut(&mut self) -> Option<&mut (dyn error::Error + Send + Sync + 'static)> {
         match self.repr {
             Repr::Os(..) => None,
             Repr::Simple(..) => None,
@@ -312,7 +304,7 @@ impl Error {
     /// If this `Error` was constructed via `new` then this function will
     /// return `Some`, otherwise it will return `None`.
     ///
-    pub fn into_inner(self) -> Option<Box<dyn error::Error+Send+Sync>> {
+    pub fn into_inner(self) -> Option<Box<dyn error::Error + Send + Sync>> {
         match self.repr {
             Repr::Os(..) => None,
             Repr::Simple(..) => None,
@@ -336,17 +328,19 @@ impl Error {
 impl fmt::Debug for Repr {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            Repr::Os(code) =>
-                fmt.debug_struct("Os")
-                    .field("code", &code)
-                    .field("kind", &sys::decode_error_kind(code))
-                    .field("message", &sys::os::error_string(code)).finish(),
+            Repr::Os(code) => fmt
+                .debug_struct("Os")
+                .field("code", &code)
+                .field("kind", &sys::decode_error_kind(code))
+                .field("message", &sys::os::error_string(code))
+                .finish(),
             Repr::Custom(ref c) => fmt::Debug::fmt(&c, fmt),
             Repr::Simple(kind) => fmt.debug_tuple("Kind").field(&kind).finish(),
-            Repr::SgxStatus(status) =>
-                fmt.debug_struct("Sgx")
-                    .field("code", &status)
-                    .field("message", &status.__description().to_owned()).finish(),
+            Repr::SgxStatus(status) => fmt
+                .debug_struct("Sgx")
+                .field("code", &status)
+                .field("message", &status.__description())
+                .finish(),
         }
     }
 }
@@ -357,13 +351,13 @@ impl fmt::Display for Error {
             Repr::Os(code) => {
                 let detail = sys::os::error_string(code);
                 write!(fmt, "{} (os error: {})", detail, code)
-            },
+            }
             Repr::Custom(ref c) => c.error.fmt(fmt),
             Repr::Simple(kind) => write!(fmt, "{}", kind.as_str()),
             Repr::SgxStatus(status) => {
                 let detail = status.__description();
                 write!(fmt, "{} (sgx error: {})", detail, status)
-            },
+            }
         }
     }
 }

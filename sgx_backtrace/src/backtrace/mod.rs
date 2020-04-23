@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use core::ffi::c_void;
 use core::fmt;
-use sgx_libc::c_void;
 
 /// Inspects the current call-stack, passing all active frames into the closure
 /// provided to calculate a stack trace.

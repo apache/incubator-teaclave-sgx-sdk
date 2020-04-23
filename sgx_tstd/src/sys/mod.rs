@@ -16,6 +16,7 @@
 // under the License..
 
 use sgx_trts::libc;
+use sgx_trts::trts;
 use crate::io::ErrorKind;
 
 pub use self::rand::hashmap_random_keys;
@@ -71,8 +72,7 @@ pub fn decode_error_kind(errno: i32) -> ErrorKind {
         // These two constants can have the same value on some systems,
         // but different values on others, so we can't use a match
         // clause
-        x if x == libc::EAGAIN || x == libc::EWOULDBLOCK =>
-            ErrorKind::WouldBlock,
+        x if x == libc::EAGAIN || x == libc::EWOULDBLOCK => ErrorKind::WouldBlock,
 
         _ => ErrorKind::Other,
     }
@@ -93,16 +93,13 @@ macro_rules! impl_is_minus_one {
 impl_is_minus_one! { i8 i16 i32 i64 isize }
 
 pub fn cvt<T: IsMinusOne>(t: T) -> crate::io::Result<T> {
-    if t.is_minus_one() {
-        Err(crate::io::Error::last_os_error())
-    } else {
-        Ok(t)
-    }
+    if t.is_minus_one() { Err(crate::io::Error::last_os_error()) } else { Ok(t) }
 }
 
 pub fn cvt_r<T, F>(mut f: F) -> crate::io::Result<T>
-    where T: IsMinusOne,
-          F: FnMut() -> T
+where
+    T: IsMinusOne,
+    F: FnMut() -> T,
 {
     loop {
         match cvt(f()) {
@@ -110,4 +107,8 @@ pub fn cvt_r<T, F>(mut f: F) -> crate::io::Result<T>
             other => return other,
         }
     }
+}
+
+pub unsafe fn abort_internal() -> ! {
+    trts::rsgx_abort()
 }

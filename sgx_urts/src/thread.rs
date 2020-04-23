@@ -32,9 +32,11 @@ pub extern "C" fn u_sched_yield_ocall(error: *mut c_int) -> c_int {
 }
 
 #[no_mangle]
-pub extern "C" fn u_nanosleep_ocall(error: *mut c_int,
-                                    rqtp: *const timespec,
-                                    rmtp: *mut timespec) -> c_int {
+pub extern "C" fn u_nanosleep_ocall(
+    error: *mut c_int,
+    rqtp: *const timespec,
+    rmtp: *mut timespec,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::nanosleep(rqtp, rmtp) };
     if ret < 0 {

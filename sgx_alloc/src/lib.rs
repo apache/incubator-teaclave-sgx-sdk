@@ -32,6 +32,7 @@
 #![feature(ptr_internals)]
 #![feature(dropck_eyepatch)]
 #![feature(allocator_api)]
+#![feature(core_intrinsics)]
 
 extern crate alloc;
 

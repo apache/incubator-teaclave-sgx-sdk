@@ -27,14 +27,13 @@ use sgx_types::c_char;
 use crate::libc;
 use crate::memchr;
 use crate::ascii;
-//use error::Error;
-//use io;
 
 use core::ops;
 use core::cmp::Ordering;
 use core::mem;
 use core::ptr;
 use core::fmt::{self, Write};
+use core::num::NonZeroU8;
 use alloc::boxed::Box;
 use alloc::borrow::{Cow, Borrow, ToOwned};
 use alloc::vec::Vec;
@@ -78,7 +77,7 @@ pub struct CStr {
     //        just a raw `c_char` along with some form of marker to make
     //        this an unsized type. Essentially `sizeof(&CStr)` should be the
     //        same as `sizeof(&c_char)` but `CStr` should be an unsized type.
-    inner: [c_char]
+    inner: [c_char],
 }
 
 /// An error indicating that an interior nul byte was found.
@@ -126,22 +125,18 @@ enum FromBytesWithNulErrorKind {
 
 impl FromBytesWithNulError {
     fn interior_nul(pos: usize) -> FromBytesWithNulError {
-        FromBytesWithNulError {
-            kind: FromBytesWithNulErrorKind::InteriorNul(pos),
-        }
+        FromBytesWithNulError { kind: FromBytesWithNulErrorKind::InteriorNul(pos) }
     }
     fn not_nul_terminated() -> FromBytesWithNulError {
-        FromBytesWithNulError {
-            kind: FromBytesWithNulErrorKind::NotNulTerminated,
-        }
+        FromBytesWithNulError { kind: FromBytesWithNulErrorKind::NotNulTerminated }
     }
 
     pub fn __description(&self) -> &str {
         match self.kind {
-            FromBytesWithNulErrorKind::InteriorNul(..) =>
-                "data provided contains an interior nul byte",
-            FromBytesWithNulErrorKind::NotNulTerminated =>
-                "data provided is not nul terminated",
+            FromBytesWithNulErrorKind::InteriorNul(..) => {
+                "data provided contains an interior nul byte"
+            }
+            FromBytesWithNulErrorKind::NotNulTerminated => "data provided is not nul terminated",
         }
     }
 }
@@ -180,7 +175,7 @@ impl IntoStringError {
         "C string contained non-utf8 bytes"
     }
 
-    pub fn __cause(&self) -> &Utf8Error {
+    pub fn __source(&self) -> &Utf8Error {
         &self.error
     }
 }
@@ -202,7 +197,31 @@ impl CString {
     /// contain any 0 bytes in it.
     ///
     pub fn new<T: Into<Vec<u8>>>(t: T) -> Result<CString, NulError> {
-        Self::_new(t.into())
+        trait SpecIntoVec {
+            fn into_vec(self) -> Vec<u8>;
+        }
+        impl<T: Into<Vec<u8>>> SpecIntoVec for T {
+            default fn into_vec(self) -> Vec<u8> {
+                self.into()
+            }
+        }
+        // Specialization for avoiding reallocation.
+        impl SpecIntoVec for &'_ [u8] {
+            fn into_vec(self) -> Vec<u8> {
+                let mut v = Vec::with_capacity(self.len() + 1);
+                v.extend(self);
+                v
+            }
+        }
+        impl SpecIntoVec for &'_ str {
+            fn into_vec(self) -> Vec<u8> {
+                let mut v = Vec::with_capacity(self.len() + 1);
+                v.extend(self.as_bytes());
+                v
+            }
+        }
+
+        Self::_new(SpecIntoVec::into_vec(t))
     }
 
     fn _new(bytes: Vec<u8>) -> Result<CString, NulError> {
@@ -219,6 +238,8 @@ impl CString {
     /// is made that `v` contains no 0 bytes, and it requires an actual
     /// byte vector, not anything that can be converted to one with Into.
     ///
+    /// [`new`]: #method.new
+    ///
     pub unsafe fn from_vec_unchecked(mut v: Vec<u8>) -> CString {
         v.reserve_exact(1);
         v.push(0);
@@ -232,7 +253,7 @@ impl CString {
     /// # Safety
     ///
     /// This should only ever be called with a pointer that was earlier
-    /// obtained by calling [`into_raw`] on a `CString`. Other usage (e.g. trying to take
+    /// obtained by calling [`into_raw`] on a `CString`. Other usage (e.g., trying to take
     /// ownership of a string that was allocated by foreign code) is likely to lead
     /// to undefined behavior or allocator corruption.
     ///
@@ -241,6 +262,9 @@ impl CString {
     /// > a string that was allocated by foreign code, you will need to
     /// > make your own provisions for freeing it appropriately, likely
     /// > with the foreign code's API to do that.
+    ///
+    /// [`into_raw`]: #method.into_raw
+    /// [`CStr`]: struct.CStr.html
     ///
     pub unsafe fn from_raw(ptr: *mut c_char) -> CString {
         let len = libc::strlen(ptr) + 1; // Including the NUL byte
@@ -256,6 +280,10 @@ impl CString {
     /// this string.
     ///
     /// Failure to call [`from_raw`] will lead to a memory leak.
+    ///
+    /// [`from_raw`]: #method.from_raw
+    ///
+    #[inline]
     pub fn into_raw(self) -> *mut c_char {
         Box::into_raw(self.into_inner()) as *mut c_char
     }
@@ -263,12 +291,14 @@ impl CString {
     /// Converts the `CString` into a [`String`] if it contains valid UTF-8 data.
     ///
     /// On failure, ownership of the original `CString` is returned.
+    ///
+    /// [`String`]: ../string/struct.String.html
+    ///
     pub fn into_string(self) -> Result<String, IntoStringError> {
-        String::from_utf8(self.into_bytes())
-            .map_err(|e| IntoStringError {
-                error: e.utf8_error(),
-                inner: unsafe { CString::from_vec_unchecked(e.into_bytes()) },
-            })
+        String::from_utf8(self.into_bytes()).map_err(|e| IntoStringError {
+            error: e.utf8_error(),
+            inner: unsafe { CString::from_vec_unchecked(e.into_bytes()) },
+        })
     }
 
     /// Consumes the `CString` and returns the underlying byte buffer.
@@ -276,6 +306,7 @@ impl CString {
     /// The returned buffer does **not** contain the trailing nul
     /// terminator, and it is guaranteed to not have any interior nul
     /// bytes.
+    ///
     pub fn into_bytes(self) -> Vec<u8> {
         let mut vec = self.into_inner().into_vec();
         let _nul = vec.pop();
@@ -285,6 +316,9 @@ impl CString {
 
     /// Equivalent to the [`into_bytes`] function except that the returned vector
     /// includes the trailing nul terminator.
+    ///
+    /// [`into_bytes`]: #method.into_bytes
+    ///
     pub fn into_bytes_with_nul(self) -> Vec<u8> {
         self.into_inner().into_vec()
     }
@@ -295,22 +329,31 @@ impl CString {
     /// terminator, and it is guaranteed to not have any interior nul
     /// bytes. If you need the nul terminator, use
     /// [`as_bytes_with_nul`] instead.
+    ///
+    /// [`as_bytes_with_nul`]: #method.as_bytes_with_nul
+    ///
+    #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         &self.inner[..self.inner.len() - 1]
     }
 
     /// Equivalent to the [`as_bytes`] function except that the returned slice
     /// includes the trailing nul terminator.
+    #[inline]
     pub fn as_bytes_with_nul(&self) -> &[u8] {
         &self.inner
     }
 
     /// Extracts a [`CStr`] slice containing the entire string.
+    #[inline]
     pub fn as_c_str(&self) -> &CStr {
         &*self
     }
 
     /// Converts this `CString` into a boxed [`CStr`].
+    ///
+    /// [`CStr`]: struct.CStr.html
+    ///
     pub fn into_boxed_c_str(self) -> Box<CStr> {
         unsafe { Box::from_raw(Box::into_raw(self.into_inner()) as *mut CStr) }
     }
@@ -329,12 +372,14 @@ impl CString {
 }
 
 // Turns this `CString` into an empty string to prevent
-// memory unsafe code from working by accident. Inline
+// memory-unsafe code from working by accident. Inline
 // to prevent LLVM from optimizing it away in debug builds.
 impl Drop for CString {
     #[inline]
     fn drop(&mut self) {
-        unsafe { *self.inner.get_unchecked_mut(0) = 0; }
+        unsafe {
+            *self.inner.get_unchecked_mut(0) = 0;
+        }
     }
 }
 
@@ -357,6 +402,9 @@ impl From<CString> for Vec<u8> {
     /// Converts a [`CString`] into a [`Vec`]`<u8>`.
     ///
     /// The conversion consumes the [`CString`], and removes the terminating NUL byte.
+    ///
+    /// [`Vec`]: ../vec/struct.Vec.html
+    /// [`CString`]: ../ffi/struct.CString.html
     #[inline]
     fn from(s: CString) -> Vec<u8> {
         s.into_bytes()
@@ -390,7 +438,9 @@ impl Default for CString {
 
 impl Borrow<CStr> for CString {
     #[inline]
-    fn borrow(&self) -> &CStr { self }
+    fn borrow(&self) -> &CStr {
+        self
+    }
 }
 
 impl<'a> From<Cow<'a, CStr>> for CString {
@@ -410,9 +460,36 @@ impl From<&CStr> for Box<CStr> {
 impl From<Box<CStr>> for CString {
     /// Converts a [`Box`]`<CStr>` into a [`CString`] without copying or allocating.
     ///
+    /// [`Box`]: ../boxed/struct.Box.html
+    /// [`CString`]: ../ffi/struct.CString.html
     #[inline]
     fn from(s: Box<CStr>) -> CString {
         s.into_c_string()
+    }
+}
+
+impl From<Vec<NonZeroU8>> for CString {
+    /// Converts a [`Vec`]`<`[`NonZeroU8`]`>` into a [`CString`] without
+    /// copying nor checking for inner null bytes.
+    ///
+    /// [`CString`]: ../ffi/struct.CString.html
+    /// [`NonZeroU8`]: ../num/struct.NonZeroU8.html
+    /// [`Vec`]: ../vec/struct.Vec.html
+    #[inline]
+    fn from(v: Vec<NonZeroU8>) -> CString {
+        unsafe {
+            // Transmute `Vec<NonZeroU8>` to `Vec<u8>`.
+            let v: Vec<u8> = {
+                // Safety:
+                //   - transmuting between `NonZeroU8` and `u8` is sound;
+                //   - `alloc::Layout<NonZeroU8> == alloc::Layout<u8>`.
+                let (ptr, len, cap): (*mut NonZeroU8, _, _) = Vec::into_raw_parts(v);
+                Vec::from_raw_parts(ptr.cast::<u8>(), len, cap)
+            };
+            // Safety: `v` cannot contain null bytes, given the type-level
+            // invariant of `NonZeroU8`.
+            CString::from_vec_unchecked(v)
+        }
     }
 }
 
@@ -426,6 +503,8 @@ impl Clone for Box<CStr> {
 impl From<CString> for Box<CStr> {
     /// Converts a [`CString`] into a [`Box`]`<CStr>` without copying or allocating.
     ///
+    /// [`CString`]: ../ffi/struct.CString.html
+    /// [`Box`]: ../boxed/struct.Box.html
     #[inline]
     fn from(s: CString) -> Box<CStr> {
         s.into_boxed_c_str()
@@ -456,6 +535,8 @@ impl<'a> From<&'a CString> for Cow<'a, CStr> {
 impl From<CString> for Arc<CStr> {
     /// Converts a [`CString`] into a [`Arc`]`<CStr>` without copying or allocating.
     ///
+    /// [`CString`]: ../ffi/struct.CString.html
+    /// [`Arc`]: ../sync/struct.Arc.html
     #[inline]
     fn from(s: CString) -> Arc<CStr> {
         let arc: Arc<[u8]> = Arc::from(s.into_inner());
@@ -474,6 +555,8 @@ impl From<&CStr> for Arc<CStr> {
 impl From<CString> for Rc<CStr> {
     /// Converts a [`CString`] into a [`Rc`]`<CStr>` without copying or allocating.
     ///
+    /// [`CString`]: ../ffi/struct.CString.html
+    /// [`Rc`]: ../rc/struct.Rc.html
     #[inline]
     fn from(s: CString) -> Rc<CStr> {
         let rc: Rc<[u8]> = Rc::from(s.into_inner());
@@ -500,17 +583,25 @@ impl NulError {
     /// Returns the position of the nul byte in the slice that caused
     /// [`CString::new`] to fail.
     ///
-    pub fn nul_position(&self) -> usize { self.0 }
+    /// [`CString::new`]: struct.CString.html#method.new
+    ///
+    pub fn nul_position(&self) -> usize {
+        self.0
+    }
 
     /// Consumes this error, returning the underlying vector of bytes which
     /// generated the error in the first place.
     ///
-    pub fn into_vec(self) -> Vec<u8> { self.1 }
+    pub fn into_vec(self) -> Vec<u8> {
+        self.1
+    }
 }
 
 impl IntoStringError {
     /// Consumes this error, returning original [`CString`] which generated the
     /// error.
+    ///
+    /// [`CString`]: struct.CString.html
     pub fn into_cstring(self) -> CString {
         self.inner
     }
@@ -525,8 +616,10 @@ impl CStr {
     /// Wraps a raw C string with a safe C string wrapper.
     ///
     /// This function will wrap the provided `ptr` with a `CStr` wrapper, which
-    /// allows inspection and interoperation of non-owned C strings. This method
-    /// is unsafe for a number of reasons:
+    /// allows inspection and interoperation of non-owned C strings. The total
+    /// size of the raw C string must be smaller than `isize::MAX` **bytes**
+    /// in memory due to calling the `slice::from_raw_parts` function.
+    /// This method is unsafe for a number of reasons:
     ///
     /// * There is no guarantee to the validity of `ptr`.
     /// * The returned lifetime is not guaranteed to be the actual lifetime of
@@ -552,8 +645,7 @@ impl CStr {
     /// wrapper after ensuring that the byte slice is nul-terminated
     /// and does not contain any interior nul bytes.
     ///
-    pub fn from_bytes_with_nul(bytes: &[u8])
-                               -> Result<&CStr, FromBytesWithNulError> {
+    pub fn from_bytes_with_nul(bytes: &[u8]) -> Result<&CStr, FromBytesWithNulError> {
         let nul_pos = memchr::memchr(0, bytes);
         if let Some(nul_pos) = nul_pos {
             if nul_pos + 1 != bytes.len() {
@@ -571,7 +663,7 @@ impl CStr {
     /// performing any sanity checks. The provided slice **must** be nul-terminated
     /// and not contain any interior nul bytes.
     ///
-    //#[rustc_const_unstable(feature = "const_cstr_unchecked")]
+    #[inline]
     pub const unsafe fn from_bytes_with_nul_unchecked(bytes: &[u8]) -> &CStr {
         &*(bytes as *const [u8] as *const CStr)
     }
@@ -582,6 +674,7 @@ impl CStr {
     /// to a contiguous region of memory terminated with a 0 byte to represent
     /// the end of the string.
     ///
+    #[inline]
     pub const fn as_ptr(&self) -> *const c_char {
         self.inner.as_ptr()
     }
@@ -595,6 +688,7 @@ impl CStr {
     /// > cast, but it is planned to alter its definition in the future to
     /// > perform the length calculation whenever this method is called.
     ///
+    #[inline]
     pub fn to_bytes(&self) -> &[u8] {
         let bytes = self.to_bytes_with_nul();
         &bytes[..bytes.len() - 1]
@@ -611,6 +705,7 @@ impl CStr {
     ///
     /// [`to_bytes`]: #method.to_bytes
     ///
+    #[inline]
     pub fn to_bytes_with_nul(&self) -> &[u8] {
         unsafe { &*(&self.inner as *const [c_char] as *const [u8]) }
     }
@@ -621,16 +716,11 @@ impl CStr {
     /// function will return the corresponding [`&str`] slice. Otherwise,
     /// it will return an error with details of where UTF-8 validation failed.
     ///
-    /// > **Note**: This method is currently implemented to check for validity
-    /// > after a constant-time cast, but it is planned to alter its definition
-    /// > in the future to perform the length calculation in addition to the
-    /// > UTF-8 check whenever this method is called.
-    ///
     /// [`&str`]: ../primitive.str.html
     ///
     pub fn to_str(&self) -> Result<&str, str::Utf8Error> {
-        // NB: When CStr is changed to perform the length check in .to_bytes()
-        // instead of in from_ptr(), it may be worth considering if this should
+        // N.B., when `CStr` is changed to perform the length check in `.to_bytes()`
+        // instead of in `from_ptr()`, it may be worth considering if this should
         // be rewritten to do the UTF-8 check inline with the length calculation
         // instead of doing it afterwards.
         str::from_utf8(self.to_bytes())
@@ -644,11 +734,6 @@ impl CStr {
     /// replace any invalid UTF-8 sequences with
     /// [`U+FFFD REPLACEMENT CHARACTER`][U+FFFD] and return a
     /// [`Cow`]`::`[`Owned`]`(`[`String`]`)` with the result.
-    ///
-    /// > **Note**: This method is currently implemented to check for validity
-    /// > after a constant-time cast, but it is planned to alter its definition
-    /// > in the future to perform the length calculation in addition to the
-    /// > UTF-8 check whenever this method is called.
     ///
     /// [`Cow`]: ../borrow/enum.Cow.html
     /// [`Borrowed`]: ../borrow/enum.Cow.html#variant.Borrowed
@@ -697,6 +782,12 @@ impl ToOwned for CStr {
 
     fn to_owned(&self) -> CString {
         CString { inner: self.to_bytes_with_nul().into() }
+    }
+
+    fn clone_into(&self, target: &mut CString) {
+        let mut b = Vec::from(mem::take(&mut target.inner));
+        self.to_bytes_with_nul().clone_into(&mut b);
+        target.inner = b.into_boxed_slice();
     }
 }
 

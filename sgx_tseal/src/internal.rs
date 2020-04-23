@@ -74,7 +74,6 @@ pub struct SgxInternalSealedData {
 }
 
 impl SgxInternalSealedData {
-
     pub fn new() -> Self {
         SgxInternalSealedData::default()
     }
@@ -95,7 +94,6 @@ impl SgxInternalSealedData {
     }
 
     pub fn calc_raw_sealed_data_size(add_mac_txt_size: u32, encrypt_txt_size: u32) -> u32 {
-
         let max = u32::max_value();
         let sealed_data_size = mem::size_of::<sgx_sealed_data_t>() as u32;
 
@@ -110,7 +108,6 @@ impl SgxInternalSealedData {
     }
 
     pub fn get_add_mac_txt_len(&self) -> u32 {
-
         let data_size = self.payload_data.additional.len();
         if data_size > self.payload_data.payload_size as usize ||
            data_size >= u32::max_value() as usize {
@@ -121,7 +118,6 @@ impl SgxInternalSealedData {
     }
 
     pub fn get_encrypt_txt_len(&self) -> u32 {
-
         let data_size = self.payload_data.encrypt.len();
         if data_size > self.payload_data.payload_size as usize ||
            data_size >= u32::max_value() as usize {
@@ -132,7 +128,6 @@ impl SgxInternalSealedData {
     }
 
     pub unsafe fn to_raw_sealed_data_t(&self, p: *mut sgx_sealed_data_t, len: u32) -> Option<*mut sgx_sealed_data_t> {
-
         if p.is_null() {
             return None;
         }
@@ -179,7 +174,6 @@ impl SgxInternalSealedData {
 
     #[allow(clippy::cast_ptr_alignment)]
     pub unsafe fn from_raw_sealed_data_t(p: *mut sgx_sealed_data_t, len: u32) -> Option<Self> {
-
         if p.is_null() {
             return None;
         }
@@ -217,7 +211,7 @@ impl SgxInternalSealedData {
 
         let ptr_encrypt = ptr_sealed_data.add(mem::size_of::<sgx_sealed_data_t>());
 
-        let encrypt : Vec<u8> = if encrypt_len > 0 {
+        let encrypt: Vec<u8> = if encrypt_len > 0 {
             let mut temp: Vec<u8> = Vec::with_capacity(encrypt_len as usize);
             temp.set_len(encrypt_len as usize);
             ptr::copy_nonoverlapping(ptr_encrypt as *const u8, temp.as_mut_ptr(), encrypt_len as usize);
@@ -247,7 +241,6 @@ impl SgxInternalSealedData {
     }
 
     pub fn seal_data(additional_text: &[u8], encrypt_text: &[u8]) -> SgxResult<Self> {
-
         //let attribute_mask = sgx_attributes_t{flags: SGX_FLAGS_RESERVED | SGX_FLAGS_INITTED | SGX_FLAGS_DEBUG, xfrm: 0};
         /* intel sgx sdk 1.8 */
         let attribute_mask = sgx_attributes_t{flags: TSEAL_DEFAULT_FLAGSMASK, xfrm: 0};
@@ -258,19 +251,22 @@ impl SgxInternalSealedData {
             key_policy = SGX_KEYPOLICY_MRSIGNER | KEY_POLICY_KSS;
         }
 
-        Self::seal_data_ex(key_policy,
-                           attribute_mask,
-                           TSEAL_DEFAULT_MISCMASK,
-                           additional_text,
-                           encrypt_text)
+        Self::seal_data_ex(
+            key_policy,
+            attribute_mask,
+            TSEAL_DEFAULT_MISCMASK,
+            additional_text,
+            encrypt_text,
+        )
     }
 
-    pub fn seal_data_ex(key_policy: u16,
-                        attribute_mask: sgx_attributes_t,
-                        misc_mask: sgx_misc_select_t,
-                        additional_text: &[u8],
-                        encrypt_text: &[u8]) -> SgxResult<Self> {
-
+    pub fn seal_data_ex(
+        key_policy: u16,
+        attribute_mask: sgx_attributes_t,
+        misc_mask: sgx_misc_select_t,
+        additional_text: &[u8],
+        encrypt_text: &[u8],
+    ) -> SgxResult<Self> {
         let additional_len = additional_text.len();
         let encrypt_len = encrypt_text.len();
 
@@ -298,9 +294,9 @@ impl SgxInternalSealedData {
         }
 
         if additional_len > 0 &&
-               !rsgx_slice_is_within_enclave(additional_text) &&
-               !rsgx_slice_is_outside_enclave(additional_text) {
-                return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+           !rsgx_slice_is_within_enclave(additional_text) &&
+           !rsgx_slice_is_outside_enclave(additional_text) {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
         //let target_info = sgx_target_info_t::default();
@@ -317,21 +313,23 @@ impl SgxInternalSealedData {
             return Err(error.unwrap_err());
         }
 
-        let key_request = sgx_key_request_t{key_name: SGX_KEYSELECT_SEAL,
-                                            key_policy,
-                                            isv_svn: report.body.isv_svn,
-                                            reserved1: 0_u16,
-                                            cpu_svn: report.body.cpu_svn,
-                                            attribute_mask,
-                                            key_id,
-                                            misc_mask,
-                                            config_svn: report.body.config_svn,
-                                            reserved2: [0_u8; SGX_KEY_REQUEST_RESERVED2_BYTES]};
+        let key_request = sgx_key_request_t {
+            key_name: SGX_KEYSELECT_SEAL,
+            key_policy,
+            isv_svn: report.body.isv_svn,
+            reserved1: 0_u16,
+            cpu_svn: report.body.cpu_svn,
+            attribute_mask,
+            key_id,
+            misc_mask,
+            config_svn: report.body.config_svn,
+            reserved2: [0_u8; SGX_KEY_REQUEST_RESERVED2_BYTES],
+        };
 
         let payload_iv = [0_u8; SGX_SEAL_IV_SIZE];
         let mut result = Self::seal_data_iv(additional_text, encrypt_text, &payload_iv, &key_request);
 
-        if let Ok(ref mut sealed_data) = result { sealed_data.key_request = key_request};
+        if let Ok(ref mut sealed_data) = result { sealed_data.key_request = key_request };
 
         report = sgx_report_t::default();
         key_id = sgx_key_id_t::default();
@@ -340,7 +338,6 @@ impl SgxInternalSealedData {
     }
 
     pub fn unseal_data(&self) -> SgxResult<SgxInternalUnsealedData> {
-
         let additional_len = self.get_add_mac_txt_len();
         let encrypt_len = self.get_encrypt_txt_len();
 
@@ -363,15 +360,14 @@ impl SgxInternalSealedData {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
         if additional_len > 0 &&
-            !rsgx_slice_is_within_enclave(self.get_additional_txt()) {
-                return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+           !rsgx_slice_is_within_enclave(self.get_additional_txt()) {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
         self.unseal_data_helper()
     }
 
     pub fn mac_aadata(additional_text: &[u8]) -> SgxResult<Self> {
-
         let attribute_mask = sgx_attributes_t{flags: TSEAL_DEFAULT_FLAGSMASK, xfrm: 0};
         let mut key_policy: u16 = SGX_KEYPOLICY_MRSIGNER;
         let report = rsgx_self_report();
@@ -380,17 +376,20 @@ impl SgxInternalSealedData {
             key_policy = SGX_KEYPOLICY_MRSIGNER | KEY_POLICY_KSS;
         }
 
-        Self::mac_aadata_ex(key_policy,
-                            attribute_mask,
-                            TSEAL_DEFAULT_MISCMASK,
-                            additional_text)
+        Self::mac_aadata_ex(
+            key_policy,
+            attribute_mask,
+            TSEAL_DEFAULT_MISCMASK,
+            additional_text,
+        )
     }
 
-    pub fn mac_aadata_ex(key_policy: u16,
-                         attribute_mask: sgx_attributes_t,
-                         misc_mask: sgx_misc_select_t,
-                         additional_text: &[u8]) -> SgxResult<Self> {
-
+    pub fn mac_aadata_ex(
+        key_policy: u16,
+        attribute_mask: sgx_attributes_t,
+        misc_mask: sgx_misc_select_t,
+        additional_text: &[u8],
+    ) -> SgxResult<Self> {
         let additional_len = additional_text.len();
         if additional_len >= u32::max_value() as usize {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -430,20 +429,22 @@ impl SgxInternalSealedData {
             return Err(error.unwrap_err());
         }
 
-        let key_request = sgx_key_request_t{key_name: SGX_KEYSELECT_SEAL,
-                                            key_policy,
-                                            isv_svn: report.body.isv_svn,
-                                            reserved1: 0_u16,
-                                            cpu_svn: report.body.cpu_svn,
-                                            attribute_mask,
-                                            key_id,
-                                            misc_mask,
-                                            config_svn: report.body.config_svn,
-                                            reserved2: [0_u8; SGX_KEY_REQUEST_RESERVED2_BYTES]};
+        let key_request = sgx_key_request_t {
+            key_name: SGX_KEYSELECT_SEAL,
+            key_policy,
+            isv_svn: report.body.isv_svn,
+            reserved1: 0_u16,
+            cpu_svn: report.body.cpu_svn,
+            attribute_mask,
+            key_id,
+            misc_mask,
+            config_svn: report.body.config_svn,
+            reserved2: [0_u8; SGX_KEY_REQUEST_RESERVED2_BYTES],
+        };
 
         let payload_iv = [0_u8; SGX_SEAL_IV_SIZE];
         let mut result = Self::seal_data_iv(additional_text, &[0_u8; 0], &payload_iv, &key_request);
-        if let Ok(ref mut sealed_data) = result { sealed_data.key_request = key_request};
+        if let Ok(ref mut sealed_data) = result { sealed_data.key_request = key_request };
 
         report = sgx_report_t::default();
         key_id = sgx_key_id_t::default();
@@ -452,7 +453,6 @@ impl SgxInternalSealedData {
     }
 
     pub fn unmac_aadata(&self) -> SgxResult<SgxInternalUnsealedData> {
-
         let additional_len = self.get_add_mac_txt_len();
         let encrypt_len = self.get_encrypt_txt_len();
 
@@ -482,11 +482,12 @@ impl SgxInternalSealedData {
         self.unseal_data_helper()
     }
 
-    fn seal_data_iv(additional_text: &[u8],
-                    encrypt_text: &[u8],
-                    payload_iv: &[u8],
-                    key_request: &sgx_key_request_t) -> SgxResult<Self>  {
-
+    fn seal_data_iv(
+        additional_text: &[u8],
+        encrypt_text: &[u8],
+        payload_iv: &[u8],
+        key_request: &sgx_key_request_t,
+    ) -> SgxResult<Self> {
         let mut seal_key = rsgx_get_align_key(key_request).map_err(|ret| {
             if ret != sgx_status_t::SGX_ERROR_OUT_OF_MEMORY {
                 sgx_status_t::SGX_ERROR_UNEXPECTED
@@ -498,12 +499,14 @@ impl SgxInternalSealedData {
         let mut sealed_data = SgxInternalSealedData::default();
         sealed_data.payload_data.encrypt = vec![0_u8; encrypt_text.len()].into_boxed_slice();
 
-        let error = rsgx_rijndael128GCM_encrypt(&seal_key.key,
-                                                encrypt_text,
-                                                payload_iv,
-                                                &additional_text,
-                                                &mut sealed_data.payload_data.encrypt,
-                                                &mut sealed_data.payload_data.payload_tag);
+        let error = rsgx_rijndael128GCM_encrypt(
+            &seal_key.key,
+            encrypt_text,
+            payload_iv,
+            &additional_text,
+            &mut sealed_data.payload_data.encrypt,
+            &mut sealed_data.payload_data.payload_tag,
+        );
         if error.is_err() {
             seal_key.key = sgx_key_128bit_t::default();
             return Err(error.unwrap_err());
@@ -520,7 +523,6 @@ impl SgxInternalSealedData {
     }
 
     fn unseal_data_helper(&self) -> SgxResult<SgxInternalUnsealedData> {
-
         let mut seal_key = rsgx_get_align_key(self.get_key_request()).map_err(|ret| {
             if (ret == sgx_status_t::SGX_ERROR_INVALID_CPUSVN) ||
                (ret == sgx_status_t::SGX_ERROR_INVALID_ISVSVN) ||
@@ -543,12 +545,14 @@ impl SgxInternalSealedData {
         let mut unsealed_data: SgxInternalUnsealedData = SgxInternalUnsealedData::default();
         unsealed_data.decrypt = vec![0_u8; self.payload_data.encrypt.len()].into_boxed_slice();
 
-        let error = rsgx_rijndael128GCM_decrypt(&seal_key.key,
-                                                self.get_encrypt_txt(),
-                                                &payload_iv,
-                                                self.get_additional_txt(),
-                                                self.get_payload_tag(),
-                                                &mut unsealed_data.decrypt);
+        let error = rsgx_rijndael128GCM_decrypt(
+            &seal_key.key,
+            self.get_encrypt_txt(),
+            &payload_iv,
+            self.get_additional_txt(),
+            self.get_payload_tag(),
+            &mut unsealed_data.decrypt,
+        );
         if error.is_err() {
             seal_key.key = sgx_key_128bit_t::default();
             return Err(error.unwrap_err());

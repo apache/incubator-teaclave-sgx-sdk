@@ -1,41 +1,33 @@
-// Copyright 2016 The Rust Project Developers. See the COPYRIGHT
-// file at the top-level directory of this distribution and at
-// http://rust-lang.org/COPYRIGHT.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
 
 #![no_std]
 #![unstable(feature = "panic_unwind", issue = "32837")]
 #![deny(warnings)]
 
-#![feature(link_cfg)]
 #![feature(nll)]
 #![feature(staged_api)]
 #![feature(unwind_attributes)]
-#![feature(static_nobundle)]
 
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
-#![cfg_attr(not(target_env = "msvc"), feature(libc))]
 
 #[macro_use]
 mod macros;
 
-cfg_if! {
-    if #[cfg(target_env = "msvc")] {
-        // no extra unwinder support needed
-    } else if #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))] {
-        // no unwinder on the system!
-    } else {
-        mod libunwind;
-        pub use libunwind::*;
-    }
-}
+mod libunwind;
+pub use libunwind::*;
 
-#[cfg(target_env = "musl")]
-#[link(name = "unwind", kind = "static", cfg(target_feature = "crt-static"))]
-#[link(name = "gcc_s", cfg(not(target_feature = "crt-static")))]
-extern {}

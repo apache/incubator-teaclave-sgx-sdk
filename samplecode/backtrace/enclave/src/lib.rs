@@ -87,13 +87,17 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
         })
     }).ok();
 
+    let _ = backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Full);
     panic::catch_unwind(||{
         test_backtrace_2()
     }).ok();
 
-    println!("\nsgx_backtrace sample code");
+    println!("\nsgx_backtrace sample code:");
     let _  = sgx_backtrace::set_enclave_path("enclave.signed.so");
     foo();
+
+    println!("\nstd::backtrace sample code:");
+    foo_1();
 
     sgx_status_t::SGX_SUCCESS
 }
@@ -132,6 +136,23 @@ fn baz() {
 #[inline(never)]
 fn raw() {
     print()
+}
+
+#[inline(never)]
+fn foo_1() {
+    bar_1()
+}
+
+#[inline(never)]
+fn bar_1() {
+    baz_1()
+}
+
+#[inline(never)]
+fn baz_1() {
+    let bt = std::backtrace::Backtrace::capture();
+    println!("{:#?}", bt);
+    println!("{:#}", bt);
 }
 
 #[cfg(target_pointer_width = "32")]

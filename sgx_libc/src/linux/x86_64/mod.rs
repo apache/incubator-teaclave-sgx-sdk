@@ -31,7 +31,7 @@ use sgx_types::{sgx_thread_mutex_t, sgx_thread_mutex_attr_t, sgx_thread_cond_t, 
 use core::ptr;
 use core::mem;
 
-extern {
+extern "C" {
     pub fn calloc(nobj: size_t, size: size_t) -> *mut c_void;
     pub fn malloc(size: size_t) -> *mut c_void;
     pub fn realloc(p: *mut c_void, size: size_t) -> *mut c_void;
@@ -40,10 +40,10 @@ extern {
 }
 
 #[link(name = "sgx_pthread")]
-extern {
+extern "C" {
     pub fn pthread_create(native: *mut pthread_t,
                           attr: *const pthread_attr_t,
-                          f: extern fn(*mut c_void) -> *mut c_void,
+                          f: extern "C" fn(*mut c_void) -> *mut c_void,
                           value: *mut c_void) -> c_int;
     pub fn pthread_join(native: pthread_t,
                         value: *mut *mut c_void) -> c_int;
@@ -51,10 +51,10 @@ extern {
     pub fn pthread_self() -> pthread_t;
     pub fn pthread_equal(t1: pthread_t, t2: pthread_t) -> c_int;
 
-    pub fn pthread_once(once_control: *mut pthread_once_t, init_routine: extern fn()) -> c_int;
+    pub fn pthread_once(once_control: *mut pthread_once_t, init_routine: extern "C" fn()) -> c_int;
 
     pub fn pthread_key_create(key: *mut pthread_key_t,
-                              dtor: Option<unsafe extern fn(*mut c_void)>) -> c_int;
+                              dtor: Option<unsafe extern "C" fn(*mut c_void)>) -> c_int;
     pub fn pthread_key_delete(key: pthread_key_t) -> c_int;
     pub fn pthread_getspecific(key: pthread_key_t) -> *mut c_void;
     pub fn pthread_setspecific(key: pthread_key_t, value: *const c_void) -> c_int;
@@ -78,13 +78,13 @@ extern {
 pub type exit_function_t = extern "C" fn();
 
 #[link(name = "sgx_trts")]
-extern {
+extern "C" {
     pub fn abort() -> !;
     pub fn atexit(fun: exit_function_t) -> c_int;
 }
 
 #[link(name = "sgx_tstdc")]
-extern {
+extern "C" {
     //pub fn memchr(s: *const c_void, c: c_int, n: size_t) -> *mut c_void;
     //pub fn memrchr(cx: *const c_void, c: c_int, n: size_t) -> *mut c_void;
     pub fn strlen(s: *const c_char) -> size_t;
@@ -92,7 +92,7 @@ extern {
 }
 
 #[link(name = "sgx_tstdc")]
-extern {
+extern "C" {
     #[cfg_attr(target_os = "linux", link_name = "__errno_location")]
     fn errno_location() -> *mut c_int;
     fn strerror_r(errnum: c_int, buf: *mut c_char, buflen: size_t) -> c_int;
@@ -176,6 +176,8 @@ pub type gid_t = u32;
 pub type ino64_t = u64;
 pub type nfds_t = c_ulong;
 pub type pid_t = i32;
+
+pub type sighandler_t = size_t;
 
 pub type pthread_t = *mut c_void;
 pub type pthread_attr_t = *mut c_void;
@@ -472,6 +474,24 @@ s! {
     pub struct pthread_once_t {
         pub state: c_int,
         pub mutex: pthread_mutex_t,
+    }
+
+    pub struct sigset_t {
+        __val: [u64; 16],
+    }
+
+    pub struct sigaction {
+        pub sa_sigaction: sighandler_t,
+        pub sa_mask: sigset_t,
+        pub sa_flags: c_int,
+        pub sa_restorer: Option<extern fn()>,
+    }
+    pub struct siginfo_t {
+        pub si_signo: c_int,
+        pub si_errno: c_int,
+        pub si_code: c_int,
+        pub _pad: [c_int; 29],
+        _align: [usize; 0],
     }
 }
 
@@ -966,6 +986,14 @@ pub const POLLNVAL: c_short = 0x20;
 pub const POLLRDNORM: c_short = 0x040;
 pub const POLLRDBAND: c_short = 0x080;
 
+pub const AI_PASSIVE: c_int = 0x0001;
+pub const AI_CANONNAME: c_int = 0x0002;
+pub const AI_NUMERICHOST: c_int = 0x0004;
+pub const AI_V4MAPPED: c_int = 0x0008;
+pub const AI_ALL: c_int = 0x0010;
+pub const AI_ADDRCONFIG: c_int = 0x0020;
+pub const AI_NUMERICSERV: c_int = 0x0400;
+
 pub const EAI_BADFLAGS: c_int = -1;
 pub const EAI_NONAME: c_int = -2;
 pub const EAI_AGAIN: c_int = -3;
@@ -1365,6 +1393,48 @@ pub const EHWPOISON: int32_t          = 133;
 pub const ENOTSUP: int32_t            = EOPNOTSUPP;
 pub const ESGX: int32_t               = 0x0000_FFFF;
 
+pub const SA_NODEFER: c_int = 0x40000000;
+pub const SA_RESETHAND: c_int = 0x80000000;
+pub const SA_RESTART: c_int = 0x10000000;
+pub const SA_NOCLDSTOP: c_int = 0x00000001;
+
+pub const SA_ONSTACK: c_int = 0x08000000;
+pub const SA_SIGINFO: c_int = 0x00000004;
+pub const SA_NOCLDWAIT: c_int = 0x00000002;
+
+pub const SIG_DFL: sighandler_t = 0 as sighandler_t;
+pub const SIG_IGN: sighandler_t = 1 as sighandler_t;
+pub const SIG_ERR: sighandler_t = !0 as sighandler_t;
+
+pub const SIGTRAP: c_int = 5;
+pub const SIGCHLD: c_int = 17;
+pub const SIGBUS: c_int = 7;
+pub const SIGTTIN: c_int = 21;
+pub const SIGTTOU: c_int = 22;
+pub const SIGXCPU: c_int = 24;
+pub const SIGXFSZ: c_int = 25;
+pub const SIGVTALRM: c_int = 26;
+pub const SIGPROF: c_int = 27;
+pub const SIGWINCH: c_int = 28;
+pub const SIGUSR1: c_int = 10;
+pub const SIGUSR2: c_int = 12;
+pub const SIGCONT: c_int = 18;
+pub const SIGSTOP: c_int = 19;
+pub const SIGTSTP: c_int = 20;
+pub const SIGURG: c_int = 23;
+pub const SIGIO: c_int = 29;
+pub const SIGSYS: c_int = 31;
+pub const SIGSTKFLT: c_int = 16;
+pub const SIGPOLL: c_int = 29;
+pub const SIGPWR: c_int = 30;
+pub const SIG_SETMASK: c_int = 2;
+pub const SIG_BLOCK: c_int = 0x000000;
+pub const SIG_UNBLOCK: c_int = 0x01;
+
+pub const SIGRTMIN: c_int = 32;
+pub const SIGRTMAX: c_int = 64;
+pub const NSIG: c_int = SIGRTMAX + 1;
+
 #[inline]
 pub unsafe fn FD_CLR(fd: c_int, set: *mut fd_set) -> () {
     let fd = fd as usize;
@@ -1430,6 +1500,86 @@ pub unsafe fn CPU_ISSET(cpu: usize, cpuset: &cpu_set_t) -> bool {
 #[inline]
 pub unsafe fn CPU_EQUAL(set1: &cpu_set_t, set2: &cpu_set_t) -> bool {
     set1.bits == set2.bits
+}
+
+#[inline]
+unsafe fn __sigmask(sig: c_int) -> u64 {
+    (1 as u64) << (((sig) - 1) % (8 * mem::size_of::<u64>()) as i32)
+}
+
+#[inline]
+unsafe fn __sigword(sig: c_int) -> u64 {
+   ((sig - 1) / ((8 *  mem::size_of::<u64>()) as i32)) as u64
+}
+
+#[inline]
+unsafe fn __sigaddset(set: *mut sigset_t, sig: c_int) {
+    let mask: u64 = __sigmask (sig);
+    let word: u64 = __sigword (sig);
+    (*set).__val[word as usize] |= mask;
+}
+
+#[inline]
+unsafe fn __sigdelset(set: *mut sigset_t, sig: c_int) {
+    let mask: u64 = __sigmask (sig);
+    let word: u64 = __sigword (sig);
+    (*set).__val[word as usize] &= !mask;
+}
+
+#[inline]
+unsafe fn __sigismember(set: *const sigset_t, sig: c_int) -> c_int {
+    let mask: u64 = __sigmask (sig);
+    let word: u64 = __sigword (sig);
+    let val = if mask != 0 {
+        1
+    } else {
+        0
+    };
+    ((*set).__val[word as usize] & val) as c_int
+}
+
+pub unsafe fn sigemptyset(set: *mut sigset_t) -> c_int {
+    if set.is_null() {
+        set_errno(EINVAL);
+        return -1;
+    }
+    ptr::write_bytes(set as * mut sigset_t, 0,  1);
+    0
+}
+
+pub unsafe fn sigaddset(set: *mut sigset_t, signum: c_int) -> c_int {
+    if set.is_null() || signum <= 0 || signum >= NSIG {
+        set_errno(EINVAL);
+        return -1;
+    }
+    __sigaddset(set, signum);
+    0
+}
+
+pub unsafe fn sigfillset(set: *mut sigset_t) -> c_int {
+    if set.is_null() {
+        set_errno(EINVAL);
+        return -1;
+    }
+    ptr::write_bytes(set, 0xff, 1);
+    0
+}
+
+pub unsafe fn sigdelset(set: *mut sigset_t, signum: c_int) -> c_int {
+    if set.is_null() || signum <= 0 || signum >= NSIG {
+        set_errno(EINVAL);
+        return -1;
+    }
+    __sigdelset(set, signum);
+    0
+}
+
+pub unsafe fn sigismember(set: *const sigset_t, signum: c_int) -> c_int {
+    if set.is_null() || signum <= 0 || signum >= NSIG {
+        set_errno(EINVAL);
+        return -1;
+    }
+    __sigismember(set, signum)
 }
 
 pub mod ocall;

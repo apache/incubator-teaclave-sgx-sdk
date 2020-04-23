@@ -159,8 +159,7 @@ unsafe impl<#[may_dangle] T> Drop for AlignBox<T> {
 }
 
 impl<T> AlignBox<T> {
-
-    fn new_with_req_in(align: usize, align_req: &[AlignReq]) -> Option<Self> {
+    fn new_with_req_in(align: usize, align_req: &[AlignReq]) -> Option<AlignBox<T>> {
         if align_req.len() == 0 {
             AlignBox::new_in()
         } else {
@@ -168,17 +167,17 @@ impl<T> AlignBox<T> {
         }
     }
 
-    fn new_with_align_in(align: usize) -> Option<Self> {
+    fn new_with_align_in(align: usize) -> Option<AlignBox<T>> {
         let v: [AlignReq; 1] = [AlignReq{ offset:0, len:mem::size_of::<T>() }];
         AlignBox::allocate_in(true, align, &v)
     }
 
-    fn new_in() -> Option<Self> {
+    fn new_in() -> Option<AlignBox<T>> {
         let v: [AlignReq; 1] = [AlignReq{ offset: 0, len:mem::size_of::<T>() }];
         AlignBox::allocate_in(true, mem::align_of::<T>(), &v)
     }
 
-    fn allocate_in(zeroed: bool, align: usize, align_req: &[AlignReq]) -> Option<Self> {
+    fn allocate_in(zeroed: bool, align: usize, align_req: &[AlignReq]) -> Option<AlignBox<T>> {
         if mem::size_of::<T>() == 0 {
             return None;
         }
@@ -205,27 +204,27 @@ impl<T> AlignBox<T> {
         };
 
         Some(AlignBox{
-                ptr: ptr.into(),
-                align_layout: align_layout,
-                origin_layout: layout,
+            ptr: ptr.into(),
+            align_layout: align_layout,
+            origin_layout: layout,
         })
     }
 }
 
 impl<T> AlignBox<T> {
-    pub fn new() -> Option<Self> {
+    pub fn new() -> Option<AlignBox<T>> {
         Self::new_in()
     }
-     pub fn new_with_align(align: usize) -> Option<Self> {
+     pub fn new_with_align(align: usize) -> Option<AlignBox<T>> {
         Self::new_with_align_in(align)
     }
-    pub fn new_with_req(align: usize, align_req: &[AlignReq]) -> Option<Self> {
+    pub fn new_with_req(align: usize, align_req: &[AlignReq]) -> Option<AlignBox<T>> {
         Self::new_with_req_in(align, align_req)
     }
 }
 
 impl<T> AlignBox<T> {
-    pub fn heap_init<F>(initialize: F) -> Option<Self>
+    pub fn heap_init<F>(initialize: F) -> Option<AlignBox<T>>
     where
         F: Fn(&mut T),
     {
@@ -238,7 +237,7 @@ impl<T> AlignBox<T> {
             t
         }
     }
-    pub fn heap_init_with_align<F>(initialize: F, align: usize) -> Option<Self>
+    pub fn heap_init_with_align<F>(initialize: F, align: usize) -> Option<AlignBox<T>>
     where
         F: Fn(&mut T),
     {
@@ -251,7 +250,7 @@ impl<T> AlignBox<T> {
             t
         }
     }
-    pub fn heap_init_with_req<F>(initialize: F, align: usize, data: &[AlignReq]) -> Option<Self>
+    pub fn heap_init_with_req<F>(initialize: F, align: usize, data: &[AlignReq]) -> Option<AlignBox<T>>
     where
         F: Fn(&mut T),
     {
@@ -265,3 +264,4 @@ impl<T> AlignBox<T> {
         }
     }
 }
+

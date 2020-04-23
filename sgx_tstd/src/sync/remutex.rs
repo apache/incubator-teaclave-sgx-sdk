@@ -16,13 +16,10 @@
 // under the License..
 
 use sgx_types::SysError;
-use core::cell::UnsafeCell;
 use core::fmt;
 use core::ops::Deref;
-use core::marker;
 use alloc_crate::boxed::Box;
-use crate::panic::{UnwindSafe, RefUnwindSafe};
-use crate::sys_common::poison::{self, TryLockError, TryLockResult, LockResult};
+use crate::sys_common::poison::{self, LockResult, TryLockError, TryLockResult};
 use crate::sys::mutex as sys;
 
 /// The structure of sgx mutex.
@@ -32,7 +29,6 @@ unsafe impl Send for SgxReentrantThreadMutex {}
 unsafe impl Sync for SgxReentrantThreadMutex {}
 
 impl SgxReentrantThreadMutex {
-
     ///
     /// The function initializes a trusted mutex object within the enclave.
     ///
@@ -56,7 +52,7 @@ impl SgxReentrantThreadMutex {
     ///
     /// The trusted mutex object to be initialized.
     ///
-    pub const fn new() -> Self {
+    pub const fn new() -> SgxReentrantThreadMutex {
         SgxReentrantThreadMutex(sys::SgxThreadMutex::new(sys::SgxThreadMutexControl::SGX_THREAD_MUTEX_RECURSIVE))
     }
 
@@ -217,9 +213,6 @@ pub struct SgxReentrantMutex<T> {
 unsafe impl<T: Send> Send for SgxReentrantMutex<T> {}
 unsafe impl<T: Send> Sync for SgxReentrantMutex<T> {}
 
-impl<T> UnwindSafe for SgxReentrantMutex<T> {}
-impl<T> RefUnwindSafe for SgxReentrantMutex<T> {}
-
 impl<T> SgxReentrantMutex<T> {
     /// Creates a new reentrant mutex in an unlocked state.
     pub fn new(t: T) -> SgxReentrantMutex<T> {
@@ -314,8 +307,8 @@ impl<T: fmt::Debug + 'static> fmt::Debug for SgxReentrantMutex<T> {
 pub struct SgxReentrantMutexGuard<'a, T: 'a> {
     // funny underscores due to how Deref currently works (it disregards field
     // privacy).
-    __lock: &'a SgxReentrantMutex<T>,
-    __poison: poison::Guard,
+    lock: &'a SgxReentrantMutex<T>,
+    poison: poison::Guard,
 }
 
 impl<T> !Send for SgxReentrantMutexGuard<'_, T> {}
@@ -324,8 +317,8 @@ impl<'mutex, T> SgxReentrantMutexGuard<'mutex, T> {
     fn new(lock: &'mutex SgxReentrantMutex<T>) -> LockResult<SgxReentrantMutexGuard<'mutex, T>> {
         poison::map_result(lock.poison.borrow(), |guard| {
             SgxReentrantMutexGuard {
-                __lock: lock,
-                __poison: guard,
+                lock: lock,
+                poison: guard,
             }
         })
     }
@@ -335,7 +328,7 @@ impl<T> Deref for SgxReentrantMutexGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        &self.__lock.data
+        &self.lock.data
     }
 }
 
@@ -343,8 +336,8 @@ impl<T> Drop for SgxReentrantMutexGuard<'_, T> {
     #[inline]
     fn drop(&mut self) {
         let result = unsafe {
-            self.__lock.poison.done(&self.__poison);
-            self.__lock.inner.unlock()
+            self.lock.poison.done(&self.poison);
+            self.lock.inner.unlock()
         };
         debug_assert_eq!(result, Ok(()), "Error when unlocking an SgxReentrantMutex: {}", result.unwrap_err());
     }

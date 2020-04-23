@@ -7,7 +7,7 @@ build = "build.rs"
 [dependencies]
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-wabt = "0.6.0"
+wabt = "0.9"
 serde = {version = "1.0"}
 serde_json = {version = "1.0"}
 serde_derive = {version = "1.0"}

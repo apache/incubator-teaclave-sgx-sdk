@@ -69,7 +69,8 @@
 //!
 
 #![cfg_attr(not(target_env = "sgx"), no_std)]
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+#![cfg_attr(all(target_env = "sgx", target_vendor = "mesalock"), feature(rustc_private))]
+
 #![feature(const_fn)]
 
 #[cfg(not(target_env = "sgx"))]
@@ -105,18 +106,12 @@ use std::vec::Vec;
 /// This requires developer to identify the line which triggers panic exactly.
 #[macro_export]
 macro_rules! should_panic {
-    ($fmt:expr) => {{
-        match std::panic::catch_unwind(|| $fmt).is_err() {
+    ($fmt:expr) => ({
+        match ::std::panic::catch_unwind(|| { $fmt }).is_err() {
             true => {}
-            false => {
-                ::std::rt::begin_panic($fmt, {
-                    // static requires less code at runtime, more constant data
-                    static _FILE_LINE_COL: (&'static str, u32, u32) = (file!(), line!(), column!());
-                    &_FILE_LINE_COL
-                })
-            }
+            false => { ::std::rt::begin_panic($fmt) }
         }
-    }};
+    });
 }
 
 /// This macro works as test case driver.
@@ -166,7 +161,7 @@ macro_rules! rsgx_unit_tests {
 /// To initiate the test environment, `rsgx_unit_tests!` macro would trigger
 /// `rsgx_unit_test_start` at the very beginning. `rsgx_unit_test_start` inits
 /// the test counter and fail test list, and print the prologue message.
-pub fn rsgx_unit_test_start() {
+pub fn rsgx_unit_test_start () {
     println!("\nstart running tests");
 }
 
@@ -175,18 +170,17 @@ pub fn rsgx_unit_test_start() {
 /// `rsgx_unit_test_end` prints the statistics on test result, including
 /// a list of failed tests and the statistics.
 /// It will return the amount of failed tests. (success == 0)
-pub fn rsgx_unit_test_end(ntestcases: u64, failurecases: Vec<String>) -> usize {
+pub fn rsgx_unit_test_end(ntestcases : u64, failurecases : Vec<String>) -> usize {
     let ntotal = ntestcases as usize;
-    let nsucc = ntestcases as usize - failurecases.len();
+    let nsucc  = ntestcases as usize - failurecases.len();
 
-    if failurecases.len() != 0 {
+    if failurecases.len() != 0{
         print!("\nfailures: ");
-        println!(
-            "    {}",
-            failurecases
-                .iter()
-                .fold(String::new(), |s, per| s + "\n    " + per)
-        );
+        println!("    {}",
+                 failurecases.iter()
+                          .fold(
+                              String::new(),
+                              |s, per| s + "\n    " + per));
     }
 
     if ntotal == nsucc {
@@ -195,12 +189,7 @@ pub fn rsgx_unit_test_end(ntestcases: u64, failurecases: Vec<String>) -> usize {
         print!("\ntest result \x1B[1;31mFAILED\x1B[0m. ");
     }
 
-    println!(
-        "{} tested, {} passed, {} failed",
-        ntotal,
-        nsucc,
-        ntotal - nsucc
-    );
+    println!("{} tested, {} passed, {} failed", ntotal, nsucc, ntotal - nsucc);
     failurecases.len()
 }
 
@@ -211,22 +200,23 @@ pub fn rsgx_unit_test_end(ntestcases: u64, failurecases: Vec<String>) -> usize {
 /// and on test fails, it records the failed test.
 /// Required test function must be `Fn()`, taking nothing as input and returns
 /// nothing.
-pub fn rsgx_unit_test<F, R>(ncases: &mut u64, failurecases: &mut Vec<String>, f: F, name: &str)
-where
-    F: FnOnce() -> R + std::panic::UnwindSafe,
-{
+pub fn rsgx_unit_test<F, R>(ncases: &mut u64, failurecases: &mut Vec<String>, f:F, name: &str)
+    where F: FnOnce() -> R + std::panic::UnwindSafe {
     *ncases = *ncases + 1;
-    match std::panic::catch_unwind(|| {
-        f();
-    })
-    .is_ok()
-    {
+    match std::panic::catch_unwind (|| { f(); } ).is_ok() {
         true => {
-            println!("{} {} ... {}!", "testing", name, "\x1B[1;32mok\x1B[0m");
+            println!("{} {} ... {}!",
+                    "testing",
+                    name,
+                    "\x1B[1;32mok\x1B[0m");
         }
         false => {
-            println!("{} {} ... {}!", "testing", name, "\x1B[1;31mfailed\x1B[0m");
+            println!("{} {} ... {}!",
+                    "testing",
+                    name,
+                    "\x1B[1;31mfailed\x1B[0m");
             failurecases.push(String::from(name));
         }
     }
 }
+

@@ -206,6 +206,8 @@ pub enum ValueType {
     F32,
     /// 64-bit IEEE 754-2008 floating point number.
     F64,
+	/// 128-bit SIMD register
+	V128,
 }
 
 /// Runtime representation of a value.
@@ -225,6 +227,8 @@ pub enum RuntimeValue {
     F32(F32),
     /// Value of 64-bit IEEE 754-2008 floating point number.
     F64(F64),
+	/// 128-bit SIMD register
+	V128(u128),
 }
 
 impl RuntimeValue {
@@ -234,6 +238,7 @@ impl RuntimeValue {
             RuntimeValue::I64(_) => ValueType::I64,
             RuntimeValue::F32(_) => ValueType::F32,
             RuntimeValue::F64(_) => ValueType::F64,
+            RuntimeValue::V128(_) => ValueType::V128,
         }
     }
 }
@@ -248,5 +253,7 @@ pub enum Value {
     F32(f32),
     /// Value of 64-bit IEEE 754-2008 floating point number.
     F64(f64),
+	/// 128-bit SIMD register
+	V128(u128),
 }
 

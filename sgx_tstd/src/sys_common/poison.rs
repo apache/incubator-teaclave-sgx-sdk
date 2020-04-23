@@ -20,7 +20,9 @@ use crate::error::Error;
 use core::fmt;
 use core::sync::atomic::{AtomicBool, Ordering};
 
-pub struct Flag { failed: AtomicBool }
+pub struct Flag {
+    failed: AtomicBool,
+}
 
 // Note that the Ordering uses to access the `failed` field of `Flag` below is
 // always `Relaxed`, and that's because this isn't actually protecting any data,
@@ -32,6 +34,7 @@ pub struct Flag { failed: AtomicBool }
 //
 // As a result, if it matters, we should see the correct value for `failed` in
 // all cases.
+
 impl Flag {
     pub const fn new() -> Flag {
         Flag { failed: AtomicBool::new(false) }
@@ -40,11 +43,7 @@ impl Flag {
     #[inline]
     pub fn borrow(&self) -> LockResult<Guard> {
         let ret = Guard { panicking: thread::panicking() };
-        if self.get() {
-            Err(PoisonError::new(ret))
-        } else {
-            Ok(ret)
-        }
+        if self.get() { Err(PoisonError::new(ret)) } else { Ok(ret) }
     }
 
     #[inline]
@@ -121,8 +120,8 @@ impl<T> Error for PoisonError<T> {
         "poisoned lock: another task failed inside"
     }
 }
-impl<T> PoisonError<T> {
 
+impl<T> PoisonError<T> {
     /// Creates a `PoisonError`.
     ///
     /// This is generally created by methods like [`SgxMutex::lock`] or [`SgxRwLock::read`].
@@ -134,17 +133,23 @@ impl<T> PoisonError<T> {
     /// Consumes this error indicating that a lock is poisoned, returning the
     /// underlying guard to allow access regardless.
     ///
-    pub fn into_inner(self) -> T { self.guard }
+    pub fn into_inner(self) -> T {
+        self.guard
+    }
 
     /// Reaches into this error indicating that a lock is poisoned, returning a
     /// reference to the underlying guard to allow access regardless.
     ///
-    pub fn get_ref(&self) -> &T { &self.guard }
+    pub fn get_ref(&self) -> &T {
+        &self.guard
+    }
 
     /// Reaches into this error indicating that a lock is poisoned, returning a
     /// mutable reference to the underlying guard to allow access regardless.
     ///
-    pub fn get_mut(&mut self) -> &mut T { &mut self.guard }
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.guard
+    }
 }
 
 impl<T> From<PoisonError<T>> for TryLockError<T> {
@@ -157,7 +162,7 @@ impl<T> fmt::Debug for TryLockError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             TryLockError::Poisoned(..) => "Poisoned(..)".fmt(f),
-            TryLockError::WouldBlock => "WouldBlock".fmt(f)
+            TryLockError::WouldBlock => "WouldBlock".fmt(f),
         }
     }
 }
@@ -166,8 +171,9 @@ impl<T> fmt::Display for TryLockError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             TryLockError::Poisoned(..) => "poisoned lock: another task failed inside",
-            TryLockError::WouldBlock => "try_lock failed because the operation would block"
-        }.fmt(f)
+            TryLockError::WouldBlock => "try_lock failed because the operation would block",
+        }
+        .fmt(f)
     }
 }
 
@@ -175,23 +181,24 @@ impl<T> Error for TryLockError<T> {
     fn description(&self) -> &str {
         match *self {
             TryLockError::Poisoned(ref p) => p.description(),
-            TryLockError::WouldBlock => "try_lock failed because the operation would block"
+            TryLockError::WouldBlock => "try_lock failed because the operation would block",
         }
     }
 
     fn cause(&self) -> Option<&dyn Error> {
         match *self {
             TryLockError::Poisoned(ref p) => Some(p),
-            _ => None
+            _ => None,
         }
     }
 }
 
-pub fn map_result<T, U, F>(result: LockResult<T>, f: F)
-                           -> LockResult<U>
-                           where F: FnOnce(T) -> U {
+pub fn map_result<T, U, F>(result: LockResult<T>, f: F) -> LockResult<U>
+where
+    F: FnOnce(T) -> U,
+{
     match result {
         Ok(t) => Ok(f(t)),
-        Err(PoisonError { guard }) => Err(PoisonError::new(f(guard)))
+        Err(PoisonError { guard }) => Err(PoisonError::new(f(guard))),
     }
 }

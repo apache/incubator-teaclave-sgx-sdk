@@ -72,7 +72,6 @@ impl OpenOptions {
 
 impl SgxFile {
     pub fn open(path: &Path, opts: &OpenOptions) -> io::Result<SgxFile> {
-
         let path = cstr(path)?;
         let mode = opts.get_access_mode()?;
         let opts = CString::new(mode.as_bytes())?;
@@ -80,7 +79,6 @@ impl SgxFile {
     }
 
     pub fn open_ex(path: &Path, opts: &OpenOptions, key: &sgx_key_128bit_t) -> io::Result<SgxFile> {
-
         let path = cstr(path)?;
         let mode = opts.get_access_mode()?;
         let opts = CString::new(mode.as_bytes())?;
@@ -88,7 +86,6 @@ impl SgxFile {
     }
 
     pub fn open_c(path: &CStr, opts: &CStr, key: &sgx_key_128bit_t, auto: bool) -> io::Result<SgxFile> {
-
         let file = if auto == true {
             SgxFileStream::open_auto_key(path, opts)
         } else {
@@ -112,7 +109,6 @@ impl SgxFile {
     }
 
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
-
         self.0.read(buf).map_err(|err| {
             match err {
                 1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
@@ -129,7 +125,6 @@ impl SgxFile {
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
-
         self.0.write(buf).map_err(|err| {
             match err {
                 1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
@@ -146,7 +141,6 @@ impl SgxFile {
     }
 
     pub fn tell(&self) -> io::Result<u64> {
-
         self.0.tell().map_err(|err| {
             match err {
                 r if r > 4096 => {
@@ -160,7 +154,6 @@ impl SgxFile {
     }
 
     pub fn seek(&self, pos: SeekFrom) -> io::Result<u64> {
-
         let (whence, offset) = match pos {
             SeekFrom::Start(off) => (sgx_tprotected_fs::SeekFrom::Start, off as i64),
             SeekFrom::End(off) => (sgx_tprotected_fs::SeekFrom::End, off),
@@ -182,7 +175,6 @@ impl SgxFile {
     }
 
     pub fn flush(&self) -> io::Result<()> {
-
         self.0.flush().map_err(|err| {
             match err {
                 1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
@@ -207,7 +199,6 @@ impl SgxFile {
     }
 
     pub fn clear_cache(&self) -> io::Result<()> {
-
         self.0.clear_cache().map_err(|err| {
             match err {
                 1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
@@ -225,7 +216,6 @@ impl SgxFile {
 }
 
 pub fn remove(path: &Path) -> io::Result<()> {
-
     let path = cstr(path)?;
     sgx_tprotected_fs::remove(&path).map_err(|err| {
         match err {
@@ -243,7 +233,6 @@ pub fn remove(path: &Path) -> io::Result<()> {
 }
 
 pub fn export_auto_key(path: &Path) -> io::Result<sgx_key_128bit_t> {
-
     let path = cstr(path)?;
     sgx_tprotected_fs::export_auto_key(&path).map_err(|err| {
         match err {
@@ -261,7 +250,6 @@ pub fn export_auto_key(path: &Path) -> io::Result<sgx_key_128bit_t> {
 }
 
 pub fn export_align_auto_key(path: &Path) -> io::Result<sgx_align_key_128bit_t> {
-
     let path = cstr(path)?;
     sgx_tprotected_fs::export_align_auto_key(&path).map_err(|err| {
         match err {
@@ -279,7 +267,6 @@ pub fn export_align_auto_key(path: &Path) -> io::Result<sgx_align_key_128bit_t> 
 }
 
 pub fn import_auto_key(path: &Path, key: &sgx_key_128bit_t) -> io::Result<()> {
-
     let path = cstr(path)?;
     sgx_tprotected_fs::import_auto_key(&path, key).map_err(|err| {
         match err {
@@ -320,8 +307,10 @@ pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
 
     let metadata = from.metadata()?;
     if !metadata.is_file() {
-        return Err(Error::new(ErrorKind::InvalidInput,
-                              "the source path is not an existing regular file"))
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "the source path is not an existing regular file",
+        ));
     }
 
     let mut reader = SgxFile::open(from)?;

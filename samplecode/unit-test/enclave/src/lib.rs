@@ -19,7 +19,7 @@
 #![crate_type = "staticlib"]
 
 #![feature(box_syntax)]
-
+#![feature(core_intrinsics)]
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
@@ -45,6 +45,8 @@ extern crate sgx_serialize;
 pub use sgx_serialize::*;
 #[macro_use]
 extern crate sgx_serialize_derive;
+extern crate sgx_signal;
+extern crate sgx_libc;
 
 pub use sgx_serialize::*;
 use sgx_types::*;
@@ -103,6 +105,11 @@ use test_alignbox::*;
 mod test_alignstruct;
 
 
+mod test_signal;
+use test_signal::*;
+
+mod test_exception;
+use test_exception::*;
 #[no_mangle]
 pub extern "C"
 fn test_main_entrance() -> size_t {
@@ -331,6 +338,14 @@ fn test_main_entrance() -> size_t {
                     test_alignbox_clone,
                     test_alignbox_clonefrom,
                     test_alignbox_clonefrom_no_eq_size,
+                    //test signal
+                    test_signal_forbidden,
+                    test_signal_without_pid,
+                    test_signal_with_pid,
+                    test_signal_register_unregister,
+                    test_signal_register_unregister1,
+                    //test exception
+                    test_exception_handler,
                     )
 }
 

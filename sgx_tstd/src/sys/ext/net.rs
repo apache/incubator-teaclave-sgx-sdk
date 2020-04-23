@@ -22,7 +22,7 @@ use crate::ffi::OsStr;
 use crate::io::{self, Initializer, IoSlice, IoSliceMut};
 use crate::net::{self, Shutdown};
 use crate::os::unix::ffi::OsStrExt;
-use crate::os::unix::io::{RawFd, AsRawFd, FromRawFd, IntoRawFd};
+use crate::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use crate::path::Path;
 use crate::time::Duration;
 use crate::sys::{self, cvt};
@@ -43,13 +43,17 @@ unsafe fn sockaddr_un(path: &Path) -> io::Result<(libc::sockaddr_un, libc::sockl
     let bytes = path.as_os_str().as_bytes();
 
     if bytes.contains(&0) {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                  "paths may not contain interior null bytes"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "paths may not contain interior null bytes",
+        ));
     }
 
     if bytes.len() >= addr.sun_path.len() {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                  "path must be shorter than SUN_LEN"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "path must be shorter than SUN_LEN",
+        ));
     }
     for (dst, src) in addr.sun_path.iter_mut().zip(bytes.iter()) {
         *dst = *src as libc::c_char;
@@ -81,7 +85,8 @@ pub struct SocketAddr {
 
 impl SocketAddr {
     fn new<F>(f: F) -> io::Result<SocketAddr>
-        where F: FnOnce(*mut libc::sockaddr, *mut libc::socklen_t) -> libc::c_int
+    where
+        F: FnOnce(*mut libc::sockaddr, *mut libc::socklen_t) -> libc::c_int,
     {
         unsafe {
             let mut addr: libc::sockaddr_un = mem::zeroed();
@@ -95,36 +100,27 @@ impl SocketAddr {
         if len == 0 {
             // When there is a datagram from unnamed unix socket
             // linux returns zero bytes of address
-            len = sun_path_offset(&addr) as libc::socklen_t;  // i.e., zero-length address
+            len = sun_path_offset(&addr) as libc::socklen_t; // i.e., zero-length address
         } else if addr.sun_family != libc::AF_UNIX as libc::sa_family_t {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                      "file descriptor did not correspond to a Unix socket"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "file descriptor did not correspond to a Unix socket",
+            ));
         }
 
-        Ok(SocketAddr {
-            addr,
-            len,
-        })
+        Ok(SocketAddr { addr, len })
     }
 
     /// Returns `true` if the address is unnamed.
     ///
     pub fn is_unnamed(&self) -> bool {
-        if let AddressKind::Unnamed = self.address() {
-            true
-        } else {
-            false
-        }
+        if let AddressKind::Unnamed = self.address() { true } else { false }
     }
 
     /// Returns the contents of this address if it is a `pathname` address.
     ///
     pub fn as_pathname(&self) -> Option<&Path> {
-        if let AddressKind::Pathname(path) = self.address() {
-            Some(path)
-        } else {
-            None
-        }
+        if let AddressKind::Pathname(path) = self.address() { Some(path) } else { None }
     }
 
     fn address(&self) -> AddressKind<'_> {
@@ -375,15 +371,21 @@ impl IntoRawFd for UnixStream {
 }
 
 impl AsRawFd for net::TcpStream {
-    fn as_raw_fd(&self) -> RawFd { *self.as_inner().socket().as_inner() }
+    fn as_raw_fd(&self) -> RawFd {
+        *self.as_inner().socket().as_inner()
+    }
 }
 
 impl AsRawFd for net::TcpListener {
-    fn as_raw_fd(&self) -> RawFd { *self.as_inner().socket().as_inner() }
+    fn as_raw_fd(&self) -> RawFd {
+        *self.as_inner().socket().as_inner()
+    }
 }
 
 impl AsRawFd for net::UdpSocket {
-    fn as_raw_fd(&self) -> RawFd { *self.as_inner().socket().as_inner() }
+    fn as_raw_fd(&self) -> RawFd {
+        *self.as_inner().socket().as_inner()
+    }
 }
 
 impl FromRawFd for net::TcpStream {
@@ -670,21 +672,21 @@ impl UnixDatagram {
     ///
     pub fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
         let mut count = 0;
-        let addr = SocketAddr::new(|addr, len| {
-            unsafe {
-                count = libc::recvfrom(*self.0.as_inner(),
-                                       buf.as_mut_ptr() as *mut _,
-                                       buf.len(),
-                                       0,
-                                       addr,
-                                       len);
-                if count > 0 {
-                    1
-                } else if count == 0 {
-                    0
-                } else {
-                    -1
-                }
+        let addr = SocketAddr::new(|addr, len| unsafe {
+            count = libc::recvfrom(
+                *self.0.as_inner(),
+                buf.as_mut_ptr() as *mut _,
+                buf.len(),
+                0,
+                addr,
+                len,
+            );
+            if count > 0 {
+                1
+            } else if count == 0 {
+                0
+            } else {
+                -1
             }
         })?;
 
@@ -708,12 +710,14 @@ impl UnixDatagram {
             unsafe {
                 let (addr, len) = sockaddr_un(path)?;
 
-                let count = cvt(libc::sendto(*d.0.as_inner(),
-                                             buf.as_ptr() as *const _,
-                                             buf.len(),
-                                             libc::MSG_NOSIGNAL,
-                                             &addr as *const _ as *const _,
-                                             len))?;
+                let count = cvt(libc::sendto(
+                    *d.0.as_inner(),
+                    buf.as_ptr() as *const _,
+                    buf.len(),
+                    libc::MSG_NOSIGNAL,
+                    &addr as *const _ as *const _,
+                    len,
+                ))?;
                 Ok(count as usize)
             }
         }

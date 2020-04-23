@@ -19,6 +19,7 @@ enclave {
     include "time.h"
 
     from "intel/sgx_pthread.edl" import *;
+    from "sgx_sys.edl" import *;
 
     trusted {
         /* define ECALLs here. */

@@ -68,13 +68,13 @@
 
 #![feature(allocator_api)]
 #![feature(asm)]
-//#![feature(rustc_const_unstable)]
 #![feature(const_raw_ptr_deref)]
-//#![feature(const_cstr_unchecked)]
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
-#![allow(overflowing_literals)]
 #![allow(non_snake_case)]
+#![feature(specialization)]
+#![feature(vec_into_raw_parts)]
+#![feature(toowned_clone_into)]
 
 #[cfg(target_env = "sgx")]
 extern crate sgx_types;

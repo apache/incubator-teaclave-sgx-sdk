@@ -15,136 +15,236 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_trts::libc;
-use sgx_backtrace_sys::{
-    backtrace_syminfo_callback, 
-    backtrace_full_callback, 
-    backtrace_error_callback, 
-    backtrace_state,
-    backtrace_create_state,
-    backtrace_syminfo,
-    backtrace_pcinfo};
-use crate::ffi::CStr;
-use crate::io;
-use crate::sys::backtrace::BacktraceContext;
-use crate::sys_common::backtrace::Frame;
-use core::mem;
-use core::ptr;
+use core::{ptr, mem, slice};
+use crate::sys::backtrace::{self, BytesOrWideString, Bomb};
+use crate::sys_common::backtrace::{ResolveWhat, SymbolName};
+use sgx_backtrace_sys as bt;
+use sgx_libc::{self, c_char, c_int, c_void, uintptr_t};
 
-pub fn foreach_symbol_fileline<F>(frame: Frame,
-                                  mut f: F,
-                                  _: &BacktraceContext) -> io::Result<bool>
-where F: FnMut(&[u8], u32) -> io::Result<()>
-{
-    // pcinfo may return an arbitrary number of file:line pairs,
-    // in the order of stack trace (i.e. inlined calls first).
-    // in order to avoid allocation, we stack-allocate a fixed size of entries.
-    const FILELINE_SIZE: usize = 32;
-    let mut fileline_buf = [(ptr::null(), !0); FILELINE_SIZE];
-    let ret;
-    let fileline_count = {
-        let state = unsafe { (__init_state())? };
-        if state.is_null() {
-            ret = -1;
-            0
-        } else {
-            let mut fileline_win: &mut [FileLine] = &mut fileline_buf;
-            let fileline_addr = &mut fileline_win as *mut &mut [FileLine];
-            ret = unsafe {
-                backtrace_pcinfo(state,
-                                frame.exact_position as libc::uintptr_t,
-                                pcinfo_cb,
-                                error_cb,
-                                fileline_addr as *mut libc::c_void)
-            };
-            FILELINE_SIZE - fileline_win.len()
-        }
-    };
-    if ret == 0 {
-        for &(file, line) in &fileline_buf[..fileline_count] {
-            if file.is_null() { continue; } // just to be sure
-            let file = unsafe { CStr::from_ptr(file).to_bytes() };
-            f(file, line)?;
-        }
-        Ok(fileline_count == FILELINE_SIZE)
-    } else {
-        Ok(false)
-    }
+pub enum Symbol {
+    Syminfo {
+        pc: uintptr_t,
+        symname: *const c_char,
+    },
+    Pcinfo {
+        pc: uintptr_t,
+        filename: *const c_char,
+        lineno: c_int,
+        function: *const c_char,
+        symname: *const c_char,
+    },
 }
 
-/// Converts a pointer to symbol to its string value.
-pub fn resolve_symname<F>(frame: Frame,
-                          callback: F,
-                          _: &BacktraceContext) -> io::Result<()>
-    where F: FnOnce(Option<&str>) -> io::Result<()>
-{
-    let symname = {
-        let state = unsafe { __init_state()? };
-        if state.is_null() {
-            None
-        } else {
-            let mut data: *const libc::c_char = ptr::null();
-            let data_addr = &mut data as *mut *const libc::c_char;
-            let ret = unsafe {
-                backtrace_syminfo(state,
-                                  frame.symbol_addr as libc::uintptr_t,
-                                  syminfo_cb,
-                                  error_cb,
-                                  data_addr as *mut libc::c_void)
-            };
-            if ret == 0 || data.is_null() {
+impl Symbol {
+    pub fn name(&self) -> Option<SymbolName> {
+        let symbol = |ptr: *const c_char| unsafe {
+            if ptr.is_null() {
                 None
             } else {
+                let len = sgx_libc::strlen(ptr);
+                Some(SymbolName::new(slice::from_raw_parts(
+                    ptr as *const u8,
+                    len,
+                )))
+            }
+        };
+        match *self {
+            Symbol::Syminfo { symname, .. } => symbol(symname),
+            Symbol::Pcinfo {
+                function, symname, ..
+            } => {
+                // If possible prefer the `function` name which comes from
+                // debuginfo and can typically be more accurate for inline
+                // frames for example. If that's not present though fall back to
+                // the symbol table name specified in `symname`.
+                //
+                // Note that sometimes `function` can feel somewhat less
+                // accurate, for example being listed as `try<i32,closure>`
+                // isntead of `std::panicking::try::do_call`. It's not really
+                // clear why, but overall the `function` name seems more accurate.
+                if let Some(sym) = symbol(function) {
+                    return Some(sym);
+                }
+                symbol(symname)
+            }
+        }
+    }
+
+    pub fn name_bytes(&self) -> Option<&[u8]> {
+        let symbol = |ptr: *const c_char| unsafe {
+            if ptr.is_null() {
+                None
+            } else {
+                let len = sgx_libc::strlen(ptr);
+                Some(slice::from_raw_parts(
+                    ptr as *const u8,
+                    len,
+                ))
+            }
+        };
+        match *self {
+            Symbol::Syminfo { symname, .. } => symbol(symname),
+            Symbol::Pcinfo {
+                function, symname, ..
+            } => {
+                // If possible prefer the `function` name which comes from
+                // debuginfo and can typically be more accurate for inline
+                // frames for example. If that's not present though fall back to
+                // the symbol table name specified in `symname`.
+                //
+                // Note that sometimes `function` can feel somewhat less
+                // accurate, for example being listed as `try<i32,closure>`
+                // isntead of `std::panicking::try::do_call`. It's not really
+                // clear why, but overall the `function` name seems more accurate.
+                if let Some(sym) = symbol(function) {
+                    return Some(sym);
+                }
+                symbol(symname)
+            }
+        }
+    }
+
+    pub fn addr(&self) -> Option<*mut c_void> {
+        let pc = match *self {
+            Symbol::Syminfo { pc, .. } => pc,
+            Symbol::Pcinfo { pc, .. } => pc,
+        };
+        if pc == 0 {
+            None
+        } else {
+            Some(pc as *mut _)
+        }
+    }
+
+    pub fn filename_bytes(&self) -> Option<&[u8]> {
+        match *self {
+            Symbol::Syminfo { .. } => None,
+            Symbol::Pcinfo { filename, .. } => {
+                let ptr = filename as *const u8;
+                if ptr.is_null() {
+                    return None;
+                }
                 unsafe {
-                    CStr::from_ptr(data).to_str().ok()
+                    let len = sgx_libc::strlen(filename);
+                    Some(slice::from_raw_parts(ptr, len))
                 }
             }
         }
-    };
-    callback(symname)
+    }
+
+    pub fn filename_raw(&self) -> Option<BytesOrWideString> {
+        self.filename_bytes().map(BytesOrWideString::Bytes)
+    }
+
+    pub fn lineno(&self) -> Option<u32> {
+        match *self {
+            Symbol::Syminfo { .. } => None,
+            Symbol::Pcinfo { lineno, .. } => Some(lineno as u32),
+        }
+    }
 }
 
-pub fn init_state() -> io::Result<()> {
-    unsafe { __init_state().map(|_|()) }
-}
-
-////////////////////////////////////////////////////////////////////////
-// helper callbacks
-////////////////////////////////////////////////////////////////////////
-
-type FileLine = (*const libc::c_char, u32);
-
-extern fn error_cb(_data: *mut libc::c_void, _msg: *const libc::c_char,
-                   _errnum: libc::c_int) {
+extern "C" fn error_cb(_data: *mut c_void, _msg: *const c_char, _errnum: c_int) {
     // do nothing for now
 }
-extern fn syminfo_cb(data: *mut libc::c_void,
-                     _pc: libc::uintptr_t,
-                     symname: *const libc::c_char,
-                     _symval: libc::uintptr_t,
-                     _symsize: libc::uintptr_t) {
 
-    let slot = data as *mut *const libc::c_char;
-    unsafe { *slot = symname; }
+/// Type of the `data` pointer passed into `syminfo_cb`
+struct SyminfoState<'a> {
+    cb: &'a mut (dyn FnMut(&super::Symbol) + 'a),
+    pc: usize,
 }
-extern fn pcinfo_cb(data: *mut libc::c_void,
-                    _pc: libc::uintptr_t,
-                    filename: *const libc::c_char,
-                    lineno: libc::c_int,
-                    _function: *const libc::c_char) -> libc::c_int {
-    if !filename.is_null() {
-        let slot = data as *mut &mut [FileLine];
-        let buffer = unsafe {ptr::read(slot)};
 
-        // if the buffer is not full, add file:line to the buffer
-        // and adjust the buffer for next possible calls to pcinfo_cb.
-        if !buffer.is_empty() {
-            buffer[0] = (filename, lineno as u32);
-            unsafe { ptr::write(slot, &mut buffer[1..]); }
+extern "C" fn syminfo_cb(
+    data: *mut c_void,
+    pc: uintptr_t,
+    symname: *const c_char,
+    _symval: uintptr_t,
+    _symsize: uintptr_t,
+) {
+    let state = unsafe { init_state() };
+    if state.is_null() {
+        return;
+    }
+
+    let mut bomb = Bomb::new(true);
+
+    // Once this callback is invoked from `backtrace_syminfo` when we start
+    // resolving we go further to call `backtrace_pcinfo`. The
+    // `backtrace_pcinfo` function will consult debug information and attemp tto
+    // do things like recover file/line information as well as inlined frames.
+    // Note though that `backtrace_pcinfo` can fail or not do much if there's
+    // not debug info, so if that happens we're sure to call the callback with
+    // at least one symbol from the `syminfo_cb`.
+    unsafe {
+        let syminfo_state = &mut *(data as *mut SyminfoState);
+        let mut pcinfo_state = PcinfoState {
+            symname,
+            called: false,
+            cb: syminfo_state.cb,
+        };
+        bt::backtrace_pcinfo(
+            state,
+            syminfo_state.pc as uintptr_t,
+            pcinfo_cb,
+            error_cb,
+            &mut pcinfo_state as *mut _ as *mut _,
+        );
+        if !pcinfo_state.called {
+            let inner = Symbol::Syminfo {
+                pc: pc,
+                symname: symname,
+            };
+            (pcinfo_state.cb)(&super::Symbol {
+                name: inner.name_bytes().map(|m| m.to_vec()),
+                addr: inner.addr(),
+                filename: inner.filename_bytes().map(|m| m.to_vec()),
+                lineno: inner.lineno(),
+            });
         }
     }
 
-    0
+    bomb.set(false);
+}
+
+/// Type of the `data` pointer passed into `pcinfo_cb`
+struct PcinfoState<'a> {
+    cb: &'a mut (dyn FnMut(&super::Symbol) + 'a),
+    symname: *const c_char,
+    called: bool,
+}
+
+extern "C" fn pcinfo_cb(
+    data: *mut c_void,
+    pc: uintptr_t,
+    filename: *const c_char,
+    lineno: c_int,
+    function: *const c_char,
+) -> c_int {
+    if filename.is_null() || function.is_null() {
+        return -1;
+    }
+    let mut bomb = Bomb::new(true);
+
+    unsafe {
+        let state = &mut *(data as *mut PcinfoState);
+        state.called = true;
+        let inner = Symbol::Pcinfo {
+            pc: pc,
+            filename: filename,
+            lineno: lineno,
+            symname: state.symname,
+            function,
+        };
+        (state.cb)(&super::Symbol {
+            name: inner.name_bytes().map(|m| m.to_vec()),
+            addr: inner.addr(),
+            filename: inner.filename_bytes().map(|m| m.to_vec()),
+            lineno: inner.lineno(),
+        });
+    }
+
+    bomb.set(false);
+    return 0;
 }
 
 // The libbacktrace API supports creating a state, but it does not
@@ -158,44 +258,68 @@ extern fn pcinfo_cb(data: *mut libc::c_void,
 // that is calculated the first time this is requested. Remember that
 // backtracing all happens serially (one global lock).
 //
-// Things don't work so well on not-Linux since libbacktrace can't track
-// down that executable this is. We at one point used env::current_exe but
-// it turns out that there are some serious security issues with that
-// approach.
-//
-// Specifically, on certain platforms like BSDs, a malicious actor can cause
-// an arbitrary file to be placed at the path returned by current_exe.
-// libbacktrace does not behave defensively in the presence of ill-formed
-// DWARF information, and has been demonstrated to segfault in at least one
-// case. There is no evidence at the moment to suggest that a more carefully
-// constructed file can't cause arbitrary code execution. As a result of all
-// of this, we don't hint libbacktrace with the path to the current process.
-unsafe fn __init_state() -> io::Result<*mut backtrace_state> {
+// Note the lack of synchronization here is due to the requirement that
+// `resolve` is externally synchronized.
+unsafe fn init_state() -> *mut bt::backtrace_state {
+    static mut STATE: *mut bt::backtrace_state = 0 as *mut _;
 
-    static mut STATE: *mut backtrace_state = ptr::null_mut();
+    if !STATE.is_null() {
+        return STATE;
+    }
 
-    if !STATE.is_null() { return Ok(STATE)  }
-
-    let filename = match crate::sys::backtrace::gnu::get_enclave_filename() {
+    let filename = match backtrace::gnu::get_enclave_filename() {
         Ok(filename) => {
             // filename is purposely leaked here since libbacktrace requires
             // it to stay allocated permanently.
             let filename_ptr = filename.as_ptr();
             mem::forget(filename);
             filename_ptr
-        },
-        Err(_) => ptr::null(),
+        }
+        Err(_) => return ptr::null_mut(),
     };
 
-    if filename.is_null() {
-        return Err(io::Error::from_raw_os_error(libc::ENOENT));
+    STATE = bt::backtrace_create_state(
+        filename,
+        // Don't exercise threadsafe capabilities of libbacktrace since
+        // we're always calling it in a synchronized fashion.
+        0,
+        error_cb,
+        ptr::null_mut(), // no extra data
+    );
+
+    STATE
+}
+
+pub unsafe fn resolve(what: ResolveWhat, cb: &mut dyn FnMut(&super::Symbol)) {
+    let symaddr = what.address_or_ip() as usize;
+
+    // backtrace errors are currently swept under the rug
+    let state = init_state();
+    if state.is_null() {
+        return;
     }
 
-    STATE = backtrace_create_state(filename, 0, error_cb, ptr::null_mut());
-
-    if STATE.is_null() {
-        return Err(io::Error::from_raw_os_error(libc::ENOMEM));
+    // Call the `backtrace_syminfo` API first. This is (from reading the code)
+    // guaranteed to call `syminfo_cb` exactly once (or fail with an error
+    // presumably). We then handle more within the `syminfo_cb`.
+    //
+    // Note that we do this since `syminfo` will consult the symbol table,
+    // finding symbol names even if there's no debug information in the binary.
+    let mut called = false;
+    {
+        let mut syminfo_state = SyminfoState {
+            pc: symaddr,
+            cb: &mut |sym| {
+                called = true;
+                cb(sym);
+            },
+        };
+        bt::backtrace_syminfo(
+            state,
+            symaddr as uintptr_t,
+            syminfo_cb,
+            error_cb,
+            &mut syminfo_state as *mut _ as *mut _,
+        );
     }
-
-    Ok(STATE)
 }

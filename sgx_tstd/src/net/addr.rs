@@ -26,8 +26,8 @@ use core::convert::TryInto;
 use alloc_crate::vec;
 use alloc_crate::slice;
 use crate::io;
-use crate::net::{ntoh, hton, IpAddr, Ipv4Addr, Ipv6Addr};
-use crate::sys_common::{FromInner, AsInner, IntoInner};
+use crate::net::{htons, ntohs, IpAddr, Ipv4Addr, Ipv6Addr};
+use crate::sys_common::{AsInner, FromInner, IntoInner};
 #[cfg(feature = "net")]
 use crate::sys_common::net::LookupHost;
 
@@ -56,7 +56,9 @@ pub enum SocketAddr {
 /// See [`SocketAddr`] for a type encompassing both IPv4 and IPv6 socket addresses.
 ///
 #[derive(Copy)]
-pub struct SocketAddrV4 { inner: c::sockaddr_in }
+pub struct SocketAddrV4 {
+    inner: c::sockaddr_in,
+}
 
 /// An IPv6 socket address.
 ///
@@ -70,7 +72,9 @@ pub struct SocketAddrV4 { inner: c::sockaddr_in }
 /// system.
 ///
 #[derive(Copy)]
-pub struct SocketAddrV6 { inner: c::sockaddr_in6 }
+pub struct SocketAddrV6 {
+    inner: c::sockaddr_in6,
+}
 
 impl SocketAddr {
     /// Creates a new socket address from an [IP address] and a port number.
@@ -124,20 +128,14 @@ impl SocketAddr {
     /// [IPv4 address], and [`false`] otherwise.
     ///
     pub fn is_ipv4(&self) -> bool {
-        match *self {
-            SocketAddr::V4(_) => true,
-            SocketAddr::V6(_) => false,
-        }
+        matches!(*self, SocketAddr::V4(_))
     }
 
     /// Returns [`true`] if the [IP address] in this `SocketAddr` is an
     /// [IPv6 address], and [`false`] otherwise.
     ///
     pub fn is_ipv6(&self) -> bool {
-        match *self {
-            SocketAddr::V4(_) => false,
-            SocketAddr::V6(_) => true,
-        }
+        matches!(*self, SocketAddr::V6(_))
     }
 }
 
@@ -148,9 +146,9 @@ impl SocketAddrV4 {
         SocketAddrV4 {
             inner: c::sockaddr_in {
                 sin_family: c::AF_INET as c::sa_family_t,
-                sin_port: hton(port),
+                sin_port: htons(port),
                 sin_addr: *ip.as_inner(),
-                .. unsafe { mem::zeroed() }
+                ..unsafe { mem::zeroed() }
             },
         }
     }
@@ -158,9 +156,7 @@ impl SocketAddrV4 {
     /// Returns the IP address associated with this socket address.
     ///
     pub fn ip(&self) -> &Ipv4Addr {
-        unsafe {
-            &*(&self.inner.sin_addr as *const c::in_addr as *const Ipv4Addr)
-        }
+        unsafe { &*(&self.inner.sin_addr as *const c::in_addr as *const Ipv4Addr) }
     }
 
     /// Changes the IP address associated with this socket address.
@@ -172,13 +168,13 @@ impl SocketAddrV4 {
     /// Returns the port number associated with this socket address.
     ///
     pub fn port(&self) -> u16 {
-        ntoh(self.inner.sin_port)
+        ntohs(self.inner.sin_port)
     }
 
     /// Changes the port number associated with this socket address.
     ///
     pub fn set_port(&mut self, new_port: u16) {
-        self.inner.sin_port = hton(new_port);
+        self.inner.sin_port = htons(new_port);
     }
 }
 
@@ -189,16 +185,18 @@ impl SocketAddrV6 {
     /// For more information on the meaning and layout of the `flowinfo` and `scope_id`
     /// parameters, see [IETF RFC 2553, Section 3.3].
     ///
-    pub fn new(ip: Ipv6Addr, port: u16, flowinfo: u32, scope_id: u32)
-               -> SocketAddrV6 {
+    /// [IETF RFC 2553, Section 3.3]: https://tools.ietf.org/html/rfc2553#section-3.3
+    /// [IPv6 address]: ../../std/net/struct.Ipv6Addr.html
+    ///
+    pub fn new(ip: Ipv6Addr, port: u16, flowinfo: u32, scope_id: u32) -> SocketAddrV6 {
         SocketAddrV6 {
             inner: c::sockaddr_in6 {
                 sin6_family: c::AF_INET6 as c::sa_family_t,
-                sin6_port: hton(port),
+                sin6_port: htons(port),
                 sin6_addr: *ip.as_inner(),
                 sin6_flowinfo: flowinfo,
                 sin6_scope_id: scope_id,
-                .. unsafe { mem::zeroed() }
+                ..unsafe { mem::zeroed() }
             },
         }
     }
@@ -206,9 +204,7 @@ impl SocketAddrV6 {
     /// Returns the IP address associated with this socket address.
     ///
     pub fn ip(&self) -> &Ipv6Addr {
-        unsafe {
-            &*(&self.inner.sin6_addr as *const c::in6_addr as *const Ipv6Addr)
-        }
+        unsafe { &*(&self.inner.sin6_addr as *const c::in6_addr as *const Ipv6Addr) }
     }
 
     /// Changes the IP address associated with this socket address.
@@ -220,13 +216,13 @@ impl SocketAddrV6 {
     /// Returns the port number associated with this socket address.
     ///
     pub fn port(&self) -> u16 {
-        ntoh(self.inner.sin6_port)
+        ntohs(self.inner.sin6_port)
     }
 
     /// Changes the port number associated with this socket address.
     ///
     pub fn set_port(&mut self, new_port: u16) {
-        self.inner.sin6_port = hton(new_port);
+        self.inner.sin6_port = htons(new_port);
     }
 
     /// Returns the flow information associated with this address.
@@ -235,6 +231,11 @@ impl SocketAddrV6 {
     /// as specified in [IETF RFC 2553, Section 3.3].
     /// It combines information about the flow label and the traffic class as specified
     /// in [IETF RFC 2460], respectively [Section 6] and [Section 7].
+    ///
+    /// [IETF RFC 2553, Section 3.3]: https://tools.ietf.org/html/rfc2553#section-3.3
+    /// [IETF RFC 2460]: https://tools.ietf.org/html/rfc2460
+    /// [Section 6]: https://tools.ietf.org/html/rfc2460#section-6
+    /// [Section 7]: https://tools.ietf.org/html/rfc2460#section-7
     ///
     pub fn flowinfo(&self) -> u32 {
         self.inner.sin6_flowinfo
@@ -303,6 +304,13 @@ impl<I: Into<IpAddr>> From<(I, u16)> for SocketAddr {
     /// and creates a [`SocketAddr::V6`] for a [`IpAddr::V6`].
     ///
     /// `u16` is treated as port of the newly created [`SocketAddr`].
+    ///
+    /// [`IpAddr`]: ../../std/net/enum.IpAddr.html
+    /// [`IpAddr::V4`]: ../../std/net/enum.IpAddr.html#variant.V4
+    /// [`IpAddr::V6`]: ../../std/net/enum.IpAddr.html#variant.V6
+    /// [`SocketAddr`]: ../../std/net/enum.SocketAddr.html
+    /// [`SocketAddr::V4`]: ../../std/net/enum.SocketAddr.html#variant.V4
+    /// [`SocketAddr::V6`]: ../../std/net/enum.SocketAddr.html#variant.V6
     fn from(pieces: (I, u16)) -> SocketAddr {
         SocketAddr::new(pieces.0.into(), pieces.1)
     }
@@ -355,26 +363,30 @@ impl fmt::Debug for SocketAddrV6 {
 }
 
 impl Clone for SocketAddrV4 {
-    fn clone(&self) -> SocketAddrV4 { *self }
+    fn clone(&self) -> SocketAddrV4 {
+        *self
+    }
 }
 
 impl Clone for SocketAddrV6 {
-    fn clone(&self) -> SocketAddrV6 { *self }
+    fn clone(&self) -> SocketAddrV6 {
+        *self
+    }
 }
 
 impl PartialEq for SocketAddrV4 {
     fn eq(&self, other: &SocketAddrV4) -> bool {
-        self.inner.sin_port == other.inner.sin_port &&
-            self.inner.sin_addr.s_addr == other.inner.sin_addr.s_addr
+        self.inner.sin_port == other.inner.sin_port
+            && self.inner.sin_addr.s_addr == other.inner.sin_addr.s_addr
     }
 }
 
 impl PartialEq for SocketAddrV6 {
     fn eq(&self, other: &SocketAddrV6) -> bool {
-        self.inner.sin6_port == other.inner.sin6_port &&
-            self.inner.sin6_addr.s6_addr == other.inner.sin6_addr.s6_addr &&
-            self.inner.sin6_flowinfo == other.inner.sin6_flowinfo &&
-            self.inner.sin6_scope_id == other.inner.sin6_scope_id
+        self.inner.sin6_port == other.inner.sin6_port
+            && self.inner.sin6_addr.s6_addr == other.inner.sin6_addr.s6_addr
+            && self.inner.sin6_flowinfo == other.inner.sin6_flowinfo
+            && self.inner.sin6_scope_id == other.inner.sin6_scope_id
     }
 }
 
@@ -390,8 +402,13 @@ impl hash::Hash for SocketAddrV4 {
 
 impl hash::Hash for SocketAddrV6 {
     fn hash<H: hash::Hasher>(&self, s: &mut H) {
-        (self.inner.sin6_port, &self.inner.sin6_addr.s6_addr,
-         self.inner.sin6_flowinfo, self.inner.sin6_scope_id).hash(s)
+        (
+            self.inner.sin6_port,
+            &self.inner.sin6_addr.s6_addr,
+            self.inner.sin6_flowinfo,
+            self.inner.sin6_scope_id,
+        )
+            .hash(s)
     }
 }
 
@@ -427,10 +444,23 @@ impl hash::Hash for SocketAddrV6 {
 /// Addresses returned by the operating system that are not IP addresses are
 /// silently ignored.
 ///
+/// [`FromStr`]: ../../std/str/trait.FromStr.html
+/// [`IpAddr`]: ../../std/net/enum.IpAddr.html
+/// [`Ipv4Addr`]: ../../std/net/struct.Ipv4Addr.html
+/// [`Ipv6Addr`]: ../../std/net/struct.Ipv6Addr.html
+/// [`SocketAddr`]: ../../std/net/enum.SocketAddr.html
+/// [`SocketAddrV4`]: ../../std/net/struct.SocketAddrV4.html
+/// [`SocketAddrV6`]: ../../std/net/struct.SocketAddrV6.html
+/// [`&str`]: ../../std/primitive.str.html
+/// [`TcpStream`]: ../../std/net/struct.TcpStream.html
+/// [`to_socket_addrs`]: #tymethod.to_socket_addrs
+/// [`UdpSocket`]: ../../std/net/struct.UdpSocket.html
+/// [`u16`]: ../../std/primitive.u16.html
+///
 pub trait ToSocketAddrs {
     /// Returned iterator over socket addresses which this type may correspond
     /// to.
-    type Iter: Iterator<Item=SocketAddr>;
+    type Iter: Iterator<Item = SocketAddr>;
 
     /// Converts this object to an iterator of resolved `SocketAddr`s.
     ///
@@ -493,7 +523,12 @@ impl ToSocketAddrs for (Ipv6Addr, u16) {
 #[cfg(feature = "net")]
 fn resolve_socket_addr(lh: LookupHost) -> io::Result<vec::IntoIter<SocketAddr>> {
     let p = lh.port();
-    let v: Vec<_> = lh.map(|mut a| { a.set_port(p); a }).collect();
+    let v: Vec<_> = lh
+        .map(|mut a| {
+            a.set_port(p);
+            a
+        })
+        .collect();
     Ok(v.into_iter())
 }
 
@@ -505,11 +540,11 @@ impl ToSocketAddrs for (&str, u16) {
         // try to parse the host as a regular IP address first
         if let Ok(addr) = host.parse::<Ipv4Addr>() {
             let addr = SocketAddrV4::new(addr, port);
-            return Ok(vec![SocketAddr::V4(addr)].into_iter())
+            return Ok(vec![SocketAddr::V4(addr)].into_iter());
         }
         if let Ok(addr) = host.parse::<Ipv6Addr>() {
             let addr = SocketAddrV6::new(addr, port, 0, 0);
-            return Ok(vec![SocketAddr::V6(addr)].into_iter())
+            return Ok(vec![SocketAddr::V6(addr)].into_iter());
         }
 
         #[cfg(not(feature = "net"))]
@@ -525,7 +560,7 @@ impl ToSocketAddrs for str {
     type Iter = vec::IntoIter<SocketAddr>;
     fn to_socket_addrs(&self) -> io::Result<vec::IntoIter<SocketAddr>> {
         // try to parse as a regular SocketAddr first
-        if let Some(addr) = self.parse().ok() {
+        if let Ok(addr) = self.parse() {
             return Ok(vec![addr].into_iter());
         }
 

@@ -15,10 +15,10 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_types::{c_float, c_double};
+use sgx_libc::{c_float, c_double};
 
 #[link_name = "sgx_tstdc"]
-extern {
+extern "C" {
     pub fn acos(n: c_double) -> c_double;
     pub fn acosf(n: c_float) -> c_float;
     pub fn asin(n: c_double) -> c_double;

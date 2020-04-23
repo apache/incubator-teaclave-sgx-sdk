@@ -14,7 +14,7 @@ pub struct DwarfReader {
     pub ptr: *const u8,
 }
 
-#[repr(C,packed)]
+#[repr(C, packed)]
 struct Unaligned<T>(T);
 
 impl DwarfReader {

@@ -15,103 +15,85 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_trts::libc::c_void;
-use core::fmt;
-use crate::error::Error;
-use crate::io;
-use crate::sys::backtrace::BacktraceContext;
-use crate::sys_common::backtrace::Frame;
-
 use sgx_unwind as uw;
+use core::ffi::c_void;
+use crate::sys::backtrace::Bomb;
 
-struct Context<'a> {
-    idx: usize,
-    frames: &'a mut [Frame],
+pub enum Frame {
+    Raw(*mut uw::_Unwind_Context),
+    Cloned {
+        ip: *mut c_void,
+        symbol_address: *mut c_void,
+    },
 }
 
-#[derive(Debug)]
-struct UnwindError(uw::_Unwind_Reason_Code);
+// With a raw libunwind pointer it should only ever be access in a readonly
+// threadsafe fashion, so it's `Sync`. When sending to other threads via `Clone`
+// we always switch to a version which doesn't retain interior pointers, so we
+// should be `Send` as well.
+unsafe impl Send for Frame {}
+unsafe impl Sync for Frame {}
 
-impl Error for UnwindError {
-    fn description(&self) -> &'static str {
-        "unexpected return value while unwinding"
+impl Frame {
+    pub fn ip(&self) -> *mut c_void {
+        let ctx = match *self {
+            Frame::Raw(ctx) => ctx,
+            Frame::Cloned { ip, .. } => return ip,
+        };
+        unsafe { uw::_Unwind_GetIP(ctx) as *mut c_void }
     }
-}
 
-impl fmt::Display for UnwindError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {:?}", self.description(), self.0)
-    }
-}
-
-#[inline(never)] // if we know this is a function call, we can skip it when
-                 // tracing
-pub fn unwind_backtrace(frames: &mut [Frame])
-    -> io::Result<(usize, BacktraceContext)>
-{
-    let mut cx = Context {
-        idx: 0,
-        frames,
-    };
-    let result_unwind = unsafe {
-        uw::_Unwind_Backtrace(trace_fn,
-                              &mut cx as *mut Context<'_>
-                              as *mut c_void)
-    };
-    // See libunwind:src/unwind/Backtrace.c for the return values.
-    // No, there is no doc.
-    match result_unwind {
-        // These return codes seem to be benign and need to be ignored for backtraces
-        // to show up properly on all tested platforms.
-        uw::_URC_END_OF_STACK | uw::_URC_FATAL_PHASE1_ERROR | uw::_URC_FAILURE => {
-            Ok((cx.idx, BacktraceContext))
+    pub fn symbol_address(&self) -> *mut c_void {
+        if let Frame::Cloned { symbol_address, .. } = *self {
+            return symbol_address;
         }
-        _ => {
-            Err(io::Error::new(io::ErrorKind::Other,
-                               UnwindError(result_unwind)))
+
+        // It seems that on OSX `_Unwind_FindEnclosingFunction` returns a
+        // pointer to... something that's unclear. It's definitely not always
+        // the enclosing function for whatever reason. It's not entirely clear
+        // to me what's going on here, so pessimize this for now and just always
+        // return the ip.
+        //
+        // Note the `skip_inner_frames.rs` test is skipped on OSX due to this
+        // clause, and if this is fixed that test in theory can be run on OSX!
+        if cfg!(target_os = "macos") || cfg!(target_os = "ios") {
+            self.ip()
+        } else {
+            unsafe { uw::_Unwind_FindEnclosingFunction(self.ip()) }
         }
     }
 }
 
-extern fn trace_fn(ctx: *mut uw::_Unwind_Context,
-                   arg: *mut c_void) -> uw::_Unwind_Reason_Code {
-    let cx = unsafe { &mut *(arg as *mut Context<'_>) };
-    if cx.idx >= cx.frames.len() {
-        return uw::_URC_NORMAL_STOP;
+impl Clone for Frame {
+    fn clone(&self) -> Frame {
+        Frame::Cloned {
+            ip: self.ip(),
+            symbol_address: self.symbol_address(),
+        }
     }
+}
 
-    let mut ip_before_insn = 0;
-    let mut ip = unsafe {
-        uw::_Unwind_GetIPInfo(ctx, &mut ip_before_insn) as *mut c_void
-    };
-    if !ip.is_null() && ip_before_insn == 0 {
-        // this is a non-signaling frame, so `ip` refers to the address
-        // after the calling instruction. account for that.
-        ip = (ip as usize - 1) as *mut _;
+#[inline(always)]
+pub unsafe fn trace(mut cb: &mut dyn FnMut(&super::Frame) -> bool) {
+    uw::_Unwind_Backtrace(trace_fn, &mut cb as *mut _ as *mut _);
+
+    extern "C" fn trace_fn(
+        ctx: *mut uw::_Unwind_Context,
+        arg: *mut c_void,
+    ) -> uw::_Unwind_Reason_Code {
+        let cb = unsafe { &mut *(arg as *mut &mut dyn FnMut(&super::Frame) -> bool) };
+        let cx = super::Frame {
+            inner: Frame::Raw(ctx),
+        };
+
+        let mut bomb = Bomb::new(true);
+        let keep_going = cb(&cx);
+        bomb.set(false);
+
+        if keep_going {
+            uw::_URC_NO_REASON
+        } else {
+            uw::_URC_FAILURE
+        }
     }
-
-    // dladdr() on osx gets whiny when we use FindEnclosingFunction, and
-    // it appears to work fine without it, so we only use
-    // FindEnclosingFunction on non-osx platforms. In doing so, we get a
-    // slightly more accurate stack trace in the process.
-    //
-    // This is often because panic involves the last instruction of a
-    // function being "call std::rt::begin_unwind", with no ret
-    // instructions after it. This means that the return instruction
-    // pointer points *outside* of the calling function, and by
-    // unwinding it we go back to the original function.
-    let symaddr = if cfg!(target_os = "macos") || cfg!(target_os = "ios") {
-        ip
-    } else {
-        unsafe { uw::_Unwind_FindEnclosingFunction(ip) }
-    };
-
-    cx.frames[cx.idx] = Frame {
-        symbol_addr: symaddr as *mut u8,
-        exact_position: ip as *mut u8,
-        inline_context: 0,
-    };
-    cx.idx += 1;
-
-    uw::_URC_NO_REASON
 }

@@ -37,13 +37,15 @@ pub extern "C" fn u_free_ocall(p: *mut c_void) {
 }
 
 #[no_mangle]
-pub extern "C" fn u_mmap_ocall(error: *mut c_int,
-                               start: *mut c_void,
-                               length: size_t,
-                               prot: c_int,
-                               flags: c_int,
-                               fd: c_int,
-                               offset: off_t) -> *mut c_void {
+pub extern "C" fn u_mmap_ocall(
+    error: *mut c_int,
+    start: *mut c_void,
+    length: size_t,
+    prot: c_int,
+    flags: c_int,
+    fd: c_int,
+    offset: off_t,
+) -> *mut c_void {
     let mut errno = 0;
     let ret = unsafe { libc::mmap(start, length, prot, flags, fd, offset) };
     if ret as isize == -1 {
@@ -56,9 +58,11 @@ pub extern "C" fn u_mmap_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_munmap_ocall(error: *mut c_int,
-                                 start: *mut c_void,
-                                 length: size_t) -> c_int {
+pub extern "C" fn u_munmap_ocall(
+    error: *mut c_int,
+    start: *mut c_void,
+    length: size_t,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::munmap(start, length) };
     if ret < 0 {
@@ -71,10 +75,12 @@ pub extern "C" fn u_munmap_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_msync_ocall(error: *mut c_int,
-                                addr: *mut c_void,
-                                length: size_t,
-                                flags: c_int) -> c_int {
+pub extern "C" fn u_msync_ocall(
+    error: *mut c_int,
+    addr: *mut c_void,
+    length: size_t,
+    flags: c_int,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::msync(addr, length, flags) };
     if ret < 0 {
@@ -87,10 +93,12 @@ pub extern "C" fn u_msync_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_mprotect_ocall(error: *mut c_int,
-                                   addr: *mut c_void,
-                                   length: size_t,
-                                   prot: c_int) -> c_int {
+pub extern "C" fn u_mprotect_ocall(
+    error: *mut c_int,
+    addr: *mut c_void,
+    length: size_t,
+    prot: c_int,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::mprotect(addr, length, prot) };
     if ret < 0 {

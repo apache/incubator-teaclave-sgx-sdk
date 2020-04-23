@@ -23,8 +23,6 @@ cfg_if! {
         use std::fmt;
         use std::path::PathBuf;
         use std::prelude::v1::*;
-    } else {
-
     }
 }
 

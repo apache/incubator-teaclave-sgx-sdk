@@ -20,13 +20,13 @@
 //! This mod has clear interface and is easy to understand. Currently we don't
 //! have time for its documents.
 
-use sgx_types::*;
 use sgx_types::metadata::*;
+use sgx_types::*;
 
-pub const LAYOUT_ENTRY_NUM : usize = 42;
+pub const LAYOUT_ENTRY_NUM: usize = 42;
 
 #[link(name = "sgx_trts")]
-extern {
+extern "C" {
     static g_global_data: global_data_t;
     static g_cpu_feature_indicator: uint64_t;
     static g_cpu_core_num: uint32_t;
@@ -41,6 +41,7 @@ extern {
 
 #[repr(C)]
 pub struct global_data_t {
+    pub sdk_version: usize,
     pub enclave_size: usize,
     pub heap_offset: usize,
     pub heap_size: usize,
@@ -86,7 +87,7 @@ pub struct SgxGlobalData {
     rsrv_offset: usize,
     rsrv_size: usize,
     thread_policy: SgxThreadPolicy,
-    static_tcs_num: u32,  // minpool thread + utility thread
+    static_tcs_num: u32, // minpool thread + utility thread
     eremove_tcs_num: u32,
     dyn_tcs_num: u32,
     max_tcs_num: u32,
@@ -99,7 +100,6 @@ impl Default for SgxGlobalData {
 }
 
 impl SgxGlobalData {
-
     ///
     /// get global_data.
     ///
@@ -110,19 +110,19 @@ impl SgxGlobalData {
     pub fn new() -> Self {
         let (static_num, eremove_num, dyn_num) = rsgx_get_tcs_num();
         SgxGlobalData {
-           enclave_base: rsgx_get_enclave_base() as usize,
-           enclave_size: rsgx_get_enclave_size(),
-           heap_base: rsgx_get_heap_base() as usize,
-           heap_offset: rsgx_get_heap_offset(),
-           heap_size: rsgx_get_heap_size(),
-           rsrv_base: rsgx_get_rsrv_base() as usize,
-           rsrv_offset: rsgx_get_rsrv_offset(),
-           rsrv_size: rsgx_get_rsrv_size(),
-           thread_policy: rsgx_get_thread_policy(),
-           static_tcs_num: static_num,
-           eremove_tcs_num: eremove_num,
-           dyn_tcs_num: dyn_num,
-           max_tcs_num: rsgx_get_tcs_max_num(),
+            enclave_base: rsgx_get_enclave_base() as usize,
+            enclave_size: rsgx_get_enclave_size(),
+            heap_base: rsgx_get_heap_base() as usize,
+            heap_offset: rsgx_get_heap_offset(),
+            heap_size: rsgx_get_heap_size(),
+            rsrv_base: rsgx_get_rsrv_base() as usize,
+            rsrv_offset: rsgx_get_rsrv_offset(),
+            rsrv_size: rsgx_get_rsrv_size(),
+            thread_policy: rsgx_get_thread_policy(),
+            static_tcs_num: static_num,
+            eremove_tcs_num: eremove_num,
+            dyn_tcs_num: dyn_num,
+            max_tcs_num: rsgx_get_tcs_max_num(),
         }
     }
 
@@ -261,7 +261,6 @@ pub struct SgxThreadData {
 }
 
 impl SgxThreadData {
-
     ///
     /// get thread_data per thread.
     ///
@@ -379,7 +378,7 @@ impl SgxThreadData {
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum SgxThreadPolicy {
     Bound,
-    Unbound
+    Unbound,
 }
 
 ///
@@ -415,7 +414,7 @@ pub fn rsgx_get_enclave_base() -> *const u8 {
 ///
 #[inline]
 pub fn rsgx_get_enclave_size() -> usize {
-    unsafe{ g_global_data.enclave_size }
+    unsafe { g_global_data.enclave_size }
 }
 
 ///
@@ -439,7 +438,7 @@ pub fn rsgx_get_heap_base() -> *const u8 {
 ///
 #[inline]
 pub fn rsgx_get_heap_offset() -> usize {
-    unsafe{ g_global_data.heap_offset }
+    unsafe { g_global_data.heap_offset }
 }
 
 ///
@@ -475,7 +474,7 @@ pub fn rsgx_get_rsrv_base() -> *const u8 {
 ///
 #[inline]
 pub fn rsgx_get_rsrv_offset() -> usize {
-    unsafe{ g_global_data.rsrv_offset }
+    unsafe { g_global_data.rsrv_offset }
 }
 
 ///
@@ -542,10 +541,20 @@ pub fn rsgx_get_tcs_num() -> (u32, u32, u32) {
     let mut eremove_tcs_num: u32 = 0;
     let mut dyn_tcs_num: u32 = 0;
     let layout_table = &gd.layout_table[0..gd.layout_entry_num as usize];
-    unsafe { traversal_layout(&mut static_tcs_num, &mut dyn_tcs_num, &mut eremove_tcs_num, layout_table); }
+    unsafe {
+        traversal_layout(
+            &mut static_tcs_num,
+            &mut dyn_tcs_num,
+            &mut eremove_tcs_num,layout_table,
+        );
+    }
 
-    unsafe fn traversal_layout(static_num: &mut u32, dyn_num: &mut u32, eremove_num: &mut u32, layout_table: &[layout_t])
-    {
+    unsafe fn traversal_layout(
+        static_num: &mut u32,
+        dyn_num: &mut u32,
+        eremove_num: &mut u32,
+        layout_table: &[layout_t],
+    ) {
         for (i, layout) in layout_table.iter().enumerate() {
             if !is_group_id!(layout.group.id as u32) {
                 if (layout.entry.attributes & PAGE_ATTR_EADD) != 0 {

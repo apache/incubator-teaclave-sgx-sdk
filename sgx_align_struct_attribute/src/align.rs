@@ -56,16 +56,26 @@ impl AlignArgs {
         let align: usize = if let Some(align_value) = align_iter {
             self.parse_align(&align_value.value)?
         } else {
-            return Err(Error::new(Span::call_site(), "Invalid type of align attribute parsing"));
+            return Err(Error::new(
+                Span::call_site(),
+                "Invalid type of align attribute parsing",
+            ));
         };
 
         let size_iter = self.vars.iter().filter(|v| v.ident.to_string() == "size").next();
         let size: usize = if let Some(size_value) = size_iter {
             self.parse_size(&size_value.value)?
         } else {
-            return Err(Error::new(Span::call_site(), "Invalid type of size attribute parsing"));
+            return Err(Error::new(
+                Span::call_site(),
+                "Invalid type of size attribute parsing",
+            ));
         };
-        Layout::from_size_align(size, align).map_err(|_e| Error::new(Span::call_site(), "Layout illegal"))
+        Layout::from_size_align(size, align)
+            .map_err(|_e| Error::new(
+                Span::call_site(),
+                "Layout illegal",
+            ))
     }
 
     fn parse_align(&self, align_expr: &Expr) -> Result<usize> {
@@ -74,10 +84,16 @@ impl AlignArgs {
                 let align = lit.base10_parse::<u32>()?;
                 Ok(align as usize)
             } else {
-                Err(Error::new(Span::call_site(), "Invalid align attribute parsing"))
+                Err(Error::new(
+                    Span::call_site(),
+                    "Invalid align attribute parsing",
+                ))
             }
         } else {
-            Err(Error::new(Span::call_site(), "Invalid align attribute parsing"))
+            Err(Error::new(
+                Span::call_site(),
+                "Invalid align attribute parsing",
+            ))
         }
     }
 
@@ -87,10 +103,16 @@ impl AlignArgs {
                 let size = lit.base10_parse::<u32>()?;
                 Ok(size as usize)
             } else {
-                Err(Error::new(Span::call_site(), "Invalid size attribute parsing"))
+                Err(Error::new(
+                    Span::call_site(),
+                    "Invalid size attribute parsing",
+                ))
             }
         } else {
-            Err(Error::new(Span::call_site(), "Invalid size attribute parsing"))
+            Err(Error::new(
+                Span::call_site(),
+                "Invalid size attribute parsing",
+            ))
         }
     }
 }
@@ -175,7 +197,8 @@ impl AlignStruct {
                             }    
                             find
                         })
-                        .next().is_some();
+                        .next()
+                        .is_some();
                     }
                 }
             }

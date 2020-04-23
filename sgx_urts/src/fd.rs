@@ -19,10 +19,12 @@ use std::io::Error;
 use libc::{self, c_int, c_void, size_t, ssize_t, off64_t, c_ulong, iovec};
 
 #[no_mangle]
-pub extern "C" fn u_read_ocall(error: *mut c_int,
-                               fd: c_int,
-                               buf: *mut c_void,
-                               count: size_t) -> ssize_t {
+pub extern "C" fn u_read_ocall(
+    error: *mut c_int,
+    fd: c_int,
+    buf: *mut c_void,
+    count: size_t,
+) -> ssize_t {
     let mut errno = 0;
     let ret = unsafe { libc::read(fd, buf, count) };
     if ret < 0 {
@@ -35,11 +37,13 @@ pub extern "C" fn u_read_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_pread64_ocall(error: *mut c_int,
-                                  fd: c_int,
-                                  buf: *mut c_void,
-                                  count: size_t,
-                                  offset: off64_t) -> ssize_t {
+pub extern "C" fn u_pread64_ocall(
+    error: *mut c_int,
+    fd: c_int,
+    buf: *mut c_void,
+    count: size_t,
+    offset: off64_t,
+) -> ssize_t {
     let mut errno = 0;
     let ret = unsafe { libc::pread64(fd, buf, count, offset) };
     if ret < 0 {
@@ -52,10 +56,12 @@ pub extern "C" fn u_pread64_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_readv_ocall(error: *mut c_int,
-                                fd: c_int,
-                                iov: *const iovec,
-                                iovcnt: c_int) -> ssize_t {
+pub extern "C" fn u_readv_ocall(
+    error: *mut c_int,
+    fd: c_int,
+    iov: *const iovec,
+    iovcnt: c_int,
+) -> ssize_t {
     let mut errno = 0;
     let ret = unsafe { libc::readv(fd, iov, iovcnt) };
     if ret < 0 {
@@ -68,11 +74,13 @@ pub extern "C" fn u_readv_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_preadv64_ocall(error: *mut c_int,
-                                   fd: c_int,
-                                   iov: *const iovec,
-                                   iovcnt: c_int,
-                                   offset: off64_t) -> ssize_t {
+pub extern "C" fn u_preadv64_ocall(
+    error: *mut c_int,
+    fd: c_int,
+    iov: *const iovec,
+    iovcnt: c_int,
+    offset: off64_t,
+) -> ssize_t {
     let mut errno = 0;
     let ret = unsafe { libc::preadv64(fd, iov, iovcnt, offset) };
     if ret < 0 {
@@ -85,10 +93,12 @@ pub extern "C" fn u_preadv64_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_write_ocall(error: *mut c_int,
-                                fd: c_int,
-                                buf: *const c_void,
-                                count: size_t) -> ssize_t {
+pub extern "C" fn u_write_ocall(
+    error: *mut c_int,
+    fd: c_int,
+    buf: *const c_void,
+    count: size_t,
+) -> ssize_t {
     let mut errno = 0;
     let ret = unsafe { libc::write(fd, buf, count) };
     if ret < 0 {
@@ -101,11 +111,13 @@ pub extern "C" fn u_write_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_pwrite64_ocall(error: *mut c_int,
-                                   fd: c_int,
-                                   buf: *const c_void,
-                                   count: size_t,
-                                   offset: off64_t) -> ssize_t {
+pub extern "C" fn u_pwrite64_ocall(
+    error: *mut c_int,
+    fd: c_int,
+    buf: *const c_void,
+    count: size_t,
+    offset: off64_t,
+) -> ssize_t {
     let mut errno = 0;
     let ret = unsafe { libc::pwrite64(fd, buf, count, offset) };
     if ret < 0 {
@@ -118,10 +130,12 @@ pub extern "C" fn u_pwrite64_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_writev_ocall(error: *mut c_int,
-                                 fd: c_int,
-                                 iov: *const iovec,
-                                 iovcnt: c_int) -> ssize_t {
+pub extern "C" fn u_writev_ocall(
+    error: *mut c_int,
+    fd: c_int,
+    iov: *const iovec,
+    iovcnt: c_int,
+) -> ssize_t {
     let mut errno = 0;
     let ret = unsafe { libc::writev(fd, iov, iovcnt) };
     if ret < 0 {
@@ -134,11 +148,13 @@ pub extern "C" fn u_writev_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_pwritev64_ocall(error: *mut c_int,
-                                    fd: c_int,
-                                    iov: *const iovec,
-                                    iovcnt: c_int,
-                                    offset: off64_t) -> ssize_t {
+pub extern "C" fn u_pwritev64_ocall(
+    error: *mut c_int,
+    fd: c_int,
+    iov: *const iovec,
+    iovcnt: c_int,
+    offset: off64_t,
+) -> ssize_t {
     let mut errno = 0;
     let ret = unsafe { libc::pwritev64(fd, iov, iovcnt, offset) };
     if ret < 0 {
@@ -151,9 +167,11 @@ pub extern "C" fn u_pwritev64_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_fcntl_arg0_ocall(error: *mut c_int,
-                                     fd: c_int,
-                                     cmd: c_int) -> c_int {
+pub extern "C" fn u_fcntl_arg0_ocall(
+    error: *mut c_int,
+    fd: c_int,
+    cmd: c_int,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::fcntl(fd, cmd) };
     if ret < 0 {
@@ -166,10 +184,12 @@ pub extern "C" fn u_fcntl_arg0_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_fcntl_arg1_ocall(error: *mut c_int,
-                                     fd: c_int,
-                                     cmd: c_int,
-                                     arg: c_int) -> c_int {
+pub extern "C" fn u_fcntl_arg1_ocall(
+    error: *mut c_int,
+    fd: c_int,
+    cmd: c_int,
+    arg: c_int,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::fcntl(fd, cmd, arg) };
     if ret < 0 {
@@ -182,9 +202,11 @@ pub extern "C" fn u_fcntl_arg1_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_ioctl_arg0_ocall(error: *mut c_int,
-                                     fd: c_int,
-                                     request: c_int) -> c_int {
+pub extern "C" fn u_ioctl_arg0_ocall(
+    error: *mut c_int,
+    fd: c_int,
+    request: c_int,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::ioctl(fd, request as c_ulong) };
     if ret < 0 {
@@ -197,10 +219,12 @@ pub extern "C" fn u_ioctl_arg0_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_ioctl_arg1_ocall(error: *mut c_int,
-                                     fd: c_int,
-                                     request: c_int,
-                                     arg: *mut c_int) -> c_int {
+pub extern "C" fn u_ioctl_arg1_ocall(
+    error: *mut c_int,
+    fd: c_int,
+    request: c_int,
+    arg: *mut c_int,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::ioctl(fd, request as c_ulong, arg) };
     if ret < 0 {

@@ -18,10 +18,9 @@
 use sgx_trts::libc;
 use core::cmp::Ordering;
 use core::hash::{Hash, Hasher};
-use crate::time::Duration;
-
-pub use self::inner::{Instant, SystemTime, UNIX_EPOCH};
 use core::convert::TryInto;
+use crate::time::Duration;
+pub use self::inner::{Instant, SystemTime, UNIX_EPOCH};
 
 const NSEC_PER_SEC: u64 = 1_000_000_000;
 
@@ -32,20 +31,21 @@ struct Timespec {
 
 impl Timespec {
     const fn zero() -> Timespec {
-        Timespec {
-            t: libc::timespec { tv_sec: 0, tv_nsec: 0 },
-        }
+        Timespec { t: libc::timespec { tv_sec: 0, tv_nsec: 0 } }
     }
 
     fn sub_timespec(&self, other: &Timespec) -> Result<Duration, Duration> {
         if self >= other {
             Ok(if self.t.tv_nsec >= other.t.tv_nsec {
-                Duration::new((self.t.tv_sec - other.t.tv_sec) as u64,
-                              (self.t.tv_nsec - other.t.tv_nsec) as u32)
+                Duration::new(
+                    (self.t.tv_sec - other.t.tv_sec) as u64,
+                    (self.t.tv_nsec - other.t.tv_nsec) as u32,
+                )
             } else {
-                Duration::new((self.t.tv_sec - 1 - other.t.tv_sec) as u64,
-                              self.t.tv_nsec as u32 + (NSEC_PER_SEC as u32) -
-                              other.t.tv_nsec as u32)
+                Duration::new(
+                    (self.t.tv_sec - 1 - other.t.tv_sec) as u64,
+                    self.t.tv_nsec as u32 + (NSEC_PER_SEC as u32) - other.t.tv_nsec as u32,
+                )
             })
         } else {
             match other.sub_timespec(self) {
@@ -69,12 +69,7 @@ impl Timespec {
             nsec -= NSEC_PER_SEC as u32;
             secs = secs.checked_add(1)?;
         }
-        Some(Timespec {
-            t: libc::timespec {
-                tv_sec: secs,
-                tv_nsec: nsec as _,
-            },
-        })
+        Some(Timespec { t: libc::timespec { tv_sec: secs, tv_nsec: nsec as _ } })
     }
 
     fn checked_sub_duration(&self, other: &Duration) -> Option<Timespec> {
@@ -90,12 +85,7 @@ impl Timespec {
             nsec += NSEC_PER_SEC as i32;
             secs = secs.checked_sub(1)?;
         }
-        Some(Timespec {
-            t: libc::timespec {
-                tv_sec: secs,
-                tv_nsec: nsec as _,
-            },
-        })
+        Some(Timespec { t: libc::timespec { tv_sec: secs, tv_nsec: nsec as _ } })
     }
 }
 
@@ -122,7 +112,7 @@ impl Ord for Timespec {
 }
 
 impl Hash for Timespec {
-    fn hash<H : Hasher>(&self, state: &mut H) {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         self.t.tv_sec.hash(state);
         self.t.tv_nsec.hash(state);
     }
@@ -186,9 +176,9 @@ mod inner {
     impl fmt::Debug for Instant {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             f.debug_struct("Instant")
-             .field("tv_sec", &self.t.t.tv_sec)
-             .field("tv_nsec", &self.t.t.tv_nsec)
-             .finish()
+                .field("tv_sec", &self.t.t.tv_sec)
+                .field("tv_nsec", &self.t.t.tv_nsec)
+                .finish()
         }
     }
 
@@ -197,8 +187,7 @@ mod inner {
             SystemTime { t: now(libc::CLOCK_REALTIME) }
         }
 
-        pub fn sub_time(&self, other: &SystemTime)
-                        -> Result<Duration, Duration> {
+        pub fn sub_time(&self, other: &SystemTime) -> Result<Duration, Duration> {
             self.t.sub_timespec(&other.t)
         }
 
@@ -224,22 +213,15 @@ mod inner {
     impl fmt::Debug for SystemTime {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             f.debug_struct("SystemTime")
-             .field("tv_sec", &self.t.t.tv_sec)
-             .field("tv_nsec", &self.t.t.tv_nsec)
-             .finish()
+                .field("tv_sec", &self.t.t.tv_sec)
+                .field("tv_nsec", &self.t.t.tv_nsec)
+                .finish()
         }
     }
 
     fn now(clock: libc::clockid_t) -> Timespec {
-        let mut t = Timespec {
-            t: libc::timespec {
-                tv_sec: 0,
-                tv_nsec: 0,
-            }
-        };
-        cvt(unsafe {
-            libc::clock_gettime(clock, &mut t.t)
-        }).unwrap();
+        let mut t = Timespec { t: libc::timespec { tv_sec: 0, tv_nsec: 0 } };
+        cvt(unsafe { libc::clock_gettime(clock, &mut t.t) }).unwrap();
         t
     }
 

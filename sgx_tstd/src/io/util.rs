@@ -17,7 +17,7 @@
 
 #![allow(missing_copy_implementations)]
 
-use crate::io::{self, Read, Initializer, Write, ErrorKind, BufRead, IoSlice, IoSliceMut};
+use crate::io::{self, BufRead, ErrorKind, Initializer, IoSlice, IoSliceMut, Read, Write};
 use core::fmt;
 use core::mem::MaybeUninit;
 
@@ -41,7 +41,9 @@ use core::mem::MaybeUninit;
 /// `write` returns an error. All instances of `ErrorKind::Interrupted` are
 /// handled by this function and the underlying operation is retried.
 pub fn copy<R: ?Sized, W: ?Sized>(reader: &mut R, writer: &mut W) -> io::Result<u64>
-    where R: Read, W: Write
+where
+    R: Read,
+    W: Write,
 {
     let mut buf = MaybeUninit::<[u8; super::DEFAULT_BUF_SIZE]>::uninit();
     // FIXME(#53491): This is calling `get_mut` and `get_ref` on an uninitialized
@@ -49,7 +51,9 @@ pub fn copy<R: ?Sized, W: ?Sized>(reader: &mut R, writer: &mut W) -> io::Result<
     // This is still technically undefined behavior due to creating a reference
     // to uninitialized data, but within libstd we can rely on more guarantees
     // than if this code were in an external lib.
-    unsafe { reader.initializer().initialize(buf.get_mut()); }
+    unsafe {
+        reader.initializer().initialize(buf.get_mut());
+    }
 
     let mut written = 0;
     loop {
@@ -70,7 +74,9 @@ pub fn copy<R: ?Sized, W: ?Sized>(reader: &mut R, writer: &mut W) -> io::Result<
 /// the documentation of [`empty()`][`empty`] for more details.
 ///
 /// [`empty`]: fn.empty.html
-pub struct Empty { _priv: () }
+pub struct Empty {
+    _priv: (),
+}
 
 /// Constructs a new handle to an empty reader.
 ///
@@ -82,7 +88,9 @@ pub fn empty() -> Empty { Empty { _priv: () } }
 
 impl Read for Empty {
     #[inline]
-    fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> { Ok(0) }
+    fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
+        Ok(0)
+    }
 
     #[inline]
     unsafe fn initializer(&self) -> Initializer {
@@ -92,7 +100,9 @@ impl Read for Empty {
 
 impl BufRead for Empty {
     #[inline]
-    fn fill_buf(&mut self) -> io::Result<&[u8]> { Ok(&[]) }
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        Ok(&[])
+    }
     #[inline]
     fn consume(&mut self, _n: usize) {}
 }
@@ -109,13 +119,17 @@ impl fmt::Debug for Empty {
 /// see the documentation of `repeat()` for more details.
 ///
 /// [repeat]: fn.repeat.html
-pub struct Repeat { byte: u8 }
+pub struct Repeat {
+    byte: u8,
+}
 
 /// Creates an instance of a reader that infinitely repeats one byte.
 ///
 /// All reads from this reader will succeed by filling the specified buffer with
 /// the given byte.
-pub fn repeat(byte: u8) -> Repeat { Repeat { byte } }
+pub fn repeat(byte: u8) -> Repeat {
+    Repeat { byte }
+}
 
 impl Read for Repeat {
     #[inline]
@@ -153,17 +167,23 @@ impl fmt::Debug for Repeat {
 /// see the documentation of `sink()` for more details.
 ///
 /// [sink]: fn.sink.html
-pub struct Sink { _priv: () }
+pub struct Sink {
+    _priv: (),
+}
 
 /// Creates an instance of a writer which will successfully consume all data.
 ///
 /// All calls to `write` on the returned instance will return `Ok(buf.len())`
 /// and the contents of the buffer will not be inspected.
-pub fn sink() -> Sink { Sink { _priv: () } }
+pub fn sink() -> Sink {
+    Sink { _priv: () }
+}
 
 impl Write for Sink {
     #[inline]
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> { Ok(buf.len()) }
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        Ok(buf.len())
+    }
 
     #[inline]
     fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
@@ -172,7 +192,9 @@ impl Write for Sink {
     }
 
     #[inline]
-    fn flush(&mut self) -> io::Result<()> { Ok(()) }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 impl fmt::Debug for Sink {

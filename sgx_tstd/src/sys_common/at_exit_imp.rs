@@ -27,7 +27,6 @@ type Queue = Vec<Box<dyn FnOnce()>>;
 // on poisoning and this module needs to operate at a lower level than requiring
 // the thread infrastructure to be in place (useful on the borders of
 // initialization/destruction).
-//static LOCK: SgxThreadMutex = SgxThreadMutex::new();
 static LOCK: SgxThreadSpinlock = SgxThreadSpinlock::new();
 static mut QUEUE: *mut Queue = ptr::null_mut();
 const DONE: *mut Queue = 1_usize as *mut _;
@@ -40,11 +39,11 @@ const ITERS: usize = 10;
 
 unsafe fn init() -> bool {
     if QUEUE.is_null() {
-        let state: Box<Queue> = Box::new(Vec::new());
+        let state: Box<Queue> = box Vec::new();
         QUEUE = Box::into_raw(state);
     } else if QUEUE == DONE {
         // can't re-init after a cleanup
-        return false
+        return false;
     }
 
     true

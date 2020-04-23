@@ -31,7 +31,7 @@ pub use alloc_crate::sync::{Arc, Weak};
 pub use core::sync::atomic;
 
 pub use self::barrier::{Barrier, BarrierWaitResult};
-pub use self::condvar::{SgxCondvar, SgxThreadCondvar};
+pub use self::condvar::{SgxCondvar, SgxThreadCondvar, WaitTimeoutResult};
 pub use self::mutex::{SgxMutex, SgxMutexGuard, SgxThreadMutex};
 pub use self::remutex::{SgxReentrantMutex, SgxReentrantMutexGuard, SgxReentrantThreadMutex};
 pub use self::once::{Once, OnceState, ONCE_INIT};

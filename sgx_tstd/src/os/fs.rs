@@ -25,7 +25,9 @@ use crate::sys_common::AsInner;
 
 use crate::os::raw;
 
-/// OS-specific extension methods for `fs::Metadata`
+/// OS-specific extensions to [`fs::Metadata`].
+///
+/// [`fs::Metadata`]: ../../../../std/fs/struct.Metadata.html
 pub trait MetadataExt {
     /// Gain a reference to the underlying `stat` structure which contains
     /// the raw information returned by the OS.
@@ -66,16 +68,16 @@ pub trait MetadataExt {
     /// Returns the last access time.
     ///
     fn st_atime(&self) -> i64;
-    /// Returns the last access time, nano seconds part.
+    /// Returns the last access time of the file, in nanoseconds since [`st_atime`].
     ///
     fn st_atime_nsec(&self) -> i64;
-    /// Returns the last modification time.
+    /// Returns the last modification time of the file, in seconds since Unix Epoch.
     ///
     fn st_mtime(&self) -> i64;
-    /// Returns the last modification time, nano seconds part.
+    /// Returns the last modification time of the file, in nanoseconds since [`st_mtime`].
     ///
     fn st_mtime_nsec(&self) -> i64;
-    /// Returns the last status change time.
+    /// Returns the last status change time of the file, in seconds since Unix Epoch.
     ///
     fn st_ctime(&self) -> i64;
     /// Returns the last status change time, nano seconds part.
@@ -91,10 +93,7 @@ pub trait MetadataExt {
 
 impl MetadataExt for Metadata {
     fn as_raw_stat(&self) -> &raw::stat {
-        unsafe {
-            &*(self.as_inner().as_inner() as *const libc::stat64
-                                          as *const raw::stat)
-        }
+        unsafe { &*(self.as_inner().as_inner() as *const libc::stat64 as *const raw::stat) }
     }
     fn st_dev(&self) -> u64 {
         self.as_inner().as_inner().st_dev as u64

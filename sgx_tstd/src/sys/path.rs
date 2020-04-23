@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::path::Prefix;
 use crate::ffi::OsStr;
+use crate::path::Prefix;
 
 #[inline]
 pub fn is_sep_byte(b: u8) -> bool {

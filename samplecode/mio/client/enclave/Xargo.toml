@@ -89,3 +89,6 @@ stage = 7
 [dependencies.sgx_cov]
 path = "../../../../sgx_cov"
 stage = 7
+[dependencies.sgx_signal]
+path = "../../../../sgx_signal"
+stage = 7

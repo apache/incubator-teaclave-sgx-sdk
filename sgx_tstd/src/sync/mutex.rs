@@ -32,10 +32,8 @@ use core::mem;
 use core::ptr;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
-use core::marker;
 use alloc_crate::boxed::Box;
-use crate::panic::{UnwindSafe, RefUnwindSafe};
-use crate::sys_common::poison::{self, TryLockError, TryLockResult, LockResult};
+use crate::sys_common::poison::{self, LockResult, TryLockError, TryLockResult};
 use crate::sys::mutex as imp;
 
 /// The structure of sgx mutex.
@@ -45,7 +43,6 @@ unsafe impl Send for SgxThreadMutex {}
 unsafe impl Sync for SgxThreadMutex {}
 
 impl SgxThreadMutex {
-
     ///
     /// The function initializes a trusted mutex object within the enclave.
     ///
@@ -69,7 +66,7 @@ impl SgxThreadMutex {
     ///
     /// The trusted mutex object to be initialized.
     ///
-    pub const fn new() -> Self {
+    pub const fn new() -> SgxThreadMutex {
         SgxThreadMutex(imp::SgxThreadMutex::new(imp::SgxThreadMutexControl::SGX_THREAD_MUTEX_NONRECURSIVE))
     }
 
@@ -221,10 +218,10 @@ pub fn raw(mutex: &SgxThreadMutex) -> &imp::SgxThreadMutex { &mutex.0 }
 /// A mutual exclusion primitive useful for protecting shared data
 ///
 /// This mutex will block threads waiting for the lock to become available. The
-/// mutex can also be statically initialized or created via a `new`
+/// mutex can also be statically initialized or created via a [`new`]
 /// constructor. Each mutex has a type parameter which represents the data that
 /// it is protecting. The data can only be accessed through the RAII guards
-/// returned from `lock` and `try_lock`, which guarantees that the data is only
+/// returned from [`lock`] and [`try_lock`], which guarantees that the data is only
 /// ever accessed when the mutex is locked.
 ///
 /// # Poisoning
@@ -235,16 +232,23 @@ pub fn raw(mutex: &SgxThreadMutex) -> &imp::SgxThreadMutex { &mutex.0 }
 /// data by default as it is likely tainted (some invariant is not being
 /// upheld).
 ///
-/// For a mutex, this means that the `lock` and `try_lock` methods return a
-/// `Result` which indicates whether a mutex has been poisoned or not. Most
-/// usage of a mutex will simply `unwrap()` these results, propagating panics
+/// For a mutex, this means that the [`lock`] and [`try_lock`] methods return a
+/// [`Result`] which indicates whether a mutex has been poisoned or not. Most
+/// usage of a mutex will simply [`unwrap()`] these results, propagating panics
 /// among threads to ensure that a possibly invalid invariant is not witnessed.
 ///
 /// A poisoned mutex, however, does not prevent all access to the underlying
-/// data. The `PoisonError` type has an `into_inner` method which will return
+/// data. The [`PoisonError`] type has an [`into_inner`] method which will return
 /// the guard that would have otherwise been returned on a successful lock. This
 /// allows access to the data, despite the lock being poisoned.
 ///
+/// [`new`]: #method.new
+/// [`lock`]: #method.lock
+/// [`try_lock`]: #method.try_lock
+/// [`Result`]: ../../std/result/enum.Result.html
+/// [`unwrap()`]: ../../std/result/enum.Result.html#method.unwrap
+/// [`PoisonError`]: ../../std/sync/struct.PoisonError.html
+/// [`into_inner`]: ../../std/sync/struct.PoisonError.html#method.into_inner
 pub struct SgxMutex<T: ?Sized> {
     inner: Box<SgxThreadMutex>,
     poison: poison::Flag,
@@ -256,8 +260,28 @@ pub struct SgxMutex<T: ?Sized> {
 unsafe impl<T: ?Sized + Send> Send for SgxMutex<T> {}
 unsafe impl<T: ?Sized + Send> Sync for SgxMutex<T> {}
 
-impl<T: ?Sized> UnwindSafe for SgxMutex<T> {}
-impl<T: ?Sized> RefUnwindSafe for SgxMutex<T> {}
+///
+/// An RAII implementation of a "scoped lock" of a mutex. When this structure is
+/// dropped (falls out of scope), the lock will be unlocked.
+///
+/// The data protected by the mutex can be accessed through this guard via its
+/// [`Deref`] and [`DerefMut`] implementations.
+///
+/// This structure is created by the [`lock`] and [`try_lock`] methods on
+/// [`Mutex`].
+///
+/// [`Deref`]: ../../std/ops/trait.Deref.html
+/// [`DerefMut`]: ../../std/ops/trait.DerefMut.html
+/// [`lock`]: struct.Mutex.html#method.lock
+/// [`try_lock`]: struct.Mutex.html#method.try_lock
+/// [`Mutex`]: struct.Mutex.html
+pub struct SgxMutexGuard<'a, T: ?Sized + 'a> {
+    lock: &'a SgxMutex<T>,
+    poison: poison::Guard,
+}
+
+impl<T: ?Sized> !Send for SgxMutexGuard<'_, T> {}
+unsafe impl<T: ?Sized + Sync> Sync for SgxMutexGuard<'_, T> {}
 
 impl<T> SgxMutex<T> {
     ///
@@ -273,7 +297,6 @@ impl<T> SgxMutex<T> {
 }
 
 impl<T: ?Sized> SgxMutex<T> {
-
     ///
     /// The function locks a trusted mutex object within an enclave.
     ///
@@ -309,7 +332,7 @@ impl<T: ?Sized> SgxMutex<T> {
     ///
     /// Attempts to acquire this lock.
     ///
-    /// If the lock could not be acquired at this time, then `Err` is returned.
+    /// If the lock could not be acquired at this time, then [`Err`] is returned.
     /// Otherwise, an RAII guard is returned. The lock will be unlocked when the
     /// guard is dropped.
     ///
@@ -320,6 +343,8 @@ impl<T: ?Sized> SgxMutex<T> {
     /// If another user of this mutex panicked while holding the mutex, then
     /// this call will return failure if the mutex would otherwise be
     /// acquired.
+    ///
+    /// [`Err`]: ../../std/result/enum.Result.html#variant.Err
     pub fn try_lock(&self) -> TryLockResult<SgxMutexGuard<'_, T>> {
         unsafe {
             match self.inner.try_lock() {
@@ -345,7 +370,10 @@ impl<T: ?Sized> SgxMutex<T> {
     ///
     /// If another user of this mutex panicked while holding the mutex, then
     /// this call will return an error instead.
-    pub fn into_inner(self) -> LockResult<T> where T: Sized {
+    pub fn into_inner(self) -> LockResult<T>
+    where
+        T: Sized,
+    {
         unsafe {
             let (inner, poison, data) = {
                 let SgxMutex {ref inner, ref poison, ref data } = self;
@@ -385,9 +413,9 @@ unsafe impl<#[may_dangle] T: ?Sized> Drop for SgxMutex<T> {
 
 impl<T> From<T> for SgxMutex<T> {
     /// Creates a new mutex in an unlocked state ready for use.
-    /// This is equivalent to [`SgxMutex::new`].
+    /// This is equivalent to [`Mutex::new`].
     ///
-    /// [`SgxMutex::new`]: #method.new
+    /// [`Mutex::new`]: ../../std/sync/struct.Mutex.html#method.new
     fn from(t: T) -> Self {
         SgxMutex::new(t)
     }
@@ -421,32 +449,9 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for SgxMutex<T> {
     }
 }
 
-///
-/// An RAII implementation of a "scoped lock" of a mutex. When this structure is
-/// dropped (falls out of scope), the lock will be unlocked.
-///
-/// The data protected by the mutex can be accessed through this guard via its
-/// Deref and DerefMut implementations.
-///
-/// This structure is created by the lock and try_lock methods on Mutex.
-///
-pub struct SgxMutexGuard<'a, T: ?Sized + 'a> {
-    __lock: &'a SgxMutex<T>,
-    __poison: poison::Guard,
-}
-
-impl<T: ?Sized> !Send for SgxMutexGuard<'_, T> {}
-unsafe impl<T: ?Sized + Sync> Sync for SgxMutexGuard<'_, T> {}
-
 impl<'mutex, T: ?Sized> SgxMutexGuard<'mutex, T> {
-
     unsafe fn new(lock: &'mutex SgxMutex<T>) -> LockResult<SgxMutexGuard<'mutex, T>> {
-        poison::map_result(lock.poison.borrow(), |guard| {
-            SgxMutexGuard {
-                __lock: lock,
-                __poison: guard,
-            }
-        })
+        poison::map_result(lock.poison.borrow(), |guard| SgxMutexGuard { lock, poison: guard })
     }
 }
 
@@ -454,13 +459,13 @@ impl<T: ?Sized> Deref for SgxMutexGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        unsafe { &*self.__lock.data.get() }
+        unsafe { &*self.lock.data.get() }
     }
 }
 
 impl<T: ?Sized> DerefMut for SgxMutexGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { &mut *self.__lock.data.get() }
+        unsafe { &mut *self.lock.data.get() }
     }
 }
 
@@ -468,8 +473,8 @@ impl<T: ?Sized> Drop for SgxMutexGuard<'_, T> {
     #[inline]
     fn drop(&mut self) {
         let result = unsafe {
-            self.__lock.poison.done(&self.__poison);
-            self.__lock.inner.unlock()
+            self.lock.poison.done(&self.poison);
+            self.lock.inner.unlock()
         };
         debug_assert_eq!(result, Ok(()), "Error when unlocking an SgxMutex: {}", result.unwrap_err());
     }
@@ -488,9 +493,9 @@ impl<T: ?Sized + fmt::Display> fmt::Display for SgxMutexGuard<'_, T> {
 }
 
 pub fn guard_lock<'a, T: ?Sized>(guard: &SgxMutexGuard<'a, T>) -> &'a SgxThreadMutex {
-    &guard.__lock.inner
+    &guard.lock.inner
 }
 
 pub fn guard_poison<'a, T: ?Sized>(guard: &SgxMutexGuard<'a, T>) -> &'a poison::Flag {
-    &guard.__lock.poison
+    &guard.lock.poison
 }

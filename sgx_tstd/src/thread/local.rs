@@ -17,6 +17,7 @@
 
 //! Thread local storage
 use core::fmt;
+use crate::error::Error;
 
 pub struct LocalKey<T: 'static> {
     // This outer `LocalKey<T>` type is what's going to be stored in statics,
@@ -82,13 +83,12 @@ macro_rules! thread_local {
 #[allow_internal_unstable(thread_local_internals, cfg_target_thread_local, thread_local)]
 #[allow_internal_unsafe]
 macro_rules! __thread_local_inner {
-    (@key $(#[$attr:meta])* $vis:vis $name:ident, $t:ty, $init:expr) => {
+    (@key $t:ty, $init:expr) => {
         {
             #[inline]
             fn __init() -> $t { $init }
 
-            unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> 
-            {
+            unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
                 #[cfg(not(feature = "thread"))]
                 #[thread_local]
                 static __KEY: $crate::thread::__StaticLocalKeyInner<$t> =
@@ -109,7 +109,7 @@ macro_rules! __thread_local_inner {
     };
     ($(#[$attr:meta])* $vis:vis $name:ident, $t:ty, $init:expr) => {
         $(#[$attr])* $vis const $name: $crate::thread::LocalKey<$t> =
-            $crate::__thread_local_inner!(@key $(#[$attr])* $vis $name, $t, $init);
+            $crate::__thread_local_inner!(@key $t, $init);
     }
 }
 
@@ -119,23 +119,17 @@ pub struct AccessError {
     msg: &'static str,
 }
 
-//impl fmt::Debug for AccessError {
-//    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//        f.debug_struct("AccessError").finish()
-//    }
-//}
-
 impl fmt::Display for AccessError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self.msg, f)
     }
 }
 
+impl Error for AccessError {}
+
 impl<T: 'static> LocalKey<T> {
     pub const unsafe fn new(inner: unsafe fn() -> Result<&'static T, AccessError>) -> LocalKey<T> {
-        LocalKey {
-            inner,
-        }
+        LocalKey { inner }
     }
 
     /// Acquires a reference to the value in this TLS key.
@@ -148,9 +142,12 @@ impl<T: 'static> LocalKey<T> {
     /// This function will `panic!()` if TLS data needs to be destructed,
     /// TCS policy must be Bound.
     pub fn with<F, R>(&'static self, f: F) -> R
-                      where F: FnOnce(&T) -> R {
-        self.try_with(f).expect("TLS access error")
+    where
+        F: FnOnce(&T) -> R,
+    {
+        self.try_with(f).expect("Can not access a Thread Local Storage value")
     }
+
     /// Acquires a reference to the value in this TLS key.
     ///
     /// This will lazily initialize the value if this thread has not referenced
@@ -183,9 +180,7 @@ mod lazy {
 
     impl<T> LazyKeyInner<T> {
         pub const fn new() -> LazyKeyInner<T> {
-            LazyKeyInner {
-                inner: UnsafeCell::new(None),
-            }
+            LazyKeyInner { inner: UnsafeCell::new(None) }
         }
 
         pub unsafe fn get(&self) -> Option<&'static T> {
@@ -235,13 +230,14 @@ pub mod statik {
     use super::AccessError;
     use core::fmt;
     use core::mem;
-    use sgx_trts::enclave::{SgxGlobalData, SgxThreadPolicy};
+    use sgx_trts::enclave::SgxGlobalData;
+    use sgx_trts::enclave::SgxThreadPolicy::*;
 
     pub struct Key<T> {
         inner: LazyKeyInner<T>,
     }
 
-    unsafe impl<T> Sync for Key<T> { }
+    unsafe impl<T> Sync for Key<T> {}
 
     impl<T> fmt::Debug for Key<T> {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -251,30 +247,43 @@ pub mod statik {
 
     impl<T> Key<T> {
         pub const fn new() -> Key<T> {
-            Key {
-                inner: LazyKeyInner::new(),
-            }
+            Key { inner: LazyKeyInner::new() }
         }
 
         pub unsafe fn get(&self, init: fn() -> T) -> Result<&'static T, AccessError> {
-            if mem::needs_drop::<T>() {
-                match SgxGlobalData::new().thread_policy() {
-                    SgxThreadPolicy::Unbound => {
-                        return Err(AccessError {
-                                    msg: "If TLS data needs to be destructed, TCS policy must be Bound.",
-                                    });
-                    },
-                    SgxThreadPolicy::Bound => {},
-                }
+            if !mem::needs_drop::<T>() || SgxGlobalData::new().thread_policy() == Bound {
+                let value = match self.inner.get() {
+                    Some(ref value) => value,
+                    None => self.inner.initialize(init),
+                };
+                Ok(value)
+            } else {
+                Err(AccessError { msg: "If TLS data needs to be destructed, TCS policy must be Bound." })
             }
-            let value = match self.inner.get() {
-                Some(ref value) => value,
-                None => self.inner.initialize(init),
-            };
-            Ok(value)
         }
     }
 }
+
+cfg_if! {
+if #[cfg(feature = "thread")] {
+    use sgx_libc::{c_void, c_long};
+    use sgx_types::sgx_status_t;
+
+    #[repr(C)]
+    struct pthread_info {
+        m_pthread: *mut c_void,       // struct _pthread
+        m_local_storage: *mut c_void, // struct sgx_pthread_storage
+        m_mark: [c_long; 8],          // jmpbuf
+        m_state: sgx_status_t,
+    }
+
+    #[link(name = "sgx_pthread")]
+    extern "C" {
+        #[thread_local]
+        static pthread_info_tls: pthread_info;
+    }
+}
+} // cfg_if!
 
 #[cfg(feature = "thread")]
 pub mod fast {
@@ -284,7 +293,8 @@ pub mod fast {
     use core::fmt;
     use core::mem;
     use crate::sys::fast_thread_local::register_dtor;
-    use sgx_trts::enclave::{SgxGlobalData, SgxThreadPolicy};
+    use sgx_trts::enclave::SgxGlobalData;
+    use sgx_trts::enclave::SgxThreadPolicy::*;
     
     #[derive(Copy, Clone)]
     enum DtorState {
@@ -322,10 +332,7 @@ pub mod fast {
 
     impl<T> Key<T> {
         pub const fn new() -> Key<T> {
-            Key {
-                inner: LazyKeyInner::new(),
-                dtor_state: Cell::new(DtorState::Unregistered),
-            }
+            Key { inner: LazyKeyInner::new(), dtor_state: Cell::new(DtorState::Unregistered) }
         }
 
         pub unsafe fn get<F: FnOnce() -> T>(&self, init: F) -> Result<&'static T, AccessError> {
@@ -345,29 +352,29 @@ pub mod fast {
         // LLVM issue: https://bugs.llvm.org/show_bug.cgi?id=41722
         #[cold]
         unsafe fn try_initialize<F: FnOnce() -> T>(&self, init: F) -> Result<&'static T, AccessError> {
-            if mem::needs_drop::<T>() {
-                match SgxGlobalData::new().thread_policy() {
-                    SgxThreadPolicy::Unbound => {
-                        return Err(AccessError{msg: "If TLS data needs to be destructed, TCS policy must be Bound."});
-                    },
-                    SgxThreadPolicy::Bound => {},
-                }
+            if mem::needs_drop::<T>() && SgxGlobalData::new().thread_policy() == Unbound {
+                return Err(AccessError{ msg: "If TLS data needs to be destructed, TCS policy must be Bound." });
             }
-            //
-            // note: If the current thread was created by pthread_create, we should call
-            // the try_register_dtor function, but we can't know exactly whether the current
-            // thread is created by pthread_create.
-            //
-            // Destructor will only be called when a thread created by pthread_create exits,
-            // because sys_common::thread_local::StaticKey does not call pthread_key_delete
-            // to trigger the destructor.
-            //
-            //if !mem::needs_drop::<T>() || self.try_register_dtor() {
-            //    Ok(self.inner.initialize(init))
-            //} else {
-            //    None
-            //}
-            Ok(self.inner.initialize(init))
+
+            if !super::pthread_info_tls.m_pthread.is_null() {
+                //
+                // note: If the current thread was created by pthread_create, we should call
+                // the try_register_dtor function. You can know whether the current thread has
+                // been created by pthread_create() through the m_thread member of pthread_info
+                // (thread local storage) of pthread library in intel sgx sdk.
+                //
+                // Destructor will only be called when a thread created by pthread_create exits,
+                // because sys_common::thread_local::StaticKey does not call pthread_key_delete
+                // to trigger the destructor.
+                //
+                if !mem::needs_drop::<T>() || self.try_register_dtor() {
+                    Ok(self.inner.initialize(init))
+                } else {
+                    Err(AccessError{ msg: "Failed to register destructor." })
+                }
+            } else {
+                Ok(self.inner.initialize(init))
+            }
         }
 
         // `try_register_dtor` is only called once per fast thread local
@@ -377,8 +384,7 @@ pub mod fast {
             match self.dtor_state.get() {
                 DtorState::Unregistered => {
                     // dtor registration happens before initialization.
-                    register_dtor(self as *const _ as *mut u8,
-                                destroy_value::<T>);
+                    register_dtor(self as *const _ as *mut u8, destroy_value::<T>);
                     self.dtor_state.set(DtorState::Registered);
                     true
                 }
@@ -386,14 +392,12 @@ pub mod fast {
                     // recursively initialized
                     true
                 }
-                DtorState::RunningOrHasRun => {
-                    false
-                }
+                DtorState::RunningOrHasRun => false,
             }
         }
     }
 
-    unsafe extern fn destroy_value<T>(ptr: *mut u8) {
+    unsafe extern "C" fn destroy_value<T>(ptr: *mut u8) {
         let ptr = ptr as *mut Key<T>;
 
         // Right before we run the user destructor be sure to set the
@@ -415,14 +419,7 @@ pub mod os {
     use core::marker;
     use core::ptr;
     use crate::sys_common::thread_local::StaticKey as OsStaticKey;
-    //
-    // note: os::Key is only available for threads created by pthread_create.
-    // currently we can't know exactly whether the thread was created by pthread_create.
-    // We can use the m_pthread members of the pthread_info of the pthread library to determine
-    // whether a thread was created by pthread, but because Intel's pthread library(2.8)
-    // has defects in cleaning threads created by pthread_create, we cannot know exactly whether
-    // the thread was created by pthread_create.
-    //
+
     pub struct Key<T> {
         // OS-TLS key that we'll use to key off.
         os: OsStaticKey,
@@ -435,7 +432,7 @@ pub mod os {
         }
     }
 
-    unsafe impl<T> Sync for Key<T> { }
+    unsafe impl<T> Sync for Key<T> {}
 
     struct Value<T: 'static> {
         inner: LazyKeyInner<T>,
@@ -443,19 +440,20 @@ pub mod os {
     }
 
     impl<T: 'static> Key<T> {
+        //
+        // note:
+        // 1. os::Key can be destructed normally when used for threads created by pthread_create().
+        // 2. os::Key used in untrusted thread, the destructor will not be called.
+        //
         pub const fn new() -> Key<T> {
-            Key {
-                os: OsStaticKey::new(Some(destroy_value::<T>)),
-                marker: marker::PhantomData
-            }
+            Key { os: OsStaticKey::new(Some(destroy_value::<T>)), marker: marker::PhantomData }
         }
 
         pub unsafe fn get(&'static self, init: fn() -> T) -> Result<&'static T, AccessError> {
             let ptr = self.os.get() as *mut Value<T>;
             if ptr as usize > 1 {
-                match (*ptr).inner.get() {
-                    Some(ref value) => return Ok(value),
-                    None => {},
+                if let Some(ref value) = (*ptr).inner.get() {
+                    return Ok(value);
                 }
             }
             self.try_initialize(init)
@@ -474,10 +472,7 @@ pub mod os {
             let ptr = if ptr.is_null() {
                 // If the lookup returned null, we haven't initialized our own
                 // local copy, so do that now.
-                let ptr: Box<Value<T>> = box Value {
-                    inner: LazyKeyInner::new(),
-                    key: self,
-                };
+                let ptr: Box<Value<T>> = box Value { inner: LazyKeyInner::new(), key: self };
                 let ptr = Box::into_raw(ptr);
                 self.os.set(ptr as *mut u8);
                 ptr
@@ -490,7 +485,7 @@ pub mod os {
         }
     }
 
-    unsafe extern fn destroy_value<T: 'static>(ptr: *mut u8) {
+    unsafe extern "C" fn destroy_value<T: 'static>(ptr: *mut u8) {
         // The OS TLS ensures that this key contains a NULL value when this
         // destructor starts to run. We set it back to a sentinel value of 1 to
         // ensure that any future calls to `get` for this thread will return

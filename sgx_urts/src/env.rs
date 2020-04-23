@@ -35,10 +35,12 @@ pub extern "C" fn u_getenv_ocall(name: *const c_char) -> *const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn u_setenv_ocall(error: *mut c_int,
-                                 name: *const c_char,
-                                 value: *const c_char,
-                                 overwrite: c_int) -> c_int {
+pub extern "C" fn u_setenv_ocall(
+    error: *mut c_int,
+    name: *const c_char,
+    value: *const c_char,
+    overwrite: c_int,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::setenv(name, value, overwrite) };
     if ret < 0 {
@@ -90,11 +92,13 @@ pub extern "C" fn u_chdir_ocall(error: *mut c_int, dir: *const c_char) -> c_int 
 }
 
 #[no_mangle]
-pub extern "C" fn u_getpwuid_r_ocall(uid: uid_t,
-                                     pwd: *mut passwd,
-                                     buf: *mut c_char,
-                                     buflen: size_t,
-                                     passwd_result: *mut *mut passwd) -> c_int {
+pub extern "C" fn u_getpwuid_r_ocall(
+    uid: uid_t,
+    pwd: *mut passwd,
+    buf: *mut c_char,
+    buflen: size_t,
+    passwd_result: *mut *mut passwd,
+) -> c_int {
     let ret = unsafe { libc::getpwuid_r(uid, pwd, buf, buflen, passwd_result) };
     if ret == 0 {
         let pwd_ret = unsafe { *passwd_result };

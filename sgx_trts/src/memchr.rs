@@ -51,21 +51,19 @@ pub fn memchr(needle: u8, haystack: &[u8]) -> Option<usize> {
 }
 
 pub fn memrchr(needle: u8, haystack: &[u8]) -> Option<usize> {
-
     fn memrchr_specific(needle: u8, haystack: &[u8]) -> Option<usize> {
         // GNU's memrchr() will - unlike memchr() - error if haystack is empty.
-        if haystack.is_empty() {return None}
+        if haystack.is_empty() {
+            return None;
+        }
         let p = unsafe {
             sgx_libc::memrchr(
                 haystack.as_ptr(),
                 needle,
-                haystack.len())
+                haystack.len(),
+            )
         };
-        if p.is_null() {
-            None
-        } else {
-            Some(p as usize - (haystack.as_ptr() as usize))
-        }
+        if p.is_null() { None } else { Some(p as usize - (haystack.as_ptr() as usize)) }
     }
 
     memrchr_specific(needle, haystack)

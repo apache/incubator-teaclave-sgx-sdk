@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-COMMON_CFLAGS += -O2
-CFLAGS := $(COMMON_CFLAGS) -fPIC -Wno-attributes -Wno-deprecated-declarations -I./inc
+include ../buildenv.mk
 
+USTDC_CFLAGS := $(CFLAGS)
+USTDC_CFLAGS += -fPIC -Wno-attributes -I ./inc
 SRCS := $(wildcard *.c)
 OBJS := $(sort $(SRCS:.c=.o))
 
@@ -30,7 +31,7 @@ $(TARGET): $(OBJS)
 	$(AR) rcsD $@ $^
 
 $(OBJS): %.o: %.c
-	$(CC) -c $(CFLAGS) $< -o $@
+	$(CC) -c $(USTDC_CFLAGS) $< -o $@
 
 .PHONY: clean
 clean:

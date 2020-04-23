@@ -19,10 +19,12 @@ use std::io::Error;
 use libc::{self, c_int, pollfd, nfds_t, epoll_event};
 
 #[no_mangle]
-pub extern "C" fn u_poll_ocall(error: *mut c_int,
-                               fds: *mut pollfd,
-                               nfds: nfds_t,
-                               timeout: c_int) -> c_int {
+pub extern "C" fn u_poll_ocall(
+    error: *mut c_int,
+    fds: *mut pollfd,
+    nfds: nfds_t,
+    timeout: c_int,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::poll(fds, nfds, timeout) };
     if ret < 0 {
@@ -48,11 +50,13 @@ pub extern "C" fn u_epoll_create1_ocall(error: *mut c_int, flags: c_int) -> c_in
 }
 
 #[no_mangle]
-pub extern "C" fn u_epoll_ctl_ocall(error: *mut c_int,
-                                    epfd: c_int,
-                                    op: c_int,
-                                    fd: c_int,
-                                    event: *mut epoll_event) -> c_int {
+pub extern "C" fn u_epoll_ctl_ocall(
+    error: *mut c_int,
+    epfd: c_int,
+    op: c_int,
+    fd: c_int,
+    event: *mut epoll_event,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::epoll_ctl(epfd, op, fd, event) };
     if ret < 0 {

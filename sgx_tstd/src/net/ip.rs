@@ -19,6 +19,7 @@ use sgx_trts::libc as c;
 use core::cmp::Ordering;
 use core::fmt;
 use core::hash;
+use crate::io::Write;
 use crate::sys_common::{AsInner, FromInner};
 
 /// An IP address, either IPv4 or IPv6.
@@ -102,7 +103,7 @@ pub enum Ipv6MulticastScope {
     AdminLocal,
     SiteLocal,
     OrganizationLocal,
-    Global
+    Global,
 }
 
 impl IpAddr {
@@ -193,10 +194,7 @@ impl IpAddr {
     /// [IPv4 address]: #variant.V4
     ///
     pub fn is_ipv4(&self) -> bool {
-        match self {
-            IpAddr::V4(_) => true,
-            IpAddr::V6(_) => false,
-        }
+        matches!(self, IpAddr::V4(_))
     }
 
     /// Returns [`true`] if this address is an [IPv6 address], and [`false`] otherwise.
@@ -206,10 +204,7 @@ impl IpAddr {
     /// [IPv6 address]: #variant.V6
     ///
     pub fn is_ipv6(&self) -> bool {
-        match self {
-            IpAddr::V4(_) => false,
-            IpAddr::V6(_) => true,
-        }
+        matches!(self, IpAddr::V6(_))
     }
 }
 
@@ -224,12 +219,9 @@ impl Ipv4Addr {
         Ipv4Addr {
             inner: c::in_addr {
                 s_addr: u32::to_be(
-                    ((a as u32) << 24) |
-                    ((b as u32) << 16) |
-                    ((c as u32) <<  8) |
-                    (d as u32)
+                    ((a as u32) << 24) | ((b as u32) << 16) | ((c as u32) << 8) | (d as u32),
                 ),
-            }
+            },
         }
     }
 
@@ -314,12 +306,19 @@ impl Ipv4Addr {
     ///
     /// The following return false:
     ///
-    /// - private address (10.0.0.0/8, 172.16.0.0/12 and 192.168.0.0/16)
-    /// - the loopback address (127.0.0.0/8)
-    /// - the link-local address (169.254.0.0/16)
-    /// - the broadcast address (255.255.255.255/32)
-    /// - test addresses used for documentation (192.0.2.0/24, 198.51.100.0/24 and 203.0.113.0/24)
-    /// - the unspecified address (0.0.0.0)
+    /// - private addresses (see [`is_private()`](#method.is_private))
+    /// - the loopback address (see [`is_loopback()`](#method.is_loopback))
+    /// - the link-local address (see [`is_link_local()`](#method.is_link_local))
+    /// - the broadcast address (see [`is_broadcast()`](#method.is_broadcast))
+    /// - addresses used for documentation (see [`is_documentation()`](#method.is_documentation))
+    /// - the unspecified address (see [`is_unspecified()`](#method.is_unspecified)), and the whole
+    ///   0.0.0.0/8 block
+    /// - addresses reserved for future protocols (see
+    /// [`is_ietf_protocol_assignment()`](#method.is_ietf_protocol_assignment), except
+    /// `192.0.0.9/32` and `192.0.0.10/32` which are globally routable
+    /// - addresses reserved for future use (see [`is_reserved()`](#method.is_reserved)
+    /// - addresses reserved for networking devices benchmarking (see
+    /// [`is_benchmarking`](#method.is_benchmarking))
     ///
     /// [ipv4-sr]: https://www.iana.org/assignments/iana-ipv4-special-registry/iana-ipv4-special-registry.xhtml
     /// [`true`]: ../../std/primitive.bool.html
@@ -343,15 +342,62 @@ impl Ipv4Addr {
             && self.octets()[0] != 0
     }
 
+    /// Returns [`true`] if this address is part of the Shared Address Space defined in
+    /// [IETF RFC 6598] (`100.64.0.0/10`).
+    ///
+    /// [IETF RFC 6598]: https://tools.ietf.org/html/rfc6598
+    /// [`true`]: ../../std/primitive.bool.html
+    ///
     pub fn is_shared(&self) -> bool {
         self.octets()[0] == 100 && (self.octets()[1] & 0b1100_0000 == 0b0100_0000)
     }
+
+    /// Returns [`true`] if this address is part of `192.0.0.0/24`, which is reserved to
+    /// IANA for IETF protocol assignments, as documented in [IETF RFC 6890].
+    ///
+    /// Note that parts of this block are in use:
+    ///
+    /// - `192.0.0.8/32` is the "IPv4 dummy address" (see [IETF RFC 7600])
+    /// - `192.0.0.9/32` is the "Port Control Protocol Anycast" (see [IETF RFC 7723])
+    /// - `192.0.0.10/32` is used for NAT traversal (see [IETF RFC 8155])
+    ///
+    /// [IETF RFC 6890]: https://tools.ietf.org/html/rfc6890
+    /// [IETF RFC 7600]: https://tools.ietf.org/html/rfc7600
+    /// [IETF RFC 7723]: https://tools.ietf.org/html/rfc7723
+    /// [IETF RFC 8155]: https://tools.ietf.org/html/rfc8155
+    /// [`true`]: ../../std/primitive.bool.html
+    ///
     pub fn is_ietf_protocol_assignment(&self) -> bool {
         self.octets()[0] == 192 && self.octets()[1] == 0 && self.octets()[2] == 0
     }
+
+    /// Returns [`true`] if this address part of the `198.18.0.0/15` range, which is reserved for
+    /// network devices benchmarking. This range is defined in [IETF RFC 2544] as `192.18.0.0`
+    /// through `198.19.255.255` but [errata 423] corrects it to `198.18.0.0/15`.
+    ///
+    /// [IETF RFC 2544]: https://tools.ietf.org/html/rfc2544
+    /// [errata 423]: https://www.rfc-editor.org/errata/eid423
+    /// [`true`]: ../../std/primitive.bool.html
+    ///
     pub fn is_benchmarking(&self) -> bool {
         self.octets()[0] == 198 && (self.octets()[1] & 0xfe) == 18
     }
+
+    /// Returns [`true`] if this address is reserved by IANA for future use. [IETF RFC 1112]
+    /// defines the block of reserved addresses as `240.0.0.0/4`. This range normally includes the
+    /// broadcast address `255.255.255.255`, but this implementation explicitly excludes it, since
+    /// it is obviously not reserved for future use.
+    ///
+    /// [IETF RFC 1112]: https://tools.ietf.org/html/rfc1112
+    /// [`true`]: ../../std/primitive.bool.html
+    ///
+    /// # Warning
+    ///
+    /// As IANA assigns new addresses, this method will be
+    /// updated. This may result in non-reserved addresses being
+    /// treated as reserved in code that relies on an outdated version
+    /// of this method.
+    ///
     pub fn is_reserved(&self) -> bool {
         self.octets()[0] & 240 == 240 && !self.is_broadcast()
     }
@@ -408,10 +454,7 @@ impl Ipv4Addr {
     pub fn to_ipv6_compatible(&self) -> Ipv6Addr {
         let octets = self.octets();
         Ipv6Addr::from([
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            octets[0], octets[1], octets[2], octets[3],
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, octets[0], octets[1], octets[2], octets[3],
         ])
     }
 
@@ -424,10 +467,7 @@ impl Ipv4Addr {
     pub fn to_ipv6_mapped(&self) -> Ipv6Addr {
         let octets = self.octets();
         Ipv6Addr::from([
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 0xFF, 0xFF,
-            octets[0], octets[1], octets[2], octets[3],
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, octets[0], octets[1], octets[2], octets[3],
         ])
     }
 }
@@ -448,6 +488,8 @@ impl From<Ipv4Addr> for IpAddr {
 }
 
 impl From<Ipv6Addr> for IpAddr {
+    /// Copies this address to a new `IpAddr::V6`.
+    ///
     fn from(ipv6: Ipv6Addr) -> IpAddr {
         IpAddr::V6(ipv6)
     }
@@ -455,8 +497,16 @@ impl From<Ipv6Addr> for IpAddr {
 
 impl fmt::Display for Ipv4Addr {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        const IPV4_BUF_LEN: usize = 15; // Long enough for the longest possible IPv4 address
+        let mut buf = [0u8; IPV4_BUF_LEN];
+        let mut buf_slice = &mut buf[..];
         let octets = self.octets();
-        write!(fmt, "{}.{}.{}.{}", octets[0], octets[1], octets[2], octets[3])
+        // Note: The call to write should never fail, hence the unwrap
+        write!(buf_slice, "{}.{}.{}.{}", octets[0], octets[1], octets[2], octets[3]).unwrap();
+        let len = IPV4_BUF_LEN - buf_slice.len();
+        // This unsafe is OK because we know what is being written to the buffer
+        let buf = unsafe { crate::str::from_utf8_unchecked(&buf[..len]) };
+        fmt.pad(buf)
     }
 }
 
@@ -467,7 +517,9 @@ impl fmt::Debug for Ipv4Addr {
 }
 
 impl Clone for Ipv4Addr {
-    fn clone(&self) -> Ipv4Addr { *self }
+    fn clone(&self) -> Ipv4Addr {
+        *self
+    }
 }
 
 impl PartialEq for Ipv4Addr {
@@ -499,7 +551,7 @@ impl Eq for Ipv4Addr {}
 impl hash::Hash for Ipv4Addr {
     fn hash<H: hash::Hasher>(&self, s: &mut H) {
         // `inner` is #[repr(packed)], so we need to copy `s_addr`.
-        {self.inner.s_addr}.hash(s)
+        { self.inner.s_addr }.hash(s)
     }
 }
 
@@ -534,7 +586,9 @@ impl Ord for Ipv4Addr {
 }
 
 impl AsInner<c::in_addr> for Ipv4Addr {
-    fn as_inner(&self) -> &c::in_addr { &self.inner }
+    fn as_inner(&self) -> &c::in_addr {
+        &self.inner
+    }
 }
 impl FromInner<c::in_addr> for Ipv4Addr {
     fn from_inner(addr: c::in_addr) -> Ipv4Addr {
@@ -560,6 +614,8 @@ impl From<u32> for Ipv4Addr {
 }
 
 impl From<[u8; 4]> for Ipv4Addr {
+    /// Creates an `Ipv4Addr` from a four element byte array.
+    ///
     fn from(octets: [u8; 4]) -> Ipv4Addr {
         Ipv4Addr::new(octets[0], octets[1], octets[2], octets[3])
     }
@@ -578,23 +634,29 @@ impl Ipv6Addr {
     ///
     /// The result will represent the IP address `a:b:c:d:e:f:g:h`.
     ///
-    pub const fn new(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16,
-                     g: u16, h: u16) -> Ipv6Addr {
+    pub const fn new(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16) -> Ipv6Addr {
         Ipv6Addr {
             inner: c::in6_addr {
                 s6_addr: [
-                    (a >> 8) as u8, a as u8,
-                    (b >> 8) as u8, b as u8,
-                    (c >> 8) as u8, c as u8,
-                    (d >> 8) as u8, d as u8,
-                    (e >> 8) as u8, e as u8,
-                    (f >> 8) as u8, f as u8,
-                    (g >> 8) as u8, g as u8,
-                    (h >> 8) as u8, h as u8
+                    (a >> 8) as u8,
+                    a as u8,
+                    (b >> 8) as u8,
+                    b as u8,
+                    (c >> 8) as u8,
+                    c as u8,
+                    (d >> 8) as u8,
+                    d as u8,
+                    (e >> 8) as u8,
+                    e as u8,
+                    (f >> 8) as u8,
+                    f as u8,
+                    (g >> 8) as u8,
+                    g as u8,
+                    (h >> 8) as u8,
+                    h as u8,
                 ],
-            }
+            },
         }
-
     }
 
     /// An IPv6 address representing localhost: `::1`.
@@ -648,7 +710,7 @@ impl Ipv6Addr {
     /// The following return [`false`]:
     ///
     /// - the loopback address
-    /// - link-local, site-local, and unique local unicast addresses
+    /// - link-local and unique local unicast addresses
     /// - interface-, link-, realm-, admin- and site-local multicast addresses
     ///
     /// [`true`]: ../../std/primitive.bool.html
@@ -658,11 +720,11 @@ impl Ipv6Addr {
         match self.multicast_scope() {
             Some(Ipv6MulticastScope::Global) => true,
             None => self.is_unicast_global(),
-            _ => false
+            _ => false,
         }
     }
 
-    /// Returns [`true`] if this is a unique local address (fc00::/7).
+    /// Returns [`true`] if this is a unique local address (`fc00::/7`).
     ///
     /// This property is defined in [IETF RFC 4193].
     ///
@@ -673,11 +735,31 @@ impl Ipv6Addr {
         (self.segments()[0] & 0xfe00) == 0xfc00
     }
 
-    /// Returns [`true`] if the address is unicast and link-local (fe80::/10).
+    /// Returns [`true`] if the address is a unicast link-local address (`fe80::/64`).
     ///
-    /// This property is defined in [IETF RFC 4291].
+    /// A common mis-conception is to think that "unicast link-local addresses start with
+    /// `fe80::`", but the [IETF RFC 4291] actually defines a stricter format for these addresses:
+    ///
+    /// ```no_rust
+    /// |   10     |
+    /// |  bits    |         54 bits         |          64 bits           |
+    /// +----------+-------------------------+----------------------------+
+    /// |1111111010|           0             |       interface ID         |
+    /// +----------+-------------------------+----------------------------+
+    /// ```
+    ///
+    /// This method validates the format defined in the RFC and won't recognize the following
+    /// addresses such as `fe80:0:0:1::` or `fe81::` as unicast link-local addresses for example.
+    /// If you need a less strict validation use [`is_unicast_link_local()`] instead.
+    ///
+    /// # See also
+    ///
+    /// - [IETF RFC 4291 section 2.5.6]
+    /// - [RFC 4291 errata 4406]
+    /// - [`is_unicast_link_local()`]
     ///
     /// [IETF RFC 4291]: https://tools.ietf.org/html/rfc4291
+    /// [IETF RFC 4291 section 2.5.6]: https://tools.ietf.org/html/rfc4291#section-2.5.6
     /// [`true`]: ../../std/primitive.bool.html
     /// [RFC 4291 errata 4406]: https://www.rfc-editor.org/errata/eid4406
     /// [`is_unicast_link_local()`]: ../../std/net/struct.Ipv6Addr.html#method.is_unicast_link_local
@@ -688,15 +770,60 @@ impl Ipv6Addr {
             && (self.segments()[2] & 0xffff) == 0
             && (self.segments()[3] & 0xffff) == 0
     }
+
+    /// Returns [`true`] if the address is a unicast link-local address (`fe80::/10`).
+    ///
+    /// This method returns [`true`] for addresses in the range reserved by [RFC 4291 section 2.4],
+    /// i.e. addresses with the following format:
+    ///
+    /// ```no_rust
+    /// |   10     |
+    /// |  bits    |         54 bits         |          64 bits           |
+    /// +----------+-------------------------+----------------------------+
+    /// |1111111010|    arbitratry value     |       interface ID         |
+    /// +----------+-------------------------+----------------------------+
+    /// ```
+    ///
+    /// As a result, this method consider addresses such as `fe80:0:0:1::` or `fe81::` to be
+    /// unicast link-local addresses, whereas [`is_unicast_link_local_strict()`] does not. If you
+    /// need a strict validation fully compliant with the RFC, use
+    /// [`is_unicast_link_local_strict()`].
+    ///
+    /// # See also
+    ///
+    /// - [IETF RFC 4291 section 2.4]
+    /// - [RFC 4291 errata 4406]
+    ///
+    /// [IETF RFC 4291 section 2.4]: https://tools.ietf.org/html/rfc4291#section-2.4
+    /// [`true`]: ../../std/primitive.bool.html
+    /// [RFC 4291 errata 4406]: https://www.rfc-editor.org/errata/eid4406
+    /// [`is_unicast_link_local_strict()`]: ../../std/net/struct.Ipv6Addr.html#method.is_unicast_link_local_strict
+    ///
     pub fn is_unicast_link_local(&self) -> bool {
         (self.segments()[0] & 0xffc0) == 0xfe80
     }
 
-    /// Returns [`true`] if this is a deprecated unicast site-local address
-    /// (fec0::/10).
+    /// Returns [`true`] if this is a deprecated unicast site-local address (fec0::/10). The
+    /// unicast site-local address format is defined in [RFC 4291 section 2.5.7] as:
+    ///
+    /// ```no_rust
+    /// |   10     |
+    /// |  bits    |         54 bits         |         64 bits            |
+    /// +----------+-------------------------+----------------------------+
+    /// |1111111011|        subnet ID        |       interface ID         |
+    /// +----------+-------------------------+----------------------------+
+    /// ```
     ///
     /// [`true`]: ../../std/primitive.bool.html
+    /// [RFC 4291 section 2.5.7]: https://tools.ietf.org/html/rfc4291#section-2.5.7
     ///
+    /// # Warning
+    ///
+    /// As per [RFC 3879], the whole `FEC0::/10` prefix is
+    /// deprecated. New software must not support site-local
+    /// addresses.
+    ///
+    /// [RFC 3879]: https://tools.ietf.org/html/rfc3879
     pub fn is_unicast_site_local(&self) -> bool {
         (self.segments()[0] & 0xffc0) == 0xfec0
     }
@@ -719,12 +846,20 @@ impl Ipv6Addr {
     ///
     /// - the loopback address
     /// - the link-local addresses
-    /// - the (deprecated) site-local addresses
     /// - unique local addresses
     /// - the unspecified address
     /// - the address range reserved for documentation
     ///
+    /// This method returns [`true`] for site-local addresses as per [RFC 4291 section 2.5.7]
+    ///
+    /// ```no_rust
+    /// The special behavior of [the site-local unicast] prefix defined in [RFC3513] must no longer
+    /// be supported in new implementations (i.e., new implementations must treat this prefix as
+    /// Global Unicast).
+    /// ```
+    ///
     /// [`true`]: ../../std/primitive.bool.html
+    /// [RFC 4291 section 2.5.7]: https://tools.ietf.org/html/rfc4291#section-2.5.7
     ///
     pub fn is_unicast_global(&self) -> bool {
         !self.is_multicast()
@@ -747,7 +882,7 @@ impl Ipv6Addr {
                 5 => Some(Ipv6MulticastScope::SiteLocal),
                 8 => Some(Ipv6MulticastScope::OrganizationLocal),
                 14 => Some(Ipv6MulticastScope::Global),
-                _ => None
+                _ => None,
             }
         } else {
             None
@@ -776,10 +911,9 @@ impl Ipv6Addr {
     pub fn to_ipv4(&self) -> Option<Ipv4Addr> {
         match self.segments() {
             [0, 0, 0, 0, 0, f, g, h] if f == 0 || f == 0xffff => {
-                Some(Ipv4Addr::new((g >> 8) as u8, g as u8,
-                                   (h >> 8) as u8, h as u8))
-            },
-            _ => None
+                Some(Ipv4Addr::new((g >> 8) as u8, g as u8, (h >> 8) as u8, h as u8))
+            }
+            _ => None,
         }
     }
 
@@ -792,21 +926,41 @@ impl Ipv6Addr {
 
 impl fmt::Display for Ipv6Addr {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Note: The calls to write should never fail, hence the unwraps in the function
+        // Long enough for the longest possible IPv6: 39
+        const IPV6_BUF_LEN: usize = 39;
+        let mut buf = [0u8; IPV6_BUF_LEN];
+        let mut buf_slice = &mut buf[..];
+
         match self.segments() {
             // We need special cases for :: and ::1, otherwise they're formatted
             // as ::0.0.0.[01]
-            [0, 0, 0, 0, 0, 0, 0, 0] => write!(fmt, "::"),
-            [0, 0, 0, 0, 0, 0, 0, 1] => write!(fmt, "::1"),
+            [0, 0, 0, 0, 0, 0, 0, 0] => write!(buf_slice, "::").unwrap(),
+            [0, 0, 0, 0, 0, 0, 0, 1] => write!(buf_slice, "::1").unwrap(),
             // Ipv4 Compatible address
             [0, 0, 0, 0, 0, 0, g, h] => {
-                write!(fmt, "::{}.{}.{}.{}", (g >> 8) as u8, g as u8,
-                       (h >> 8) as u8, h as u8)
+                write!(
+                    buf_slice,
+                    "::{}.{}.{}.{}",
+                    (g >> 8) as u8,
+                    g as u8,
+                    (h >> 8) as u8,
+                    h as u8
+                )
+                .unwrap();
             }
             // Ipv4-Mapped address
             [0, 0, 0, 0, 0, 0xffff, g, h] => {
-                write!(fmt, "::ffff:{}.{}.{}.{}", (g >> 8) as u8, g as u8,
-                       (h >> 8) as u8, h as u8)
-            },
+                write!(
+                    buf_slice,
+                    "::ffff:{}.{}.{}.{}",
+                    (g >> 8) as u8,
+                    g as u8,
+                    (h >> 8) as u8,
+                    h as u8
+                )
+                .unwrap();
+            }
             _ => {
                 fn find_zero_slice(segments: &[u16; 8]) -> (usize, usize) {
                     let mut longest_span_len = 0;
@@ -838,26 +992,33 @@ impl fmt::Display for Ipv6Addr {
                 let (zeros_at, zeros_len) = find_zero_slice(&self.segments());
 
                 if zeros_len > 1 {
-                    fn fmt_subslice(segments: &[u16], fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    fn fmt_subslice(segments: &[u16], buf: &mut &mut [u8]) {
                         if !segments.is_empty() {
-                            write!(fmt, "{:x}", segments[0])?;
+                            write!(*buf, "{:x}", segments[0]).unwrap();
                             for &seg in &segments[1..] {
-                                write!(fmt, ":{:x}", seg)?;
+                                write!(*buf, ":{:x}", seg).unwrap();
                             }
                         }
-                        Ok(())
                     }
 
-                    fmt_subslice(&self.segments()[..zeros_at], fmt)?;
-                    fmt.write_str("::")?;
-                    fmt_subslice(&self.segments()[zeros_at + zeros_len..], fmt)
+                    fmt_subslice(&self.segments()[..zeros_at], &mut buf_slice);
+                    write!(buf_slice, "::").unwrap();
+                    fmt_subslice(&self.segments()[zeros_at + zeros_len..], &mut buf_slice);
                 } else {
                     let &[a, b, c, d, e, f, g, h] = &self.segments();
-                    write!(fmt, "{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}",
-                           a, b, c, d, e, f, g, h)
+                    write!(
+                        buf_slice,
+                        "{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}",
+                        a, b, c, d, e, f, g, h
+                    )
+                    .unwrap();
                 }
             }
         }
+        let len = IPV6_BUF_LEN - buf_slice.len();
+        // This is safe because we know exactly what can be in this buffer
+        let buf = unsafe { crate::str::from_utf8_unchecked(&buf[..len]) };
+        fmt.pad(buf)
     }
 }
 
@@ -868,7 +1029,9 @@ impl fmt::Debug for Ipv6Addr {
 }
 
 impl Clone for Ipv6Addr {
-    fn clone(&self) -> Ipv6Addr { *self }
+    fn clone(&self) -> Ipv6Addr {
+        *self
+    }
 }
 
 impl PartialEq for Ipv6Addr {
@@ -934,7 +1097,9 @@ impl Ord for Ipv6Addr {
 }
 
 impl AsInner<c::in6_addr> for Ipv6Addr {
-    fn as_inner(&self) -> &c::in6_addr { &self.inner }
+    fn as_inner(&self) -> &c::in6_addr {
+        &self.inner
+    }
 }
 impl FromInner<c::in6_addr> for Ipv6Addr {
     fn from_inner(addr: c::in6_addr) -> Ipv6Addr {
@@ -967,6 +1132,8 @@ impl From<[u8; 16]> for Ipv6Addr {
 }
 
 impl From<[u16; 8]> for Ipv6Addr {
+    /// Creates an `Ipv6Addr` from an eight element 16-bit array.
+    ///
     fn from(segments: [u16; 8]) -> Ipv6Addr {
         let [a, b, c, d, e, f, g, h] = segments;
         Ipv6Addr::new(a, b, c, d, e, f, g, h)

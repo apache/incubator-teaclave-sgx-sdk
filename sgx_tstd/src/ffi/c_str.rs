@@ -19,18 +19,20 @@ pub use sgx_trts::c_str::*;
 
 use crate::error::Error;
 use crate::io;
-use core::fmt;
 
 impl Error for NulError {
-    fn description(&self) -> &str { "nul byte found in data" }
+    fn description(&self) -> &str {
+        "nul byte found in data"
+    }
 }
 
 impl From<NulError> for io::Error {
     /// Converts a [`NulError`] into a [`io::Error`].
     ///
+    /// [`NulError`]: ../ffi/struct.NulError.html
+    /// [`io::Error`]: ../io/struct.Error.html
     fn from(_: NulError) -> io::Error {
-        io::Error::new(io::ErrorKind::InvalidInput,
-                       "data provided contains a nul byte")
+        io::Error::new(io::ErrorKind::InvalidInput, "data provided contains a nul byte")
     }
 }
 
@@ -45,7 +47,7 @@ impl Error for IntoStringError {
         self.__description()
     }
 
-    fn cause(&self) -> Option<&dyn Error> {
-        Some(self.__cause())
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(self.__source())
     }
 }

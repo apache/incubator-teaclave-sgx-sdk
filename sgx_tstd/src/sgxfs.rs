@@ -21,7 +21,7 @@ use sgx_types::{sgx_key_128bit_t, sgx_align_key_128bit_t};
 use crate::io::{self, SeekFrom, Seek, Read, Initializer, Write};
 use crate::path::Path;
 use crate::sys::sgxfs as fs_imp;
-use crate::sys_common::{AsInnerMut, FromInner, AsInner, IntoInner};
+use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
 
 /// A reference to an open file on the filesystem.
 ///

@@ -32,12 +32,14 @@ pub extern "C" fn u_sysconf_ocall(error: *mut c_int, name: c_int) -> c_long {
 }
 
 #[no_mangle]
-pub extern "C" fn  u_prctl_ocall(error: *mut c_int,
-                                 option: c_int,
-                                 arg2: c_ulong,
-                                 arg3: c_ulong,
-                                 arg4: c_ulong,
-                                 arg5: c_ulong) -> c_int {
+pub extern "C" fn u_prctl_ocall(
+    error: *mut c_int,
+    option: c_int,
+    arg2: c_ulong,
+    arg3: c_ulong,
+    arg4: c_ulong,
+    arg5: c_ulong,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::prctl(option, arg2, arg3, arg4, arg5) };
     if ret < 0 {
@@ -50,10 +52,12 @@ pub extern "C" fn  u_prctl_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_sched_setaffinity_ocall(error: *mut c_int,
-                                            pid: pid_t,
-                                            cpusetsize: size_t,
-                                            mask: *const cpu_set_t) -> c_int {
+pub extern "C" fn u_sched_setaffinity_ocall(
+    error: *mut c_int,
+    pid: pid_t,
+    cpusetsize: size_t,
+    mask: *const cpu_set_t,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::sched_setaffinity(pid, cpusetsize, mask) };
     if ret < 0 {
@@ -66,10 +70,12 @@ pub extern "C" fn u_sched_setaffinity_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_sched_getaffinity_ocall(error: *mut c_int,
-                                            pid: pid_t,
-                                            cpusetsize: size_t,
-                                            mask: *mut cpu_set_t) -> c_int {
+pub extern "C" fn u_sched_getaffinity_ocall(
+    error: *mut c_int,
+    pid: pid_t,
+    cpusetsize: size_t,
+    mask: *mut cpu_set_t,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::sched_getaffinity(pid, cpusetsize, mask) };
     if ret < 0 {

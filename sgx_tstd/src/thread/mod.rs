@@ -17,12 +17,14 @@
 
 //! Native threads.
 
-use sgx_types::{sgx_thread_t, sgx_thread_self, sgx_status_t};
+use sgx_types::{sgx_thread_t, sgx_thread_self};
 use sgx_trts::enclave::*;
 use core::any::Any;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
+#[cfg(feature = "thread")]
 use core::cell::UnsafeCell;
+#[cfg(feature = "thread")]
 use core::mem;
 use core::fmt;
 use core::num::NonZeroU64;
@@ -35,8 +37,10 @@ use crate::sync::{SgxThreadMutex, SgxMutex, SgxCondvar};
 use crate::time::Duration;
 #[cfg(feature = "thread")]
 use crate::sys::thread as imp;
+#[cfg(feature = "thread")]
 use crate::io;
 use crate::ffi::{CStr, CString};
+#[cfg(feature = "thread")]
 use crate::sys_common::{AsInner, IntoInner};
 
 #[macro_use] mod local;
@@ -47,6 +51,30 @@ pub use self::local::fast::Key as __FastLocalKeyInner;
 #[cfg(feature = "thread")]
 pub use self::local::os::Key as __OsLocalKeyInner;
 
+////////////////////////////////////////////////////////////////////////////////
+// Builder
+////////////////////////////////////////////////////////////////////////////////
+
+/// Thread factory, which can be used in order to configure the properties of
+/// a new thread.
+///
+/// Methods can be chained on it in order to configure it.
+///
+/// The two configurations available are:
+///
+/// - [`name`]: specifies an [associated name for the thread][naming-threads]
+/// - [`stack_size`]: specifies the [desired stack size for the thread][stack-size]
+///
+/// The [`spawn`] method will take ownership of the builder and create an
+/// [`io::Result`] to the thread handle with the given configuration.
+///
+/// The [`thread::spawn`] free function uses a `Builder` with default
+/// configuration and [`unwrap`]s its return value.
+///
+/// You may want to use [`spawn`] instead of [`thread::spawn`], when you want
+/// to recover from a failure to launch a thread, indeed the free function will
+/// panic where the `Builder` method will return a [`io::Result`].
+///
 #[cfg(feature = "thread")]
 #[derive(Debug)]
 pub struct Builder {
@@ -56,28 +84,67 @@ pub struct Builder {
 
 #[cfg(feature = "thread")]
 impl Builder {
+    /// Generates the base configuration for spawning a thread, from which
+    /// configuration methods can be chained.
+    ///
     pub fn new() -> Builder {
         if rsgx_get_thread_policy() != SgxThreadPolicy::Bound {
             panic!("The sgx thread policy must be Bound!");
         }
-        Builder {
-            name: None,
-        }
+        Builder { name: None }
     }
 
+    /// Names the thread-to-be. Currently the name is used for identification
+    /// only in panic messages.
+    ///
+    /// The name must not contain null bytes (`\0`).
+    ///
+    /// For more information about named threads, see
+    /// [this module-level documentation][naming-threads].
+    ///
     pub fn name(mut self, name: String) -> Builder {
         self.name = Some(name);
         self
     }
 
-    pub fn spawn<F, T>(self, f: F) -> io::Result<JoinHandle<T>> where
-        F: FnOnce() -> T, F: Send + 'static, T: Send + 'static
+    /// Spawns a new thread by taking ownership of the `Builder`, and returns an
+    /// [`io::Result`] to its [`JoinHandle`].
+    ///
+    /// The spawned thread may outlive the caller (unless the caller thread
+    /// is the main thread; the whole process is terminated when the main
+    /// thread finishes). The join handle can be used to block on
+    /// termination of the child thread, including recovering its panics.
+    ///
+    /// For a more complete documentation see [`thread::spawn`][`spawn`].
+    ///
+    /// # Errors
+    ///
+    /// Unlike the [`spawn`] free function, this method yields an
+    /// [`io::Result`] to capture any failure to create the thread at
+    /// the OS level.
+    ///
+    /// [`spawn`]: ../../std/thread/fn.spawn.html
+    /// [`io::Result`]: ../../std/io/type.Result.html
+    /// [`JoinHandle`]: ../../std/thread/struct.JoinHandle.html
+    ///
+    /// # Panics
+    ///
+    /// Panics if a thread name was set and it contained null bytes.
+    ///
+    pub fn spawn<F, T>(self, f: F) -> io::Result<JoinHandle<T>>
+    where
+        F: FnOnce() -> T,
+        F: Send + 'static,
+        T: Send + 'static,
     {
         unsafe { self.spawn_unchecked(f) }
     }
 
-    pub unsafe fn spawn_unchecked<'a, F, T>(self, f: F) -> io::Result<JoinHandle<T>> where
-        F: FnOnce() -> T, F: Send + 'a, T: Send + 'a
+    pub unsafe fn spawn_unchecked<'a, F, T>(self, f: F) -> io::Result<JoinHandle<T>>
+    where
+        F: FnOnce() -> T,
+        F: Send + 'a,
+        T: Send + 'a,
     {
         let Builder { name } = self;
 
@@ -125,27 +192,141 @@ impl Builder {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Free functions
+////////////////////////////////////////////////////////////////////////////////
+
+/// Spawns a new thread, returning a [`JoinHandle`] for it.
+///
+/// The join handle will implicitly *detach* the child thread upon being
+/// dropped. In this case, the child thread may outlive the parent (unless
+/// the parent thread is the main thread; the whole process is terminated when
+/// the main thread finishes). Additionally, the join handle provides a [`join`]
+/// method that can be used to join the child thread. If the child thread
+/// panics, [`join`] will return an [`Err`] containing the argument given to
+/// [`panic`].
+///
+/// This will create a thread using default parameters of [`Builder`], if you
+/// want to specify the stack size or the name of the thread, use this API
+/// instead.
+///
+/// As you can see in the signature of `spawn` there are two constraints on
+/// both the closure given to `spawn` and its return value, let's explain them:
+///
+/// - The `'static` constraint means that the closure and its return value
+///   must have a lifetime of the whole program execution. The reason for this
+///   is that threads can `detach` and outlive the lifetime they have been
+///   created in.
+///   Indeed if the thread, and by extension its return value, can outlive their
+///   caller, we need to make sure that they will be valid afterwards, and since
+///   we *can't* know when it will return we need to have them valid as long as
+///   possible, that is until the end of the program, hence the `'static`
+///   lifetime.
+/// - The [`Send`] constraint is because the closure will need to be passed
+///   *by value* from the thread where it is spawned to the new thread. Its
+///   return value will need to be passed from the new thread to the thread
+///   where it is `join`ed.
+///   As a reminder, the [`Send`] marker trait expresses that it is safe to be
+///   passed from thread to thread. [`Sync`] expresses that it is safe to have a
+///   reference be passed from thread to thread.
+///
+/// # Panics
+///
+/// Panics if the OS fails to create a thread; use [`Builder::spawn`]
+/// to recover from such errors.
+///
 #[cfg(feature = "thread")]
-pub fn spawn<F, T>(f: F) -> JoinHandle<T> where
-    F: FnOnce() -> T, F: Send + 'static, T: Send + 'static
+pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+where
+    F: FnOnce() -> T,
+    F: Send + 'static,
+    T: Send + 'static,
 {
     Builder::new().spawn(f).expect("failed to spawn thread")
 }
 
+/// Gets a handle to the thread that invokes it.
+///
+pub fn current() -> SgxThread {
+    thread_info::current_thread().expect("use of thread::current() need TCS policy is Bound")
+}
+
+/// Cooperatively gives up a timeslice to the OS scheduler.
+///
+/// This is used when the programmer knows that the thread will have nothing
+/// to do for some time, and thus avoid wasting computing time.
+///
+/// For example when polling on a resource, it is common to check that it is
+/// available, and if not to yield in order to avoid busy waiting.
+///
+/// Thus the pattern of `yield`ing after a failed poll is rather common when
+/// implementing low-level shared resources or synchronization primitives.
+///
+/// However programmers will usually prefer to use [`channel`]s, [`Condvar`]s,
+/// [`Mutex`]es or [`join`] for their synchronization routines, as they avoid
+/// thinking about thread scheduling.
+///
+/// Note that [`channel`]s for example are implemented using this primitive.
+/// Indeed when you call `send` or `recv`, which are blocking, they will yield
+/// if the channel is not available.
+///
 #[cfg(feature = "thread")]
 pub fn yield_now() {
     imp::Thread::yield_now()
 }
 
+/// Determines whether the current thread is unwinding because of panic.
+///
+/// A common use of this feature is to poison shared resources when writing
+/// unsafe code, by checking `panicking` when the `drop` is called.
+///
+/// This is usually not needed when writing safe code, as [`Mutex`es][Mutex]
+/// already poison themselves when a thread panics while holding the lock.
+///
+/// This can also be used in multithreaded applications, in order to send a
+/// message to other threads warning that a thread has panicked (e.g., for
+/// monitoring purposes).
+///
+pub fn panicking() -> bool {
+    panicking::panicking()
+}
+
+/// Puts the current thread to sleep for at least the specified amount of time.
+///
+/// The thread may sleep longer than the duration specified due to scheduling
+/// specifics or platform-dependent functionality. It will never sleep less.
+///
+/// # Platform-specific behavior
+///
+/// On Unix platforms, the underlying syscall may be interrupted by a
+/// spurious wakeup or signal handler. To ensure the sleep occurs for at least
+/// the specified duration, this function may invoke that system call multiple
+/// times.
+///
 #[cfg(feature = "thread")]
 pub fn sleep_ms(ms: u32) {
     sleep(Duration::from_millis(ms as u64))
 }
 
+/// Puts the current thread to sleep for at least the specified amount of time.
+///
+/// The thread may sleep longer than the duration specified due to scheduling
+/// specifics or platform-dependent functionality. It will never sleep less.
+///
+/// # Platform-specific behavior
+///
+/// On Unix platforms, the underlying syscall may be interrupted by a
+/// spurious wakeup or signal handler. To ensure the sleep occurs for at least
+/// the specified duration, this function may invoke that system call multiple
+/// times.
+/// Platforms which do not support nanosecond precision for sleeping will
+/// have `dur` rounded up to the nearest granularity of time they can sleep for.
+///
 #[cfg(feature = "thread")]
 pub fn sleep(dur: Duration) {
     imp::Thread::sleep(dur)
 }
+
 ///
 /// The rsgx_thread_self function returns the unique thread identification.
 ///
@@ -194,26 +375,6 @@ pub fn current_td() -> SgxThreadData {
     }
 }
 
-/// Gets a handle to the thread that invokes it.
-pub fn current() -> SgxThread {
-    thread_info::current_thread().expect("use of thread::current() need TCS policy is Bound")
-}
-
-/// Determines whether the current thread is unwinding // state for thread park/unparkbecause of panic.
-///
-/// A common use of this feature is to poison shared resources when writing
-/// unsafe code, by checking `panicking` when the `drop` is called.
-///
-/// This is usually not needed when writing safe code, as [`SgxMutex`es][SgxMutex]
-/// already poison themselves when a thread panics while holding the lock.
-///
-/// This can also be used in multithreaded applications, in order to send a
-/// message to other threads warning that a thread has panicked (e.g. for
-/// monitoring purposes).
-pub fn panicking() -> bool {
-    panicking::panicking()
-}
-
 // constants for park/unpark
 const EMPTY: usize = 0;
 const PARKED: usize = 1;
@@ -248,6 +409,11 @@ const NOTIFIED: usize = 2;
 /// In other words, each [`Thread`] acts a bit like a spinlock that can be
 /// locked and unlocked using `park` and `unpark`.
 ///
+/// Notice that being unblocked does not imply any synchronization with someone
+/// that unparked this thread, it could also be spurious.
+/// For example, it would be a valid, but inefficient, implementation to make both [`park`] and
+/// [`unpark`] return immediately without doing anything.
+///
 /// The API is typically used by acquiring a handle to the current thread,
 /// placing that handle in a shared data structure so that other threads can
 /// find it, and then `park`ing in a loop. When some desired condition is met, another
@@ -267,7 +433,7 @@ pub fn park() {
     // If we were previously notified then we consume this notification and
     // return quickly.
     if thread.inner.state.compare_exchange(NOTIFIED, EMPTY, SeqCst, SeqCst).is_ok() {
-        return
+        return;
     }
 
     // Otherwise we need to coordinate going to sleep
@@ -291,7 +457,7 @@ pub fn park() {
         m = thread.inner.cvar.wait(m).unwrap();
         match thread.inner.state.compare_exchange(NOTIFIED, EMPTY, SeqCst, SeqCst) {
             Ok(_) => return, // got a notification
-            Err(_) => {} // spurious wakeup, go back to sleep
+            Err(_) => {}     // spurious wakeup, go back to sleep
         }
     }
 }
@@ -362,7 +528,7 @@ pub fn park_timeout(dur: Duration) {
     // afterwards we start coordinating for a sleep.
     // return quickly.
     if thread.inner.state.compare_exchange(NOTIFIED, EMPTY, SeqCst, SeqCst).is_ok() {
-        return
+        return;
     }
     let m = thread.inner.lock.lock().unwrap();
     match thread.inner.state.compare_exchange(EMPTY, PARKED, SeqCst, SeqCst) {
@@ -375,6 +541,7 @@ pub fn park_timeout(dur: Duration) {
         } // should consume this notification, so prohibit spurious wakeups in next park.
         Err(_) => panic!("inconsistent park_timeout state"),
     }
+
     // Wait with a timeout, and if we spuriously wake up or otherwise wake up
     // from a notification we just want to unconditionally set the state back to
     // empty, either consuming a notification or un-flagging ourselves as
@@ -382,7 +549,7 @@ pub fn park_timeout(dur: Duration) {
     let (_m, _result) = thread.inner.cvar.wait_timeout(m, dur).unwrap();
     match thread.inner.state.swap(EMPTY, SeqCst) {
         NOTIFIED => {} // got a notification, hurray!
-        PARKED => {} // no notification, alas
+        PARKED => {}   // no notification, alas
         n => panic!("inconsistent park_timeout state: {}", n),
     }
 }
@@ -418,7 +585,7 @@ pub struct ThreadId(NonZeroU64);
 
 impl ThreadId {
     // Generate a new unique thread ID.
-    fn new() -> Self {
+    fn new() -> ThreadId {
         // We never call `GUARD.init()`, so it is UB to attempt to
         // acquire this mutex reentrantly!
 
@@ -442,12 +609,29 @@ impl ThreadId {
             ThreadId(NonZeroU64::new(id).unwrap())
         }
     }
+
+    /// This returns a numeric identifier for the thread identified by this
+    /// `ThreadId`.
+    ///
+    /// As noted in the documentation for the type itself, it is essentially an
+    /// opaque ID, but is guaranteed to be unique for each thread. The returned
+    /// value is entirely opaque -- only equality testing is stable. Note that
+    /// it is not guaranteed which values new threads will return, and this may
+    /// change across Rust versions.
+    pub fn as_u64(&self) -> NonZeroU64 {
+        self.0
+    }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Thread
+////////////////////////////////////////////////////////////////////////////////
 
 /// The internal representation of a `Thread` handle
 struct Inner {
-    name: Option<CString>,      // Guaranteed to be UTF-8
+    name: Option<CString>, // Guaranteed to be UTF-8
     id: ThreadId,
+
     // state for thread park/unpark
     state: AtomicUsize,
     lock: SgxMutex<()>,
@@ -463,33 +647,20 @@ pub struct SgxThread {
 
 impl SgxThread {
 
-    /// Used only internally to construct a thread object without spawning
-    pub(crate) fn new(name: Option<String>) -> Self {
-          let cname = name.map(|n| {
-            CString::new(n).expect("thread name may not contain interior null bytes")
-        });
+    // Used only internally to construct a thread object without spawning
+    // Panics if the name contains nuls.
+    pub(crate) fn new(name: Option<String>) -> SgxThread {
+        let cname =
+            name.map(|n| CString::new(n).expect("thread name may not contain interior null bytes"));
         SgxThread {
             inner: Arc::new(Inner {
-                name:cname,
+                name: cname,
                 id: ThreadId::new(),
                 state: AtomicUsize::new(EMPTY),
                 lock: SgxMutex::new(()),
                 cvar: SgxCondvar::new(),
-            })
+            }),
         }
-    }
-
-    /// Gets the thread's unique identifier.
-    pub fn id(&self) -> ThreadId {
-        self.inner.id
-    }
-
-    pub fn name(&self) -> Option<&str> {
-        self.cname().map(|s| unsafe { str::from_utf8_unchecked(s.to_bytes()) } )
-    }
-
-    fn cname(&self) -> Option<&CStr> {
-        self.inner.name.as_ref().map(|s| &**s)
     }
 
     /// Atomically makes the handle's token available if it is not already.
@@ -506,9 +677,9 @@ impl SgxThread {
         // rather than a compare-and-swap that returns if it reads `NOTIFIED`
         // on failure.
         match self.inner.state.swap(NOTIFIED, SeqCst) {
-            EMPTY => return, // no one was waiting
+            EMPTY => return,    // no one was waiting
             NOTIFIED => return, // already unparked
-            PARKED => {} // gotta go wake someone up
+            PARKED => {}        // gotta go wake someone up
             _ => panic!("inconsistent state in unpark"),
         }
 
@@ -526,14 +697,30 @@ impl SgxThread {
         drop(self.inner.lock.lock().unwrap());
         self.inner.cvar.notify_one()
     }
+
+    /// Gets the thread's unique identifier.
+    ///
+    pub fn id(&self) -> ThreadId {
+        self.inner.id
+    }
+
+    /// Gets the thread's name.
+    ///
+    /// For more information about named threads, see
+    /// [this module-level documentation][naming-threads].
+    ///
+    pub fn name(&self) -> Option<&str> {
+        self.cname().map(|s| unsafe { str::from_utf8_unchecked(s.to_bytes()) })
+    }
+
+    fn cname(&self) -> Option<&CStr> {
+        self.inner.name.as_ref().map(|s| &**s)
+    }
 }
 
 impl fmt::Debug for SgxThread {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SgxThread")
-            .field("id", &self.id())
-            .field("name", &self.name())
-            .finish()
+        f.debug_struct("SgxThread").field("id", &self.id()).field("name", &self.name()).finish()
     }
 }
 
@@ -545,27 +732,20 @@ impl fmt::Debug for SgxThread {
 ///
 /// Indicates the manner in which a thread exited.
 ///
+/// The value contained in the `Result::Err` variant
+/// is the value the thread panicked with;
+/// that is, the argument the `panic!` macro was called with.
+/// Unlike with normal errors, this value doesn't implement
+/// the [`Error`](crate::error::Error) trait.
+///
+/// Thus, a sensible way to handle a thread panic is to either:
+/// 1. `unwrap` the `Result<T>`, propagating the panic
+/// 2. or in case the thread is intended to be a subsystem boundary
+/// that is supposed to isolate system-level failures,
+/// match on the `Err` variant and handle the panic in an appropriate way.
+///
 /// A thread that completes without panicking is considered to exit successfully.
 ///
-/// # Examples
-///
-/// ```no_run
-/// use std::thread;
-/// use std::fs;
-///
-/// fn copy_in_thread() -> thread::Result<()> {
-///     thread::spawn(move || { fs::copy("foo.txt", "bar.txt").unwrap(); }).join()
-/// }
-///
-/// fn main() {
-///     match copy_in_thread() {
-///         Ok(_) => println!("this is fine"),
-///         Err(_) => println!("thread panicked"),
-///     }
-/// }
-/// ```
-///
-/// [`Result`]: ../../std/result/enum.Result.html
 pub type Result<T> = crate::result::Result<T, Box<dyn Any + Send + 'static>>;
 
 // This packet is used to communicate the return value between the child thread
@@ -600,9 +780,7 @@ struct JoinInner<T> {
 impl<T> JoinInner<T> {
     fn join(&mut self) -> Result<T> {
         self.native.take().unwrap().join();
-        unsafe {
-            (*self.packet.0.get()).take().unwrap()
-        }
+        unsafe { (*self.packet.0.get()).take().unwrap() }
     }
 }
 
@@ -736,12 +914,16 @@ impl<T> JoinHandle<T> {
 
 #[cfg(feature = "thread")]
 impl<T> AsInner<imp::Thread> for JoinHandle<T> {
-    fn as_inner(&self) -> &imp::Thread { self.0.native.as_ref().unwrap() }
+    fn as_inner(&self) -> &imp::Thread {
+        self.0.native.as_ref().unwrap()
+    }
 }
 
 #[cfg(feature = "thread")]
 impl<T> IntoInner<imp::Thread> for JoinHandle<T> {
-    fn into_inner(self) -> imp::Thread { self.0.native.unwrap() }
+    fn into_inner(self) -> imp::Thread {
+        self.0.native.unwrap()
+    }
 }
 
 #[cfg(feature = "thread")]

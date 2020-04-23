@@ -18,12 +18,13 @@
 //! Filesystem manipulation operations.
 
 use core::fmt;
-use crate::io::{self, SeekFrom, Seek, Read, Initializer, Write, IoSlice, IoSliceMut};
+use crate::io::{self, Initializer, IoSlice, IoSliceMut, Read, Seek, SeekFrom, Write};
 use crate::path::{Path, PathBuf};
 use crate::sys::fs as fs_imp;
-use crate::sys_common::{AsInnerMut, FromInner, AsInner, IntoInner};
+use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
 use crate::time::SystemTime;
 use crate::ffi::OsString;
+#[cfg(not(feature = "untrusted_fs"))]
 use crate::untrusted::path::PathEx;
 
 /// A reference to an open file on the filesystem.
@@ -32,7 +33,9 @@ use crate::untrusted::path::PathEx;
 /// it was opened with. Files also implement [`Seek`] to alter the logical cursor
 /// that the file contains internally.
 ///
-/// Files are automatically closed when they go out of scope.
+/// Files are automatically closed when they go out of scope.  Errors detected
+/// on closing are ignored by the implementation of `Drop`.  Use the method
+/// [`sync_all`] if these errors must be manually handled.
 ///
 pub struct File {
     inner: fs_imp::File,
@@ -47,12 +50,16 @@ pub struct File {
 ///
 #[derive(Clone)]
 pub struct Metadata(fs_imp::FileAttr);
+
 /// Iterator over the entries in a directory.
 ///
 /// This iterator is returned from the [`read_dir`] function of this module and
 /// will yield instances of [`io::Result`]`<`[`DirEntry`]`>`. Through a [`DirEntry`]
 /// information like the entry's path and possibly other metadata can be
 /// learned.
+///
+/// The order in which this iterator returns entries is platform and filesystem
+/// dependent.
 ///
 /// # Errors
 ///
@@ -127,7 +134,8 @@ pub struct DirBuilder {
     inner: fs_imp::DirBuilder,
     recursive: bool,
 }
-/// How large a buffer to pre-allocate before reading the entire file.
+
+/// Indicates how large a buffer to pre-allocate before reading the entire file.
 fn initial_buffer_size(file: &File) -> usize {
     // Allocate one extra byte so the buffer doesn't need to grow before the
     // final `read` call at the end of the file.  Don't worry about `usize`
@@ -247,10 +255,33 @@ impl File {
         OpenOptions::new().write(true).create(true).truncate(true).open(path.as_ref())
     }
 
+    /// Returns a new OpenOptions object.
+    ///
+    /// This function returns a new OpenOptions object that you can use to
+    /// open or create a file with specific options if `open()` or `create()`
+    /// are not appropriate.
+    ///
+    /// It is equivalent to `OpenOptions::new()` but allows you to write more
+    /// readable code. Instead of `OpenOptions::new().read(true).open("foo.txt")`
+    /// you can write `File::with_options().read(true).open("foo.txt")`. This
+    /// also avoids the need to import `OpenOptions`.
+    ///
+    /// See the [`OpenOptions::new`] function for more details.
+    ///
+    /// [`OpenOptions::new`]: struct.OpenOptions.html#method.new
+    ///
+    pub fn with_options() -> OpenOptions {
+        OpenOptions::new()
+    }
+
     /// Attempts to sync all OS-internal metadata to disk.
     ///
     /// This function will attempt to ensure that all in-memory data reaches the
     /// filesystem before returning.
+    ///
+    /// This can be used to handle errors that would otherwise only be caught
+    /// when the `File` is closed.  Dropping a file will ignore errors in
+    /// synchronizing this in-memory data.
     ///
     pub fn sync_all(&self) -> io::Result<()> {
         self.inner.fsync()
@@ -287,6 +318,8 @@ impl File {
     /// # Errors
     ///
     /// This function will return an error if the file is not opened for writing.
+    /// Also, std::io::ErrorKind::InvalidInput will be returned if the desired
+    /// length would cause an overflow due to the implementation specifics.
     ///
     pub fn set_len(&self, size: u64) -> io::Result<()> {
         self.inner.truncate(size)
@@ -303,9 +336,7 @@ impl File {
     /// both `File` instances simultaneously.
     ///
     pub fn try_clone(&self) -> io::Result<File> {
-        Ok(File {
-            inner: self.inner.duplicate()?
-        })
+        Ok(File { inner: self.inner.duplicate()? })
     }
 
     /// Changes the permissions on the underlying file.
@@ -330,7 +361,9 @@ impl File {
 }
 
 impl AsInner<fs_imp::File> for File {
-    fn as_inner(&self) -> &fs_imp::File { &self.inner }
+    fn as_inner(&self) -> &fs_imp::File {
+        &self.inner
+    }
 }
 impl FromInner<fs_imp::File> for File {
     fn from_inner(f: fs_imp::File) -> File {
@@ -373,7 +406,9 @@ impl Write for File {
         self.inner.write_vectored(bufs)
     }
 
-    fn flush(&mut self) -> io::Result<()> { self.inner.flush() }
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
 }
 
 impl Seek for File {
@@ -406,7 +441,9 @@ impl Write for &File {
         self.inner.write_vectored(bufs)
     }
 
-    fn flush(&mut self) -> io::Result<()> { self.inner.flush() }
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
 }
 
 impl Seek for &File {
@@ -420,7 +457,7 @@ impl OpenOptions {
     ///
     /// All options are initially set to `false`.
     ///
-    pub fn new() -> OpenOptions {
+    pub fn new() -> Self {
         OpenOptions(fs_imp::OpenOptions::new())
     }
 
@@ -429,8 +466,9 @@ impl OpenOptions {
     /// This option, when true, will indicate that the file should be
     /// `read`-able if opened.
     ///
-    pub fn read(&mut self, read: bool) -> &mut OpenOptions {
-        self.0.read(read); self
+    pub fn read(&mut self, read: bool) -> &mut Self {
+        self.0.read(read);
+        self
     }
 
     /// Sets the option for write access.
@@ -441,8 +479,9 @@ impl OpenOptions {
     /// If the file already exists, any write calls on it will overwrite its
     /// contents, without truncating it.
     ///
-    pub fn write(&mut self, write: bool) -> &mut OpenOptions {
-        self.0.write(write); self
+    pub fn write(&mut self, write: bool) -> &mut Self {
+        self.0.write(write);
+        self
     }
 
     /// Sets the option for the append mode.
@@ -479,8 +518,9 @@ impl OpenOptions {
     /// [`Current`]: ../../std/io/enum.SeekFrom.html#variant.Current
     /// [`create`]: #method.create
     ///
-    pub fn append(&mut self, append: bool) -> &mut OpenOptions {
-        self.0.append(append); self
+    pub fn append(&mut self, append: bool) -> &mut Self {
+        self.0.append(append);
+        self
     }
 
     /// Sets the option for truncating a previous file.
@@ -490,14 +530,12 @@ impl OpenOptions {
     ///
     /// The file must be opened with write access for truncate to work.
     ///
-    pub fn truncate(&mut self, truncate: bool) -> &mut OpenOptions {
-        self.0.truncate(truncate); self
+    pub fn truncate(&mut self, truncate: bool) -> &mut Self {
+        self.0.truncate(truncate);
+        self
     }
 
-    /// Sets the option for creating a new file.
-    ///
-    /// This option indicates whether a new file will be created if the file
-    /// does not yet already exist.
+    /// Sets the option to create a new file, or open it if it already exists.
     ///
     /// In order for the file to be created, [`write`] or [`append`] access must
     /// be used.
@@ -505,15 +543,15 @@ impl OpenOptions {
     /// [`write`]: #method.write
     /// [`append`]: #method.append
     ///
-    pub fn create(&mut self, create: bool) -> &mut OpenOptions {
-        self.0.create(create); self
+    pub fn create(&mut self, create: bool) -> &mut Self {
+        self.0.create(create);
+        self
     }
 
-    /// Sets the option to always create a new file.
+    /// Sets the option to create a new file, failing if it already exists.
     ///
-    /// This option indicates whether a new file will be created.
-    /// No file is allowed to exist at the target location, also no (dangling)
-    /// symlink.
+    /// No file is allowed to exist at the target location, also no (dangling) symlink. In this
+    /// way, if the call succeeds, the file returned is guaranteed to be new.
     ///
     /// This option is useful because it is atomic. Otherwise between checking
     /// whether a file exists and creating a new one, the file may have been
@@ -528,8 +566,9 @@ impl OpenOptions {
     /// [`.create()`]: #method.create
     /// [`.truncate()`]: #method.truncate
     ///
-    pub fn create_new(&mut self, create_new: bool) -> &mut OpenOptions {
-        self.0.create_new(create_new); self
+    pub fn create_new(&mut self, create_new: bool) -> &mut Self {
+        self.0.create_new(create_new);
+        self
     }
 
     /// Opens a file at `path` with the options specified by `self`.
@@ -571,11 +610,15 @@ impl OpenOptions {
 }
 
 impl AsInner<fs_imp::OpenOptions> for OpenOptions {
-    fn as_inner(&self) -> &fs_imp::OpenOptions { &self.0 }
+    fn as_inner(&self) -> &fs_imp::OpenOptions {
+        &self.0
+    }
 }
 
 impl AsInnerMut<fs_imp::OpenOptions> for OpenOptions {
-    fn as_inner_mut(&mut self) -> &mut fs_imp::OpenOptions { &mut self.0 }
+    fn as_inner_mut(&mut self) -> &mut fs_imp::OpenOptions {
+        &mut self.0
+    }
 }
 
 impl Metadata {
@@ -593,7 +636,9 @@ impl Metadata {
     /// [`is_file`]: struct.Metadata.html#method.is_file
     /// [`symlink_metadata`]: fn.symlink_metadata.html
     ///
-    pub fn is_dir(&self) -> bool { self.file_type().is_dir() }
+    pub fn is_dir(&self) -> bool {
+        self.file_type().is_dir()
+    }
 
     /// Returns `true` if this metadata is for a regular file. The
     /// result is mutually exclusive to the result of
@@ -603,11 +648,15 @@ impl Metadata {
     /// [`is_dir`]: struct.Metadata.html#method.is_dir
     /// [`symlink_metadata`]: fn.symlink_metadata.html
     ///
-    pub fn is_file(&self) -> bool { self.file_type().is_file() }
+    pub fn is_file(&self) -> bool {
+        self.file_type().is_file()
+    }
 
     /// Returns the size of the file, in bytes, this metadata is for.
     ///
-    pub fn len(&self) -> u64 { self.0.size() }
+    pub fn len(&self) -> u64 {
+        self.0.size()
+    }
 
     /// Returns the permissions of the file this metadata is for.
     ///
@@ -649,13 +698,14 @@ impl Metadata {
 
     /// Returns the creation time listed in this metadata.
     ///
-    /// The returned value corresponds to the `birthtime` field of `stat` on
-    /// Unix platforms and the `ftCreationTime` field on Windows platforms.
+    /// The returned value corresponds to the `btime` field of `statx` on
+    /// Linux kernel starting from to 4.11, the `birthtime` field of `stat` on other
+    /// Unix platforms, and the `ftCreationTime` field on Windows platforms.
     ///
     /// # Errors
     ///
     /// This field may not be available on all platforms, and will return an
-    /// `Err` on platforms where it is not available.
+    /// `Err` on platforms or filesystems where it is not available.
     ///
     pub fn created(&self) -> io::Result<SystemTime> {
         self.0.created().map(FromInner::from_inner)
@@ -677,17 +727,23 @@ impl fmt::Debug for Metadata {
 }
 
 impl AsInner<fs_imp::FileAttr> for Metadata {
-    fn as_inner(&self) -> &fs_imp::FileAttr { &self.0 }
+    fn as_inner(&self) -> &fs_imp::FileAttr {
+        &self.0
+    }
 }
 
 impl FromInner<fs_imp::FileAttr> for Metadata {
-    fn from_inner(attr: fs_imp::FileAttr) -> Metadata { Metadata(attr) }
+    fn from_inner(attr: fs_imp::FileAttr) -> Metadata {
+        Metadata(attr)
+    }
 }
 
 impl Permissions {
     /// Returns `true` if these permissions describe a readonly (unwritable) file.
     ///
-    pub fn readonly(&self) -> bool { self.0.readonly() }
+    pub fn readonly(&self) -> bool {
+        self.0.readonly()
+    }
 
     /// Modifies the readonly flag for this set of permissions. If the
     /// `readonly` argument is `true`, using the resulting `Permission` will
@@ -714,7 +770,9 @@ impl FileType {
     /// [`is_file`]: struct.FileType.html#method.is_file
     /// [`is_symlink`]: struct.FileType.html#method.is_symlink
     ///
-    pub fn is_dir(&self) -> bool { self.0.is_dir() }
+    pub fn is_dir(&self) -> bool {
+        self.0.is_dir()
+    }
 
     /// Tests whether this file type represents a regular file.
     /// The result is  mutually exclusive to the results of
@@ -724,7 +782,9 @@ impl FileType {
     /// [`is_dir`]: struct.FileType.html#method.is_dir
     /// [`is_symlink`]: struct.FileType.html#method.is_symlink
     ///
-    pub fn is_file(&self) -> bool { self.0.is_file() }
+    pub fn is_file(&self) -> bool {
+        self.0.is_file()
+    }
 
     /// Tests whether this file type represents a symbolic link.
     /// The result is mutually exclusive to the results of
@@ -744,11 +804,15 @@ impl FileType {
     /// [`is_file`]: struct.FileType.html#method.is_file
     /// [`is_symlink`]: struct.FileType.html#method.is_symlink
     ///
-    pub fn is_symlink(&self) -> bool { self.0.is_symlink() }
+    pub fn is_symlink(&self) -> bool {
+        self.0.is_symlink()
+    }
 }
 
 impl AsInner<fs_imp::FileType> for FileType {
-    fn as_inner(&self) -> &fs_imp::FileType { &self.0 }
+    fn as_inner(&self) -> &fs_imp::FileType {
+        &self.0
+    }
 }
 
 impl FromInner<fs_imp::FilePermissions> for Permissions {
@@ -758,7 +822,9 @@ impl FromInner<fs_imp::FilePermissions> for Permissions {
 }
 
 impl AsInner<fs_imp::FilePermissions> for Permissions {
-    fn as_inner(&self) -> &fs_imp::FilePermissions { &self.0 }
+    fn as_inner(&self) -> &fs_imp::FilePermissions {
+        &self.0
+    }
 }
 
 impl Iterator for ReadDir {
@@ -770,16 +836,48 @@ impl Iterator for ReadDir {
 }
 
 impl DirEntry {
-    pub fn path(&self) -> PathBuf { self.0.path() }
+    /// Returns the full path to the file that this entry represents.
+    ///
+    /// The full path is created by joining the original path to `read_dir`
+    /// with the filename of this entry.
+    ///
+    pub fn path(&self) -> PathBuf {
+        self.0.path()
+    }
 
+    /// Returns the metadata for the file that this entry points at.
+    ///
+    /// This function will not traverse symlinks if this entry points at a
+    /// symlink.
+    ///
+    /// # Platform-specific behavior
+    ///
+    /// On Windows this function is cheap to call (no extra system calls
+    /// needed), but on Unix platforms this function is the equivalent of
+    /// calling `symlink_metadata` on the path.
+    ///
     pub fn metadata(&self) -> io::Result<Metadata> {
         self.0.metadata().map(Metadata)
     }
 
+    /// Returns the file type for the file that this entry points at.
+    ///
+    /// This function will not traverse symlinks if this entry points at a
+    /// symlink.
+    ///
+    /// # Platform-specific behavior
+    ///
+    /// On Windows and most Unix platforms this function is free (no extra
+    /// system calls needed), but some Unix platforms may require the equivalent
+    /// call to `symlink_metadata` to learn about the target file type.
+    ///
     pub fn file_type(&self) -> io::Result<FileType> {
         self.0.file_type().map(FileType)
     }
 
+    /// Returns the bare file name of this directory entry without any other
+    /// leading path component.
+    ///
     pub fn file_name(&self) -> OsString {
         self.0.file_name()
     }
@@ -787,15 +885,16 @@ impl DirEntry {
 
 impl fmt::Debug for DirEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("DirEntry")
-            .field(&self.path())
-            .finish()
+        f.debug_tuple("DirEntry").field(&self.path()).finish()
     }
 }
 
 impl AsInner<fs_imp::DirEntry> for DirEntry {
-    fn as_inner(&self) -> &fs_imp::DirEntry { &self.0 }
+    fn as_inner(&self) -> &fs_imp::DirEntry {
+        &self.0
+    }
 }
+
 /// Removes a file from the filesystem.
 ///
 /// Note that there is no
@@ -913,6 +1012,12 @@ pub fn rename<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> io::Result<()> 
 /// On success, the total number of bytes copied is returned and it is equal to
 /// the length of the `to` file as reported by `metadata`.
 ///
+/// If you’re wanting to copy the contents of one file to another and you’re
+/// working with [`File`]s, see the [`io::copy`] function.
+///
+/// [`io::copy`]: ../io/fn.copy.html
+/// [`File`]: ./struct.File.html
+///
 /// # Platform-specific behavior
 ///
 /// This function currently corresponds to the `open` function in Unix
@@ -920,8 +1025,8 @@ pub fn rename<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> io::Result<()> 
 /// `O_CLOEXEC` is set for returned file descriptors.
 /// On Windows, this function currently corresponds to `CopyFileEx`. Alternate
 /// NTFS streams are copied but only the size of the main stream is returned by
-/// this function. On MacOS, this function corresponds to `copyfile` with
-/// `COPYFILE_ALL`.
+/// this function. On MacOS, this function corresponds to `fclonefileat` and
+/// `fcopyfile`.
 /// Note that, this [may change in the future][changes].
 ///
 /// [changes]: ../io/index.html#platform-specific-behavior
@@ -1011,6 +1116,29 @@ pub fn read_link<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
 ///
 /// This function currently corresponds to the `realpath` function on Unix
 /// and the `CreateFile` and `GetFinalPathNameByHandle` functions on Windows.
+/// Note that, this [may change in the future][changes].
+///
+/// On Windows, this converts the path to use [extended length path][path]
+/// syntax, which allows your program to use longer path names, but means you
+/// can only join backslash-delimited paths to it, and it may be incompatible
+/// with other applications (if passed to the application on the command-line,
+/// or written to a file another application may read).
+///
+/// [changes]: ../io/index.html#platform-specific-behavior
+/// [path]: https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file
+///
+/// # Errors
+///
+/// This function will return an error in the following situations, but is not
+/// limited to just these cases:
+///
+/// * `path` does not exist.
+/// * A non-final component in path is not a directory.
+///
+pub fn canonicalize<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
+    fs_imp::canonicalize(path.as_ref())
+}
+
 /// Creates a new, empty directory at the provided path
 ///
 /// # Platform-specific behavior
@@ -1038,48 +1166,124 @@ pub fn read_link<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
 ///
 /// [`create_dir_all`]: fn.create_dir_all.html
 ///
-/// # Examples
-///
-/// ```no_run
-/// use std::fs;
-///
-/// fn main() -> std::io::Result<()> {
-///     fs::create_dir("/some/dir")?;
-///     Ok(())
-/// }
-/// ```
 pub fn create_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
     DirBuilder::new().create(path.as_ref())
 }
+
+/// Recursively create a directory and all of its parent components if they
+/// are missing.
+///
+/// # Platform-specific behavior
+///
+/// This function currently corresponds to the `mkdir` function on Unix
+/// and the `CreateDirectory` function on Windows.
+/// Note that, this [may change in the future][changes].
+///
 /// [changes]: ../io/index.html#platform-specific-behavior
-/// [path]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath
 ///
 /// # Errors
 ///
 /// This function will return an error in the following situations, but is not
 /// limited to just these cases:
 ///
-/// * `path` does not exist.
-/// * A component in path is not a directory.
+/// * If any directory in the path specified by `path`
+/// does not already exist and it could not be created otherwise. The specific
+/// error conditions for when a directory is being created (after it is
+/// determined to not exist) are outlined by [`fs::create_dir`].
 ///
-pub fn canonicalize<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
-    fs_imp::canonicalize(path.as_ref())
-}
-
+/// Notable exception is made for situations where any of the directories
+/// specified in the `path` could not be created as it was being created concurrently.
+/// Such cases are considered to be successful. That is, calling `create_dir_all`
+/// concurrently from multiple threads or processes is guaranteed not to fail
+/// due to a race condition with itself.
+///
+/// [`fs::create_dir`]: fn.create_dir.html
+///
 pub fn create_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
     DirBuilder::new().recursive(true).create(path.as_ref())
 }
 
+/// Removes an existing, empty directory.
+///
+/// # Platform-specific behavior
+///
+/// This function currently corresponds to the `rmdir` function on Unix
+/// and the `RemoveDirectory` function on Windows.
+/// Note that, this [may change in the future][changes].
+///
+/// [changes]: ../io/index.html#platform-specific-behavior
+///
+/// # Errors
+///
+/// This function will return an error in the following situations, but is not
+/// limited to just these cases:
+///
+/// * The user lacks permissions to remove the directory at the provided `path`.
+/// * The directory isn't empty.
+///
 pub fn remove_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
     fs_imp::rmdir(path.as_ref())
 }
+
+/// Removes a directory at this path, after removing all its contents. Use
+/// carefully!
+///
+/// This function does **not** follow symbolic links and it will simply remove the
+/// symbolic link itself.
+///
+/// # Platform-specific behavior
+///
+/// This function currently corresponds to `opendir`, `lstat`, `rm` and `rmdir` functions on Unix
+/// and the `FindFirstFile`, `GetFileAttributesEx`, `DeleteFile`, and `RemoveDirectory` functions
+/// on Windows.
+/// Note that, this [may change in the future][changes].
+///
+/// [changes]: ../io/index.html#platform-specific-behavior
+///
+/// # Errors
+///
+/// See [`fs::remove_file`] and [`fs::remove_dir`].
+///
+/// [`fs::remove_file`]:  fn.remove_file.html
+/// [`fs::remove_dir`]: fn.remove_dir.html
+///
 pub fn remove_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
     fs_imp::remove_dir_all(path.as_ref())
 }
 
+/// Returns an iterator over the entries within a directory.
+///
+/// The iterator will yield instances of [`io::Result`]`<`[`DirEntry`]`>`.
+/// New errors may be encountered after an iterator is initially constructed.
+///
+/// [`io::Result`]: ../io/type.Result.html
+/// [`DirEntry`]: struct.DirEntry.html
+///
+/// # Platform-specific behavior
+///
+/// This function currently corresponds to the `opendir` function on Unix
+/// and the `FindFirstFile` function on Windows. Advancing the iterator
+/// currently corresponds to `readdir` on Unix and `FindNextFile` on Windows.
+/// Note that, this [may change in the future][changes].
+///
+/// [changes]: ../io/index.html#platform-specific-behavior
+///
+/// The order in which this iterator returns entries is platform and filesystem
+/// dependent.
+///
+/// # Errors
+///
+/// This function will return an error in the following situations, but is not
+/// limited to just these cases:
+///
+/// * The provided `path` doesn't exist.
+/// * The process lacks permissions to view the contents.
+/// * The `path` points at a non-directory file.
+///
 pub fn read_dir<P: AsRef<Path>>(path: P) -> io::Result<ReadDir> {
     fs_imp::readdir(path.as_ref()).map(ReadDir)
 }
+
 /// Changes the permissions found on a file or a directory.
 ///
 /// # Platform-specific behavior
@@ -1098,10 +1302,10 @@ pub fn read_dir<P: AsRef<Path>>(path: P) -> io::Result<ReadDir> {
 /// * `path` does not exist.
 /// * The user lacks the permission to change attributes of the file.
 ///
-pub fn set_permissions<P: AsRef<Path>>(path: P, perm: Permissions)
-                                       -> io::Result<()> {
+pub fn set_permissions<P: AsRef<Path>>(path: P, perm: Permissions) -> io::Result<()> {
     fs_imp::set_perm(path.as_ref(), perm.0)
 }
+
 impl DirBuilder {
     /// Creates a new set of options with default mode/security settings for all
     /// platforms and also non-recursive.
@@ -1114,10 +1318,7 @@ impl DirBuilder {
     /// let builder = DirBuilder::new();
     /// ```
     pub fn new() -> DirBuilder {
-        DirBuilder {
-            inner: fs_imp::DirBuilder::new(),
-            recursive: false,
-        }
+        DirBuilder { inner: fs_imp::DirBuilder::new(), recursive: false }
     }
 
     /// Indicates that directories should be created recursively, creating all
@@ -1162,16 +1363,12 @@ impl DirBuilder {
     }
 
     fn _create(&self, path: &Path) -> io::Result<()> {
-        if self.recursive {
-            self.create_dir_all(path)
-        } else {
-            self.inner.mkdir(path)
-        }
+        if self.recursive { self.create_dir_all(path) } else { self.inner.mkdir(path) }
     }
 
     fn create_dir_all(&self, path: &Path) -> io::Result<()> {
         if path == Path::new("") {
-            return Ok(())
+            return Ok(());
         }
 
         match self.inner.mkdir(path) {
@@ -1182,7 +1379,9 @@ impl DirBuilder {
         }
         match path.parent() {
             Some(p) => self.create_dir_all(p)?,
-            None => return Err(io::Error::new(io::ErrorKind::Other, "failed to create whole tree")),
+            None => {
+                return Err(io::Error::new(io::ErrorKind::Other, "failed to create whole tree"));
+            }
         }
         match self.inner.mkdir(path) {
             Ok(()) => Ok(()),

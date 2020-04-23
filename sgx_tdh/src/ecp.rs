@@ -18,16 +18,16 @@
 use sgx_types::*;
 use sgx_tcrypto::*;
 
-
 pub const EC_LABEL_LENGTH: usize = 3;
 pub const EC_SMK_LABEL: [u8; EC_LABEL_LENGTH] = [0x53, 0x4D, 0x4B];
 pub const EC_AEK_LABEL: [u8; EC_LABEL_LENGTH] = [0x41, 0x45, 0x4B];
 pub const EC_DERIVATION_BUFFER_SIZE: usize = 7;
 
 #[allow(clippy::trivially_copy_pass_by_ref)]
-pub fn derive_key(shared_key: &sgx_ec256_dh_shared_t,
-                  label: &[u8; EC_LABEL_LENGTH]) -> SgxResult<sgx_align_key_128bit_t> {
-
+pub fn derive_key(
+    shared_key: &sgx_ec256_dh_shared_t,
+    label: &[u8; EC_LABEL_LENGTH],
+) -> SgxResult<sgx_align_key_128bit_t> {
     let cmac_key = sgx_cmac_128bit_key_t::default();
     let mut key_derive_key = rsgx_rijndael128_cmac_msg(&cmac_key, shared_key).map_err(set_error)?;
 
@@ -58,3 +58,4 @@ fn set_error(sgx_ret: sgx_status_t) -> sgx_status_t {
         _ => sgx_status_t::SGX_ERROR_UNEXPECTED,
     }
 }
+

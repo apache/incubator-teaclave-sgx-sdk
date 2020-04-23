@@ -51,7 +51,6 @@ impl<'a, T: 'a + Clone + ?Sized> Clone for SgxMacAadata<'a, T> {
 }
 
 impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
-
     ///
     /// This function is used to authenticate the input data with AES-GMAC.
     ///
@@ -99,7 +98,6 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
     /// random number.
     ///
     pub fn mac_aadata(additional_text: &T) -> SgxResult<Self> {
-
         let size = mem::size_of::<T>();
         if size == 0 {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -178,11 +176,12 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
     /// Indicates a crypto library failure or the RDRAND instruction fails to generate a
     /// random number.
     ///
-    pub fn mac_aadata_ex(key_policy: u16,
-                         attribute_mask: sgx_attributes_t,
-                         misc_mask: sgx_misc_select_t,
-                         additional_text: &T) -> SgxResult<Self> {
-
+    pub fn mac_aadata_ex(
+        key_policy: u16,
+        attribute_mask: sgx_attributes_t,
+        misc_mask: sgx_misc_select_t,
+        additional_text: &T,
+    ) -> SgxResult<Self> {
         let size = mem::size_of::<T>();
         if size == 0 {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -191,10 +190,13 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
             slice::from_raw_parts(additional_text as *const _ as *const u8, mem::size_of_val(additional_text))
         };
 
-        let result = SgxInternalSealedData::mac_aadata_ex(key_policy,
-                                                          attribute_mask,
-                                                          misc_mask,
-                                                          aad_slice);
+        let result =
+            SgxInternalSealedData::mac_aadata_ex(
+                key_policy,
+                attribute_mask,
+                misc_mask,
+                aad_slice,
+            );
         result.map(|x| SgxMacAadata {inner: x, marker: PhantomData})
     }
 
@@ -243,7 +245,6 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
     /// random number.
     ///
     pub fn unmac_aadata(&self) -> SgxResult<Box<T>> {
-
         let size = mem::size_of::<T>();
         if size == 0 {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -255,7 +256,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
 
         self.inner.unmac_aadata().map(|x| {
             let ptr = Box::into_raw(x.additional);
-            unsafe{Box::from_raw(ptr as *mut T)}
+            unsafe { Box::from_raw(ptr as *mut T) }
         })
     }
 
@@ -263,13 +264,12 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
     /// Convert a pointer of sgx_sealed_data_t buffer to SgxMacAadata.
     ///
     pub unsafe fn from_raw_sealed_data_t(p: *mut sgx_sealed_data_t, len: u32) -> Option<Self> {
-
         let size = mem::size_of::<T>();
         if size == 0 {
             return None;
         }
         let opt = SgxInternalSealedData::from_raw_sealed_data_t(p, len);
-        opt.map(|x| SgxMacAadata{inner: x, marker: PhantomData})
+        opt.map(|x| SgxMacAadata { inner: x, marker: PhantomData })
     }
 
     ///
@@ -306,7 +306,6 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
     /// This function is used to authenticate the input data with AES-GMAC.
     ///
     pub fn mac_aadata(additional_text: &[T]) -> SgxResult<Self> {
-
         let size = mem::size_of::<T>();
         let len = mem::size_of_val(additional_text);
         if size == 0 || len == 0 {
@@ -317,18 +316,19 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
         };
 
         let result = SgxInternalSealedData::mac_aadata(aad_slice);
-        result.map(|x| SgxMacAadata {inner: x, marker: PhantomData})
+        result.map(|x| SgxMacAadata { inner: x, marker: PhantomData })
     }
 
     ///
     /// This function is used to authenticate the input data with AES-GMAC. This is
     /// the expert mode version of the function mac_aadata.
     ///
-    pub fn mac_aadata_ex(key_policy: u16,
-                         attribute_mask: sgx_attributes_t,
-                         misc_mask: sgx_misc_select_t,
-                         additional_text: &[T]) -> SgxResult<Self> {
-
+    pub fn mac_aadata_ex(
+        key_policy: u16,
+        attribute_mask: sgx_attributes_t,
+        misc_mask: sgx_misc_select_t,
+        additional_text: &[T],
+    ) -> SgxResult<Self> {
         let size = mem::size_of::<T>();
         let len = mem::size_of_val(additional_text);
         if size == 0 || len == 0 {
@@ -337,10 +337,13 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
         let aad_slice: &[u8] = unsafe {
             slice::from_raw_parts(additional_text.as_ptr() as *const u8, len)
         };
-        let result = SgxInternalSealedData::mac_aadata_ex(key_policy,
-                                                          attribute_mask,
-                                                          misc_mask,
-                                                          aad_slice);
+        let result =
+            SgxInternalSealedData::mac_aadata_ex(
+                key_policy,
+                attribute_mask,
+                misc_mask,
+                aad_slice,
+            );
         result.map(|x| SgxMacAadata {inner: x, marker: PhantomData})
     }
 
@@ -348,7 +351,6 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
     /// This function is used to verify the authenticity of the input sealed data structure using AES-GMAC. This function verifies the MAC generated with sgx_mac_aadataorsgx_mac_aadata_ex.
     ///
     pub fn unmac_aadata(&self) -> SgxResult<Box<[T]>> {
-
         let size = mem::size_of::<T>();
         if size == 0 {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -373,7 +375,6 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
     /// Convert a pointer of sgx_sealed_data_t buffer to SgxMacAadata.
     ///
     pub unsafe fn from_raw_sealed_data_t(p: *mut sgx_sealed_data_t, len: u32) -> Option<Self> {
-
         let size = mem::size_of::<T>();
         if size == 0 {
             return None;
@@ -411,7 +412,6 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
 }
 
 impl<'a, T: 'a + ?Sized> SgxMacAadata<'a, T> {
-
     ///
     /// Create a SgxMacAadata with default values.
     ///

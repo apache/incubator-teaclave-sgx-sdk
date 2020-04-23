@@ -19,8 +19,10 @@ use std::io::Error;
 use libc::{self, c_int};
 
 #[no_mangle]
-pub extern "C" fn u_pipe_ocall(error: *mut c_int,
-                               fds: *mut c_int) -> c_int {
+pub extern "C" fn u_pipe_ocall(
+    error: *mut c_int,
+    fds: *mut c_int,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::pipe(fds) };
     if ret < 0 {
@@ -33,9 +35,11 @@ pub extern "C" fn u_pipe_ocall(error: *mut c_int,
 }
 
 #[no_mangle]
-pub extern "C" fn u_pipe2_ocall(error: *mut c_int,
-                                fds: *mut c_int,
-                                flags: c_int) -> c_int {
+pub extern "C" fn u_pipe2_ocall(
+    error: *mut c_int,
+    fds: *mut c_int,
+    flags: c_int,
+) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::pipe2(fds, flags) };
     if ret < 0 {

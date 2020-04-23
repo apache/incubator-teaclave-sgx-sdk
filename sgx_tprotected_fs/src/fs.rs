@@ -197,7 +197,6 @@ pub struct SgxFileStream {
 }
 
 impl SgxFileStream {
-
     ///
     /// The open function creates or opens a protected file.
     ///

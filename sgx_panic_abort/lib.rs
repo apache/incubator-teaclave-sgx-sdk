@@ -14,16 +14,11 @@
 #![feature(staged_api)]
 #![feature(rustc_attrs)]
 
+use core::any::Any;
 
-// Rust's "try" function, but if we're aborting on panics we just call the
-// function as there's nothing else we need to do here.
 #[rustc_std_internal_symbol]
-pub unsafe extern fn __rust_maybe_catch_panic(f: fn(*mut u8),
-                                              data: *mut u8,
-                                              _data_ptr: *mut usize,
-                                              _vtable_ptr: *mut usize) -> u32 {
-    f(data);
-    0
+pub unsafe extern "C" fn __rust_panic_cleanup(_: *mut u8) -> *mut (dyn Any + Send + 'static) {
+    unreachable!()
 }
 
 // "Leak" the payload and shim to the relevant abort on the platform in
@@ -37,11 +32,13 @@ pub unsafe extern fn __rust_maybe_catch_panic(f: fn(*mut u8),
 // will kill us with an illegal instruction, which will do a good enough job for
 // now hopefully.
 #[rustc_std_internal_symbol]
-pub unsafe extern fn __rust_start_panic(_payload: usize) -> u32 {
+pub unsafe extern "C" fn __rust_start_panic(_payload: usize) -> u32 {
     sgx_abort();
 
     #[link(name = "sgx_trts")]
-    extern { pub fn abort() -> !; }
+    extern "C" {
+        pub fn abort() -> !;
+    }
 
     fn sgx_abort() -> ! {
         unsafe { abort() }
@@ -75,6 +72,6 @@ pub unsafe extern fn __rust_start_panic(_payload: usize) -> u32 {
 // binaries, but it should never be called as we don't link in an unwinding
 // runtime at all.
 pub mod personalities {
-    #[no_mangle]
-    pub extern fn rust_eh_personality() {}
+    #[rustc_std_internal_symbol]
+    pub extern "C" fn rust_eh_personality() {}
 }

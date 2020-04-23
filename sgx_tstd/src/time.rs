@@ -19,7 +19,7 @@
 
 use core::cmp;
 use core::fmt;
-use core::ops::{Add, Sub, AddAssign, SubAssign};
+use core::ops::{Add, AddAssign, Sub, SubAssign};
 use crate::error::Error;
 use crate::sys::time;
 use crate::sys_common::FromInner;
@@ -34,7 +34,7 @@ pub use core::time::Duration;
 /// instant when created, and are often useful for tasks such as measuring
 /// benchmarks or timing how long an operation takes.
 ///
-/// Note, however, that instants are not guaranteed to be **steady**.  In other
+/// Note, however, that instants are not guaranteed to be **steady**. In other
 /// words, each tick of the underlying clock may not be the same length (e.g.
 /// some seconds may be longer than others). An instant may jump forwards or
 /// experience time dilation (slow down or speed up), but it will never go
@@ -89,6 +89,10 @@ impl Instant {
     ///
     #[cfg(feature = "untrusted_time")]
     pub fn now() -> Instant {
+        Instant::_now()
+    }
+
+    pub(crate) fn _now() -> Instant {
         let os_now = time::Instant::now();
 
         // And here we come upon a sad state of affairs. The whole point of
@@ -107,17 +111,17 @@ impl Instant {
         // * https://bugzilla.mozilla.org/show_bug.cgi?id=1487778 - a similar
         //   Firefox bug
         //
-        // It simply seems that this it just happens so that a lot in the wild
-        // we're seeing panics across various platforms where consecutive calls
+        // It seems that this just happens a lot in the wild.
+        // We're seeing panics across various platforms where consecutive calls
         // to `Instant::now`, such as via the `elapsed` function, are panicking
         // as they're going backwards. Placed here is a last-ditch effort to try
         // to fix things up. We keep a global "latest now" instance which is
         // returned instead of what the OS says if the OS goes backwards.
         //
-        // To hopefully mitigate the impact of this though a few platforms are
+        // To hopefully mitigate the impact of this, a few platforms are
         // whitelisted as "these at least haven't gone backwards yet".
         if time::Instant::actually_monotonic() {
-            return Instant(os_now)
+            return Instant(os_now);
         }
 
         static LOCK: SgxThreadMutex = SgxThreadMutex::new();
@@ -147,14 +151,14 @@ impl Instant {
     }
 
     /// Returns the amount of time elapsed from another instant to this one,
-    /// or None if that instant is earlier than this one.
+    /// or None if that instant is later than this one.
     ///
     pub fn checked_duration_since(&self, earlier: Instant) -> Option<Duration> {
         self.0.checked_sub_instant(&earlier.0)
     }
 
     /// Returns the amount of time elapsed from another instant to this one,
-    /// or zero duration if that instant is earlier than this one.
+    /// or zero duration if that instant is later than this one.
     ///
     pub fn saturating_duration_since(&self, earlier: Instant) -> Duration {
         self.checked_duration_since(earlier).unwrap_or(Duration::new(0, 0))
@@ -204,8 +208,7 @@ impl Add<Duration> for Instant {
     ///
     /// [`checked_add`]: ../../std/time/struct.Instant.html#method.checked_add
     fn add(self, other: Duration) -> Instant {
-        self.checked_add(other)
-            .expect("overflow when adding duration to instant")
+        self.checked_add(other).expect("overflow when adding duration to instant")
     }
 }
 
@@ -219,8 +222,7 @@ impl Sub<Duration> for Instant {
     type Output = Instant;
 
     fn sub(self, other: Duration) -> Instant {
-        self.checked_sub(other)
-            .expect("overflow when subtracting duration from instant")
+        self.checked_sub(other).expect("overflow when subtracting duration from instant")
     }
 }
 
@@ -260,6 +262,10 @@ impl SystemTime {
     ///
     #[cfg(feature = "untrusted_time")]
     pub fn now() -> SystemTime {
+        SystemTime::_now()
+    }
+
+    pub(crate) fn _now() -> SystemTime {
         SystemTime(time::SystemTime::now())
     }
 
@@ -268,6 +274,7 @@ impl SystemTime {
     /// This function may fail because measurements taken earlier are not
     /// guaranteed to always be before later measurements (due to anomalies such
     /// as the system clock being adjusted either forwards or backwards).
+    /// [`Instant`] can be used to measure elapsed time without this risk of failure.
     ///
     /// If successful, [`Ok`]`(`[`Duration`]`)` is returned where the duration represents
     /// the amount of time elapsed from the specified measurement to this one.
@@ -278,13 +285,14 @@ impl SystemTime {
     /// [`Ok`]: ../../std/result/enum.Result.html#variant.Ok
     /// [`Duration`]: ../../std/time/struct.Duration.html
     /// [`Err`]: ../../std/result/enum.Result.html#variant.Err
+    /// [`Instant`]: ../../std/time/struct.Instant.html
     ///
-    pub fn duration_since(&self, earlier: SystemTime)
-                          -> Result<Duration, SystemTimeError> {
+    pub fn duration_since(&self, earlier: SystemTime) -> Result<Duration, SystemTimeError> {
         self.0.sub_time(&earlier.0).map_err(SystemTimeError)
     }
 
-    /// Returns the amount of time elapsed since this system time was created.
+    /// Returns the difference between the clock time when this
+    /// system time was created, and the current clock time.
     ///
     /// This function may fail as the underlying system clock is susceptible to
     /// drift and updates (e.g., the system clock could go backwards), so this
@@ -292,12 +300,15 @@ impl SystemTime {
     /// returned where the duration represents the amount of time elapsed from
     /// this time measurement to the current time.
     ///
+    /// To measure elapsed time reliably, use [`Instant`] instead.
+    ///
     /// Returns an [`Err`] if `self` is later than the current system time, and
     /// the error contains how far from the current system time `self` is.
     ///
     /// [`Ok`]: ../../std/result/enum.Result.html#variant.Ok
     /// [`Duration`]: ../../std/time/struct.Duration.html
     /// [`Err`]: ../../std/result/enum.Result.html#variant.Err
+    /// [`Instant`]: ../../std/time/struct.Instant.html
     ///
     #[cfg(feature = "untrusted_time")]
     pub fn elapsed(&self) -> Result<Duration, SystemTimeError> {
@@ -335,8 +346,7 @@ impl Add<Duration> for SystemTime {
     ///
     /// [`checked_add`]: ../../std/time/struct.SystemTime.html#method.checked_add
     fn add(self, dur: Duration) -> SystemTime {
-        self.checked_add(dur)
-            .expect("overflow when adding duration to instant")
+        self.checked_add(dur).expect("overflow when adding duration to instant")
     }
 }
 
@@ -350,8 +360,7 @@ impl Sub<Duration> for SystemTime {
     type Output = SystemTime;
 
     fn sub(self, dur: Duration) -> SystemTime {
-        self.checked_sub(dur)
-            .expect("overflow when subtracting duration from instant")
+        self.checked_sub(dur).expect("overflow when subtracting duration from instant")
     }
 }
 
@@ -398,7 +407,9 @@ impl SystemTimeError {
 }
 
 impl Error for SystemTimeError {
-    fn description(&self) -> &str { "other time was not earlier than self" }
+    fn description(&self) -> &str {
+        "other time was not earlier than self"
+    }
 }
 
 impl fmt::Display for SystemTimeError {

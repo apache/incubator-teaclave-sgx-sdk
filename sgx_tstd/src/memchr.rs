@@ -16,7 +16,6 @@
 // under the License..
 
 //! Original implementation taken from rust-memchr
-use sgx_trts;
 
 /// A safe interface to `memchr`.
 ///
@@ -29,7 +28,7 @@ use sgx_trts;
 ///
 #[inline]
 pub fn memchr(needle: u8, haystack: &[u8]) -> Option<usize> {
-    sgx_trts::memchr::memchr(needle, haystack)
+    crate::sys::memchr::memchr(needle, haystack)
 }
 
 /// A safe interface to `memrchr`.
@@ -39,5 +38,5 @@ pub fn memchr(needle: u8, haystack: &[u8]) -> Option<usize> {
 ///
 #[inline]
 pub fn memrchr(needle: u8, haystack: &[u8]) -> Option<usize> {
-    sgx_trts::memchr::memrchr(needle, haystack)
+    crate::sys::memchr::memrchr(needle, haystack)
 }

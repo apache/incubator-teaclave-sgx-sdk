@@ -1,14 +1,13 @@
 FROM fedora:27
 
-RUN yum install yum-utils -y && \
-    yum install -y bzip2 ocaml ocaml-ocamlbuild wget python2 openssl-devel git protobuf-devel cmake ncurses-devel libtool automake && \
+RUN yum install -y yum-utils bzip2 ocaml ocaml-ocamlbuild wget python2 openssl-devel git protobuf-devel ncurses-devel libtool automake redhat-rpm-config rpm-build cmake perl && \
     yum-builddep gcc binutils -y && \
-    yum groupinstall -y "Development Tools"
+    yum groupinstall -y 'C Development Tools and Libraries'
 
 ADD 01_gcc_8.sh /root
 RUN bash /root/01_gcc_8.sh
 
-ENV BINUTILS_PREFIX=/usr/lib
+ENV BINUTILS_PREFIX=/usr
 
 ADD 02_binutils.sh /root
 RUN bash /root/02_binutils.sh
@@ -18,9 +17,9 @@ RUN bash /root/03_sdk.sh
 
 # Sixth, PSW
 
-ENV PSW_REPO=https://download.01.org/intel-sgx/sgx-linux/2.9/distro/fedora27-server/sgx_rpm_local_repo.tgz
+ENV PSW_REPO=https://download.01.org/intel-sgx/sgx-linux/2.9.1/distro/fedora27-server/sgx_rpm_local_repo.tgz
 
-RUN wget --output /root/repo.tgz $PSW_REPO && \
+RUN curl --output /root/repo.tgz $PSW_REPO && \
     cd /root && \
     tar xzf repo.tgz && \
     cd sgx_rpm_local_repo && \
@@ -30,7 +29,7 @@ RUN wget --output /root/repo.tgz $PSW_REPO && \
 
 # Seventh, Rust
 
-ENV rust_toolchain  nightly-2020-03-12
+ENV rust_toolchain  nightly-2020-04-07
 ADD 05_rust.sh /root
 RUN bash /root/05_rust.sh
 

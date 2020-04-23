@@ -1,6 +1,6 @@
 [package]
 name = "sgx_rand_derive"
-version = "1.1.1"
+version = "1.1.2"
 authors = ["The Teaclave Authors"]
 repository = "https://github.com/apache/teaclave-sgx-sdk"
 license-file = "LICENSE"

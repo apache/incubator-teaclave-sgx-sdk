@@ -138,8 +138,7 @@ enclave/Enclave_t.o: $(Enclave_EDL_Files)
 	@$(CC) $(RustEnclave_Compile_Flags) -c enclave/Enclave_t.c -o $@
 	@echo "CC   <=  $<"
 
-$(RustEnclave_Name): enclave compiler-rt enclave/Enclave_t.o
-	ar d lib/libenclave.a udivti3.o umodti3.o
+$(RustEnclave_Name): enclave enclave/Enclave_t.o
 	@$(CXX) enclave/Enclave_t.o -o $@ $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
@@ -152,9 +151,6 @@ $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 enclave:
 	$(MAKE) -C ./enclave/
 
-.PHONY: compiler-rt
-compiler-rt:
-	$(MAKE) -C ../../compiler-rt/ 2> /dev/null
 
 .PHONY: clean
 clean:

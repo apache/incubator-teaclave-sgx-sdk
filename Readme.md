@@ -31,6 +31,10 @@ Current wiki pages:
 
 * Everything about [environment setup](https://github.com/apache/teaclave-sgx-sdk/wiki/Environment-Setup)
 
+## v1.1.2
+
+Supports Intel SGX SDK v2.9.1, and Rust nightly-2020-04-07. v1.1.2 provides a handy crate `sgx_signal`, which enables signal capture. One can easily find the place where exception happens and finally triggered `ud2`. And we added `Backtrace::capture` in sgx_tstd. With the help of Intel SGX SDk v2.9.1's patch, dtor of thread local storage finally works on regular SGX thread and pthread thread. Removed sgx_core_futures since Rust is supporting `async`/`await` in `no_std` environment. Please refer to [release_notes](release_notes.md) for more details.
+
 ## v1.1.1
 
 Supports Intel SGX SDK v2.9, and Rust nightly-2020-03-12. v1.1.1 contains a bunch of bug fix and new proc macro `sgx_align` to help with aligning given structure. For LVI migigation, it only works on C/C++ parts (EDL headers/Intel's libs) and supports both two modes: `MITIGATION-CVE-2020-0551=LOAD` or `MITIGATION-CVE-2020-0551=CF`. To enable it, one need `env "MITIGATION-CVE-2020-0551=LOAD"` to set this environment variable. For detailed information, please refer to [release_notes](release_notes.md) for more details.

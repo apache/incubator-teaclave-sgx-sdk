@@ -29,25 +29,33 @@ use crate::time::Duration;
 use crate::u64;
 
 extern "C" {
-    pub fn u_thread_wait_event_ocall(result: *mut c_int,
-                                     error: *mut c_int,
-                                     tcs: *const c_void,
-                                     timeout: *const timespec) -> sgx_status_t;
+    pub fn u_thread_wait_event_ocall(
+        result: *mut c_int,
+        error: *mut c_int,
+        tcs: *const c_void,
+        timeout: *const timespec,
+    ) -> sgx_status_t;
 
-    pub fn u_thread_set_event_ocall(result: *mut c_int,
-                                    error: *mut c_int,
-                                    tcs: *const c_void) -> sgx_status_t;
+    pub fn u_thread_set_event_ocall(
+        result: *mut c_int,
+        error: *mut c_int,
+        tcs: *const c_void,
+    ) -> sgx_status_t;
 
-    pub fn u_thread_set_multiple_events_ocall(result: *mut c_int,
-                                              error: *mut c_int,
-                                              tcss: *const *const c_void,
-                                              total: c_int) -> sgx_status_t;
+    pub fn u_thread_set_multiple_events_ocall(
+        result: *mut c_int,
+        error: *mut c_int,
+        tcss: *const *const c_void,
+        total: c_int,
+    ) -> sgx_status_t;
 
-    pub fn u_thread_setwait_events_ocall(result: *mut c_int,
-                                         error: *mut c_int,
-                                         wait_tcs: *const c_void,
-                                         self_tcs: *const c_void,
-                                         timeout: *const timespec) -> sgx_status_t;
+    pub fn u_thread_setwait_events_ocall(
+        result: *mut c_int,
+        error: *mut c_int,
+        wait_tcs: *const c_void,
+        self_tcs: *const c_void,
+        timeout: *const timespec,
+    ) -> sgx_status_t;
 }
 
 pub unsafe fn thread_wait_event(tcs: usize, dur: Duration) -> c_int {
@@ -62,14 +70,14 @@ pub unsafe fn thread_wait_event(tcs: usize, dur: Duration) -> c_int {
         ptr::null()
     };
 
-    let status = u_thread_wait_event_ocall(&mut result as *mut c_int,
-                                           &mut error as *mut c_int,
-                                           tcs as *const c_void,
-                                           timeout_ptr);
+    let status = u_thread_wait_event_ocall(
+        &mut result as *mut c_int,
+        &mut error as *mut c_int,
+        tcs as *const c_void,
+        timeout_ptr,
+    );
     if status == sgx_status_t::SGX_SUCCESS {
-        if result == -1 {
-            set_errno(error);
-        }
+        if result == -1 { set_errno(error); }
     } else {
         set_errno(libc::ESGX);
         result = -1;
@@ -80,13 +88,13 @@ pub unsafe fn thread_wait_event(tcs: usize, dur: Duration) -> c_int {
 pub unsafe fn thread_set_event(tcs: usize) -> c_int {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
-    let status = u_thread_set_event_ocall(&mut result as *mut c_int,
-                                          &mut error as *mut c_int,
-                                          tcs as *const c_void);
+    let status = u_thread_set_event_ocall(
+        &mut result as *mut c_int,
+        &mut error as *mut c_int,
+        tcs as *const c_void,
+    );
     if status == sgx_status_t::SGX_SUCCESS {
-        if result == -1 {
-            set_errno(error);
-        }
+        if result == -1 { set_errno(error); }
     } else {
         set_errno(libc::ESGX);
         result = -1;
@@ -98,10 +106,12 @@ pub unsafe fn thread_set_multiple_events(tcss: &[usize]) -> c_int {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
 
-    let status = u_thread_set_multiple_events_ocall(&mut result as *mut c_int,
-                                                    &mut error as *mut c_int,
-                                                    tcss.as_ptr() as *const *const c_void,
-                                                    tcss.len() as c_int);
+    let status = u_thread_set_multiple_events_ocall(
+        &mut result as *mut c_int,
+        &mut error as *mut c_int,
+        tcss.as_ptr() as *const *const c_void,
+        tcss.len() as c_int,
+    );
     if status == sgx_status_t::SGX_SUCCESS {
         if result == -1 {
             set_errno(error);
@@ -125,15 +135,15 @@ pub unsafe fn thread_setwait_events(wait_tcs: usize, self_tcs: usize, dur: Durat
         ptr::null()
     };
 
-    let status = u_thread_setwait_events_ocall(&mut result as *mut c_int,
-                                               &mut error as *mut c_int,
-                                               wait_tcs as *const c_void,
-                                               self_tcs as *const c_void,
-                                               timeout_ptr);
+    let status = u_thread_setwait_events_ocall(
+        &mut result as *mut c_int,
+        &mut error as *mut c_int,
+        wait_tcs as *const c_void,
+        self_tcs as *const c_void,
+        timeout_ptr,
+    );
     if status == sgx_status_t::SGX_SUCCESS {
-        if result == -1 {
-            set_errno(error);
-        }
+        if result == -1 { set_errno(error); }
     } else {
         set_errno(libc::ESGX);
         result = -1;
@@ -297,7 +307,6 @@ pub struct SgxThreadMutex {
 }
 
 impl SgxThreadMutex {
-
     pub const fn new(control: SgxThreadMutexControl) -> Self {
         SgxThreadMutex { 
             lock: UnsafeCell::new(SgxThreadMutexInner::new(control))

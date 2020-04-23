@@ -1,12 +1,20 @@
-// Copyright 2016 The Rust Project Developers. See the COPYRIGHT
-// file at the top-level directory of this distribution and at
-// http://rust-lang.org/COPYRIGHT.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 //
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
+
 extern crate sgx_build_helper as build_helper;
 
 use std::env;
@@ -17,39 +25,6 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     let target = env::var("TARGET").expect("TARGET was not set");
     let host = env::var("HOST").expect("HOST was not set");
-
-    if target.contains("linux") {
-        if target.contains("musl") {
-            // musl is handled in lib.rs
-        } else if !target.contains("android") {
-            println!("cargo:rustc-link-lib=gcc_s");
-        }
-    } else if target.contains("freebsd") {
-        println!("cargo:rustc-link-lib=gcc_s");
-    } else if target.contains("rumprun") {
-        println!("cargo:rustc-link-lib=unwind");
-    } else if target.contains("netbsd") {
-        println!("cargo:rustc-link-lib=gcc_s");
-    } else if target.contains("openbsd") {
-        println!("cargo:rustc-link-lib=c++abi");
-    } else if target.contains("solaris") {
-        println!("cargo:rustc-link-lib=gcc_s");
-    } else if target.contains("bitrig") {
-        println!("cargo:rustc-link-lib=c++abi");
-    } else if target.contains("dragonfly") {
-        println!("cargo:rustc-link-lib=gcc_pic");
-    } else if target.contains("windows-gnu") {
-        println!("cargo:rustc-link-lib=static-nobundle=gcc_eh");
-        println!("cargo:rustc-link-lib=static-nobundle=pthread");
-    } else if target.contains("fuchsia") {
-        println!("cargo:rustc-link-lib=unwind");
-    } else if target.contains("haiku") {
-        println!("cargo:rustc-link-lib=gcc_s");
-    } else if target.contains("redox") {
-        println!("cargo:rustc-link-lib=gcc");
-    } else if target.contains("cloudabi") {
-        println!("cargo:rustc-link-lib=unwind");
-    }
 
     let _ = build_libunwind(&host, &target);
 }

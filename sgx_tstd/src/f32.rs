@@ -18,19 +18,23 @@
 //! This module provides constants which are specific to the implementation
 //! of the `f32` floating point data type.
 //!
+//! *[See also the `f32` primitive type](../../std/primitive.f32.html).*
+//!
 //! Mathematically significant numbers are provided in the `consts` sub-module.
 //!
+//! Although using these constants won't cause compilation warnings,
+//! new code should use the associated constants directly on the primitive type.
 
 #![allow(missing_docs)]
 
 use core::intrinsics;
 use crate::sys::cmath;
 
-pub use core::f32::{RADIX, MANTISSA_DIGITS, DIGITS, EPSILON};
-pub use core::f32::{MIN_EXP, MAX_EXP, MIN_10_EXP};
-pub use core::f32::{MAX_10_EXP, NAN, INFINITY, NEG_INFINITY};
-pub use core::f32::{MIN, MIN_POSITIVE, MAX};
 pub use core::f32::consts;
+pub use core::f32::{DIGITS, EPSILON, MANTISSA_DIGITS, RADIX};
+pub use core::f32::{INFINITY, MAX_10_EXP, NAN, NEG_INFINITY};
+pub use core::f32::{MAX, MIN, MIN_POSITIVE};
+pub use core::f32::{MAX_EXP, MIN_10_EXP, MIN_EXP};
 
 #[lang = "f32_runtime"]
 impl f32 {
@@ -38,34 +42,14 @@ impl f32 {
     ///
     #[inline]
     pub fn floor(self) -> f32 {
-        // On MSVC LLVM will lower many math intrinsics to a call to the
-        // corresponding function. On MSVC, however, many of these functions
-        // aren't actually available as symbols to call, but rather they are all
-        // `static inline` functions in header files. This means that from a C
-        // perspective it's "compatible", but not so much from an ABI
-        // perspective (which we're worried about).
-        //
-        // The inline header functions always just cast to a f64 and do their
-        // operation, so we do that here as well, but only for MSVC targets.
-        //
-        // Note that there are many MSVC-specific float operations which
-        // redirect to this comment, so `floorf` is just one case of a missing
-        // function on MSVC, but there are many others elsewhere.
-        #[cfg(target_env = "msvc")]
-        return (self as f64).floor() as f32;
-        #[cfg(not(target_env = "msvc"))]
-        return unsafe { intrinsics::floorf32(self) };
+        unsafe { intrinsics::floorf32(self) }
     }
 
     /// Returns the smallest integer greater than or equal to a number.
     ///
     #[inline]
     pub fn ceil(self) -> f32 {
-        // see notes above in `floor`
-        #[cfg(target_env = "msvc")]
-        return (self as f64).ceil() as f32;
-        #[cfg(not(target_env = "msvc"))]
-        return unsafe { intrinsics::ceilf32(self) };
+        unsafe { intrinsics::ceilf32(self) }
     }
 
     /// Returns the nearest integer to a number. Round half-way cases away from
@@ -86,7 +70,9 @@ impl f32 {
     /// Returns the fractional part of a number.
     ///
     #[inline]
-    pub fn fract(self) -> f32 { self - self.trunc() }
+    pub fn fract(self) -> f32 {
+        self - self.trunc()
+    }
 
     /// Computes the absolute value of `self`. Returns `NAN` if the
     /// number is `NAN`.
@@ -104,11 +90,7 @@ impl f32 {
     ///
     #[inline]
     pub fn signum(self) -> f32 {
-        if self.is_nan() {
-            NAN
-        } else {
-            1.0_f32.copysign(self)
-        }
+        if self.is_nan() { NAN } else { 1.0_f32.copysign(self) }
     }
 
     /// Returns a number composed of the magnitude of `self` and the sign of
@@ -119,7 +101,6 @@ impl f32 {
     /// `sign` is returned.
     ///
     #[inline]
-    #[must_use]
     pub fn copysign(self, sign: f32) -> f32 {
         unsafe { intrinsics::copysignf32(self, sign) }
     }
@@ -146,7 +127,7 @@ impl f32 {
     pub fn div_euclid(self, rhs: f32) -> f32 {
         let q = (self / rhs).trunc();
         if self % rhs < 0.0 {
-            return if rhs > 0.0 { q - 1.0 } else { q + 1.0 }
+            return if rhs > 0.0 { q - 1.0 } else { q + 1.0 };
         }
         q
     }
@@ -165,13 +146,8 @@ impl f32 {
     #[inline]
     pub fn rem_euclid(self, rhs: f32) -> f32 {
         let r = self % rhs;
-        if r < 0.0 {
-            r + rhs.abs()
-        } else {
-            r
-        }
+        if r < 0.0 { r + rhs.abs() } else { r }
     }
-
 
     /// Raises a number to an integer power.
     ///
@@ -186,35 +162,23 @@ impl f32 {
     ///
     #[inline]
     pub fn powf(self, n: f32) -> f32 {
-        // see notes above in `floor`
-        #[cfg(target_env = "msvc")]
-        return (self as f64).powf(n as f64) as f32;
-        #[cfg(not(target_env = "msvc"))]
-        return unsafe { intrinsics::powf32(self, n) };
+        unsafe { intrinsics::powf32(self, n) }
     }
 
-    /// Takes the square root of a number.
+    /// Returns the square root of a number.
     ///
     /// Returns NaN if `self` is a negative number.
     ///
     #[inline]
     pub fn sqrt(self) -> f32 {
-        if self < 0.0 {
-            NAN
-        } else {
-            unsafe { intrinsics::sqrtf32(self) }
-        }
+        unsafe { intrinsics::sqrtf32(self) }
     }
 
     /// Returns `e^(self)`, (the exponential function).
     ///
     #[inline]
     pub fn exp(self) -> f32 {
-        // see notes above in `floor`
-        #[cfg(target_env = "msvc")]
-        return (self as f64).exp() as f32;
-        #[cfg(not(target_env = "msvc"))]
-        return unsafe { intrinsics::expf32(self) };
+        unsafe { intrinsics::expf32(self) }
     }
 
     /// Returns `2^(self)`.
@@ -228,11 +192,7 @@ impl f32 {
     ///
     #[inline]
     pub fn ln(self) -> f32 {
-        // see notes above in `floor`
-        #[cfg(target_env = "msvc")]
-        return (self as f64).ln() as f32;
-        #[cfg(not(target_env = "msvc"))]
-        return unsafe { intrinsics::logf32(self) };
+        unsafe { intrinsics::logf32(self) }
     }
 
     /// Returns the logarithm of the number with respect to an arbitrary base.
@@ -242,7 +202,9 @@ impl f32 {
     /// `self.log10()` can produce more accurate results for base 10.
     ///
     #[inline]
-    pub fn log(self, base: f32) -> f32 { self.ln() / base.ln() }
+    pub fn log(self, base: f32) -> f32 {
+        self.ln() / base.ln()
+    }
 
     /// Returns the base 2 logarithm of the number.
     ///
@@ -258,11 +220,7 @@ impl f32 {
     ///
     #[inline]
     pub fn log10(self) -> f32 {
-        // see notes above in `floor`
-        #[cfg(target_env = "msvc")]
-        return (self as f64).log10() as f32;
-        #[cfg(not(target_env = "msvc"))]
-        return unsafe { intrinsics::log10f32(self) };
+        unsafe { intrinsics::log10f32(self) }
     }
 
     /// The positive difference of two numbers.
@@ -275,7 +233,7 @@ impl f32 {
         unsafe { cmath::fdimf(self, other) }
     }
 
-    /// Takes the cubic root of a number.
+    /// Returns the cubic root of a number.
     ///
     #[inline]
     pub fn cbrt(self) -> f32 {
@@ -294,22 +252,14 @@ impl f32 {
     ///
     #[inline]
     pub fn sin(self) -> f32 {
-        // see notes in `core::f32::Float::floor`
-        #[cfg(target_env = "msvc")]
-        return (self as f64).sin() as f32;
-        #[cfg(not(target_env = "msvc"))]
-        return unsafe { intrinsics::sinf32(self) };
+        unsafe { intrinsics::sinf32(self) }
     }
 
     /// Computes the cosine of a number (in radians).
     ///
     #[inline]
     pub fn cos(self) -> f32 {
-        // see notes in `core::f32::Float::floor`
-        #[cfg(target_env = "msvc")]
-        return (self as f64).cos() as f32;
-        #[cfg(not(target_env = "msvc"))]
-        return unsafe { intrinsics::cosf32(self) };
+        unsafe { intrinsics::cosf32(self) }
     }
 
     /// Computes the tangent of a number (in radians).
@@ -409,7 +359,7 @@ impl f32 {
         if self == NEG_INFINITY {
             NEG_INFINITY
         } else {
-            (self + ((self * self) + 1.0).sqrt()).ln()
+            (self + ((self * self) + 1.0).sqrt()).ln().copysign(self)
         }
     }
 
@@ -417,10 +367,7 @@ impl f32 {
     ///
     #[inline]
     pub fn acosh(self) -> f32 {
-        match self {
-            x if x < 1.0 => crate::f32::NAN,
-            x => (x + ((x * x) - 1.0).sqrt()).ln(),
-        }
+        if self < 1.0 { crate::f32::NAN } else { (self + ((self * self) - 1.0).sqrt()).ln() }
     }
 
     /// Inverse hyperbolic tangent function.
@@ -446,8 +393,12 @@ impl f32 {
     pub fn clamp(self, min: f32, max: f32) -> f32 {
         assert!(min <= max);
         let mut x = self;
-        if x < min { x = min; }
-        if x > max { x = max; }
+        if x < min {
+            x = min;
+        }
+        if x > max {
+            x = max;
+        }
         x
     }
 }

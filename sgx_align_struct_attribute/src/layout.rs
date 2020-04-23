@@ -192,7 +192,7 @@ fn make_bitmap(align_req: &[AlignReq]) -> i64 {
 
 mod libc {
     use std::ffi::c_void;
-    extern {
+    extern "C" {
         pub fn malloc(size: usize) -> *mut c_void;
         pub fn free(p: *mut c_void);
     }

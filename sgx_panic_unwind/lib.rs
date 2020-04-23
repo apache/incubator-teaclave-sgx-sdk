@@ -1,20 +1,12 @@
 //! Implementation of panics via stack unwinding
 //!
 //! This crate is an implementation of panics in Rust using "most native" stack
-//! unwinding mechanism of the platform this is being compiled for. This
-//! essentially gets categorized into three buckets currently:
-//!
-//! 1. MSVC targets use SEH in the `seh.rs` file.
-//! 2. The 64-bit MinGW target half-uses SEH and half-use gcc-like information
-//!    in the `seh64_gnu.rs` module.
-//! 3. All other targets use libunwind/libgcc in the `gcc/mod.rs` module.
-//!
-//! More documentation about each implementation can be found in the respective
-//! module.
+//! unwinding mechanism of the platform this is being compiled for.
 
 #![no_std]
-#![cfg_attr(all(target_env = "sgx", target_vendor = "mesalock"), feature(rustc_private))]
 #![unstable(feature = "panic_unwind", issue = "32837")]
+#![cfg_attr(all(target_env = "sgx", target_vendor = "mesalock"), feature(rustc_private))]
+
 #![feature(core_intrinsics)]
 #![feature(lang_items)]
 #![feature(nll)]
@@ -23,53 +15,41 @@
 #![feature(staged_api)]
 #![feature(std_internals)]
 #![feature(unwind_attributes)]
-
+#![feature(abi_thiscall)]
 #![panic_runtime]
 #![feature(panic_runtime)]
+#![feature(rustc_attrs)]
 
 extern crate alloc;
 extern crate sgx_libc;
 extern crate sgx_unwind;
 
 use alloc::boxed::Box;
-use core::intrinsics;
-use core::mem;
-use core::raw;
+use core::any::Any;
 use core::panic::BoxMeUp;
-
 
 #[path = "gcc.rs"]
 mod imp;
+
+extern "C" {
+    /// Handler in libstd called when a panic object is dropped outside of
+    /// `catch_unwind`.
+    fn __rust_drop_panic() -> !;
+}
+
 mod dwarf;
 
-// Entry point for catching an exception, implemented using the `try` intrinsic
-// in the compiler.
-//
-// The interaction between the `payload` function and the compiler is pretty
-// hairy and tightly coupled, for more information see the compiler's
-// implementation of this.
-#[no_mangle]
-pub unsafe extern "C" fn __rust_maybe_catch_panic(f: fn(*mut u8),
-                                                  data: *mut u8,
-                                                  data_ptr: *mut usize,
-                                                  vtable_ptr: *mut usize)
-                                                  -> u32 {
-    let mut payload = imp::payload();
-    if intrinsics::r#try(f, data, &mut payload as *mut _ as *mut _) == 0 {
-        0
-    } else {
-        let obj = mem::transmute::<_, raw::TraitObject>(imp::cleanup(payload));
-        *data_ptr = obj.data as usize;
-        *vtable_ptr = obj.vtable as usize;
-        1
-    }
+#[rustc_std_internal_symbol]
+pub unsafe extern "C" fn __rust_panic_cleanup(payload: *mut u8) -> *mut (dyn Any + Send + 'static) {
+    Box::into_raw(imp::cleanup(payload))
 }
 
 // Entry point for raising an exception, just delegates to the platform-specific
 // implementation.
-#[no_mangle]
+#[rustc_std_internal_symbol]
 #[unwind(allowed)]
 pub unsafe extern "C" fn __rust_start_panic(payload: usize) -> u32 {
     let payload = payload as *mut &mut dyn BoxMeUp;
-    imp::panic(Box::from_raw((*payload).take_box()))
+    let payload = (*payload).take_box();
+    imp::panic(Box::from_raw(payload))
 }

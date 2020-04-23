@@ -38,8 +38,7 @@ impl AlignAlloc {
     }
 
     #[inline]
-    pub unsafe fn alloc_zeroed(&mut self, layout: Layout)
-        -> Result<NonNull<u8>, AlighAllocErr> {
+    pub unsafe fn alloc_zeroed(&mut self, layout: Layout) -> Result<NonNull<u8>, AlighAllocErr> {
         NonNull::new(platform::alloc_zeroed(layout)).ok_or(AlighAllocErr)
     }
 
@@ -49,8 +48,7 @@ impl AlignAlloc {
     }
 
     #[inline]
-    pub unsafe fn alloc_with_req_zeroed(&mut self, layout: Layout, align_req: &[AlignReq])
-        -> Result<NonNull<u8>, AlighAllocErr> {
+    pub unsafe fn alloc_with_req_zeroed(&mut self, layout: Layout, align_req: &[AlignReq]) -> Result<NonNull<u8>, AlighAllocErr> {
         NonNull::new(platform::alloc_with_req_zeroed(layout, align_req)).ok_or(AlighAllocErr)
     }
 
@@ -60,8 +58,7 @@ impl AlignAlloc {
     }
 
     #[inline]
-    pub unsafe fn alloc_with_pad_align_zeroed(&mut self, layout: Layout, align_layout: Layout)
-        -> Result<NonNull<u8>, AlighAllocErr> {
+    pub unsafe fn alloc_with_pad_align_zeroed(&mut self, layout: Layout, align_layout: Layout) -> Result<NonNull<u8>, AlighAllocErr> {
         NonNull::new(platform::alloc_with_pad_align_zeroed(layout, align_layout)).ok_or(AlighAllocErr)
     }
 
@@ -349,9 +346,10 @@ mod platform {
     mod libc {
         use core::ffi::c_void;
         type size_t = usize;
-        extern {
+        extern "C" {
             pub fn malloc(size: size_t) -> *mut c_void;
             pub fn free(p: *mut c_void);
         }
     }
 }
+
