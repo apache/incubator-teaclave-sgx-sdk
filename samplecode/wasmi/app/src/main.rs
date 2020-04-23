@@ -76,6 +76,7 @@ pub enum BoundaryValue {
     I64(i64),
     F32(u32),
     F64(u64),
+    V128(u128),
 }
 
 fn wabt_runtime_value_to_boundary_value(wabt_rv : &wabt::script::Value) -> BoundaryValue {
@@ -84,6 +85,7 @@ fn wabt_runtime_value_to_boundary_value(wabt_rv : &wabt::script::Value) -> Bound
         &wabt::script::Value::I64(wabt_rv) => BoundaryValue::I64(wabt_rv),
         &wabt::script::Value::F32(wabt_rv) => BoundaryValue::F32(wabt_rv.to_bits()),
         &wabt::script::Value::F64(wabt_rv) => BoundaryValue::F64(wabt_rv.to_bits()),
+        &wabt::script::Value::V128(wabt_rv) => BoundaryValue::V128(wabt_rv),
     }
 }
 
@@ -94,6 +96,7 @@ fn runtime_value_to_boundary_value(rv: RuntimeValue) -> BoundaryValue {
         RuntimeValue::I64(rv) => BoundaryValue::I64(rv),
         RuntimeValue::F32(rv) => BoundaryValue::F32(rv.to_bits()),
         RuntimeValue::F64(rv) => BoundaryValue::F64(rv.to_bits()),
+        RuntimeValue::V128(rv) => BoundaryValue::V128(rv),
     }
 }
 
@@ -103,6 +106,7 @@ fn boundary_value_to_runtime_value(rv: BoundaryValue) -> RuntimeValue {
         BoundaryValue::I64(bv) => RuntimeValue::I64(bv),
         BoundaryValue::F32(bv) => RuntimeValue::F32(bv.into()),
         BoundaryValue::F64(bv) => RuntimeValue::F64(bv.into()),
+        BoundaryValue::V128(bv) => RuntimeValue::V128(bv.into()),
     }
 }
 
@@ -122,6 +126,7 @@ fn spec_to_runtime_value(value: Value) -> RuntimeValue {
         Value::I64(v) => RuntimeValue::I64(v),
         Value::F32(v) => RuntimeValue::F32(v.into()),
         Value::F64(v) => RuntimeValue::F64(v.into()),
+        Value::V128(v) => RuntimeValue::V128(v.into()),
     }
 }
 

@@ -96,6 +96,7 @@ pub enum BoundaryValue {
     I64(i64),
     F32(u32),
     F64(u64),
+    V128(u128),
 }
 
 pub fn runtime_value_to_boundary_value(rv: RuntimeValue) -> BoundaryValue {
@@ -104,6 +105,7 @@ pub fn runtime_value_to_boundary_value(rv: RuntimeValue) -> BoundaryValue {
         RuntimeValue::I64(rv) => BoundaryValue::I64(rv),
         RuntimeValue::F32(rv) => BoundaryValue::F32(rv.to_bits()),
         RuntimeValue::F64(rv) => BoundaryValue::F64(rv.to_bits()),
+        //RuntimeValue::V128(rv) => BoundaryValue::V128(rv),
     }
 }
 
@@ -113,6 +115,7 @@ pub fn boundary_value_to_runtime_value(rv: BoundaryValue) -> RuntimeValue {
         BoundaryValue::I64(bv) => RuntimeValue::I64(bv),
         BoundaryValue::F32(bv) => RuntimeValue::F32(f32::from_bits(bv).into()),
         BoundaryValue::F64(bv) => RuntimeValue::F64(f64::from_bits(bv).into()),
+        BoundaryValue::V128(bv) => panic!("Not supported yet!"),
     }
 }
 
