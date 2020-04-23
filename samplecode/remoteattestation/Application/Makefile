@@ -226,6 +226,7 @@ enclave/%.o: enclave/%.cpp enclave/enclave_t.c
 	@$(CXX) $(Enclave_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
+$(Enclave_Name): raenclave enclave/enclave_t.o $(Enclave_Cpp_Objects)
 	$(CXX) enclave/enclave_t.o -o $@ $(Enclave_Link_Flags)
 	@echo "LINK =>  $@"
 
