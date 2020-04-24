@@ -1,0 +1,22 @@
+[package]
+name = "sgx_edl"
+version = "1.1.2"
+authors = ["The Teaclave Authors"]
+repository = "https://github.com/apache/teaclave-sgx-sdk"
+license-file = "LICENSE"
+documentation = "https://dingelish.github.io/"
+description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
+edition = "2018"
+
+include = [
+    "src/lib.rs",
+    "Cargo.toml",
+    "LICENSE",
+    "Readme.md",
+    "edl/**",
+    "common/**"
+]
+
+[lib]
+name = "sgx_edl"
+crate-type = ["rlib"]
