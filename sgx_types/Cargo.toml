@@ -8,10 +8,30 @@ documentation = "https://dingelish.github.io/"
 description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
 edition = "2018"
 
+include = [
+"./sgx-derive-debug/src/lib.rs",
+"./sgx-derive-debug/Cargo.toml",
+"./src/marker.rs",
+"./src/error.rs",
+"./src/function.rs",
+"./src/cpu_feature.rs",
+"./src/metadata.rs",
+"./src/lib.rs",
+"./src/types.rs",
+"./src/macros.rs",
+"./LICENSE",
+"./Readme.md",
+"./Cargo.toml",
+"./BUILD",
+]
+
 [lib]
 name = "sgx_types"
+path = "src/lib.rs"
 
 [features]
 default = []
+debug = ["sgx-type-debug"]
 
 [dependencies]
+sgx-type-debug = { path = "./sgx-type-debug", version = "0.1", optional = true }
