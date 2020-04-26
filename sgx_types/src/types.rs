@@ -21,7 +21,7 @@ use crate::marker::ContiguousMemory;
 use crate::*;
 
 #[cfg(feature = "debug")]
-use sgx_type_debug::SgxTypeDebug;
+use sgx_types_debug::SgxTypeDebug;
 
 #[cfg(feature = "debug")]
 fn add_debug_array_field<T> (
