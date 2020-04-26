@@ -63,7 +63,7 @@ stage = 4
 
 [dependencies.std]
 path = "../../../xargo/sgx_tstd"
-features = ["net"]
+features = ["net", "untrusted_time"]
 stage = 5
 
 [dependencies.sgx_no_tstd]
