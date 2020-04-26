@@ -1,6 +1,6 @@
 [package]
 authors = ["The Teaclave Authors"]
-name = "sgx-type-debug"
+name = "sgx_types_debug"
 version = "0.1.0"
 repository = "https://github.com/apache/teaclave-sgx-sdk"
 license-file = "LICENSE"
