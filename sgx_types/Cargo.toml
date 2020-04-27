@@ -17,4 +17,4 @@ default = []
 debug = ["sgx_types_debug"]
 
 [dependencies]
-sgx_types_debug = { version = "0.1", optional = true }
+sgx_types_debug = { path = "../sgx_types_debug", version = "0.1", optional = true }

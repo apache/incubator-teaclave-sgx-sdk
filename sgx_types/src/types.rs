@@ -232,7 +232,26 @@ pub const SGX_KEY_REQUEST_RESERVED2_BYTES: size_t   = 434;
 pub type sgx_key_128bit_t = [uint8_t; 16];
 pub type sgx_isv_svn_t = uint16_t;
 pub type sgx_config_svn_t = uint16_t;
-pub type sgx_config_id_t = [uint8_t; SGX_CONFIGID_SIZE];
+
+// This should be FFI compatible
+// https://rust-lang.github.io/unsafe-code-guidelines/layout/structs-and-tuples.html
+#[repr(transparent)]
+#[cfg_attr(feature = "debug", derive(SgxTypeDebug))]
+#[derive(Copy, Clone)]
+pub struct sgx_config_id_t(pub [uint8_t; SGX_CONFIGID_SIZE]);
+
+impl core::ops::Deref for sgx_config_id_t {
+    type Target = [uint8_t; SGX_CONFIGID_SIZE];
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl core::ops::DerefMut for sgx_config_id_t {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl_struct! {
     #[cfg_attr(feature = "debug", derive(SgxTypeDebug))]
@@ -519,7 +538,7 @@ impl_copy_clone! {
         pub config_svn: sgx_config_svn_t,
         pub misc_select: sgx_misc_select_t,
         pub reserved2: [uint8_t; SGX_TARGET_INFO_RESERVED2_BYTES],
-        pub config_id: [uint8_t; SGX_CONFIGID_SIZE],
+        pub config_id: sgx_config_id_t,
         pub reserved3: [uint8_t; SGX_TARGET_INFO_RESERVED3_BYTES],
     }
 
@@ -534,7 +553,7 @@ impl_copy_clone! {
         pub reserved2: [uint8_t; SGX_REPORT_BODY_RESERVED2_BYTES],
         pub mr_signer: sgx_measurement_t,
         pub reserved3: [uint8_t; SGX_REPORT_BODY_RESERVED3_BYTES],
-        pub config_id: [uint8_t; SGX_CONFIGID_SIZE],
+        pub config_id: sgx_config_id_t,
         pub isv_prod_id: sgx_prod_id_t,
         pub isv_svn: sgx_isv_svn_t,
         pub config_svn: sgx_config_svn_t,
@@ -1082,7 +1101,7 @@ impl_copy_clone! {
     #[repr(packed)]
     #[cfg_attr(feature = "debug", derive(SgxTypeDebug))]
     pub struct sgx_kss_config_t {
-        pub config_id: [uint8_t; SGX_CONFIGID_SIZE],
+        pub config_id: sgx_config_id_t,
         pub config_svn: sgx_config_svn_t,
     }
 }
