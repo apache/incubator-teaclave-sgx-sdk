@@ -259,7 +259,7 @@ The Apache Teaclave Rust-SGX SDK is provided under the Apache license. Please re
 
 # Authors
 
-Ran Duan, Long Li, Chan Zhao, Shi Jia, Yu Ding, Yulong Zhang, Yueqiang Cheng, Lenx Wei, Tanghui Chen
+Ran Duan, Long Li, Chan Zhao, Shi Jia, Yu Ding, Yulong Zhang, Huibo Wang, Yueqiang Cheng, Lenx Wei, Tanghui Chen
 
 # Acknowledgement
 
