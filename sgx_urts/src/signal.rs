@@ -41,7 +41,7 @@ extern "C" {
 pub struct SigNum(i32);
 
 impl SigNum {
-    // add code here
+
     pub fn from_raw(signo: i32) -> Option<SigNum> {
         if signo <= 0 || signo >= NSIG {
             None
@@ -59,7 +59,7 @@ impl SigNum {
 pub struct SigSet(sigset_t);
 
 impl SigSet {
-    // add code here
+
     pub fn new() -> SigSet {
         let set = unsafe {
             let mut set: sigset_t = mem::zeroed();
@@ -82,7 +82,7 @@ struct GlobalData {
 }
 
 impl GlobalData {
-     // add code here
+
     fn get() -> &'static GlobalData {
         unsafe { GLOBAL_DATA.as_ref().unwrap() }
     }
@@ -101,7 +101,7 @@ struct SignalDispatcher {
 }
 
 impl SignalDispatcher {
-    // add code here
+
     pub fn new () -> SignalDispatcher {
         SignalDispatcher {
             signal_set: Mutex::new(HashMap::new()),
