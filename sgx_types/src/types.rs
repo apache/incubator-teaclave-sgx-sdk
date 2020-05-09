@@ -1386,11 +1386,16 @@ impl_enum! {
 //
 // qve_header.h
 //
+// latest_issue_date and earliest_expiration_date is as of DCAP_1.5
 impl_copy_clone! {
     pub struct sgx_ql_qv_supplemental_t {
         pub version: uint32_t,
+
         pub earliest_issue_date: time_t,
+        pub latest_issue_date: time_t,
+        pub earliest_expiration_date: time_t,
         pub tcb_level_date_tag: time_t,
+
         pub pck_crl_num: uint32_t,
         pub root_ca_crl_num: uint32_t,
         pub tcb_eval_ref_num: uint32_t,
@@ -1403,7 +1408,7 @@ impl_copy_clone! {
 }
 
 impl_struct_default! {
-    sgx_ql_qv_supplemental_t; //120
+    sgx_ql_qv_supplemental_t; //104
 }
 
 impl_struct_ContiguousMemory! {
