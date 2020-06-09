@@ -165,6 +165,7 @@ int deregister_all_signals_for_eid(unsigned long long eid)
     sigset_t mask = {0};
     sigset_t old_mask = {0};
     key_value_t *kv = NULL;
+    int i;
 
     signal_dispatcher_instance_init();
 
@@ -173,7 +174,7 @@ int deregister_all_signals_for_eid(unsigned long long eid)
     // If this enclave has registered any signals, deregister them and set the
     // signal handler to the default one.
     pthread_mutex_lock(&g_signal_dispatch->lock);
-     for (int i = g_signal_dispatch->signal_to_eid_set->size - 1; i >= 0; i--) {
+     for (i = g_signal_dispatch->signal_to_eid_set->size - 1; i >= 0; i--) {
          if (g_signal_dispatch->signal_to_eid_set->entries[i]) {
             kv = (key_value_t*)g_signal_dispatch->signal_to_eid_set->entries[i];
             if (kv->enclave_id == eid) {
