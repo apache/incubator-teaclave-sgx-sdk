@@ -476,6 +476,12 @@ pub unsafe fn malloc(size: size_t) -> *mut c_void {
         set_errno(ESGX);
         result = ptr::null_mut();
     }
+
+    if sgx_is_outside_enclave(result, size) == 0 {
+        set_errno(ESGX);
+        result = ptr::null_mut();
+    }
+
     result
 }
 
@@ -508,6 +514,12 @@ pub unsafe fn mmap(start: *mut c_void,
         set_errno(ESGX);
         result = -1 as isize as *mut c_void;
     }
+
+    if sgx_is_outside_enclave(result, length) == 0 {
+        set_errno(ESGX);
+        result = -1 as isize as *mut c_void;
+    }
+
     result
 }
 
