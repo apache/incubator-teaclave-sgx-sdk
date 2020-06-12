@@ -131,7 +131,7 @@ If you use DCAP, the command is:
 
 Next, start the aesm service inside the docker
 
-`root@docker:/# LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service &`
+`root@docker:/# LD_LIBRARY_PATH=/opt/intel/sgx-aesm-service/aesm/ /opt/intel/sgx-aesm-service/aesm/aesm_service &`
 
 Finally, check if the sample code works
 
