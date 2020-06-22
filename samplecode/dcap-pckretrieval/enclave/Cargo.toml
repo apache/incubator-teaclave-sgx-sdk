@@ -1,0 +1,42 @@
+[package]
+name = "PCKIDRetrievalTool"
+version = "1.0.0"
+authors = ["The Teaclave Authors"]
+
+[lib]
+name = "pckidretrievaltool"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tse = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
+sgx_alloc = { path = "../../../sgx_alloc" }
+sgx_build_helper = { path = "../../../sgx_build_helper" }
+sgx_cov = { path = "../../../sgx_cov" }
+sgx_crypto_helper = { path = "../../../sgx_crypto_helper" }
+sgx_libc = { path = "../../../sgx_libc" }
+sgx_rand = { path = "../../../sgx_rand" }
+sgx_rand_derive = { path = "../../../sgx_rand_derive" }
+sgx_serialize = { path = "../../../sgx_serialize" }
+sgx_serialize_derive = { path = "../../../sgx_serialize_derive" }
+sgx_serialize_derive_internals = { path = "../../../sgx_serialize_derive_internals" }
+sgx_tcrypto = { path = "../../../sgx_tcrypto" }
+sgx_tcrypto_helper = { path = "../../../sgx_tcrypto_helper" }
+sgx_tdh = { path = "../../../sgx_tdh" }
+sgx_tkey_exchange = { path = "../../../sgx_tkey_exchange" }
+sgx_tprotected_fs = { path = "../../../sgx_tprotected_fs" }
+sgx_trts = { path = "../../../sgx_trts" }
+sgx_tse = { path = "../../../sgx_tse" }
+sgx_tseal = { path = "../../../sgx_tseal" }
+sgx_tstd = { path = "../../../sgx_tstd" }
+sgx_tunittest = { path = "../../../sgx_tunittest" }
+sgx_types = { path = "../../../sgx_types" }
+sgx_ucrypto = { path = "../../../sgx_ucrypto" }
+sgx_unwind = { path = "../../../sgx_unwind" }
+sgx_urts = { path = "../../../sgx_urts" }
