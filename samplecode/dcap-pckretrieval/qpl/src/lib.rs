@@ -107,7 +107,6 @@ pub extern "C" fn sgx_ql_get_quote_config(
     let cert_data_size: uint32_t = std::cmp::max(
         ENC_PPID_SIZE + QE3_ID_SIZE + PCEID_SIZE + CPUSVN_SIZE + PCESVN_SIZE,
         MIN_CERT_DATA_SIZE) as u32;
-    assert_eq!(cert_data_size as usize, MIN_CERT_DATA_SIZE);
 
     // cert data is:
     // ENC_PPID || PCEID || CPUSVN || PCESVN || QEID || 0x00...
@@ -122,8 +121,8 @@ pub extern "C" fn sgx_ql_get_quote_config(
     cert_data_vec.extend_from_slice(&pce_svn[..]);
     cert_data_vec.extend_from_slice(qe_id);
 
-    // we asserted QE3_ID
     cert_data_vec.resize_with(cert_data_size as usize, Default::default);
+
     let mut b = cert_data_vec.into_boxed_slice();
     let p_cert_data = b.as_mut_ptr();
     let _ = Box::into_raw(b); // memory leak here.
