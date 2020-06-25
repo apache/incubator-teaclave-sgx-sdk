@@ -93,6 +93,9 @@ use test_env::*;
 mod test_path;
 use test_path::*;
 
+mod test_net;
+use test_net::*;
+
 mod test_thread;
 use test_thread::*;
 
@@ -178,7 +181,6 @@ fn test_main_entrance() -> size_t {
                     check_metadata_size,
                     check_version,
                     // env
-                    test_env_vars_os,
                     test_env_self_exe_path,
                     test_env_current_dir,
                     test_env_home_dir,
@@ -205,6 +207,10 @@ fn test_main_entrance() -> size_t {
                     test_path_mkdir_trailing_slash,
                     test_path_create_dir_all_with_junctions,
                     test_path_copy_file_follows_dst_symlink,
+                    test_rwv,
+                    // net
+                    test_gai_error,
+                    test_udp,
                     // thread
                     test_thread_unnamed_thread,
                     test_thread_named_thread,

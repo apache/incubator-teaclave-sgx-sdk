@@ -15,12 +15,12 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_trts::libc;
-use core::cmp::Ordering;
-use core::hash::{Hash, Hasher};
-use core::convert::TryInto;
-use crate::time::Duration;
 pub use self::inner::{Instant, SystemTime, UNIX_EPOCH};
+use crate::time::Duration;
+use core::cmp::Ordering;
+use core::convert::TryInto;
+use core::hash::{Hash, Hasher};
+use sgx_trts::libc;
 
 const NSEC_PER_SEC: u64 = 1_000_000_000;
 
@@ -31,7 +31,12 @@ struct Timespec {
 
 impl Timespec {
     const fn zero() -> Timespec {
-        Timespec { t: libc::timespec { tv_sec: 0, tv_nsec: 0 } }
+        Timespec {
+            t: libc::timespec {
+                tv_sec: 0,
+                tv_nsec: 0,
+            },
+        }
     }
 
     fn sub_timespec(&self, other: &Timespec) -> Result<Duration, Duration> {
@@ -69,7 +74,12 @@ impl Timespec {
             nsec -= NSEC_PER_SEC as u32;
             secs = secs.checked_add(1)?;
         }
-        Some(Timespec { t: libc::timespec { tv_sec: secs, tv_nsec: nsec as _ } })
+        Some(Timespec {
+            t: libc::timespec {
+                tv_sec: secs,
+                tv_nsec: nsec as _,
+            },
+        })
     }
 
     fn checked_sub_duration(&self, other: &Duration) -> Option<Timespec> {
@@ -85,7 +95,12 @@ impl Timespec {
             nsec += NSEC_PER_SEC as i32;
             secs = secs.checked_sub(1)?;
         }
-        Some(Timespec { t: libc::timespec { tv_sec: secs, tv_nsec: nsec as _ } })
+        Some(Timespec {
+            t: libc::timespec {
+                tv_sec: secs,
+                tv_nsec: nsec as _,
+            },
+        })
     }
 }
 
@@ -119,9 +134,9 @@ impl Hash for Timespec {
 }
 
 mod inner {
-    use core::fmt;
-    use crate::sys::cvt;
+    use crate::sys::cvt_ocall;
     use crate::time::Duration;
+    use core::fmt;
 
     use super::Timespec;
 
@@ -141,7 +156,9 @@ mod inner {
 
     impl Instant {
         pub fn now() -> Instant {
-            Instant { t: now(libc::CLOCK_MONOTONIC) }
+            Instant {
+                t: now(libc::CLOCK_MONOTONIC),
+            }
         }
 
         pub const fn zero() -> Instant {
@@ -151,9 +168,9 @@ mod inner {
         }
 
         pub fn actually_monotonic() -> bool {
-            (cfg!(target_os = "linux") && cfg!(target_arch = "x86_64")) ||
-            (cfg!(target_os = "linux") && cfg!(target_arch = "x86")) ||
-            false // last clause, used so `||` is always trailing above
+            (cfg!(target_os = "linux") && cfg!(target_arch = "x86_64"))
+                || (cfg!(target_os = "linux") && cfg!(target_arch = "x86"))
+                || false // last clause, used so `||` is always trailing above
         }
 
         pub fn checked_sub_instant(&self, other: &Instant) -> Option<Duration> {
@@ -161,11 +178,15 @@ mod inner {
         }
 
         pub fn checked_add_duration(&self, other: &Duration) -> Option<Instant> {
-            Some(Instant { t: self.t.checked_add_duration(other)? })
+            Some(Instant {
+                t: self.t.checked_add_duration(other)?,
+            })
         }
 
         pub fn checked_sub_duration(&self, other: &Duration) -> Option<Instant> {
-            Some(Instant { t: self.t.checked_sub_duration(other)? })
+            Some(Instant {
+                t: self.t.checked_sub_duration(other)?,
+            })
         }
 
         pub fn get_tup(&self) -> (i64, i64) {
@@ -184,7 +205,9 @@ mod inner {
 
     impl SystemTime {
         pub fn now() -> SystemTime {
-            SystemTime { t: now(libc::CLOCK_REALTIME) }
+            SystemTime {
+                t: now(libc::CLOCK_REALTIME),
+            }
         }
 
         pub fn sub_time(&self, other: &SystemTime) -> Result<Duration, Duration> {
@@ -192,11 +215,15 @@ mod inner {
         }
 
         pub fn checked_add_duration(&self, other: &Duration) -> Option<SystemTime> {
-            Some(SystemTime { t: self.t.checked_add_duration(other)? })
+            Some(SystemTime {
+                t: self.t.checked_add_duration(other)?,
+            })
         }
 
         pub fn checked_sub_duration(&self, other: &Duration) -> Option<SystemTime> {
-            Some(SystemTime { t: self.t.checked_sub_duration(other)? })
+            Some(SystemTime {
+                t: self.t.checked_sub_duration(other)?,
+            })
         }
 
         pub fn get_tup(&self) -> (i64, i64) {
@@ -220,13 +247,18 @@ mod inner {
     }
 
     fn now(clock: libc::clockid_t) -> Timespec {
-        let mut t = Timespec { t: libc::timespec { tv_sec: 0, tv_nsec: 0 } };
-        cvt(unsafe { libc::clock_gettime(clock, &mut t.t) }).unwrap();
+        let mut t = Timespec {
+            t: libc::timespec {
+                tv_sec: 0,
+                tv_nsec: 0,
+            },
+        };
+        cvt_ocall(unsafe { libc::clock_gettime(clock, &mut t.t) }).unwrap();
         t
     }
 
     mod libc {
-        pub use sgx_trts::libc::*;
         pub use sgx_trts::libc::ocall::clock_gettime;
+        pub use sgx_trts::libc::*;
     }
 }

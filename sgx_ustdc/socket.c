@@ -59,19 +59,6 @@ int u_listen_ocall(int *error, int sockfd, int backlog)
     return ret;
 }
 
-int u_accept_ocall(int *error,
-                   int sockfd,
-                   struct sockaddr *addr,
-                   socklen_t addrlen_in,
-                   socklen_t *addrlen_out)
-{
-    *addrlen_out = addrlen_in;
-    int ret = accept(sockfd, addr, addrlen_out);
-     if (error) {
-        *error = ret == -1 ? errno : 0;
-    }
-    return ret;
-}
 
 int u_accept4_ocall(int *error,
                     int sockfd,

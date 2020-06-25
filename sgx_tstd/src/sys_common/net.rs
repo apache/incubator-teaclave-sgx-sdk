@@ -17,18 +17,18 @@
 
 #![allow(dead_code)]
 
-use sgx_trts::libc::{c_int, c_uint, c_void};
-use core::cmp;
-use core::fmt;
-use core::mem;
-use core::ptr;
-use core::convert::{TryFrom, TryInto};
 use crate::ffi::CString;
 use crate::io::{self, Error, ErrorKind, IoSlice, IoSliceMut};
 use crate::net::{Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr};
-use crate::sys::net::{cvt, cvt_gai, cvt_r, init, wrlen_t, Socket};
-use crate::sys_common::{AsInner, FromInner, IntoInner};
+use crate::sys::net::{init, Socket};
+use crate::sys::{cvt_ocall, cvt_ocall_r};
+use crate::sys_common::{AsInner, FromInner};
 use crate::time::Duration;
+use alloc_crate::vec;
+use core::convert::{TryFrom, TryInto};
+use core::fmt;
+use core::mem;
+use sgx_trts::libc::{c_int, c_uint, c_void, SockAddr};
 
 ////////////////////////////////////////////////////////////////////////////////
 // sockaddr and misc bindings
@@ -37,7 +37,7 @@ use crate::time::Duration;
 pub fn setsockopt<T>(sock: &Socket, opt: c_int, val: c_int, payload: T) -> io::Result<()> {
     unsafe {
         let payload = &payload as *const T as *const c_void;
-        cvt(libc::setsockopt(
+        cvt_ocall(libc::setsockopt(
             *sock.as_inner(),
             opt,
             val,
@@ -52,7 +52,7 @@ pub fn getsockopt<T: Copy>(sock: &Socket, opt: c_int, val: c_int) -> io::Result<
     unsafe {
         let mut slot: T = mem::zeroed();
         let mut len = mem::size_of::<T>() as libc::socklen_t;
-        cvt(libc::getsockopt(
+        cvt_ocall(libc::getsockopt(
             *sock.as_inner(),
             opt,
             val,
@@ -66,14 +66,22 @@ pub fn getsockopt<T: Copy>(sock: &Socket, opt: c_int, val: c_int) -> io::Result<
 
 fn sockname<F>(f: F) -> io::Result<SocketAddr>
 where
-    F: FnOnce(*mut libc::sockaddr, *mut libc::socklen_t) -> c_int,
+    F: FnOnce(*mut libc::sockaddr, *mut libc::socklen_t) -> libc::OCallResult<()>,
 {
     unsafe {
         let mut storage: libc::sockaddr_storage = mem::zeroed();
         let mut len = mem::size_of_val(&storage) as libc::socklen_t;
-        cvt(f(&mut storage as *mut _ as *mut _, &mut len))?;
+        cvt_ocall(f(&mut storage as *mut _ as *mut _, &mut len))?;
         sockaddr_to_addr(&storage, len as usize)
     }
+}
+
+fn sockname2<F>(f: F) -> io::Result<SocketAddr>
+where
+    F: FnOnce() -> libc::OCallResult<libc::SockAddr>,
+{
+    let sa = cvt_ocall(f())?;
+    sa.try_into()
 }
 
 pub fn sockaddr_to_addr(storage: &libc::sockaddr_storage, len: usize) -> io::Result<SocketAddr> {
@@ -103,8 +111,7 @@ fn to_ipv6mr_interface(value: u32) -> c_uint {
 ////////////////////////////////////////////////////////////////////////////////
 
 pub struct LookupHost {
-    original: *mut libc::addrinfo,
-    cur: *mut libc::addrinfo,
+    iter: vec::IntoIter<SockAddr>,
     port: u16,
 }
 
@@ -117,27 +124,16 @@ impl LookupHost {
 impl Iterator for LookupHost {
     type Item = SocketAddr;
     fn next(&mut self) -> Option<SocketAddr> {
-        loop {
-            unsafe {
-                let cur = self.cur.as_ref()?;
-                self.cur = cur.ai_next;
-                match sockaddr_to_addr(mem::transmute(cur.ai_addr), cur.ai_addrlen as usize) {
-                    Ok(addr) => return Some(addr),
-                    Err(_) => continue,
-                }
-            }
-        }
+        self.iter.next().map(|sai| match sai {
+            SockAddr::IN4(addr) => SocketAddr::V4(FromInner::from_inner(addr)),
+            SockAddr::IN6(addr) => SocketAddr::V6(FromInner::from_inner(addr)),
+            _ => unreachable!(),
+        })
     }
 }
 
 unsafe impl Sync for LookupHost {}
 unsafe impl Send for LookupHost {}
-
-impl Drop for LookupHost {
-    fn drop(&mut self) {
-        unsafe { libc::freeaddrinfo(self.original) }
-    }
-}
 
 impl TryFrom<&str> for LookupHost {
     type Error = io::Error;
@@ -169,13 +165,15 @@ impl<'a> TryFrom<(&'a str, u16)> for LookupHost {
         init();
 
         let c_host = CString::new(host)?;
-        let mut hints: libc::addrinfo = unsafe { mem::zeroed() };
-        hints.ai_socktype = libc::SOCK_STREAM;
-        let mut res = ptr::null_mut();
-        unsafe {
-            cvt_gai(libc::getaddrinfo(c_host.as_ptr(), ptr::null(), &hints, &mut res))
-                .map(|_| LookupHost { original: res, cur: res, port })
-        }
+        let mut hints = libc::AddrInfoHints::default();
+        hints.socktype = libc::SOCK_STREAM;
+
+        let addr_vec = unsafe { cvt_ocall(libc::getaddrinfo(Some(&c_host), None, Some(hints)))? };
+
+        Ok(LookupHost {
+            iter: addr_vec.into_iter(),
+            port,
+        })
     }
 }
 
@@ -217,8 +215,8 @@ impl TcpStream {
         init();
 
         let sock = Socket::new_socket_addr_type(addr, libc::SOCK_STREAM)?;
-        let (addrp, len) = addr.into_inner();
-        cvt_r(|| unsafe { libc::connect(*sock.as_inner(), addrp, len) })?;
+        let sock_addr = addr.to_owned().into();
+        cvt_ocall_r(|| unsafe { libc::connect(*sock.as_inner(), &sock_addr) })?;
         Ok(TcpStream { inner: sock })
     }
 
@@ -227,8 +225,8 @@ impl TcpStream {
 
         init();
 
-        let (addrp, len) = addr.into_inner();
-        cvt_r(|| unsafe { libc::connect(*self.inner.as_inner(), addrp, len) }).map(drop)
+        let sock_addr = addr.to_owned().into();
+        cvt_ocall_r(|| unsafe { libc::connect(*self.inner.as_inner(), &sock_addr) }).map(drop)
     }
 
     pub fn connect_timeout(addr: &SocketAddr, timeout: Duration) -> io::Result<TcpStream> {
@@ -280,15 +278,8 @@ impl TcpStream {
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
-        let len = cmp::min(buf.len(), <wrlen_t>::max_value() as usize) as wrlen_t;
-        let ret = cvt(unsafe {
-            libc::send(
-                *self.inner.as_inner(),
-                buf.as_ptr() as *const c_void,
-                len,
-                libc::MSG_NOSIGNAL,
-            )
-        })?;
+        let ret =
+            cvt_ocall(unsafe { libc::send(*self.inner.as_inner(), buf, libc::MSG_NOSIGNAL) })?;
         Ok(ret as usize)
     }
 
@@ -297,15 +288,11 @@ impl TcpStream {
     }
 
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
-        sockname(|buf, len| unsafe {
-            libc::getpeername(*self.inner.as_inner(), buf, len)
-        })
+        sockname2(|| unsafe { libc::getpeername(*self.inner.as_inner()) })
     }
 
     pub fn socket_addr(&self) -> io::Result<SocketAddr> {
-        sockname(|buf, len| unsafe {
-            libc::getsockname(*self.inner.as_inner(), buf, len)
-        })
+        sockname2(|| unsafe { libc::getsockname(*self.inner.as_inner()) })
     }
 
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
@@ -334,7 +321,12 @@ impl TcpStream {
     }
 
     pub fn set_only_v6(&self, only_v6: bool) -> io::Result<()> {
-        setsockopt(&self.inner, libc::IPPROTO_IPV6, libc::IPV6_V6ONLY, only_v6 as c_int)
+        setsockopt(
+            &self.inner,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_V6ONLY,
+            only_v6 as c_int,
+        )
     }
 
     pub fn only_v6(&self) -> io::Result<bool> {
@@ -419,11 +411,11 @@ impl TcpListener {
         setsockopt(&sock, libc::SOL_SOCKET, libc::SO_REUSEADDR, 1 as c_int)?;
 
         // Bind our new socket
-        let (addrp, len) = addr.into_inner();
-        cvt(unsafe { libc::bind(*sock.as_inner(), addrp, len as _) })?;
+        let sock_addr = addr.to_owned().into();
+        cvt_ocall(unsafe { libc::bind(*sock.as_inner(), &sock_addr) })?;
 
         // Start listening
-        cvt(unsafe { libc::listen(*sock.as_inner(), 128) })?;
+        cvt_ocall(unsafe { libc::listen(*sock.as_inner(), 128) })?;
         Ok(TcpListener { inner: sock })
     }
 
@@ -432,10 +424,15 @@ impl TcpListener {
 
         init();
 
-        setsockopt(&self.inner, libc::SOL_SOCKET, libc::SO_REUSEADDR, 1 as c_int)?;
-        let (addrp, len) = addr.into_inner();
-        cvt(unsafe { libc::bind(*self.inner.as_inner(), addrp, len as _) })?;
-        cvt(unsafe { libc::listen(*self.inner.as_inner(), 128) }).map(drop)
+        setsockopt(
+            &self.inner,
+            libc::SOL_SOCKET,
+            libc::SO_REUSEADDR,
+            1 as c_int,
+        )?;
+        let sock_addr = addr.to_owned().into();
+        cvt_ocall(unsafe { libc::bind(*self.inner.as_inner(), &sock_addr) })?;
+        cvt_ocall(unsafe { libc::listen(*self.inner.as_inner(), 128) })
     }
 
     pub fn socket(&self) -> &Socket {
@@ -447,16 +444,12 @@ impl TcpListener {
     }
 
     pub fn socket_addr(&self) -> io::Result<SocketAddr> {
-        sockname(|buf, len| unsafe {
-            libc::getsockname(*self.inner.as_inner(), buf, len)
-        })
+        sockname2(|| unsafe { libc::getsockname(*self.inner.as_inner()) })
     }
 
     pub fn accept(&self) -> io::Result<(TcpStream, SocketAddr)> {
-        let mut storage: libc::sockaddr_storage = unsafe { mem::zeroed() };
-        let mut len = mem::size_of_val(&storage) as libc::socklen_t;
-        let sock = self.inner.accept(&mut storage as *mut _ as *mut _, &mut len)?;
-        let addr = sockaddr_to_addr(&storage, len as usize)?;
+        let (sock, addr) = self.inner.accept()?;
+        let addr = addr.try_into()?;
         Ok((TcpStream { inner: sock }, addr))
     }
 
@@ -474,7 +467,12 @@ impl TcpListener {
     }
 
     pub fn set_only_v6(&self, only_v6: bool) -> io::Result<()> {
-        setsockopt(&self.inner, libc::IPPROTO_IPV6, libc::IPV6_V6ONLY, only_v6 as c_int)
+        setsockopt(
+            &self.inner,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_V6ONLY,
+            only_v6 as c_int,
+        )
     }
 
     pub fn only_v6(&self) -> io::Result<bool> {
@@ -519,7 +517,6 @@ pub struct UdpSocket {
 }
 
 impl UdpSocket {
-
     pub fn new(sockfd: c_int) -> io::Result<UdpSocket> {
         let sock = Socket::new(sockfd)?;
         Ok(UdpSocket { inner: sock })
@@ -549,8 +546,8 @@ impl UdpSocket {
         init();
 
         let sock = Socket::new_socket_addr_type(addr, libc::SOCK_DGRAM)?;
-        let (addrp, len) = addr.into_inner();
-        cvt(unsafe { libc::bind(*sock.as_inner(), addrp, len as _) })?;
+        let sock_addr = addr.to_owned().into();
+        cvt_ocall(unsafe { libc::bind(*sock.as_inner(), &sock_addr) })?;
         Ok(UdpSocket { inner: sock })
     }
 
@@ -559,8 +556,8 @@ impl UdpSocket {
 
         init();
 
-        let (addrp, len) = addr.into_inner();
-        cvt(unsafe { libc::bind(*self.inner.as_inner(), addrp, len as _) }).map(drop)
+        let sock_addr = addr.to_owned().into();
+        cvt_ocall(unsafe { libc::bind(*self.inner.as_inner(), &sock_addr) }).map(drop)
     }
 
     pub fn socket(&self) -> &Socket {
@@ -572,15 +569,11 @@ impl UdpSocket {
     }
 
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
-        sockname(|buf, len| unsafe {
-            libc::getpeername(*self.inner.as_inner(), buf, len)
-        })
+        sockname2(|| unsafe { libc::getpeername(*self.inner.as_inner()) })
     }
 
     pub fn socket_addr(&self) -> io::Result<SocketAddr> {
-        sockname(|buf, len| unsafe { 
-            libc::getsockname(*self.inner.as_inner(), buf, len) 
-        })
+        sockname2(|| unsafe { libc::getsockname(*self.inner.as_inner()) })
     }
 
     pub fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
@@ -592,17 +585,9 @@ impl UdpSocket {
     }
 
     pub fn send_to(&self, buf: &[u8], dst: &SocketAddr) -> io::Result<usize> {
-        let len = cmp::min(buf.len(), <wrlen_t>::max_value() as usize) as wrlen_t;
-        let (dstp, dstlen) = dst.into_inner();
-        let ret = cvt(unsafe {
-            libc::sendto(
-                *self.inner.as_inner(),
-                buf.as_ptr() as *const c_void,
-                len,
-                libc::MSG_NOSIGNAL,
-                dstp,
-                dstlen,
-            )
+        let dst = dst.to_owned().into();
+        let ret = cvt_ocall(unsafe {
+            libc::sendto(*self.inner.as_inner(), &buf, libc::MSG_NOSIGNAL, &dst)
         })?;
         Ok(ret as usize)
     }
@@ -628,7 +613,12 @@ impl UdpSocket {
     }
 
     pub fn set_broadcast(&self, broadcast: bool) -> io::Result<()> {
-        setsockopt(&self.inner, libc::SOL_SOCKET, libc::SO_BROADCAST, broadcast as c_int)
+        setsockopt(
+            &self.inner,
+            libc::SOL_SOCKET,
+            libc::SO_BROADCAST,
+            broadcast as c_int,
+        )
     }
 
     pub fn broadcast(&self) -> io::Result<bool> {
@@ -637,7 +627,12 @@ impl UdpSocket {
     }
 
     pub fn set_multicast_loop_v4(&self, multicast_loop_v4: bool) -> io::Result<()> {
-        setsockopt(&self.inner, libc::IPPROTO_IP, libc::IP_MULTICAST_LOOP, multicast_loop_v4 as c_int)
+        setsockopt(
+            &self.inner,
+            libc::IPPROTO_IP,
+            libc::IP_MULTICAST_LOOP,
+            multicast_loop_v4 as c_int,
+        )
     }
 
     pub fn multicast_loop_v4(&self) -> io::Result<bool> {
@@ -646,7 +641,12 @@ impl UdpSocket {
     }
 
     pub fn set_multicast_ttl_v4(&self, multicast_ttl_v4: u32) -> io::Result<()> {
-        setsockopt(&self.inner, libc::IPPROTO_IP, libc::IP_MULTICAST_TTL, multicast_ttl_v4 as c_int)
+        setsockopt(
+            &self.inner,
+            libc::IPPROTO_IP,
+            libc::IP_MULTICAST_TTL,
+            multicast_ttl_v4 as c_int,
+        )
     }
 
     pub fn multicast_ttl_v4(&self) -> io::Result<u32> {
@@ -655,7 +655,12 @@ impl UdpSocket {
     }
 
     pub fn set_multicast_loop_v6(&self, multicast_loop_v6: bool) -> io::Result<()> {
-        setsockopt(&self.inner, libc::IPPROTO_IPV6, libc::IPV6_MULTICAST_LOOP, multicast_loop_v6 as c_int)
+        setsockopt(
+            &self.inner,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_MULTICAST_LOOP,
+            multicast_loop_v6 as c_int,
+        )
     }
 
     pub fn multicast_loop_v6(&self) -> io::Result<bool> {
@@ -676,7 +681,12 @@ impl UdpSocket {
             ipv6mr_multiaddr: *multiaddr.as_inner(),
             ipv6mr_interface: to_ipv6mr_interface(interface),
         };
-        setsockopt(&self.inner, libc::IPPROTO_IPV6, libc::IPV6_ADD_MEMBERSHIP, mreq)
+        setsockopt(
+            &self.inner,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_ADD_MEMBERSHIP,
+            mreq,
+        )
     }
 
     pub fn leave_multicast_v4(&self, multiaddr: &Ipv4Addr, interface: &Ipv4Addr) -> io::Result<()> {
@@ -684,7 +694,12 @@ impl UdpSocket {
             imr_multiaddr: *multiaddr.as_inner(),
             imr_interface: *interface.as_inner(),
         };
-        setsockopt(&self.inner, libc::IPPROTO_IP, libc::IP_DROP_MEMBERSHIP, mreq)
+        setsockopt(
+            &self.inner,
+            libc::IPPROTO_IP,
+            libc::IP_DROP_MEMBERSHIP,
+            mreq,
+        )
     }
 
     pub fn leave_multicast_v6(&self, multiaddr: &Ipv6Addr, interface: u32) -> io::Result<()> {
@@ -692,7 +707,12 @@ impl UdpSocket {
             ipv6mr_multiaddr: *multiaddr.as_inner(),
             ipv6mr_interface: to_ipv6mr_interface(interface),
         };
-        setsockopt(&self.inner, libc::IPPROTO_IPV6, libc::IPV6_DROP_MEMBERSHIP, mreq)
+        setsockopt(
+            &self.inner,
+            libc::IPPROTO_IPV6,
+            libc::IPV6_DROP_MEMBERSHIP,
+            mreq,
+        )
     }
 
     pub fn set_ttl(&self, ttl: u32) -> io::Result<()> {
@@ -721,21 +741,14 @@ impl UdpSocket {
     }
 
     pub fn send(&self, buf: &[u8]) -> io::Result<usize> {
-        let len = cmp::min(buf.len(), <wrlen_t>::max_value() as usize) as wrlen_t;
-        let ret = cvt(unsafe {
-            libc::send(
-                *self.inner.as_inner(),
-                buf.as_ptr() as *const c_void,
-                len,
-                libc::MSG_NOSIGNAL,
-            )
-        })?;
+        let ret =
+            cvt_ocall(unsafe { libc::send(*self.inner.as_inner(), buf, libc::MSG_NOSIGNAL) })?;
         Ok(ret as usize)
     }
 
     pub fn connect(&self, addr: io::Result<&SocketAddr>) -> io::Result<()> {
-        let (addrp, len) = addr?.into_inner();
-        cvt_r(|| unsafe { libc::connect(*self.inner.as_inner(), addrp, len) }).map(drop)
+        let sock_addr = addr?.to_owned().into();
+        cvt_ocall_r(|| unsafe { libc::connect(*self.inner.as_inner(), &sock_addr) }).map(drop)
     }
 }
 
@@ -759,7 +772,9 @@ impl fmt::Debug for UdpSocket {
 }
 
 mod libc {
+    pub use sgx_trts::libc::ocall::{
+        bind, connect, getaddrinfo, getpeername, getsockname, getsockopt, listen, send, sendto,
+        setsockopt,
+    };
     pub use sgx_trts::libc::*;
-    pub use sgx_trts::libc::ocall::{bind, listen, connect, setsockopt, getsockopt, send, sendto,
-                                    getpeername, getsockname, getaddrinfo, freeaddrinfo};
 }

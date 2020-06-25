@@ -24,7 +24,6 @@
 /// bytes ("nul characters") and that the final byte is 0 ("nul terminator").
 ///
 use sgx_types::c_char;
-use crate::libc;
 use crate::memchr;
 use crate::ascii;
 
@@ -267,7 +266,7 @@ impl CString {
     /// [`CStr`]: struct.CStr.html
     ///
     pub unsafe fn from_raw(ptr: *mut c_char) -> CString {
-        let len = libc::strlen(ptr) + 1; // Including the NUL byte
+        let len = crate::strlen(ptr) + 1; // Including the NUL byte
         let slice = slice::from_raw_parts_mut(ptr, len as usize);
         CString { inner: Box::from_raw(slice as *mut [c_char] as *mut [u8]) }
     }
@@ -634,7 +633,7 @@ impl CStr {
     /// > the string. This is not guaranteed to always be the case.
     ///
     pub unsafe fn from_ptr<'a>(ptr: *const c_char) -> &'a CStr {
-        let len = libc::strlen(ptr);
+        let len = crate::strlen(ptr);
         let ptr = ptr as *const u8;
         CStr::from_bytes_with_nul_unchecked(slice::from_raw_parts(ptr, len as usize + 1))
     }

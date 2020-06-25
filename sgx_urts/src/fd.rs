@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use libc::{self, c_int, c_ulong, c_void, iovec, off64_t, size_t, ssize_t};
+use libc::{self, c_int, c_ulong, c_void, off64_t, size_t, ssize_t};
 use std::io::Error;
 
 #[no_mangle]
@@ -60,47 +60,6 @@ pub extern "C" fn u_pread64_ocall(
 }
 
 #[no_mangle]
-pub extern "C" fn u_readv_ocall(
-    error: *mut c_int,
-    fd: c_int,
-    iov: *const iovec,
-    iovcnt: c_int,
-) -> ssize_t {
-    let mut errno = 0;
-    let ret = unsafe { libc::readv(fd, iov, iovcnt) };
-    if ret < 0 {
-        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
-    }
-    if !error.is_null() {
-        unsafe {
-            *error = errno;
-        }
-    }
-    ret
-}
-
-#[no_mangle]
-pub extern "C" fn u_preadv64_ocall(
-    error: *mut c_int,
-    fd: c_int,
-    iov: *const iovec,
-    iovcnt: c_int,
-    offset: off64_t,
-) -> ssize_t {
-    let mut errno = 0;
-    let ret = unsafe { libc::preadv64(fd, iov, iovcnt, offset) };
-    if ret < 0 {
-        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
-    }
-    if !error.is_null() {
-        unsafe {
-            *error = errno;
-        }
-    }
-    ret
-}
-
-#[no_mangle]
 pub extern "C" fn u_write_ocall(
     error: *mut c_int,
     fd: c_int,
@@ -130,47 +89,6 @@ pub extern "C" fn u_pwrite64_ocall(
 ) -> ssize_t {
     let mut errno = 0;
     let ret = unsafe { libc::pwrite64(fd, buf, count, offset) };
-    if ret < 0 {
-        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
-    }
-    if !error.is_null() {
-        unsafe {
-            *error = errno;
-        }
-    }
-    ret
-}
-
-#[no_mangle]
-pub extern "C" fn u_writev_ocall(
-    error: *mut c_int,
-    fd: c_int,
-    iov: *const iovec,
-    iovcnt: c_int,
-) -> ssize_t {
-    let mut errno = 0;
-    let ret = unsafe { libc::writev(fd, iov, iovcnt) };
-    if ret < 0 {
-        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
-    }
-    if !error.is_null() {
-        unsafe {
-            *error = errno;
-        }
-    }
-    ret
-}
-
-#[no_mangle]
-pub extern "C" fn u_pwritev64_ocall(
-    error: *mut c_int,
-    fd: c_int,
-    iov: *const iovec,
-    iovcnt: c_int,
-    offset: off64_t,
-) -> ssize_t {
-    let mut errno = 0;
-    let ret = unsafe { libc::pwritev64(fd, iov, iovcnt, offset) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }

@@ -21,7 +21,6 @@ use core::mem;
 use core::ptr;
 use crate::ffi::CStr;
 use crate::io;
-use crate::sys::os;
 use crate::time::Duration;
 
 pub struct Thread {
@@ -73,7 +72,7 @@ impl Thread {
 
     pub fn yield_now() {
         let ret = unsafe { libc::sched_yield() };
-        debug_assert_eq!(ret, 0);
+        debug_assert!(ret.is_ok());
     }
 
     pub fn sleep(dur: Duration) {
@@ -89,8 +88,8 @@ impl Thread {
                     tv_nsec: nsecs,
                 };
                 secs -= ts.tv_sec as u64;
-                if libc::nanosleep(&ts, &mut ts) == -1 {
-                    assert_eq!(os::errno(), libc::EINTR);
+                if let Err(e) = libc::nanosleep(&mut ts) {
+                    assert_eq!(e.equal_to_os_error(libc::EINTR), true);
                     secs += ts.tv_sec as u64;
                     nsecs = ts.tv_nsec;
                 } else {

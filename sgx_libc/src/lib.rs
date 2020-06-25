@@ -25,6 +25,11 @@
 #![allow(non_snake_case)]
 #![allow(unused_macros)]
 #![allow(unused_assignments)]
+#![feature(const_raw_ptr_deref)]
+#![feature(min_specialization)]
+#![feature(vec_into_raw_parts)]
+#![feature(toowned_clone_into)]
+#![feature(slice_index_methods)]
 
 #[macro_use]
 extern crate alloc;
@@ -46,3 +51,7 @@ cfg_if! {
 
     }
 }
+
+pub mod memchr;
+pub mod ascii;
+pub mod c_str;

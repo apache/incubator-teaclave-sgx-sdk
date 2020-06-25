@@ -15,8 +15,6 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use core::mem;
-use core::fmt;
 use crate::ascii;
 use crate::ffi::OsStr;
 use crate::io::{self, Initializer, IoSlice, IoSliceMut};
@@ -24,10 +22,13 @@ use crate::net::{self, Shutdown};
 use crate::os::unix::ffi::OsStrExt;
 use crate::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use crate::path::Path;
-use crate::time::Duration;
-use crate::sys::{self, cvt};
 use crate::sys::net::Socket;
+use crate::sys::{self, cvt_ocall};
 use crate::sys_common::{self, AsInner, FromInner, IntoInner};
+use crate::time::Duration;
+use core::convert::{TryFrom, TryInto};
+use core::fmt;
+use core::mem;
 
 fn sun_path_offset(addr: &libc::sockaddr_un) -> usize {
     // Work with an actual instance of the type since using a null pointer is UB
@@ -86,14 +87,10 @@ pub struct SocketAddr {
 impl SocketAddr {
     fn new<F>(f: F) -> io::Result<SocketAddr>
     where
-        F: FnOnce(*mut libc::sockaddr, *mut libc::socklen_t) -> libc::c_int,
+        F: FnOnce() -> libc::OCallResult<libc::SockAddr>,
     {
-        unsafe {
-            let mut addr: libc::sockaddr_un = mem::zeroed();
-            let mut len = mem::size_of::<libc::sockaddr_un>() as libc::socklen_t;
-            cvt(f(&mut addr as *mut _ as *mut _, &mut len))?;
-            SocketAddr::from_parts(addr, len)
-        }
+        let addr = cvt_ocall(f())?;
+        addr.try_into()
     }
 
     fn from_parts(addr: libc::sockaddr_un, mut len: libc::socklen_t) -> io::Result<SocketAddr> {
@@ -114,13 +111,21 @@ impl SocketAddr {
     /// Returns `true` if the address is unnamed.
     ///
     pub fn is_unnamed(&self) -> bool {
-        if let AddressKind::Unnamed = self.address() { true } else { false }
+        if let AddressKind::Unnamed = self.address() {
+            true
+        } else {
+            false
+        }
     }
 
     /// Returns the contents of this address if it is a `pathname` address.
     ///
     pub fn as_pathname(&self) -> Option<&Path> {
-        if let AddressKind::Pathname(path) = self.address() { Some(path) } else { None }
+        if let AddressKind::Pathname(path) = self.address() {
+            Some(path)
+        } else {
+            None
+        }
     }
 
     fn address(&self) -> AddressKind<'_> {
@@ -128,8 +133,7 @@ impl SocketAddr {
         let path = unsafe { mem::transmute::<&[libc::c_char], &[u8]>(&self.addr.sun_path) };
 
         // macOS seems to return a len of 16 and a zeroed sun_path for unnamed addresses
-        if len == 0
-        {
+        if len == 0 {
             AddressKind::Unnamed
         } else if self.addr.sun_path[0] == 0 {
             AddressKind::Abstract(&path[1..len])
@@ -145,6 +149,20 @@ impl fmt::Debug for SocketAddr {
             AddressKind::Unnamed => write!(fmt, "(unnamed)"),
             AddressKind::Abstract(name) => write!(fmt, "{} (abstract)", AsciiEscaped(name)),
             AddressKind::Pathname(path) => write!(fmt, "{:?} (pathname)", path),
+        }
+    }
+}
+
+impl TryFrom<libc::SockAddr> for SocketAddr {
+    type Error = io::Error;
+
+    fn try_from(addr: libc::SockAddr) -> io::Result<SocketAddr> {
+        match addr {
+            libc::SockAddr::UN((sa, len)) => SocketAddr::from_parts(sa, len),
+            _ => Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Unsupported SocketAddr",
+            )),
         }
     }
 }
@@ -186,9 +204,9 @@ impl UnixStream {
         fn inner(path: &Path) -> io::Result<UnixStream> {
             unsafe {
                 let inner = Socket::new_raw(libc::AF_UNIX, libc::SOCK_STREAM)?;
-                let (addr, len) = sockaddr_un(path)?;
+                let addr = libc::SockAddr::UN(sockaddr_un(path)?);
 
-                cvt(libc::connect(*inner.as_inner(), &addr as *const _ as *const _, len))?;
+                cvt_ocall(libc::connect(*inner.as_inner(), &addr))?;
                 Ok(UnixStream(inner))
             }
         }
@@ -218,13 +236,13 @@ impl UnixStream {
     /// Returns the socket address of the local half of this connection.
     ///
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        SocketAddr::new(|addr, len| unsafe { libc::getsockname(*self.0.as_inner(), addr, len) })
+        SocketAddr::new(|| unsafe { libc::getsockname(*self.0.as_inner()) })
     }
 
     /// Returns the socket address of the remote half of this connection.
     ///
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
-        SocketAddr::new(|addr, len| unsafe { libc::getpeername(*self.0.as_inner(), addr, len) })
+        SocketAddr::new(|| unsafe { libc::getpeername(*self.0.as_inner()) })
     }
 
     /// Sets the read timeout for the socket.
@@ -450,9 +468,10 @@ impl UnixListener {
             unsafe {
                 let inner = Socket::new_raw(libc::AF_UNIX, libc::SOCK_STREAM)?;
                 let (addr, len) = sockaddr_un(path)?;
+                let sock_addr = libc::SockAddr::UN((addr, len));
 
-                cvt(libc::bind(*inner.as_inner(), &addr as *const _ as *const _, len as _))?;
-                cvt(libc::listen(*inner.as_inner(), 128))?;
+                cvt_ocall(libc::bind(*inner.as_inner(), &sock_addr))?;
+                cvt_ocall(libc::listen(*inner.as_inner(), 128))?;
 
                 Ok(UnixListener(inner))
             }
@@ -467,11 +486,9 @@ impl UnixListener {
     /// the remote peer's address will be returned.
     ///
     pub fn accept(&self) -> io::Result<(UnixStream, SocketAddr)> {
-        let mut storage: libc::sockaddr_un = unsafe { mem::zeroed() };
-        let mut len = mem::size_of_val(&storage) as libc::socklen_t;
-        let sock = self.0.accept(&mut storage as *mut _ as *mut _, &mut len)?;
-        let addr = SocketAddr::from_parts(storage, len)?;
-        Ok((UnixStream(sock), addr))
+        let (sock, addr) = self.0.accept()?;
+        let sa = addr.try_into()?;
+        Ok((UnixStream(sock), sa))
     }
 
     /// Creates a new independently owned handle to the underlying socket.
@@ -487,7 +504,7 @@ impl UnixListener {
     /// Returns the local socket address of this listener.
     ///
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        SocketAddr::new(|addr, len| unsafe { libc::getsockname(*self.0.as_inner(), addr, len) })
+        SocketAddr::new(|| unsafe { libc::getsockname(*self.0.as_inner()) })
     }
 
     /// Moves the socket into or out of nonblocking mode.
@@ -592,8 +609,9 @@ impl UnixDatagram {
             unsafe {
                 let socket = UnixDatagram::unbound()?;
                 let (addr, len) = sockaddr_un(path)?;
+                let sock_addr = libc::SockAddr::UN((addr, len));
 
-                cvt(libc::bind(*socket.0.as_inner(), &addr as *const _ as *const _, len as _))?;
+                cvt_ocall(libc::bind(*socket.0.as_inner(), &sock_addr))?;
 
                 Ok(socket)
             }
@@ -629,10 +647,8 @@ impl UnixDatagram {
     pub fn connect<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
         fn inner(d: &UnixDatagram, path: &Path) -> io::Result<()> {
             unsafe {
-                let (addr, len) = sockaddr_un(path)?;
-
-                cvt(libc::connect(*d.0.as_inner(), &addr as *const _ as *const _, len))?;
-
+                let addr = libc::SockAddr::UN(sockaddr_un(path)?);
+                cvt_ocall(libc::connect(*d.0.as_inner(), &addr))?;
                 Ok(())
             }
         }
@@ -652,7 +668,7 @@ impl UnixDatagram {
     /// Returns the address of this socket.
     ///
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        SocketAddr::new(|addr, len| unsafe { libc::getsockname(*self.0.as_inner(), addr, len) })
+        SocketAddr::new(|| unsafe { libc::getsockname(*self.0.as_inner()) })
     }
 
     /// Returns the address of this socket's peer.
@@ -662,7 +678,7 @@ impl UnixDatagram {
     /// [`connect`]: #method.connect
     ///
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
-        SocketAddr::new(|addr, len| unsafe { libc::getpeername(*self.0.as_inner(), addr, len) })
+        SocketAddr::new(|| unsafe { libc::getpeername(*self.0.as_inner()) })
     }
 
     /// Receives data from the socket.
@@ -671,26 +687,11 @@ impl UnixDatagram {
     /// whence the data came.
     ///
     pub fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
-        let mut count = 0;
-        let addr = SocketAddr::new(|addr, len| unsafe {
-            count = libc::recvfrom(
-                *self.0.as_inner(),
-                buf.as_mut_ptr() as *mut _,
-                buf.len(),
-                0,
-                addr,
-                len,
-            );
-            if count > 0 {
-                1
-            } else if count == 0 {
-                0
-            } else {
-                -1
-            }
-        })?;
-
-        Ok((count as usize, addr))
+        unsafe {
+            let (count, addr) = cvt_ocall(libc::recvfrom(*self.0.as_inner(), buf, 0))?;
+            let addr = addr.try_into()?;
+            Ok((count as usize, addr))
+        }
     }
 
     /// Receives data from the socket.
@@ -708,15 +709,13 @@ impl UnixDatagram {
     pub fn send_to<P: AsRef<Path>>(&self, buf: &[u8], path: P) -> io::Result<usize> {
         fn inner(d: &UnixDatagram, buf: &[u8], path: &Path) -> io::Result<usize> {
             unsafe {
-                let (addr, len) = sockaddr_un(path)?;
+                let addr = libc::SockAddr::UN(sockaddr_un(path)?);
 
-                let count = cvt(libc::sendto(
+                let count = cvt_ocall(libc::sendto(
                     *d.0.as_inner(),
-                    buf.as_ptr() as *const _,
-                    buf.len(),
+                    buf,
                     libc::MSG_NOSIGNAL,
-                    &addr as *const _ as *const _,
-                    len,
+                    &addr,
                 ))?;
                 Ok(count as usize)
             }
@@ -820,6 +819,8 @@ impl IntoRawFd for UnixDatagram {
 }
 
 mod libc {
+    pub use sgx_trts::libc::ocall::{
+        bind, connect, getpeername, getsockname, listen, recvfrom, sendto,
+    };
     pub use sgx_trts::libc::*;
-    pub use sgx_trts::libc::ocall::{connect, listen, bind, sendto, recvfrom, getsockname, getpeername};
 }

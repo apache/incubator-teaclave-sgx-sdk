@@ -17,6 +17,7 @@
 
 use libc::{self, c_char, c_int, passwd, size_t, uid_t};
 use std::io::Error;
+use std::ptr;
 
 #[no_mangle]
 pub extern "C" fn u_getuid_ocall() -> uid_t {
@@ -32,8 +33,39 @@ pub extern "C" fn u_environ_ocall() -> *const *const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn u_getenv_ocall(name: *const c_char) -> *const c_char {
-    unsafe { libc::getenv(name) }
+pub extern "C" fn u_getenv_ocall(
+    error: *mut c_int,
+    name: *const c_char,
+    buf: *mut c_char,
+    bufsz: size_t,
+    isset: *mut c_int
+) -> c_int {
+    unsafe {
+        if bufsz == 0 || buf.is_null() || isset.is_null() {
+            if !error.is_null() {
+                *error = libc::EINVAL;
+            }
+            return -1;
+        }
+
+        let rptr = libc::getenv(name);
+
+        if rptr.is_null() {
+            *isset = 0;
+            *buf = 0;
+        } else {
+            *isset = 1;
+            let sn = libc::strlen(rptr) + 1;
+            if sn > bufsz {
+                if !error.is_null() {
+                    *error = libc::ERANGE;
+                }
+                return -1;
+            }
+            ptr::copy_nonoverlapping(rptr, buf, sn);
+        };
+        0
+    }
 }
 
 #[no_mangle]
@@ -72,18 +104,18 @@ pub extern "C" fn u_unsetenv_ocall(error: *mut c_int, name: *const c_char) -> c_
 }
 
 #[no_mangle]
-pub extern "C" fn u_getcwd_ocall(error: *mut c_int, buf: *mut c_char, size: size_t) -> *mut c_char {
-    let mut errno = 0;
+pub extern "C" fn u_getcwd_ocall(error: *mut c_int, buf: *mut c_char, size: size_t) -> c_int {
     let ret = unsafe { libc::getcwd(buf, size) };
     if ret.is_null() {
-        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
-    }
-    if !error.is_null() {
-        unsafe {
-            *error = errno;
+        let errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+        if !error.is_null() {
+            unsafe {
+                *error = errno;
+            }
         }
+        return -1;
     }
-    ret
+    0
 }
 
 #[no_mangle]

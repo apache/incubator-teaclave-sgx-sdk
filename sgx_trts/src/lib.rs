@@ -67,7 +67,6 @@
 
 #![feature(allocator_api)]
 #![feature(asm)]
-#![feature(const_raw_ptr_deref)]
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 #![allow(non_snake_case)]
@@ -86,12 +85,9 @@ extern crate alloc;
 #[macro_use]
 mod macros;
 
-pub mod ascii;
-pub mod c_str;
 pub mod cpu_feature;
 pub mod cpuid;
 pub mod enclave;
-pub mod memchr;
 pub mod memeq;
 pub mod oom;
 pub mod trts;
@@ -104,6 +100,10 @@ pub use sgx_libc as libc;
 pub mod libc {
     pub use sgx_libc::*;
 }
+
+pub use libc::c_str;
+pub use libc::ascii;
+pub use libc::memchr;
 
 pub mod error {
     pub use sgx_libc::{errno, error_string, set_errno};

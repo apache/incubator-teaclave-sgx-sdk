@@ -23,10 +23,12 @@ enclave {
     from "sgx_fs.edl" import *;
     from "sgx_time.edl" import *;
     from "sgx_thread.edl" import *;
+    from "sgx_pthread.edl" import *;
     from "sgx_sys.edl" import *;
     from "sgx_backtrace.edl" import *;
     from "sgx_signal.edl" import*;
     from "sgx_process.edl" import*;
+    from "sgx_net.edl" import*;
     trusted {
         /* define ECALLs here. */
 
