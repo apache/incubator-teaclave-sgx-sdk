@@ -76,14 +76,14 @@ unsafe fn consttime_memequal(
     b2: *const u8,
     l: usize,
 ) -> i32 {
-    let mut res: u32 = 0;
+    let mut res: i32 = 0;
     let mut len = l;
     let p1 = slice::from_raw_parts(b1, l);
     let p2 = slice::from_raw_parts(b2, l);
 
     while len > 0 {
         len -= 1;
-        res |= (p1[len] ^ p2[len]) as u32;
+        res |= (p1[len] ^ p2[len]) as i32;
     }
     /*
      * Map 0 to 1 and [1, 256) to 0 using only constant-time
@@ -94,5 +94,5 @@ unsafe fn consttime_memequal(
      * advantage of them, certain compilers generate branches on
      * certain CPUs for `!res'.
      */
-    (1 & ((res - 1) >> 8)) as i32
+    1 & ((res - 1) >> 8)
 }
