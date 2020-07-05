@@ -130,14 +130,14 @@ all: $(Enclave_EDL_Files) $(App_Name) $(Signed_RustEnclave1_Name) $(Signed_RustE
 ######## EDL Objects ########
 
 $(Enclave_EDL_Files): $(SGX_EDGER8R) enclave1/Enclave1.edl enclave2/Enclave2.edl enclave3/Enclave3.edl
-	$(SGX_EDGER8R) --use-prefix --trusted enclave1/Enclave1.edl --search-path $(SGX_SDK)/include --search-path ../../edl --trusted-dir enclave1
-	$(SGX_EDGER8R) --use-prefix --untrusted enclave1/Enclave1.edl --search-path $(SGX_SDK)/include --search-path ../../edl --untrusted-dir app
+	$(SGX_EDGER8R) --use-prefix --trusted enclave1/Enclave1.edl --search-path $(SGX_SDK)/include --search-path $(CUSTOM_EDL_PATH) --trusted-dir enclave1
+	$(SGX_EDGER8R) --use-prefix --untrusted enclave1/Enclave1.edl --search-path $(SGX_SDK)/include --search-path $(CUSTOM_EDL_PATH) --untrusted-dir app
 
-	$(SGX_EDGER8R) --use-prefix --trusted enclave2/Enclave2.edl --search-path $(SGX_SDK)/include --search-path ../../edl --trusted-dir enclave2
-	$(SGX_EDGER8R) --use-prefix --untrusted enclave2/Enclave2.edl --search-path $(SGX_SDK)/include --search-path ../../edl --untrusted-dir app
+	$(SGX_EDGER8R) --use-prefix --trusted enclave2/Enclave2.edl --search-path $(SGX_SDK)/include --search-path $(CUSTOM_EDL_PATH) --trusted-dir enclave2
+	$(SGX_EDGER8R) --use-prefix --untrusted enclave2/Enclave2.edl --search-path $(SGX_SDK)/include --search-path $(CUSTOM_EDL_PATH) --untrusted-dir app
 
-	$(SGX_EDGER8R) --use-prefix --trusted enclave3/Enclave3.edl --search-path $(SGX_SDK)/include --search-path ../../edl --trusted-dir enclave3
-	$(SGX_EDGER8R) --use-prefix --untrusted enclave3/Enclave3.edl --search-path $(SGX_SDK)/include --search-path ../../edl --untrusted-dir app
+	$(SGX_EDGER8R) --use-prefix --trusted enclave3/Enclave3.edl --search-path $(SGX_SDK)/include --search-path $(CUSTOM_EDL_PATH) --trusted-dir enclave3
+	$(SGX_EDGER8R) --use-prefix --untrusted enclave3/Enclave3.edl --search-path $(SGX_SDK)/include --search-path $(CUSTOM_EDL_PATH) --untrusted-dir app
 
 	@echo "GEN  =>  $(Enclave_EDL_Files)"
 

@@ -181,7 +181,7 @@ endif
 ######## App Objects ########
 
 isv_app/enclave_u.c: $(SGX_EDGER8R) enclave/enclave.edl
-	@cd isv_app && $(SGX_EDGER8R) --untrusted ../enclave/enclave.edl --search-path ../../../../edl --search-path $(SGX_SDK)/include
+	@$(SGX_EDGER8R) --untrusted enclave/enclave.edl --search-path $(CUSTOM_EDL_PATH) --search-path $(SGX_SDK)/include --untrusted-dir isv_app
 	@echo "GEN  =>  $@"
 
 isv_app/enclave_u.o: isv_app/enclave_u.c
@@ -216,7 +216,7 @@ $(App_Name): isv_app/enclave_u.o $(App_Cpp_Objects) sgx_ustdc
 ######## Enclave Objects ########
 
 enclave/enclave_t.c: $(SGX_EDGER8R) enclave/enclave.edl
-	cd enclave && $(SGX_EDGER8R) --trusted ../enclave/enclave.edl --search-path ../../../../edl --search-path $(SGX_SDK)/include
+	$(SGX_EDGER8R) --trusted enclave/enclave.edl --search-path $(CUSTOM_EDL_PATH) --search-path $(SGX_SDK)/include --trusted-dir enclave
 	@echo "GEN  =>  $@"
 
 enclave/enclave_t.o: enclave/enclave_t.c
