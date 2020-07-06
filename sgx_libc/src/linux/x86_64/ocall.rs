@@ -1360,7 +1360,7 @@ pub unsafe fn read(fd: c_int, buf: *mut c_void, count: size_t) -> ssize_t {
     }
 
     if result != -1 {
-        ptr::copy_nonoverlapping(tmp_buf as *mut u8, buf as *mut u8, count);
+        ptr::copy_nonoverlapping(tmp_buf as *const u8, buf as *mut u8, count);
     }
     if count <= MAX_OCALL_ALLOC_SIZE {
         sgx_ocfree();
@@ -1411,7 +1411,7 @@ pub unsafe fn pread64(fd: c_int, buf: *mut c_void, count: size_t, offset: off64_
     }
 
     if result != -1 {
-        ptr::copy_nonoverlapping(tmp_buf as *mut u8, buf as *mut u8, count);
+        ptr::copy_nonoverlapping(tmp_buf as *const u8, buf as *mut u8, count);
     }
     if count <= MAX_OCALL_ALLOC_SIZE {
         sgx_ocfree();
@@ -1477,7 +1477,7 @@ pub unsafe fn readv(fd: c_int, iov: *const iovec, iovcnt: c_int) -> ssize_t {
 
     if result != -1 {
         for i in 0..v.len() {
-            ptr::copy_nonoverlapping(tmpiovec[i].iov_base as *mut u8, v[i].iov_base as *mut u8, v[i].iov_len as usize);
+            ptr::copy_nonoverlapping(tmpiovec[i].iov_base as *const u8, v[i].iov_base as *mut u8, v[i].iov_len as usize);
         }
     }
 
@@ -1542,7 +1542,7 @@ pub unsafe fn preadv64(fd: c_int, iov: *const iovec, iovcnt: c_int, offset: off6
 
     if result != -1 {
         for i in 0..v.len() {
-            ptr::copy_nonoverlapping(tmpiovec[i].iov_base as *mut u8, v[i].iov_base as *mut u8, v[i].iov_len as usize);
+            ptr::copy_nonoverlapping(tmpiovec[i].iov_base as *const u8, v[i].iov_base as *mut u8, v[i].iov_len as usize);
         }
     }
 
@@ -1680,7 +1680,7 @@ pub unsafe fn writev(fd: c_int, iov: *const iovec, iovcnt: c_int) -> ssize_t {
     for io in v {
         let tmpiov = iovec{iov_base: ptr as *mut c_void,
                            iov_len: io.iov_len};
-        ptr::copy_nonoverlapping(tmpiov.iov_base as *mut u8, io.iov_base as *mut u8, io.iov_len as usize);
+        ptr::copy_nonoverlapping(io.iov_base as *const u8, tmpiov.iov_base as *mut u8, io.iov_len as usize);
         tmpiovec.push(tmpiov);
         ptr = ptr.add(io.iov_len as usize);
     }
@@ -1739,7 +1739,7 @@ pub unsafe fn pwritev64(fd: c_int, iov: *const iovec, iovcnt: c_int, offset: off
     for io in v {
         let tmpiov = iovec{iov_base: ptr as *mut c_void,
                            iov_len: io.iov_len};
-        ptr::copy_nonoverlapping(tmpiov.iov_base as *mut u8, io.iov_base as *mut u8, io.iov_len as usize);
+        ptr::copy_nonoverlapping(io.iov_base as *const u8, tmpiov.iov_base as *mut u8, io.iov_len as usize);
         tmpiovec.push(tmpiov);
         ptr = ptr.add(io.iov_len as usize);
     }
@@ -2187,7 +2187,7 @@ pub unsafe fn sendmsg(sockfd: c_int, msg: *const msghdr, flags: c_int) -> ssize_
     if !mhdr.msg_name.is_null() && mhdr.msg_namelen > 0 {
         tmpmsg.msg_name = ptr as *mut c_void;
         tmpmsg.msg_namelen = mhdr.msg_namelen;
-        ptr::copy_nonoverlapping(mhdr.msg_name as *mut u8, tmpmsg.msg_name as *mut u8, mhdr.msg_namelen as usize);
+        ptr::copy_nonoverlapping(mhdr.msg_name as *const u8, tmpmsg.msg_name as *mut u8, mhdr.msg_namelen as usize);
         ptr = ptr.add(mhdr.msg_namelen as usize);
     }
 
@@ -2199,7 +2199,7 @@ pub unsafe fn sendmsg(sockfd: c_int, msg: *const msghdr, flags: c_int) -> ssize_
         for i in 0..v.len() {
             tmpiov[i].iov_base = ptr as *mut c_void;
             tmpiov[i].iov_len = v[i].iov_len;
-            ptr::copy_nonoverlapping(v[i].iov_base as *mut u8, tmpiov[i].iov_base as *mut u8, v[i].iov_len as usize);
+            ptr::copy_nonoverlapping(v[i].iov_base as *const u8, tmpiov[i].iov_base as *mut u8, v[i].iov_len as usize);
             ptr = ptr.add(v[i].iov_len as usize);
         }
     }
@@ -2207,7 +2207,7 @@ pub unsafe fn sendmsg(sockfd: c_int, msg: *const msghdr, flags: c_int) -> ssize_
     if !mhdr.msg_control.is_null() &&  mhdr.msg_controllen > 0 {
         tmpmsg.msg_control = ptr as *mut c_void;
         tmpmsg.msg_controllen = mhdr.msg_controllen;
-        ptr::copy_nonoverlapping(mhdr.msg_control as *mut u8, tmpmsg.msg_control as *mut u8, mhdr.msg_controllen as usize);
+        ptr::copy_nonoverlapping(mhdr.msg_control as *const u8, tmpmsg.msg_control as *mut u8, mhdr.msg_controllen as usize);
     }
 
     let status = u_sendmsg_ocall(&mut result as *mut ssize_t,
@@ -2270,7 +2270,7 @@ pub unsafe fn recv(sockfd: c_int, buf: *mut c_void, len: size_t, flags: c_int) -
     }
 
     if result != -1 {
-        ptr::copy_nonoverlapping(tmp_buf as *mut u8, buf as *mut u8, len);
+        ptr::copy_nonoverlapping(tmp_buf as *const u8, buf as *mut u8, len);
     }
     if len <= MAX_OCALL_ALLOC_SIZE {
         sgx_ocfree();
@@ -2331,7 +2331,7 @@ pub unsafe fn recvfrom(sockfd: c_int,
     }
 
     if result != -1 {
-        ptr::copy_nonoverlapping(tmp_buf as *mut u8, buf as *mut u8, len);
+        ptr::copy_nonoverlapping(tmp_buf as *const u8, buf as *mut u8, len);
     }
     if len <= MAX_OCALL_ALLOC_SIZE {
         sgx_ocfree();
@@ -2395,7 +2395,7 @@ pub unsafe fn recvmsg(sockfd: c_int, msg: *mut msghdr, flags: c_int) -> ssize_t 
     if !mhdr.msg_name.is_null() && mhdr.msg_namelen > 0 {
         tmpmsg.msg_name = ptr as *mut c_void;
         tmpmsg.msg_namelen = mhdr.msg_namelen;
-        ptr::copy_nonoverlapping(mhdr.msg_name as *mut u8, tmpmsg.msg_name as *mut u8, mhdr.msg_namelen as usize);
+        ptr::copy_nonoverlapping(mhdr.msg_name as *const u8, tmpmsg.msg_name as *mut u8, mhdr.msg_namelen as usize);
         ptr = ptr.add(mhdr.msg_namelen as usize);
     }
 
@@ -2414,7 +2414,7 @@ pub unsafe fn recvmsg(sockfd: c_int, msg: *mut msghdr, flags: c_int) -> ssize_t 
     if !mhdr.msg_control.is_null() &&  mhdr.msg_controllen > 0 {
         tmpmsg.msg_control = ptr as *mut c_void;
         tmpmsg.msg_controllen = mhdr.msg_controllen;
-        ptr::copy_nonoverlapping(mhdr.msg_control as *mut u8, tmpmsg.msg_control as *mut u8, mhdr.msg_controllen as usize);
+        ptr::copy_nonoverlapping(mhdr.msg_control as *const u8, tmpmsg.msg_control as *mut u8, mhdr.msg_controllen as usize);
     }
 
     let status = u_recvmsg_ocall(&mut result as *mut ssize_t,
@@ -2443,13 +2443,13 @@ pub unsafe fn recvmsg(sockfd: c_int, msg: *mut msghdr, flags: c_int) -> ssize_t 
 
         let v = slice::from_raw_parts(mhdr.msg_iov, mhdr.msg_iovlen as usize);
         for i in 0..v.len() {
-            ptr::copy_nonoverlapping(tmpiov[i].iov_base as *mut u8, v[i].iov_base as *mut u8, v[i].iov_len as usize);
+            ptr::copy_nonoverlapping(tmpiov[i].iov_base as *const u8, v[i].iov_base as *mut u8, v[i].iov_len as usize);
             ptr = ptr.add(v[i].iov_len as usize);
         }
     }
 
     if !mhdr.msg_control.is_null() &&  mhdr.msg_controllen > 0 {
-        ptr::copy_nonoverlapping(tmpmsg.msg_control as *mut u8, mhdr.msg_control as *mut u8, mhdr.msg_controllen as usize);
+        ptr::copy_nonoverlapping(tmpmsg.msg_control as *const u8, mhdr.msg_control as *mut u8, mhdr.msg_controllen as usize);
     }
 
     free(hdrbase as *mut c_void);
