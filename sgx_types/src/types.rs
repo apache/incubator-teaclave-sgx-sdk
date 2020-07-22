@@ -865,9 +865,12 @@ impl_enum! {
         SGX_EXCEPTION_VECTOR_BP = 3,  /* INT 3 instruction */
         SGX_EXCEPTION_VECTOR_BR = 5,  /* BOUND instruction */
         SGX_EXCEPTION_VECTOR_UD = 6,  /* UD2 instruction or reserved opcode */
+        SGX_EXCEPTION_VECTOR_GP = 13, /* General protection exception */
+        SGX_EXCEPTION_VECTOR_PF = 14, /* Page fault exception */
         SGX_EXCEPTION_VECTOR_MF = 16, /* x87 FPU floating-point or WAIT/FWAIT instruction */
         SGX_EXCEPTION_VECTOR_AC = 17, /* Any data reference in memory */
         SGX_EXCEPTION_VECTOR_XM = 19, /* SSE/SSE2/SSE3 floating-point instruction */
+        SGX_EXCEPTION_VECTOR_CP = 21, /* Control protection exception */
     }
 }
 

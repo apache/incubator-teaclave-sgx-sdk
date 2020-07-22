@@ -154,9 +154,12 @@ unsafe extern "C" fn exception_panic(vector: sgx_exception_vector_t, rip: usize)
         sgx_exception_vector_t::SGX_EXCEPTION_VECTOR_BP => "#BP",
         sgx_exception_vector_t::SGX_EXCEPTION_VECTOR_BR => "#BR",
         sgx_exception_vector_t::SGX_EXCEPTION_VECTOR_UD => "#UD",
+        sgx_exception_vector_t::SGX_EXCEPTION_VECTOR_GP => "#GP",
+        sgx_exception_vector_t::SGX_EXCEPTION_VECTOR_PF => "#PF",
         sgx_exception_vector_t::SGX_EXCEPTION_VECTOR_MF => "#MF",
         sgx_exception_vector_t::SGX_EXCEPTION_VECTOR_AC => "#AC",
         sgx_exception_vector_t::SGX_EXCEPTION_VECTOR_XM => "#XM",
+        sgx_exception_vector_t::SGX_EXCEPTION_VECTOR_CP => "#CP",
     };
     panic!("enclave exception: {}, at rip: 0x{:x}", exception, rip);
 }
