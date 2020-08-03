@@ -15,6 +15,9 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#![feature(link_args)]
+#![link_args = "-Wl,--whole-archive -lsgx_uswitchless -Wl,--no-whole-archive"]
+
 extern crate sgx_types;
 extern crate sgx_urts;
 use sgx_types::*;
