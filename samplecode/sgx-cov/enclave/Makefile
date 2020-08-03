@@ -29,7 +29,7 @@ ifneq ($(COV),) # Debug build + coverage collection
 	COV_FLAGS = CARGO_INCREMENTAL=0 \
 	    RUSTFLAGS="-D warnings -Zprofile -Ccodegen-units=1 \
 	    -Cllvm_args=-inline-threshold=0 -Clink-dead-code \
-	    -Coverflow-checks=off -Zno-landing-pads"
+	    -Coverflow-checks=off -Cpanic=abort"
 
 	WRAPPER = "./enclave-cov-rustc"
 endif
