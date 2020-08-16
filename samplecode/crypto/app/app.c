@@ -28,6 +28,11 @@
 #include "Enclave_u.h"
 
 
+int sha_256();
+int aes_gcm_128();
+int aes_cmac();
+int rsa();
+
 sgx_enclave_id_t global_eid = 0;
 
 typedef struct _sgx_errlist_t {
@@ -154,10 +159,6 @@ int initialize_enclave(void)
 /* Application entry */
 int SGX_CDECL main(int argc, char *argv[])
 {
-    sgx_status_t sgx_ret = SGX_SUCCESS;
-    sgx_status_t enclave_ret = SGX_SUCCESS;
-    uint32_t sealed_log_size = 1024;
-    uint8_t sealed_log[1024] = {0};
 
     (void)(argc);
     (void)(argv);
@@ -169,6 +170,21 @@ int SGX_CDECL main(int argc, char *argv[])
         return -1;
     }
 
+    if( sha_256()==-1){ return -1;};
+
+    if(aes_gcm_128()==-1){return -1;};
+
+    if(aes_cmac()==-1){return -1;}
+
+    if(rsa()==-1){return -1;}
+
+    /* Destroy the enclave */
+    sgx_destroy_enclave(global_eid);
+
+    return 0;
+}
+
+int sha_256(){
     // SHA-256 test case comes from
     // https://tools.ietf.org/html/rfc4634
     // TEST1
@@ -176,6 +192,9 @@ int SGX_CDECL main(int argc, char *argv[])
     const char* str = "abc";
     size_t len = strlen(str);
     uint8_t * output_hash = (uint8_t *) malloc (32 + 1);
+
+    sgx_status_t enclave_ret = SGX_SUCCESS;
+    sgx_status_t sgx_ret = SGX_SUCCESS;
 
     printf("[+] sha256 input string is %s\n", str);
     printf("[+] Expected SHA256 hash: %s\n",
@@ -205,7 +224,9 @@ int SGX_CDECL main(int argc, char *argv[])
     }
     printf("\n");
     printf("[+] calc_sha256 success ...\n");
+}
 
+int aes_gcm_128(){
     // AES-GCM-128 test case comes from
     // http://csrc.nist.gov/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/gcm-revised-spec.pdf
     // Test case 2
@@ -215,7 +236,10 @@ int SGX_CDECL main(int argc, char *argv[])
     uint8_t aes_gcm_key[16] = {0};
     uint8_t aes_gcm_iv[12] = {0};
     uint8_t aes_gcm_ciphertext[16] = {0};
+
     uint8_t aes_gcm_mac[16] = {0};
+    sgx_status_t enclave_ret = SGX_SUCCESS;
+    sgx_status_t sgx_ret = SGX_SUCCESS;
 
     printf("[+] aes-gcm-128 args prepared!\n");
     printf("[+] aes-gcm-128 expected ciphertext: %s\n",
@@ -242,6 +266,7 @@ int SGX_CDECL main(int argc, char *argv[])
     }
 
     printf("[+] aes-gcm-128 ciphertext is: ");
+    int i;
     for(i = 0; i < 16; i ++) {
         printf("%02x", aes_gcm_ciphertext[i]);
     }
@@ -286,7 +311,10 @@ int SGX_CDECL main(int argc, char *argv[])
     printf("\n");
 
     printf("[+] aes-gcm-128 decrypt complete \n");
+}
 
+
+int aes_cmac(){
     // AES-CMAC test case comes from
     // https://tools.ietf.org/html/rfc4493
     // Example 3
@@ -294,6 +322,9 @@ int SGX_CDECL main(int argc, char *argv[])
     printf("[+] Starting aes-cmac test \n");
     printf("[+] aes-cmac expected digest: %s\n",
            "51f0bebf7e3b9d92fc49741779363cfe");
+
+    sgx_status_t enclave_ret = SGX_SUCCESS;
+    sgx_status_t sgx_ret = SGX_SUCCESS;
 
     uint8_t cmac_key[] = {
 		0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
@@ -330,10 +361,17 @@ int SGX_CDECL main(int argc, char *argv[])
     }
 
     printf("[+] aes-cmac result is: ");
+    int i;
     for(i = 0; i < 16; i ++){
         printf("%02x", cmac_result[i]);
     }
     printf("\n");
+
+}
+
+int rsa(){
+    sgx_status_t enclave_ret = SGX_SUCCESS;
+    sgx_status_t sgx_ret = SGX_SUCCESS;
 
     uint8_t rsa_msg[] = {
         0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
@@ -368,9 +406,4 @@ int SGX_CDECL main(int argc, char *argv[])
         return -1;
     }
     printf("rsa_key success. \n");
-
-    /* Destroy the enclave */
-    sgx_destroy_enclave(global_eid);
-
-    return 0;
 }
