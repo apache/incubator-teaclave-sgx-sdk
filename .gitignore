@@ -16,6 +16,7 @@ samplecode/**/*_u.c
 samplecode/**/*_u.h
 samplecode/**/*_t.c
 samplecode/**/*_t.h
+samplecode/**/bin/app
 
 **/target
 
