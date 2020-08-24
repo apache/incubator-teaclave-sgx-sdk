@@ -37,8 +37,75 @@ use std::io::{self, Write};
 use std::slice;
 use std::backtrace::{self, PrintFormat};
 
+type binmap_t = u32;
+//type size_t = u64;
+type flag_t = u32;
+
+#[repr(C)]
+struct malloc_chunk {
+    prev_foot: size_t,
+    head: size_t,
+    fd: * mut malloc_chunk,
+    bk: * mut malloc_chunk,
+}
+
+const NSMALLBINS: size_t = 32;
+const NTREEBINS: size_t = 32;
+
+#[repr(C)]
+struct malloc_segment {
+    base: * mut i8,
+    size: * mut size_t,
+    next: * mut malloc_segment,
+    fsflags: flag_t,
+}
+
+#[repr(C)]
+struct malloc_state {
+    smallmap: binmap_t,
+    treemap: binmap_t,
+    dvsize: size_t,
+    topsize: size_t,
+    least_addr: * mut i8,
+    dv: * mut malloc_chunk,
+    top: * mut malloc_chunk,
+    trim_check: size_t,
+    release_checks: size_t,
+    magic: size_t,
+    smallbins: [* mut malloc_chunk;(NSMALLBINS+1)*2],
+    treebins: [* mut malloc_chunk;NTREEBINS],
+    footprint: size_t,
+    max_footprint: size_t,
+    footprint_limit: size_t,
+    mflags: flag_t,
+    seg: malloc_segment,
+    extp: * mut c_void,
+    mutex: u32, // MLOCK_T
+    exts: size_t,
+}
+
+#[link_name = "sgx_tstdc"]
+extern "C" {
+    static _gm_: malloc_state;
+}
+
 #[no_mangle]
 pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_status_t {
+    let mut word_vec;
+    unsafe {
+        println!("global memory footprint = {}", _gm_.footprint);
+        println!("global memory max_footprint = {}", _gm_.max_footprint);
+        println!("global memory footprint_limit = {}", _gm_.footprint_limit);
+        // An vector
+        word_vec = vec![32, 115, 116, 114, 105, 110, 103, 33];
+        for i in 0..10000 {
+            word_vec.push((i as u8) % 0xff);
+        }
+        println!("global memory footprint = {}", _gm_.footprint);
+        println!("global memory max_footprint = {}", _gm_.max_footprint);
+        println!("global memory footprint_limit = {}", _gm_.footprint_limit);
+    }
+    word_vec = vec![32, 115, 116, 114, 105, 110, 103, 33];
 
     let str_slice = unsafe { slice::from_raw_parts(some_string, some_len) };
     let _ = io::stdout().write(str_slice);
@@ -47,8 +114,6 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
     let rust_raw_string = "This is a in-Enclave ";
     // An array
     let word:[u8;4] = [82, 117, 115, 116];
-    // An vector
-    let word_vec:Vec<u8> = vec![32, 115, 116, 114, 105, 110, 103, 33];
 
     // Construct a string from &'static string
     let mut hello_string = String::from(rust_raw_string);
