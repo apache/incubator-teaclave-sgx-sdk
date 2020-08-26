@@ -26,105 +26,65 @@ extern crate sgx_trts;
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
+extern crate sgx_libc;
 
 use sgx_types::*;
-use sgx_types::metadata::*;
-use sgx_trts::enclave;
-//use sgx_trts::{is_x86_feature_detected, is_cpu_feature_supported};
-use std::string::String;
-use std::vec::Vec;
-use std::io::{self, Write};
-use std::slice;
-use std::backtrace::{self, PrintFormat};
+use std::prelude::v1::*;
+//use std::backtrace::{self, PrintFormat};
+use std::alloc::{Layout, set_alloc_error_hook};
+use std::panic;
+
+fn alloc_oom() {
+    let mut v = vec![];
+    loop {
+        let array = [0u64; 16];
+        v.push(Box::new(array));
+    }
+}
+
+fn sample_oom_hook(_: Layout) {
+    panic!("trigger oom unwind");
+}
+
+// no heap print
+fn oom_write() {
+    use sgx_libc::ocall::write;
+    let fd = 0;
+    let buf = b"Catched\0".as_ptr() as _;
+    let count = 8;
+
+    let _ = unsafe { write(fd, buf, count) };
+}
 
 #[no_mangle]
-pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_status_t {
+pub extern "C" fn say_something(_: *const u8, _: usize) -> sgx_status_t {
+    set_alloc_error_hook(sample_oom_hook);
+    for _ in 0..100 {
+        // This is OK
+        //if let Err(_) = panic::catch_unwind(|| {
+        //    alloc_oom();
+        //}){
+        //    return sgx_status_t::SGX_SUCCESS;
+        //};
 
-    let str_slice = unsafe { slice::from_raw_parts(some_string, some_len) };
-    let _ = io::stdout().write(str_slice);
+        //// This would double fault
+        //match panic::catch_unwind(|| {
+        //    alloc_oom();
+        //}) {
+        //    Ok(s) => println!("Ok {:?}", s),
+        //    Err(e) => println!("Catched {:?}", e), // heap allocation happened
+        //}
 
-    // A sample &'static string
-    let rust_raw_string = "This is a in-Enclave ";
-    // An array
-    let word:[u8;4] = [82, 117, 115, 116];
-    // An vector
-    let word_vec:Vec<u8> = vec![32, 115, 116, 114, 105, 110, 103, 33];
-
-    // Construct a string from &'static string
-    let mut hello_string = String::from(rust_raw_string);
-
-    // Iterate on word array
-    for c in word.iter() {
-        hello_string.push(*c as char);
-    }
-
-    // Rust style convertion
-    hello_string += String::from_utf8(word_vec).expect("Invalid UTF-8")
-                                               .as_str();
-
-    // Ocall to normal world for output
-    println!("{}", &hello_string);
-
-    let _ = backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Full);
-
-    let gd = enclave::SgxGlobalData::new();
-    println!("gd: {} {} {} {} ", gd.get_static_tcs_num(), gd.get_eremove_tcs_num(), gd.get_dyn_tcs_num(), gd.get_tcs_max_num());
-    let (static_num, eremove_num, dyn_num) = get_thread_num();
-    println!("static: {} eremove: {} dyn: {}", static_num, eremove_num, dyn_num);
-
-    unsafe {
-        println!("EDMM: {}, feature: {}", EDMM_supported, g_cpu_feature_indicator);
-    }
-    if is_x86_feature_detected!("sgx") {
-        println!("supported sgx");
-    }
-
-    sgx_status_t::SGX_SUCCESS
-}
-
-#[link(name = "sgx_trts")]
-extern {
-    static g_cpu_feature_indicator: uint64_t;
-    static EDMM_supported: c_int;
-}
-
-
-fn get_thread_num() -> (u32, u32, u32) {
-    let gd = unsafe {
-        let p = enclave::rsgx_get_global_data();
-        &*p
-    };
-
-    let mut static_thread_num: u32 = 0;
-    let mut eremove_thread_num: u32 = 0;
-    let mut dyn_thread_num: u32 = 0;
-    let layout_table = &gd.layout_table[0..gd.layout_entry_num as usize];
-    unsafe { traversal_layout(&mut static_thread_num, &mut dyn_thread_num, &mut eremove_thread_num, layout_table); }
-
-    unsafe fn traversal_layout(static_num: &mut u32, dyn_num: &mut u32, eremove_num: &mut u32, layout_table: &[layout_t])
-    {
-        for (i, layout) in layout_table.iter().enumerate() {
-            if !is_group_id!(layout.group.id as u32) {
-                if (layout.entry.attributes & PAGE_ATTR_EADD) != 0 {
-                    if (layout.entry.content_offset != 0) && (layout.entry.si_flags == SI_FLAGS_TCS) {
-                        if (layout.entry.attributes & PAGE_ATTR_EREMOVE) == 0 {
-                            *static_num += 1;
-                        } else {
-                            *eremove_num += 1;
-                        }
-                    }
-                }
-                if (layout.entry.attributes & PAGE_ATTR_POST_ADD) != 0 {
-                    if layout.entry.id == LAYOUT_ID_TCS_DYN as u16 {
-                        *dyn_num += 1;
-                    }
-                }
-            } else {
-                for _ in 0..layout.group.load_times {
-                    traversal_layout(static_num, dyn_num, eremove_num, &layout_table[i - layout.group.entry_count as usize..i])
-                }
-            }
+        // This would not trigger double fault
+        match panic::catch_unwind(|| {
+            alloc_oom();
+        }) {
+            Ok(s) => println!("Ok {:?}", s), // never here
+            Err(e) => {
+                oom_write();
+                return sgx_status_t::SGX_SUCCESS;
+            },
         }
     }
-    (static_thread_num, eremove_thread_num, dyn_thread_num)
+    sgx_status_t::SGX_SUCCESS
 }
