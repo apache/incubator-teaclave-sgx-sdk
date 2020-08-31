@@ -26,6 +26,7 @@ void *u_malloc_ocall(int *error, size_t size)
     if (error) {
         *error = ret == NULL ? errno : 0;
     }
+    return ret;
 }
 
 void u_free_ocall(void *p)
