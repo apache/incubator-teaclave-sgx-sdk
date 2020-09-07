@@ -29,7 +29,7 @@ use std::os::unix::io::AsRawFd;
 use std::ffi::CString;
 use std::net::SocketAddr;
 use std::str;
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 
 const BUFFER_SIZE: usize = 1024;
 

@@ -450,7 +450,7 @@ pub fn test_mpsc_stress_recv_timeout_shared() {
 pub fn test_mpsc_very_long_recv_timeout_wont_panic() {
     let (tx, rx) = channel::<()>();
     let join_handle = thread::spawn(move || {
-        rx.recv_timeout(Duration::from_secs(u64::max_value()))
+        rx.recv_timeout(Duration::from_secs(u64::MAX))
     });
     thread::sleep(Duration::from_secs(1));
     assert!(tx.send(()).is_ok());

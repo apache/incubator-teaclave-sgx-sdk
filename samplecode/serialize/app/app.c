@@ -155,8 +155,6 @@ int initialize_enclave(void)
 int SGX_CDECL main(int argc, char *argv[])
 {
     sgx_status_t sgx_ret = SGX_SUCCESS;
-    uint32_t sealed_log_size = 1024;
-    uint8_t sealed_log[1024] = {0};
 
     (void)(argc);
     (void)(argv);
