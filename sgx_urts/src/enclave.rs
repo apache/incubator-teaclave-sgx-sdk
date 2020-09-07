@@ -16,11 +16,11 @@
 // under the License..
 
 use sgx_types::*;
-use std::ptr;
-use std::path::{Path, PathBuf};
-use std::ffi::{CString, CStr};
+use std::ffi::{CStr, CString};
 use std::io;
 use std::os::unix::ffi::OsStrExt;
+use std::path::{Path, PathBuf};
+use std::ptr;
 
 ///
 /// Loads the enclave using its file name and initializes it using a launch token.
@@ -438,8 +438,9 @@ pub fn rsgx_create_enclave_with_workers(
     let mut us_config = sgx_uswitchless_config_t::default();
     us_config.num_tworkers = num_tworkers;
     us_config.num_uworkers = num_uworkers;
-    let mut enclave_ex_p : [*const c_void ;32] = [ptr::null(); 32];
-    enclave_ex_p[SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX] = &us_config as *const sgx_uswitchless_config_t as *const c_void;
+    let mut enclave_ex_p: [*const c_void; 32] = [ptr::null(); 32];
+    enclave_ex_p[SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX] =
+        &us_config as *const sgx_uswitchless_config_t as *const c_void;
 
     let mut enclave_id: sgx_enclave_id_t = 0;
     let ret = unsafe {
@@ -536,7 +537,8 @@ pub fn rsgx_destroy_enclave(enclave_id: sgx_enclave_id_t) -> SgxError {
 
 pub fn rsgx_get_target_info(enclave_id: sgx_enclave_id_t) -> SgxResult<sgx_target_info_t> {
     let mut target_info = sgx_target_info_t::default();
-    let ret = unsafe { sgx_get_target_info(enclave_id, &mut target_info as *mut sgx_target_info_t) };
+    let ret =
+        unsafe { sgx_get_target_info(enclave_id, &mut target_info as *mut sgx_target_info_t) };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(target_info),
         _ => Err(ret),
@@ -564,19 +566,18 @@ impl SgxEnclave {
     ) -> SgxResult<SgxEnclave> {
         let path: CString =
             cstr(file_name.as_ref()).map_err(|_| sgx_status_t::SGX_ERROR_INVALID_ENCLAVE)?;
-        let enclave =
-            rsgx_create_enclave(
-                path.as_c_str(),
-                debug,
-                launch_token,
-                launch_token_updated,
-                misc_attr,
-            )
-            .map(|eid| SgxEnclave {
-                id: eid,
-                debug,
-                path: file_name.as_ref().to_owned()
-            })?;
+        let enclave = rsgx_create_enclave(
+            path.as_c_str(),
+            debug,
+            launch_token,
+            launch_token_updated,
+            misc_attr,
+        )
+        .map(|eid| SgxEnclave {
+            id: eid,
+            debug,
+            path: file_name.as_ref().to_owned(),
+        })?;
 
         enclave.init();
         Ok(enclave)
@@ -591,21 +592,20 @@ impl SgxEnclave {
         sealed_key: *const sgx_sealed_data_t,
     ) -> SgxResult<SgxEnclave> {
         let path: CString =
-            cstr(file_name.as_ref()) .map_err(|_| sgx_status_t::SGX_ERROR_INVALID_ENCLAVE)?;
-        let enclave =
-            rsgx_create_encrypted_enclave(
-                path.as_c_str(),
-                debug,
-                launch_token,
-                launch_token_updated,
-                misc_attr,
-                sealed_key,
-            )
-            .map(|eid| SgxEnclave {
-                id: eid,
-                debug,
-                path: file_name.as_ref().to_owned()
-            })?;
+            cstr(file_name.as_ref()).map_err(|_| sgx_status_t::SGX_ERROR_INVALID_ENCLAVE)?;
+        let enclave = rsgx_create_encrypted_enclave(
+            path.as_c_str(),
+            debug,
+            launch_token,
+            launch_token_updated,
+            misc_attr,
+            sealed_key,
+        )
+        .map(|eid| SgxEnclave {
+            id: eid,
+            debug,
+            path: file_name.as_ref().to_owned(),
+        })?;
 
         enclave.init();
         Ok(enclave)
@@ -622,21 +622,20 @@ impl SgxEnclave {
     ) -> SgxResult<SgxEnclave> {
         let path: CString =
             cstr(file_name.as_ref()).map_err(|_| sgx_status_t::SGX_ERROR_INVALID_ENCLAVE)?;
-        let enclave =
-            rsgx_create_enclave_with_workers(
-                path.as_c_str(),
-                debug,
-                launch_token,
-                launch_token_updated,
-                misc_attr,
-                num_uworkers,
-                num_tworkers,
-            )
-            .map(|eid| SgxEnclave {
-                id: eid,
-                debug,
-                path: file_name.as_ref().to_owned()
-            })?;
+        let enclave = rsgx_create_enclave_with_workers(
+            path.as_c_str(),
+            debug,
+            launch_token,
+            launch_token_updated,
+            misc_attr,
+            num_uworkers,
+            num_tworkers,
+        )
+        .map(|eid| SgxEnclave {
+            id: eid,
+            debug,
+            path: file_name.as_ref().to_owned(),
+        })?;
 
         enclave.init();
         Ok(enclave)
@@ -649,19 +648,18 @@ impl SgxEnclave {
         ex_features: u32,
         ex_features_p: &[*const c_void; 32],
     ) -> SgxResult<SgxEnclave> {
-        let enclave =
-            rsgx_create_enclave_from_buffer_ex(
-                buffer,
-                debug,
-                misc_attr,
-                ex_features,
-                ex_features_p,
-            )
-            .map(|eid| SgxEnclave {
-                id: eid,
-                debug,
-                path: PathBuf::new()
-            })?;
+        let enclave = rsgx_create_enclave_from_buffer_ex(
+            buffer,
+            debug,
+            misc_attr,
+            ex_features,
+            ex_features_p,
+        )
+        .map(|eid| SgxEnclave {
+            id: eid,
+            debug,
+            path: PathBuf::new(),
+        })?;
 
         enclave.init();
         Ok(enclave)
@@ -687,7 +685,9 @@ impl SgxEnclave {
             extern "C" {
                 fn t_global_exit_ecall(eid: sgx_enclave_id_t) -> sgx_status_t;
             }
-            unsafe { let _ = t_global_exit_ecall(self.id); }
+            unsafe {
+                let _ = t_global_exit_ecall(self.id);
+            }
         }
     }
 
@@ -695,7 +695,12 @@ impl SgxEnclave {
         #[cfg(feature = "global_init")]
         {
             extern "C" {
-                fn t_global_init_ecall(eid: sgx_enclave_id_t, id: u64, path: *const u8, len: usize) -> sgx_status_t;
+                fn t_global_init_ecall(
+                    eid: sgx_enclave_id_t,
+                    id: u64,
+                    path: *const u8,
+                    len: usize,
+                ) -> sgx_status_t;
             }
             unsafe {
                 let _ = t_global_init_ecall(

@@ -19,18 +19,18 @@
 //!
 //! These functions allow an ISV to establish secure session between two enclaves using the EC DH Key exchange protocol.
 //!
-use sgx_types::*;
-use sgx_types::marker::ContiguousMemory;
-use sgx_trts::trts::*;
-use sgx_trts::memeq::ConsttimeMemEq;
-use sgx_tcrypto::*;
-use sgx_tse::*;
 use crate::ecp::*;
-use core::mem;
-use core::ptr;
+use alloc::boxed::Box;
 use alloc::slice;
 use alloc::vec::Vec;
-use alloc::boxed::Box;
+use core::mem;
+use core::ptr;
+use sgx_tcrypto::*;
+use sgx_trts::memeq::ConsttimeMemEq;
+use sgx_trts::trts::*;
+use sgx_tse::*;
+use sgx_types::marker::ContiguousMemory;
+use sgx_types::*;
 
 const AES_CMAC_KDF_ID: [u8; 2] = [1, 0];
 
@@ -67,7 +67,7 @@ impl SgxDhMsg3 {
     /// The size of sgx_dh_msg3_t needed.
     ///
     pub fn calc_raw_sealed_data_size(&self) -> u32 {
-        let max = u32::max_value();
+        let max = u32::MAX;
         let dh_msg3_size = mem::size_of::<sgx_dh_msg3_t>();
         let additional_prop_len = self.msg3_body.additional_prop.len();
 
@@ -101,7 +101,11 @@ impl SgxDhMsg3 {
     ///
     /// The parameters p and len are not available for the conversion.
     ///
-    pub unsafe fn to_raw_dh_msg3_t(&self, p: *mut sgx_dh_msg3_t, len: u32) -> Option<*mut sgx_dh_msg3_t> {
+    pub unsafe fn to_raw_dh_msg3_t(
+        &self,
+        p: *mut sgx_dh_msg3_t,
+        len: u32,
+    ) -> Option<*mut sgx_dh_msg3_t> {
         if p.is_null() {
             return None;
         }
@@ -111,7 +115,7 @@ impl SgxDhMsg3 {
 
         let additional_prop_len = self.msg3_body.additional_prop.len();
         let dh_msg3_size = mem::size_of::<sgx_dh_msg3_t>();
-        if additional_prop_len > u32::max_value() as usize - dh_msg3_size {
+        if additional_prop_len > u32::MAX as usize - dh_msg3_size {
             return None;
         }
         if len < (dh_msg3_size + additional_prop_len) as u32 {
@@ -164,7 +168,7 @@ impl SgxDhMsg3 {
         let raw_msg3 = &*p;
         let additional_prop_len = raw_msg3.msg3_body.additional_prop_length;
         let dh_msg3_size = mem::size_of::<sgx_dh_msg3_t>() as u32;
-        if additional_prop_len > u32::max_value() - dh_msg3_size {
+        if additional_prop_len > u32::MAX - dh_msg3_size {
             return None;
         }
         if len < dh_msg3_size + additional_prop_len {
@@ -178,7 +182,11 @@ impl SgxDhMsg3 {
         if additional_prop_len > 0 {
             let mut additional_prop: Vec<u8> = vec![0_u8; additional_prop_len as usize];
             let ptr_additional_prop = p.offset(1) as *const u8;
-            ptr::copy_nonoverlapping(ptr_additional_prop, additional_prop.as_mut_ptr(), additional_prop_len as usize);
+            ptr::copy_nonoverlapping(
+                ptr_additional_prop,
+                additional_prop.as_mut_ptr(),
+                additional_prop_len as usize,
+            );
             dh_msg3.msg3_body.additional_prop = additional_prop.into_boxed_slice();
         }
         Some(dh_msg3)
@@ -208,11 +216,11 @@ pub struct SgxDhResponder {
 impl Default for SgxDhResponder {
     fn default() -> SgxDhResponder {
         SgxDhResponder {
-           state: SgxDhSessionState::SGX_DH_SESSION_STATE_RESET,
-           prv_key: sgx_align_ec256_private_t::default(),
-           pub_key: sgx_ec256_public_t::default(),
-           smk_aek: sgx_align_key_128bit_t::default(),
-           shared_key: sgx_align_ec256_dh_shared_t::default(),
+            state: SgxDhSessionState::SGX_DH_SESSION_STATE_RESET,
+            prv_key: sgx_align_ec256_private_t::default(),
+            pub_key: sgx_ec256_public_t::default(),
+            smk_aek: sgx_align_key_128bit_t::default(),
+            shared_key: sgx_align_ec256_dh_shared_t::default(),
         }
     }
 }
@@ -370,17 +378,23 @@ impl SgxDhResponder {
         if !rsgx_data_is_within_enclave(self) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if !rsgx_data_is_within_enclave(msg2) ||
-           !rsgx_data_is_within_enclave(aek) ||
-           !rsgx_data_is_within_enclave(initiator_identity) ||
-           !rsgx_raw_is_within_enclave(msg3 as *const _ as *const u8, mem::size_of::<SgxDhMsg3>()) {
+        if !rsgx_data_is_within_enclave(msg2)
+            || !rsgx_data_is_within_enclave(aek)
+            || !rsgx_data_is_within_enclave(initiator_identity)
+            || !rsgx_raw_is_within_enclave(
+                msg3 as *const _ as *const u8,
+                mem::size_of::<SgxDhMsg3>(),
+            )
+        {
             *self = Self::default();
             self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if msg3.msg3_body.additional_prop.len() > 0 &&
-              (!(rsgx_slice_is_within_enclave(&msg3.msg3_body.additional_prop)) ||
-               (msg3.msg3_body.additional_prop.len() > (u32::max_value() as usize) - mem::size_of::<sgx_dh_msg3_t>())) {
+        if msg3.msg3_body.additional_prop.len() > 0
+            && (!(rsgx_slice_is_within_enclave(&msg3.msg3_body.additional_prop))
+                || (msg3.msg3_body.additional_prop.len()
+                    > (u32::MAX as usize) - mem::size_of::<sgx_dh_msg3_t>()))
+        {
             *self = Self::default();
             self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -394,14 +408,19 @@ impl SgxDhResponder {
 
         let ecc_state = SgxEccHandle::new();
         ecc_state.open().map_err(|ret| self.set_error(ret))?;
-        self.shared_key = ecc_state.compute_align_shared_dhkey(&self.prv_key.key, &msg2.g_b).map_err(|ret| self.set_error(ret))?;
+        self.shared_key = ecc_state
+            .compute_align_shared_dhkey(&self.prv_key.key, &msg2.g_b)
+            .map_err(|ret| self.set_error(ret))?;
 
-        self.smk_aek = derive_key(&self.shared_key.key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret))?;
+        self.smk_aek =
+            derive_key(&self.shared_key.key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret))?;
 
         #[cfg(feature = "use_lav2")]
-        self.lav2_verify_message2(msg2).map_err(|ret| self.set_error(ret))?;
+        self.lav2_verify_message2(msg2)
+            .map_err(|ret| self.set_error(ret))?;
         #[cfg(not(feature = "use_lav2"))]
-        self.dh_verify_message2(msg2).map_err(|ret| self.set_error(ret))?;
+        self.dh_verify_message2(msg2)
+            .map_err(|ret| self.set_error(ret))?;
 
         initiator_identity.isv_svn = msg2.report.body.isv_svn;
         initiator_identity.isv_prod_id = msg2.report.body.isv_prod_id;
@@ -410,11 +429,14 @@ impl SgxDhResponder {
         initiator_identity.mr_enclave = msg2.report.body.mr_enclave;
 
         #[cfg(feature = "use_lav2")]
-        self.lav2_generate_message3(msg2, msg3).map_err(|ret| self.set_error(ret))?;
+        self.lav2_generate_message3(msg2, msg3)
+            .map_err(|ret| self.set_error(ret))?;
         #[cfg(not(feature = "use_lav2"))]
-        self.dh_generate_message3(msg2, msg3).map_err(|ret| self.set_error(ret))?;
+        self.dh_generate_message3(msg2, msg3)
+            .map_err(|ret| self.set_error(ret))?;
 
-        let align_aek = derive_key(&self.shared_key.key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret))?;
+        let align_aek =
+            derive_key(&self.shared_key.key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret))?;
         *aek = align_aek.key;
         *self = Self::default();
         self.state = SgxDhSessionState::SGX_DH_SESSION_ACTIVE;
@@ -445,7 +467,8 @@ impl SgxDhResponder {
     }
 
     fn dh_verify_message2(&self, msg2: &SgxDhMsg2) -> SgxError {
-        let kdf_id = &msg2.report.body.report_data.d[SGX_SHA256_HASH_SIZE..SGX_SHA256_HASH_SIZE + 2];
+        let kdf_id =
+            &msg2.report.body.report_data.d[SGX_SHA256_HASH_SIZE..SGX_SHA256_HASH_SIZE + 2];
         let data_hash = &msg2.report.body.report_data.d[..SGX_SHA256_HASH_SIZE];
 
         if !kdf_id.eq(&AES_CMAC_KDF_ID) {
@@ -490,8 +513,11 @@ impl SgxDhResponder {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
 
-        let proto_spec = unsafe { SgxLAv2ProtoSpec::from_report_data(&msg2.report.body.report_data) };
-        if (!proto_spec.signature.eq(&SGX_LAV2_PROTO_SPEC.signature)) || (proto_spec.ver != SGX_LAV2_PROTO_SPEC.ver) {
+        let proto_spec =
+            unsafe { SgxLAv2ProtoSpec::from_report_data(&msg2.report.body.report_data) };
+        if (!proto_spec.signature.eq(&SGX_LAV2_PROTO_SPEC.signature))
+            || (proto_spec.ver != SGX_LAV2_PROTO_SPEC.ver)
+        {
             return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
         }
 
@@ -533,7 +559,8 @@ impl SgxDhResponder {
         msg3.cmac = Default::default();
         msg3.msg3_body.report = Default::default();
 
-        let proto_spec = unsafe { SgxLAv2ProtoSpec::from_report_data(&msg2.report.body.report_data) };
+        let proto_spec =
+            unsafe { SgxLAv2ProtoSpec::from_report_data(&msg2.report.body.report_data) };
         let mut target = sgx_target_info_t::default();
         let mut report_data = sgx_report_data_t::default();
         let report = msg2.report;
@@ -583,11 +610,11 @@ pub struct SgxDhInitiator {
 impl Default for SgxDhInitiator {
     fn default() -> SgxDhInitiator {
         SgxDhInitiator {
-           state: SgxDhSessionState::SGX_DH_SESSION_INITIATOR_WAIT_M1,
-           smk_aek: sgx_align_key_128bit_t::default(),
-           pub_key: sgx_ec256_public_t::default(),
-           peer_pub_key: sgx_ec256_public_t::default(),
-           shared_key: sgx_align_ec256_dh_shared_t::default(),
+            state: SgxDhSessionState::SGX_DH_SESSION_INITIATOR_WAIT_M1,
+            smk_aek: sgx_align_key_128bit_t::default(),
+            pub_key: sgx_ec256_public_t::default(),
+            peer_pub_key: sgx_ec256_public_t::default(),
+            shared_key: sgx_align_ec256_dh_shared_t::default(),
         }
     }
 }
@@ -650,8 +677,7 @@ impl SgxDhInitiator {
         if !rsgx_data_is_within_enclave(self) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if !rsgx_data_is_within_enclave(msg1) ||
-           !rsgx_data_is_within_enclave(msg2) {
+        if !rsgx_data_is_within_enclave(msg1) || !rsgx_data_is_within_enclave(msg2) {
             *self = Self::default();
             self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
@@ -665,17 +691,24 @@ impl SgxDhInitiator {
 
         let ecc_state = SgxEccHandle::new();
         ecc_state.open().map_err(|ret| self.set_error(ret))?;
-        let (mut prv_key, pub_key) = ecc_state.create_align_key_pair().map_err(|ret| self.set_error(ret))?;
-        self.shared_key = ecc_state.compute_align_shared_dhkey(&prv_key.key, &msg1.g_a).map_err(|ret| self.set_error(ret))?;
+        let (mut prv_key, pub_key) = ecc_state
+            .create_align_key_pair()
+            .map_err(|ret| self.set_error(ret))?;
+        self.shared_key = ecc_state
+            .compute_align_shared_dhkey(&prv_key.key, &msg1.g_a)
+            .map_err(|ret| self.set_error(ret))?;
 
         prv_key = sgx_align_ec256_private_t::default();
         self.pub_key = pub_key;
-        self.smk_aek = derive_key(&self.shared_key.key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret))?;
+        self.smk_aek =
+            derive_key(&self.shared_key.key, &EC_SMK_LABEL).map_err(|ret| self.set_error(ret))?;
 
         #[cfg(feature = "use_lav2")]
-        self.lav2_generate_message2(msg1, msg2).map_err(|ret| self.set_error(ret))?;
+        self.lav2_generate_message2(msg1, msg2)
+            .map_err(|ret| self.set_error(ret))?;
         #[cfg(not(feature = "use_lav2"))]
-        self.dh_generate_message2(msg1, msg2).map_err(|ret| self.set_error(ret))?;
+        self.dh_generate_message2(msg1, msg2)
+            .map_err(|ret| self.set_error(ret))?;
 
         self.peer_pub_key = msg1.g_a;
         self.state = SgxDhSessionState::SGX_DH_SESSION_INITIATOR_WAIT_M3;
@@ -751,19 +784,22 @@ impl SgxDhInitiator {
         if !rsgx_data_is_within_enclave(self) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if !rsgx_raw_is_within_enclave(msg3 as *const _ as *const u8, mem::size_of::<SgxDhMsg3>()) ||
-           !rsgx_data_is_within_enclave(aek) ||
-           !rsgx_data_is_within_enclave(responder_identity) {
+        if !rsgx_raw_is_within_enclave(msg3 as *const _ as *const u8, mem::size_of::<SgxDhMsg3>())
+            || !rsgx_data_is_within_enclave(aek)
+            || !rsgx_data_is_within_enclave(responder_identity)
+        {
             *self = Self::default();
             self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if msg3.msg3_body.additional_prop.len() > 0 &&
-               (!rsgx_slice_is_within_enclave(&msg3.msg3_body.additional_prop) ||
-               (msg3.msg3_body.additional_prop.len() > (u32::max_value() as usize) - mem::size_of::<sgx_dh_msg3_t>())) {
-                *self = Self::default();
-                self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
-                return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+        if msg3.msg3_body.additional_prop.len() > 0
+            && (!rsgx_slice_is_within_enclave(&msg3.msg3_body.additional_prop)
+                || (msg3.msg3_body.additional_prop.len()
+                    > (u32::MAX as usize) - mem::size_of::<sgx_dh_msg3_t>()))
+        {
+            *self = Self::default();
+            self.state = SgxDhSessionState::SGX_DH_SESSION_STATE_ERROR;
+            return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
 
         if self.state != SgxDhSessionState::SGX_DH_SESSION_INITIATOR_WAIT_M3 {
@@ -777,7 +813,8 @@ impl SgxDhInitiator {
         #[cfg(not(feature = "use_lav2"))]
         self.dh_verify_message3(msg3).map_err(|ret| self.set_error(ret))?;
 
-        let align_aek = derive_key(&self.shared_key.key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret))?;
+        let align_aek =
+            derive_key(&self.shared_key.key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret))?;
         *aek = align_aek.key;
 
         *self = Self::default();
@@ -807,7 +844,8 @@ impl SgxDhInitiator {
 
         let mut report_data = sgx_report_data_t::default();
         report_data.d[..SGX_SHA256_HASH_SIZE].copy_from_slice(&msg_hash);
-        report_data.d[SGX_SHA256_HASH_SIZE..SGX_SHA256_HASH_SIZE + 2].copy_from_slice(&AES_CMAC_KDF_ID);
+        report_data.d[SGX_SHA256_HASH_SIZE..SGX_SHA256_HASH_SIZE + 2]
+            .copy_from_slice(&AES_CMAC_KDF_ID);
 
         let target = msg1.target;
         msg2.report = rsgx_create_report(&target, &report_data)?;
@@ -834,7 +872,9 @@ impl SgxDhInitiator {
 
         msg2.report = rsgx_create_report(&target, &report_data)?;
         // Replace report_data with proto_spec
-        unsafe {msg2.report.body.report_data = SGX_LAV2_PROTO_SPEC.to_report_data();}
+        unsafe {
+            msg2.report.body.report_data = SGX_LAV2_PROTO_SPEC.to_report_data();
+        }
         msg2.cmac = rsgx_rijndael128_cmac_msg(&self.smk_aek.key, &msg2.g_b)?;
 
         Ok(())
@@ -955,7 +995,7 @@ impl SgxLAv2ProtoSpec {
             let size: i32 = 1 << (self.target_spec[i] & 0xF);
             to += size - 1;
             to &= -size;
-            if (to + size) as usize > mem::size_of::<sgx_target_info_t>()  {
+            if (to + size) as usize > mem::size_of::<sgx_target_info_t>() {
                 return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
             }
 
@@ -965,7 +1005,11 @@ impl SgxLAv2ProtoSpec {
                     return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
                 }
                 unsafe {
-                    ptr::copy_nonoverlapping(f.offset(from as isize), d.offset(to as isize), size as usize);
+                    ptr::copy_nonoverlapping(
+                        f.offset(from as isize),
+                        d.offset(to as isize),
+                        size as usize,
+                    );
                 }
             } else {
                 if from == -1 {
@@ -984,18 +1028,22 @@ const SGX_LAV2_PROTO_SPEC: SgxLAv2ProtoSpec = SgxLAv2ProtoSpec {
     signature: [0x53, 0x47, 0x58, 0x20, 0x4C, 0x41], // "SGX LA"
     ver: 2,
     rev: 0,
-    target_spec: [0x0600, // target_spec count & revision
-                  0x0405, // MRENCLAVE
-                  0x0304, // ATTRIBUTES
-                  0x0140, // CET_ATTRIBUTES
-                  0x1041, // CONFIGSVN
-                  0x0102, // MISCSELECT
-                  0x0C06, // CONFIGID
-                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    target_spec: [
+        0x0600, // target_spec count & revision
+        0x0405, // MRENCLAVE
+        0x0304, // ATTRIBUTES
+        0x0140, // CET_ATTRIBUTES
+        0x1041, // CONFIGSVN
+        0x0102, // MISCSELECT
+        0x0C06, // CONFIGID
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ],
 };
 
 pub fn rsgx_self_target() -> SgxResult<sgx_target_info_t> {
     let mut target_info = sgx_target_info_t::default();
     let report = rsgx_self_report();
-    SGX_LAV2_PROTO_SPEC.make_target_info(&report, &mut target_info).map(|_| target_info)
+    SGX_LAV2_PROTO_SPEC
+        .make_target_info(&report, &mut target_info)
+        .map(|_| target_info)
 }

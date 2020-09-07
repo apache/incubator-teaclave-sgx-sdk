@@ -15,23 +15,23 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use std::ptr;
+use libc::{
+    self, c_char, c_int, dirent64, mode_t, off64_t, off_t, size_t, ssize_t, stat, stat64, DIR,
+};
 use std::io::Error;
-use libc::{self, c_int, c_char, size_t, ssize_t, off_t, off64_t, mode_t, stat, stat64, DIR, dirent64};
+use std::ptr;
 
 #[no_mangle]
-pub extern "C" fn u_open_ocall(
-    error: *mut c_int,
-    pathname: *const c_char,
-    flags: c_int,
-) -> c_int {
+pub extern "C" fn u_open_ocall(error: *mut c_int, pathname: *const c_char, flags: c_int) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::open(pathname, flags) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -49,58 +49,54 @@ pub extern "C" fn u_open64_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_fstat_ocall(
-    error: *mut c_int,
-    fd: c_int,
-    buf: *mut stat,
-) -> c_int {
+pub extern "C" fn u_fstat_ocall(error: *mut c_int, fd: c_int, buf: *mut stat) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::fstat(fd, buf) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_fstat64_ocall(
-    error: *mut c_int,
-    fd: c_int,
-    buf: *mut stat64,
-) -> c_int {
+pub extern "C" fn u_fstat64_ocall(error: *mut c_int, fd: c_int, buf: *mut stat64) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::fstat64(fd, buf) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_stat_ocall(
-    error: *mut c_int,
-    path: *const c_char,
-    buf: *mut stat,
-) -> c_int {
+pub extern "C" fn u_stat_ocall(error: *mut c_int, path: *const c_char, buf: *mut stat) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::stat(path, buf) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -117,24 +113,24 @@ pub extern "C" fn u_stat64_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_lstat_ocall(
-    error: *mut c_int,
-    path: *const c_char,
-    buf: *mut stat,
-) -> c_int {
+pub extern "C" fn u_lstat_ocall(error: *mut c_int, path: *const c_char, buf: *mut stat) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::lstat(path, buf) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -151,7 +147,9 @@ pub extern "C" fn u_lstat64_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -169,7 +167,9 @@ pub extern "C" fn u_lseek_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -187,58 +187,54 @@ pub extern "C" fn u_lseek64_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_ftruncate_ocall(
-    error: *mut c_int,
-    fd: c_int,
-    length: off_t,
-) -> c_int {
+pub extern "C" fn u_ftruncate_ocall(error: *mut c_int, fd: c_int, length: off_t) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::ftruncate(fd, length) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_ftruncate64_ocall(
-    error: *mut c_int,
-    fd: c_int,
-    length: off64_t,
-) -> c_int {
+pub extern "C" fn u_ftruncate64_ocall(error: *mut c_int, fd: c_int, length: off64_t) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::ftruncate64(fd, length) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_truncate_ocall(
-    error: *mut c_int,
-    path: *const c_char,
-    length: off_t,
-) -> c_int {
+pub extern "C" fn u_truncate_ocall(error: *mut c_int, path: *const c_char, length: off_t) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::truncate(path, length) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -255,7 +251,9 @@ pub extern "C" fn u_truncate64_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -268,7 +266,9 @@ pub extern "C" fn u_fsync_ocall(error: *mut c_int, fd: c_int) -> c_int {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -281,7 +281,9 @@ pub extern "C" fn u_fdatasync_ocall(error: *mut c_int, fd: c_int) -> c_int {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -294,7 +296,9 @@ pub extern "C" fn u_fchmod_ocall(error: *mut c_int, fd: c_int, mode: mode_t) -> 
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -307,7 +311,9 @@ pub extern "C" fn u_unlink_ocall(error: *mut c_int, pathname: *const c_char) -> 
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -324,7 +330,9 @@ pub extern "C" fn u_link_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -341,24 +349,24 @@ pub extern "C" fn u_rename_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_chmod_ocall(
-    error: *mut c_int,
-    path: *const c_char,
-    mode: mode_t,
-) -> c_int {
+pub extern "C" fn u_chmod_ocall(error: *mut c_int, path: *const c_char, mode: mode_t) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::chmod(path, mode) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -376,7 +384,9 @@ pub extern "C" fn u_readlink_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -393,40 +403,39 @@ pub extern "C" fn u_symlink_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_realpath_ocall(
-    error: *mut c_int,
-    pathname: *const c_char,
-) -> *mut c_char {
+pub extern "C" fn u_realpath_ocall(error: *mut c_int, pathname: *const c_char) -> *mut c_char {
     let mut errno = 0;
     let ret = unsafe { libc::realpath(pathname, ptr::null_mut()) };
     if ret.is_null() {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_mkdir_ocall(
-    error: *mut c_int,
-    pathname: *const c_char,
-    mode: mode_t,
-) -> c_int {
+pub extern "C" fn u_mkdir_ocall(error: *mut c_int, pathname: *const c_char, mode: mode_t) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::mkdir(pathname, mode) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -439,7 +448,9 @@ pub extern "C" fn u_rmdir_ocall(error: *mut c_int, pathname: *const c_char) -> c
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -452,7 +463,9 @@ pub extern "C" fn u_opendir_ocall(error: *mut c_int, pathname: *const c_char) ->
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -474,7 +487,9 @@ pub extern "C" fn u_closedir_ocall(error: *mut c_int, dirp: *mut DIR) -> c_int {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -487,7 +502,9 @@ pub extern "C" fn u_dirfd_ocall(error: *mut c_int, dirp: *mut DIR) -> c_int {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -506,7 +523,9 @@ pub extern "C" fn u_fstatat64_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }

@@ -31,6 +31,8 @@ extern "C" {
     static g_cpu_feature_indicator: uint64_t;
     static g_cpu_core_num: uint32_t;
     static EDMM_supported: c_int;
+    static g_peak_heap_used: size_t;
+    static g_peak_rsrv_mem_committed: size_t;
     pub fn get_thread_data() -> *const c_void;
     pub fn get_enclave_base() -> *const c_void;
     pub fn get_heap_base() -> *const c_void;
@@ -545,7 +547,8 @@ pub fn rsgx_get_tcs_num() -> (u32, u32, u32) {
         traversal_layout(
             &mut static_tcs_num,
             &mut dyn_tcs_num,
-            &mut eremove_tcs_num,layout_table,
+            &mut eremove_tcs_num,
+            layout_table,
         );
     }
 
@@ -558,7 +561,8 @@ pub fn rsgx_get_tcs_num() -> (u32, u32, u32) {
         for (i, layout) in layout_table.iter().enumerate() {
             if !is_group_id!(layout.group.id as u32) {
                 if (layout.entry.attributes & PAGE_ATTR_EADD) != 0 {
-                    if (layout.entry.content_offset != 0) && (layout.entry.si_flags == SI_FLAGS_TCS) {
+                    if (layout.entry.content_offset != 0) && (layout.entry.si_flags == SI_FLAGS_TCS)
+                    {
                         if (layout.entry.attributes & PAGE_ATTR_EREMOVE) == 0 {
                             *static_num += 1;
                         } else {
@@ -573,7 +577,12 @@ pub fn rsgx_get_tcs_num() -> (u32, u32, u32) {
                 }
             } else {
                 for _ in 0..layout.group.load_times {
-                    traversal_layout(static_num, dyn_num, eremove_num, &layout_table[i-layout.group.entry_count as usize..i])
+                    traversal_layout(
+                        static_num,
+                        dyn_num,
+                        eremove_num,
+                        &layout_table[i - layout.group.entry_count as usize..i],
+                    )
                 }
             }
         }
@@ -598,4 +607,14 @@ pub fn rsgx_get_cpu_feature() -> u64 {
 #[inline]
 pub fn rsgx_get_cpu_core_num() -> u32 {
     unsafe { g_cpu_core_num }
+}
+
+#[inline]
+pub fn rsgx_get_peak_heap_used() -> usize {
+    unsafe { g_peak_heap_used }
+}
+
+#[inline]
+pub fn rsgx_get_peak_rsrv_mem_committed() -> usize {
+    unsafe { g_peak_rsrv_mem_committed }
 }

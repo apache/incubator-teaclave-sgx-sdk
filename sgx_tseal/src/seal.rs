@@ -27,13 +27,13 @@
 //!
 //! The library also provides APIs to help calculate the sealed data size, encrypt text length, and Message Authentication Code (MAC) text length.
 //!
-use sgx_types::*;
-use sgx_types::marker::ContiguousMemory;
 use crate::internal::*;
-use core::mem;
-use core::marker::PhantomData;
-use alloc::slice;
 use alloc::boxed::Box;
+use alloc::slice;
+use core::marker::PhantomData;
+use core::mem;
+use sgx_types::marker::ContiguousMemory;
+use sgx_types::*;
 
 /// The structure about the unsealed data.
 pub struct SgxUnsealedData<'a, T: 'a + ?Sized> {
@@ -89,10 +89,10 @@ impl<'a, T: 'a + Default> Default for SgxUnsealedData<'a, [T]> {
 impl<'a, T: 'a + Clone + ?Sized> Clone for SgxUnsealedData<'a, T> {
     fn clone(&self) -> SgxUnsealedData<'a, T> {
         SgxUnsealedData {
-           payload_size: self.payload_size,
-           decrypt: self.decrypt.clone(),
-           additional: self.additional.clone(),
-           marker: PhantomData,
+            payload_size: self.payload_size,
+            decrypt: self.decrypt.clone(),
+            additional: self.additional.clone(),
+            marker: PhantomData,
         }
     }
 }
@@ -115,8 +115,8 @@ impl<'a, T: 'a + ?Sized> Default for SgxSealedData<'a, T> {
 impl<'a, T: 'a + Clone + ?Sized> Clone for SgxSealedData<'a, T> {
     fn clone(&self) -> SgxSealedData<'a, T> {
         SgxSealedData {
-           inner: self.inner.clone(),
-           marker: PhantomData,
+            inner: self.inner.clone(),
+            marker: PhantomData,
         }
     }
 }
@@ -186,14 +186,15 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, T> {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
         let encrypt_slice: &[u8] = unsafe {
-            slice::from_raw_parts(encrypt_text as *const _ as *const u8, mem::size_of_val(encrypt_text))
+            slice::from_raw_parts(
+                encrypt_text as *const _ as *const u8,
+                mem::size_of_val(encrypt_text),
+            )
         };
         let result = SgxInternalSealedData::seal_data(additional_text, encrypt_slice);
-        result.map(|x| {
-            SgxSealedData {
-                inner: x,
-                marker: PhantomData,
-            }
+        result.map(|x| SgxSealedData {
+            inner: x,
+            marker: PhantomData,
         })
     }
 
@@ -283,21 +284,21 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, T> {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
         let encrypt_slice: &[u8] = unsafe {
-            slice::from_raw_parts(encrypt_text as *const _ as *const u8, mem::size_of_val(encrypt_text))
+            slice::from_raw_parts(
+                encrypt_text as *const _ as *const u8,
+                mem::size_of_val(encrypt_text),
+            )
         };
-        let result =
-            SgxInternalSealedData::seal_data_ex(
-                key_policy,
-                attribute_mask,
-                misc_mask,
-                additional_text,
-                encrypt_slice,
-            );
-        result.map(|x| {
-            SgxSealedData {
-                inner: x,
-                marker: PhantomData,
-            }
+        let result = SgxInternalSealedData::seal_data_ex(
+            key_policy,
+            attribute_mask,
+            misc_mask,
+            additional_text,
+            encrypt_slice,
+        );
+        result.map(|x| SgxSealedData {
+            inner: x,
+            marker: PhantomData,
         })
     }
 
@@ -362,7 +363,7 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, T> {
             let ptr = Box::into_raw(x.decrypt);
             SgxUnsealedData {
                 payload_size: x.payload_size,
-                decrypt: unsafe{Box::from_raw(ptr as *mut T)},
+                decrypt: unsafe { Box::from_raw(ptr as *mut T) },
                 additional: x.additional,
                 marker: PhantomData,
             }
@@ -402,10 +403,9 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, T> {
             return None;
         }
         let opt = SgxInternalSealedData::from_raw_sealed_data_t(p, len);
-        opt.map(|x| {
-            SgxSealedData{
-                inner: x,
-                marker: PhantomData}
+        opt.map(|x| SgxSealedData {
+            inner: x,
+            marker: PhantomData,
         })
     }
 
@@ -432,7 +432,11 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, T> {
     ///
     /// May be the parameter p and len is not avaliable.
     ///
-    pub unsafe fn to_raw_sealed_data_t(&self, p: *mut sgx_sealed_data_t, len: u32) -> Option<*mut sgx_sealed_data_t> {
+    pub unsafe fn to_raw_sealed_data_t(
+        &self,
+        p: *mut sgx_sealed_data_t,
+        len: u32,
+    ) -> Option<*mut sgx_sealed_data_t> {
         self.inner.to_raw_sealed_data_t(p, len)
     }
 }
@@ -502,16 +506,13 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
         if size == 0 || len == 0 {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        let encrypt_slice: &[u8] = unsafe {
-            slice::from_raw_parts(encrypt_text.as_ptr() as *const u8, len)
-        };
+        let encrypt_slice: &[u8] =
+            unsafe { slice::from_raw_parts(encrypt_text.as_ptr() as *const u8, len) };
 
         let result = SgxInternalSealedData::seal_data(additional_text, encrypt_slice);
-        result.map(|x| {
-            SgxSealedData {
-                inner: x,
-                marker: PhantomData,
-            }
+        result.map(|x| SgxSealedData {
+            inner: x,
+            marker: PhantomData,
         })
     }
 
@@ -601,23 +602,19 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
         if size == 0 || len == 0 {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        let encrypt_slice: &[u8] = unsafe {
-            slice::from_raw_parts(encrypt_text.as_ptr() as *const u8, len)
-        };
+        let encrypt_slice: &[u8] =
+            unsafe { slice::from_raw_parts(encrypt_text.as_ptr() as *const u8, len) };
 
-        let result =
-            SgxInternalSealedData::seal_data_ex(
-                key_policy,
-                attribute_mask,
-                misc_mask,
-                additional_text,
-                encrypt_slice,
-            );
-        result.map(|x| {
-            SgxSealedData {
-                inner: x,
-                marker: PhantomData,
-            }
+        let result = SgxInternalSealedData::seal_data_ex(
+            key_policy,
+            attribute_mask,
+            misc_mask,
+            additional_text,
+            encrypt_slice,
+        );
+        result.map(|x| SgxSealedData {
+            inner: x,
+            marker: PhantomData,
         })
     }
 
@@ -684,10 +681,10 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
 
         self.inner.unseal_data().map(|x| {
             let ptr = Box::into_raw(x.decrypt);
-            let slice = unsafe{slice::from_raw_parts_mut(ptr as *mut T, encrypt_len/size)};
+            let slice = unsafe { slice::from_raw_parts_mut(ptr as *mut T, encrypt_len / size) };
             SgxUnsealedData {
                 payload_size: x.payload_size,
-                decrypt: unsafe{Box::from_raw(slice as *mut [T])},
+                decrypt: unsafe { Box::from_raw(slice as *mut [T]) },
                 additional: x.additional,
                 marker: PhantomData,
             }
@@ -727,11 +724,9 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
             return None;
         }
         let opt = SgxInternalSealedData::from_raw_sealed_data_t(p, len);
-        opt.map(|x| {
-            SgxSealedData {
-                inner: x,
-                marker: PhantomData,
-            }
+        opt.map(|x| SgxSealedData {
+            inner: x,
+            marker: PhantomData,
         })
     }
 
@@ -758,7 +753,11 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
     ///
     /// May be the parameter p and len is not avaliable.
     ///
-    pub unsafe fn to_raw_sealed_data_t(&self, p: *mut sgx_sealed_data_t, len: u32) -> Option<*mut sgx_sealed_data_t> {
+    pub unsafe fn to_raw_sealed_data_t(
+        &self,
+        p: *mut sgx_sealed_data_t,
+        len: u32,
+    ) -> Option<*mut sgx_sealed_data_t> {
         self.inner.to_raw_sealed_data_t(p, len)
     }
 }
@@ -809,7 +808,7 @@ impl<'a, T: 'a + ?Sized> SgxSealedData<'a, T> {
     ///
     /// Calculate the size of the sealed data in SgxSealedData.
     ///
-    pub fn calc_raw_sealed_data_size(add_mac_txt_size: u32, encrypt_txt_size: u32) -> u32  {
+    pub fn calc_raw_sealed_data_size(add_mac_txt_size: u32, encrypt_txt_size: u32) -> u32 {
         SgxInternalSealedData::calc_raw_sealed_data_size(add_mac_txt_size, encrypt_txt_size)
     }
 

@@ -15,21 +15,21 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use std::sync::{Arc, SgxThreadMutex, SgxRwLock, Once, ONCE_INIT};
-use std::collections::LinkedList;
-use std::num::NonZeroU64;
-use std::u64;
-use std::ops::Drop;
-use sgx_types::{EXCEPTION_CONTINUE_SEARCH, EXCEPTION_CONTINUE_EXECUTION};
-use sgx_types::{sgx_exception_info_t, sgx_exception_vector_t};
-use sgx_types::SE_WORDSIZE;
 use sgx_libc::int32_t;
 use sgx_trts::veh::{
-    rsgx_register_exception_handler,
-    rsgx_unregister_exception_handler,
-    exception_handle
+    exception_handle, rsgx_register_exception_handler, rsgx_unregister_exception_handler,
 };
+use sgx_types::SE_WORDSIZE;
+use sgx_types::{sgx_exception_info_t, sgx_exception_vector_t};
+use sgx_types::{EXCEPTION_CONTINUE_EXECUTION, EXCEPTION_CONTINUE_SEARCH};
+use std::collections::LinkedList;
+use std::num::NonZeroU64;
+use std::ops::Drop;
+use std::sync::{Arc, Once, SgxRwLock, SgxThreadMutex, ONCE_INIT};
+use std::u64;
 
+#[repr(u32)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum ContinueType {
     Search,
     Execution,
@@ -76,10 +76,7 @@ struct HandlerNode {
 impl HandlerNode {
     // add code here
     pub fn new(id: HandlerId, handler: Arc<ExceptionHandler>) -> Self {
-        HandlerNode {
-            id,
-            handler,
-        }
+        HandlerNode { id, handler }
     }
     pub fn get_handler_id(&self) -> HandlerId {
         self.id
@@ -113,12 +110,12 @@ impl GlobalData {
     }
 }
 
-extern "C" fn native_exception_handler(info : *mut sgx_exception_info_t) -> int32_t {
+extern "C" fn native_exception_handler(info: *mut sgx_exception_info_t) -> int32_t {
     if let Ok(handlers) = GlobalData::get().manager.exception_handler.read() {
         let info = unsafe { info.as_mut().unwrap() };
         for h in handlers.iter() {
             match (h.handler)(info) {
-                ContinueType::Search => {},
+                ContinueType::Search => {}
                 ContinueType::Execution => return EXCEPTION_CONTINUE_EXECUTION,
             }
         }
@@ -126,16 +123,15 @@ extern "C" fn native_exception_handler(info : *mut sgx_exception_info_t) -> int3
     unsafe { panic_handler(info).into() }
 }
 
-unsafe extern "C" fn panic_handler(info : *mut sgx_exception_info_t) -> ContinueType {
+unsafe extern "C" fn panic_handler(info: *mut sgx_exception_info_t) -> ContinueType {
     let exception_info = info.as_mut().unwrap();
     let mut rsp = exception_info.cpu_context.rsp;
     if rsp & 0xF == 0 {
         rsp -= SE_WORDSIZE as u64;
         exception_info.cpu_context.rsp = rsp;
-        let addr = rsp as * mut u64;
+        let addr = rsp as *mut u64;
         *addr = exception_info.cpu_context.rip;
     } else {
-
     }
 
     exception_info.cpu_context.rdi = exception_info.exception_vector as u32 as u64;
@@ -187,7 +183,7 @@ impl Drop for ExceptionManager {
     }
 }
 
-fn register_exception_impl<F>(is_first_handler: bool, handler: F) -> Option<HandlerId>
+fn register_exception_impl<F>(first: bool, handler: F) -> Option<HandlerId>
 where
     F: Fn(&mut sgx_exception_info_t) -> ContinueType + Sync + Send + 'static,
 {
@@ -195,7 +191,7 @@ where
 
     if let Ok(ref mut handlers) = globals.manager.exception_handler.write() {
         let handler_id = HandlerId::new();
-        if is_first_handler {
+        if first {
             handlers.push_front(HandlerNode::new(handler_id, Arc::from(handler)));
         } else {
             handlers.push_back(HandlerNode::new(handler_id, Arc::from(handler)));
@@ -252,11 +248,10 @@ where
 pub fn unregister(id: HandlerId) -> bool {
     let globals = GlobalData::ensure();
     if let Ok(ref mut handlers) = globals.manager.exception_handler.write() {
-        handlers.drain_filter(|n| {
-            n.get_handler_id() == id
-        })
-        .next()
-        .is_some()
+        handlers
+            .drain_filter(|n| n.get_handler_id() == id)
+            .next()
+            .is_some()
     } else {
         false
     }

@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use std::io::Error;
 use libc::{self, c_int, timespec};
+use std::io::Error;
 
 #[no_mangle]
 pub extern "C" fn u_sched_yield_ocall(error: *mut c_int) -> c_int {
@@ -26,7 +26,9 @@ pub extern "C" fn u_sched_yield_ocall(error: *mut c_int) -> c_int {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -43,7 +45,9 @@ pub extern "C" fn u_nanosleep_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
-    ret                      
+    ret
 }

@@ -15,24 +15,25 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#![feature(linkage)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
+
 extern crate libc;
 extern crate sgx_types;
 
-mod enclave;
-pub mod mem;
-pub mod time;
-pub mod fd;
-pub mod file;
-pub mod socket;
 pub mod asyncio;
 pub mod env;
-pub mod sys;
-pub mod pipe;
 pub mod event;
-pub mod thread;
+pub mod fd;
+pub mod file;
+pub mod mem;
 pub mod net;
-#[cfg(feature = "signal")]
-pub mod signal;
+pub mod pipe;
 pub mod process;
+pub mod signal;
+pub mod socket;
+pub mod sys;
+pub mod thread;
+pub mod time;
+mod enclave;
 pub use enclave::*;

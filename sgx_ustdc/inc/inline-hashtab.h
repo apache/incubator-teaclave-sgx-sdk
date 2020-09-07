@@ -33,13 +33,13 @@ static void destroy(void *ptr)
 }
 struct hashtab
 {
-    /* Table itself.  */
+    /* Table itself. */
     void **entries;
 
     /* Current size (in entries) of the hash table */
     size_t size;
 
-    /* Current number of elements.  */
+    /* Current number of elements. */
     size_t n_elements;
 
     /* Free function for the entries array.  This may vary depending on
@@ -77,10 +77,10 @@ htab_create (void)
 inline static void
 htab_delete (struct hashtab *htab)
 {
-    int i;
+    size_t i = 0;
 
-    for (i = htab->size - 1; i >= 0; i--)
-        free (htab->entries[i]);
+    for (i = htab->size; i > 0; i--)
+        free (htab->entries[i - 1]);
 
     if (htab->free)
         htab->free (htab->entries);
@@ -95,17 +95,17 @@ htab_delete (struct hashtab *htab)
    HASH is the hash value for the element to be inserted.  */
 
 inline static void **
-find_empty_slot_for_expand (struct hashtab *htab, int hash)
+find_empty_slot_for_expand (struct hashtab *htab, unsigned int hash)
 {
     size_t size = htab->size;
-    unsigned int index = hash % size;
+    size_t index = (size_t)hash % size;
     void **slot = htab->entries + index;
-    int hash2 = 0;
+    unsigned int hash2 = 0;
 
     if (! *slot)
         return slot;
 
-    hash2 = 1 + hash % (size - 2);
+    hash2 = (unsigned int)(1 + (size_t)hash % (size - 2));
     for (;;)
     {
         index += hash2;
@@ -192,7 +192,7 @@ _dl_higher_prime_number (unsigned long int n)
    expanded.  If all goes well, it will return a non-zero value.  */
 
 inline static int
-htab_expand (struct hashtab *htab, int (*hash_fn) (void *))
+htab_expand (struct hashtab *htab, unsigned int (*hash_fn) (void *))
 {
     void **oentries = NULL;
     void **olimit = NULL;
@@ -253,10 +253,10 @@ htab_expand (struct hashtab *htab, int (*hash_fn) (void *))
 
 inline static void **
 htab_find_slot (struct hashtab *htab, void *ptr, int insert,
-    int (*hash_fn)(void *), int (*eq_fn)(void *, void *))
+    unsigned int (*hash_fn)(void *), int (*eq_fn)(void *, void *))
 {
-    unsigned int index = 0;
-    int hash = 0, hash2 = 0;
+    size_t index = 0;
+    unsigned int hash = 0, hash2 = 0;
     size_t size = 0;
     void **entry = NULL;
 
@@ -275,7 +275,7 @@ htab_find_slot (struct hashtab *htab, void *ptr, int insert,
     else if (eq_fn (*entry, ptr))
         return entry;
 
-    hash2 = 1 + hash % (size - 2);
+    hash2 = (unsigned int)(1 + (size_t)hash % (size - 2));
     for (;;)
     {
         index += hash2;

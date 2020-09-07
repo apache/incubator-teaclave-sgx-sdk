@@ -15,10 +15,10 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_types::*;
-use sgx_types::marker::ContiguousMemory;
-use core::mem;
 use crate::libc;
+use core::mem;
+use sgx_types::marker::ContiguousMemory;
+use sgx_types::*;
 
 ///
 /// rsgx_read_rand function is used to generate a random number inside the enclave.
@@ -122,7 +122,7 @@ pub fn rsgx_raw_is_within_enclave(addr: *const u8, size: usize) -> bool {
 ///
 #[inline]
 pub fn rsgx_data_is_outside_enclave<T: Copy + ContiguousMemory>(data: &T) -> bool {
-    rsgx_raw_is_outside_enclave(data as *const _ as *const u8,  mem::size_of::<T>())
+    rsgx_raw_is_outside_enclave(data as *const _ as *const u8, mem::size_of::<T>())
 }
 
 ///
@@ -191,15 +191,21 @@ pub fn rsgx_atexit(fun: exit_function_t) -> bool {
 
 #[inline(always)]
 pub fn rsgx_lfence() {
-    unsafe { asm!{"lfence"}; }
+    unsafe {
+        asm! {"lfence"};
+    }
 }
 
 #[inline(always)]
 pub fn rsgx_sfence() {
-    unsafe { asm!{"sfence"}; }
+    unsafe {
+        asm! {"sfence"};
+    }
 }
 
 #[inline(always)]
 pub fn rsgx_mfence() {
-    unsafe { asm!{"mfence"}; }
+    unsafe {
+        asm! {"mfence"};
+    }
 }

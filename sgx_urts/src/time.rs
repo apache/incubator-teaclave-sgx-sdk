@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use std::io::Error;
 use libc::{self, c_int, clockid_t, timespec};
+use std::io::Error;
 
 #[no_mangle]
 pub extern "C" fn u_clock_gettime_ocall(
@@ -30,7 +30,9 @@ pub extern "C" fn u_clock_gettime_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }

@@ -94,7 +94,7 @@
 #![feature(panic_info_message)]
 #![feature(unicode_internals)]
 #![feature(alloc_layout_extra)]
-#![feature(vec_remove_item)]
+#![feature(linked_list_remove)]
 #![feature(int_error_matching)]
 #![feature(drain_filter)]
 #![feature(negative_impls)]

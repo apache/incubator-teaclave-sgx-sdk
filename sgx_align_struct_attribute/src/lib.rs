@@ -16,17 +16,20 @@
 // under the License..
 
 extern crate proc_macro;
-use syn::{parse_macro_input, DeriveInput};
 use align::{AlignArgs, AlignStruct};
+use syn::{parse_macro_input, DeriveInput};
 
 mod align;
 mod layout;
 
 #[proc_macro_attribute]
-pub fn sgx_align(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn sgx_align(
+    args: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
     let args = parse_macro_input!(args as AlignArgs);
     let layout = args.get_layout().expect("Attribute args error");
-    let input  = parse_macro_input!(input as DeriveInput);
+    let input = parse_macro_input!(input as DeriveInput);
     let mut alignstruct = AlignStruct::new(layout, input);
     let expanded = alignstruct.build();
     proc_macro::TokenStream::from(expanded)

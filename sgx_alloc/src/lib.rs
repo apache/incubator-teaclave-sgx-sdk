@@ -23,11 +23,8 @@
 //! 2018-06-22 Add liballoc components here
 
 #![no_std]
-
 #![allow(non_camel_case_types)]
-
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
-
 #![feature(alloc_layout_extra)]
 #![feature(ptr_internals)]
 #![feature(dropck_eyepatch)]

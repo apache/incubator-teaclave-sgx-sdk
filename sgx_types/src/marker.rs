@@ -1,4 +1,3 @@
-
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
@@ -50,13 +49,12 @@ macro_rules! impl_unsafe_marker_for_array {
 
 /// Trait implemented for types that can be compared for equality using their bytewise representation
 /// A type can implement BytewiseEquality if all of its components implement BytewiseEquality.
-pub trait BytewiseEquality { }
-
+pub trait BytewiseEquality {}
 
 impl_marker_for!(BytewiseEquality,
                  u8 i8 u16 i16 u32 i32 u64 i64 usize isize char bool);
 
-impl<T: BytewiseEquality> BytewiseEquality for [T] { }
+impl<T: BytewiseEquality> BytewiseEquality for [T] {}
 
 impl_marker_for_array! {BytewiseEquality,
      0  1  2  3  4  5  6  7  8  9
@@ -75,13 +73,12 @@ impl_marker_for_array! {BytewiseEquality,
 /// a contiguous area of memory inside the enclave. Developer needs to
 /// implement this trait as a marker for the data structure he/she wants
 /// to feed into SGX apis.
-pub unsafe trait ContiguousMemory { }
+pub unsafe trait ContiguousMemory {}
 
 impl_unsafe_marker_for!(ContiguousMemory,
                  u8 i8 u16 i16 u32 i32 u64 i64 usize isize char bool);
 
-unsafe impl<T: ContiguousMemory> ContiguousMemory for [T] { }
-
+unsafe impl<T: ContiguousMemory> ContiguousMemory for [T] {}
 
 impl_unsafe_marker_for_array! {ContiguousMemory,
      0  1  2  3  4  5  6  7  8  9

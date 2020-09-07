@@ -16,11 +16,11 @@
 // under the License..
 
 use std::alloc::Layout;
-use std::ptr;
+use std::ffi::c_void;
 use std::fmt;
 use std::mem;
+use std::ptr;
 use std::slice;
-use std::ffi::c_void;
 
 #[derive(Clone, Copy, Default)]
 pub struct AlignReq {
@@ -49,7 +49,7 @@ impl fmt::Display for AlignLayoutErr {
 pub fn pad_align_to(layout: Layout, align_req: &[AlignReq]) -> Result<Layout, AlignLayoutErr> {
     let pad = padding_needed_for(layout, align_req)?;
     let align = align_needed_for(layout, pad)?;
-    Layout::from_size_align(pad + align + layout.size(), align).map_err(|_|AlignLayoutErr)
+    Layout::from_size_align(pad + align + layout.size(), align).map_err(|_| AlignLayoutErr)
 }
 
 fn padding_needed_for(layout: Layout, align_req: &[AlignReq]) -> Result<usize, AlignLayoutErr> {
@@ -78,8 +78,10 @@ fn check_overflow(buf: usize, len: usize) -> bool {
 }
 
 fn check_layout(layout: &Layout) -> bool {
-    if layout.size() == 0 || !layout.align().is_power_of_two() ||
-        layout.size() > usize::max_value() - (layout.align() - 1) {
+    if layout.size() == 0
+        || !layout.align().is_power_of_two()
+        || layout.size() > usize::MAX - (layout.align() - 1)
+    {
         false
     } else {
         true
@@ -102,14 +104,18 @@ fn check_align_req(size: usize, align_req: &[AlignReq]) -> bool {
 
     for req in align_req {
         if check_overflow(req.offset, req.len) || (req.offset + req.len) > size {
-            unsafe{ libc::free(bmp.as_mut_ptr() as *mut c_void); }
+            unsafe {
+                libc::free(bmp.as_mut_ptr() as *mut c_void);
+            }
             return false;
         } else {
             for i in 0..req.len {
                 let offset = req.offset + i;
                 if (bmp[offset / 8] & 1 << (offset % 8)) != 0 {
                     // overlap in req data
-                    unsafe{ libc::free(bmp.as_mut_ptr() as *mut c_void); }
+                    unsafe {
+                        libc::free(bmp.as_mut_ptr() as *mut c_void);
+                    }
                     return false;
                 }
                 let tmp: u8 = (1 << (offset % 8)) as u8;
@@ -121,7 +127,7 @@ fn check_align_req(size: usize, align_req: &[AlignReq]) -> bool {
 }
 
 fn gen_alignmask(al: usize, a: usize, m: u64) -> i64 {
-    if a  > al {
+    if a > al {
         gen_alignmask(al, (a >> 1) as usize, m | (m >> (a >> 1)))
     } else {
         m as i64
@@ -129,13 +135,13 @@ fn gen_alignmask(al: usize, a: usize, m: u64) -> i64 {
 }
 
 #[inline]
-fn __rol(v: u64, c: usize, m: usize) -> u64  {
+fn __rol(v: u64, c: usize, m: usize) -> u64 {
     (v << (c & m)) | (v >> (((0 - c as isize) as usize) & m))
 }
 
 #[inline]
 fn rol(v: i64, c: usize) -> i64 {
-    __rol(v as u64 , c, mem::size_of::<i64>() * 8 - 1) as i64
+    __rol(v as u64, c, mem::size_of::<i64>() * 8 - 1) as i64
 }
 
 fn ror(v: i64, c: usize) -> i64 {
@@ -157,8 +163,13 @@ fn calc_lspc(al: usize, bmp: i64) -> i32 {
         -2
     } else {
         count_lzb(
-            !(ror(bmp | ror(bmp, 1) | ror(bmp, 2) | ror(bmp, 3), 5) | ror(bmp, 1)) &
-            gen_alignmask(al, mem::size_of::<u64>() * 8, 1_u64 << (mem::size_of::<u64>() * 8 - 1)))
+            !(ror(bmp | ror(bmp, 1) | ror(bmp, 2) | ror(bmp, 3), 5) | ror(bmp, 1))
+                & gen_alignmask(
+                    al,
+                    mem::size_of::<u64>() * 8,
+                    1_u64 << (mem::size_of::<u64>() * 8 - 1),
+                ),
+        )
     }
 }
 
@@ -171,7 +182,7 @@ fn __calc_algn(size: usize, a: usize) -> usize {
 }
 
 fn calc_algn(al: usize, size: usize) -> usize {
-    if al > 64  {
+    if al > 64 {
         al
     } else {
         __calc_algn(size, mem::size_of::<u64>() * 8)

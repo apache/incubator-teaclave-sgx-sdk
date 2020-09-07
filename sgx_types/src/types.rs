@@ -15,10 +15,10 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use core::default::Default;
 use crate::error::*;
 use crate::marker::ContiguousMemory;
 use crate::*;
+use core::default::Default;
 
 //
 // sgx_attributes.h
@@ -71,7 +71,7 @@ pub const FLAGS_SECURITY_BITS_RESERVED: uint64_t = !(FLAGS_NON_SECURITY_BITS
                                                    | SGX_FLAGS_INITTED
                                                    | SGX_FLAGS_DEBUG
                                                    | SGX_FLAGS_KSS);
-pub const MISC_NON_SECURITY_BITS: uint32_t     = 0x0FFFFFFF;
+pub const MISC_NON_SECURITY_BITS: uint32_t     = 0x0FFF_FFFF;
 pub const TSEAL_DEFAULT_MISCMASK: uint32_t     = !MISC_NON_SECURITY_BITS;
 
 
@@ -160,9 +160,9 @@ impl_enum! {
 //
 pub const SGX_FEBITSIZE: uint32_t = 256;
 
-impl_struct!{
+impl_struct! {
     #[repr(packed)]
-    pub struct ecc_param_t {
+    pub struct sgx_ecc_param_t {
         pub eccP: [uint32_t; SGX_NISTP_ECP256_KEY_SIZE],      /* EC prime field */
         pub eccA: [uint32_t; SGX_NISTP_ECP256_KEY_SIZE],      /* EC curve coefficient A */
         pub eccB: [uint32_t; SGX_NISTP_ECP256_KEY_SIZE],      /* EC curve coefficient B */
@@ -419,10 +419,10 @@ impl_struct_ContiguousMemory! {
 //
 // sgx_report.h
 //
-pub const SGX_HASH_SIZE: size_t   = 32;
-pub const SGX_MAC_SIZE: size_t    = 16;
+pub const SGX_HASH_SIZE: size_t = 32;
+pub const SGX_MAC_SIZE: size_t = 16;
 
-pub const SGX_REPORT_DATA_SIZE: size_t   = 64;
+pub const SGX_REPORT_DATA_SIZE: size_t = 64;
 
 pub const SGX_ISVEXT_PROD_ID_SIZE: size_t = 16;
 pub const SGX_ISV_FAMILY_ID_SIZE: size_t  = 16;
@@ -518,7 +518,7 @@ impl_struct_ContiguousMemory! {
 //
 pub type sgx_spinlock_t = uint32_t;
 
-pub const SGX_SPINLOCK_INITIALIZER: uint32_t    = 0;
+pub const SGX_SPINLOCK_INITIALIZER: uint32_t = 0;
 
 //
 // sgx_tae_service.h
@@ -663,13 +663,13 @@ pub type sgx_aes_state_handle_t     = *mut c_void;
 pub type sgx_sha1_hash_t = [uint8_t; SGX_SHA1_HASH_SIZE];
 pub type sgx_sha256_hash_t = [uint8_t; SGX_SHA256_HASH_SIZE];
 
-pub type sgx_aes_gcm_128bit_key_t   = [uint8_t; SGX_AESGCM_KEY_SIZE];
-pub type sgx_aes_gcm_128bit_tag_t   = [uint8_t; SGX_AESGCM_MAC_SIZE];
-pub type sgx_hmac_256bit_key_t      = [uint8_t; SGX_HMAC256_KEY_SIZE];
-pub type sgx_hmac_256bit_tag_t      = [uint8_t; SGX_HMAC256_MAC_SIZE];
-pub type sgx_cmac_128bit_key_t      = [uint8_t; SGX_CMAC_KEY_SIZE];
-pub type sgx_cmac_128bit_tag_t      = [uint8_t; SGX_CMAC_MAC_SIZE];
-pub type sgx_aes_ctr_128bit_key_t   = [uint8_t; SGX_AESCTR_KEY_SIZE];
+pub type sgx_aes_gcm_128bit_key_t = [uint8_t; SGX_AESGCM_KEY_SIZE];
+pub type sgx_aes_gcm_128bit_tag_t = [uint8_t; SGX_AESGCM_MAC_SIZE];
+pub type sgx_hmac_256bit_key_t = [uint8_t; SGX_HMAC256_KEY_SIZE];
+pub type sgx_hmac_256bit_tag_t = [uint8_t; SGX_HMAC256_MAC_SIZE];
+pub type sgx_cmac_128bit_key_t = [uint8_t; SGX_CMAC_KEY_SIZE];
+pub type sgx_cmac_128bit_tag_t = [uint8_t; SGX_CMAC_MAC_SIZE];
+pub type sgx_aes_ctr_128bit_key_t = [uint8_t; SGX_AESCTR_KEY_SIZE];
 
 impl_enum! {
     #[repr(u32)]
@@ -716,24 +716,24 @@ impl_enum! {
 }
 
 /* intel sgx sdk 2.1.3 */
-pub const N_SIZE_IN_BYTES: size_t     = 384;
-pub const E_SIZE_IN_BYTES: size_t     = 4;
-pub const D_SIZE_IN_BYTES: size_t     = 384;
-pub const P_SIZE_IN_BYTES: size_t     = 192;
-pub const Q_SIZE_IN_BYTES: size_t     = 192;
-pub const DMP1_SIZE_IN_BYTES: size_t  = 192;
-pub const DMQ1_SIZE_IN_BYTES: size_t  = 192;
-pub const IQMP_SIZE_IN_BYTES: size_t  = 192;
+pub const N_SIZE_IN_BYTES: size_t = 384;
+pub const E_SIZE_IN_BYTES: size_t = 4;
+pub const D_SIZE_IN_BYTES: size_t = 384;
+pub const P_SIZE_IN_BYTES: size_t = 192;
+pub const Q_SIZE_IN_BYTES: size_t = 192;
+pub const DMP1_SIZE_IN_BYTES: size_t = 192;
+pub const DMQ1_SIZE_IN_BYTES: size_t = 192;
+pub const IQMP_SIZE_IN_BYTES: size_t = 192;
 
 /* intel sgx sdk 2.1.3 */
-pub const N_SIZE_IN_UINT: size_t      = N_SIZE_IN_BYTES / 4;
-pub const E_SIZE_IN_UINT: size_t      = E_SIZE_IN_BYTES / 4;
-pub const D_SIZE_IN_UINT: size_t      = D_SIZE_IN_BYTES / 4;
-pub const P_SIZE_IN_UINT: size_t      = P_SIZE_IN_BYTES / 4;
-pub const Q_SIZE_IN_UINT: size_t      = Q_SIZE_IN_BYTES / 4;
-pub const DMP1_SIZE_IN_UINT: size_t   = DMP1_SIZE_IN_BYTES / 4;
-pub const DMQ1_SIZE_IN_UINT: size_t   = DMQ1_SIZE_IN_BYTES / 4;
-pub const IQMP_SIZE_IN_UINT: size_t   = IQMP_SIZE_IN_BYTES / 4;
+pub const N_SIZE_IN_UINT: size_t = N_SIZE_IN_BYTES / 4;
+pub const E_SIZE_IN_UINT: size_t = E_SIZE_IN_BYTES / 4;
+pub const D_SIZE_IN_UINT: size_t = D_SIZE_IN_BYTES / 4;
+pub const P_SIZE_IN_UINT: size_t = P_SIZE_IN_BYTES / 4;
+pub const Q_SIZE_IN_UINT: size_t = Q_SIZE_IN_BYTES / 4;
+pub const DMP1_SIZE_IN_UINT: size_t = DMP1_SIZE_IN_BYTES / 4;
+pub const DMQ1_SIZE_IN_UINT: size_t = DMQ1_SIZE_IN_BYTES / 4;
+pub const IQMP_SIZE_IN_UINT: size_t = IQMP_SIZE_IN_BYTES / 4;
 
 pub type sgx_rsa_key_t = *mut c_void;
 
@@ -787,10 +787,20 @@ pub struct sgx_thread_mutex_t {
     pub m_queue: sgx_thread_queue_t,
 }
 
-pub const SGX_THREAD_T_NULL: sgx_thread_t   = 0 ;
+#[repr(C)]
+pub struct sgx_thread_rwlock_t {
+    pub m_reader_count: uint32_t,
+    pub m_writers_waiting: uint32_t,
+    pub m_lock: uint32_t,
+    pub m_owner: sgx_thread_t,
+    pub m_reader_queue: sgx_thread_queue_t,
+    pub m_writer_queue: sgx_thread_queue_t,
+}
+
+pub const SGX_THREAD_T_NULL: sgx_thread_t = 0;
 
 pub const SGX_THREAD_MUTEX_NONRECURSIVE: uint32_t = 0x01;
-pub const SGX_THREAD_MUTEX_RECURSIVE: uint32_t    = 0x02;
+pub const SGX_THREAD_MUTEX_RECURSIVE: uint32_t = 0x02;
 
 pub const SGX_THREAD_NONRECURSIVE_MUTEX_INITIALIZER: sgx_thread_mutex_t = sgx_thread_mutex_t {
     m_refcount: 0,
@@ -799,9 +809,9 @@ pub const SGX_THREAD_NONRECURSIVE_MUTEX_INITIALIZER: sgx_thread_mutex_t = sgx_th
     m_owner: SGX_THREAD_T_NULL,
     m_queue: sgx_thread_queue_t {
         m_first: SGX_THREAD_T_NULL,
-        m_last: SGX_THREAD_T_NULL
-        }
-    };
+        m_last: SGX_THREAD_T_NULL,
+    },
+};
 
 pub const SGX_THREAD_RECURSIVE_MUTEX_INITIALIZER: sgx_thread_mutex_t = sgx_thread_mutex_t {
     m_refcount: 0,
@@ -810,14 +820,34 @@ pub const SGX_THREAD_RECURSIVE_MUTEX_INITIALIZER: sgx_thread_mutex_t = sgx_threa
     m_owner: SGX_THREAD_T_NULL,
     m_queue: sgx_thread_queue_t {
         m_first: SGX_THREAD_T_NULL,
-        m_last: SGX_THREAD_T_NULL
-        }
-    };
+        m_last: SGX_THREAD_T_NULL,
+    },
+};
 
-pub const SGX_THREAD_MUTEX_INITIALIZER: sgx_thread_mutex_t = SGX_THREAD_NONRECURSIVE_MUTEX_INITIALIZER;
+pub const SGX_THREAD_MUTEX_INITIALIZER: sgx_thread_mutex_t =
+    SGX_THREAD_NONRECURSIVE_MUTEX_INITIALIZER;
+
+pub const SGX_THREAD_LOCK_INITIALIZER: sgx_thread_rwlock_t = sgx_thread_rwlock_t {
+    m_reader_count: 0,
+    m_writers_waiting: 0,
+    m_lock: 0,
+    m_owner: SGX_THREAD_T_NULL,
+    m_reader_queue: sgx_thread_queue_t {
+        m_first: SGX_THREAD_T_NULL,
+        m_last: SGX_THREAD_T_NULL,
+    },
+    m_writer_queue: sgx_thread_queue_t {
+        m_first: SGX_THREAD_T_NULL,
+        m_last: SGX_THREAD_T_NULL,
+    },
+};
 
 impl_struct! {
     pub struct sgx_thread_mutex_attr_t {
+        pub m_dummy: c_uchar,
+    }
+
+    pub struct sgx_thread_rwlockattr_t {
         pub m_dummy: c_uchar,
     }
 
@@ -836,25 +866,27 @@ pub const SGX_THREAD_COND_INITIALIZER: sgx_thread_cond_t = sgx_thread_cond_t {
     m_lock: 0,
     m_queue: sgx_thread_queue_t {
         m_first: SGX_THREAD_T_NULL,
-        m_last: SGX_THREAD_T_NULL
-    }
+        m_last: SGX_THREAD_T_NULL,
+    },
 };
 
 //
 // sgx_tkey_exchange.h
 //
-pub type sgx_ra_derive_secret_keys_t = extern "C" fn(p_shared_key: *const sgx_ec256_dh_shared_t,
-                                                     kdf_id: uint16_t,
-                                                     p_smk_key: *mut sgx_ec_key_128bit_t,
-                                                     p_sk_key: *mut sgx_ec_key_128bit_t,
-                                                     p_mk_key: *mut sgx_ec_key_128bit_t,
-                                                     p_vk_key: *mut sgx_ec_key_128bit_t) -> sgx_status_t;
+pub type sgx_ra_derive_secret_keys_t = extern "C" fn(
+    p_shared_key: *const sgx_ec256_dh_shared_t,
+    kdf_id: uint16_t,
+    p_smk_key: *mut sgx_ec_key_128bit_t,
+    p_sk_key: *mut sgx_ec_key_128bit_t,
+    p_mk_key: *mut sgx_ec_key_128bit_t,
+    p_vk_key: *mut sgx_ec_key_128bit_t,
+) -> sgx_status_t;
 
 //
 // sgx_trts_exception.h
 //
-pub const EXCEPTION_CONTINUE_SEARCH: int32_t      = 0;
-pub const EXCEPTION_CONTINUE_EXECUTION: int32_t   = -1;
+pub const EXCEPTION_CONTINUE_SEARCH: int32_t = 0;
+pub const EXCEPTION_CONTINUE_EXECUTION: int32_t = -1;
 
 impl_enum! {
     #[repr(u32)]
@@ -874,7 +906,7 @@ impl_enum! {
     }
 }
 
-impl_enum!{
+impl_enum! {
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq)]
     pub enum sgx_exception_type_t {
@@ -938,8 +970,8 @@ pub type sgx_exception_handler_t = extern "C" fn(info: *mut sgx_exception_info_t
 //
 // sgx_tseal.h
 //
-pub const SGX_SEAL_TAG_SIZE: size_t  = SGX_AESGCM_MAC_SIZE;
-pub const SGX_SEAL_IV_SIZE: size_t   = 12;
+pub const SGX_SEAL_TAG_SIZE: size_t = SGX_AESGCM_MAC_SIZE;
+pub const SGX_SEAL_IV_SIZE: size_t = 12;
 
 impl_struct! {
     pub struct sgx_aes_gcm_data_t {
@@ -960,8 +992,8 @@ impl_struct! {
 //
 // sgx_uae_platform.h
 //
-pub const PS_CAP_TRUSTED_TIME: size_t        = 0x1;
-pub const PS_CAP_MONOTONIC_COUNTER: size_t   = 0x2;
+pub const PS_CAP_TRUSTED_TIME: size_t = 0x1;
+pub const PS_CAP_MONOTONIC_COUNTER: size_t = 0x2;
 
 impl_struct! {
     pub struct sgx_ps_cap_t {
@@ -973,26 +1005,32 @@ impl_struct! {
 //
 // sgx_ukey_exchange.h
 //
-pub type sgx_ecall_get_ga_trusted_t = unsafe extern "C" fn(eid: sgx_enclave_id_t,
-                                                           retval: *mut sgx_status_t,
-                                                           context: sgx_ra_context_t,
-                                                           g_a: *mut sgx_ec256_public_t) -> sgx_status_t;
+pub type sgx_ecall_get_ga_trusted_t = unsafe extern "C" fn(
+    eid: sgx_enclave_id_t,
+    retval: *mut sgx_status_t,
+    context: sgx_ra_context_t,
+    g_a: *mut sgx_ec256_public_t,
+) -> sgx_status_t;
 
-pub type sgx_ecall_proc_msg2_trusted_t = unsafe extern "C" fn(eid: sgx_enclave_id_t,
-                                                              retval: *mut sgx_status_t,
-                                                              context: sgx_ra_context_t,
-                                                              p_msg2: *const sgx_ra_msg2_t,
-                                                              p_qe_target: *const sgx_target_info_t,
-                                                              p_report: *mut sgx_report_t,
-                                                              nonce: *mut sgx_quote_nonce_t) -> sgx_status_t;
+pub type sgx_ecall_proc_msg2_trusted_t = unsafe extern "C" fn(
+    eid: sgx_enclave_id_t,
+    retval: *mut sgx_status_t,
+    context: sgx_ra_context_t,
+    p_msg2: *const sgx_ra_msg2_t,
+    p_qe_target: *const sgx_target_info_t,
+    p_report: *mut sgx_report_t,
+    nonce: *mut sgx_quote_nonce_t,
+) -> sgx_status_t;
 
-pub type sgx_ecall_get_msg3_trusted_t = unsafe extern "C" fn(eid: sgx_enclave_id_t,
-                                                             retval: *mut sgx_status_t,
-                                                             context: sgx_ra_context_t,
-                                                             quote_size: uint32_t,
-                                                             qe_report: *mut sgx_report_t,
-                                                             p_msg3: *mut sgx_ra_msg3_t,
-                                                             msg3_size: uint32_t) -> sgx_status_t;
+pub type sgx_ecall_get_msg3_trusted_t = unsafe extern "C" fn(
+    eid: sgx_enclave_id_t,
+    retval: *mut sgx_status_t,
+    context: sgx_ra_context_t,
+    quote_size: uint32_t,
+    qe_report: *mut sgx_report_t,
+    p_msg3: *mut sgx_ra_msg3_t,
+    msg3_size: uint32_t,
+) -> sgx_status_t;
 
 //
 // sgx_urts.h
@@ -1004,13 +1042,15 @@ pub const MAX_EX_FEATURES_COUNT: size_t = 32;
 pub const SGX_CREATE_ENCLAVE_EX_PCL_BIT_IDX: size_t = 0;
 pub const SGX_CREATE_ENCLAVE_EX_PCL: uint32_t = 1 << SGX_CREATE_ENCLAVE_EX_PCL_BIT_IDX as uint32_t;
 pub const SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX: size_t = 1;
-pub const SGX_CREATE_ENCLAVE_EX_SWITCHLESS: uint32_t = 1 << SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX as uint32_t;
+pub const SGX_CREATE_ENCLAVE_EX_SWITCHLESS: uint32_t =
+    1 << SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX as uint32_t;
 /* intel sgx sdk 2.4 */
 pub const SGX_CREATE_ENCLAVE_EX_KSS_BIT_IDX: size_t = 2;
 pub const SGX_CREATE_ENCLAVE_EX_KSS: uint32_t = 1 << SGX_CREATE_ENCLAVE_EX_KSS_BIT_IDX as uint32_t;
 
 pub const _SGX_LAST_EX_FEATURE_IDX_: uint32_t = SGX_CREATE_ENCLAVE_EX_KSS_BIT_IDX as uint32_t;
-pub const _SGX_EX_FEATURES_MASK_: uint32_t = 0xFFFF_FFFF_u32 >> (MAX_EX_FEATURES_COUNT as uint32_t - 1 - _SGX_LAST_EX_FEATURE_IDX_);
+pub const _SGX_EX_FEATURES_MASK_: uint32_t =
+    0xFFFF_FFFF_u32 >> (MAX_EX_FEATURES_COUNT as uint32_t - 1 - _SGX_LAST_EX_FEATURE_IDX_);
 
 /* intel sgx sdk 2.4 */
 impl_copy_clone! {
@@ -1034,8 +1074,8 @@ impl_struct_ContiguousMemory! {
 //
 pub const ENCLAVE_INIT_NOT_STARTED: uint32_t = 0;
 pub const ENCLAVE_INIT_IN_PROGRESS: uint32_t = 1;
-pub const ENCLAVE_INIT_DONE: uint32_t        = 2;
-pub const ENCLAVE_CRASHED: uint32_t          = 3;
+pub const ENCLAVE_INIT_DONE: uint32_t = 2;
+pub const ENCLAVE_CRASHED: uint32_t = 3;
 
 //
 // sgx_cpuid.h
@@ -1054,13 +1094,12 @@ pub type sgx_cpuinfo_t = [int32_t; 4];
 //    }
 //}
 
-
 //
 // sgx_tprotected_fs.h
 //
 pub type SGX_FILE = *mut c_void;
 pub const FILENAME_MAX: c_uint = 260; //define in sgx_tprotected_fs.h
-pub const FOPEN_MAX: c_uint = 20;     //define in sgx_tprotected_fs.h
+pub const FOPEN_MAX: c_uint = 20; //define in sgx_tprotected_fs.h
 
 /* intel sgx sdk 2.0 */
 //
@@ -1085,10 +1124,10 @@ impl_enum! {
 //
 // sgx_pcl_guid.h
 //
-pub const SGX_PCL_GUID_SIZE: size_t   = 16;
-pub const SGX_PCL_GUID: [uint8_t; SGX_PCL_GUID_SIZE] =
-    [0x95, 0x48, 0x6e, 0x8f, 0x8f, 0x4a, 0x41, 0x4f, 0xb1, 0x27, 0x46, 0x21, 0xa8, 0x59, 0xa8, 0xac];
-
+pub const SGX_PCL_GUID_SIZE: size_t = 16;
+pub const SGX_PCL_GUID: [uint8_t; SGX_PCL_GUID_SIZE] = [
+    0x95, 0x48, 0x6e, 0x8f, 0x8f, 0x4a, 0x41, 0x4f, 0xb1, 0x27, 0x46, 0x21, 0xa8, 0x59, 0xa8, 0xac,
+];
 
 /* intel sgx sdk 2.2 */
 //
@@ -1122,9 +1161,11 @@ impl_struct! {
     }
 }
 
-pub type sgx_uswitchless_worker_callback_t = extern "C" fn(worker_type: sgx_uswitchless_worker_type_t,
-                                                           worker_event: sgx_uswitchless_worker_event_t,
-                                                           worker_stats: *const sgx_uswitchless_worker_stats_t);
+pub type sgx_uswitchless_worker_callback_t = extern "C" fn(
+    worker_type: sgx_uswitchless_worker_type_t,
+    worker_event: sgx_uswitchless_worker_event_t,
+    worker_stats: *const sgx_uswitchless_worker_stats_t,
+);
 
 pub const SL_DEFAULT_FALLBACK_RETRIES: uint32_t = 20000;
 pub const SL_DEFAULT_SLEEP_RETRIES: uint32_t = 20000;
@@ -1145,7 +1186,7 @@ pub struct sgx_uswitchless_config_t {
 
 impl Default for sgx_uswitchless_config_t {
     fn default() -> sgx_uswitchless_config_t {
-        let mut config: sgx_uswitchless_config_t = unsafe{ core::mem::zeroed() };
+        let mut config: sgx_uswitchless_config_t = unsafe { core::mem::zeroed() };
         config.num_uworkers = 1;
         config.num_tworkers = 1;
         config
@@ -1221,20 +1262,20 @@ pub struct sgx_ql_config_t {
 
 #[repr(C)]
 pub struct sgx_ql_qve_collateral_t {
-    pub version: uint32_t,                  // version = 1.  PCK Cert chain is in the Quote.
+    pub version: uint32_t, // version = 1.  PCK Cert chain is in the Quote.
     pub pck_crl_issuer_chain: *mut char,
     pub pck_crl_issuer_chain_size: uint32_t,
-    pub root_ca_crl: *mut char,            // Root CA CRL
+    pub root_ca_crl: *mut char, // Root CA CRL
     pub root_ca_crl_size: uint32_t,
-    pub pck_crl: *mut char,                // PCK Cert CRL
+    pub pck_crl: *mut char, // PCK Cert CRL
     pub pck_crl_size: uint32_t,
     pub tcb_info_issuer_chain: *mut char,
     pub tcb_info_issuer_chain_size: uint32_t,
-    pub tcb_info: *mut char,               // TCB Info structure
+    pub tcb_info: *mut char, // TCB Info structure
     pub tcb_info_size: uint32_t,
     pub qe_identity_issuer_chain: *mut char,
     pub qe_identity_issuer_chain_size: uint32_t,
-    pub qe_identity: *mut char,            // QE Identity Structure
+    pub qe_identity: *mut char, // QE Identity Structure
     pub qe_identity_size: uint32_t,
 }
 
@@ -1379,61 +1420,61 @@ impl_enum! {
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq)]
     pub enum sgx_ql_path_type_t {
-        SGX_QL_QE3_PATH  = 0,
-        SGX_QL_PCE_PATH  = 1,
-        SGX_QL_QPL_PATH  = 2,
+        SGX_QL_QE3_PATH = 0,
+        SGX_QL_PCE_PATH = 1,
+        SGX_QL_QPL_PATH = 2,
     }
 }
-
 
 //
 // qve_header.h
 //
-// latest_issue_date and earliest_expiration_date is as of DCAP_1.5
+
+pub const ROOT_KEY_ID_SIZE: usize = 48;
+pub const PLATFORM_INSTANCE_ID_SIZE: usize = 16;
+
+/* intel DCAP 1.7 */
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq)]
+    pub enum pck_cert_flag_enum_t {
+        PCK_FLAG_FALSE = 0,
+        PCK_FLAG_TRUE = 1,
+        PCK_FLAG_UNDEFINED = 2,
+    }
+}
+
 impl_copy_clone! {
     pub struct sgx_ql_qv_supplemental_t {
         pub version: uint32_t,
-
         pub earliest_issue_date: time_t,
         pub latest_issue_date: time_t,
         pub earliest_expiration_date: time_t,
         pub tcb_level_date_tag: time_t,
-
         pub pck_crl_num: uint32_t,
         pub root_ca_crl_num: uint32_t,
         pub tcb_eval_ref_num: uint32_t,
-        pub root_key_id: [uint8_t; 48],
+        pub root_key_id: [uint8_t; ROOT_KEY_ID_SIZE],
         pub pck_ppid: sgx_key_128bit_t,
         pub tcb_cpusvn: sgx_cpu_svn_t,
         pub tcb_pce_isvsvn: sgx_isv_svn_t,
         pub pce_id: uint16_t,
+        /* intel DCAP 1.7 */
+        pub sgx_type: uint8_t,
+
+        pub platform_instance_id: [uint8_t; PLATFORM_INSTANCE_ID_SIZE],
+        pub dynamic_platform: pck_cert_flag_enum_t,
+        pub cached_keys: pck_cert_flag_enum_t,
+        pub smt_enabled: pck_cert_flag_enum_t,
     }
 }
 
 impl_struct_default! {
-    sgx_ql_qv_supplemental_t; //104
+    sgx_ql_qv_supplemental_t; //168
 }
 
 impl_struct_ContiguousMemory! {
     sgx_ql_qv_supplemental_t;
-}
-
-impl_enum! {
-    #[repr(u32)]
-    #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
-    pub enum sgx_ql_qv_result_t {
-        SGX_QL_QV_RESULT_OK                                 = 0x0000_0000,
-        // SGX_QL_QV_RESULT_MIN                             = 0x0000_A001,
-        SGX_QL_QV_RESULT_CONFIG_NEEDED                      = 0x0000_A001,
-        SGX_QL_QV_RESULT_OUT_OF_DATE                        = 0x0000_A002,
-        SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED          = 0x0000_A003,
-        SGX_QL_QV_RESULT_INVALID_SIGNATURE                  = 0x0000_A004,
-        SGX_QL_QV_RESULT_REVOKED                            = 0x0000_A005,
-        SGX_QL_QV_RESULT_UNSPECIFIED                        = 0x0000_A006,
-        SGX_QL_QV_RESULT_SW_HARDENING_NEEDED                = 0x0000_A007,
-        SGX_QL_QV_RESULT_CONFIG_AND_SW_HARDENING_NEEDED     = 0x0000_A008,
-        SGX_QL_QV_RESULT_MAX                                = 0x0000_A0FF,
-    }
 }
 
 /* intel DCAP 1.6 */
@@ -1518,7 +1559,7 @@ unsafe impl ContiguousMemory for sgx_align_ec256_private_t {}
 //
 // sgx_rsrv_mem_mngr.h
 //
-pub const SGX_PROT_READ:  uint32_t = 0x1; /* page can be read */
+pub const SGX_PROT_READ: uint32_t = 0x1; /* page can be read */
 pub const SGX_PROT_WRITE: uint32_t = 0x2; /* page can be written */
-pub const SGX_PROT_EXEC:  uint32_t = 0x4; /* page can be executed */
-pub const SGX_PROT_NONE:  uint32_t = 0x0; /* page can not be accessed */
+pub const SGX_PROT_EXEC: uint32_t = 0x4; /* page can be executed */
+pub const SGX_PROT_NONE: uint32_t = 0x0; /* page can not be accessed */

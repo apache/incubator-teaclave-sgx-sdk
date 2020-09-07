@@ -26,7 +26,6 @@
 #[macro_export]
 macro_rules! global_ctors_object {
     ($var_name:ident, $func_name:ident = $func:block) => {
-
         cfg_if! {
             if #[cfg(target_os = "linux")] {
                 #[link_section = ".init_array"]
@@ -44,15 +43,16 @@ macro_rules! global_ctors_object {
         }
         #[no_mangle]
         pub fn $func_name() {
-            {$func};
+            {
+                $func
+            };
         }
-    }
+    };
 }
 
 #[macro_export]
 macro_rules! global_dtors_object {
     ($var_name:ident, $func_name:ident = $func:block) => {
-
         cfg_if! {
             if #[cfg(target_os = "linux")] {
                 #[link_section = ".fini_array"]
@@ -70,7 +70,9 @@ macro_rules! global_dtors_object {
         }
         #[no_mangle]
         pub fn $func_name() {
-            {$func};
+            {
+                $func
+            };
         }
-    }
+    };
 }

@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_types::*;
 use sgx_tcrypto::*;
+use sgx_types::*;
 
 pub const EC_LABEL_LENGTH: usize = 3;
 pub const EC_SMK_LABEL: [u8; EC_LABEL_LENGTH] = [0x53, 0x4D, 0x4B];
@@ -58,4 +58,3 @@ fn set_error(sgx_ret: sgx_status_t) -> sgx_status_t {
         _ => sgx_status_t::SGX_ERROR_UNEXPECTED,
     }
 }
-

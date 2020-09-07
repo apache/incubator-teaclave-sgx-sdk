@@ -14,19 +14,19 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License..
-#[allow(deprecated)]
-use std::sync::{SgxThreadMutex, SgxMutex};
-use std::sync::Arc;
-use std::collections::{HashSet, HashMap, BTreeMap};
+use sgx_libc::{c_int, c_void};
+use sgx_libc::{
+    sigaction, sigaddset, sigdelset, sigemptyset, sigfillset, siginfo_t, sigismember, sigset_t,
+};
+use sgx_libc::{NSIG, SA_SIGINFO, SIGRTMAX};
 use std::cell::Cell;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::mem;
 use std::num::NonZeroU64;
+use std::sync::Arc;
+#[allow(deprecated)]
+use std::sync::{SgxMutex, SgxThreadMutex};
 use std::u64;
-use sgx_libc::{c_int, c_void};
-use sgx_libc::{SA_SIGINFO, SIGRTMAX, NSIG};
-use sgx_libc::{siginfo_t, sigset_t, sigemptyset,
-               sigaction, sigfillset, sigismember,
-               sigaddset, sigdelset};
 
 thread_local! { static SIGNAL_MASK: Cell<SigSet> = Cell::new(SigSet::new()) }
 
@@ -34,7 +34,6 @@ thread_local! { static SIGNAL_MASK: Cell<SigSet> = Cell::new(SigSet::new()) }
 pub struct SigNum(i32);
 
 impl SigNum {
-    // add code here
     pub fn from_raw(signo: i32) -> Option<SigNum> {
         if signo <= 0 || signo >= NSIG {
             None
@@ -47,13 +46,14 @@ impl SigNum {
         SigNum(signo)
     }
 
-    pub fn raw(&self) -> i32 { self.0 }
+    pub fn raw(&self) -> i32 {
+        self.0
+    }
 }
 #[derive(Copy, Clone)]
 pub struct SigSet(sigset_t);
 
 impl SigSet {
-    // add code here
     pub fn new() -> SigSet {
         let set = unsafe {
             let mut set: sigset_t = mem::zeroed();
@@ -62,9 +62,12 @@ impl SigSet {
         };
         SigSet(set)
     }
+
     #[allow(dead_code)]
     pub fn empty(&mut self) {
-        unsafe { sigemptyset(&mut self.0 as *mut sigset_t); }
+        unsafe {
+            sigemptyset(&mut self.0 as *mut sigset_t);
+        }
     }
 
     pub fn add(&mut self, signo: SigNum) -> bool {
@@ -76,7 +79,9 @@ impl SigSet {
     }
 
     pub fn fill(&mut self) {
-        unsafe { sigfillset(&mut self.0 as *mut sigset_t); }
+        unsafe {
+            sigfillset(&mut self.0 as *mut sigset_t);
+        }
     }
 
     pub fn is_member(&self, signo: SigNum) -> bool {
@@ -106,7 +111,7 @@ impl SigSet {
 pub fn block(set: &SigSet) {
     let mut old_mask = get_block_mask();
     for num in 0..SIGRTMAX {
-        let signo = unsafe { SigNum::from_raw_uncheck(num)};
+        let signo = unsafe { SigNum::from_raw_uncheck(num) };
         if set.is_member(signo) {
             old_mask.add(signo);
         }
@@ -127,12 +132,12 @@ pub fn unblock(set: &SigSet) {
 
 #[inline]
 pub fn get_block_mask() -> SigSet {
-    SIGNAL_MASK.with(|s|s.get())
+    SIGNAL_MASK.with(|s| s.get())
 }
 
 #[inline]
 pub fn set_block_mask(set: SigSet) {
-    SIGNAL_MASK.with(|s|s.set(set));
+    SIGNAL_MASK.with(|s| s.set(set));
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -190,7 +195,6 @@ pub struct SignalManager {
 }
 
 impl SignalManager {
-    // add code here
     pub fn new() -> Self {
         SignalManager {
             action_set: SgxMutex::new(HashMap::new()),
@@ -200,52 +204,41 @@ impl SignalManager {
 
     pub fn set_action(&self, signo: SigNum, act: &sigaction) {
         self.action_set
-        .lock()
-        .unwrap()
-        .insert(signo, ActionSlot::new(act));
+            .lock()
+            .unwrap()
+            .insert(signo, ActionSlot::new(act));
     }
 
     pub fn set_action_impl<F>(&self, signo: SigNum, act: &sigaction, action: Arc<F>) -> ActionId
     where
         F: Fn(&siginfo_t) + Sync + Send + 'static,
     {
-        let action_id = if !self.action_set
-                                .lock()
-                                .unwrap()
-                                .contains_key(&signo) {
+        let action_id = if !self.action_set.lock().unwrap().contains_key(&signo) {
             let mut slot = ActionSlot::new(act);
             let id = slot.set(action);
-            self.action_set
-                .lock()
-                .unwrap()
-                .insert(signo, slot);
+            self.action_set.lock().unwrap().insert(signo, slot);
             id
         } else {
             self.action_set
                 .lock()
                 .unwrap()
                 .get_mut(&signo)
-                .map(|slot|slot.set(action)).unwrap()
+                .map(|slot| slot.set(action))
+                .unwrap()
         };
         action_id
     }
 
     pub fn get_action(&self, signo: SigNum) -> Option<ActionSlot> {
-        if let Some(slot) = self.action_set
-            .lock()
-            .unwrap()
-            .get(&signo) {
+        if let Some(slot) = self.action_set.lock().unwrap().get(&signo) {
             Some(slot.clone())
         } else {
             None
         }
     }
 
-    pub fn remove_action(&self, signo: SigNum, id: ActionId)  -> bool {
-        if let Some(ref mut slot) = self.action_set
-            .lock()
-            .unwrap()
-            .get_mut(&signo) {
+    pub fn remove_action(&self, signo: SigNum, id: ActionId) -> bool {
+        if let Some(ref mut slot) = self.action_set.lock().unwrap().get_mut(&signo) {
             slot.remove(id)
         } else {
             false
@@ -253,32 +246,19 @@ impl SignalManager {
     }
 
     pub fn clear_action(&self, signo: SigNum) -> bool {
-        self.action_set
-            .lock()
-            .unwrap()
-            .remove(&signo)
-            .is_some()
+        self.action_set.lock().unwrap().remove(&signo).is_some()
     }
 
     pub fn is_action_empty(&self) -> bool {
-        self.action_set
-            .lock()
-            .unwrap()
-            .is_empty()
+        self.action_set.lock().unwrap().is_empty()
     }
 
     pub fn set_reset_on_handle(&self, signo: SigNum) {
-        self.reset_set
-            .lock()
-            .unwrap()
-            .insert(signo);
+        self.reset_set.lock().unwrap().insert(signo);
     }
 
     pub fn is_reset_on_handle(&self, signo: SigNum) -> bool {
-        self.reset_set
-            .lock()
-            .unwrap()
-            .contains(&signo)
+        self.reset_set.lock().unwrap().contains(&signo)
     }
 
     pub unsafe fn handler(&self, signum: i32, info: *const siginfo_t, context: *const c_void) {
@@ -304,10 +284,12 @@ impl SignalManager {
         block(&SigSet::from_raw(act.sa_mask));
         let is_siginfo: bool = (act.sa_flags & SA_SIGINFO) != 0;
         if is_siginfo && (act.sa_sigaction != 0) {
-            let fn_sa_sigaction = mem::transmute::<*const(), FnSaSigaction>(act.sa_sigaction as *const());
+            let fn_sa_sigaction =
+                mem::transmute::<*const (), FnSaSigaction>(act.sa_sigaction as *const ());
             fn_sa_sigaction(signo.raw(), info, context);
         } else if !is_siginfo && (act.sa_sigaction != 0) {
-            let fn_sa_handler = mem::transmute::<*const(), FnSaHandler>(act.sa_sigaction as *const());
+            let fn_sa_handler =
+                mem::transmute::<*const (), FnSaHandler>(act.sa_sigaction as *const ());
             fn_sa_handler(signo.raw());
         }
 

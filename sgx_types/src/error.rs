@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use core::result;
-use core::fmt;
 use crate::int32_t;
+use core::fmt;
+use core::result;
 
 //
 // sgx_error.h
@@ -298,9 +298,9 @@ impl sgx_status_t {
             sgx_status_t::SGX_ERROR_WASM_BUFFER_TOO_SHORT => "SGX_ERROR_WASM_BUFFER_TOO_SHORT",
             sgx_status_t::SGX_ERROR_WASM_INTERPRETER_ERROR => "SGX_ERROR_WASM_INTERPRETER_ERROR",
             sgx_status_t::SGX_ERROR_WASM_LOAD_MODULE_ERROR => "SGX_ERROR_WASM_LOAD_MODULE_ERROR",
-            sgx_status_t::SGX_ERROR_WASM_TRY_LOAD_ERROR    => "SGX_ERROR_WASM_TRY_LOAD_ERROR",
-            sgx_status_t::SGX_ERROR_WASM_REGISTER_ERROR    => "SGX_ERROR_WASM_REGISTER_ERROR",
-            sgx_status_t::SGX_ERROR_FAAS_BUFFER_TOO_SHORT   => "SGX_ERROR_FAAS_BUFFER_TOO_SHORT",
+            sgx_status_t::SGX_ERROR_WASM_TRY_LOAD_ERROR => "SGX_ERROR_WASM_TRY_LOAD_ERROR",
+            sgx_status_t::SGX_ERROR_WASM_REGISTER_ERROR => "SGX_ERROR_WASM_REGISTER_ERROR",
+            sgx_status_t::SGX_ERROR_FAAS_BUFFER_TOO_SHORT => "SGX_ERROR_FAAS_BUFFER_TOO_SHORT",
             sgx_status_t::SGX_ERROR_FAAS_INTERNAL_ERROR => "SGX_ERROR_FAAS_INTERNAL_ERROR",
         }
     }
@@ -311,7 +311,6 @@ impl fmt::Display for sgx_status_t {
         write!(f, "{}", self.as_str())
     }
 }
-
 
 impl_enum! {
     #[repr(u32)]
@@ -364,7 +363,6 @@ impl fmt::Display for sgx_pce_error_t {
         write!(f, "{}", self.as_str())
     }
 }
-
 
 impl_enum! {
     #[repr(u32)]
@@ -443,6 +441,9 @@ impl_enum! {
         SGX_QL_PERSISTENT_STORAGE_ERROR                     = 0x0000_E045,
         SGX_QL_ERROR_MESSAGE_PARSING_ERROR                  = 0x0000_E046,
         SGX_QL_PLATFORM_UNKNOWN                             = 0x0000_E047,
+        SGX_QL_QVEIDENTITY_MISMATCH                         = 0x0000_E050,
+        SGX_QL_QVE_OUT_OF_DATE                              = 0x0000_E051,
+        SGX_QL_PSW_NOT_AVAILABLE                            = 0x0000_E052,
         SGX_QL_ERROR_MAX                                    = 0x0000_E0FF,
     }
 }
@@ -522,6 +523,9 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_PERSISTENT_STORAGE_ERROR => "Error storing the retrieved cached data in persistent memory.",
             sgx_quote3_error_t::SGX_QL_ERROR_MESSAGE_PARSING_ERROR => "Message parsing error.",
             sgx_quote3_error_t::SGX_QL_PLATFORM_UNKNOWN => "Platform was not found in the cache",
+            sgx_quote3_error_t::SGX_QL_QVEIDENTITY_MISMATCH => "QvE Identity is NOT match to Intel signed QvE identity.",
+            sgx_quote3_error_t::SGX_QL_QVE_OUT_OF_DATE => "QvE ISVSVN is smaller then the ISVSVN threshold.",
+            sgx_quote3_error_t::SGX_QL_PSW_NOT_AVAILABLE => "SGX PSW library cannot be loaded, could be due to file I/O error.",
             sgx_quote3_error_t::SGX_QL_ERROR_MAX => "Indicate max error to allow better translation.",
         }
     }
@@ -600,6 +604,9 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_PERSISTENT_STORAGE_ERROR => "SGX_QL_PERSISTENT_STORAGE_ERROR",
             sgx_quote3_error_t::SGX_QL_ERROR_MESSAGE_PARSING_ERROR => "SGX_QL_ERROR_MESSAGE_PARSING_ERROR",
             sgx_quote3_error_t::SGX_QL_PLATFORM_UNKNOWN => "SGX_QL_PLATFORM_UNKNOWN",
+            sgx_quote3_error_t::SGX_QL_QVEIDENTITY_MISMATCH => "SGX_QL_QVEIDENTITY_MISMATCH",
+            sgx_quote3_error_t::SGX_QL_QVE_OUT_OF_DATE => "SGX_QL_QVE_OUT_OF_DATE",
+            sgx_quote3_error_t::SGX_QL_PSW_NOT_AVAILABLE => "SGX_QL_PSW_NOT_AVAILABLE",
             sgx_quote3_error_t::SGX_QL_ERROR_MAX => "SGX_QL_ERROR_MAX",
         }
     }
@@ -610,7 +617,6 @@ impl fmt::Display for sgx_quote3_error_t {
         write!(f, "{}", self.as_str())
     }
 }
-
 
 impl_enum! {
     #[repr(u32)]
@@ -686,6 +692,62 @@ impl sgx_qcnl_error_t {
 }
 
 impl fmt::Display for sgx_qcnl_error_t {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
+    pub enum sgx_ql_qv_result_t {
+        SGX_QL_QV_RESULT_OK                                 = 0x0000_0000,
+        // SGX_QL_QV_RESULT_MIN                             = 0x0000_A001,
+        SGX_QL_QV_RESULT_CONFIG_NEEDED                      = 0x0000_A001,
+        SGX_QL_QV_RESULT_OUT_OF_DATE                        = 0x0000_A002,
+        SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED          = 0x0000_A003,
+        SGX_QL_QV_RESULT_INVALID_SIGNATURE                  = 0x0000_A004,
+        SGX_QL_QV_RESULT_REVOKED                            = 0x0000_A005,
+        SGX_QL_QV_RESULT_UNSPECIFIED                        = 0x0000_A006,
+        SGX_QL_QV_RESULT_SW_HARDENING_NEEDED                = 0x0000_A007,
+        SGX_QL_QV_RESULT_CONFIG_AND_SW_HARDENING_NEEDED     = 0x0000_A008,
+        SGX_QL_QV_RESULT_MAX                                = 0x0000_A0FF,
+    }
+}
+
+impl sgx_ql_qv_result_t {
+    pub fn __description(&self) -> &str {
+        match *self {
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_OK => "The Quote verification passed and is at the latest TCB level.",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_CONFIG_NEEDED => "The Quote verification passed and the platform is patched to the latest TCB level but additional configuration of the SGX platform may be needed.",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_OUT_OF_DATE => "The Quote is good but TCB level of the platform is out of date, The platform needs patching to be at the latest TCB level.",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED => "The Quote is good but the TCB level of the platform is out of date and additional configuration of the SGX Platform at its current patching level may be needed. The platform needs patching to be at the latest TCB level.",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_INVALID_SIGNATURE => "The signature over the application report is invalid.",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_REVOKED => "The attestation key or platform has been revoked.",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_UNSPECIFIED => "The Quote verification failed due to an error in one of the input.",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_SW_HARDENING_NEEDED => "The TCB level of the platform is up to date, but SGX SW Hardening is needed.",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_CONFIG_AND_SW_HARDENING_NEEDED => "The TCB level of the platform is up to date, but additional configuration of the platform at its current patching level may be needed. Moreove, SGX SW Hardening is also needed.",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_MAX => "Indicate max result to allow better translation.",
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        match *self {
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_OK => "SGX_QL_QV_RESULT_OK",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_CONFIG_NEEDED => "SGX_QL_QV_RESULT_CONFIG_NEEDED",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_OUT_OF_DATE => "SGX_QL_QV_RESULT_OUT_OF_DATE",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED => "SGX_QL_QV_RESULT_OUT_OF_DATE_CONFIG_NEEDED",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_INVALID_SIGNATURE => "SGX_QL_QV_RESULT_INVALID_SIGNATURE",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_REVOKED => "SGX_QL_QV_RESULT_REVOKED",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_UNSPECIFIED => "SGX_QL_QV_RESULT_UNSPECIFIED",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_SW_HARDENING_NEEDED => "SGX_QL_QV_RESULT_SW_HARDENING_NEEDED",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_CONFIG_AND_SW_HARDENING_NEEDED => "SGX_QL_QV_RESULT_CONFIG_AND_SW_HARDENING_NEEDED",
+            sgx_ql_qv_result_t::SGX_QL_QV_RESULT_MAX => "SGX_QL_QV_RESULT_MAX",
+        }
+    }
+}
+
+impl fmt::Display for sgx_ql_qv_result_t {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.as_str())
     }

@@ -18,16 +18,16 @@
 //! # align box crate for Rust SGX SDK
 //!
 
-use core::ptr::{Unique, NonNull};
-use core::ops::{DerefMut, Deref};
-use core::mem;
-use core::ptr;
-use core::fmt;
-use core::borrow;
-use core::alloc::Layout;
-use alloc::alloc::handle_alloc_error;
 use super::alignalloc::AlignAlloc;
 pub use super::alignalloc::AlignReq;
+use alloc::alloc::handle_alloc_error;
+use core::alloc::Layout;
+use core::borrow;
+use core::fmt;
+use core::mem;
+use core::ops::{Deref, DerefMut};
+use core::ptr;
+use core::ptr::{NonNull, Unique};
 
 pub struct AlignBox<T> {
     ptr: Unique<T>,
@@ -48,13 +48,13 @@ impl<T> Deref for AlignBox<T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        unsafe{self.ptr.as_ref()}
+        unsafe { self.ptr.as_ref() }
     }
 }
 
 impl<T> DerefMut for AlignBox<T> {
     fn deref_mut(&mut self) -> &mut T {
-       unsafe{self.ptr.as_mut()}
+        unsafe { self.ptr.as_mut() }
     }
 }
 
@@ -101,17 +101,21 @@ impl<T: Clone> Clone for AlignBox<T> {
     #[rustfmt::skip]
     #[inline]
     fn clone(&self) -> AlignBox<T> {
-        let ptr = match unsafe{AlignAlloc.alloc_with_pad_align_zeroed(self.origin_layout, self.align_layout)} {
+        let ptr = match unsafe {
+            AlignAlloc.alloc_with_pad_align_zeroed(self.origin_layout, self.align_layout)
+        } {
             Ok(p) => p,
             Err(_) => handle_alloc_error(self.align_layout),
         };
         unsafe {
-            ptr::copy_nonoverlapping(&(**self).clone() as *const _ as *const u8,
-                                     ptr.as_ptr(), 
-                                     self.origin_layout.size());
+            ptr::copy_nonoverlapping(
+                &(**self).clone() as *const _ as *const u8,
+                ptr.as_ptr(),
+                self.origin_layout.size(),
+            );
         }
         AlignBox {
-            ptr: ptr.cast().into(),
+            ptr: Unique::new(ptr.cast::<T>().as_ptr()).unwrap(),
             align_layout: self.align_layout,
             origin_layout: self.origin_layout,
         }
@@ -121,18 +125,20 @@ impl<T: Clone> Clone for AlignBox<T> {
     fn clone_from(&mut self, source: &AlignBox<T>) {
         if source.align_layout.size() != self.align_layout.size() {
             let ptr = match unsafe {
-                AlignAlloc.alloc_with_pad_align_zeroed(source.origin_layout, source.align_layout) 
+                AlignAlloc.alloc_with_pad_align_zeroed(source.origin_layout, source.align_layout)
             } {
                 Ok(p) => p,
                 Err(_) => handle_alloc_error(source.align_layout),
             };
             unsafe {
-                ptr::copy_nonoverlapping(&(**source).clone() as *const _ as *const u8,
-                                         ptr.as_ptr(),
-                                         source.origin_layout.size());
+                ptr::copy_nonoverlapping(
+                    &(**source).clone() as *const _ as *const u8,
+                    ptr.as_ptr(),
+                    source.origin_layout.size(),
+                );
                 self.dealloc_buffer();
             }
-            self.ptr = ptr.cast().into();
+            self.ptr = Unique::new(ptr.cast::<T>().as_ptr()).unwrap();
         } else {
             (**self).clone_from(&(**source));
         }
@@ -168,12 +174,18 @@ impl<T> AlignBox<T> {
     }
 
     fn new_with_align_in(align: usize) -> Option<AlignBox<T>> {
-        let v: [AlignReq; 1] = [AlignReq{ offset:0, len:mem::size_of::<T>() }];
+        let v: [AlignReq; 1] = [AlignReq {
+            offset: 0,
+            len: mem::size_of::<T>(),
+        }];
         AlignBox::allocate_in(true, align, &v)
     }
 
     fn new_in() -> Option<AlignBox<T>> {
-        let v: [AlignReq; 1] = [AlignReq{ offset: 0, len:mem::size_of::<T>() }];
+        let v: [AlignReq; 1] = [AlignReq {
+            offset: 0,
+            len: mem::size_of::<T>(),
+        }];
         AlignBox::allocate_in(true, mem::align_of::<T>(), &v)
     }
 
@@ -186,25 +198,25 @@ impl<T> AlignBox<T> {
             Ok(n) => n,
             Err(_) => return None,
         };
-    
+
         let align_layout = match AlignAlloc.pad_align_to(layout, align_req) {
             Ok(n) => n,
             Err(_) => return None,
         };
-       
+
         // handles ZSTs and `cap = 0` alike
         let result = if zeroed {
-            unsafe{ AlignAlloc.alloc_with_req_zeroed(layout, align_req) }
+            unsafe { AlignAlloc.alloc_with_req_zeroed(layout, align_req) }
         } else {
-            unsafe{ AlignAlloc.alloc_with_req(layout, align_req) }
+            unsafe { AlignAlloc.alloc_with_req(layout, align_req) }
         };
         let ptr = match result {
-            Ok(r) => r.cast(),
+            Ok(p) => p,
             Err(_) => handle_alloc_error(align_layout),
         };
 
-        Some(AlignBox{
-            ptr: ptr.into(),
+        Some(AlignBox {
+            ptr: Unique::new(ptr.cast::<T>().as_ptr()).unwrap(),
             align_layout: align_layout,
             origin_layout: layout,
         })
@@ -215,7 +227,7 @@ impl<T> AlignBox<T> {
     pub fn new() -> Option<AlignBox<T>> {
         Self::new_in()
     }
-     pub fn new_with_align(align: usize) -> Option<AlignBox<T>> {
+    pub fn new_with_align(align: usize) -> Option<AlignBox<T>> {
         Self::new_with_align_in(align)
     }
     pub fn new_with_req(align: usize, align_req: &[AlignReq]) -> Option<AlignBox<T>> {
@@ -250,11 +262,15 @@ impl<T> AlignBox<T> {
             t
         }
     }
-    pub fn heap_init_with_req<F>(initialize: F, align: usize, data: &[AlignReq]) -> Option<AlignBox<T>>
+    pub fn heap_init_with_req<F>(
+        initialize: F,
+        align: usize,
+        data: &[AlignReq],
+    ) -> Option<AlignBox<T>>
     where
         F: Fn(&mut T),
     {
-      unsafe {
+        unsafe {
             let mut t = Self::new_with_req(align, data);
             match t {
                 Some(ref mut b) => initialize(b.ptr.as_mut()),
@@ -264,4 +280,3 @@ impl<T> AlignBox<T> {
         }
     }
 }
-

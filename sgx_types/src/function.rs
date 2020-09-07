@@ -53,6 +53,17 @@ extern "C" {
     pub fn sgx_thread_self() -> sgx_thread_t;
     pub fn sgx_thread_equal(a: sgx_thread_t, b: sgx_thread_t) -> int32_t;
 
+    /* intel sgx sdk 2.11 */
+    pub fn sgx_thread_rwlock_init(rwlock: *mut sgx_thread_rwlock_t, unused: *const sgx_thread_rwlockattr_t) -> int32_t;
+    pub fn sgx_thread_rwlock_destroy(rwlock: *mut sgx_thread_rwlock_t) -> int32_t;
+    pub fn sgx_thread_rwlock_rdlock(rwlock: *mut sgx_thread_rwlock_t) -> int32_t;
+    pub fn sgx_thread_rwlock_tryrdlock(rwlock: *mut sgx_thread_rwlock_t) -> int32_t;
+    pub fn sgx_thread_rwlock_wrlock(rwlock: *mut sgx_thread_rwlock_t) -> int32_t;
+    pub fn sgx_thread_rwlock_trywrlock(rwlock: *mut sgx_thread_rwlock_t) -> int32_t;
+    pub fn sgx_thread_rwlock_rdunlock(rwlock: *mut sgx_thread_rwlock_t) -> int32_t;
+    pub fn sgx_thread_rwlock_wrunlock(rwlock: *mut sgx_thread_rwlock_t) -> int32_t;
+    pub fn sgx_thread_rwlock_unlock(rwlock: *mut sgx_thread_rwlock_t) -> int32_t;
+
     /* intel sgx sdk 2.8 */
     //
     // sgx_rsrv_mem_mngr.h
@@ -60,6 +71,10 @@ extern "C" {
     pub fn sgx_alloc_rsrv_mem(length: size_t) -> *mut c_void;
     pub fn sgx_free_rsrv_mem(addr: *const c_void, length: size_t) -> int32_t;
     pub fn sgx_tprotect_rsrv_mem(addr: *const c_void, length: size_t, prot: int32_t) -> sgx_status_t;
+
+    /* intel sgx sdk 2.11 */
+    pub fn sgx_get_rsrv_mem_info(start_addr: *mut *mut c_void, max_size: *mut size_t) -> sgx_status_t;
+    pub fn sgx_alloc_rsrv_mem_ex(desired_addr: *const c_void, length: size_t) -> *mut c_void;
 }
 
 //#[link(name = "sgx_tservice")]
@@ -257,8 +272,8 @@ extern "C" {
     pub fn sgx_ecc256_create_key_pair(p_private: *mut sgx_ec256_private_t, p_public: *mut sgx_ec256_public_t, ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
     pub fn sgx_ecc256_check_point(p_point: *const sgx_ec256_public_t, ecc_handle: sgx_ecc_state_handle_t, p_valid: *mut int32_t) -> sgx_status_t;
 
-    pub fn sgx_ecc256_compute_shared_dhkey(p_private_b: *mut sgx_ec256_private_t,
-                                           p_public_ga: *mut sgx_ec256_public_t,
+    pub fn sgx_ecc256_compute_shared_dhkey(p_private_b: *const sgx_ec256_private_t,
+                                           p_public_ga: *const sgx_ec256_public_t,
                                            p_shared_key: *mut sgx_ec256_dh_shared_t,
                                            ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
     /* intel sgx sdk 1.8 */
@@ -271,21 +286,21 @@ extern "C" {
 
     pub fn sgx_ecdsa_sign(p_data: *const uint8_t,
                           data_size: uint32_t,
-                          p_private: *mut sgx_ec256_private_t,
+                          p_private: *const sgx_ec256_private_t,
                           p_signature: *mut sgx_ec256_signature_t,
                           ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
 
     pub fn sgx_ecdsa_verify(p_data: *const uint8_t,
                             data_size:  uint32_t,
                             p_public: *const sgx_ec256_public_t,
-                            p_signature: *mut sgx_ec256_signature_t,
+                            p_signature: *const sgx_ec256_signature_t,
                             p_result: *mut uint8_t,
                             ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
 
     /* intel sgx sdk 2.4 */
     pub fn sgx_ecdsa_verify_hash(hash: *const uint8_t,
                                  p_public: *const sgx_ec256_public_t,
-                                 p_signature: *mut sgx_ec256_signature_t,
+                                 p_signature: *const sgx_ec256_signature_t,
                                  p_result: *mut uint8_t,
                                  ecc_handle: sgx_ecc_state_handle_t) -> sgx_status_t;
 
@@ -788,4 +803,21 @@ extern "C" {
 
     /* intel DCAP 1.6 */
     pub fn sgx_qv_set_path(path_type: sgx_qv_path_type_t, p_path: *const char) -> sgx_quote3_error_t;
+}
+
+/* intel DCAP 1.7 */
+//#[link(name = "sgx_dcap_tvl")]
+extern "C" {
+    //
+    // sgx_dcap_tvl.h
+    //
+    pub fn sgx_tvl_verify_qve_report_and_identity(p_quote: *const uint8_t,
+                                                  quote_size: uint32_t,
+                                                  p_qve_report_info: *const sgx_ql_qe_report_info_t,
+                                                  expiration_check_date: time_t,
+                                                  collateral_expiration_status: uint32_t,
+                                                  quote_verification_result: sgx_ql_qv_result_t,
+                                                  p_supplemental_data: *const uint8_t,
+                                                  supplemental_data_size: uint32_t,
+                                                  qve_isvsvn_threshold: sgx_isv_svn_t) -> sgx_quote3_error_t;
 }

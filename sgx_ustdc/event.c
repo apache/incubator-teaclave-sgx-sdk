@@ -132,7 +132,7 @@ int se_event_wait(se_handle_t se_event)
 
 int se_event_wait_timeout(se_handle_t se_event, const struct timespec *timeout)
 {
-    int ret = -1;
+    long ret = -1;
 
     if (se_event == NULL) {
         return EINVAL;
@@ -158,12 +158,11 @@ int se_event_wait_timeout(se_handle_t se_event, const struct timespec *timeout)
 
 int se_event_wake(se_handle_t se_event)
 {
-    int ret = -1;
     if (se_event == NULL)
         return EINVAL;
 
     if (__sync_fetch_and_add((int*)se_event, 1) != 0) {
-       ret = syscall(__NR_futex, se_event, FUTEX_WAKE, 1, NULL, NULL, 0);  
+       syscall(__NR_futex, se_event, FUTEX_WAKE, 1, NULL, NULL, 0);  
     }
     
     return 0;

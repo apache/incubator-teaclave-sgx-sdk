@@ -15,12 +15,15 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use crate::layout::{self, AlignReq};
 use proc_macro2::{Ident, Punct, Span};
 use quote::quote;
-use syn::parse::{Parse, Result, ParseStream};
-use syn::{punctuated::Punctuated, Meta, Lit, Error, parse_quote, Token, Expr, Type, DeriveInput, Fields, LitInt};
 use std::alloc::Layout;
-use crate::layout::{self, AlignReq};
+use syn::parse::{Parse, ParseStream, Result};
+use syn::{
+    parse_quote, punctuated::Punctuated, DeriveInput, Error, Expr, Fields, Lit, LitInt, Meta,
+    Token, Type,
+};
 
 struct KeyValue {
     pub ident: Ident,
@@ -33,11 +36,15 @@ impl Parse for KeyValue {
         let ident = input.parse::<Ident>()?;
         let punct = input.parse::<Punct>()?;
         let value = input.parse::<Expr>()?;
-        Ok(KeyValue{ident, punct, value})
+        Ok(KeyValue {
+            ident,
+            punct,
+            value,
+        })
     }
 }
 
-pub struct AlignArgs  {
+pub struct AlignArgs {
     vars: Vec<KeyValue>,
 }
 
@@ -51,8 +58,12 @@ impl Parse for AlignArgs {
 }
 
 impl AlignArgs {
-    pub fn get_layout (&self) -> Result<Layout> {
-        let align_iter = self.vars.iter().filter(|v| v.ident.to_string() == "align").next();
+    pub fn get_layout(&self) -> Result<Layout> {
+        let align_iter = self
+            .vars
+            .iter()
+            .filter(|v| v.ident.to_string() == "align")
+            .next();
         let align: usize = if let Some(align_value) = align_iter {
             self.parse_align(&align_value.value)?
         } else {
@@ -62,7 +73,11 @@ impl AlignArgs {
             ));
         };
 
-        let size_iter = self.vars.iter().filter(|v| v.ident.to_string() == "size").next();
+        let size_iter = self
+            .vars
+            .iter()
+            .filter(|v| v.ident.to_string() == "size")
+            .next();
         let size: usize = if let Some(size_value) = size_iter {
             self.parse_size(&size_value.value)?
         } else {
@@ -72,10 +87,7 @@ impl AlignArgs {
             ));
         };
         Layout::from_size_align(size, align)
-            .map_err(|_e| Error::new(
-                Span::call_site(),
-                "Layout illegal",
-            ))
+            .map_err(|_e| Error::new(Span::call_site(), "Layout illegal"))
     }
 
     fn parse_align(&self, align_expr: &Expr) -> Result<usize> {
@@ -128,18 +140,15 @@ struct FiledExt<'a> {
     name: Option<&'a Ident>,
 }
 
-impl<'a>FiledExt<'a> {
+impl<'a> FiledExt<'a> {
     pub fn new(ty: &'a Type, name: Option<&'a Ident>) -> Self {
-        FiledExt {
-            ty,
-            name
-        }
+        FiledExt { ty, name }
     }
 
     pub fn as_origin_named_field(&self) -> proc_macro2::TokenStream {
         let ty = &self.ty;
         let name = self.name.as_ref().unwrap();
-        quote!{
+        quote! {
             #name: #ty,
         }
     }
@@ -150,14 +159,15 @@ impl AlignStruct {
         AlignStruct {
             input,
             layout,
-            align_layout: unsafe{Layout::from_size_align_unchecked(0, 0)},
+            align_layout: unsafe { Layout::from_size_align_unchecked(0, 0) },
         }
     }
 
     pub fn build(&mut self) -> proc_macro2::TokenStream {
-        if !(self.is_contains_specified_attr("C") 
-        && !self.is_contains_specified_attr("align")
-        && !self.is_contains_specified_attr("packed")) {
+        if !(self.is_contains_specified_attr("C")
+            && !self.is_contains_specified_attr("align")
+            && !self.is_contains_specified_attr("packed"))
+        {
             panic!("Structure attribute must require repr C ");
         }
 
@@ -168,12 +178,12 @@ impl AlignStruct {
         let generics = &self.input.generics;
         let fields = &self.get_origin_fields();
         let align_attr = &self.generate_align_attr();
-        quote!{
+        quote! {
             #attrs
             #align_attr
             #vis struct #name#generics {
             #pad_item,
-            #fields   
+            #fields
             }
         }
     }
@@ -185,20 +195,22 @@ impl AlignStruct {
             let meta = attr.parse_meta();
             if ident.map_or(false, |v| v.to_string() == "repr") && meta.is_ok() {
                 if let Some(Meta::List(ref m)) = meta.ok() {
-                    if  m.nested.len() > 0 {
-                        erxcept_attr = m.nested
-                        .iter()
-                        .filter(|x| {
-                            let mut find = false;
-                            if let syn::NestedMeta::Meta(ref s) = x {
-                                if let syn::Meta::Path(p) = s {
-                                    find = p.get_ident().map_or(false, |v| v.to_string() == atrr);
+                    if m.nested.len() > 0 {
+                        erxcept_attr = m
+                            .nested
+                            .iter()
+                            .filter(|x| {
+                                let mut find = false;
+                                if let syn::NestedMeta::Meta(ref s) = x {
+                                    if let syn::Meta::Path(p) = s {
+                                        find =
+                                            p.get_ident().map_or(false, |v| v.to_string() == atrr);
+                                    }
                                 }
-                            }    
-                            find
-                        })
-                        .next()
-                        .is_some();
+                                find
+                            })
+                            .next()
+                            .is_some();
                     }
                 }
             }
@@ -208,7 +220,7 @@ impl AlignStruct {
 
     fn get_attrs(&self) -> proc_macro2::TokenStream {
         let attrs = &self.input.attrs;
-        quote!{
+        quote! {
             #(#attrs)*
         }
     }
@@ -216,19 +228,23 @@ impl AlignStruct {
     fn generate_align_attr(&self) -> proc_macro2::TokenStream {
         let align = self.align_layout.align();
         let litint = LitInt::new(&format!("{}", align).to_string(), Span::call_site());
-        quote!{
+        quote! {
            #[repr(align(#litint))]
         }
     }
 
-    fn get_origin_fields(&self)  -> proc_macro2::TokenStream {
+    fn get_origin_fields(&self) -> proc_macro2::TokenStream {
         if let syn::Data::Struct(ref data) = self.input.data {
             if let Fields::Named(ref fields) = data.fields {
-                let fields :Vec<_> = fields.named.iter().map(|f| FiledExt::new(&f.ty, f.ident.as_ref())).collect();
-                    let item = fields.iter().map(|x| x.as_origin_named_field());
-                    quote!{
-                        #(#item)*
-                    }
+                let fields: Vec<_> = fields
+                    .named
+                    .iter()
+                    .map(|f| FiledExt::new(&f.ty, f.ident.as_ref()))
+                    .collect();
+                let item = fields.iter().map(|x| x.as_origin_named_field());
+                quote! {
+                    #(#item)*
+                }
             } else {
                 panic!("Structure fields must have names");
             }
@@ -241,9 +257,9 @@ impl AlignStruct {
         let align_req: &[AlignReq] = &[AlignReq {
             offset: 0,
             len: self.layout.size(),
-            },
-        ];
-        let align_layout = layout::pad_align_to(self.layout, align_req).expect("Align layout illegal");
+        }];
+        let align_layout =
+            layout::pad_align_to(self.layout, align_req).expect("Align layout illegal");
         self.align_layout = align_layout;
         let pad = align_layout.size() - align_layout.align() - self.layout.size();
         let ty: syn::Type = parse_quote!([u8; #pad]);

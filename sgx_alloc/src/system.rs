@@ -23,13 +23,7 @@
 //! 2018-06-22 Add liballoc components here
 
 use core::alloc::{
-    AllocInit,
-    AllocRef,
-    AllocErr,
-    GlobalAlloc,
-    Layout,
-    MemoryBlock,
-    ReallocPlacement
+    AllocErr, AllocInit, AllocRef, GlobalAlloc, Layout, MemoryBlock, ReallocPlacement,
 };
 use core::intrinsics;
 use core::ptr::NonNull;
@@ -53,7 +47,10 @@ unsafe impl AllocRef for System {
         unsafe {
             let size = layout.size();
             if size == 0 {
-                Ok(MemoryBlock { ptr: layout.dangling(), size: 0 })
+                Ok(MemoryBlock {
+                    ptr: layout.dangling(),
+                    size: 0,
+                })
             } else {
                 let raw_ptr = match init {
                     AllocInit::Uninitialized => GlobalAlloc::alloc(self, layout),
@@ -101,8 +98,10 @@ unsafe impl AllocRef for System {
                 // `realloc` probably checks for `new_size > size` or something similar.
                 intrinsics::assume(new_size > size);
                 let ptr = GlobalAlloc::realloc(self, ptr.as_ptr(), layout, new_size);
-                let memory =
-                    MemoryBlock { ptr: NonNull::new(ptr).ok_or(AllocErr)?, size: new_size };
+                let memory = MemoryBlock {
+                    ptr: NonNull::new(ptr).ok_or(AllocErr)?,
+                    size: new_size,
+                };
                 init.init_offset(memory, size);
                 Ok(memory)
             }
@@ -131,13 +130,19 @@ unsafe impl AllocRef for System {
             ReallocPlacement::InPlace => Err(AllocErr),
             ReallocPlacement::MayMove if new_size == 0 => {
                 self.dealloc(ptr, layout);
-                Ok(MemoryBlock { ptr: layout.dangling(), size: 0 })
+                Ok(MemoryBlock {
+                    ptr: layout.dangling(),
+                    size: 0,
+                })
             }
             ReallocPlacement::MayMove => {
                 // `realloc` probably checks for `new_size < size` or something similar.
                 intrinsics::assume(new_size < size);
                 let ptr = GlobalAlloc::realloc(self, ptr.as_ptr(), layout, new_size);
-                Ok(MemoryBlock { ptr: NonNull::new(ptr).ok_or(AllocErr)?, size: new_size })
+                Ok(MemoryBlock {
+                    ptr: NonNull::new(ptr).ok_or(AllocErr)?,
+                    size: new_size,
+                })
             }
         }
     }
@@ -171,10 +176,10 @@ mod realloc_fallback {
 
 mod platform {
     use super::*;
-    use libc;
+    use core::alloc::{GlobalAlloc, Layout};
     use core::ffi::c_void;
     use core::ptr;
-    use core::alloc::{GlobalAlloc, Layout};
+    use libc;
 
     unsafe impl GlobalAlloc for System {
         #[inline]
@@ -187,9 +192,7 @@ mod platform {
         }
 
         #[inline]
-        unsafe fn alloc_zeroed(&self, layout: Layout)
-            -> *mut u8
-        {
+        unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
             if layout.align() <= MIN_ALIGN && layout.align() <= layout.size() {
                 libc::calloc(layout.size(), 1) as *mut u8
             } else {
@@ -207,10 +210,7 @@ mod platform {
         }
 
         #[inline]
-        unsafe fn realloc(&self,
-                          ptr: *mut u8,
-                          layout: Layout,
-                          new_size: usize) -> *mut u8 {
+        unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
             if layout.align() <= MIN_ALIGN && layout.align() <= new_size {
                 libc::realloc(ptr as *mut c_void, new_size) as *mut u8
             } else {

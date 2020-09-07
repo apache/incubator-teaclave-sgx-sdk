@@ -63,7 +63,6 @@
 //!
 
 #![no_std]
-
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 #![feature(allocator_api)]
@@ -87,16 +86,16 @@ extern crate alloc;
 #[macro_use]
 mod macros;
 
-pub mod veh;
-pub mod trts;
-pub mod enclave;
-pub mod memeq;
-pub mod oom;
-pub mod memchr;
 pub mod ascii;
 pub mod c_str;
 pub mod cpu_feature;
 pub mod cpuid;
+pub mod enclave;
+pub mod memchr;
+pub mod memeq;
+pub mod oom;
+pub mod trts;
+pub mod veh;
 
 #[cfg(not(target_env = "sgx"))]
 pub use sgx_libc as libc;
@@ -107,5 +106,5 @@ pub mod libc {
 }
 
 pub mod error {
-    pub use sgx_libc::{errno, set_errno, error_string};
+    pub use sgx_libc::{errno, error_string, set_errno};
 }

@@ -15,33 +15,36 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use std::io::Error;
-use std::collections::HashMap;
-use std::sync::{Mutex, Once};
-use std::mem;
-use libc::{self, c_int, c_void, sigset_t, siginfo_t};
-use libc::{signal, sigprocmask, sigaction, sigemptyset, sigfillset, raise};
-use libc::{SIG_SETMASK, SA_SIGINFO, SIG_ERR, SIG_DFL};
 use crate::sgx_types::{sgx_enclave_id_t, sgx_status_t};
+use libc::{self, c_int, c_void, sigaction, siginfo_t, sigset_t};
+use libc::{SA_SIGINFO, SIG_DFL, SIG_ERR, SIG_SETMASK};
+use std::collections::HashMap;
+use std::io::Error;
+use std::mem;
+use std::sync::{Mutex, Once};
 
 static DISPATCHER_INIT: Once = Once::new();
 static mut GLOBAL_DATA: Option<GlobalData> = None;
 
-pub const SIGRTMIN: c_int = 32;
-pub const SIGRTMAX: c_int = 64;
-pub const NSIG: c_int = SIGRTMAX + 1;
+#[allow(dead_code)]
+const SIGRTMIN: c_int = 32;
+const SIGRTMAX: c_int = 64;
+const NSIG: c_int = SIGRTMAX + 1;
 
-extern "C" {
-    fn t_signal_handler_ecall(eid: sgx_enclave_id_t,
-                              retval: *mut c_int,
-                              info: *const siginfo_t) -> sgx_status_t;
+#[linkage = "weak"]
+#[no_mangle]
+extern "C" fn t_signal_handler_ecall(
+    _eid: sgx_enclave_id_t,
+    _retval: *mut c_int,
+    _info: *const siginfo_t,
+) -> sgx_status_t {
+    sgx_status_t::SGX_ERROR_UNEXPECTED
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct SigNum(i32);
 
 impl SigNum {
-
     pub fn from_raw(signo: i32) -> Option<SigNum> {
         if signo <= 0 || signo >= NSIG {
             None
@@ -49,32 +52,42 @@ impl SigNum {
             Some(SigNum(signo))
         }
     }
+
     pub unsafe fn from_raw_uncheck(signo: i32) -> SigNum {
         SigNum(signo)
     }
-    pub fn raw(&self) -> i32 { self.0 }
+
+    pub fn raw(&self) -> i32 {
+        self.0
+    }
 }
 
 #[derive(Copy, Clone)]
 pub struct SigSet(sigset_t);
 
 impl SigSet {
-
     pub fn new() -> SigSet {
         let set = unsafe {
             let mut set: sigset_t = mem::zeroed();
-            sigemptyset(&mut set as *mut sigset_t);
+            libc::sigemptyset(&mut set as *mut sigset_t);
             set
         };
         SigSet(set)
     }
+
     pub fn fill(&mut self) {
         unsafe {
-            sigfillset(&mut self.0 as *mut sigset_t);
+            libc::sigfillset(&mut self.0 as *mut sigset_t);
         }
     }
-    pub unsafe fn from_raw(set: sigset_t) -> SigSet { SigSet(set) }
-    pub fn raw(&self) -> sigset_t { self.0 }
+
+    pub unsafe fn from_raw(set: sigset_t) -> SigSet {
+        SigSet(set)
+    }
+
+    pub fn raw(&self) -> sigset_t {
+        self.0
+    }
 }
 
 struct GlobalData {
@@ -82,10 +95,10 @@ struct GlobalData {
 }
 
 impl GlobalData {
-
     fn get() -> &'static GlobalData {
         unsafe { GLOBAL_DATA.as_ref().unwrap() }
     }
+
     fn ensure() -> &'static GlobalData {
         DISPATCHER_INIT.call_once(|| unsafe {
             GLOBAL_DATA = Some(GlobalData {
@@ -101,57 +114,63 @@ struct SignalDispatcher {
 }
 
 impl SignalDispatcher {
-
-    pub fn new () -> SignalDispatcher {
+    fn new() -> SignalDispatcher {
         SignalDispatcher {
             signal_set: Mutex::new(HashMap::new()),
         }
     }
 
-    pub fn register_signal(&self, signo: SigNum, enclave_id: sgx_enclave_id_t) -> Option<sgx_enclave_id_t> {
-         // Block all signals when registering a signal handler to avoid deadlock.
+    fn register_signal(
+        &self,
+        signo: SigNum,
+        enclave_id: sgx_enclave_id_t,
+    ) -> Option<sgx_enclave_id_t> {
+        // Block all signals when registering a signal handler to avoid deadlock.
         let mut mask = SigSet::new();
         let oldmask = SigSet::new();
         mask.fill();
 
-        unsafe { sigprocmask(SIG_SETMASK, &mask.raw(), &mut oldmask.raw() as *mut sigset_t); }
-        let old = self.signal_set
-            .lock()
-            .unwrap()
-            .insert(signo, enclave_id);
-        unsafe { sigprocmask(SIG_SETMASK, &oldmask.raw(), 0 as *mut sigset_t); }
+        unsafe {
+            libc::sigprocmask(
+                SIG_SETMASK,
+                &mask.raw(),
+                &mut oldmask.raw() as *mut sigset_t,
+            );
+        }
+        let old = self.signal_set.lock().unwrap().insert(signo, enclave_id);
+        unsafe {
+            libc::sigprocmask(SIG_SETMASK, &oldmask.raw(), 0 as *mut sigset_t);
+        }
         old
     }
 
-    pub fn get_eid_for_signal(&self, signo: SigNum) -> Option<sgx_enclave_id_t> {
-        self.signal_set
-            .lock()
-            .unwrap()
-            .get(&signo)
-            .copied()
+    fn get_eid_for_signal(&self, signo: SigNum) -> Option<sgx_enclave_id_t> {
+        self.signal_set.lock().unwrap().get(&signo).copied()
     }
 
-    pub fn deregister_all_signals_for_eid(&self, eid: sgx_enclave_id_t) {
+    fn deregister_all_signals_for_eid(&self, eid: sgx_enclave_id_t) {
         let mut mask = SigSet::new();
         let oldmask = SigSet::new();
         mask.fill();
 
-        unsafe { sigprocmask(SIG_SETMASK, &mask.raw(), &mut oldmask.raw() as *mut sigset_t); }
+        unsafe {
+            libc::sigprocmask(
+                SIG_SETMASK,
+                &mask.raw(),
+                &mut oldmask.raw() as *mut sigset_t,
+            );
+        }
         // If this enclave has registered any signals, deregister them and set the
         // signal handler to the default one.
-        self.signal_set
-            .lock()
-            .unwrap()
-            .retain(|&signum, &mut v| {
-                if v == eid {
-                    unsafe {
-                        if signal(signum.raw(), SIG_DFL) == SIG_ERR {
-                        }
-                    }
-                }
-                v != eid
-            });
-        unsafe { sigprocmask(SIG_SETMASK, &oldmask.raw(), 0 as *mut sigset_t); }
+        self.signal_set.lock().unwrap().retain(|&signum, &mut v| {
+            if v == eid {
+                unsafe { if libc::signal(signum.raw(), SIG_DFL) == SIG_ERR {} }
+            }
+            v != eid
+        });
+        unsafe {
+            libc::sigprocmask(SIG_SETMASK, &oldmask.raw(), 0 as *mut sigset_t);
+        }
     }
 
     unsafe fn handle_signal(
@@ -180,24 +199,14 @@ impl SignalDispatcher {
 
 pub fn deregister_all_signals_for_eid(enclave_id: sgx_enclave_id_t) {
     let global = GlobalData::ensure();
-    global.signal_dispatcher.deregister_all_signals_for_eid(enclave_id);
-}
-
-extern "C" fn handle_signal_entry(signum: c_int, info: *const siginfo_t, ucontext: *const c_void) {
-    let signo = SigNum::from_raw(signum);
-    if info.is_null() || signo.is_none() {
-        return;
-    }
-
-    unsafe {
-        GlobalData::get().signal_dispatcher
-            .handle_signal(signo.unwrap(), &(*info), ucontext);
-    }
+    global
+        .signal_dispatcher
+        .deregister_all_signals_for_eid(enclave_id);
 }
 
 #[no_mangle]
 pub extern "C" fn u_sigaction_ocall(
-    error: * mut c_int,
+    error: *mut c_int,
     signum: c_int,
     act: *const sigaction,
     oldact: *mut sigaction,
@@ -206,8 +215,10 @@ pub extern "C" fn u_sigaction_ocall(
     let mut errno = 0;
     let signo = SigNum::from_raw(signum);
     if signo.is_none() || act.is_null() {
-        if  !error.is_null() {
-            unsafe {  *error = libc::EINVAL; }
+        if !error.is_null() {
+            unsafe {
+                *error = libc::EINVAL;
+            }
         }
         return -1;
     }
@@ -215,7 +226,9 @@ pub extern "C" fn u_sigaction_ocall(
     let e_act = unsafe { &*act };
     let ret = if e_act.sa_sigaction == 0 {
         let global = GlobalData::ensure();
-        global.signal_dispatcher.register_signal(signo.unwrap(), enclave_id);
+        global
+            .signal_dispatcher
+            .register_signal(signo.unwrap(), enclave_id);
 
         type FnSaSigaction = extern "C" fn(c_int, *const siginfo_t, *const c_void);
         let new_act = sigaction {
@@ -227,16 +240,34 @@ pub extern "C" fn u_sigaction_ocall(
             sa_restorer: None,
         };
         let mut old_act: sigaction = unsafe { mem::zeroed() };
-        unsafe { sigaction(signum, &new_act, &mut old_act as *mut sigaction) }
+        unsafe { libc::sigaction(signum, &new_act, &mut old_act as *mut sigaction) }
     } else {
-       unsafe { sigaction(signum, act as *const sigaction, oldact) }
+        unsafe { libc::sigaction(signum, act as *const sigaction, oldact) }
     };
 
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
+    }
+
+    extern "C" fn handle_signal_entry(
+        signum: c_int,
+        info: *const siginfo_t,
+        ucontext: *const c_void,
+    ) {
+        let signo = SigNum::from_raw(signum);
+        if info.is_null() || signo.is_none() {
+            return;
+        }
+        unsafe {
+            GlobalData::get()
+                .signal_dispatcher
+                .handle_signal(signo.unwrap(), &(*info), ucontext);
+        }
     }
     ret
 }
@@ -249,19 +280,21 @@ pub extern "C" fn u_sigprocmask_ocall(
     oldset: *mut sigset_t,
 ) -> c_int {
     let mut errno = 0;
-    let ret = unsafe { sigprocmask(signum, set, oldset) };
+    let ret = unsafe { libc::sigprocmask(signum, set, oldset) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
 pub extern "C" fn u_raise_ocall(signum: c_int) -> c_int {
-    unsafe { raise(signum) }
+    unsafe { libc::raise(signum) }
 }
 
 #[no_mangle]

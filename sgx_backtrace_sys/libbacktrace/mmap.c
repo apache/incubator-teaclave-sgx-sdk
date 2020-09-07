@@ -43,6 +43,7 @@ POSSIBILITY OF SUCH DAMAGE.  */
 #include "backtrace_t.h"
 #include "internal.h"
 
+#include "sgx_trts.h"
 /* Memory allocation on systems that provide anonymous mmap.  This
    permits the backtrace functions to be invoked from a signal
    handler, assuming that mmap is async-signal safe.  */
@@ -183,6 +184,11 @@ backtrace_alloc(struct backtrace_state* state,
         if (status != 0) {
             error_callback(data, "sgx ocall failed", status);
             return ret;
+        }
+
+        if (!sgx_is_outside_enclave(page, asksize)) {
+            error_callback(data, "mmap result error", error);
+            return 0;
         }
 
         //page = mmap (NULL, asksize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);

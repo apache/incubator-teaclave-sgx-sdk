@@ -41,6 +41,8 @@ POSSIBILITY OF SUCH DAMAGE.  */
 #include "backtrace_t.h"
 #include "internal.h"
 
+#include "sgx_trts.h"
+
 #ifndef PROT_READ
 #define PROT_READ 0x1
 #endif
@@ -91,6 +93,11 @@ backtrace_get_view(struct backtrace_state* state ATTRIBUTE_UNUSED,
 
     if (status != 0) {
         error_callback(data, "sgx ocall failed", status);
+        return 0;
+    }
+
+    if (!sgx_is_outside_enclave(map, size)) {
+        error_callback(data, "mmap result error", error);
         return 0;
     }
 

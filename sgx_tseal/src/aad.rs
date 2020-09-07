@@ -18,13 +18,13 @@
 //!
 //! Provides APIs to authenticate and verify the input data with AES-GMAC.
 //!
-use sgx_types::*;
-use sgx_types::marker::ContiguousMemory;
 use crate::internal::*;
-use core::mem;
-use core::marker::PhantomData;
-use alloc::slice;
 use alloc::boxed::Box;
+use alloc::slice;
+use core::marker::PhantomData;
+use core::mem;
+use sgx_types::marker::ContiguousMemory;
+use sgx_types::*;
 
 /// The structure about sealed data, for authenticate and verify.
 pub struct SgxMacAadata<'a, T: 'a + ?Sized> {
@@ -44,8 +44,8 @@ impl<'a, T: 'a + ?Sized> Default for SgxMacAadata<'a, T> {
 impl<'a, T: 'a + Clone + ?Sized> Clone for SgxMacAadata<'a, T> {
     fn clone(&self) -> SgxMacAadata<'a, T> {
         SgxMacAadata {
-           inner: self.inner.clone(),
-           marker: PhantomData,
+            inner: self.inner.clone(),
+            marker: PhantomData,
         }
     }
 }
@@ -103,11 +103,17 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
         let aad_slice: &[u8] = unsafe {
-            slice::from_raw_parts(additional_text as *const _ as *const u8, mem::size_of_val(additional_text))
+            slice::from_raw_parts(
+                additional_text as *const _ as *const u8,
+                mem::size_of_val(additional_text),
+            )
         };
 
         let result = SgxInternalSealedData::mac_aadata(aad_slice);
-        result.map(|x| SgxMacAadata {inner: x, marker: PhantomData})
+        result.map(|x| SgxMacAadata {
+            inner: x,
+            marker: PhantomData,
+        })
     }
 
     ///
@@ -187,17 +193,18 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
         let aad_slice: &[u8] = unsafe {
-            slice::from_raw_parts(additional_text as *const _ as *const u8, mem::size_of_val(additional_text))
+            slice::from_raw_parts(
+                additional_text as *const _ as *const u8,
+                mem::size_of_val(additional_text),
+            )
         };
 
         let result =
-            SgxInternalSealedData::mac_aadata_ex(
-                key_policy,
-                attribute_mask,
-                misc_mask,
-                aad_slice,
-            );
-        result.map(|x| SgxMacAadata {inner: x, marker: PhantomData})
+            SgxInternalSealedData::mac_aadata_ex(key_policy, attribute_mask, misc_mask, aad_slice);
+        result.map(|x| SgxMacAadata {
+            inner: x,
+            marker: PhantomData,
+        })
     }
 
     ///
@@ -269,7 +276,10 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
             return None;
         }
         let opt = SgxInternalSealedData::from_raw_sealed_data_t(p, len);
-        opt.map(|x| SgxMacAadata { inner: x, marker: PhantomData })
+        opt.map(|x| SgxMacAadata {
+            inner: x,
+            marker: PhantomData,
+        })
     }
 
     ///
@@ -295,13 +305,16 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, T> {
     ///
     /// May be the parameter p and len is not avaliable.
     ///
-    pub unsafe fn to_raw_sealed_data_t(&self, p: *mut sgx_sealed_data_t, len: u32) -> Option<*mut sgx_sealed_data_t> {
+    pub unsafe fn to_raw_sealed_data_t(
+        &self,
+        p: *mut sgx_sealed_data_t,
+        len: u32,
+    ) -> Option<*mut sgx_sealed_data_t> {
         self.inner.to_raw_sealed_data_t(p, len)
     }
 }
 
 impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
-
     ///
     /// This function is used to authenticate the input data with AES-GMAC.
     ///
@@ -311,12 +324,14 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
         if size == 0 || len == 0 {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        let aad_slice: &[u8] = unsafe {
-            slice::from_raw_parts(additional_text.as_ptr() as *const u8, len)
-        };
+        let aad_slice: &[u8] =
+            unsafe { slice::from_raw_parts(additional_text.as_ptr() as *const u8, len) };
 
         let result = SgxInternalSealedData::mac_aadata(aad_slice);
-        result.map(|x| SgxMacAadata { inner: x, marker: PhantomData })
+        result.map(|x| SgxMacAadata {
+            inner: x,
+            marker: PhantomData,
+        })
     }
 
     ///
@@ -334,17 +349,14 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
         if size == 0 || len == 0 {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        let aad_slice: &[u8] = unsafe {
-            slice::from_raw_parts(additional_text.as_ptr() as *const u8, len)
-        };
+        let aad_slice: &[u8] =
+            unsafe { slice::from_raw_parts(additional_text.as_ptr() as *const u8, len) };
         let result =
-            SgxInternalSealedData::mac_aadata_ex(
-                key_policy,
-                attribute_mask,
-                misc_mask,
-                aad_slice,
-            );
-        result.map(|x| SgxMacAadata {inner: x, marker: PhantomData})
+            SgxInternalSealedData::mac_aadata_ex(key_policy, attribute_mask, misc_mask, aad_slice);
+        result.map(|x| SgxMacAadata {
+            inner: x,
+            marker: PhantomData,
+        })
     }
 
     ///
@@ -362,10 +374,10 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
         if (aad_len % size) != 0 {
             return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
         }
-         self.inner.unmac_aadata().map(|x| {
+        self.inner.unmac_aadata().map(|x| {
             let ptr = Box::into_raw(x.additional);
             unsafe {
-                let slice = slice::from_raw_parts_mut(ptr as *mut T, aad_len/size);
+                let slice = slice::from_raw_parts_mut(ptr as *mut T, aad_len / size);
                 Box::from_raw(slice as *mut [T])
             }
         })
@@ -380,7 +392,10 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
             return None;
         }
         let opt = SgxInternalSealedData::from_raw_sealed_data_t(p, len);
-        opt.map(|x| SgxMacAadata{inner: x, marker: PhantomData})
+        opt.map(|x| SgxMacAadata {
+            inner: x,
+            marker: PhantomData,
+        })
     }
 
     ///
@@ -406,7 +421,11 @@ impl<'a, T: 'a + Copy + ContiguousMemory> SgxMacAadata<'a, [T]> {
     ///
     /// May be the parameter p and len is not avaliable.
     ///
-    pub unsafe fn to_raw_sealed_data_t(&self, p: *mut sgx_sealed_data_t, len: u32) -> Option<*mut sgx_sealed_data_t> {
+    pub unsafe fn to_raw_sealed_data_t(
+        &self,
+        p: *mut sgx_sealed_data_t,
+        len: u32,
+    ) -> Option<*mut sgx_sealed_data_t> {
         self.inner.to_raw_sealed_data_t(p, len)
     }
 }
@@ -450,7 +469,7 @@ impl<'a, T: 'a + ?Sized> SgxMacAadata<'a, T> {
     ///
     /// Calculate the size of the sealed data in SgxMacAadata.
     ///
-    pub fn calc_raw_sealed_data_size(add_mac_txt_size: u32, encrypt_txt_size: u32) -> u32  {
+    pub fn calc_raw_sealed_data_size(add_mac_txt_size: u32, encrypt_txt_size: u32) -> u32 {
         SgxInternalSealedData::calc_raw_sealed_data_size(add_mac_txt_size, encrypt_txt_size)
     }
 

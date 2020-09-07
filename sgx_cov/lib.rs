@@ -16,7 +16,10 @@
 // under the License..
 
 #![cfg_attr(not(target_env = "sgx"), no_std)]
-#![cfg_attr(all(target_env = "sgx", target_vendor = "mesalock"), feature(rustc_private))]
+#![cfg_attr(
+    all(target_env = "sgx", target_vendor = "mesalock"),
+    feature(rustc_private)
+)]
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
