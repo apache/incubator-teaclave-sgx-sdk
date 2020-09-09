@@ -71,7 +71,7 @@
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 #![allow(non_snake_case)]
-#![feature(specialization)]
+#![feature(min_specialization)]
 #![feature(vec_into_raw_parts)]
 #![feature(toowned_clone_into)]
 

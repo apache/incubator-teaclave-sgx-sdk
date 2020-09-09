@@ -30,6 +30,8 @@
 #![feature(dropck_eyepatch)]
 #![feature(allocator_api)]
 #![feature(core_intrinsics)]
+#![feature(nonnull_slice_from_raw_parts)]
+#![feature(slice_ptr_get)]
 
 extern crate alloc;
 

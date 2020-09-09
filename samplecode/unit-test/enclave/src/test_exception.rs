@@ -32,7 +32,7 @@ fn test_abort() -> ! {
     let td = enclave::SgxThreadData::current();
     println!("test_abort stack: {:x}-{:x}", td.stack_base(), td.stack_limit());
 
-    unsafe{ std::intrinsics::abort() }
+    std::intrinsics::abort()
 }
 
 pub fn test_exception_handler() {
