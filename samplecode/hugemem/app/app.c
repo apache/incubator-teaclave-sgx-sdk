@@ -156,8 +156,6 @@ int SGX_CDECL main(int argc, char *argv[])
 {
     sgx_status_t sgx_ret = SGX_SUCCESS;
     sgx_status_t enclave_ret = SGX_SUCCESS;
-    uint32_t sealed_log_size = 1024;
-    uint8_t sealed_log[1024] = {0};
 
     (void)(argc);
     (void)(argv);
@@ -173,9 +171,9 @@ int SGX_CDECL main(int argc, char *argv[])
     size_t len = strlen(str);
 
     sgx_ret = say_something(global_eid,
-	                        &enclave_ret,
-							(const uint8_t *) str,
-							len);
+                            &enclave_ret,
+                            (const uint8_t *) str,
+                            len);
 
     if(sgx_ret != SGX_SUCCESS) {
         print_error_message(sgx_ret);

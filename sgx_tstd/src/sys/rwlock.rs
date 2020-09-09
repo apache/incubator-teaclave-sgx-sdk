@@ -15,232 +15,217 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_types::{SysError, sgx_thread_t, SGX_THREAD_T_NULL};
-use sgx_trts::libc;
-use crate::thread;
-use crate::sync::SgxThreadMutex;
-use crate::sync::SgxThreadCondvar;
-use crate::sync::SgxThreadSpinlock;
+use alloc_crate::collections::LinkedList;
 use core::cell::UnsafeCell;
+use crate::sync::SgxThreadSpinlock;
+use crate::time::Duration;
+use crate::thread::rsgx_thread_self;
+use crate::sys::mutex;
+use sgx_trts::enclave::SgxThreadData;
+use sgx_trts::libc;
+use sgx_types::{sgx_thread_t, SysError, SGX_THREAD_T_NULL};
 
 struct SgxThreadRwLockInner {
-    readers_num: u32,
-    writers_num: u32,
-    busy: u32,
-    writer_thread: sgx_thread_t,
-    condvar: SgxThreadCondvar,
-    mutex: SgxThreadMutex,
-    spinlock: SgxThreadSpinlock,
+    reader_count: u32,
+    writer_waiting: u32,
+    lock: SgxThreadSpinlock,
+    owner: sgx_thread_t,
+    reader_queue: LinkedList<sgx_thread_t>,
+    writer_queue: LinkedList<sgx_thread_t>,
 }
 
 impl SgxThreadRwLockInner {
-
     const fn new() -> Self {
-        SgxThreadRwLockInner{
-            readers_num: 0,
-            writers_num: 0,
-            busy: 0,
-            writer_thread: SGX_THREAD_T_NULL,
-            condvar: SgxThreadCondvar::new(),
-            mutex: SgxThreadMutex::new(),
-            spinlock: SgxThreadSpinlock::new(),
+        SgxThreadRwLockInner {
+            reader_count: 0,
+            writer_waiting: 0,
+            lock: SgxThreadSpinlock::new(),
+            owner: SGX_THREAD_T_NULL,
+            reader_queue: LinkedList::new(),
+            writer_queue: LinkedList::new(),
         }
-    }
-
-    unsafe fn ref_busy(&mut self) -> SysError {
-        let ret: SysError;
-        self.spinlock.lock();
-        {
-            if self.busy == u32::max_value() {
-                ret = Err(libc::EAGAIN);
-            } else {
-                self.busy += 1;
-                ret = Ok(());
-            }
-        }
-        self.spinlock.unlock();
-        ret
-    }
-
-    unsafe fn deref_busy(&mut self) -> SysError {
-        let ret: SysError;
-        self.spinlock.lock();
-        {
-            if self.busy == 0 {
-                ret = Err(libc::EAGAIN);
-            } else {
-                self.busy -= 1;
-                ret = Ok(());
-            }
-        }
-        self.spinlock.unlock();
-        ret
     }
 
     unsafe fn read(&mut self) -> SysError {
-        self.ref_busy()?;
-        self.mutex.lock();
-        {
-            if self.writer_thread == thread::rsgx_thread_self() {
-                self.mutex.unlock();
-                self.deref_busy();
+        let current = rsgx_thread_self();
+
+        self.lock.lock();
+        if self.owner == SGX_THREAD_T_NULL {
+            self.reader_count += 1;
+        } else {
+            if self.owner == current {
+                self.lock.unlock();
                 return Err(libc::EDEADLK);
             }
-            if self.readers_num == u32::max_value() {
-                self.mutex.unlock();
-                self.deref_busy();
-                return Err(libc::EAGAIN);
+
+            self.reader_queue.push_back(current);
+
+            loop {
+                self.lock.unlock();
+                mutex::thread_wait_event(
+                    SgxThreadData::from_raw(current).get_tcs(),
+                    Duration::new(u64::MAX, 1_000_000_000 - 1),
+                );
+
+                self.lock.lock();
+                if self.owner == SGX_THREAD_T_NULL {
+                    self.reader_count += 1;
+                    if let Some(pos) = self
+                        .reader_queue
+                        .iter()
+                        .position(|&waiter| waiter == current)
+                    {
+                        self.reader_queue.remove(pos);
+                    }
+                    break;
+                }
             }
-            while self.writers_num > 0 {
-                self.condvar.wait(&self.mutex);
-            }
-            self.readers_num += 1;
         }
-        self.mutex.unlock();
-        self.deref_busy();
+        self.lock.unlock();
         Ok(())
     }
 
     unsafe fn try_read(&mut self) -> SysError {
-        self.ref_busy()?;
-        self.mutex.lock();
-        {
-            let mut ret = Ok(());
-            if self.writer_thread == thread::rsgx_thread_self() {
-                ret = Err(libc::EDEADLK);
-            }
-            else if self.readers_num == u32::max_value() {
-                ret = Err(libc::EAGAIN);
-            }
-            else if self.writers_num > 0 {
-                ret = Err(libc::EBUSY);
-            }
-            match ret {
-                Ok(_) => {},
-                Err(e) => {
-                    self.mutex.unlock();
-                    self.deref_busy();
-                    return Err(e);
-                }
-            }
-            self.readers_num += 1;
-        }
-        self.mutex.unlock();
-        self.deref_busy();
-        Ok(())
+        self.lock.lock();
+        let ret = if self.owner == SGX_THREAD_T_NULL {
+            self.reader_count += 1;
+            Ok(())
+        } else {
+            Err(libc::EBUSY)
+        };
+        self.lock.unlock();
+        ret
     }
 
     unsafe fn write(&mut self) -> SysError {
-        self.ref_busy()?;
-        self.mutex.lock();
-        {
-            if self.writer_thread == thread::rsgx_thread_self() {
-                self.mutex.unlock();
-                self.deref_busy();
+        let current = rsgx_thread_self();
+
+        self.lock.lock();
+        if self.owner == SGX_THREAD_T_NULL && self.reader_count == 0 {
+            self.owner = current;
+        } else {
+            if self.owner == current {
+                self.lock.unlock();
                 return Err(libc::EDEADLK);
             }
 
-            if self.writers_num == u32::max_value() {
-                self.mutex.unlock();
-                self.deref_busy();
-                return Err(libc::EAGAIN);
-            }
+            self.writer_queue.push_back(current);
 
-            self.writers_num += 1;
-            while self.readers_num > 0 {
-                self.condvar.wait(&self.mutex);
+            loop {
+                self.lock.unlock();
+                mutex::thread_wait_event(
+                    SgxThreadData::from_raw(current).get_tcs(),
+                    Duration::new(u64::MAX, 1_000_000_000 - 1),
+                );
+
+                self.lock.lock();
+                if self.owner == SGX_THREAD_T_NULL && self.reader_count == 0 {
+                    self.owner = current;
+                    if let Some(pos) = self
+                        .writer_queue
+                        .iter()
+                        .position(|&waiter| waiter == current)
+                    {
+                        self.writer_queue.remove(pos);
+                    }
+                    break;
+                }
             }
-            while self.writer_thread != SGX_THREAD_T_NULL {
-                self.condvar.wait(&self.mutex);
-            }
-            self.writer_thread = thread::rsgx_thread_self();
         }
-        self.mutex.unlock();
-        self.deref_busy();
+        self.lock.unlock();
         Ok(())
     }
 
-    pub unsafe fn try_write(&mut self) -> SysError {
-        self.ref_busy()?;
-        self.mutex.lock();
-        {
-            let mut ret = Ok(());
-            if self.writer_thread == thread::rsgx_thread_self() {
-                ret = Err(libc::EDEADLK);
-            }
-            else if self.writers_num == u32::max_value() {
-                ret = Err(libc::EAGAIN);
-            }
-            else if self.readers_num > 0 || self.writer_thread != SGX_THREAD_T_NULL {
-                ret = Err(libc::EBUSY);
-            }
+    unsafe fn try_write(&mut self) -> SysError {
+        let current = rsgx_thread_self();
 
-            match ret {
-                Ok(_) => {},
-                Err(e) => {
-                    self.mutex.unlock();
-                    self.deref_busy();
-                    return Err(e);
-                }
-            }
-            self.writers_num += 1;
-            self.writer_thread = thread::rsgx_thread_self();
-        }
-        self.mutex.unlock();
-        self.deref_busy();
-        Ok(())
+        self.lock.lock();
+        let ret = if self.owner == SGX_THREAD_T_NULL && self.reader_count == 0 {
+            self.owner = current;
+            Ok(())
+        } else {
+            Err(libc::EBUSY)
+        };
+        self.lock.unlock();
+        ret
     }
 
     unsafe fn read_unlock(&mut self) -> SysError {
-        self.raw_unlock()
+        self.lock.lock();
+
+        if self.reader_count == 0 {
+            self.lock.unlock();
+            return Err(libc::EPERM);
+        }
+
+        self.reader_count -= 1;
+        if self.reader_count == 0 {
+            let waiter = self.reader_queue.front();
+            self.lock.unlock();
+            if waiter.is_some() {
+                mutex::thread_set_event(SgxThreadData::from_raw(*waiter.unwrap()).get_tcs());
+            }
+        } else {
+            self.lock.unlock();
+        }
+        Ok(())
     }
 
     unsafe fn write_unlock(&mut self) -> SysError {
-        self.raw_unlock()
-    }
+        let current = rsgx_thread_self();
 
-    unsafe fn raw_unlock(&mut self) -> SysError {
-        self.mutex.lock();
-        {
-            if self.readers_num > 0 {
-                self.readers_num -= 1;
-                if self.readers_num == 0 && self.writers_num > 0 {
-                    self.condvar.broadcast();
-                }
-            } else {
-                if self.writer_thread != thread::rsgx_thread_self() {
-                    self.mutex.unlock();
-                    return Err(libc::EPERM);
-                }
-                self.writers_num -= 1;
-                self.writer_thread = SGX_THREAD_T_NULL;
-                if self.busy > 0 {
-                    self.condvar.broadcast();
-                }
+        self.lock.lock();
+
+        if self.owner != current {
+            self.lock.unlock();
+            return Err(libc::EPERM);
+        }
+
+        self.owner = SGX_THREAD_T_NULL;
+        if !self.reader_queue.is_empty() {
+            let mut tcs_vec: Vec<usize> = Vec::new();
+            for waiter in self.reader_queue.iter() {
+                tcs_vec.push(SgxThreadData::from_raw(*waiter).get_tcs())
+            }
+            self.lock.unlock();
+            mutex::thread_set_multiple_events(tcs_vec.as_slice());
+        } else {
+            let waiter = self.writer_queue.front();
+            self.lock.unlock();
+            if waiter.is_some() {
+                mutex::thread_set_event(SgxThreadData::from_raw(*waiter.unwrap()).get_tcs());
             }
         }
-        self.mutex.unlock();
         Ok(())
+    }
+
+    unsafe fn unlock(&mut self) -> SysError {
+        if self.owner == rsgx_thread_self() {
+            self.write_unlock()
+        } else {
+            self.read_unlock()
+        }
     }
 
     unsafe fn destroy(&mut self) -> SysError {
-        self.mutex.lock();
+        self.lock.lock();
+        let ret = if self.owner != SGX_THREAD_T_NULL
+            || self.reader_count != 0
+            || self.writer_waiting != 0
+            || !self.reader_queue.is_empty()
+            || !self.writer_queue.is_empty()
         {
-            if self.readers_num > 0 ||
-               self.writers_num > 0 ||
-               self.busy > 0 {
-
-                self.spinlock.unlock();
-                return Err(libc::EBUSY);
-            }
-
-            self.condvar.destroy();
-            self.mutex.destroy();
-        }
-        self.spinlock.unlock();
-        Ok(())
+            Err(libc::EBUSY)
+        } else {
+            Ok(())
+        };
+        self.lock.unlock();
+        ret
     }
 }
+
+unsafe impl Send for SgxThreadRwLock {}
+unsafe impl Sync for SgxThreadRwLock {}
 
 /// An OS-based reader-writer lock.
 ///
@@ -254,8 +239,8 @@ pub struct SgxThreadRwLock {
 impl SgxThreadRwLock {
     /// Creates a new reader-writer lock for use.
     pub const fn new() -> Self {
-        SgxThreadRwLock { 
-            lock: UnsafeCell::new(SgxThreadRwLockInner::new())
+        SgxThreadRwLock {
+            lock: UnsafeCell::new(SgxThreadRwLockInner::new()),
         }
     }
 
@@ -307,6 +292,12 @@ impl SgxThreadRwLock {
     pub unsafe fn write_unlock(&self) -> SysError {
         let rwlock: &mut SgxThreadRwLockInner = &mut *self.lock.get();
         rwlock.write_unlock()
+    }
+
+    #[inline]
+    pub unsafe fn unlock(&self) -> SysError {
+        let rwlock: &mut SgxThreadRwLockInner = &mut *self.lock.get();
+        rwlock.unlock()
     }
 
     /// Destroys OS-related resources with this RWLock.

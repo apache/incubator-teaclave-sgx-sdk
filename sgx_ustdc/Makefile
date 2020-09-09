@@ -18,7 +18,7 @@
 include ../buildenv.mk
 
 USTDC_CFLAGS := $(CFLAGS)
-USTDC_CFLAGS += -fPIC -Wno-attributes -I ./inc
+USTDC_CFLAGS += -fPIC -Wno-attributes -I ./inc  -Wno-strict-prototypes -Wno-deprecated-declarations
 SRCS := $(wildcard *.c)
 OBJS := $(sort $(SRCS:.c=.o))
 

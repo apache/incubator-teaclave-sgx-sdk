@@ -16,7 +16,6 @@
 // under the License..
 
 #![no_std]
-
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(improper_ctypes)]
@@ -75,6 +74,6 @@ pub use self::error::*;
 mod function;
 pub use self::function::*;
 
+pub mod cpu_feature;
 pub mod marker;
 pub mod metadata;
-pub mod cpu_feature;

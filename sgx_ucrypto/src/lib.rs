@@ -25,10 +25,10 @@
 #![allow(non_snake_case)]
 #![allow(clippy::too_many_arguments)]
 
-extern crate sgx_types;
 extern crate libc;
-extern crate rdrand;
 extern crate rand_core;
+extern crate rdrand;
+extern crate sgx_types;
 
 mod util;
 pub use util::*;

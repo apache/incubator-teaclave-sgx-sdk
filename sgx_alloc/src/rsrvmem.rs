@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use core::ptr::NonNull;
-use core::fmt;
 pub use self::platform::*;
+use core::fmt;
+use core::ptr::NonNull;
 
 pub struct RsrvMemAlloc;
 
@@ -30,8 +30,8 @@ pub enum ProtectAttr {
 }
 
 impl RsrvMemAlloc {
-    #[inline]
-    /// Allocate a range of EPC memory from the reserved memory area with RW permission
+    
+    /// Allocate a range of EPC memory from the reserved memory area
     ///
     /// # Parameters
     ///
@@ -43,8 +43,30 @@ impl RsrvMemAlloc {
     ///
     /// Starting address of the new allocated memory area on success;
     ///
+    #[inline]
     pub unsafe fn alloc(&mut self, count: u32) -> Result<NonNull<u8>, RsrvMemAllocErr> {
         NonNull::new(platform::alloc(count)).ok_or(RsrvMemAllocErr)
+    }
+
+    /// Allocate a range of EPC memory with a fixed address from the reserved memory area
+    ///
+    /// # Parameters
+    ///
+    /// **addr**
+    /// 
+    /// The desired starting address to allocate the reserved memory. Should be page aligned.
+    /// 
+    /// **count**
+    ///
+    /// Count of pages to allocate region
+    ///
+    /// # Return value
+    ///
+    /// Starting address of the new allocated memory area on success;
+    ///
+    #[inline]
+    pub unsafe fn alloc_with_addr(&mut self, addr: NonNull<u8>, count: u32) -> Result<NonNull<u8>, RsrvMemAllocErr> {
+        NonNull::new(platform::alloc_with_addr(addr.as_ptr(), count)).ok_or(RsrvMemAllocErr)
     }
 
     #[inline]
@@ -88,7 +110,12 @@ impl RsrvMemAlloc {
     /// The target memory protection.
     ///
     #[inline]
-    pub unsafe fn protect(&self, addr: NonNull<u8>, count: u32, prot: ProtectAttr) -> Result<(), RsrvMemAllocErr> {
+    pub unsafe fn protect(
+        &self,
+        addr: NonNull<u8>,
+        count: u32,
+        prot: ProtectAttr,
+    ) -> Result<(), RsrvMemAllocErr> {
         platform::protect(addr.as_ptr(), count, prot)
     }
 }
@@ -103,15 +130,15 @@ impl fmt::Display for RsrvMemAllocErr {
 }
 
 mod platform {
-    use super::RsrvMemAllocErr;
     use super::ProtectAttr;
+    use super::RsrvMemAllocErr;
     use core::ffi::c_void;
     use core::ptr;
 
-    const SGX_PROT_READ:  u32 = 0x1;
+    const SGX_PROT_READ: u32 = 0x1;
     const SGX_PROT_WRITE: u32 = 0x2;
-    const SGX_PROT_EXEC:  u32 = 0x4;
-    const SE_PAGE_SIZE:   usize =  0x1000;
+    const SGX_PROT_EXEC: u32 = 0x4;
+    const SE_PAGE_SIZE: usize = 0x1000;
 
     type size_t = usize;
     type int32_t = i32;
@@ -119,15 +146,25 @@ mod platform {
 
     extern "C" {
         pub fn sgx_alloc_rsrv_mem(length: size_t) -> *mut c_void;
+        pub fn sgx_alloc_rsrv_mem_ex(desired_addr: *const c_void, length: size_t) -> *mut c_void;
         pub fn sgx_free_rsrv_mem(addr: *const c_void, length: size_t) -> int32_t;
-        pub fn sgx_tprotect_rsrv_mem(addr: *const c_void, length: size_t, prot: i32) -> sgx_status_t;  
+        pub fn sgx_tprotect_rsrv_mem(
+            addr: *const c_void,
+            length: size_t,
+            prot: i32,
+        ) -> sgx_status_t;
     }
 
     #[inline]
     pub unsafe fn alloc(count: u32) -> *mut u8 {
         sgx_alloc_rsrv_mem(count as usize * SE_PAGE_SIZE) as *mut u8
     }
-    
+
+    #[inline]
+    pub unsafe fn alloc_with_addr(addr: *mut u8, count: u32) -> *mut u8 {
+        sgx_alloc_rsrv_mem_ex(addr as *const c_void, count as usize * SE_PAGE_SIZE) as *mut u8
+    }
+
     #[inline]
     pub unsafe fn alloc_zeroed(count: u32) -> *mut u8 {
         let raw = alloc(count);
@@ -139,8 +176,7 @@ mod platform {
 
     #[inline]
     pub unsafe fn dealloc(addr: *mut u8, count: u32) -> Result<(), RsrvMemAllocErr> {
-        if sgx_free_rsrv_mem(addr as *const c_void,
-                             count as usize * SE_PAGE_SIZE) == 0 {
+        if sgx_free_rsrv_mem(addr as *const c_void, count as usize * SE_PAGE_SIZE) == 0 {
             Ok(())
         } else {
             Err(RsrvMemAllocErr)
@@ -148,19 +184,26 @@ mod platform {
     }
 
     #[inline]
-    pub unsafe fn protect(addr: *mut u8, count: u32, prot: ProtectAttr) -> Result<(), RsrvMemAllocErr> {
+    pub unsafe fn protect(
+        addr: *mut u8,
+        count: u32,
+        prot: ProtectAttr,
+    ) -> Result<(), RsrvMemAllocErr> {
         let attr = match prot {
-            ProtectAttr::Read => { SGX_PROT_READ } ,
-            ProtectAttr::ReadWrite => { SGX_PROT_READ | SGX_PROT_WRITE },
-            ProtectAttr::ReadExec => {SGX_PROT_READ | SGX_PROT_EXEC },
-            ProtectAttr::ReadWriteExec => { SGX_PROT_READ | SGX_PROT_WRITE | SGX_PROT_EXEC },
+            ProtectAttr::Read => SGX_PROT_READ,
+            ProtectAttr::ReadWrite => SGX_PROT_READ | SGX_PROT_WRITE,
+            ProtectAttr::ReadExec => SGX_PROT_READ | SGX_PROT_EXEC,
+            ProtectAttr::ReadWriteExec => SGX_PROT_READ | SGX_PROT_WRITE | SGX_PROT_EXEC,
         };
-        if sgx_tprotect_rsrv_mem(addr as *const c_void,
-                                 count as usize * SE_PAGE_SIZE,
-                                 attr as i32) == 0 {
+        if sgx_tprotect_rsrv_mem(
+            addr as *const c_void,
+            count as usize * SE_PAGE_SIZE,
+            attr as i32,
+        ) == 0
+        {
             Ok(())
         } else {
-            Err(RsrvMemAllocErr) 
+            Err(RsrvMemAllocErr)
         }
     }
 }

@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use libc::{self, addrinfo, c_char, c_int};
 use std::io::Error;
-use libc::{self, c_int, c_char, addrinfo};
 
 #[no_mangle]
 pub extern "C" fn u_getaddrinfo_ocall(
@@ -32,13 +32,15 @@ pub extern "C" fn u_getaddrinfo_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_freeaddrinfo_ocall(res: *mut addrinfo ) {
+pub extern "C" fn u_freeaddrinfo_ocall(res: *mut addrinfo) {
     unsafe { libc::freeaddrinfo(res) }
 }
 

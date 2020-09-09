@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use libc::{self, c_int, c_long, c_ulong, cpu_set_t, pid_t, size_t};
 use std::io::Error;
-use libc::{self, c_int, c_long, c_ulong, size_t, pid_t, cpu_set_t};
 
 #[no_mangle]
 pub extern "C" fn u_sysconf_ocall(error: *mut c_int, name: c_int) -> c_long {
@@ -26,7 +26,9 @@ pub extern "C" fn u_sysconf_ocall(error: *mut c_int, name: c_int) -> c_long {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -46,7 +48,9 @@ pub extern "C" fn u_prctl_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -64,9 +68,11 @@ pub extern "C" fn u_sched_setaffinity_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
-    ret                                         
+    ret
 }
 
 #[no_mangle]
@@ -82,7 +88,9 @@ pub extern "C" fn u_sched_getaffinity_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
-    ret                                         
+    ret
 }

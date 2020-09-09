@@ -15,18 +15,19 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_types::{self, SysError, sgx_status_t, sgx_thread_t, SGX_THREAD_T_NULL};
-use sgx_trts::libc;
-use sgx_trts::error::set_errno;
-use sgx_trts::enclave::SgxThreadData;
-use sgx_libc::{c_void, c_int, c_long, time_t, timespec};
-use core::ptr;
-use core::cmp;
+use alloc_crate::collections::LinkedList;
 use core::cell::UnsafeCell;
+use core::cmp;
+use core::ptr;
 use crate::sync::SgxThreadSpinlock;
-use crate::thread::{self, rsgx_thread_self};
+use crate::thread::rsgx_thread_self;
 use crate::time::Duration;
 use crate::u64;
+use sgx_libc::{c_int, c_long, c_void, time_t, timespec};
+use sgx_trts::enclave::SgxThreadData;
+use sgx_trts::error::set_errno;
+use sgx_trts::libc;
+use sgx_types::{self, sgx_status_t, sgx_thread_t, SysError, SGX_THREAD_T_NULL};
 
 extern "C" {
     pub fn u_thread_wait_event_ocall(
@@ -61,9 +62,12 @@ extern "C" {
 pub unsafe fn thread_wait_event(tcs: usize, dur: Duration) -> c_int {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
-    let mut timeout = timespec { tv_sec: 0, tv_nsec: 0 };
+    let mut timeout = timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
     let timeout_ptr: *const timespec = if dur != Duration::new(u64::MAX, 1_000_000_000 - 1) {
-        timeout.tv_sec = cmp::min(dur.as_secs(), time_t::max_value() as u64) as time_t;
+        timeout.tv_sec = cmp::min(dur.as_secs(), time_t::MAX as u64) as time_t;
         timeout.tv_nsec = dur.subsec_nanos() as c_long;
         &timeout as *const timespec
     } else {
@@ -77,7 +81,9 @@ pub unsafe fn thread_wait_event(tcs: usize, dur: Duration) -> c_int {
         timeout_ptr,
     );
     if status == sgx_status_t::SGX_SUCCESS {
-        if result == -1 { set_errno(error); }
+        if result == -1 {
+            set_errno(error);
+        }
     } else {
         set_errno(libc::ESGX);
         result = -1;
@@ -94,7 +100,9 @@ pub unsafe fn thread_set_event(tcs: usize) -> c_int {
         tcs as *const c_void,
     );
     if status == sgx_status_t::SGX_SUCCESS {
-        if result == -1 { set_errno(error); }
+        if result == -1 {
+            set_errno(error);
+        }
     } else {
         set_errno(libc::ESGX);
         result = -1;
@@ -126,9 +134,12 @@ pub unsafe fn thread_set_multiple_events(tcss: &[usize]) -> c_int {
 pub unsafe fn thread_setwait_events(wait_tcs: usize, self_tcs: usize, dur: Duration) -> c_int {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
-    let mut timeout = timespec { tv_sec: 0, tv_nsec: 0 };
+    let mut timeout = timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
     let timeout_ptr: *const timespec = if dur != Duration::new(u64::MAX, 1_000_000_000 - 1) {
-        timeout.tv_sec = cmp::min(dur.as_secs(), time_t::max_value() as u64) as time_t;
+        timeout.tv_sec = cmp::min(dur.as_secs(), time_t::MAX as u64) as time_t;
         timeout.tv_nsec = dur.subsec_nanos() as c_long;
         &timeout as *const timespec
     } else {
@@ -143,7 +154,9 @@ pub unsafe fn thread_setwait_events(wait_tcs: usize, self_tcs: usize, dur: Durat
         timeout_ptr,
     );
     if status == sgx_status_t::SGX_SUCCESS {
-        if result == -1 { set_errno(error); }
+        if result == -1 {
+            set_errno(error);
+        }
     } else {
         set_errno(libc::ESGX);
         result = -1;
@@ -160,88 +173,83 @@ pub enum SgxThreadMutexControl {
 struct SgxThreadMutexInner {
     refcount: usize,
     control: SgxThreadMutexControl,
-    spinlock: SgxThreadSpinlock,
-    thread_owner: sgx_thread_t,
-    thread_vec: Vec<sgx_thread_t>,
+    lock: SgxThreadSpinlock,
+    owner: sgx_thread_t,
+    queue: LinkedList<sgx_thread_t>,
 }
 
 impl SgxThreadMutexInner {
-
     const fn new(control: SgxThreadMutexControl) -> Self {
         SgxThreadMutexInner {
             refcount: 0,
             control: control,
-            spinlock: SgxThreadSpinlock::new(),
-            thread_owner: SGX_THREAD_T_NULL,
-            thread_vec: Vec::new(),
+            lock: SgxThreadSpinlock::new(),
+            owner: SGX_THREAD_T_NULL,
+            queue: LinkedList::new(),
         }
     }
 
     unsafe fn lock(&mut self) -> SysError {
         loop {
-            self.spinlock.lock();
-            if self.control == SgxThreadMutexControl::SGX_THREAD_MUTEX_RECURSIVE &&
-                self.thread_owner == rsgx_thread_self() {
+            self.lock.lock();
+            if self.control == SgxThreadMutexControl::SGX_THREAD_MUTEX_RECURSIVE
+                && self.owner == rsgx_thread_self()
+            {
                 self.refcount += 1;
-                self.spinlock.unlock();
+                self.lock.unlock();
                 return Ok(());
             }
 
-            if self.thread_owner == SGX_THREAD_T_NULL &&
-                (self.thread_vec.first() == Some(&rsgx_thread_self()) ||
-                self.thread_vec.first() == None) {
-
-                if self.thread_vec.first() == Some(&rsgx_thread_self()) {
-                    self.thread_vec.remove(0);
+            if self.owner == SGX_THREAD_T_NULL
+                && (self.queue.front() == Some(&rsgx_thread_self())
+                    || self.queue.front() == None)
+            {
+                if self.queue.front() == Some(&rsgx_thread_self()) {
+                    self.queue.pop_front();
                 }
 
-                self.thread_owner = rsgx_thread_self();
+                self.owner = rsgx_thread_self();
                 self.refcount += 1;
-                self.spinlock.unlock();
-
+                self.lock.unlock();
                 return Ok(());
             }
 
-            let mut thread_waiter: sgx_thread_t = SGX_THREAD_T_NULL;
-            for waiter in &self.thread_vec {
-                if thread::rsgx_thread_equal(*waiter, rsgx_thread_self()) {
-                    thread_waiter = *waiter;
-                    break;
-                }
+            if !self.queue.contains(&rsgx_thread_self()) {
+                self.queue.push_back(rsgx_thread_self());
             }
 
-            if thread_waiter == SGX_THREAD_T_NULL {
-                self.thread_vec.push(rsgx_thread_self());
-            }
-            self.spinlock.unlock();
-            thread_wait_event(SgxThreadData::current().get_tcs(), Duration::new(u64::MAX, 1_000_000_000 - 1));
+            self.lock.unlock();
+            thread_wait_event(
+                SgxThreadData::current().get_tcs(),
+                Duration::new(u64::MAX, 1_000_000_000 - 1),
+            );
         }
     }
 
     unsafe fn try_lock(&mut self) -> SysError {
-        self.spinlock.lock();
-        if self.control == SgxThreadMutexControl::SGX_THREAD_MUTEX_RECURSIVE &&
-            self.thread_owner == rsgx_thread_self() {
-
+        self.lock.lock();
+        if self.control == SgxThreadMutexControl::SGX_THREAD_MUTEX_RECURSIVE
+            && self.owner == rsgx_thread_self()
+        {
             self.refcount += 1;
-            self.spinlock.unlock();
+            self.lock.unlock();
             return Ok(());
         }
 
-        if self.thread_owner == SGX_THREAD_T_NULL &&
-            (self.thread_vec.first() == Some(&rsgx_thread_self()) ||
-            self.thread_vec.first() == None) {
-
-            if self.thread_vec.first() == Some(&rsgx_thread_self()) {
-                self.thread_vec.remove(0);
+        if self.owner == SGX_THREAD_T_NULL
+            && (self.queue.front() == Some(&rsgx_thread_self())
+                || self.queue.front() == None)
+        {
+            if self.queue.front() == Some(&rsgx_thread_self()) {
+                self.queue.pop_front();
             }
 
-            self.thread_owner = rsgx_thread_self();
+            self.owner = rsgx_thread_self();
             self.refcount += 1;
-            self.spinlock.unlock();
+            self.lock.unlock();
             return Ok(());
         }
-        self.spinlock.unlock();
+        self.lock.unlock();
         Err(libc::EBUSY)
     }
 
@@ -249,58 +257,62 @@ impl SgxThreadMutexInner {
         let mut thread_waiter = SGX_THREAD_T_NULL;
         self.unlock_lazy(&mut thread_waiter)?;
 
-        if thread_waiter != SGX_THREAD_T_NULL /* wake the waiter up*/ {
+        if thread_waiter != SGX_THREAD_T_NULL {
+            // wake the waiter up
             thread_set_event(SgxThreadData::from_raw(thread_waiter).get_tcs());
         }
         Ok(())
     }
 
     unsafe fn unlock_lazy(&mut self, waiter: &mut sgx_thread_t) -> SysError {
-        self.spinlock.lock();
-        //if the mutux is not locked by anyone
-        if self.thread_owner == SGX_THREAD_T_NULL {
-            self.spinlock.unlock();
+        self.lock.lock();
+        // if the mutux is not locked by anyone
+        if self.owner == SGX_THREAD_T_NULL {
+            self.lock.unlock();
             return Err(libc::EPERM);
         }
 
-        //if the mutex is locked by another thread
-        if self.thread_owner != rsgx_thread_self() {
-            self.spinlock.unlock();
+        // if the mutex is locked by another thread
+        if self.owner != rsgx_thread_self() {
+            self.lock.unlock();
             return Err(libc::EPERM);
         }
-        //the mutex is locked by current thread
+        // the mutex is locked by current thread
         self.refcount -= 1;
         if self.refcount == 0 {
-            self.thread_owner = SGX_THREAD_T_NULL;
+            self.owner = SGX_THREAD_T_NULL;
         } else {
-            self.spinlock.unlock();
+            self.lock.unlock();
             return Ok(());
         }
-        //Before releasing the mutex, get the first thread,
-        //the thread should be waked up by the caller.
-        if self.thread_vec.is_empty() {
+        // Before releasing the mutex, get the first thread,
+        // the thread should be waked up by the caller.
+        if self.queue.is_empty() {
             *waiter = SGX_THREAD_T_NULL;
         } else {
-            *waiter = *self.thread_vec.first().unwrap();
+            *waiter = *self.queue.front().unwrap();
         }
 
-        self.spinlock.unlock();
+        self.lock.unlock();
         Ok(())
     }
 
     unsafe fn destroy(&mut self) -> SysError {
-        self.spinlock.lock();
-        if self.thread_owner != SGX_THREAD_T_NULL || !self.thread_vec.is_empty() {
-            self.spinlock.unlock();
+        self.lock.lock();
+        let ret = if self.owner != SGX_THREAD_T_NULL || !self.queue.is_empty() {
             Err(libc::EBUSY)
         } else {
             self.control = SgxThreadMutexControl::SGX_THREAD_MUTEX_NONRECURSIVE;
             self.refcount = 0;
-            self.spinlock.unlock();
             Ok(())
-        }
+        };
+        self.lock.unlock();
+        ret
     }
 }
+
+unsafe impl Send for SgxThreadMutex {}
+unsafe impl Sync for SgxThreadMutex {}
 
 pub struct SgxThreadMutex {
     lock: UnsafeCell<SgxThreadMutexInner>,
@@ -308,8 +320,8 @@ pub struct SgxThreadMutex {
 
 impl SgxThreadMutex {
     pub const fn new(control: SgxThreadMutexControl) -> Self {
-        SgxThreadMutex { 
-            lock: UnsafeCell::new(SgxThreadMutexInner::new(control))
+        SgxThreadMutex {
+            lock: UnsafeCell::new(SgxThreadMutexInner::new(control)),
         }
     }
 

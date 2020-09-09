@@ -24,8 +24,8 @@
 #![no_std]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
-extern crate sgx_types;
 extern crate sgx_trts;
+extern crate sgx_types;
 
 mod fs;
 pub use self::fs::*;

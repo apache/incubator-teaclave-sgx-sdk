@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use libc::{self, c_int, c_void, off_t, size_t};
 use std::io::Error;
-use libc::{self, c_int, c_void, size_t, off_t};
 
 #[no_mangle]
 pub extern "C" fn u_malloc_ocall(error: *mut c_int, size: size_t) -> *mut c_void {
@@ -26,7 +26,9 @@ pub extern "C" fn u_malloc_ocall(error: *mut c_int, size: size_t) -> *mut c_void
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -52,24 +54,24 @@ pub extern "C" fn u_mmap_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_munmap_ocall(
-    error: *mut c_int,
-    start: *mut c_void,
-    length: size_t,
-) -> c_int {
+pub extern "C" fn u_munmap_ocall(error: *mut c_int, start: *mut c_void, length: size_t) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::munmap(start, length) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -87,7 +89,9 @@ pub extern "C" fn u_msync_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -105,7 +109,9 @@ pub extern "C" fn u_mprotect_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }

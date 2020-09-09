@@ -1,10 +1,10 @@
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicI32, Ordering};
+use libc::timespec;
 use libc::{self, c_int, c_void};
 use std::io::Error;
 use std::slice;
+use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::Mutex;
 use std::sync::Once;
-use libc::timespec;
 
 static mut GLOBAL_TCS_CACHE: Option<SgxTcsInfoCache> = None;
 static INIT: Once = Once::new();
@@ -18,7 +18,7 @@ pub struct SeEvent {
 
 impl SeEvent {
     pub fn new() -> SeEvent {
-        SeEvent{
+        SeEvent {
             event: AtomicI32::new(0),
         }
     }
@@ -49,17 +49,7 @@ impl SeEvent {
 
     pub fn wait(&self) -> i32 {
         if self.event.fetch_add(-1, Ordering::SeqCst) == 0 {
-            let ret = unsafe {
-                libc::syscall(
-                    libc::SYS_futex,
-                    self,
-                    FUTEX_WAIT,
-                    -1,
-                    0,
-                    0,
-                    0,
-                )
-            };
+            let ret = unsafe { libc::syscall(libc::SYS_futex, self, FUTEX_WAIT, -1, 0, 0, 0) };
             if ret < 0 {
                 let _err = Error::last_os_error().raw_os_error().unwrap_or(0);
             }
@@ -69,17 +59,7 @@ impl SeEvent {
 
     pub fn wake(&self) -> i32 {
         if self.event.fetch_add(1, Ordering::SeqCst) != 0 {
-           unsafe {
-               libc::syscall(
-                   libc::SYS_futex,
-                    self,
-                    FUTEX_WAKE,
-                    1,
-                    0,
-                    0,
-                    0,
-                )
-            };
+            unsafe { libc::syscall(libc::SYS_futex, self, FUTEX_WAKE, 1, 0, 0, 0) };
         }
         0
     }
@@ -91,7 +71,7 @@ struct SgxTcsInfo<'a> {
 }
 
 struct SgxTcsInfoCache<'a> {
-    cache: Mutex<Vec<SgxTcsInfo<'a>>>
+    cache: Mutex<Vec<SgxTcsInfo<'a>>>,
 }
 
 impl<'a> SgxTcsInfoCache<'a> {
@@ -113,8 +93,8 @@ impl<'a> SgxTcsInfoCache<'a> {
                     se_event: event,
                 });
                 let len = v.len();
-                v[len -1].se_event
-            },
+                v[len - 1].se_event
+            }
         }
     }
 }
@@ -135,29 +115,41 @@ pub fn get_tcs_event(_tcs: usize) -> &'static SeEvent {
 pub extern "C" fn u_thread_set_event_ocall(error: *mut c_int, tcs: *const c_void) -> c_int {
     if tcs.is_null() {
         if !error.is_null() {
-            unsafe { *error = libc::EINVAL; }
+            unsafe {
+                *error = libc::EINVAL;
+            }
         }
         return -1;
     }
     let result = get_tcs_event(tcs as usize).wake();
     if result != 0 {
         if !error.is_null() {
-            unsafe { *error = Error::last_os_error().raw_os_error().unwrap_or(0); }
+            unsafe {
+                *error = Error::last_os_error().raw_os_error().unwrap_or(0);
+            }
         }
         -1
     } else {
         if !error.is_null() {
-            unsafe { *error = 0; }
+            unsafe {
+                *error = 0;
+            }
         }
         result as c_int
     }
 }
 
 #[no_mangle]
-pub extern "C" fn u_thread_wait_event_ocall(error: *mut c_int, tcs: *const c_void, timeout: *const timespec) -> c_int {
+pub extern "C" fn u_thread_wait_event_ocall(
+    error: *mut c_int,
+    tcs: *const c_void,
+    timeout: *const timespec,
+) -> c_int {
     if tcs.is_null() {
         if !error.is_null() {
-            unsafe { *error = libc::EINVAL; }
+            unsafe {
+                *error = libc::EINVAL;
+            }
         }
         return -1;
     }
@@ -165,16 +157,20 @@ pub extern "C" fn u_thread_wait_event_ocall(error: *mut c_int, tcs: *const c_voi
     let result = if timeout.is_null() {
         get_tcs_event(tcs as usize).wait()
     } else {
-        get_tcs_event(tcs as usize).wait_timeout(unsafe{&*timeout})
+        get_tcs_event(tcs as usize).wait_timeout(unsafe { &*timeout })
     };
     if result != 0 {
         if !error.is_null() {
-            unsafe { *error = Error::last_os_error().raw_os_error().unwrap_or(0); }
+            unsafe {
+                *error = Error::last_os_error().raw_os_error().unwrap_or(0);
+            }
         }
         -1
     } else {
         if !error.is_null() {
-            unsafe { *error = 0; }
+            unsafe {
+                *error = 0;
+            }
         }
         result as c_int
     }
@@ -188,7 +184,9 @@ pub extern "C" fn u_thread_set_multiple_events_ocall(
 ) -> c_int {
     if tcss.is_null() {
         if !error.is_null() {
-            unsafe { *error = libc::EINVAL; }
+            unsafe {
+                *error = libc::EINVAL;
+            }
         }
         return -1;
     }
@@ -199,14 +197,18 @@ pub extern "C" fn u_thread_set_multiple_events_ocall(
         result = get_tcs_event(*tcs as usize).wake();
         if result != 0 {
             if !error.is_null() {
-                unsafe { *error = Error::last_os_error().raw_os_error().unwrap_or(0); }
+                unsafe {
+                    *error = Error::last_os_error().raw_os_error().unwrap_or(0);
+                }
             }
             return -1;
         }
     }
 
     if !error.is_null() {
-        unsafe { *error = 0; }
+        unsafe {
+            *error = 0;
+        }
     }
     result as c_int
 }

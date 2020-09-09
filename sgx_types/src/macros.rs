@@ -15,13 +15,13 @@
 // specific language governing permissions and limitations
 // under the License..
 
-pub use core::clone::Clone;
-pub use core::marker::Copy;
-pub use core::default::Default;
-pub use core::ptr;
-pub use core::mem::transmute;
-pub use core::mem::size_of;
 pub use crate::marker::ContiguousMemory;
+pub use core::clone::Clone;
+pub use core::default::Default;
+pub use core::marker::Copy;
+pub use core::mem::size_of;
+pub use core::mem::transmute;
+pub use core::ptr;
 
 #[macro_export]
 macro_rules! cfg_if {
@@ -81,7 +81,9 @@ macro_rules! cfg_if {
 
 #[macro_export]
 macro_rules! __item {
-    ($i:item) => ($i)
+    ($i:item) => {
+        $i
+    };
 }
 
 macro_rules! impl_copy_clone{
@@ -204,25 +206,35 @@ macro_rules! impl_enum {
 
 #[macro_export]
 macro_rules! meta_data_make_version {
-    ($major:ident, $minor:ident) => ( ($major as u64) << 32 | $minor as u64 )
+    ($major:ident, $minor:ident) => {
+        ($major as u64) << 32 | $minor as u64
+    };
 }
 
 #[macro_export]
 macro_rules! major_version_of_metadata {
-    ($version:ident) => ( ($version as u64) >> 32 )
+    ($version:ident) => {
+        ($version as u64) >> 32
+    };
 }
 
 #[macro_export]
 macro_rules! minor_version_of_metadata {
-    ($version:ident) => ( ($version as u64) & 0x0000_0000_FFFF_FFFF )
+    ($version:ident) => {
+        ($version as u64) & 0x0000_0000_FFFF_FFFF
+    };
 }
 
 #[macro_export]
 macro_rules! group_id {
-    ($gid:expr) => ( (GROUP_FLAG | $gid) )
+    ($gid:expr) => {
+        (GROUP_FLAG | $gid)
+    };
 }
 
 #[macro_export]
 macro_rules! is_group_id {
-    ($gid:expr) => ( (($gid & GROUP_FLAG) != 0) )
+    ($gid:expr) => {
+        (($gid & GROUP_FLAG) != 0)
+    };
 }

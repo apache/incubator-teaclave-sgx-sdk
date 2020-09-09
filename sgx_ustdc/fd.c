@@ -116,7 +116,7 @@ int u_fcntl_arg1_ocall(int *error, int fd, int cmd, int arg)
 
 int u_ioctl_arg0_ocall(int *error, int fd, int request)
 {
-    int ret = ioctl(fd, request);
+    int ret = ioctl(fd, (unsigned long)request);
     if (error) {
         *error = ret == -1 ? errno : 0;
     }
@@ -125,7 +125,7 @@ int u_ioctl_arg0_ocall(int *error, int fd, int request)
 
 int u_ioctl_arg1_ocall(int *error, int fd, int request, int *arg)
 {
-    int ret = ioctl(fd, request, arg);
+    int ret = ioctl(fd, (unsigned long)request, arg);
     if (error) {
         *error = ret == -1 ? errno : 0;
     }

@@ -21,13 +21,15 @@
 //! are useful in cyptographic functions, defending against timing based side
 //! channel attacks
 
-use sgx_types::marker::{BytewiseEquality};
-use core::mem;
 use alloc::slice;
+use core::mem;
+use sgx_types::marker::BytewiseEquality;
 
 pub trait ConsttimeMemEq<T: BytewiseEquality + ?Sized = Self> {
     fn consttime_memeq(&self, other: &T) -> bool;
-    fn consttime_memne(&self, other: &T) -> bool { !self.consttime_memeq(other) }
+    fn consttime_memne(&self, other: &T) -> bool {
+        !self.consttime_memeq(other)
+    }
 }
 
 impl<T> ConsttimeMemEq<[T]> for [T]
@@ -71,11 +73,7 @@ where
     }
 }
 
-unsafe fn consttime_memequal(
-    b1: *const u8,
-    b2: *const u8,
-    l: usize,
-) -> i32 {
+unsafe fn consttime_memequal(b1: *const u8, b2: *const u8, l: usize) -> i32 {
     let mut res: i32 = 0;
     let mut len = l;
     let p1 = slice::from_raw_parts(b1, l);

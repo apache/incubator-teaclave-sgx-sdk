@@ -15,31 +15,24 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use std::enclave::get_enclave_id;
-use std::sync::{Once, Arc, SgxMutex};
-use std::rt::*;
-use std::mem;
-use std::io::Error;
+use crate::manager::{self, ActionId, SigNum, SigSet, SignalManager};
+use sgx_libc::ocall::{raise, sigaction, sigprocmask};
 use sgx_libc::set_errno;
+use sgx_libc::{sigaction, sigemptyset, sighandler_t, siginfo_t, sigset_t};
 use sgx_libc::{EINVAL, ESGX};
-use sgx_libc::{sighandler_t, sigset_t, siginfo_t, sigemptyset, sigaction};
 use sgx_libc::{
-    SIGSTOP, SIGKILL, SIGILL, SIGSEGV, SIGFPE, SIGBUS,
-    SIGTRAP, SIG_DFL, SIG_ERR, SIG_BLOCK, SIG_UNBLOCK,
-    SIG_SETMASK, SA_RESETHAND
+    SA_RESETHAND, SIGBUS, SIGFPE, SIGILL, SIGKILL, SIGSEGV, SIGSTOP, SIGTRAP, SIG_BLOCK, SIG_DFL,
+    SIG_ERR, SIG_SETMASK, SIG_UNBLOCK,
 };
-use sgx_libc::ocall::{sigaction, sigprocmask, raise};
-use sgx_types::{c_int, c_void, sgx_status_t, sgx_enclave_id_t, SysResult};
-use crate::manager::{self, ActionId, SignalManager, SigNum, SigSet};
+use sgx_types::{c_int, c_void, sgx_enclave_id_t, sgx_status_t, SysResult};
+use std::enclave::get_enclave_id;
+use std::io::Error;
+use std::mem;
+use std::rt::*;
+use std::sync::{Arc, Once, SgxMutex};
 
 pub const FORBIDDEN: &[c_int] = FORBIDDEN_IMPL;
-const FORBIDDEN_IMPL: &[c_int] = &[SIGKILL,
-                                   SIGSTOP,
-                                   SIGILL,
-                                   SIGFPE,
-                                   SIGSEGV,
-                                   SIGBUS,
-                                   SIGTRAP];
+const FORBIDDEN_IMPL: &[c_int] = &[SIGKILL, SIGSTOP, SIGILL, SIGFPE, SIGSEGV, SIGBUS, SIGTRAP];
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct SignalId {
@@ -48,8 +41,8 @@ pub struct SignalId {
 }
 
 struct GlobalData {
-   signal_manager: SignalManager,
-   signal_action_lock: SgxMutex<()>,
+    signal_manager: SignalManager,
+    signal_action_lock: SgxMutex<()>,
 }
 
 static mut GLOBAL_DATA: Option<GlobalData> = None;
@@ -60,7 +53,6 @@ extern "C" {
 }
 
 impl GlobalData {
-    // add code here
     fn get() -> &'static Self {
         unsafe { GLOBAL_DATA.as_ref().unwrap() }
     }
@@ -72,14 +64,13 @@ impl GlobalData {
                 signal_action_lock: SgxMutex::new(()),
             });
 
-            let _r = at_exit(|| Self::clear() );
+            let _r = at_exit(|| Self::clear());
         });
         Self::get()
     }
 
     fn clear() {
         if !Self::get().signal_manager.is_action_empty() {
-            //ocall
             unsafe { u_signal_clear_ocall(get_enclave_id()) };
         }
     }
@@ -98,12 +89,13 @@ pub extern "C" fn t_signal_handler_ecall(info: *const siginfo_t) -> c_int {
     unsafe {
         let signo = SigNum::from_raw_uncheck(si_info.si_signo);
         if mask.is_member(signo) {
-           -1
+            -1
         } else {
             global.signal_manager.handler(
                 si_info.si_signo,
                 info as *const siginfo_t,
-                0 as *const c_void);
+                0 as *const c_void,
+            );
             0
         }
     }
@@ -240,7 +232,7 @@ pub fn rsgx_signal(signum: c_int, handler: sighandler_t) -> sighandler_t {
     let mut oldact: sigaction = unsafe { mem::zeroed() };
     act.sa_sigaction = handler;
     unsafe { sigemptyset(&mut act.sa_mask as *mut sigset_t) };
-    if rsgx_sigaction(signum, &act, &mut oldact) != 0  {
+    if rsgx_sigaction(signum, &act, &mut oldact) != 0 {
         // Errno is set by sigaction.
         return SIG_ERR;
     }
@@ -270,13 +262,7 @@ pub fn rsgx_sigprocmask(how: c_int, set: &sigset_t, oldset: &mut sigset_t) -> c_
     // Unblock signals inside the enclave before unblocking signals on the host.
     // |oldset| is already filled with the signal mask inside the enclave.
     manager::unblock(&signals_to_unblock);
-    let result = unsafe {
-        sigprocmask(
-            how,
-            set as *const sigset_t,
-            0 as *mut sigset_t,
-        )
-    };
+    let result = unsafe { sigprocmask(how, set as *const sigset_t, 0 as *mut sigset_t) };
     // Block signals inside the enclave after the host.
     manager::block(&signals_to_block);
     result
@@ -319,7 +305,9 @@ where
     let eid = get_enclave_id();
     if eid == 0 {
         set_errno(ESGX);
-        return Err(Error::from_sgx_error(sgx_status_t::SGX_ERROR_INVALID_ENCLAVE_ID));
+        return Err(Error::from_sgx_error(
+            sgx_status_t::SGX_ERROR_INVALID_ENCLAVE_ID,
+        ));
     }
 
     let signo = match SigNum::from_raw(signal) {
@@ -333,21 +321,12 @@ where
     let act: sigaction = unsafe { mem::zeroed() };
     let mut oldact: sigaction = unsafe { mem::zeroed() };
 
-    native_sigaction_impl(
-        signo,
-        &act,
-        &mut oldact,
-        Arc::from(action),
-    )
-    .map(|action_id|
-        SignalId {
+    native_sigaction_impl(signo, &act, &mut oldact, Arc::from(action))
+        .map(|action_id| SignalId {
             signal: signo,
             action: action_id,
-        }
-    )
-    .map_err(|err|
-        Error::from_raw_os_error(err)
-    )
+        })
+        .map_err(|err| Error::from_raw_os_error(err))
 }
 
 pub fn unregister(id: SignalId) -> bool {
@@ -362,5 +341,5 @@ pub fn unregister_signal(signal: c_int) -> bool {
 }
 
 pub fn raise_signal(signal: c_int) -> bool {
-   rsgx_raise(signal) == 0
+    rsgx_raise(signal) == 0
 }

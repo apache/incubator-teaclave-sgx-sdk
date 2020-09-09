@@ -79,15 +79,15 @@
 #[macro_use]
 extern crate alloc;
 
-extern crate sgx_types;
-extern crate sgx_trts;
 extern crate sgx_tcrypto;
+extern crate sgx_trts;
 extern crate sgx_tse;
+extern crate sgx_types;
 
 mod seal;
 pub use self::seal::{SgxSealedData, SgxUnsealedData};
 
 mod aad;
-pub use self::aad::{SgxMacAadata};
+pub use self::aad::SgxMacAadata;
 
 mod internal;

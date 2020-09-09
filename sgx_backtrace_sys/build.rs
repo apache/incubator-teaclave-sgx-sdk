@@ -26,6 +26,10 @@ fn main() {
 }
 
 fn build_libbacktrace(_target: &str) -> Result<(), ()> {
+    let sdk_dir = env::var("SGX_SDK")
+                    .unwrap_or_else(|_| "/opt/intel/sgxsdk".to_string());
+    let sdk_include = format!("{}/{}", sdk_dir, "include");
+
     let native = native_lib_boilerplate(
                     "sgx_backtrace_sys/libbacktrace",
                     "libbacktrace",
@@ -44,6 +48,7 @@ fn build_libbacktrace(_target: &str) -> Result<(), ()> {
         .flag("-fvisibility=hidden")
         .include("./libbacktrace")
         .include(&native.out_dir)
+        .include(&sdk_include)
         .out_dir(&native.out_dir)
         .warnings(false)
         .file("./libbacktrace/mmap.c")

@@ -43,10 +43,10 @@ unsigned int t_signal_handler_ecall(unsigned long long eid, int* retval, const s
 sgx_signal_dispatcher_t *g_signal_dispatch = NULL;
 static sgx_spinlock_t g_spin_lock;
 
-inline static int hash_func(void *p)
+inline static unsigned int hash_func(void *p)
 {
     key_value_t *kv = p;
-    return kv->signum;
+    return (unsigned int)kv->signum;
 }
 
 inline static int eq_func(void *p, void *q)
@@ -56,7 +56,7 @@ inline static int eq_func(void *p, void *q)
     return kv1->signum == kv2->signum;
 }
 
-int signal_dispatcher_init()
+int signal_dispatcher_init(void)
 {
     g_signal_dispatch = (sgx_signal_dispatcher_t *)malloc(sizeof(sgx_signal_dispatcher_t));
     if (g_signal_dispatch == NULL) {
@@ -73,7 +73,7 @@ int signal_dispatcher_init()
     return 0;
 }
 
-int signal_dispatcher_uninit()
+int signal_dispatcher_uninit(void)
 {
     if (g_signal_dispatch == NULL) {
         return -1;
@@ -86,7 +86,7 @@ int signal_dispatcher_uninit()
     return 0;
 }
 
-void signal_dispatcher_instance_init() {
+void signal_dispatcher_instance_init(void) {
     sgx_spin_lock(&g_spin_lock);
     if (g_signal_dispatch == NULL) {
         if (signal_dispatcher_init() < 0) {
@@ -165,7 +165,7 @@ int deregister_all_signals_for_eid(unsigned long long eid)
     sigset_t mask = {0};
     sigset_t old_mask = {0};
     key_value_t *kv = NULL;
-    int i;
+    size_t i = 0;
 
     signal_dispatcher_instance_init();
 
@@ -174,9 +174,9 @@ int deregister_all_signals_for_eid(unsigned long long eid)
     // If this enclave has registered any signals, deregister them and set the
     // signal handler to the default one.
     pthread_mutex_lock(&g_signal_dispatch->lock);
-     for (i = g_signal_dispatch->signal_to_eid_set->size - 1; i >= 0; i--) {
-         if (g_signal_dispatch->signal_to_eid_set->entries[i]) {
-            kv = (key_value_t*)g_signal_dispatch->signal_to_eid_set->entries[i];
+     for (i = g_signal_dispatch->signal_to_eid_set->size; i > 0; i--) {
+         if (g_signal_dispatch->signal_to_eid_set->entries[i - 1]) {
+            kv = (key_value_t*)g_signal_dispatch->signal_to_eid_set->entries[i - 1];
             if (kv->enclave_id == eid) {
                 if (signal(kv->signum, SIG_DFL) == SIG_ERR) {
                    //error
@@ -191,16 +191,17 @@ int deregister_all_signals_for_eid(unsigned long long eid)
     return 0;
 }
 
-static int handle_signal(int signum, const siginfo_t *info, const void *context)
+static int handle_signal(int signum, const siginfo_t *info, __attribute__ ((unused))const void *context)
 {
     int ret = 0;
+    unsigned int result = 0;
     unsigned long long eid = 0;
 
     ret = get_eid_for_signal(signum, &eid);
     if (ret < 0) {
         return -1;
     }
-    int result = t_signal_handler_ecall(eid, &ret, info);
+    result = t_signal_handler_ecall(eid, &ret, info);
     if (result != 0) {
         return -1;
     }

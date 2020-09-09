@@ -77,9 +77,11 @@ use sgx_types::*;
 pub fn rsgx_ra_init(p_pub_key: &sgx_ec256_public_t, b_pse: i32) -> SgxResult<sgx_ra_context_t> {
     let mut context: sgx_ra_context_t = 0;
     let ret = unsafe {
-        sgx_ra_init(p_pub_key as *const sgx_ec256_public_t,
-                    b_pse,
-                    &mut context as *mut sgx_ra_context_t)
+        sgx_ra_init(
+            p_pub_key as *const sgx_ec256_public_t,
+            b_pse,
+            &mut context as *mut sgx_ra_context_t,
+        )
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(context),
@@ -203,11 +205,12 @@ pub fn rsgx_ra_init_ex(
 /// Indicates this API is invoked in incorrect order, it can be called only after a success session has been established.
 /// In other words, sgx_ra_proc_msg2 should have been called and no error returned.
 ///
-pub fn rsgx_ra_get_keys(context: sgx_ra_context_t, keytype: sgx_ra_key_type_t) -> SgxResult<sgx_ra_key_128_t> {
+pub fn rsgx_ra_get_keys(
+    context: sgx_ra_context_t,
+    keytype: sgx_ra_key_type_t,
+) -> SgxResult<sgx_ra_key_128_t> {
     let mut key = sgx_ra_key_128_t::default();
-    let ret = unsafe {
-        sgx_ra_get_keys(context, keytype, &mut key as *mut sgx_ra_key_128_t)
-    };
+    let ret = unsafe { sgx_ra_get_keys(context, keytype, &mut key as *mut sgx_ra_key_128_t) };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(key),
         _ => Err(ret),
@@ -250,4 +253,3 @@ pub fn rsgx_ra_close(context: sgx_ra_context_t) -> SgxError {
         _ => Err(ret),
     }
 }
-

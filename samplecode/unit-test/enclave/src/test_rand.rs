@@ -53,7 +53,7 @@ pub fn test_rand_distributions () {
             $(
                let v: &[($ty, $ty)] = &[(0, 10),
                                         (10, 127),
-                                        ($ty::min_value(), $ty::max_value())];
+                                        ($ty::min_value(), $ty::MAX)];
                for &(low, high) in v {
                     let mut sampler: Range<$ty> = Range::new(low, high);
                     for _ in 0..1000 {

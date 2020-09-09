@@ -169,7 +169,6 @@ $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 enclave:
 	$(MAKE) -C ./enclave/
 
-
 .PHONY: clean
 clean:
 	@rm -f $(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) $(PayloadEnclave_Name) enclave/*_t.* app/*_u.* lib/*.a enclave/Payload.edl bin/prov_key.bin

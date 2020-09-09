@@ -1,9 +1,9 @@
-use libc::{size_t, c_int, c_void};
-use libc::{EINVAL, E2BIG, EOVERFLOW};
 use libc::memset;
-use sgx_types::sgx_status_t;
+use libc::{c_int, c_void, size_t};
+use libc::{E2BIG, EINVAL, EOVERFLOW};
 use rand_core::RngCore;
 use rdrand;
+use sgx_types::sgx_status_t;
 use std::ptr::copy_nonoverlapping;
 use std::slice;
 
@@ -42,11 +42,7 @@ pub unsafe extern "C" fn memset_s(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn consttime_memequal(
-    b1: *const u8,
-    b2: *const u8,
-    l: usize,
-) -> i32 {
+pub unsafe extern "C" fn consttime_memequal(b1: *const u8, b2: *const u8, l: usize) -> i32 {
     let mut res: i32 = 0;
     let mut len = l;
     let p1 = slice::from_raw_parts(b1, l);
@@ -68,7 +64,6 @@ pub unsafe extern "C" fn consttime_memequal(
     1 & ((res - 1) >> 8)
 }
 
-
 #[no_mangle]
 pub unsafe extern "C" fn sgx_read_rand(rand: *mut u8, len: size_t) -> sgx_status_t {
     if rand.is_null() || len == 0 || len > std::u32::MAX as usize {
@@ -85,9 +80,12 @@ pub unsafe extern "C" fn sgx_read_rand(rand: *mut u8, len: size_t) -> sgx_status
 pub fn hex_to_bytes(hex_string: &str) -> Vec<u8> {
     let input_chars: Vec<_> = hex_string.chars().collect();
 
-    input_chars.chunks(2).map(|chunk| {
-        let first_byte = chunk[0].to_digit(16).unwrap();
-        let second_byte = chunk[1].to_digit(16).unwrap();
-        ((first_byte << 4) | second_byte) as u8
-    }).collect()
+    input_chars
+        .chunks(2)
+        .map(|chunk| {
+            let first_byte = chunk[0].to_digit(16).unwrap();
+            let second_byte = chunk[1].to_digit(16).unwrap();
+            ((first_byte << 4) | second_byte) as u8
+        })
+        .collect()
 }

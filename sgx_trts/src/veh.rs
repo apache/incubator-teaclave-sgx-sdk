@@ -65,10 +65,11 @@ pub type exception_handle = *const c_void;
 ///
 /// The exception handler was not registered.
 ///
-pub fn rsgx_register_exception_handler(is_first_handler: u32, exception_handler: sgx_exception_handler_t) -> Option<exception_handle> {
-    let handle = unsafe {
-        sgx_register_exception_handler(is_first_handler, exception_handler)
-    };
+pub fn rsgx_register_exception_handler(
+    is_first_handler: u32,
+    exception_handler: sgx_exception_handler_t,
+) -> Option<exception_handle> {
+    let handle = unsafe { sgx_register_exception_handler(is_first_handler, exception_handler) };
     if handle.is_null() {
         None
     } else {

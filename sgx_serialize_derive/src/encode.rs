@@ -93,7 +93,7 @@ fn serialize_enum(
     params: &Parameters,
     variants: &[Variant]
 ) -> Fragment {
-    assert!(variants.len() as u64 <= u32::max_value() as u64);
+    assert!(variants.len() as u64 <= u32::MAX as u64);
 
     let self_var = &params.self_var;
 

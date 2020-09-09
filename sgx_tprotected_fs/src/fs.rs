@@ -16,18 +16,22 @@
 // under the License..
 
 //! # Intel Protected File System API
-use sgx_types::*;
-use sgx_trts::libc::{self, c_void};
-use sgx_trts::error::errno;
-use sgx_trts::c_str::CStr;
 use core::cmp;
+use sgx_trts::c_str::CStr;
+use sgx_trts::error::errno;
+use sgx_trts::libc::{self, c_void};
+use sgx_types::*;
 
 fn max_len() -> usize {
-    u32::max_value() as usize
+    u32::MAX as usize
 }
 
 unsafe fn rsgx_fopen(filename: &CStr, mode: &CStr, key: &sgx_key_128bit_t) -> SysResult<SGX_FILE> {
-    let file = sgx_fopen(filename.as_ptr(), mode.as_ptr(), key as *const sgx_key_128bit_t);
+    let file = sgx_fopen(
+        filename.as_ptr(),
+        mode.as_ptr(),
+        key as *const sgx_key_128bit_t,
+    );
     if file.is_null() {
         Err(errno())
     } else {
@@ -193,7 +197,7 @@ unsafe fn rsgx_fimport_auto_key(filename: &CStr, key: &sgx_key_128bit_t) -> SysE
 }
 
 pub struct SgxFileStream {
-    stream: SGX_FILE
+    stream: SGX_FILE,
 }
 
 impl SgxFileStream {
@@ -234,9 +238,7 @@ impl SgxFileStream {
     /// in the Protected FS API, otherwise, error code is returned.
     ///
     pub fn open(filename: &CStr, mode: &CStr, key: &sgx_key_128bit_t) -> SysResult<SgxFileStream> {
-        unsafe {
-            rsgx_fopen(filename, mode, key).map(|f| SgxFileStream{ stream: f})
-        }
+        unsafe { rsgx_fopen(filename, mode, key).map(|f| SgxFileStream { stream: f }) }
     }
 
     ///
@@ -270,9 +272,7 @@ impl SgxFileStream {
     /// in the Protected FS API, otherwise, error code is returned.
     ///
     pub fn open_auto_key(filename: &CStr, mode: &CStr) -> SysResult<SgxFileStream> {
-        unsafe {
-            rsgx_fopen_auto_key(filename, mode).map(|f| SgxFileStream{ stream: f})
-        }
+        unsafe { rsgx_fopen_auto_key(filename, mode).map(|f| SgxFileStream { stream: f }) }
     }
 
     ///
@@ -434,7 +434,7 @@ impl SgxFileStream {
     /// The latest operation error code is returned. 0 indicates that no errors occurred.
     ///
     pub fn error(&self) -> i32 {
-        unsafe{ rsgx_ferror(self.stream) }
+        unsafe { rsgx_ferror(self.stream) }
     }
 
     ///
@@ -571,16 +571,12 @@ pub fn remove(filename: &CStr) -> SysError {
 ///
 pub fn export_auto_key(filename: &CStr) -> SysResult<sgx_key_128bit_t> {
     let mut key: sgx_key_128bit_t = Default::default();
-    unsafe {
-        rsgx_fexport_auto_key(filename, &mut key).map(|_| key)
-    }
+    unsafe { rsgx_fexport_auto_key(filename, &mut key).map(|_| key) }
 }
 
 pub fn export_align_auto_key(filename: &CStr) -> SysResult<sgx_align_key_128bit_t> {
     let mut align_key: sgx_align_key_128bit_t = Default::default();
-    unsafe {
-        rsgx_fexport_auto_key(filename, &mut align_key.key).map(|_| align_key)
-    }
+    unsafe { rsgx_fexport_auto_key(filename, &mut align_key.key).map(|_| align_key) }
 }
 
 ///

@@ -21,9 +21,7 @@
 //!
 
 #![no_std]
-
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
-
 #![allow(non_camel_case_types)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
@@ -31,10 +29,10 @@
 #[macro_use]
 extern crate alloc;
 
-extern crate sgx_types;
-extern crate sgx_trts;
 extern crate sgx_tcrypto;
+extern crate sgx_trts;
 extern crate sgx_tse;
+extern crate sgx_types;
 
 mod dh;
 pub use self::dh::*;

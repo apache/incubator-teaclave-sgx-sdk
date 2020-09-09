@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use libc::{self, c_int, c_ulong, c_void, iovec, off64_t, size_t, ssize_t};
 use std::io::Error;
-use libc::{self, c_int, c_void, size_t, ssize_t, off64_t, c_ulong, iovec};
 
 #[no_mangle]
 pub extern "C" fn u_read_ocall(
@@ -31,7 +31,9 @@ pub extern "C" fn u_read_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -50,7 +52,9 @@ pub extern "C" fn u_pread64_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -68,7 +72,9 @@ pub extern "C" fn u_readv_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -87,7 +93,9 @@ pub extern "C" fn u_preadv64_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -105,7 +113,9 @@ pub extern "C" fn u_write_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -124,7 +134,9 @@ pub extern "C" fn u_pwrite64_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -142,7 +154,9 @@ pub extern "C" fn u_writev_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -161,24 +175,24 @@ pub extern "C" fn u_pwritev64_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_fcntl_arg0_ocall(
-    error: *mut c_int,
-    fd: c_int,
-    cmd: c_int,
-) -> c_int {
+pub extern "C" fn u_fcntl_arg0_ocall(error: *mut c_int, fd: c_int, cmd: c_int) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::fcntl(fd, cmd) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -196,24 +210,24 @@ pub extern "C" fn u_fcntl_arg1_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
 
 #[no_mangle]
-pub extern "C" fn u_ioctl_arg0_ocall(
-    error: *mut c_int,
-    fd: c_int,
-    request: c_int,
-) -> c_int {
+pub extern "C" fn u_ioctl_arg0_ocall(error: *mut c_int, fd: c_int, request: c_int) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::ioctl(fd, request as c_ulong) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -231,7 +245,9 @@ pub extern "C" fn u_ioctl_arg1_ocall(
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }
@@ -244,7 +260,9 @@ pub extern "C" fn u_close_ocall(error: *mut c_int, fd: c_int) -> c_int {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {
-        unsafe { *error = errno; }
+        unsafe {
+            *error = errno;
+        }
     }
     ret
 }

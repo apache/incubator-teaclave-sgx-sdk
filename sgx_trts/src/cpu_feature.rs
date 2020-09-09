@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_types::impl_enum;
 use crate::enclave;
+use sgx_types::impl_enum;
 
 pub fn check_for(fid: Feature) -> bool {
     let bit = fid.get_feature_bit();
@@ -25,7 +25,9 @@ pub fn check_for(fid: Feature) -> bool {
 
 #[macro_export]
 macro_rules! is_cpu_feature_supported {
-    ($feature:expr) => ( (($feature & $crate::enclave::rsgx_get_cpu_feature()) != 0) )
+    ($feature:expr) => {
+        (($feature & $crate::enclave::rsgx_get_cpu_feature()) != 0)
+    };
 }
 
 #[macro_export]
@@ -308,7 +310,6 @@ impl_enum! {
         end             = 57,
     }
 }
-
 
 impl Feature {
     pub fn get_feature_bit(&self) -> u64 {

@@ -74,7 +74,10 @@ use sgx_types::*;
 ///
 /// Indicates that the enclave is out of memory.
 ///
-pub fn rsgx_create_report(target_info: &sgx_target_info_t, report_data: &sgx_report_data_t) -> SgxResult<sgx_report_t> {
+pub fn rsgx_create_report(
+    target_info: &sgx_target_info_t,
+    report_data: &sgx_report_data_t,
+) -> SgxResult<sgx_report_t> {
     let mut report = sgx_report_t::default();
     let ret = unsafe {
         sgx_create_report(
@@ -194,7 +197,10 @@ pub fn rsgx_verify_report(report: &sgx_report_t) -> SgxError {
 pub fn rsgx_get_key(key_request: &sgx_key_request_t) -> SgxResult<sgx_key_128bit_t> {
     let mut key = sgx_key_128bit_t::default();
     let ret = unsafe {
-        sgx_get_key(key_request as *const sgx_key_request_t, &mut key as *mut sgx_key_128bit_t)
+        sgx_get_key(
+            key_request as *const sgx_key_request_t,
+            &mut key as *mut sgx_key_128bit_t,
+        )
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(key),
@@ -205,7 +211,10 @@ pub fn rsgx_get_key(key_request: &sgx_key_request_t) -> SgxResult<sgx_key_128bit
 pub fn rsgx_get_align_key(key_request: &sgx_key_request_t) -> SgxResult<sgx_align_key_128bit_t> {
     let mut align_key = sgx_align_key_128bit_t::default();
     let ret = unsafe {
-        sgx_get_key(key_request as *const sgx_key_request_t, &mut align_key.key as *mut sgx_key_128bit_t)
+        sgx_get_key(
+            key_request as *const sgx_key_request_t,
+            &mut align_key.key as *mut sgx_key_128bit_t,
+        )
     };
     match ret {
         sgx_status_t::SGX_SUCCESS => Ok(align_key),
@@ -214,5 +223,5 @@ pub fn rsgx_get_align_key(key_request: &sgx_key_request_t) -> SgxResult<sgx_alig
 }
 
 pub fn rsgx_self_report() -> sgx_report_t {
-    unsafe { * sgx_self_report() }
+    unsafe { *sgx_self_report() }
 }
