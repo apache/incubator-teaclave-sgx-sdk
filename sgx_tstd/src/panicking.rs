@@ -67,6 +67,11 @@ extern "C" fn __rust_drop_panic() -> ! {
     rtabort!("Rust panics must be rethrown");
 }
 
+#[rustc_std_internal_symbol]
+extern "C" fn __rust_foreign_exception() -> ! {
+    rtabort!("Rust cannot catch foreign exceptions");
+}
+
 static PANIC_HANDLER: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());
 
 #[cfg(not(feature = "stdio"))]

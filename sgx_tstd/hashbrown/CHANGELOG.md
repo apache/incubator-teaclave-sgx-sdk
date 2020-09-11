@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.9.0] - 2020-09-03
+
+### Fixed
+- `drain_filter` now removes and yields items that do match the predicate,
+  rather than items that don't.  This is a **breaking change** to match the
+  behavior of the `drain_filter` methods in `std`. (#187)
+
+### Added
+- Added `replace_entry_with` to `OccupiedEntry`, and `and_replace_entry_with` to `Entry`. (#190)
+- Implemented `FusedIterator` and `size_hint` for `DrainFilter`. (#188)
+
+### Changed
+- The minimum Rust version has been bumped to 1.36 (due to `crossbeam` dependency). (#193)
+- Updated `ahash` dependency to 0.4. (#198)
+- `HashMap::with_hasher` and `HashSet::with_hasher` are now `const fn`. (#195)
+- Removed `T: Hash + Eq` and `S: BuildHasher` bounds on `HashSet::new`,
+  `with_capacity`, `with_hasher`, and `with_capacity_and_hasher`.  (#185)
+
+## [v0.8.2] - 2020-08-08
+
+### Changed
+- Avoid closures to improve compile times. (#183)
+- Do not iterate to drop if empty. (#182)
+
+## [v0.8.1] - 2020-07-16
+
+### Added
+- Added `erase` and `remove` to `RawTable`. (#171)
+- Added `try_with_capacity` to `RawTable`. (#174)
+- Added methods that allow re-using a `RawIter` for `RawDrain`,
+  `RawIntoIter`, and `RawParIter`. (#175)
+- Added `reflect_remove` and `reflect_insert` to `RawIter`. (#175)
+- Added a `drain_filter` function to `HashSet`. (#179)
+
+### Changed
+- Deprecated `RawTable::erase_no_drop` in favor of `erase` and `remove`. (#176)
+- `insert_no_grow` is now exposed under the `"raw"` feature. (#180)
+
+## [v0.8.0] - 2020-06-18
+
+### Fixed
+- Marked `RawTable::par_iter` as `unsafe`. (#157)
+
+### Changed
+- Reduced the size of `HashMap`. (#159)
+- No longer create tables with a capacity of 1 element. (#162)
+- Removed `K: Eq + Hash` bounds on `retain`. (#163)
+- Pulled in `HashMap` changes from rust-lang/rust (#164):
+  - `extend_one` support on nightly.
+  - `CollectionAllocErr` renamed to `TryReserveError`.
+  - Added `HashSet::get_or_insert_owned`.
+  - `Default` for `HashSet` no longer requires `T: Eq + Hash` and `S: BuildHasher`.
+
+## [v0.7.2] - 2020-04-27
+
+### Added
+- Added `or_insert_with_key` to `Entry`. (#152)
+
+### Fixed
+- Partially reverted `Clone` optimization which was unsound. (#154)
+
+### Changed
+- Disabled use of `const-random` by default, which prevented reproducible builds. (#155)
+- Optimized `repeat` function. (#150)
+- Use `NonNull` for buckets, which improves codegen for iterators. (#148)
+
 ## [v0.7.1] - 2020-03-16
 
 ### Added
@@ -183,7 +249,12 @@ This release was _yanked_ due to a breaking change for users of `no-default-feat
 
 - Initial release
 
-[Unreleased]: https://github.com/rust-lang/hashbrown/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/rust-lang/hashbrown/compare/v0.9.0...HEAD
+[v0.9.0]: https://github.com/rust-lang/hashbrown/compare/v0.8.2...v0.9.0
+[v0.8.2]: https://github.com/rust-lang/hashbrown/compare/v0.8.1...v0.8.2
+[v0.8.1]: https://github.com/rust-lang/hashbrown/compare/v0.8.0...v0.8.1
+[v0.8.0]: https://github.com/rust-lang/hashbrown/compare/v0.7.2...v0.8.0
+[v0.7.2]: https://github.com/rust-lang/hashbrown/compare/v0.7.1...v0.7.2
 [v0.7.1]: https://github.com/rust-lang/hashbrown/compare/v0.7.0...v0.7.1
 [v0.7.0]: https://github.com/rust-lang/hashbrown/compare/v0.6.3...v0.7.0
 [v0.6.3]: https://github.com/rust-lang/hashbrown/compare/v0.6.2...v0.6.3

@@ -60,7 +60,7 @@ fn main() {
 
     let mut retval = sgx_status_t::SGX_SUCCESS;
 
-    let hostname = "example.com";
+    let hostname = "www.rust-lang.org";
     let port = 443;
 
     let hostname = format!("https://{}:{}", hostname, port);
