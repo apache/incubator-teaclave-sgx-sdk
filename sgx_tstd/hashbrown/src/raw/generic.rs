@@ -27,11 +27,7 @@ pub const BITMASK_MASK: BitMaskWord = 0x8080_8080_8080_8080_u64 as GroupWord;
 /// Helper function to replicate a byte across a `GroupWord`.
 #[inline]
 fn repeat(byte: u8) -> GroupWord {
-    let repeat = GroupWord::from(byte);
-    let repeat = repeat | repeat.wrapping_shl(8);
-    let repeat = repeat | repeat.wrapping_shl(16);
-    // This last line is a no-op with a 32-bit GroupWord
-    repeat | repeat.wrapping_shl(32)
+    GroupWord::from_ne_bytes([byte; Group::WIDTH])
 }
 
 /// Abstraction over a group of control bytes which can be scanned in
@@ -51,20 +47,20 @@ impl Group {
     pub const WIDTH: usize = mem::size_of::<Self>();
 
     /// Returns a full group of empty bytes, suitable for use as the initial
-    /// value for an empty hash table. This value is explicitly declared as
-    /// a static variable to ensure the address is consistent across dylibs.
+    /// value for an empty hash table.
     ///
     /// This is guaranteed to be aligned to the group size.
-    #[inline]
-    pub fn static_empty() -> &'static [u8] {
-        union AlignedBytes {
-            _align: Group,
+    pub const fn static_empty() -> &'static [u8; Group::WIDTH] {
+        #[repr(C)]
+        struct AlignedBytes {
+            _align: [Group; 0],
             bytes: [u8; Group::WIDTH],
         };
-        static ALIGNED_BYTES: AlignedBytes = AlignedBytes {
+        const ALIGNED_BYTES: AlignedBytes = AlignedBytes {
+            _align: [],
             bytes: [EMPTY; Group::WIDTH],
         };
-        unsafe { &ALIGNED_BYTES.bytes }
+        &ALIGNED_BYTES.bytes
     }
 
     /// Loads a group of bytes starting at the given address.

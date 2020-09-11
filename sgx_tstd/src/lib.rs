@@ -59,6 +59,7 @@
 #![feature(core_intrinsics)]
 #![feature(custom_test_frameworks)]
 #![feature(dropck_eyepatch)]
+#![feature(extend_one)]
 #![feature(fixed_size_array)]
 #![feature(fn_traits)]
 #![feature(generator_trait)]
