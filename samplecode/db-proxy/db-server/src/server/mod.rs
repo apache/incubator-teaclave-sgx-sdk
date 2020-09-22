@@ -64,7 +64,6 @@ impl server {
 
     fn db_get(&mut self, key: String) -> String {
         let db = self.db_handler.clone();
-        let db_read = db.read();
         let r = db.read().get(key.as_str());
         match r {
             Err(t) => return String::new(),
