@@ -1,18 +1,19 @@
-#cd /root && \
-#wget https://download.01.org/intel-sgx/sgx-linux/2.9.1/as.ld.objdump.gold.r1.tar.gz && \
-#tar xzf as.ld.objdump.gold.r1.tar.gz && \
-#cp external/toolset/* /usr/bin/
-
-cd /root && \
-git clone git://sourceware.org/git/binutils-gdb.git && \
-cd binutils-gdb && \
-git checkout fe26d3a34a223a86fddb59ed70a621a13940a088 && \
-mkdir build && \
-cd build && \
-../configure --prefix=$BINUTILS_PREFIX --enable-gold --enable-ld=default --enable-plugins --enable-shared --disable-werror --enable-64-bit-bfd --with-system-zlib && \
-make -j "$(nproc)" && \
-make install && \
-cd /root && \
-rm -rf binutils-gdb && \
-echo 'export LD_LIBRARY_PATH=/usr/lib:$BINUTILS_PREFIX' >> /root/.bashrc && \
-echo 'export LD_RUN_PATH=/usr/lib:$BINUTILS_PREFIX'
+if [ $BINUTILS_DIST != "SELF_BUILT" ]
+then
+    cd /root && \
+    wget https://download.01.org/intel-sgx/sgx-linux/2.11/as.ld.objdump.gold.r2.tar.gz
+    tar xzf as.ld.objdump.gold.r2.tar.gz && \
+    cp -r external/toolset/$BINUTILS_DIST/* /usr/bin/ && \
+    rm -rf ./external ./as.ld.objdump.gold.r2.tar.gz
+else
+    curl -o binutils.tar.xz https://ftp.gnu.org/gnu/binutils/binutils-2.35.tar.xz && \
+    tar xf binutils.tar.xz && \
+    cd binutils-2.35 && \
+    mkdir build && \
+    cd build && \
+    ../configure --prefix=/usr/local --enable-gold --enable-ld=default --enable-plugins --enable-shared --disable-werror --enable-64-bit-bfd --with-system-zlib && \
+    make -j "$(nproc)" && \
+    make install && \
+    cd /root && \
+    rm -rf binutils-gdb
+fi
