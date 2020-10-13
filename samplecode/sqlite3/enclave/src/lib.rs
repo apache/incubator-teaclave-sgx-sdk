@@ -21,6 +21,11 @@
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
+// sqlite3's symbols do not follow Rust's style conventions, suppress warnings
+#![allow(non_upper_case_globals)]
+#![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
+
 extern crate sgx_types;
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
@@ -30,6 +35,8 @@ use std::string::String;
 use std::vec::Vec;
 use std::slice;
 use std::io::{self, Write};
+
+include!("./bindings.rs");
 
 /// A function simply invokes ocall print to print the incoming string
 ///
