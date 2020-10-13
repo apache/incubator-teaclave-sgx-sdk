@@ -18,7 +18,7 @@
 ######## SGX SDK Settings ########
 
 SGX_SDK ?= /opt/intel/sgxsdk
-SGX_MODE ?= HW
+SGX_MODE ?= SW
 SGX_ARCH ?= x64
 
 TOP_DIR := ../..
@@ -151,7 +151,17 @@ enclave/Enclave_t.o: enclave/Enclave_t.c
 	@$(CC) $(RustEnclave_Compile_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
-$(RustEnclave_Name): enclave enclave/Enclave_t.o
+# Preprocess sqlite3
+enclave/sqlite3.i: enclave/sqlite3.c
+	$(CC) -I$(SGX_SDK)/include -DSQLITE_THREADSAFE=0 -E $< -o $@
+	@echo "CC-Preprocess  <=  $<"
+
+# Compile sqlite3
+enclave/sqlite3.o: enclave/sqlite3.i enclave/sqlite3.c
+	$(CC) $(RustEnclave_Compile_Flags) -DSQLITE_THREADSAFE=0 -c $< -o $@
+	@echo "CC  <=  $<"
+
+$(RustEnclave_Name): enclave enclave/Enclave_t.o enclave/sqlite3.o
 	@$(CXX) enclave/Enclave_t.o -o $@ $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
