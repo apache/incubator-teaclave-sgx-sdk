@@ -42,6 +42,7 @@
 
 #include <sys/_types.h>
 #include <sys/endian.h>
+#include <sys/posix_types.h>
 
 typedef unsigned char   u_char;
 typedef unsigned short  u_short;

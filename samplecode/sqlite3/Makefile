@@ -78,6 +78,7 @@ endif
 App_C_Files := $(filter-out ./app/Enclave_u.c, $(wildcard ./app/*.c))
 App_Include_Paths := -I ./app -I./include -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH)
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
+App_Cpp_Flags := $(App_C_Flags) -std=c++11
 App_Link_Flags := -L$(SGX_LIBRARY_PATH) -L$(CUSTOM_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
@@ -135,14 +136,23 @@ app/Enclave_u.o: app/Enclave_u.c
 	@$(CC) $(App_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
+# Compile ocalls
+app/ocalls.o: app/ocalls.c
+	@$(CC) $(App_C_Flags) -c $< -o $@
+	@echo "CC   <=  $<"
+
+app/appcpp.o: app/appcpp.cpp
+	@$(CXX) $(App_Cpp_Flags) -c $< -o $@ 
+	@echo "CXX  <=  $<"
+
 app/%.o: app/%.c
 	@$(CXX) $(App_C_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(App_Name): app/Enclave_u.o $(App_C_Objects) sgx_ustdc
+$(App_Name): app/Enclave_u.o app/appcpp.o $(App_C_Objects) sgx_ustdc
 	cp ../../sgx_ustdc/libsgx_ustdc.a ./lib
 	mkdir -p bin
-	@$(CXX) app/Enclave_u.o $(App_C_Objects) -o $@ $(App_Link_Flags)
+	@$(CXX) app/Enclave_u.o app/appcpp.o $(App_C_Objects) -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
 ######## Enclave Objects ########
@@ -161,8 +171,18 @@ enclave/sqlite3.o: enclave/sqlite3.i enclave/sqlite3.c
 	$(CC) $(RustEnclave_Compile_Flags) -DSQLITE_THREADSAFE=0 -c $< -o $@
 	@echo "CC  <=  $<"
 
-$(RustEnclave_Name): enclave enclave/Enclave_t.o enclave/sqlite3.o
-	@$(CXX) enclave/Enclave_t.o -o $@ $(RustEnclave_Link_Flags)
+# Preprocess ocall_interface to redirect syscall
+enclave/ocall_interface.i: enclave/ocall_interface.c
+	$(CC) $(RustEnclave_Compile_Flags) -I$(SGX_SDK)/include -E $< -o $@
+	@echo "CC-Preprocess  <=  $<"
+
+# Compile ocall_interface
+enclave/ocall_interface.o: enclave/ocall_interface.i enclave/Enclave_t.c
+	$(CC) $(RustEnclave_Compile_Flags) -I$(SGX_SDK)/include/libcxx -c $< -o $@
+	@echo "CC  <=  $<"
+
+$(RustEnclave_Name): enclave enclave/Enclave_t.o enclave/sqlite3.o enclave/ocall_interface.o
+	@$(CXX) enclave/Enclave_t.o enclave/sqlite3.o enclave/ocall_interface.o -o $@ $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
 $(Signed_RustEnclave_Name): $(RustEnclave_Name)
@@ -181,5 +201,5 @@ sgx_ustdc:
 
 .PHONY: clean
 clean:
-	@rm -f $(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) $(RustEnclave_C_Objects) $(App_C_Objects) enclave/*_t.* app/*_u.* lib/*.a
+	@rm -f $(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) $(RustEnclave_C_Objects) $(App_C_Objects) enclave/*_t.* app/*_u.* lib/*.a enclave/*.i
 	@cd enclave && cargo clean && rm -f Cargo.lock

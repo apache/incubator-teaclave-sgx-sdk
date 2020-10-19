@@ -81,5 +81,32 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
     // Ocall to normal world for output
     println!("{}", &hello_string);
 
+    // test sqlite3 lib:
+    // Database connection object
+    // let mut db = std::ptr::null(); 
+
+    // Opening database
+    // We are certain that our string doesn't have 0 bytes in the middle,
+    // so we can .expect()
+    let dbname = std::ffi::CString::new("test.db").expect("CString::new failed");
+    // let const char* dbname = "test.db";
+
+    unsafe{
+        let mut db = std::mem::MaybeUninit::uninit().assume_init();
+        sqlite3_open(dbname.as_ptr(), &mut db);
+        // pub fn sqlite3_open(
+        //     filename: *const ::std::os::raw::c_char,
+        //     ppDb: *mut *mut sqlite3,
+        // ) -> ::std::os::raw::c_int;
+    
+        // char* sql = "CREATE TABLE COMPANY(ID INT PRIMARY KEY NOT NULL,NAME TEXT NOT NULL, AGE INT NOT NULL, ADDRESS CHAR(50), SALARY REAL);";
+        // char *zErrMsg = 0;
+        // sqlite3_exec(db, sql, callback, 0, &zErrMsg);
+    
+        sqlite3_close(db);
+        // pub fn sqlite3_close(arg1: *mut sqlite3) -> ::std::os::raw::c_int;
+    }
+
     sgx_status_t::SGX_SUCCESS
 }
+

@@ -1,0 +1,6 @@
+*.db
+
+done
+
+enclave/.cargo
+enclave/vendor

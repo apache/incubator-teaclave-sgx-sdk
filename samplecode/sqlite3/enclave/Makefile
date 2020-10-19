@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-Rust_Enclave_Name := libenclave.a
+Rust_Enclave_Name := ../lib/libenclave.a
 Rust_Enclave_Files := $(wildcard src/*.rs)
 Rust_Target_Path := $(CURDIR)/../../../xargo
 
@@ -31,8 +31,10 @@ all: $(Rust_Enclave_Name)
 $(Rust_Enclave_Name): $(Rust_Enclave_Files)
 ifeq ($(XARGO_SGX), 1)
 	RUST_TARGET_PATH=$(Rust_Target_Path) xargo build --target x86_64-unknown-linux-sgx --release
-	cp ./target/x86_64-unknown-linux-sgx/release/libhelloworldsampleenclave.a ../lib/libenclave.a
+	cp ./target/x86_64-unknown-linux-sgx/release/libhelloworldsampleenclave.a $(Rust_Enclave_Name)
 else
-	cargo build --release
-	cp ./target/release/libhelloworldsampleenclave.a ../lib/libenclave.a
+	cargo build
+	cp ./target/debug/libhelloworldsampleenclave.a $(Rust_Enclave_Name)
+	# cargo build --release
+	# cp ./target/release/libhelloworldsampleenclave.a ../lib/libenclave.a
 endif
