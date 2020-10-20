@@ -38,7 +38,9 @@ use std::io::{self, Write};
 
 include!("./bindings.rs");
 
-/// 
+/// The callback function is used for sqlite3_exec() function. It is defined in ocall_interface.c for now.
+/// Other functions are standard ocall functions. Their interface are defined in .edl file. Their interface 
+/// code are defined in Enclave_t and Enclave_u. Their untrusted part are implemented in app/appcpp.cpp.
 extern "C" {
     pub fn ocall_print_error(some_string: *const i8) -> sgx_status_t;
     pub fn ocall_print_string(some_string: *const i8) -> sgx_status_t;
@@ -51,136 +53,47 @@ extern "C" {
     ) -> ::std::os::raw::c_int;
 }
 
-/// A function simply invokes ocall print to print the incoming string
+static mut _db_unused: sqlite3 = sqlite3 { _unused: [0;0] };
+static mut db_wrapper: Option<*mut sqlite3> = None;
+
+/// A function instanciates sqlite db object
 ///
 /// # Parameters
 ///
-/// **some_string**
+/// **dbname**
 ///
-/// A pointer to the string to be printed
-///
-/// **len**
-///
-/// An unsigned int indicates the length of str
+/// A pointer to the string of created database name
 ///
 /// # Return value
 ///
 /// Always returns SGX_SUCCESS
 #[no_mangle]
-pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_status_t {
-
-    let str_slice = unsafe { slice::from_raw_parts(some_string, some_len) };
-    let _ = io::stdout().write(str_slice);
-
-    // A sample &'static string
-    let rust_raw_string = "This is a ";
-    // An array
-    let word:[u8;4] = [82, 117, 115, 116];
-    // An vector
-    let word_vec:Vec<u8> = vec![32, 115, 116, 114, 105, 110, 103, 33];
-
-    // Construct a string from &'static string
-    let mut hello_string = String::from(rust_raw_string);
-
-    // Iterate on word array
-    for c in word.iter() {
-        hello_string.push(*c as char);
-    }
-
-    // Rust style convertion
-    hello_string += String::from_utf8(word_vec).expect("Invalid UTF-8")
-                                               .as_str();
-
-    // Ocall to normal world for output
-    println!("{}", &hello_string);
-
-    // Opening database
-    // We are certain that our string doesn't have 0 bytes in the middle,
-    // so we can .expect()
-    let dbname = std::ffi::CString::new("test.db").expect("CString::new failed");
-    let sql = std::ffi::CString::new("CREATE TABLE COMPANY(ID INT PRIMARY KEY NOT NULL,NAME TEXT NOT NULL, AGE INT NOT NULL, ADDRESS CHAR(50), SALARY REAL);").expect("CString::new failed"); 
-    let mut zErrMsg = std::ffi::CString::new("sqlite3 Execution Error").expect("CString::new failed");
-    
-    unsafe{
-        // let mut db: *mut sqlite3 = &mut db_inner;
-        let mut db: *mut sqlite3 = db_wrapper.expect("DB failed to unwrap");
-
-        println!("Now opening database connection...");
-        let res = sqlite3_open(dbname.as_ptr(), &mut db);
-        if res != 0 {
-            println!("SQLite error - can't open database connection: ");
-            ocall_print_error(sqlite3_errmsg(db));
-        }
-        
-        let mut z_ptr: *mut i8 = zErrMsg.into_raw();
-        let mut z_ptr_ptr: *mut *mut i8 = &mut z_ptr;
-        let mut empty = std::mem::MaybeUninit::uninit().assume_init();
-
-        println!("Now quering database...");
-        let res = sqlite3_exec(db, sql.as_ptr(), Some(callback), empty, z_ptr_ptr);
-        if res != 0 {
-            println!("SQLite query error: ");
-            ocall_print_error(sqlite3_errmsg(db));
-        }
-
-        println!("Now closing database...");
-        let res = sqlite3_close(db);
-        if res != 0 {
-            println!("SQLite error - can't close database");
-            ocall_print_error(sqlite3_errmsg(db));
-        }
-
-    }
-
-    sgx_status_t::SGX_SUCCESS
-}
-
-// static mut db: *mut sqlite3 = std::ptr::null();
-// = std::mem::MaybeUninit::uninit().assume_init();
-static mut _db_unused: sqlite3 = sqlite3 { _unused: [0;0] };
-// static mut db: *mut sqlite3 = &mut db_inner as *mut sqlite3;
-static mut db_wrapper: Option<*mut sqlite3> = None;
-
-// struct DB {
-//     db_inner: sqlite3,
-//     db: *mut sqlite3,
-// }
-
-#[no_mangle]
 pub extern "C" fn ecall_opendb(dbname: *const i8) -> sgx_status_t {
     unsafe{
-        // let mut db: *mut sqlite3 = &mut db_inner;
         db_wrapper = Some(&mut _db_unused as *mut sqlite3);
         let mut db: *mut sqlite3 = db_wrapper.expect("DB failed to unwrap");
-        // println!("ecall_opendb: {:p}", db);
-        // println!("ecall_opendb: {:?}", *db);
-        // println!("ecall_opendb: {:?}", (*db)._unused);
-
-
-        println!("Now opening database connection...");
         let res = sqlite3_open(dbname, &mut db);
         if res != 0 {
             println!("SQLite error - can't open database connection: ");
             ocall_print_error(sqlite3_errmsg(db));
         }
-
-        // println!("ecall_opendb: {:?}", db);
-        // println!("ecall_opendb: {:?}", *db);
-        // println!("ecall_opendb: {:?}", (*db)._unused);
-
         db_wrapper = Some(db);
-
-        // println!("Now closing database...");
-        // let res = sqlite3_close(db);
-        // if res != 0 {
-        //     println!("SQLite error - can't close database");
-        //     ocall_print_error(sqlite3_errmsg(db));
-        // }
     }
 
     sgx_status_t::SGX_SUCCESS
 }
 
+/// A function executes sql query to sqlite database
+///
+/// # Parameters
+///
+/// **sql**
+///
+/// A pointer to the string of executed sql query
+///
+/// # Return value
+///
+/// Always returns SGX_SUCCESS
 #[no_mangle]
 pub extern "C" fn ecall_execute_sql(sql: *const i8) -> sgx_status_t {
     let mut zErrMsg = std::ffi::CString::new("sqlite3 Execution Error").expect("CString::new failed");
@@ -189,11 +102,7 @@ pub extern "C" fn ecall_execute_sql(sql: *const i8) -> sgx_status_t {
     
     unsafe{
         let empty = std::mem::MaybeUninit::uninit().assume_init();
-        // let mut db: *mut sqlite3 = &mut db_inner;
         let db: *mut sqlite3 = db_wrapper.expect("DB failed to unwrap");
-        println!("ecall_execute_sql: {:p}", db);
-
-        println!("Now quering database...");
         let res = sqlite3_exec(db, sql, Some(callback), empty, z_ptr_ptr);
         if res != 0 {
             println!("SQLite query error: ");
@@ -204,18 +113,15 @@ pub extern "C" fn ecall_execute_sql(sql: *const i8) -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
-
+/// A function close the opened sqlite database
+///
+/// # Return value
+///
+/// Always returns SGX_SUCCESS
 #[no_mangle]
 pub extern "C" fn ecall_closedb() -> sgx_status_t {
     unsafe{
-        // let mut db: *mut sqlite3 = &mut db_inner;  
         let db: *mut sqlite3 = db_wrapper.expect("DB failed to unwrap");
-        // println!("ecall_closedb: {:?}", db);
-        // println!("ecall_closedb: {:?}", *db);
-        // println!("ecall_closedb: {:?}", (*db)._unused);
-
-
-        println!("Now closing database...");
         let res = sqlite3_close(db);
         if res != 0 {
             println!("SQLite error - can't close database");

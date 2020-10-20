@@ -177,7 +177,6 @@ int SGX_CDECL main(int argc, char *argv[])
 
     printf("[+] Info: SQLite SGX enclave successfully created.\n");
 
-
     const char* dbname = argv[1];
 
     // Open SQLite database
@@ -194,20 +193,16 @@ int SGX_CDECL main(int argc, char *argv[])
     }
 
     printf("[+] Info: SQLite SGX DB successfully opened.\n");
+    printf("[+] Info: Enter SQL statement to execute or 'quit' to exit: \n");
 
-    printf("Enter SQL statement to execute or 'quit' to exit: \n");
     char sql_input[1024];
     printf("> ");
 
-    while (fgets(sql_input, 1024, stdin))
-    {
-        printf ("[+] Debug: sql input is <%s>\n", sql_input);
-
+    while (fgets(sql_input, 1024, stdin)) {
         if (strcmp (sql_input, "quit\n") ==0) {
             break;
         }
 
-        printf ("[+] Debug: now executing sql query...\n", sql_input);
         sgx_ret = ecall_execute_sql(global_eid, &enclave_ret, sql_input);
 
         if(sgx_ret != SGX_SUCCESS) {
@@ -220,16 +215,28 @@ int SGX_CDECL main(int argc, char *argv[])
             print_error_message(enclave_ret);
             return -1;
         }
-
+        
         printf("> ");
     }
-
 
     // Closing SQLite database inside enclave
     sgx_ret = ecall_closedb(global_eid, &enclave_ret);
 
     /* Destroy the enclave */
     sgx_destroy_enclave(global_eid);
+
+    if(sgx_ret != SGX_SUCCESS) {
+        print_error_message(sgx_ret);
+        return -1;
+    }
+
+
+    if(enclave_ret != SGX_SUCCESS) {
+        print_error_message(enclave_ret);
+        return -1;
+    }
+
+    printf("[+] Info: SQLite SGX DB successfully closed.\n");
 
     return 0;
 }
