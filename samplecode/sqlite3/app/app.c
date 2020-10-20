@@ -154,6 +154,14 @@ int initialize_enclave(void)
 /* Application entry */
 int SGX_CDECL main(int argc, char *argv[])
 {
+    if ( argc != 2 ){
+        printf("Usage: ");
+        printf("%s", argv[0]);
+        printf(" <database>\n");
+        return -1;
+    }
+
+
     sgx_status_t sgx_ret = SGX_SUCCESS;
     sgx_status_t enclave_ret = SGX_SUCCESS;
 
@@ -167,13 +175,13 @@ int SGX_CDECL main(int argc, char *argv[])
         return -1;
     }
 
-    const char* str = "This is normal world string passed into enclave!\n";
-    size_t len = strlen(str);
+    printf("[+] Info: SQLite SGX enclave successfully created.\n");
 
-    sgx_ret = say_something(global_eid,
-                            &enclave_ret,
-                            (const uint8_t *) str,
-                            len);
+
+    const char* dbname = argv[1];
+
+    // Open SQLite database
+    sgx_ret = ecall_opendb(global_eid, &enclave_ret, dbname);
 
     if(sgx_ret != SGX_SUCCESS) {
         print_error_message(sgx_ret);
@@ -185,7 +193,40 @@ int SGX_CDECL main(int argc, char *argv[])
         return -1;
     }
 
-    printf("[+] say_something success ...\n");
+    printf("[+] Info: SQLite SGX DB successfully opened.\n");
+
+    printf("Enter SQL statement to execute or 'quit' to exit: \n");
+    char sql_input[1024];
+    printf("> ");
+
+    while (fgets(sql_input, 1024, stdin))
+    {
+        printf ("[+] Debug: sql input is <%s>\n", sql_input);
+
+        if (strcmp (sql_input, "quit\n") ==0) {
+            break;
+        }
+
+        printf ("[+] Debug: now executing sql query...\n", sql_input);
+        sgx_ret = ecall_execute_sql(global_eid, &enclave_ret, sql_input);
+
+        if(sgx_ret != SGX_SUCCESS) {
+            print_error_message(sgx_ret);
+            return -1;
+        }
+
+
+        if(enclave_ret != SGX_SUCCESS) {
+            print_error_message(enclave_ret);
+            return -1;
+        }
+
+        printf("> ");
+    }
+
+
+    // Closing SQLite database inside enclave
+    sgx_ret = ecall_closedb(global_eid, &enclave_ret);
 
     /* Destroy the enclave */
     sgx_destroy_enclave(global_eid);

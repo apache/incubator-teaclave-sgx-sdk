@@ -41,6 +41,8 @@ include!("./bindings.rs");
 /// 
 extern "C" {
     pub fn ocall_print_error(some_string: *const i8) -> sgx_status_t;
+    pub fn ocall_print_string(some_string: *const i8) -> sgx_status_t;
+    pub fn ocall_println_string(some_string: *const i8) -> sgx_status_t;
     pub fn callback(
         arg1: *mut ::std::os::raw::c_void,
         arg2: ::std::os::raw::c_int,
@@ -96,12 +98,13 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
     // We are certain that our string doesn't have 0 bytes in the middle,
     // so we can .expect()
     let dbname = std::ffi::CString::new("test.db").expect("CString::new failed");
-    let sql = std::ffi::CString::new("CREATE TABLE COMPANY IF NOT EXISTS(ID INT PRIMARY KEY NOT NULL,NAME TEXT NOT NULL, AGE INT NOT NULL, ADDRESS CHAR(50), SALARY REAL);").expect("CString::new failed"); 
+    let sql = std::ffi::CString::new("CREATE TABLE COMPANY(ID INT PRIMARY KEY NOT NULL,NAME TEXT NOT NULL, AGE INT NOT NULL, ADDRESS CHAR(50), SALARY REAL);").expect("CString::new failed"); 
     let mut zErrMsg = std::ffi::CString::new("sqlite3 Execution Error").expect("CString::new failed");
-    let p: *const i32 = std::ptr::null();
-
+    
     unsafe{
-        let mut db = std::mem::MaybeUninit::uninit().assume_init();
+        // let mut db: *mut sqlite3 = &mut db_inner;
+        let mut db: *mut sqlite3 = db_wrapper.expect("DB failed to unwrap");
+
         println!("Now opening database connection...");
         let res = sqlite3_open(dbname.as_ptr(), &mut db);
         if res != 0 {
@@ -131,5 +134,97 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
 
     sgx_status_t::SGX_SUCCESS
 }
+
+// static mut db: *mut sqlite3 = std::ptr::null();
+// = std::mem::MaybeUninit::uninit().assume_init();
+static mut _db_unused: sqlite3 = sqlite3 { _unused: [0;0] };
+// static mut db: *mut sqlite3 = &mut db_inner as *mut sqlite3;
+static mut db_wrapper: Option<*mut sqlite3> = None;
+
+// struct DB {
+//     db_inner: sqlite3,
+//     db: *mut sqlite3,
+// }
+
+#[no_mangle]
+pub extern "C" fn ecall_opendb(dbname: *const i8) -> sgx_status_t {
+    unsafe{
+        // let mut db: *mut sqlite3 = &mut db_inner;
+        db_wrapper = Some(&mut _db_unused as *mut sqlite3);
+        let mut db: *mut sqlite3 = db_wrapper.expect("DB failed to unwrap");
+        // println!("ecall_opendb: {:p}", db);
+        // println!("ecall_opendb: {:?}", *db);
+        // println!("ecall_opendb: {:?}", (*db)._unused);
+
+
+        println!("Now opening database connection...");
+        let res = sqlite3_open(dbname, &mut db);
+        if res != 0 {
+            println!("SQLite error - can't open database connection: ");
+            ocall_print_error(sqlite3_errmsg(db));
+        }
+
+        // println!("ecall_opendb: {:?}", db);
+        // println!("ecall_opendb: {:?}", *db);
+        // println!("ecall_opendb: {:?}", (*db)._unused);
+
+        db_wrapper = Some(db);
+
+        // println!("Now closing database...");
+        // let res = sqlite3_close(db);
+        // if res != 0 {
+        //     println!("SQLite error - can't close database");
+        //     ocall_print_error(sqlite3_errmsg(db));
+        // }
+    }
+
+    sgx_status_t::SGX_SUCCESS
+}
+
+#[no_mangle]
+pub extern "C" fn ecall_execute_sql(sql: *const i8) -> sgx_status_t {
+    let mut zErrMsg = std::ffi::CString::new("sqlite3 Execution Error").expect("CString::new failed");
+    let mut z_ptr: *mut i8 = zErrMsg.into_raw();
+    let z_ptr_ptr: *mut *mut i8 = &mut z_ptr;
+    
+    unsafe{
+        let empty = std::mem::MaybeUninit::uninit().assume_init();
+        // let mut db: *mut sqlite3 = &mut db_inner;
+        let db: *mut sqlite3 = db_wrapper.expect("DB failed to unwrap");
+        println!("ecall_execute_sql: {:p}", db);
+
+        println!("Now quering database...");
+        let res = sqlite3_exec(db, sql, Some(callback), empty, z_ptr_ptr);
+        if res != 0 {
+            println!("SQLite query error: ");
+            ocall_print_error(sqlite3_errmsg(db));
+        }
+    }
+
+    sgx_status_t::SGX_SUCCESS
+}
+
+
+#[no_mangle]
+pub extern "C" fn ecall_closedb() -> sgx_status_t {
+    unsafe{
+        // let mut db: *mut sqlite3 = &mut db_inner;  
+        let db: *mut sqlite3 = db_wrapper.expect("DB failed to unwrap");
+        // println!("ecall_closedb: {:?}", db);
+        // println!("ecall_closedb: {:?}", *db);
+        // println!("ecall_closedb: {:?}", (*db)._unused);
+
+
+        println!("Now closing database...");
+        let res = sqlite3_close(db);
+        if res != 0 {
+            println!("SQLite error - can't close database");
+            ocall_print_error(sqlite3_errmsg(db));
+        }
+    }
+
+    sgx_status_t::SGX_SUCCESS
+}
+
 
 
