@@ -336,3 +336,15 @@ ssize_t readlink(const char *path, char *buf, size_t bufsiz){
     ocall_print_error(error_msg);
     return 0;
 }
+
+int callback(void *NotUsed, int argc, char **argv, char **azColName){
+    int i;
+    for (i=0; i < argc; i++){
+        ocall_print_string(azColName[i]);
+        ocall_print_string(" = ");
+        ocall_print_string(argv[i]);
+        ocall_print_string("\n"); 
+    }
+    ocall_print_string("\n");
+    return 0;
+}

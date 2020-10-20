@@ -10,10 +10,10 @@ void ocall_print_error(const char *str){
     cerr << str << endl;
 }
 
-// void ocall_print_string(const char *str){
-//     cout << str;
-// }
+void ocall_print_string(const char *str){
+    cout << str;
+}
 
-// void ocall_println_string(const char *str){
-//     cout << str << endl;
-// }
+void ocall_println_string(const char *str){
+    cout << str << endl;
+}

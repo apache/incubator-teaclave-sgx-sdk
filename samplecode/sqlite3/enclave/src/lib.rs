@@ -38,6 +38,17 @@ use std::io::{self, Write};
 
 include!("./bindings.rs");
 
+/// 
+extern "C" {
+    pub fn ocall_print_error(some_string: *const i8) -> sgx_status_t;
+    pub fn callback(
+        arg1: *mut ::std::os::raw::c_void,
+        arg2: ::std::os::raw::c_int,
+        arg3: *mut *mut ::std::os::raw::c_char,
+        arg4: *mut *mut ::std::os::raw::c_char,
+    ) -> ::std::os::raw::c_int;
+}
+
 /// A function simply invokes ocall print to print the incoming string
 ///
 /// # Parameters
@@ -81,32 +92,44 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
     // Ocall to normal world for output
     println!("{}", &hello_string);
 
-    // test sqlite3 lib:
-    // Database connection object
-    // let mut db = std::ptr::null(); 
-
     // Opening database
     // We are certain that our string doesn't have 0 bytes in the middle,
     // so we can .expect()
     let dbname = std::ffi::CString::new("test.db").expect("CString::new failed");
-    // let const char* dbname = "test.db";
+    let sql = std::ffi::CString::new("CREATE TABLE COMPANY IF NOT EXISTS(ID INT PRIMARY KEY NOT NULL,NAME TEXT NOT NULL, AGE INT NOT NULL, ADDRESS CHAR(50), SALARY REAL);").expect("CString::new failed"); 
+    let mut zErrMsg = std::ffi::CString::new("sqlite3 Execution Error").expect("CString::new failed");
+    let p: *const i32 = std::ptr::null();
 
     unsafe{
         let mut db = std::mem::MaybeUninit::uninit().assume_init();
-        sqlite3_open(dbname.as_ptr(), &mut db);
-        // pub fn sqlite3_open(
-        //     filename: *const ::std::os::raw::c_char,
-        //     ppDb: *mut *mut sqlite3,
-        // ) -> ::std::os::raw::c_int;
-    
-        // char* sql = "CREATE TABLE COMPANY(ID INT PRIMARY KEY NOT NULL,NAME TEXT NOT NULL, AGE INT NOT NULL, ADDRESS CHAR(50), SALARY REAL);";
-        // char *zErrMsg = 0;
-        // sqlite3_exec(db, sql, callback, 0, &zErrMsg);
-    
-        sqlite3_close(db);
-        // pub fn sqlite3_close(arg1: *mut sqlite3) -> ::std::os::raw::c_int;
+        println!("Now opening database connection...");
+        let res = sqlite3_open(dbname.as_ptr(), &mut db);
+        if res != 0 {
+            println!("SQLite error - can't open database connection: ");
+            ocall_print_error(sqlite3_errmsg(db));
+        }
+        
+        let mut z_ptr: *mut i8 = zErrMsg.into_raw();
+        let mut z_ptr_ptr: *mut *mut i8 = &mut z_ptr;
+        let mut empty = std::mem::MaybeUninit::uninit().assume_init();
+
+        println!("Now quering database...");
+        let res = sqlite3_exec(db, sql.as_ptr(), Some(callback), empty, z_ptr_ptr);
+        if res != 0 {
+            println!("SQLite query error: ");
+            ocall_print_error(sqlite3_errmsg(db));
+        }
+
+        println!("Now closing database...");
+        let res = sqlite3_close(db);
+        if res != 0 {
+            println!("SQLite error - can't close database");
+            ocall_print_error(sqlite3_errmsg(db));
+        }
+
     }
 
     sgx_status_t::SGX_SUCCESS
 }
+
 
