@@ -85,3 +85,13 @@ int ocall_fsync(int fd){
     //printf("Entering %s\n", __func__);
     return fsync(fd);
 }
+
+int ocall_fchmod(int fd, mode_t mode){
+    //printf("Entering %s\n", __func__);
+    return fchmod(fd, mode);
+}
+
+int ocall_fchown(int fd, uid_t owner, gid_t group){
+    //printf("Entering %s\n", __func__);
+    return fchown(fd, owner, group);
+}

@@ -52,6 +52,8 @@ enclave {
         int ocall_fsync(int fd);
         int ocall_fcntl(int fd, int cmd, [in, size=size] void* arg, size_t size) propagate_errno;
         int ocall_unlink([in, string] const char *pathname);
+        int ocall_fchmod(int fd, mode_t mode);
+        int ocall_fchown(int fd, uid_t owner, gid_t group);
     };
 
 

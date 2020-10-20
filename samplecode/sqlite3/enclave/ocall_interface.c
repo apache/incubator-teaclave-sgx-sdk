@@ -251,10 +251,14 @@ ssize_t write(int fd, const void *buf, size_t count){
 }
 
 int fchmod(int fd, mode_t mode){
-    char error_msg[256];
-    snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
-    ocall_print_error(error_msg);
-    return 0;
+    int ret;
+    sgx_status_t status = ocall_fchmod(&ret, fd, mode);
+    if (status != SGX_SUCCESS) {
+        char error_msg[256];
+        snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
+        ocall_print_error(error_msg);
+    }
+    return (ssize_t)ret;
 }
 
 int unlink(const char *pathname){
@@ -283,10 +287,14 @@ int rmdir(const char *pathname){
 }
 
 int fchown(int fd, uid_t owner, gid_t group){
-    char error_msg[256];
-    snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: no ocall implementation for ", __func__);
-    ocall_print_error(error_msg);
-    return 0;
+    int ret;
+    sgx_status_t status = ocall_fchown(&ret, fd, owner, group);
+    if (status != SGX_SUCCESS) {
+        char error_msg[256];
+        snprintf(error_msg, sizeof(error_msg), "%s%s", "Error: when calling ocall_", __func__);
+        ocall_print_error(error_msg);
+    }
+    return (ssize_t)ret;
 }
 
 uid_t geteuid(void){

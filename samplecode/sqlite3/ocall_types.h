@@ -11,6 +11,16 @@
 #else
 // For trusted part copy required standard library declarations from stdlib headers
 
+#ifndef _UID_T_DEFINED_
+#define _UID_T_DEFINED_
+typedef __uid_t     uid_t;
+#endif
+
+#ifndef _GID_T_DEFINED_
+#define _GID_T_DEFINED_
+typedef __gid_t     gid_t;
+#endif
+
 // For ocall_interface.c do not redefine these types, otherwise define
 #ifndef DO_NOT_REDEFINE_FOR_OCALL
 
