@@ -5,4 +5,5 @@ done
 enclave/.cargo
 enclave/vendor
 
-bin
+bin/
+lib/
