@@ -1,9 +1,10 @@
-*.db
+#preprocessed intermediate file
+*.i
 
-done
-
+#cargo vendor files
 enclave/.cargo
 enclave/vendor
 
+#compiled binaries
 bin/
 lib/

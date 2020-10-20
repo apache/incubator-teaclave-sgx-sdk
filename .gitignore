@@ -4,9 +4,6 @@ Cargo.lock
 #object file
 *.o
 
-#preprocessed intermediate file
-*.i
-
 #library
 *.a
 
