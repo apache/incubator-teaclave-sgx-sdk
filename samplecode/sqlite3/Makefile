@@ -79,7 +79,7 @@ App_C_Files := $(filter-out ./app/Enclave_u.c, $(wildcard ./app/*.c))
 App_Include_Paths := -I ./app -I./include -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH)
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 App_Cpp_Flags := $(App_C_Flags) -std=c++11
-App_Link_Flags := -L$(SGX_LIBRARY_PATH) -L$(CUSTOM_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread
+App_Link_Flags := -L$(SGX_LIBRARY_PATH) -L$(CUSTOM_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lsgx_uprotected_fs
 ifneq ($(SGX_MODE), HW)
 	App_Link_Flags += -lsgx_uae_service_sim
 else
@@ -163,12 +163,12 @@ enclave/Enclave_t.o: enclave/Enclave_t.c
 
 # Preprocess sqlite3
 enclave/sqlite3.i: enclave/sqlite3.c
-	$(CC) -I$(SGX_SDK)/include -DSQLITE_THREADSAFE=0 -E $< -o $@
+	$(CC) -I$(SGX_SDK)/include -DSQLITE_THREADSAFE=0 -DSQLITE_USE_URI=1 -DSQLITE_ENABLE_DESERIALIZE -DSGX -E $< -o $@
 	@echo "CC-Preprocess  <=  $<"
 
 # Compile sqlite3
 enclave/sqlite3.o: enclave/sqlite3.i enclave/sqlite3.c
-	$(CC) $(RustEnclave_Compile_Flags) -DSQLITE_THREADSAFE=0 -c $< -o $@
+	$(CC) $(RustEnclave_Compile_Flags) -DSQLITE_THREADSAFE=0 -DSQLITE_USE_URI=1 -DSQLITE_ENABLE_DESERIALIZE -DSGX -c $< -o $@
 	@echo "CC  <=  $<"
 
 # Preprocess ocall_interface to redirect syscall

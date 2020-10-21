@@ -68,11 +68,12 @@ static mut db_wrapper: Option<*mut sqlite3> = None;
 ///
 /// Always returns SGX_SUCCESS
 #[no_mangle]
-pub extern "C" fn ecall_opendb(dbname: *const i8) -> sgx_status_t {
+pub extern "C" fn ecall_opendb() -> sgx_status_t {
     unsafe{
         db_wrapper = Some(&mut _db_unused as *mut sqlite3);
         let mut db: *mut sqlite3 = db_wrapper.expect("DB failed to unwrap");
-        let res = sqlite3_open(dbname, &mut db);
+        let mut dbname = std::ffi::CString::new(":memory:").expect("CString::new failed");
+        let res = sqlite3_open(dbname.as_ptr() as *const ::std::os::raw::c_char, &mut db);
         if res != 0 {
             println!("SQLite error - can't open database connection: ");
             ocall_print_error(sqlite3_errmsg(db));

@@ -1,6 +1,6 @@
 # Welcome to RUST-SGX-SQLITE SampleCode!
 
-Hi! This is a port of **Sqlite3** to **Rust-SGX-SDK**. This port reuses a lot ofcode and contents in https://github.com/yerzhan7/SGX_SQLite. Special thanks to @yerzhan7 for open sourcing his/her work! Since this port borrows a lot of content from SGX_SQLite, so they shares a lot of common properties (This port literally does all the things SGX_SQLite does!). I cite @yerzhan7's intro in the following.
+Hi! This is a port of **Sqlite3** to **Rust-SGX-SDK**. This port reuses a lot of code and contents in https://github.com/yerzhan7/SGX_SQLite. Special thanks to @yerzhan7 for open sourcing his/her work! Since this port borrows a lot of content from SGX_SQLite, so they shares a lot of common properties (This port literally does all the things SGX_SQLite does!). I cite @yerzhan7's intro in the following.
 
 > SQLite database inside a secure Intel SGX enclave (Linux).
 
@@ -14,6 +14,7 @@ Hi! This is a port of **Sqlite3** to **Rust-SGX-SDK**. This port reuses a lot of
 
 In addition, this port may also act as a guide on how to port C applications to Rust SGX SDK on Linux :D
 
+Additionally, since @mssun wants to have high security standard in SampleCode (which is good!). I disables saving database to filesystem (and use in-memory database only) and clean up the ocalls which proxy system calls (inspired by https://github.com/wangsu502/SGX-SQLite3. I reuse the code for SQLite version 3.30.1. Special thanks to @wangsu502 for open sourcing his/her work. Looking forward to his future work of secure sealing of sqlite database!).
 
 ## Docker
 
@@ -39,7 +40,7 @@ to get an interactive bash shell to it!
 
 ## Test
 
-Simply make & cd bin. And ./app test.db (or any name you want!). You are good to go!
+Simply make & cd bin. And ./app. You are good to go!
 
 I did the following test :)
 

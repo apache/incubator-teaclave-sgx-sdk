@@ -154,10 +154,9 @@ int initialize_enclave(void)
 /* Application entry */
 int SGX_CDECL main(int argc, char *argv[])
 {
-    if ( argc != 2 ){
+    if ( argc != 1 ){
         printf("Usage: ");
-        printf("%s", argv[0]);
-        printf(" <database>\n");
+        printf("%s\n", argv[0]);
         return -1;
     }
 
@@ -177,10 +176,8 @@ int SGX_CDECL main(int argc, char *argv[])
 
     printf("[+] Info: SQLite SGX enclave successfully created.\n");
 
-    const char* dbname = argv[1];
-
     // Open SQLite database
-    sgx_ret = ecall_opendb(global_eid, &enclave_ret, dbname);
+    sgx_ret = ecall_opendb(global_eid, &enclave_ret);
 
     if(sgx_ret != SGX_SUCCESS) {
         print_error_message(sgx_ret);
@@ -215,7 +212,7 @@ int SGX_CDECL main(int argc, char *argv[])
             print_error_message(enclave_ret);
             return -1;
         }
-        
+
         printf("> ");
     }
 
