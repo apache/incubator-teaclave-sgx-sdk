@@ -56,6 +56,7 @@
 #![feature(char_error_internals)]
 #![feature(concat_idents)]
 #![feature(const_fn)]
+#![feature(const_fn_fn_ptr_basics)]
 #![feature(core_intrinsics)]
 #![feature(custom_test_frameworks)]
 #![feature(dropck_eyepatch)]
