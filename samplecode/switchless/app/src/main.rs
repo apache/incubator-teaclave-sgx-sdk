@@ -16,6 +16,7 @@
 // under the License..
 
 #![feature(link_args)]
+#![allow(unused_attributes)]
 #![link_args = "-Wl,--whole-archive -lsgx_uswitchless -Wl,--no-whole-archive"]
 
 extern crate sgx_types;
