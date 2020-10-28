@@ -33,18 +33,18 @@ pub struct AlignAlloc;
 
 impl AlignAlloc {
     #[inline]
-    pub unsafe fn alloc(&mut self, layout: Layout) -> Result<NonNull<u8>, AlighAllocErr> {
+    pub unsafe fn alloc(&self, layout: Layout) -> Result<NonNull<u8>, AlighAllocErr> {
         NonNull::new(platform::alloc(layout)).ok_or(AlighAllocErr)
     }
 
     #[inline]
-    pub unsafe fn alloc_zeroed(&mut self, layout: Layout) -> Result<NonNull<u8>, AlighAllocErr> {
+    pub unsafe fn alloc_zeroed(&self, layout: Layout) -> Result<NonNull<u8>, AlighAllocErr> {
         NonNull::new(platform::alloc_zeroed(layout)).ok_or(AlighAllocErr)
     }
 
     #[inline]
     pub unsafe fn alloc_with_req(
-        &mut self,
+        &self,
         layout: Layout,
         align_req: &[AlignReq],
     ) -> Result<NonNull<u8>, AlighAllocErr> {
@@ -53,7 +53,7 @@ impl AlignAlloc {
 
     #[inline]
     pub unsafe fn alloc_with_req_zeroed(
-        &mut self,
+        &self,
         layout: Layout,
         align_req: &[AlignReq],
     ) -> Result<NonNull<u8>, AlighAllocErr> {
@@ -62,7 +62,7 @@ impl AlignAlloc {
 
     #[inline]
     pub unsafe fn alloc_with_pad_align(
-        &mut self,
+        &self,
         layout: Layout,
         align_layout: Layout,
     ) -> Result<NonNull<u8>, AlighAllocErr> {
@@ -71,7 +71,7 @@ impl AlignAlloc {
 
     #[inline]
     pub unsafe fn alloc_with_pad_align_zeroed(
-        &mut self,
+        &self,
         layout: Layout,
         align_layout: Layout,
     ) -> Result<NonNull<u8>, AlighAllocErr> {
@@ -80,7 +80,7 @@ impl AlignAlloc {
     }
 
     #[inline]
-    pub unsafe fn dealloc(&mut self, ptr: NonNull<u8>, layout: Layout) {
+    pub unsafe fn dealloc(&self, ptr: NonNull<u8>, layout: Layout) {
         platform::dealloc(ptr.as_ptr(), layout)
     }
 

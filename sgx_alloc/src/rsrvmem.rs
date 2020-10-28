@@ -44,7 +44,7 @@ impl RsrvMemAlloc {
     /// Starting address of the new allocated memory area on success;
     ///
     #[inline]
-    pub unsafe fn alloc(&mut self, count: u32) -> Result<NonNull<u8>, RsrvMemAllocErr> {
+    pub unsafe fn alloc(&self, count: u32) -> Result<NonNull<u8>, RsrvMemAllocErr> {
         NonNull::new(platform::alloc(count)).ok_or(RsrvMemAllocErr)
     }
 
@@ -65,12 +65,12 @@ impl RsrvMemAlloc {
     /// Starting address of the new allocated memory area on success;
     ///
     #[inline]
-    pub unsafe fn alloc_with_addr(&mut self, addr: NonNull<u8>, count: u32) -> Result<NonNull<u8>, RsrvMemAllocErr> {
+    pub unsafe fn alloc_with_addr(&self, addr: NonNull<u8>, count: u32) -> Result<NonNull<u8>, RsrvMemAllocErr> {
         NonNull::new(platform::alloc_with_addr(addr.as_ptr(), count)).ok_or(RsrvMemAllocErr)
     }
 
     #[inline]
-    pub unsafe fn alloc_zeroed(&mut self, count: u32) -> Result<NonNull<u8>, RsrvMemAllocErr> {
+    pub unsafe fn alloc_zeroed(&self, count: u32) -> Result<NonNull<u8>, RsrvMemAllocErr> {
         NonNull::new(platform::alloc_zeroed(count)).ok_or(RsrvMemAllocErr)
     }
 
@@ -87,7 +87,7 @@ impl RsrvMemAlloc {
     /// Count of pages to allocate region
     ///
     #[inline]
-    pub unsafe fn dealloc(&mut self, addr: NonNull<u8>, count: u32) -> Result<(), RsrvMemAllocErr> {
+    pub unsafe fn dealloc(&self, addr: NonNull<u8>, count: u32) -> Result<(), RsrvMemAllocErr> {
         platform::dealloc(addr.as_ptr(), count)
     }
 

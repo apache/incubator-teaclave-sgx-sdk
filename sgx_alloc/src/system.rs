@@ -100,7 +100,7 @@ impl System {
             old_size => {
                 let new_ptr = self.alloc_impl(new_layout, zeroed)?;
                 ptr::copy_nonoverlapping(ptr.as_ptr(), new_ptr.as_mut_ptr(), old_size);
-                core::alloc::AllocRef::dealloc(self, ptr, old_layout);
+                AllocRef::dealloc(&self, ptr, old_layout);
                 Ok(new_ptr)
             },
         }
@@ -157,17 +157,17 @@ unsafe impl AllocRef for System {
          match new_layout.size() {
              // SAFETY: conditions must be upheld by the caller
              0 => {
-                 core::alloc::AllocRef::dealloc(self, ptr, old_layout);
-                 Ok(NonNull::slice_from_raw_parts(new_layout.dangling(), 0))
+                AllocRef::dealloc(&self, ptr, old_layout);
+                Ok(NonNull::slice_from_raw_parts(new_layout.dangling(), 0))
              },
              // SAFETY: `new_size` is non-zero. Other conditions must be upheld by the caller
              new_size if old_layout.align() == new_layout.align() => {
-                 // `realloc` probably checks for `new_size <= old_layout.size()` or something similar.
-                 intrinsics::assume(new_size <= old_layout.size());
+                // `realloc` probably checks for `new_size <= old_layout.size()` or something similar.
+                intrinsics::assume(new_size <= old_layout.size());
 
-                 let raw_ptr = GlobalAlloc::realloc(self, ptr.as_ptr(), old_layout, new_size);
-                 let ptr = NonNull::new(raw_ptr).ok_or(AllocError)?;
-                 Ok(NonNull::slice_from_raw_parts(ptr, new_size))
+                let raw_ptr = GlobalAlloc::realloc(self, ptr.as_ptr(), old_layout, new_size);
+                let ptr = NonNull::new(raw_ptr).ok_or(AllocError)?;
+                Ok(NonNull::slice_from_raw_parts(ptr, new_size))
              },
 
              // SAFETY: because `new_size` must be smaller than or equal to `old_layout.size()`,
@@ -176,10 +176,10 @@ unsafe impl AllocRef for System {
              // `new_ptr`. Thus, the call to `copy_nonoverlapping` is safe. The safety contract
              // for `dealloc` must be upheld by the caller.
              new_size => {
-                 let new_ptr = core::alloc::AllocRef::alloc(self, new_layout)?;
-                 ptr::copy_nonoverlapping(ptr.as_ptr(), new_ptr.as_mut_ptr(), new_size);
-                 core::alloc::AllocRef::dealloc(self, ptr, old_layout);
-                 Ok(new_ptr)
+                let new_ptr = AllocRef::alloc(&self, new_layout)?;
+                ptr::copy_nonoverlapping(ptr.as_ptr(), new_ptr.as_mut_ptr(), new_size);
+                AllocRef::dealloc(&self, ptr, old_layout);
+                Ok(new_ptr)
              },
          }
     }
