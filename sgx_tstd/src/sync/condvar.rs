@@ -32,7 +32,7 @@ use sgx_trts::oom;
 use sgx_trts::libc;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use core::fmt;
-use core::alloc::AllocErr;
+use core::alloc::AllocError;
 use alloc_crate::boxed::Box;
 use crate::sync::{mutex, SgxThreadMutex, SgxMutexGuard};
 use crate::sys_common::poison::{self, LockResult, PoisonError};
@@ -426,7 +426,7 @@ impl SgxCondvar {
             let ret = self.inner.broadcast();
             match ret {
                 Err(r) if r == libc::ENOMEM => {
-                    oom::rsgx_oom(AllocErr)
+                    oom::rsgx_oom(AllocError)
                 },
                 _ => {},
             }

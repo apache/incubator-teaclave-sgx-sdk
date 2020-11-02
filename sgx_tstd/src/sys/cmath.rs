@@ -17,7 +17,7 @@
 
 use sgx_libc::{c_float, c_double};
 
-#[link_name = "sgx_tstdc"]
+#[link(name = "sgx_tstdc")]
 extern "C" {
     pub fn acos(n: c_double) -> c_double;
     pub fn acosf(n: c_float) -> c_float;

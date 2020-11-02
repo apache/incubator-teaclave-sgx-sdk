@@ -17,7 +17,7 @@
 
 #[cfg(feature = "backtrace")]
 use crate::backtrace::Backtrace;
-use core::alloc::{AllocErr, LayoutErr};
+use core::alloc::{AllocError, LayoutErr};
 use core::array;
 use core::any::TypeId;
 use core::cell;
@@ -203,7 +203,7 @@ impl Error for ! {
     }
 }
 
-impl Error for AllocErr {
+impl Error for AllocError {
     fn description(&self) -> &str {
         "memory allocation failed"
     }
