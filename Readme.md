@@ -31,6 +31,10 @@ Current wiki pages:
 
 * Everything about [environment setup](https://github.com/apache/teaclave-sgx-sdk/wiki/Environment-Setup)
 
+## v1.1.3
+
+Supports Intel SGX SDK v2.11, and Rust nightly-2020-10-25. Added support to Ubuntu 20.04. [release_notes](release_notes.md).
+
 ## v1.1.2
 
 Supports Intel SGX SDK v2.9.1, and Rust nightly-2020-04-07. v1.1.2 provides a handy crate `sgx_signal`, which enables signal capture. One can easily find the place where exception happens and finally triggered `ud2`. And we added `Backtrace::capture` in sgx_tstd. With the help of Intel SGX SDk v2.9.1's patch, dtor of thread local storage finally works on regular SGX thread and pthread thread. Removed sgx_core_futures since Rust is supporting `async`/`await` in `no_std` environment. Please refer to [release_notes](release_notes.md) for more details.
@@ -115,9 +119,9 @@ Install Intel SGX driver and SDK first. And refer to [Dockerfile](dockerfile/Doc
 
 ### Using docker (Recommended) without ME support
 
-* As of v1.1.2, we provide 4 docker images: `baiduxlab/sgx-rust:1604-1.1.2` `baiduxlab/sgx-rust:1804-1.1.2` `baiduxlab/sgx-rust:2004-1.1.2` `baiduxlab/sgx-rust:fedora27-1.1.2`. The `latest` tag pins on `baiduxlab/sgx-rust:1804-1.1.2`.
+* As of v1.1.3, we provide 5 docker images: `baiduxlab/sgx-rust:1604-1.1.3` `baiduxlab/sgx-rust:1804-1.1.3` `baiduxlab/sgx-rust:2004-1.1.3` `baiduxlab/sgx-rust:fedora31-1.1.3`, `baiduxlab/sgx-rust:centos8-1.1.3`. The `latest` tag pins on `baiduxlab/sgx-rust:1804-1.1.3`.
 
-First, make sure Intel SGX Driver for 2.9.1 is installed and functions well. `/dev/isgx` should appear. If you use DCAP driver, please ensure `/dev/sgx/enclave` and `/dev/sgx/provision` both appear.
+First, make sure Intel SGX Driver for 2.11 is installed and functions well. `/dev/isgx` should appear. If you use DCAP driver, please ensure `/dev/sgx/enclave` and `/dev/sgx/provision` both appear.
 
 `$ docker pull baiduxlab/sgx-rust`
 
