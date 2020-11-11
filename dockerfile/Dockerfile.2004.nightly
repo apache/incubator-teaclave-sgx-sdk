@@ -2,32 +2,35 @@ FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt update && apt install -y unzip lsb-release debhelper cmake reprepro autoconf automake bison build-essential curl dpkg-dev expect flex gcc-8 gdb git git-core gnupg kmod libboost-system-dev libboost-thread-dev libcurl4-openssl-dev libiptcdata0-dev libjsoncpp-dev liblog4cpp5-dev libprotobuf-dev libssl-dev libtool libxml2-dev ocaml ocamlbuild pkg-config protobuf-compiler python sudo systemd-sysv texinfo uuid-dev vim wget && \
+RUN apt update && apt install -y unzip lsb-release debhelper cmake reprepro autoconf automake bison build-essential curl dpkg-dev expect flex gcc-8 gdb git git-core gnupg kmod libboost-system-dev libboost-thread-dev libcurl4-openssl-dev libiptcdata0-dev libjsoncpp-dev liblog4cpp5-dev libprotobuf-dev libssl-dev libtool libxml2-dev ocaml ocamlbuild pkg-config protobuf-compiler python texinfo uuid-dev vim wget software-properties-common && \
     rm -rf /var/lib/apt/lists/*
 
 #20.04 does have gcc-9
 #ADD 01_gcc_8.sh /root
 #RUN bash /root/01_gcc_8.sh
 
-#ENV BINUTILS_DIST="ubuntu20.04"
-ENV BINUTILS_DIST="SELF_BUILT"
+ENV BINUTILS_DIST="ubuntu20.04"
+#ENV BINUTILS_DIST="SELF_BUILT"
 ENV LD_LIBRARY_PATH=/usr/lib:/usr/local/lib
 ENV LD_RUN_PATH=/usr/lib:/usr/local/lib
 
 ADD 02_binutils.sh /root
 RUN bash /root/02_binutils.sh
 
-ENV SDK_DIST="SELF_BUILT"
+#ENV SDK_DIST="SELF_BUILT"
+ENV SDK_DIST="INTEL_BUILT"
+ENV SDK_URL="https://download.01.org/intel-sgx/sgx-linux/2.12/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.12.100.3.bin"
 ADD 03_sdk.sh /root
 RUN bash /root/03_sdk.sh
 
 # Sixth, PSW
 
-ENV CODENAME        bionic
-ENV VERSION         2.11.100.2-focal
+ENV CODENAME        focal
+ENV VERSION         2.12.100.3-focal1
+ENV DCAP_VERSION    1.9.100.3-focal1
 
-ADD 04_psw_deb.sh /root
-RUN bash /root/04_psw_deb.sh
+ADD 04_psw.sh /root
+RUN bash /root/04_psw.sh
 
 # Seventh, Rust
 

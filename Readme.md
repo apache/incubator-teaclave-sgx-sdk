@@ -33,7 +33,7 @@ Current wiki pages:
 
 ## v1.1.3
 
-Supports Intel SGX SDK v2.11, and Rust nightly-2020-10-25. Added support to Ubuntu 20.04. [release_notes](release_notes.md).
+Supports Intel SGX SDK v2.12, and Rust nightly-2020-10-25. Added support to Ubuntu 20.04. **We strongly recommend users to upgrade to Intel SGX SDK v2.12 and drivers to DCAP 1.36.2 and OOT 2.11.0.** [release_notes](release_notes.md).
 
 ## v1.1.2
 

@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 
-RUN apt-get update && apt-get install -y autoconf automake bison build-essential ca-certificates cmake curl dpkg-dev expect flex gdb git git-core gnupg kmod libboost-system-dev libboost-thread-dev libcurl4-openssl-dev libiptcdata0-dev libjsoncpp-dev liblog4cpp5-dev libprotobuf-c0-dev libprotobuf-dev libssl-dev libtool libxml2-dev ocaml pkg-config protobuf-compiler python sudo texinfo uuid-dev vim wget zlib1g-dev dkms gnupg2 apt-transport-https software-properties-common && \
+RUN apt-get update && apt-get install -y autoconf automake bison build-essential ca-certificates cmake curl dpkg-dev expect flex gdb git git-core gnupg kmod libboost-system-dev libboost-thread-dev libcurl4-openssl-dev libiptcdata0-dev libjsoncpp-dev liblog4cpp5-dev libprotobuf-c0-dev libprotobuf-dev libssl-dev libtool libxml2-dev ocaml pkg-config protobuf-compiler python texinfo uuid-dev vim wget zlib1g-dev dkms gnupg2 apt-transport-https software-properties-common && \
     rm -rf /var/lib/apt/lists/*
 
 # Conditionally trust ppa:ubuntu-toolchain-r
@@ -31,8 +31,8 @@ RUN bash /root/03_sdk.sh
 # Sixth, PSW
 
 ENV CODENAME        xenial
-ENV VERSION         2.11.100.2-xenial1
-ENV DCAP_VERSION    1.8.100.2-xenial1
+ENV VERSION         2.12.100.3-xenial1
+ENV DCAP_VERSION    1.9.100.3-xenial1
 
 ADD 04_psw.sh /root
 RUN bash /root/04_psw.sh

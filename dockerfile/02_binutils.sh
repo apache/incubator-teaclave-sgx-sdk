@@ -1,10 +1,10 @@
 if [ $BINUTILS_DIST != "SELF_BUILT" ]
 then
     cd /root && \
-    wget https://download.01.org/intel-sgx/sgx-linux/2.11/as.ld.objdump.gold.r2.tar.gz
-    tar xzf as.ld.objdump.gold.r2.tar.gz && \
+    wget https://download.01.org/intel-sgx/sgx-linux/2.12/as.ld.objdump.gold.r3.tar.gz && \
+    tar xzf as.ld.objdump.gold.r3.tar.gz && \
     cp -r external/toolset/$BINUTILS_DIST/* /usr/bin/ && \
-    rm -rf ./external ./as.ld.objdump.gold.r2.tar.gz
+    rm -rf ./external ./as.ld.objdump.gold.r3.tar.gz
 else
     curl -o binutils.tar.xz https://ftp.gnu.org/gnu/binutils/binutils-2.35.tar.xz && \
     tar xf binutils.tar.xz && \
