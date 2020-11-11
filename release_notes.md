@@ -1,10 +1,13 @@
 # Rust SGX SDK v1.1.3
 
-**Supports Intel SGX SDK v2.11**
+**Supports Intel SGX SDK v2.12**
 
 **Supports Rust nightly-2020-10-25**
 
 **Docker images** We provide docker images: 1604-1.1.3/1804-1.1.3/2004-1.1.3/fedora31-1.1.3/centos8-1.1.3
+
+**Please upgrade asap** Intel fixed couple of bugs in 2.12. Please upgrade as
+soon as possible!
 
 # Rust SGX SDK v1.1.2
 

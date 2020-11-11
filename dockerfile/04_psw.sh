@@ -2,6 +2,7 @@ curl -fsSL  https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key 
     add-apt-repository "deb https://download.01.org/intel-sgx/sgx_repo/ubuntu $CODENAME main" && \
     apt-get update && \
     apt-get install -y \
+        libsgx-headers=$VERSION \
         libsgx-ae-epid=$VERSION \
         libsgx-ae-le=$VERSION \
         libsgx-ae-pce=$VERSION \
