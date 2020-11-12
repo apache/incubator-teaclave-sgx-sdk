@@ -1,36 +1,32 @@
-/* Copyright (C) 1996-2018 Free Software Foundation, Inc.
-   This file is part of the GNU C Library.
+//
+// Copyright © 2005-2020 Rich Felker, et al.
+// Licensed under the MIT license.
+//
 
-   The GNU C Library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
+/* Copyright © 2005-2020 Rich Felker, et al.
 
-   The GNU C Library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
 
-   You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, see
-   <http://www.gnu.org/licenses/>.  */
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #ifndef _SYS_SOCKADDR_H_
 #define _SYS_SOCKADDR_H_
 
-/* POSIX.1g specifies this type name for the `sa_family' member.  */
 typedef unsigned short int sa_family_t;
-
-/* This macro is used to declare the initial common members
-   of the data types used for socket addresses, `struct sockaddr',
-   `struct sockaddr_in', `struct sockaddr_un', etc.  */
-
-#define __SOCKADDR_COMMON(sa_prefix) \
-    sa_family_t sa_prefix##family
-
-#define __SOCKADDR_COMMON_SIZE  (sizeof (unsigned short int))
-
-/* Size of struct sockaddr_storage.  */
-#define _SS_SIZE 128
 
 #endif
