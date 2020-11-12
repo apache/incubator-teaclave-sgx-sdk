@@ -36,34 +36,34 @@ impl_enum! {
         SGX_ERROR_FEATURE_NOT_SUPPORTED     = 0x0000_0008,      /* Feature is not supported on this platform */
         SGX_PTHREAD_EXIT                    = 0x0000_0009,      /* Enclave is exited with pthread_exit() */
 
-        SGX_ERROR_INVALID_FUNCTION   = 0x0000_1001,      /* The ecall/ocall index is invalid */
-        SGX_ERROR_OUT_OF_TCS         = 0x0000_1003,      /* The enclave is out of TCS */
-        SGX_ERROR_ENCLAVE_CRASHED    = 0x0000_1006,      /* The enclave is crashed */
-        SGX_ERROR_ECALL_NOT_ALLOWED  = 0x0000_1007,      /* The ECALL is not allowed at this time, e.g. ecall is blocked by the dynamic entry table, or nested ecall is not allowed during initialization */
-        SGX_ERROR_OCALL_NOT_ALLOWED  = 0x0000_1008,      /* The OCALL is not allowed at this time, e.g. ocall is not allowed during exception handling */
-        SGX_ERROR_STACK_OVERRUN      = 0x0000_1009,      /* The enclave is running out of stack */
+        SGX_ERROR_INVALID_FUNCTION          = 0x0000_1001,      /* The ecall/ocall index is invalid */
+        SGX_ERROR_OUT_OF_TCS                = 0x0000_1003,      /* The enclave is out of TCS */
+        SGX_ERROR_ENCLAVE_CRASHED           = 0x0000_1006,      /* The enclave is crashed */
+        SGX_ERROR_ECALL_NOT_ALLOWED         = 0x0000_1007,      /* The ECALL is not allowed at this time, e.g. ecall is blocked by the dynamic entry table, or nested ecall is not allowed during initialization */
+        SGX_ERROR_OCALL_NOT_ALLOWED         = 0x0000_1008,      /* The OCALL is not allowed at this time, e.g. ocall is not allowed during exception handling */
+        SGX_ERROR_STACK_OVERRUN             = 0x0000_1009,      /* The enclave is running out of stack */
 
-        SGX_ERROR_UNDEFINED_SYMBOL      = 0x0000_2000,      /* The enclave image has undefined symbol. */
-        SGX_ERROR_INVALID_ENCLAVE       = 0x0000_2001,      /* The enclave image is not correct. */
-        SGX_ERROR_INVALID_ENCLAVE_ID    = 0x0000_2002,      /* The enclave id is invalid */
-        SGX_ERROR_INVALID_SIGNATURE     = 0x0000_2003,      /* The signature is invalid */
-        SGX_ERROR_NDEBUG_ENCLAVE        = 0x0000_2004,      /* The enclave is signed as product enclave, and can not be created as debuggable enclave. */
-        SGX_ERROR_OUT_OF_EPC            = 0x0000_2005,      /* Not enough EPC is available to load the enclave */
-        SGX_ERROR_NO_DEVICE             = 0x0000_2006,      /* Can't open SGX device */
-        SGX_ERROR_MEMORY_MAP_CONFLICT   = 0x0000_2007,      /* Page mapping failed in driver */
-        SGX_ERROR_INVALID_METADATA      = 0x0000_2009,      /* The metadata is incorrect. */
-        SGX_ERROR_DEVICE_BUSY           = 0x0000_200c,      /* Device is busy, mostly EINIT failed. */
-        SGX_ERROR_INVALID_VERSION       = 0x0000_200d,      /* Metadata version is inconsistent between uRTS and sgx_sign or uRTS is incompatible with current platform. */
-        SGX_ERROR_MODE_INCOMPATIBLE     = 0x0000_200e,      /* The target enclave 32/64 bit mode or sim/hw mode is incompatible with the mode of current uRTS. */
-        SGX_ERROR_ENCLAVE_FILE_ACCESS   = 0x0000_200f,      /* Can't open enclave file. */
-        SGX_ERROR_INVALID_MISC          = 0x0000_2010,      /* The MiscSelct/MiscMask settings are not correct.*/
-        SGX_ERROR_INVALID_LAUNCH_TOKEN  = 0x0000_2011,      /* The launch token is not correct.*/
+        SGX_ERROR_UNDEFINED_SYMBOL          = 0x0000_2000,      /* The enclave image has undefined symbol. */
+        SGX_ERROR_INVALID_ENCLAVE           = 0x0000_2001,      /* The enclave image is not correct. */
+        SGX_ERROR_INVALID_ENCLAVE_ID        = 0x0000_2002,      /* The enclave id is invalid */
+        SGX_ERROR_INVALID_SIGNATURE         = 0x0000_2003,      /* The signature is invalid */
+        SGX_ERROR_NDEBUG_ENCLAVE            = 0x0000_2004,      /* The enclave is signed as product enclave, and can not be created as debuggable enclave. */
+        SGX_ERROR_OUT_OF_EPC                = 0x0000_2005,      /* Not enough EPC is available to load the enclave */
+        SGX_ERROR_NO_DEVICE                 = 0x0000_2006,      /* Can't open SGX device */
+        SGX_ERROR_MEMORY_MAP_CONFLICT       = 0x0000_2007,      /* Page mapping failed in driver */
+        SGX_ERROR_INVALID_METADATA          = 0x0000_2009,      /* The metadata is incorrect. */
+        SGX_ERROR_DEVICE_BUSY               = 0x0000_200c,      /* Device is busy, mostly EINIT failed. */
+        SGX_ERROR_INVALID_VERSION           = 0x0000_200d,      /* Metadata version is inconsistent between uRTS and sgx_sign or uRTS is incompatible with current platform. */
+        SGX_ERROR_MODE_INCOMPATIBLE         = 0x0000_200e,      /* The target enclave 32/64 bit mode or sim/hw mode is incompatible with the mode of current uRTS. */
+        SGX_ERROR_ENCLAVE_FILE_ACCESS       = 0x0000_200f,      /* Can't open enclave file. */
+        SGX_ERROR_INVALID_MISC              = 0x0000_2010,      /* The MiscSelct/MiscMask settings are not correct.*/
+        SGX_ERROR_INVALID_LAUNCH_TOKEN      = 0x0000_2011,      /* The launch token is not correct.*/
 
-        SGX_ERROR_MAC_MISMATCH       = 0x0000_3001,      /* Indicates verification error for reports, sealed datas, etc */
-        SGX_ERROR_INVALID_ATTRIBUTE  = 0x0000_3002,      /* The enclave is not authorized */
-        SGX_ERROR_INVALID_CPUSVN     = 0x0000_3003,      /* The cpu svn is beyond platform's cpu svn value */
-        SGX_ERROR_INVALID_ISVSVN     = 0x0000_3004,      /* The isv svn is greater than the enclave's isv svn */
-        SGX_ERROR_INVALID_KEYNAME    = 0x0000_3005,      /* The key name is an unsupported value */
+        SGX_ERROR_MAC_MISMATCH              = 0x0000_3001,      /* Indicates verification error for reports, sealed datas, etc */
+        SGX_ERROR_INVALID_ATTRIBUTE         = 0x0000_3002,      /* The enclave is not authorized */
+        SGX_ERROR_INVALID_CPUSVN            = 0x0000_3003,      /* The cpu svn is beyond platform's cpu svn value */
+        SGX_ERROR_INVALID_ISVSVN            = 0x0000_3004,      /* The isv svn is greater than the enclave's isv svn */
+        SGX_ERROR_INVALID_KEYNAME           = 0x0000_3005,      /* The key name is an unsupported value */
 
         SGX_ERROR_SERVICE_UNAVAILABLE       = 0x0000_4001,   /* Indicates aesm didn't respond or the requested service is not supported */
         SGX_ERROR_SERVICE_TIMEOUT           = 0x0000_4002,   /* The request to aesm timed out */
@@ -441,6 +441,7 @@ impl_enum! {
         SGX_QL_PERSISTENT_STORAGE_ERROR                     = 0x0000_E045,
         SGX_QL_ERROR_MESSAGE_PARSING_ERROR                  = 0x0000_E046,
         SGX_QL_PLATFORM_UNKNOWN                             = 0x0000_E047,
+        SGX_QL_UNKNOWN_API_VERSION                          = 0x0000_E048,
         SGX_QL_QVEIDENTITY_MISMATCH                         = 0x0000_E050,
         SGX_QL_QVE_OUT_OF_DATE                              = 0x0000_E051,
         SGX_QL_PSW_NOT_AVAILABLE                            = 0x0000_E052,
@@ -523,6 +524,7 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_PERSISTENT_STORAGE_ERROR => "Error storing the retrieved cached data in persistent memory.",
             sgx_quote3_error_t::SGX_QL_ERROR_MESSAGE_PARSING_ERROR => "Message parsing error.",
             sgx_quote3_error_t::SGX_QL_PLATFORM_UNKNOWN => "Platform was not found in the cache",
+            sgx_quote3_error_t::SGX_QL_UNKNOWN_API_VERSION => "The current PCS API version configured is unknown.",
             sgx_quote3_error_t::SGX_QL_QVEIDENTITY_MISMATCH => "QvE Identity is NOT match to Intel signed QvE identity.",
             sgx_quote3_error_t::SGX_QL_QVE_OUT_OF_DATE => "QvE ISVSVN is smaller then the ISVSVN threshold.",
             sgx_quote3_error_t::SGX_QL_PSW_NOT_AVAILABLE => "SGX PSW library cannot be loaded, could be due to file I/O error.",
@@ -604,6 +606,7 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_PERSISTENT_STORAGE_ERROR => "SGX_QL_PERSISTENT_STORAGE_ERROR",
             sgx_quote3_error_t::SGX_QL_ERROR_MESSAGE_PARSING_ERROR => "SGX_QL_ERROR_MESSAGE_PARSING_ERROR",
             sgx_quote3_error_t::SGX_QL_PLATFORM_UNKNOWN => "SGX_QL_PLATFORM_UNKNOWN",
+            sgx_quote3_error_t::SGX_QL_UNKNOWN_API_VERSION => "SGX_QL_UNKNOWN_API_VERSION",
             sgx_quote3_error_t::SGX_QL_QVEIDENTITY_MISMATCH => "SGX_QL_QVEIDENTITY_MISMATCH",
             sgx_quote3_error_t::SGX_QL_QVE_OUT_OF_DATE => "SGX_QL_QVE_OUT_OF_DATE",
             sgx_quote3_error_t::SGX_QL_PSW_NOT_AVAILABLE => "SGX_QL_PSW_NOT_AVAILABLE",

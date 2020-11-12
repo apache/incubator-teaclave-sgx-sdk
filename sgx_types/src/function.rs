@@ -655,7 +655,7 @@ extern "C" {
                      stream: SGX_FILE) -> size_t;
 
     pub fn sgx_ftell(stream: SGX_FILE) -> int64_t;
-    pub fn sgx_fseek(stream: SGX_FILE, offset: int64_t, origin: c_int) -> int32_t;
+    pub fn sgx_fseek(stream: SGX_FILE, offset: int64_t, origin: int32_t) -> int32_t;
     pub fn sgx_fflush(stream: SGX_FILE) -> int32_t;
     pub fn sgx_ferror(stream: SGX_FILE) -> int32_t;
     pub fn sgx_feof(stream: SGX_FILE) -> int32_t;
@@ -770,6 +770,7 @@ extern "C" {
                                       platform_manifest_size: uint16_t,
                                       user_token: *const uint8_t,
                                       user_token_size: uint16_t) -> sgx_qcnl_error_t;
+    pub fn sgx_qcnl_get_api_version() -> int32_t;
 }
 
 //#[link(name = "dcap_quoteverify")]
