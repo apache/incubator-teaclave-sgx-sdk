@@ -1,59 +1,46 @@
-/* Copyright (C) 1996-2018 Free Software Foundation, Inc.
-   This file is part of the GNU C Library.
+//
+// Copyright © 2005-2020 Rich Felker, et al.
+// Licensed under the MIT license.s
+//
 
-   The GNU C Library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
+/* Copyright © 2005-2020 Rich Felker, et al.
 
-   The GNU C Library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
 
-   You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, see
-   <http://www.gnu.org/licenses/>.  */
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #ifndef _DIRENT_H
 #define _DIRENT_H
 
-struct dirent
-{
-#ifndef __USE_FILE_OFFSET64
+struct dirent {
     __ino_t d_ino;
     __off_t d_off;
-#else
-    __ino64_t d_ino;
-    __off64_t d_off;
-#endif
-    unsigned short int d_reclen;
+    unsigned short d_reclen;
     unsigned char d_type;
-    char d_name[256];       /* We must not include limits.h! */
+    char d_name[256];
 };
 
-//#ifdef __USE_LARGEFILE64
-struct dirent64
-{
+struct dirent64 {
     __ino64_t d_ino;
     __off64_t d_off;
-    unsigned short int d_reclen;
+    unsigned short d_reclen;
     unsigned char d_type;
-    char d_name[256];       /* We must not include limits.h! */
+    char d_name[256];
 };
-//#endif
 
-#define d_fileno	d_ino   /* Backwards compatibility.  */
-
-#undef  _DIRENT_HAVE_D_NAMLEN
-#define _DIRENT_HAVE_D_RECLEN
-#define _DIRENT_HAVE_D_OFF
-#define _DIRENT_HAVE_D_TYPE
-
-#if defined __OFF_T_MATCHES_OFF64_T && defined __INO_T_MATCHES_INO64_T
-/* Inform libc code that these two types are effectively identical.  */
-# define _DIRENT_MATCHES_DIRENT64   1
-#else
-# define _DIRENT_MATCHES_DIRENT64   0
-#endif
-#endif
+#define d_fileno	d_ino
