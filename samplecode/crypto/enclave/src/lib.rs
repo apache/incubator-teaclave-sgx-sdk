@@ -208,7 +208,7 @@ pub extern "C" fn aes_gcm_128_encrypt(key: &[u8;16],
 ///
 /// **ciphertext**
 ///
-/// Cipher text to be encrypted.
+/// Cipher text to be decrypted.
 ///
 /// **text_len**
 ///
