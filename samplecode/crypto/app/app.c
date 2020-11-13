@@ -224,6 +224,7 @@ int sha_256(){
     }
     printf("\n");
     printf("[+] calc_sha256 success ...\n");
+    return 0;
 }
 
 int aes_gcm_128(){
@@ -311,6 +312,7 @@ int aes_gcm_128(){
     printf("\n");
 
     printf("[+] aes-gcm-128 decrypt complete \n");
+    return 0;
 }
 
 
@@ -366,7 +368,7 @@ int aes_cmac(){
         printf("%02x", cmac_result[i]);
     }
     printf("\n");
-
+    return 0;
 }
 
 int rsa(){
@@ -406,4 +408,5 @@ int rsa(){
         return -1;
     }
     printf("rsa_key success. \n");
+    return 0;
 }
