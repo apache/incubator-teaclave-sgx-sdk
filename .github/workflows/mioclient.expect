@@ -1,0 +1,14 @@
+#!/usr/bin/expect
+
+set timeout 60;
+
+spawn ./app
+
+expect {
+    "Hello world from server" {
+        exit 0;
+    }
+    timeout { exit 1; }
+}
+
+exit 0;

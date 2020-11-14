@@ -1,0 +1,211 @@
+name: run example (sim only) # TODO: add custom runner
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  single-test:
+    strategy:
+      matrix:
+        runs-on:
+          - ubuntu-18.04
+        image:
+          - "baiduxlab/sgx-rust:1604-1.1.3"
+          - "baiduxlab/sgx-rust:1804-1.1.3"
+          - "baiduxlab/sgx-rust:2004-1.1.3"
+          - "baiduxlab/sgx-rust:fedora31-1.1.3"
+          - "baiduxlab/sgx-rust:centos8-1.1.3"
+        single-sample:
+          - "backtrace"
+          - "crypto"
+          - "file"
+          - "hello-regex"
+          - "hello-rust"
+          - "hello-rust-vscode-debug"
+          - "helloworld"
+          - "http_req"
+          - "kvdb-memdb"
+          - "localattestation"
+          - "logger"
+          - "machine-learning"
+          - "prost-protobuf"
+          - "protobuf"
+          - "sealeddata"
+          - "secretsharing"
+          - "serialize"
+          - "sgx-cov"
+          - "switchless"
+          - "tcmalloc"
+          - "thread"
+          - "wasmi"
+          - "zlib-lazy-static-sample"
+          #- "unit-test" TODO: fix or conditionalize UD catcher
+    runs-on: ${{ matrix.runs-on }}
+    container: 
+      image: ${{ matrix.image }}
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        submodules: 'true'
+    - name: Set up Github Actions' $HOME
+      run: |
+        cp /root/.bashrc $HOME/.bashrc &&
+        ln -sf /root/.rustup ~/.rustup &&
+        ln -sf /root/.cargo ~/.cargo
+    - name: Rust toolchains
+      run: |
+        . ~/.cargo/env && 
+        rustc --version &&
+        rustup --version &&
+        cargo --version
+      shell: bash
+    - name: Run tests
+      run: |
+        . ~/.cargo/env && 
+        . /opt/sgxsdk/environment && 
+        export SGX_SDK_RUST=`git worktree list | head | cut -d ' ' -f 1` &&
+        cd samplecode/${{ matrix.single-sample }} &&
+        if [ "${{  matrix.single-sample }}" == "protobuf" ]; then cargo install protobuf-codegen --vers=2.8.1; fi
+        SGX_MODE=SW make && 
+        cd bin &&
+        ./app
+      shell: bash
+  tls-test:
+    strategy:
+      matrix:
+        runs-on:
+          - ubuntu-18.04
+        image:
+          - "baiduxlab/sgx-rust:1604-1.1.3"
+          - "baiduxlab/sgx-rust:1804-1.1.3"
+          - "baiduxlab/sgx-rust:2004-1.1.3"
+          - "baiduxlab/sgx-rust:fedora31-1.1.3"
+          - "baiduxlab/sgx-rust:centos8-1.1.3"
+    runs-on: ${{ matrix.runs-on }}
+    container: 
+      image: ${{ matrix.image }}
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        submodules: 'true'
+    - name: Set up Github Actions' $HOME
+      run: |
+        cp /root/.bashrc $HOME/.bashrc &&
+        ln -sf /root/.rustup ~/.rustup &&
+        ln -sf /root/.cargo ~/.cargo &&
+        yum install -y which expect || true
+    - name: Rust toolchains
+      run: |
+        . ~/.cargo/env && 
+        rustc --version &&
+        rustup --version &&
+        cargo --version
+      shell: bash
+    - name: Run tls sample
+      run: |
+        . ~/.cargo/env && 
+        . /opt/sgxsdk/environment && 
+        export SGX_MODE=SW
+        SAVEIFS=$IFS
+        CIDIR=$(pwd)/.github/workflows
+        IFS=$(echo -en "\n\b")
+        compiles=('make' 'XARGO_SGX=1 make')
+        cd samplecode/tls
+        for client in ${compiles[@]}
+        do
+            for server in ${compiles[@]}
+            do
+                cd tlsclient && eval ${client} && \
+                cd ../tlsserver  && eval ${server} && \
+                cd bin
+                echo "Starting server"
+                $CIDIR/tlsserver.expect &
+                pid=$!
+                sleep 1
+                cd ../../tlsclient/bin
+                echo "Starting client"
+                $CIDIR/tlsclient.expect
+                cliret=$?
+                wait $pid
+                svrret=$?
+                if [ !  $cliret -eq 0 ] | [ ! $svrret -eq 0 ]; then
+                    echo "TLS test fail"
+                    exit 1
+                fi
+                echo "Testing passed"
+                cd ../..
+            done
+        done
+        IFS=$SAVEIFS
+      shell: bash
+  mio-test:
+    strategy:
+      matrix:
+        runs-on:
+          - ubuntu-18.04
+        image:
+          - "baiduxlab/sgx-rust:1604-1.1.3"
+          - "baiduxlab/sgx-rust:1804-1.1.3"
+          - "baiduxlab/sgx-rust:2004-1.1.3"
+          - "baiduxlab/sgx-rust:fedora31-1.1.3"
+          - "baiduxlab/sgx-rust:centos8-1.1.3"
+    runs-on: ${{ matrix.runs-on }}
+    container: 
+      image: ${{ matrix.image }}
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        submodules: 'true'
+    - name: Set up Github Actions' $HOME
+      run: |
+        cp /root/.bashrc $HOME/.bashrc &&
+        ln -sf /root/.rustup ~/.rustup &&
+        ln -sf /root/.cargo ~/.cargo &&
+        yum install -y which expect || true
+    - name: Rust toolchains
+      run: |
+        . ~/.cargo/env && 
+        rustc --version &&
+        rustup --version &&
+        cargo --version
+      shell: bash
+    - name: Run tls sample
+      run: |
+        . ~/.cargo/env && 
+        . /opt/sgxsdk/environment && 
+        export SGX_MODE=SW
+        SAVEIFS=$IFS
+        CIDIR=$(pwd)/.github/workflows
+        IFS=$(echo -en "\n\b")
+        compiles=('make' 'XARGO_SGX=1 make')
+        cd samplecode/mio
+        for client in ${compiles[@]}
+        do
+            for server in ${compiles[@]}
+            do
+                cd client && eval ${client} && \
+                cd ../server  && eval ${server} && \
+                cd bin
+                echo "Starting server"
+                $CIDIR/mioserver.expect &
+                pid=$!
+                sleep 1
+                cd ../../client/bin
+                echo "Starting client"
+                $CIDIR/mioclient.expect
+                cliret=$?
+                wait $pid
+                svrret=$?
+                if [ !  $cliret -eq 0 ] | [ ! $svrret -eq 0 ]; then
+                    echo "mio test fail"
+                    exit 1
+                fi
+                echo "Testing passed"
+                cd ../..
+            done
+        done
+        IFS=$SAVEIFS
+      shell: bash

@@ -1,0 +1,14 @@
+#!/usr/bin/expect
+
+set timeout 60;
+
+spawn ./app
+
+expect {
+    "Returned to client successfully!" {
+        exit 0;
+    }
+    timeout { exit 1; }
+}
+
+exit 2;
