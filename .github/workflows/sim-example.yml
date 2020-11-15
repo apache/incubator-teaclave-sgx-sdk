@@ -41,9 +41,9 @@ jobs:
           - "switchless"
           - "tcmalloc"
           - "thread"
+          - "unit-test"
           - "wasmi"
           - "zlib-lazy-static-sample"
-          #- "unit-test" TODO: fix or conditionalize UD catcher
     runs-on: ${{ matrix.runs-on }}
     container: 
       image: ${{ matrix.image }}
