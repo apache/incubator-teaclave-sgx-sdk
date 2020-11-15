@@ -1,0 +1,17 @@
+#!/usr/bin/expect
+
+set timeout 10;
+
+spawn ./app 2>&1
+
+expect {
+    "Accept-Encoding: identity" {
+        expect {
+            "\\\[+\\\] Test tlsclient in enclave, done!" { exit 0; }
+            timeout { exit 1; }
+        }
+    }
+    timeout { exit 1; }
+}
+
+exit 0;
