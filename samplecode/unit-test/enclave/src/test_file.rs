@@ -67,6 +67,7 @@ pub fn test_sgxfs() {
         let opt = SgxFile::open("?");
         assert_eq!(opt.is_err(), true);
     }
+    #[cfg(feature = "hw_test")]
     {
         let opt1 = SgxFile::open("/dev/isgx");
         let opt2 = SgxFile::open("/dev/sgx/enclave");

@@ -35,7 +35,11 @@ fn test_abort() -> ! {
     std::intrinsics::abort()
 }
 
+#[cfg_attr(not(feature = "hw_test"), allow(unreachable_code))]
 pub fn test_exception_handler() {
+    #[cfg(not(feature = "hw_test"))]
+    return;
+
     let _ = backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Full);
 
     let status = Arc::new(AtomicUsize::new(2));
