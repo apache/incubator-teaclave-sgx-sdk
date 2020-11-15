@@ -5,6 +5,7 @@ on:
     branches: [ '**' ]
   pull_request:
     branches: [ '**' ]
+  schedule: [cron: "40 1 * * *"]
 
 jobs:
   single-test:
