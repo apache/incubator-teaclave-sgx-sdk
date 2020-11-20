@@ -16,7 +16,7 @@
 # under the License.
 
 ######## SGX SDK Settings ########
-SGX_SDK ?= /opt/intel/sgxsdk
+SGX_SDK ?= /opt/sgxsdk
 SGX_MODE ?= SIM
 SGX_ARCH ?= x64
 

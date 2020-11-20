@@ -17,7 +17,7 @@
 
 ######## SGX SDK Settings ########
 
-SGX_SDK ?= /opt/sgxsdk
+SGX_SDK ?= /opt/intel/sgxsdk
 SGX_MODE ?= HW
 SGX_ARCH ?= x64
 
@@ -142,7 +142,7 @@ app/%.o: app/%.c
 $(App_Name): app/Enclave_u.o $(App_C_Objects) sgx_ustdc
 	cp ../../sgx_ustdc/libsgx_ustdc.a ./lib
 	mkdir -p bin
-	$(CXX) app/Enclave_u.o $(App_C_Objects) -o $@ $(App_Link_Flags)
+	@$(CXX) app/Enclave_u.o $(App_C_Objects) -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
 ######## Enclave Objects ########

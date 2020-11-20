@@ -20,7 +20,7 @@ use std::env;
 fn main () {
 
     let sdk_dir = env::var("SGX_SDK")
-                    .unwrap_or_else(|_| "/opt/intel/sgxsdk".to_string());
+                    .unwrap_or_else(|_| "/opt/sgxsdk".to_string());
     let is_sim = env::var("SGX_MODE")
                     .unwrap_or_else(|_| "HW".to_string());
 
