@@ -4,7 +4,7 @@ SETJMP_SO_VERSION=0:0:0
 # Don't link with start-files since we don't use any constructors/destructors:
 #
 COMMON_SO_LDFLAGS =	-XCClinker -nostartfiles
-SGX_SDK ?= /opt/intel/sgxsdk
+SGX_SDK ?= /opt/sgxsdk
 
 lib_LIBRARIES =
 lib_LTLIBRARIES =

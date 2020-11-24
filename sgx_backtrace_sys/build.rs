@@ -27,7 +27,7 @@ fn main() {
 
 fn build_libbacktrace(_target: &str) -> Result<(), ()> {
     let sdk_dir = env::var("SGX_SDK")
-                    .unwrap_or_else(|_| "/opt/intel/sgxsdk".to_string());
+                    .unwrap_or_else(|_| "/opt/sgxsdk".to_string());
     let sdk_include = format!("{}/{}", sdk_dir, "include");
 
     let native = native_lib_boilerplate(
