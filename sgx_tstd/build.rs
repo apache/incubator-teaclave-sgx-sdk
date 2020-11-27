@@ -32,4 +32,11 @@ fn main() {
         println!("cargo:rustc-link-search=native={}/lib64", sdk_dir);
         println!("cargo:rustc-link-lib=static=sgx_pthread");
     }
+
+    // since nightly-2020-11-26 (rustc 2020-11-25), auto_traits replaced
+    // optin_builtin_traits
+    // see https://github.com/rust-lang/rust/commit/810324d1f31eb8d75e8f0044df720652986ef133
+    if let Some(true) = version_check::is_min_date("2020-11-25") {
+        println!("cargo:rustc-cfg=enable_auto_traits");
+    }
 }
