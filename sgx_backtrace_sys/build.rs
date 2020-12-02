@@ -19,6 +19,7 @@ use sgx_build_helper as build_helper;
 use self::build_helper::native_lib_boilerplate;
 use std::env;
 use std::fs::File;
+use std::path::Path;
 
 fn main() {
     let target = env::var("TARGET").expect("TARGET was not set");
@@ -26,8 +27,13 @@ fn main() {
 }
 
 fn build_libbacktrace(_target: &str) -> Result<(), ()> {
-    let sdk_dir = env::var("SGX_SDK")
+    let mut sdk_dir = env::var("SGX_SDK")
                     .unwrap_or_else(|_| "/opt/sgxsdk".to_string());
+
+    if !Path::new(&sdk_dir).exists() {
+        sdk_dir = "/opt/intel/sgxsdk".to_string();
+    }
+
     let sdk_include = format!("{}/{}", sdk_dir, "include");
 
     let native = native_lib_boilerplate(
