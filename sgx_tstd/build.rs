@@ -16,6 +16,7 @@
 // under the License..
 
 use std::env;
+use std::path::Path;
 use std::process::Command;
 
 fn main() {
@@ -24,10 +25,14 @@ fn main() {
         //println!("cargo:rustc-cfg=RUST_BACKTRACE=\"full\"");
     }
 
-    let sdk_dir = env::var("SGX_SDK")
+    let mut sdk_dir = env::var("SGX_SDK")
                     .unwrap_or_else(|_| "/opt/sgxsdk".to_string());
     let _is_sim = env::var("SGX_MODE")
                     .unwrap_or_else(|_| "HW".to_string());
+
+    if !Path::new(&sdk_dir).exists() {
+        sdk_dir = "/opt/intel/sgxsdk".to_string();
+    }
 
     if cfg!(feature = "thread") {
         println!("cargo:rustc-link-search=native={}/lib64", sdk_dir);

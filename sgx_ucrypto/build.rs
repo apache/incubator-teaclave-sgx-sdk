@@ -16,9 +16,14 @@
 // under the License..
 
 use std::env;
+use std::path::Path;
 
 fn main() {
-    let sdk_dir = env::var("SGX_SDK").unwrap_or_else(|_| "/opt/sgxsdk".to_string());
+    let mut sdk_dir = env::var("SGX_SDK").unwrap_or_else(|_| "/opt/sgxsdk".to_string());
+
+    if !Path::new(&sdk_dir).exists() {
+        sdk_dir = "/opt/intel/sgxsdk".to_string();
+    }
 
     println!("cargo:rustc-link-search=native={}/lib64", sdk_dir);
     println!("cargo:rustc-link-lib=static=sgx_tcrypto");
