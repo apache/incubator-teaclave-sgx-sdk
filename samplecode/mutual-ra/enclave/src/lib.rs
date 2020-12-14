@@ -515,11 +515,11 @@ impl ClientAuth {
 }
 
 impl rustls::ClientCertVerifier for ClientAuth {
-    fn client_auth_root_subjects(&self) -> rustls::DistinguishedNames {
-    rustls::DistinguishedNames::new()
+    fn client_auth_root_subjects(&self, _sni: Option<&webpki::DNSName>) -> Option<rustls::DistinguishedNames> {
+        Some(rustls::DistinguishedNames::new())
     }
 
-    fn verify_client_cert(&self, _certs: &[rustls::Certificate])
+    fn verify_client_cert(&self, _certs: &[rustls::Certificate], _sni: Option<&webpki::DNSName>)
     -> Result<rustls::ClientCertVerified, rustls::TLSError> {
         println!("client cert: {:?}", _certs);
             // This call will automatically verify cert is properly signed
@@ -667,7 +667,7 @@ pub extern "C" fn run_client(socket_fd : c_int, sign_type: sgx_quote_sign_type_t
     certs.push(rustls::Certificate(cert_der));
     let privkey = rustls::PrivateKey(key_der);
 
-    cfg.set_single_client_cert(certs, privkey);
+    cfg.set_single_client_cert(certs, privkey).unwrap();
     cfg.dangerous().set_certificate_verifier(Arc::new(ServerAuth::new(true)));
     cfg.versions.clear();
     cfg.versions.push(rustls::ProtocolVersion::TLSv1_2);

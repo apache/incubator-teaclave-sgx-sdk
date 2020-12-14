@@ -6,7 +6,7 @@ authors = ["The Teaclave Authors"]
 [dependencies]
 chrono      = "0.4.5"
 webpki      = "0.21"
-rustls      = { version = "0.16",features = ["dangerous_configuration"] }
+rustls      = { version = "0.19", features = ["dangerous_configuration"] }
 itertools   = "*"
 sgx_types   =  { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 base64      = "0.9.2"
