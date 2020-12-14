@@ -677,6 +677,7 @@ pub extern "C" fn run_client(socket_fd : c_int, sign_type: sgx_quote_sign_type_t
     let mut conn = TcpStream::new(socket_fd).unwrap();
 
     let mut tls = rustls::Stream::new(&mut sess, &mut conn);
+
     tls.write("hello".as_bytes()).unwrap();
 
     let mut plaintext = Vec::new();
