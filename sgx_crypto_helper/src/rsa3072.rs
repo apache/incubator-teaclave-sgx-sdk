@@ -4,7 +4,7 @@ use itertools::Itertools;
 use sgx_types::sgx_status_t;
 use sgx_types::SgxResult;
 use sgx_types::{SGX_RSA3072_KEY_SIZE, SGX_RSA3072_PRI_EXP_SIZE, SGX_RSA3072_PUB_EXP_SIZE};
-pub const SGX_RSA3072_DEFAULT_E: [u8;SGX_RSA3072_PUB_EXP_SIZE]    = [0x01, 0x00, 0x00, 0x01]; // 65537
+pub const SGX_RSA3072_DEFAULT_E: [u8;SGX_RSA3072_PUB_EXP_SIZE]    = [0x01, 0x00, 0x00, 0x01]; // 16777217
 use std::fmt;
 
 use std::prelude::v1::*;

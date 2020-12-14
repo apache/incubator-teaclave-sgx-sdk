@@ -5,7 +5,7 @@ use sgx_types::{sgx_status_t, size_t, SgxResult};
 pub const SGX_RSA2048_KEY_SIZE: size_t     = 256;
 pub const SGX_RSA2048_PRI_EXP_SIZE: size_t = 256;
 pub const SGX_RSA2048_PUB_EXP_SIZE: size_t = 4;
-pub const SGX_RSA2048_DEFAULT_E: [u8;SGX_RSA2048_PUB_EXP_SIZE]    = [0x01, 0x00, 0x00, 0x01]; // 65537
+pub const SGX_RSA2048_DEFAULT_E: [u8;SGX_RSA2048_PUB_EXP_SIZE]    = [0x01, 0x00, 0x00, 0x01]; // 16777217
 use std::fmt;
 
 use std::prelude::v1::*;
