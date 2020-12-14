@@ -18,6 +18,7 @@
 enclave {
     from "sgx_tstd.edl" import *;
     from "sgx_stdio.edl" import *;
+    from "sgx_file.edl" import *;
     trusted {
         /* define ECALLs here. */
 

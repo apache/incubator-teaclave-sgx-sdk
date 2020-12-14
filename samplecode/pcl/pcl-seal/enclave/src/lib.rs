@@ -207,7 +207,7 @@ pub fn make_ias_client_config() -> rustls::ClientConfig {
 
     let certs = load_certs("client.crt");
     let privkey = load_private_key("client.key");
-    config.set_single_client_cert(certs, privkey);
+    config.set_single_client_cert(certs, privkey).unwrap();
 
     config
 }

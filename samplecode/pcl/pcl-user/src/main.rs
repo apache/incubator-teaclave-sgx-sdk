@@ -73,7 +73,7 @@ fn make_config() -> rustls::ClientConfig {
     let certs = rustls::internal::pemfile::certs(&mut cc_reader).unwrap();
     let privk = rustls::internal::pemfile::pkcs8_private_keys(&mut client_key_reader);
 
-    config.set_single_client_cert(certs, privk.unwrap()[0].clone());
+    config.set_single_client_cert(certs, privk.unwrap()[0].clone()).unwrap();
 
     config.dangerous().set_certificate_verifier(Arc::new(ServerAuth::new(true)));
     config.versions.clear();
