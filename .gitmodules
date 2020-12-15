@@ -1,3 +1,0 @@
-[submodule "samplecode/wasmi/test_input"]
-	path = samplecode/wasmi/test_input
-	url = https://github.com/WebAssembly/testsuite
