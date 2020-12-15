@@ -1602,7 +1602,7 @@ pub type sgx_aes_ctr_128bit_ctr_t = [uint8_t; SGX_AESCTR_CTR_SIZE];
 pub fn rsgx_aes_ctr_encrypt(
     key: &sgx_aes_ctr_128bit_key_t,
     src: &[u8],
-    ctr: &sgx_aes_ctr_128bit_ctr_t,
+    ctr: &mut sgx_aes_ctr_128bit_ctr_t,
     ctr_inc_bits: u32,
     dst: &mut [u8],
 ) -> SgxError {
@@ -1626,7 +1626,7 @@ pub fn rsgx_aes_ctr_encrypt(
             key as *const sgx_aes_ctr_128bit_key_t,
             src.as_ptr(),
             src_len as u32,
-            ctr as *const sgx_aes_ctr_128bit_ctr_t as *const u8,
+            ctr as *mut sgx_aes_ctr_128bit_ctr_t as *mut u8,
             ctr_inc_bits,
             dst.as_mut_ptr(),
         )
@@ -1698,7 +1698,7 @@ pub fn rsgx_aes_ctr_encrypt(
 pub fn rsgx_aes_ctr_decrypt(
     key: &sgx_aes_ctr_128bit_key_t,
     src: &[u8],
-    ctr: &sgx_aes_ctr_128bit_ctr_t,
+    ctr: &mut sgx_aes_ctr_128bit_ctr_t,
     ctr_inc_bits: u32,
     dst: &mut [u8],
 ) -> SgxError {
@@ -1722,7 +1722,7 @@ pub fn rsgx_aes_ctr_decrypt(
             key as *const sgx_aes_ctr_128bit_key_t,
             src.as_ptr(),
             src.len() as u32,
-            ctr as *const sgx_aes_ctr_128bit_ctr_t as *const u8,
+            ctr as *mut sgx_aes_ctr_128bit_ctr_t as *mut u8,
             ctr_inc_bits,
             dst.as_mut_ptr(),
         )

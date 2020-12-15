@@ -255,14 +255,14 @@ extern "C" {
     pub fn sgx_aes_ctr_encrypt(p_key: *const sgx_aes_ctr_128bit_key_t,
                                p_src: *const uint8_t,
                                src_len: uint32_t,
-                               p_ctr: *const uint8_t,
+                               p_ctr: *mut uint8_t,
                                ctr_inc_bits: uint32_t,
                                p_dst: *mut uint8_t) -> sgx_status_t;
 
     pub fn sgx_aes_ctr_decrypt(p_key: *const sgx_aes_ctr_128bit_key_t,
                                p_src: *const uint8_t,
                                src_len: uint32_t,
-                               p_ctr: *const uint8_t,
+                               p_ctr: *mut uint8_t,
                                ctr_inc_bits: uint32_t,
                                p_dst: *mut uint8_t) -> sgx_status_t;
 
