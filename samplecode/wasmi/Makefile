@@ -149,7 +149,11 @@ $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 
 .PHONY: enclave
 enclave:
-	(cd ../.. && git submodule init && git submodule update)
+	@if [ ! -d test_input ]; then\
+		git clone https://github.com/WebAssembly/testsuite test_input &&\
+		cd test_input &&\
+		git checkout c6a690f ;\
+	fi
 	$(MAKE) -C ./enclave/
 
 
