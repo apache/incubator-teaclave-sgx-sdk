@@ -25,8 +25,8 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 
-#ifndef _SYS_STAT_H
-#define _SYS_STAT_H
+#ifndef _SYS_STAT_H_
+#define _SYS_STAT_H_
 
 #include <sys/_types.h>
 #include <sys/types.h>
@@ -122,5 +122,6 @@ struct stat64 {
 #define S_IWOTH 0002
 #define S_IXOTH 0001
 #define S_IRWXO 0007
-
 #endif
+
+#endif /* _SYS_STAT_H_ */

@@ -24,8 +24,8 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
-#ifndef _DIRENT_H
-#define _DIRENT_H
+#ifndef _DIRENT_H_
+#define _DIRENT_H_
 
 struct dirent {
     __ino_t d_ino;
@@ -44,3 +44,5 @@ struct dirent64 {
 };
 
 #define d_fileno	d_ino
+
+#endif /* _DIRENT_H_ */
