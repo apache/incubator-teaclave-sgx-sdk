@@ -629,7 +629,7 @@ extern "C" {
     pub fn sgx_get_target_info(enclave_id: sgx_enclave_id_t, target_info: *mut sgx_target_info_t) -> sgx_status_t;
 
     /* intel sgx sdk 2.9.1 */
-    pub fn sgx_get_metadata(enclave_file: *const char, metadata: *mut metadata_t) -> sgx_status_t;
+    pub fn sgx_get_metadata(enclave_file: *const c_char, metadata: *mut metadata_t) -> sgx_status_t;
 }
 
 /* intel sgx sdk 1.9 */

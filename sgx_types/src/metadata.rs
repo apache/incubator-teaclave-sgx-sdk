@@ -113,7 +113,7 @@ pub const SE_GUARD_PAGE_SHIFT: usize = 16;
 pub const SE_GUARD_PAGE_SIZE: usize = 1 << SE_GUARD_PAGE_SHIFT;
 
 impl_struct! {
-    #[repr(packed)]
+    #[repr(C, packed)]
     pub struct data_directory_t {
         pub offset :u32,
         pub size :u32,
