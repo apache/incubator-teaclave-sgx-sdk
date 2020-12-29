@@ -100,7 +100,7 @@ unsafe impl Send for SgxSpinlock {}
 unsafe impl Sync for SgxSpinlock {}
 
 impl SgxSpinlock {
-    pub fn new() -> SgxSpinlock {
+    pub const fn new() -> SgxSpinlock {
         SgxSpinlock{inner: SgxThreadSpinlock::new()}
     }
 
