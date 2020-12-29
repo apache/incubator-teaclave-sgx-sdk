@@ -52,7 +52,7 @@ const GCOV_TAG_OBJECT_SUMMARY: u32 = 0xa100_0000;
 const GCOV_TAG_PROGRAM_SUMMARY: u32 = 0xa300_0000;
 
 lazy_static! {
-    static ref GCDA_FILE: SgxMutex<(c_int, c_int)> = SgxMutex::new((-1, -1));
+    static ref GCDA_FILE: SgxMutex<(c_int, u32)> = SgxMutex::new((-1, u32::MAX));
     static ref WROUT_FNS: SgxMutex<Vec<extern "C" fn()>> = SgxMutex::new(Vec::new());
     static ref RND: SgxMutex<u32> = SgxMutex::new(0);
 }
@@ -188,21 +188,25 @@ pub extern "C" fn llvm_gcda_start_file(orig_filename: *const c_char, version: u3
                 Err(_) => File::create(&new_gcda_name)?,
             };
 
+            println!("opened file {}", new_gcda_name);
+
             let c3: u8 = ((version >> 24) & 0x000000FF) as u8;
             let c2: u8 = ((version >> 16) & 0x000000FF) as u8;
             let c1: u8 = ((version >> 8) & 0x000000FF) as u8;
-            let parsed_gcov_version: i32 = if c3 >= 'A' as u8 {
-                ((c3 - 'A' as u8) as i32) * 100
-                    + ((c2 - '0' as u8) as i32) * 10
-                    + (c1 - '0' as u8) as i32
+            let parsed_gcov_version: u32 = if c3 >= 'A' as u8 {
+                ((c3 - 'A' as u8) as u32) * 100
+                    + ((c2 - '0' as u8) as u32) * 10
+                    + (c1 - '0' as u8) as u32
             } else {
-                ((c3 - '0' as u8) as i32) * 10 + (c1 - '0' as u8) as i32
+                ((c3 - '0' as u8) as u32) * 10 + (c1 - '0' as u8) as u32
             };
+            println!("parsed_gcov_version = {}", parsed_gcov_version);
+            println!("parsed_gcov_version = {:?}", &parsed_gcov_version.to_le_bytes());
 
             tup.1 = parsed_gcov_version;
 
             file.write_all(&GCOV_DATA_MAGIC.to_le_bytes()).unwrap();
-            file.write_all(&parsed_gcov_version.to_le_bytes()).unwrap();
+            file.write_all(&version.to_le_bytes()).unwrap();
             file.write_all(&checksum.to_le_bytes()).unwrap();
 
             tup.0 = file.into_raw_fd();
