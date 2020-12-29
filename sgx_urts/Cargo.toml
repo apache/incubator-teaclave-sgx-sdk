@@ -14,8 +14,8 @@ crate-type = ["rlib"]
 
 [features]
 default = []
-global_init = []
-global_exit = []
+global_init = ["global_exit"]
+global_exit = ["global_init"]
 signal = []
 
 
