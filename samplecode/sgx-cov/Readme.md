@@ -1,6 +1,9 @@
 # SGX Code Coverage Support
 
-Prerequisite: lcov. Install via `sudo apt-get install lcov`
+Prerequisite:
+
+- lcov. Install via `sudo apt-get install lcov`
+- gcov <= 7. Install gcc `sudo apt-get install gcc`. If your platform canot install gcov <=7, you can use another platform to analyze the generated `gcno` and `gcda` files. Ubuntu 18.04 has gcc-7 by default.
 
 ## One shot
 
