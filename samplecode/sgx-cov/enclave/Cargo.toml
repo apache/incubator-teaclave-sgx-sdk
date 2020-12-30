@@ -7,6 +7,12 @@ authors = ["The Teaclave Authors"]
 name = "sgxcovenclave"
 crate-type = ["staticlib"]
 
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
 [features]
 default = []
 cov = ["sgx_cov"]
