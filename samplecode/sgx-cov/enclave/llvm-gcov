@@ -1,2 +1,55 @@
-#!/bin/sh -e
-llvm-cov gcov $*
+#!/usr/bin/env bash
+
+LLVM_COV=""
+
+verlte() {
+    [  "$1" = "`echo -e "$1\n$2" | sort -V | head -n1`" ]
+}
+
+verlt() {
+    [ "$1" = "$2" ] && return 1 || verlte $1 $2
+}
+
+check_llvm_cov() {
+    if [ -z `which $1` ];
+    then
+        return
+    else
+        p=$(which $1)
+        verinfo=`${p} --version`
+        first_word=$(echo ${verinfo} | awk "{ print \$1 }")
+        gcov_ver=$(echo ${verinfo} | awk "{ print \$4 }")
+        llvm_cov_ver=$(echo ${verinfo} | awk "{ print \$5 }")
+
+        if [ "$first_word" = "gcov" ]; then
+            echo "gcov detected, ver = " ${gcov_ver}
+            verlt "${gcov_ver}" "8.0.0" && LLVM_COV=$1 || LLVM_COV=""
+            return
+        elif [ "$first_word" = "LLVM" ]; then
+            echo "llvm-cov detected, ver = " ${llvm_cov_ver}
+            verlte "11.0.0" "${gcov_ver}" && LLVM_COV="$1 gcov" || LLVM_COV=""
+            return
+        else
+            echo "neither llvm-cov or gcov ... skipping"
+            return
+        fi
+    fi
+}
+
+# search priority
+for c in "llvm-cov-11" "gcov-7" "llvm-cov" "gcov"
+do
+    check_llvm_cov $c
+    if [[ ! -z "${LLVM_COV}" ]];
+    then
+        break
+    fi
+done
+
+if [[ -z "${LLVM_COV}" ]];
+then
+    echo "You need gcov < 8.0, or llvm-cov >= 11.0 to analyze Rust generated gcno/gcda files! See Readme.md for more details."
+    exit 1
+fi
+
+${LLVM_COV} $*
