@@ -2,8 +2,19 @@
 
 Prerequisite:
 
-- lcov. Install via `sudo apt-get install lcov`
-- gcov <= 7. Install gcc `sudo apt-get install gcc`. If your platform canot install gcov <=7, you can use another platform to analyze the generated `gcno` and `gcda` files. Ubuntu 18.04 has gcc-7 by default.
+1. `lcov`. Install via `sudo apt-get install lcov`
+
+2. Either of `gcov <= 7`, or `llvm-cov >= 11`
+- `gcov <= 7`. Install gcc `sudo apt-get install gcc`.
+- `llvm-cov >= 11`. You can either install using apt/yum/dnf, or the official LLVM installation script:
+
+```
+wget https://apt.llvm.org/llvm.sh
+chmod +x llvm.sh
+sudo ./llvm.sh 11
+```
+
+If your platform cannot install either of them, you can use another platform to analyze the generated `gcno` and `gcda` files. Ubuntu 18.04 has gcc-7 by default, and can install llvm 11 using the above script.
 
 ## One shot
 
