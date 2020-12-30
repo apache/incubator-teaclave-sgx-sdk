@@ -161,7 +161,6 @@ enclave:
 .PHONY: gen_cov_html
 gen_cov_html:
 	lcov --gcov-tool $(PWD)/enclave/llvm-gcov --rc lcov_branch_coverage=1 --rc lcov_excl_line=assert --capture --directory ${Target_Dir} -o ./all.tag.info
-	lcov --gcov-tool $(PWD)/enclave/llvm-gcov --rc lcov_branch_coverage=1 --rc lcov_excl_line=assert --capture --directory ${Target_Dir} -o ./all.tag.info
 	lcov --gcov-tool $(PWD)/enclave/llvm-gcov --rc lcov_branch_coverage=1 --rc lcov_excl_line=assert --extract all.tag.info `find "$$(cd enclave/src; pwd)" -name "*.rs"` -o final.info
 	genhtml --branch-coverage --demangle-cpp --legend ./final.info -o ./html/ --ignore-errors source
 
