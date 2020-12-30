@@ -5,7 +5,7 @@ Prerequisite:
 1. `lcov`. Install via `sudo apt-get install lcov`
 
 2. Either of `gcov <= 7`, or `llvm-cov >= 11`
-- `gcov <= 7`. Install gcc `sudo apt-get install gcc`.
+- `gcov <= 7`. Install gcc `sudo apt-get install gcc`. For more information around managing multiple gcc/toolchains, please refer to [this article](https://linuxize.com/post/how-to-install-gcc-compiler-on-ubuntu-18-04/).
 - `llvm-cov >= 11`. You can either install using apt/yum/dnf, or the official LLVM installation script:
 
 ```
