@@ -20,7 +20,7 @@
 
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
-#![feature(asm)]
+#![feature(llvm_asm)]
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
@@ -495,7 +495,7 @@ fn oequal(x: usize, y: usize) -> bool {
 
     let ret: bool;
     unsafe {
-        asm!(
+        llvm_asm!(
             "cmp %rcx, %rdx \n\t
              sete %al \n\t"
             : "={al}"(ret)
@@ -511,7 +511,7 @@ fn obe(x: usize, y: usize) -> bool {
 
     let ret: bool;
     unsafe {
-        asm!(
+        llvm_asm!(
             "cmp %rdx, %rcx \n\t
              setbe %al \n\t"
             : "={al}"(ret)
@@ -527,7 +527,7 @@ fn ob(x: usize, y: usize) -> bool {
 
     let ret: bool;
     unsafe {
-        asm!(
+        llvm_asm!(
             "cmp %rdx, %rcx \n\t
              setb %al \n\t"
             : "={al}"(ret)
@@ -543,7 +543,7 @@ fn oae(x: usize, y: usize) -> bool {
 
     let ret: bool;
     unsafe {
-        asm!(
+        llvm_asm!(
             "cmp %rdx, %rcx \n\t
              setae %al \n\t"
             : "={al}"(ret)
@@ -559,7 +559,7 @@ fn oa(x: usize, y: usize) -> bool {
 
     let ret: bool;
     unsafe {
-        asm!(
+        llvm_asm!(
             "cmp %rdx, %rcx \n\t
              seta %al \n\t"
             : "={al}"(ret)
@@ -575,7 +575,7 @@ fn omov(flag: isize, x: isize, y: isize) -> isize {
 
     let ret: isize;
     unsafe {
-        asm!(
+        llvm_asm!(
             "xor %rcx, %rcx \n\t
              mov $1, %rcx \n\t
              test %rcx, %rcx \n\t
