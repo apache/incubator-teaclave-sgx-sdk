@@ -42,8 +42,23 @@ fn main() {
     // since nightly-2020-11-26 (rustc 2020-11-25), auto_traits replaced
     // optin_builtin_traits
     // see https://github.com/rust-lang/rust/commit/810324d1f31eb8d75e8f0044df720652986ef133
-    if let Some(true) = is_min_date("2020-11-25") {
-        println!("cargo:rustc-cfg=enable_auto_traits");
+    match get_channel() {
+        Some(Kind::Nightly) => {
+            if let Some(true) = is_min_date("2020-11-25") {
+                println!("cargo:rustc-cfg=enable_auto_traits");
+            }
+        },
+        Some(Kind::Beta) => {
+            if let Some(true) = is_min_date("2021-01-06") {
+                println!("cargo:rustc-cfg=enable_auto_traits"); // 2020-11-25 + 6 weeks
+            }
+        },
+        Some(Kind::Stable) => {
+            if let Some(true) = is_min_date("2021-02-27") { // 2020-11-25 + 12 weeks
+                println!("cargo:rustc-cfg=enable_auto_traits");
+            }
+        },
+        _ => {},
     }
 }
 
@@ -95,5 +110,33 @@ fn is_min_date(min_date: &str) -> Option<bool> {
     match (Date::read(), Date::parse(min_date)) {
         (Some(rustc_date), Some(min_date)) => Some(rustc_date >= min_date),
         _ => None
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+enum Kind {
+    Dev,
+    Nightly,
+    Beta,
+    Stable,
+}
+
+fn get_channel() -> Option<Kind> {
+    get_version_and_date()
+        .and_then(|(version, _)| version)
+        .and_then(|version| parse_channel(&version))
+}
+
+fn parse_channel(version: &str) -> Option<Kind> {
+    if version.contains("-dev") {
+        Some(Kind::Dev)
+    } else if version.contains("-nightly") {
+        Some(Kind::Nightly)
+    } else if version.contains("-beta") {
+        Some(Kind::Beta)
+    } else if !version.contains("-") {
+        Some(Kind::Stable)
+    } else {
+        None
     }
 }

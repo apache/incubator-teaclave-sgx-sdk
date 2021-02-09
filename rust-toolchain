@@ -1,1 +1,4 @@
-nightly-2020-10-25
+[toolchain]
+channel = "nightly-2020-10-25"
+#channel = "beta-2020-11-18"
+#channel = "stable-2020-12-31"
