@@ -719,7 +719,7 @@ extern "C" {
     pub fn sgx_qe_cleanup_by_policy() -> sgx_quote3_error_t;
 
     /* intel DCAP 1.6 */
-    pub fn sgx_ql_set_path(path_type: sgx_ql_path_type_t, p_path: *const char) -> sgx_quote3_error_t;
+    pub fn sgx_ql_set_path(path_type: sgx_ql_path_type_t, p_path: *const c_char) -> sgx_quote3_error_t;
 }
 
 //#[link(name = "dcap_quoteprov")]
@@ -731,14 +731,14 @@ extern "C" {
     pub fn sgx_ql_free_quote_config(p_quote_config: *const sgx_ql_config_t) -> sgx_quote3_error_t;
     pub fn sgx_ql_get_quote_verification_collateral(fmspc: *const uint8_t,
                                                     fmspc_size: uint16_t,
-                                                    pck_ra: *const char,
+                                                    pck_ra: *const c_char,
                                                     pp_quote_collateral: *mut *mut sgx_ql_qve_collateral_t) -> sgx_quote3_error_t;
     pub fn sgx_ql_free_quote_verification_collateral(p_quote_collateral: *const sgx_ql_qve_collateral_t) -> sgx_quote3_error_t;
-    pub fn sgx_ql_get_qve_identity(pp_qve_identity: *mut *mut char,
+    pub fn sgx_ql_get_qve_identity(pp_qve_identity: *mut *mut c_char,
                                    p_qve_identity_size: *mut uint32_t,
-                                   pp_qve_identity_issuer_chain: *mut *mut char,
+                                   pp_qve_identity_issuer_chain: *mut *mut c_char,
                                    p_qve_identity_issuer_chain_size: *mut uint32_t) -> sgx_quote3_error_t;
-    pub fn sgx_ql_free_qve_identity(p_qve_identity: *const char, p_qve_identity_issuer_chain: *const char) -> sgx_quote3_error_t;
+    pub fn sgx_ql_free_qve_identity(p_qve_identity: *const c_char, p_qve_identity_issuer_chain: *const c_char) -> sgx_quote3_error_t;
 
     /* intel DCAP 1.4 */
     pub fn sgx_ql_get_root_ca_crl(pp_root_ca_crl: *mut *mut uint8_t, p_root_ca_cal_size: *mut uint16_t) -> sgx_quote3_error_t;
@@ -752,17 +752,17 @@ extern "C" {
     //
     pub fn sgx_qcnl_get_pck_cert_chain(p_pck_cert_id: *const sgx_ql_pck_cert_id_t, pp_quote_config: *mut *mut sgx_ql_config_t) -> sgx_qcnl_error_t;
     pub fn sgx_qcnl_free_pck_cert_chain(p_quote_config: *const sgx_ql_config_t);
-    pub fn sgx_qcnl_get_pck_crl_chain(ca: *const char, ca_size: uint16_t, p_crl_chain: *mut *mut uint8_t, p_crl_chain_size: *mut uint16_t) -> sgx_qcnl_error_t;
+    pub fn sgx_qcnl_get_pck_crl_chain(ca: *const c_char, ca_size: uint16_t, p_crl_chain: *mut *mut uint8_t, p_crl_chain_size: *mut uint16_t) -> sgx_qcnl_error_t;
     pub fn sgx_qcnl_free_pck_crl_chain(p_crl_chain: *const uint8_t);
-    pub fn sgx_qcnl_get_tcbinfo(fmspc: *const char, fmspc_size: uint16_t, p_tcbinfo: *mut *mut uint8_t, p_tcbinfo_size: *mut uint16_t) -> sgx_qcnl_error_t;
+    pub fn sgx_qcnl_get_tcbinfo(fmspc: *const c_char, fmspc_size: uint16_t, p_tcbinfo: *mut *mut uint8_t, p_tcbinfo_size: *mut uint16_t) -> sgx_qcnl_error_t;
     pub fn sgx_qcnl_free_tcbinfo(p_tcbinfo: *const uint8_t);
     pub fn sgx_qcnl_get_qe_identity(qe_type: uint8_t, p_qe_identity: *mut *mut uint8_t, p_qe_identity_size: *mut uint16_t) -> sgx_qcnl_error_t;
     pub fn sgx_qcnl_free_qe_identity(p_qe_identity: *const uint8_t);
-    pub fn sgx_qcnl_get_qve_identity(pp_qve_identity: *mut *mut char,
+    pub fn sgx_qcnl_get_qve_identity(pp_qve_identity: *mut *mut c_char,
                                      p_qve_identity_size: *mut uint32_t,
-                                     pp_qve_identity_issuer_chain: *mut *mut char,
+                                     pp_qve_identity_issuer_chain: *mut *mut c_char,
                                      p_qve_identity_issuer_chain_size: *mut uint32_t) -> sgx_qcnl_error_t;
-    pub fn sgx_qcnl_free_qve_identity(p_qve_identity: *const char, p_qve_identity_issuer_chain: *const char);
+    pub fn sgx_qcnl_free_qve_identity(p_qve_identity: *const c_char, p_qve_identity_issuer_chain: *const c_char);
     pub fn sgx_qcnl_get_root_ca_crl(p_root_ca_crl: *mut *mut uint8_t, p_root_ca_cal_size: *mut uint16_t) -> sgx_qcnl_error_t;
     pub fn sgx_qcnl_free_root_ca_crl(p_root_ca_crl: *const uint8_t);
     pub fn sgx_qcnl_register_platform(p_pck_cert_id: *const sgx_ql_pck_cert_id_t,
@@ -803,7 +803,7 @@ extern "C" {
                                     p_root_ca_crl: *const uint8_t) -> sgx_quote3_error_t;
 
     /* intel DCAP 1.6 */
-    pub fn sgx_qv_set_path(path_type: sgx_qv_path_type_t, p_path: *const char) -> sgx_quote3_error_t;
+    pub fn sgx_qv_set_path(path_type: sgx_qv_path_type_t, p_path: *const c_char) -> sgx_quote3_error_t;
 }
 
 /* intel DCAP 1.7 */

@@ -1263,19 +1263,19 @@ pub struct sgx_ql_config_t {
 #[repr(C)]
 pub struct sgx_ql_qve_collateral_t {
     pub version: uint32_t, // version = 1.  PCK Cert chain is in the Quote.
-    pub pck_crl_issuer_chain: *mut char,
+    pub pck_crl_issuer_chain: *mut c_char,
     pub pck_crl_issuer_chain_size: uint32_t,
-    pub root_ca_crl: *mut char, // Root CA CRL
+    pub root_ca_crl: *mut c_char, // Root CA CRL
     pub root_ca_crl_size: uint32_t,
-    pub pck_crl: *mut char, // PCK Cert CRL
+    pub pck_crl: *mut c_char, // PCK Cert CRL
     pub pck_crl_size: uint32_t,
-    pub tcb_info_issuer_chain: *mut char,
+    pub tcb_info_issuer_chain: *mut c_char,
     pub tcb_info_issuer_chain_size: uint32_t,
-    pub tcb_info: *mut char, // TCB Info structure
+    pub tcb_info: *mut c_char, // TCB Info structure
     pub tcb_info_size: uint32_t,
-    pub qe_identity_issuer_chain: *mut char,
+    pub qe_identity_issuer_chain: *mut c_char,
     pub qe_identity_issuer_chain_size: uint32_t,
-    pub qe_identity: *mut char, // QE Identity Structure
+    pub qe_identity: *mut c_char, // QE Identity Structure
     pub qe_identity_size: uint32_t,
 }
 
