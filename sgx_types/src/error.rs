@@ -60,7 +60,7 @@ impl_enum! {
         SGX_ERROR_INVALID_LAUNCH_TOKEN      = 0x0000_2011,      /* The launch token is not correct.*/
 
         SGX_ERROR_MAC_MISMATCH              = 0x0000_3001,      /* Indicates verification error for reports, sealed datas, etc */
-        SGX_ERROR_INVALID_ATTRIBUTE         = 0x0000_3002,      /* The enclave is not authorized */
+        SGX_ERROR_INVALID_ATTRIBUTE         = 0x0000_3002,      /* The enclave is not authorized, e.g., requesting invalid attribute or launch key access on legacy SGX platform without FLC.  */
         SGX_ERROR_INVALID_CPUSVN            = 0x0000_3003,      /* The cpu svn is beyond platform's cpu svn value */
         SGX_ERROR_INVALID_ISVSVN            = 0x0000_3004,      /* The isv svn is greater than the enclave's isv svn */
         SGX_ERROR_INVALID_KEYNAME           = 0x0000_3005,      /* The key name is an unsupported value */
@@ -68,7 +68,7 @@ impl_enum! {
         SGX_ERROR_SERVICE_UNAVAILABLE       = 0x0000_4001,   /* Indicates aesm didn't respond or the requested service is not supported */
         SGX_ERROR_SERVICE_TIMEOUT           = 0x0000_4002,   /* The request to aesm timed out */
         SGX_ERROR_AE_INVALID_EPIDBLOB       = 0x0000_4003,   /* Indicates epid blob verification error */
-        SGX_ERROR_SERVICE_INVALID_PRIVILEGE = 0x0000_4004,   /* Enclave has no privilege to get launch token */
+        SGX_ERROR_SERVICE_INVALID_PRIVILEGE = 0x0000_4004,   /*  Enclave not authorized to run, .e.g. provisioning enclave hosted in an app without access rights to /dev/sgx_provision */
         SGX_ERROR_EPID_MEMBER_REVOKED       = 0x0000_4005,   /* The EPID group membership is revoked. */
         SGX_ERROR_UPDATE_NEEDED             = 0x0000_4006,   /* SGX needs to be updated */
         SGX_ERROR_NETWORK_FAILURE           = 0x0000_4007,   /* Network connecting or proxy setting issue is encountered */
@@ -442,6 +442,7 @@ impl_enum! {
         SGX_QL_ERROR_MESSAGE_PARSING_ERROR                  = 0x0000_E046,
         SGX_QL_PLATFORM_UNKNOWN                             = 0x0000_E047,
         SGX_QL_UNKNOWN_API_VERSION                          = 0x0000_E048,
+        SGX_QL_CERTS_UNAVAILABLE                            = 0x0000_E049,
         SGX_QL_QVEIDENTITY_MISMATCH                         = 0x0000_E050,
         SGX_QL_QVE_OUT_OF_DATE                              = 0x0000_E051,
         SGX_QL_PSW_NOT_AVAILABLE                            = 0x0000_E052,
@@ -525,6 +526,7 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_ERROR_MESSAGE_PARSING_ERROR => "Message parsing error.",
             sgx_quote3_error_t::SGX_QL_PLATFORM_UNKNOWN => "Platform was not found in the cache",
             sgx_quote3_error_t::SGX_QL_UNKNOWN_API_VERSION => "The current PCS API version configured is unknown.",
+            sgx_quote3_error_t::SGX_QL_CERTS_UNAVAILABLE => "Certificates are not available for this platform",
             sgx_quote3_error_t::SGX_QL_QVEIDENTITY_MISMATCH => "QvE Identity is NOT match to Intel signed QvE identity.",
             sgx_quote3_error_t::SGX_QL_QVE_OUT_OF_DATE => "QvE ISVSVN is smaller then the ISVSVN threshold.",
             sgx_quote3_error_t::SGX_QL_PSW_NOT_AVAILABLE => "SGX PSW library cannot be loaded, could be due to file I/O error.",
@@ -607,6 +609,7 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_ERROR_MESSAGE_PARSING_ERROR => "SGX_QL_ERROR_MESSAGE_PARSING_ERROR",
             sgx_quote3_error_t::SGX_QL_PLATFORM_UNKNOWN => "SGX_QL_PLATFORM_UNKNOWN",
             sgx_quote3_error_t::SGX_QL_UNKNOWN_API_VERSION => "SGX_QL_UNKNOWN_API_VERSION",
+            sgx_quote3_error_t::SGX_QL_CERTS_UNAVAILABLE => "SGX_QL_CERTS_UNAVAILABLE",
             sgx_quote3_error_t::SGX_QL_QVEIDENTITY_MISMATCH => "SGX_QL_QVEIDENTITY_MISMATCH",
             sgx_quote3_error_t::SGX_QL_QVE_OUT_OF_DATE => "SGX_QL_QVE_OUT_OF_DATE",
             sgx_quote3_error_t::SGX_QL_PSW_NOT_AVAILABLE => "SGX_QL_PSW_NOT_AVAILABLE",
@@ -643,6 +646,7 @@ impl_enum! {
         SGX_QCNL_ERROR_STATUS_NO_CACHE_DATA     = 0x0000_B00F,
         SGX_QCNL_ERROR_STATUS_PLATFORM_UNKNOWN  = 0x0000_B010,
         SGX_QCNL_ERROR_STATUS_UNEXPECTED        = 0x0000_B011,
+        SGX_QCNL_ERROR_STATUS_CERTS_UNAVAILABLE = 0x0000_B012,
     }
 }
 
@@ -667,6 +671,7 @@ impl sgx_qcnl_error_t {
             sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_NO_CACHE_DATA => "No cache data.",
             sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_PLATFORM_UNKNOWN => "Platform unknown.",
             sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_UNEXPECTED => "Unexpected cache error",
+            sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_CERTS_UNAVAILABLE => "Certs not available",
         }
     }
 
@@ -690,6 +695,7 @@ impl sgx_qcnl_error_t {
             sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_NO_CACHE_DATA => "SGX_QCNL_ERROR_STATUS_NO_CACHE_DATA",
             sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_PLATFORM_UNKNOWN => "SGX_QCNL_ERROR_STATUS_PLATFORM_UNKNOWN",
             sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_UNEXPECTED => "SGX_QCNL_ERROR_STATUS_UNEXPECTED",
+            sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_CERTS_UNAVAILABLE => "SGX_QCNL_ERROR_STATUS_CERTS_UNAVAILABLE",
         }
     }
 }
