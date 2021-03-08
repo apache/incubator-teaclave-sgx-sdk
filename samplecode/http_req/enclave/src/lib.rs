@@ -36,6 +36,10 @@ use std::prelude::v1::*;
 
 #[no_mangle]
 pub extern "C" fn send_http_request(hostname: *const c_char) -> sgx_status_t {
+    if hostname.is_null() {
+        return sgx_status_t::SGX_ERROR_UNEXPECTED;
+    }
+
     let hostname = unsafe { CStr::from_ptr(hostname).to_str() };
     let hostname = hostname.expect("Failed to recover hostname");
 

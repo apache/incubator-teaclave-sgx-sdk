@@ -56,6 +56,10 @@ pub extern "C" fn t_global_exit_ecall() {
 
 #[no_mangle]
 pub extern "C" fn t_global_init_ecall(id: u64, path: *const u8, len: usize) {
+    if path.is_null() {
+        return;
+    }
+
     GLOBAL_INIT_LOCK.lock();
     unsafe { INIT_TCS = thread::rsgx_thread_self() };
 
