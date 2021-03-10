@@ -155,7 +155,7 @@ fn main() {
 fn generate_quote() -> Option<Vec<u8>> {
     let mut ti: sgx_target_info_t = sgx_target_info_t::default();
 
-    let _l = libloading::Library::new("./libdcap_quoteprov.so.1").unwrap();
+    let _l = unsafe { libloading::Library::new("./libdcap_quoteprov.so.1").unwrap() };
     println!("Step1: Call sgx_qe_get_target_info:");
     //println!("sgx_qe_get_target_info = {:p}", sgx_qe_get_target_info as * const _);
 

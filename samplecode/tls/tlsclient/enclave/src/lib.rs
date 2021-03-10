@@ -287,6 +287,10 @@ impl Sessions {
 
 #[no_mangle]
 pub extern "C" fn tls_client_new(fd: c_int, hostname: * const c_char, cert: * const c_char) -> usize {
+    if hostname.is_null() || cert.is_null() {
+        return 0xFFFF_FFFF_FFFF_FFFF;
+    }
+
     let certfile = unsafe { CStr::from_ptr(cert).to_str() };
     if certfile.is_err() {
         return 0xFFFF_FFFF_FFFF_FFFF;
