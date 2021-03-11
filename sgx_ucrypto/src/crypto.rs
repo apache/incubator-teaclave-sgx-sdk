@@ -3575,7 +3575,10 @@ impl SgxAesHandle {
         }
         let ret = rsgx_aes_gcm128_enc_init(key, iv, aad, self.handle.borrow_mut().deref_mut());
         match ret {
-            sgx_status_t::SGX_SUCCESS => Ok(()),
+            sgx_status_t::SGX_SUCCESS => {
+                self.initflag.set(true);
+                Ok(())
+            }
             _ => Err(ret),
         }
     }
