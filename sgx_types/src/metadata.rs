@@ -112,8 +112,7 @@ pub const STATIC_STACK_SIZE: usize = 688;
 pub const SE_GUARD_PAGE_SHIFT: usize = 16;
 pub const SE_GUARD_PAGE_SIZE: usize = 1 << SE_GUARD_PAGE_SHIFT;
 
-impl_struct! {
-    #[repr(C, packed)]
+impl_packed_struct! {
     pub struct data_directory_t {
         pub offset :u32,
         pub size :u32,
@@ -122,7 +121,7 @@ impl_struct! {
 
 impl_enum! {
     #[repr(u32)]
-    #[derive(Copy, Clone, PartialEq, Eq)]
+    #[derive(Copy, Clone, PartialEq, Eq, Debug)]
     pub enum dir_index_t {
         DIR_PATCH  = 0,
         DIR_LAYOUT = 1,
@@ -156,8 +155,7 @@ pub const LAYOUT_ID_RSRV_MAX: u32 = 22;
 
 type si_flags_t = u64;
 
-impl_struct! {
-    #[repr(packed)]
+impl_packed_struct! {
     pub struct layout_entry_t {
         pub id :u16,
         pub attributes :u16,
@@ -168,7 +166,6 @@ impl_struct! {
         pub si_flags :si_flags_t,
     }
 
-    #[repr(packed)]
     pub struct layout_group_t {
         pub id :u16,
         pub entry_count :u16,
