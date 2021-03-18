@@ -1,6 +1,6 @@
 # http_req-sgx-example
 
-Showcases [http_req-sgx](https://github.com/piotr-roslaniec/http_req-sgx-example) inside an SGX enclave.
+Showcases [http_req-sgx](https://github.com/mesalock-linux/http_req-sgx) inside an SGX enclave.
 
 ## Instruction
 
