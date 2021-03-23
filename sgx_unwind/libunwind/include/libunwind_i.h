@@ -272,7 +272,6 @@ extern void unwi_dyn_remote_put_unwind_info (unw_addr_space_t as,
         void *arg);
 extern int unwi_dyn_validate_cache (unw_addr_space_t as, void *arg);
 
-extern unw_dyn_info_list_t _U_dyn_info_list;
 extern pthread_mutex_t _U_dyn_info_list_lock;
 
 #if UNW_DEBUG && !HAVE_SGX
