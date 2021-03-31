@@ -30,7 +30,6 @@ pub enum ProtectAttr {
 }
 
 impl RsrvMemAlloc {
-    
     /// Allocate a range of EPC memory from the reserved memory area
     ///
     /// # Parameters
@@ -53,9 +52,9 @@ impl RsrvMemAlloc {
     /// # Parameters
     ///
     /// **addr**
-    /// 
+    ///
     /// The desired starting address to allocate the reserved memory. Should be page aligned.
-    /// 
+    ///
     /// **count**
     ///
     /// Count of pages to allocate region
@@ -65,7 +64,11 @@ impl RsrvMemAlloc {
     /// Starting address of the new allocated memory area on success;
     ///
     #[inline]
-    pub unsafe fn alloc_with_addr(&self, addr: NonNull<u8>, count: u32) -> Result<NonNull<u8>, RsrvMemAllocErr> {
+    pub unsafe fn alloc_with_addr(
+        &self,
+        addr: NonNull<u8>,
+        count: u32,
+    ) -> Result<NonNull<u8>, RsrvMemAllocErr> {
         NonNull::new(platform::alloc_with_addr(addr.as_ptr(), count)).ok_or(RsrvMemAllocErr)
     }
 

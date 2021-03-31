@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use std::panic;
 use sgx_rand::*;
 
 // pub use os::SgxRng

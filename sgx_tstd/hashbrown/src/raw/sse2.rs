@@ -33,7 +33,7 @@ impl Group {
         struct AlignedBytes {
             _align: [Group; 0],
             bytes: [u8; Group::WIDTH],
-        };
+        }
         const ALIGNED_BYTES: AlignedBytes = AlignedBytes {
             _align: [],
             bytes: [EMPTY; Group::WIDTH],

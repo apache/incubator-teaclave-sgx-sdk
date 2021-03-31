@@ -45,6 +45,12 @@ fn main() {
     if let Some(true) = is_min_date("2020-11-25") {
         println!("cargo:rustc-cfg=enable_auto_traits");
     }
+
+    // nightly-2021-02-08 (rustc 2021-02-07)
+    // https://github.com/rust-lang/rust/commit/dbdbd30bf2cb0d48c8bbce83c2458592664dbb18
+    if let Some(true) = is_min_date("2021-02-07") {
+        println!("cargo:rustc-cfg=derive_macros");
+    }
 }
 
 // code below copied from crate version_check

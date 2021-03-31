@@ -135,7 +135,7 @@ mod platform {
         if !check_layout(&layout) {
             return ptr::null_mut();
         }
-        let align_layout = match if align_req.len() == 0 {
+        let align_layout = match if align_req.is_empty() {
             let req: [AlignReq; 1] = [AlignReq {
                 offset: 0,
                 len: layout.size(),
@@ -169,7 +169,7 @@ mod platform {
         if !check_layout(&layout) {
             return ptr::null_mut();
         }
-        let align_layout = match if align_req.len() == 0 {
+        let align_layout = match if align_req.is_empty() {
             let req: [AlignReq; 1] = [AlignReq {
                 offset: 0,
                 len: layout.size(),
@@ -206,18 +206,17 @@ mod platform {
         let pad = align_layout.size() - align_layout.align() - layout.size();
 
         let raw = libc::malloc(align_layout.size() + mem::size_of::<*mut u8>()) as *mut u8;
-        let aligned_ptr = if raw.is_null() {
+        if raw.is_null() {
             raw
         } else {
-            if zeroed == true {
+            if zeroed {
                 ptr::write_bytes(raw, 0, align_layout.size());
             }
             let ptr = make_aligned_ptr(raw, align_layout.align(), pad);
             let p = ptr as *mut *mut u8;
             p.sub(1).write(raw);
             ptr
-        };
-        aligned_ptr
+        }
     }
 
     #[inline]
@@ -260,22 +259,17 @@ mod platform {
 
     #[inline]
     fn check_overflow(buf: usize, len: usize) -> bool {
-        (buf + len < len) || (buf + len < buf)
+        buf.checked_add(len).is_none()
     }
 
     fn check_layout(layout: &Layout) -> bool {
-        if layout.size() == 0
+        !(layout.size() == 0
             || !layout.align().is_power_of_two()
-            || layout.size() > usize::MAX - (layout.align() - 1)
-        {
-            false
-        } else {
-            true
-        }
+            || layout.size() > usize::MAX - (layout.align() - 1))
     }
 
     fn check_align_req(size: usize, align_req: &[AlignReq]) -> bool {
-        if align_req.len() == 0 {
+        if align_req.is_empty() {
             return false;
         }
         let len: usize = (size + 7) / 8;
@@ -335,12 +329,10 @@ mod platform {
     }
 
     fn count_lzb(bmp: i64) -> i32 {
-        if bmp == 0 {
-            -1
-        } else if bmp < 0 {
-            0
-        } else {
-            count_lzb(bmp << 1) + 1
+        match bmp {
+            0 => -1,
+            x if x < 0 => 0,
+            _ => count_lzb(bmp << 1) + 1,
         }
     }
 

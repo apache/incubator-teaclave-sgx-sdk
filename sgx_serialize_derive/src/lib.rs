@@ -56,7 +56,7 @@ pub fn derive_serialize(input: TokenStream) -> TokenStream {
     let input = syn::parse_derive_input(&input.to_string()).unwrap();
     match encode::expand_derive_serialize(&input) {
         Ok(expanded) => expanded.parse().unwrap(),
-        Err(msg) => panic!(msg),
+        Err(msg) => panic!("{}", msg),
     }
 }
 
@@ -72,6 +72,6 @@ pub fn derive_deserialize(input: TokenStream) -> TokenStream {
     let input = syn::parse_derive_input(&input.to_string()).unwrap();
     match decode::expand_derive_deserialize(&input) {
         Ok(expanded) => expanded.parse().unwrap(),
-        Err(msg) => panic!(msg),
+        Err(msg) => panic!("{}", msg),
     }
 }

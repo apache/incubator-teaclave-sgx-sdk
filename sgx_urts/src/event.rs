@@ -39,7 +39,9 @@ impl SeEvent {
             if ret < 0 {
                 let err = Error::last_os_error().raw_os_error().unwrap_or(0);
                 if err == libc::ETIMEDOUT {
-                    self.event.compare_and_swap(-1, 0, Ordering::SeqCst);
+                    let _ = self
+                        .event
+                        .compare_exchange(-1, 0, Ordering::SeqCst, Ordering::SeqCst);
                     return -1;
                 }
             }

@@ -16,41 +16,14 @@
 // under the License..
 
 use std::env;
-use std::path::Path;
 use std::process::Command;
 
 fn main() {
-    if cfg!(feature = "backtrace") {
-        println!("cargo:rustc-cfg=RUST_BACKTRACE=\"1\"");
-        //println!("cargo:rustc-cfg=RUST_BACKTRACE=\"full\"");
-    }
-
-    let mut sdk_dir = env::var("SGX_SDK")
-                    .unwrap_or_else(|_| "/opt/sgxsdk".to_string());
-
-    if !Path::new(&sdk_dir).exists() {
-        sdk_dir = "/opt/intel/sgxsdk".to_string();
-    }
-
-    let _is_sim = env::var("SGX_MODE")
-                    .unwrap_or_else(|_| "HW".to_string());
-
-    if cfg!(feature = "thread") {
-        println!("cargo:rustc-link-search=native={}/lib64", sdk_dir);
-        println!("cargo:rustc-link-lib=static=sgx_pthread");
-    }
-
-    // since nightly-2020-11-26 (rustc 2020-11-25), auto_traits replaced
-    // optin_builtin_traits
-    // see https://github.com/rust-lang/rust/commit/810324d1f31eb8d75e8f0044df720652986ef133
-    if let Some(true) = is_min_date("2020-11-25") {
-        println!("cargo:rustc-cfg=enable_auto_traits");
-    }
-
-    // nightly-2021-02-08 (rustc 2021-02-07)
-    // https://github.com/rust-lang/rust/commit/dbdbd30bf2cb0d48c8bbce83c2458592664dbb18
-    if let Some(true) = is_min_date("2021-02-07") {
-        println!("cargo:rustc-cfg=derive_macros");
+    // nightly-2020-12-05 (rustc 2020-12-04)
+    // Rename `AllocRef` to `Allocator` and `(de)alloc` to `(de)allocate`
+    // https://github.com/rust-lang/rust/commit/9274b37d99f608e5fde569788ee79bd72fc3cf13
+    if let Some(true) = is_min_date("2020-12-04") {
+        println!("cargo:rustc-cfg=enable_allocator_traits");
     }
 }
 

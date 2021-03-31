@@ -40,6 +40,7 @@
 #![allow(dead_code)]
 #![allow(deprecated)]
 #![allow(unused_assignments)]
+#![allow(stable_features)]
 
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]
@@ -66,15 +67,19 @@
 #![feature(fn_traits)]
 #![feature(generator_trait)]
 #![feature(format_args_nl)]
+#![feature(gen_future)]
 #![feature(global_asm)]
 #![feature(hashmap_internals)]
 #![feature(int_error_internals)]
+#![feature(into_future)]
 #![feature(lang_items)]
 #![feature(llvm_asm)]
 #![feature(log_syntax)]
+#![feature(maybe_uninit_extra)]
 #![feature(maybe_uninit_ref)]
 #![feature(never_type)]
 #![feature(needs_panic_runtime)]
+#![feature(once_cell)]
 #![feature(panic_unwind)]
 #![feature(prelude_import)]
 #![feature(ptr_internals)]
@@ -90,6 +95,7 @@
 #![feature(unboxed_closures)]
 #![feature(untagged_unions)]
 #![feature(unwind_attributes)]
+#![feature(wake_trait)]
 #![feature(libc)]
 #![feature(panic_internals)]
 #![feature(std_internals)]
@@ -213,10 +219,15 @@ pub mod time;
 pub mod enclave;
 pub mod untrusted;
 
+pub mod lazy;
+
 pub mod task {
     //! Types and Traits for working with asynchronous tasks.
     #[doc(inline)]
     pub use core::task::*;
+
+    #[doc(inline)]
+    pub use alloc_crate::task::*;
 }
 
 pub mod future;
