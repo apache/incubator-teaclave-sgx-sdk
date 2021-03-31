@@ -1,7 +1,7 @@
 {
   "arch": "x86_64",
   "cpu": "x86-64",
-  "data-layout": "e-m:e-i64:64-f80:128-n8:16:32:64-S128",
+  "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128",
   "dynamic-linking": true,
   "env": "sgx",
   "exe-allocation-crate": "alloc_system",
@@ -22,7 +22,14 @@
     ]
   },
   "relro-level": "full",
-  "stack-probes": true,
+  "stack-probes": {
+    "kind": "inline-or-call",
+    "min-llvm-version-for-inline": [
+      11,
+      0,
+      1
+    ]
+  },
   "target-c-int-width": "32",
   "target-endian": "little",
   "target-family": "unix",
