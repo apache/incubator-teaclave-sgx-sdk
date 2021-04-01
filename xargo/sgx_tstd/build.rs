@@ -52,6 +52,12 @@ fn main() {
     if let Some(true) = is_min_date("2021-02-07") {
         println!("cargo:rustc-cfg=derive_macros");
     }
+
+    // nightly-2021-03-11 (rustc 2021-03-10)
+    // https://github.com/rust-lang/rust/commit/1ab9fe5d44860050232438967bbbf9bdc35dbde1
+    if let Some(true) = is_min_date("2021-03-10") {
+        println!("cargo:rustc-cfg=enable_prelude_version");
+    }
 }
 
 // code below copied from crate version_check

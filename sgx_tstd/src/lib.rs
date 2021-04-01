@@ -81,6 +81,7 @@
 #![feature(needs_panic_runtime)]
 #![feature(once_cell)]
 #![feature(panic_unwind)]
+#![cfg_attr(enable_prelude_version, feature(prelude_2021))]
 #![feature(prelude_import)]
 #![feature(ptr_internals)]
 #![feature(raw)]
