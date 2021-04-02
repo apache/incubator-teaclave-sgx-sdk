@@ -30,3 +30,33 @@
 //! On a technical level, Rust inserts
 //!
 pub mod v1;
+
+/// The 2015 version of the prelude of The Rust Standard Library.
+///
+/// See the [module-level documentation](self) for more.
+#[cfg(enable_prelude_version)]
+pub mod rust_2015 {
+    #[doc(no_inline)]
+    pub use super::v1::*;
+}
+
+/// The 2018 version of the prelude of The Rust Standard Library.
+///
+/// See the [module-level documentation](self) for more.
+#[cfg(enable_prelude_version)]
+pub mod rust_2018 {
+    #[doc(no_inline)]
+    pub use super::v1::*;
+}
+
+/// The 2021 version of the prelude of The Rust Standard Library.
+///
+/// See the [module-level documentation](self) for more.
+#[cfg(enable_prelude_version)]
+pub mod rust_2021 {
+    #[doc(no_inline)]
+    pub use super::v1::*;
+
+    #[doc(no_inline)]
+    pub use core::prelude::rust_2021::*;
+}

@@ -102,6 +102,7 @@ unsafe impl Send for Once {}
 #[derive(Debug)]
 pub struct OnceState {
     poisoned: bool,
+    set_state_on_drop_to: Cell<usize>,
 }
 
 /// Initialization value for static [`Once`] values.
@@ -215,7 +216,7 @@ impl Once {
         }
 
         let mut f = Some(f);
-        self.call_inner(true, &mut |p| f.take().unwrap()(&OnceState { poisoned: p }));
+        self.call_inner(true, &mut |p| f.take().unwrap()(p));
     }
 
     /// Returns `true` if some `call_once` call has completed
@@ -252,7 +253,7 @@ impl Once {
     // currently no way to take an `FnOnce` and call it via virtual dispatch
     // without some allocation overhead.
     #[cold]
-    fn call_inner(&self, ignore_poisoning: bool, init: &mut dyn FnMut(bool)) {
+    fn call_inner(&self, ignore_poisoning: bool, init: &mut dyn FnMut(&OnceState)) {
         let mut state_and_queue = self.state_and_queue.load(Ordering::Acquire);
         loop {
             match state_and_queue {
@@ -263,12 +264,13 @@ impl Once {
                 }
                 POISONED | INCOMPLETE => {
                     // Try to register this thread as the one RUNNING.
-                    let old = self.state_and_queue.compare_and_swap(
+                    let exchange_result = self.state_and_queue.compare_exchange(
                         state_and_queue,
                         RUNNING,
                         Ordering::Acquire,
+                        Ordering::Acquire,
                     );
-                    if old != state_and_queue {
+                    if let Err(old) = exchange_result {
                         state_and_queue = old;
                         continue;
                     }
@@ -280,8 +282,12 @@ impl Once {
                     };
                     // Run the initialization function, letting it know if we're
                     // poisoned or not.
-                    init(state_and_queue == POISONED);
-                    waiter_queue.set_state_on_drop_to = COMPLETE;
+                    let init_state = OnceState {
+                        poisoned: state_and_queue == POISONED,
+                        set_state_on_drop_to: Cell::new(COMPLETE),
+                    };
+                    init(&init_state);
+                    waiter_queue.set_state_on_drop_to = init_state.set_state_on_drop_to.get();
                     break;
                 }
                 _ => {
@@ -316,8 +322,13 @@ fn wait(state_and_queue: &AtomicUsize, mut current_state: usize) {
 
         // Try to slide in the node at the head of the linked list, making sure
         // that another thread didn't just replace the head of the linked list.
-        let old = state_and_queue.compare_and_swap(current_state, me | RUNNING, Ordering::Release);
-        if old != current_state {
+        let exchange_result = state_and_queue.compare_exchange(
+            current_state,
+            me | RUNNING,
+            Ordering::Release,
+            Ordering::Relaxed,
+        );
+        if let Err(old) = exchange_result {
             current_state = old;
             continue;
         }
@@ -363,7 +374,7 @@ impl Drop for WaiterQueue<'_> {
             let mut queue = (state_and_queue & !STATE_MASK) as *const Waiter;
             while !queue.is_null() {
                 let next = (*queue).next;
-                let thread = (*queue).thread.replace(None).unwrap();
+                let thread = (*queue).thread.take().unwrap();
                 (*queue).signaled.store(true, Ordering::Release);
                 // ^- FIXME (maybe): This is another case of issue #55005
                 // `store()` has a potentially dangling ref to `signaled`.
@@ -383,5 +394,11 @@ impl OnceState {
     ///
     pub fn poisoned(&self) -> bool {
         self.poisoned
+    }
+
+    /// Poison the associated [`Once`] without explicitly panicking.
+    // NOTE: This is currently only exposed for the `lazy` module
+    pub(crate) fn poison(&self) {
+        self.set_state_on_drop_to.set(POISONED);
     }
 }

@@ -1,5 +1,4 @@
 use std::time::*;
-use std::panic;
 use std::untrusted::time::{InstantEx, SystemTimeEx};
 
 pub fn test_std_time() {

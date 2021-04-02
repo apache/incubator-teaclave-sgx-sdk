@@ -22,9 +22,11 @@
 //! It is essential, because we depends on Intel SGX's SDK.
 //! 2018-06-22 Add liballoc components here
 
-use core::alloc::{
-    AllocError, AllocRef, GlobalAlloc, Layout,
-};
+use core::alloc::{AllocError, GlobalAlloc, Layout};
+#[cfg(enable_allocator_traits)]
+use core::alloc::Allocator;
+#[cfg(not(enable_allocator_traits))]
+use core::alloc::AllocRef as Allocator;
 use core::intrinsics;
 use core::ptr::{self, NonNull};
 
@@ -59,7 +61,7 @@ impl System {
         }
     }
 
-    // Safety: Same as `AllocRef::grow`
+    // Safety: Same as `Allocator::grow`
     #[inline]
     unsafe fn grow_impl(
         &self,
@@ -100,24 +102,51 @@ impl System {
             old_size => {
                 let new_ptr = self.alloc_impl(new_layout, zeroed)?;
                 ptr::copy_nonoverlapping(ptr.as_ptr(), new_ptr.as_mut_ptr(), old_size);
-                AllocRef::dealloc(&self, ptr, old_layout);
+                if old_layout.size() != 0 {
+                    GlobalAlloc::dealloc(self, ptr.as_ptr(), old_layout)
+                }
                 Ok(new_ptr)
             },
         }
     }
 }
 
-unsafe impl AllocRef for System {
+unsafe impl Allocator for System {
+    #[cfg(enable_allocator_traits)]
+    #[inline]
+    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        self.alloc_impl(layout, false)
+    }
+
+    #[cfg(not(enable_allocator_traits))]
     #[inline]
     fn alloc(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         self.alloc_impl(layout, false)
     }
 
+    #[cfg(enable_allocator_traits)]
+    #[inline]
+    fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        self.alloc_impl(layout, true)
+    }
+
+    #[cfg(not(enable_allocator_traits))]
     #[inline]
     fn alloc_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
          self.alloc_impl(layout, true)
     }
 
+    #[cfg(enable_allocator_traits)]
+    #[inline]
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+        if layout.size() != 0 {
+            // SAFETY: `layout` is non-zero in size,
+            // other conditions must be upheld by the caller
+            GlobalAlloc::dealloc(self, ptr.as_ptr(), layout)
+        }
+    }
+
+    #[cfg(not(enable_allocator_traits))]
     #[inline]
     unsafe fn dealloc(&self, ptr: NonNull<u8>, layout: Layout) {
         if layout.size() != 0 {
@@ -157,7 +186,9 @@ unsafe impl AllocRef for System {
          match new_layout.size() {
              // SAFETY: conditions must be upheld by the caller
              0 => {
-                AllocRef::dealloc(&self, ptr, old_layout);
+                if old_layout.size() != 0 {
+                    GlobalAlloc::dealloc(self, ptr.as_ptr(), old_layout)
+                }
                 Ok(NonNull::slice_from_raw_parts(new_layout.dangling(), 0))
              },
              // SAFETY: `new_size` is non-zero. Other conditions must be upheld by the caller
@@ -176,9 +207,11 @@ unsafe impl AllocRef for System {
              // `new_ptr`. Thus, the call to `copy_nonoverlapping` is safe. The safety contract
              // for `dealloc` must be upheld by the caller.
              new_size => {
-                let new_ptr = AllocRef::alloc(&self, new_layout)?;
+                let new_ptr =  self.alloc_impl(new_layout, false)?;
                 ptr::copy_nonoverlapping(ptr.as_ptr(), new_ptr.as_mut_ptr(), new_size);
-                AllocRef::dealloc(&self, ptr, old_layout);
+                if old_layout.size() != 0 {
+                    GlobalAlloc::dealloc(self, ptr.as_ptr(), old_layout)
+                }
                 Ok(new_ptr)
              },
          }

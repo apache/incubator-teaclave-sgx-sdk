@@ -166,7 +166,7 @@ unsafe impl<#[may_dangle] T> Drop for AlignBox<T> {
 
 impl<T> AlignBox<T> {
     fn new_with_req_in(align: usize, align_req: &[AlignReq]) -> Option<AlignBox<T>> {
-        if align_req.len() == 0 {
+        if align_req.is_empty() {
             AlignBox::new_in()
         } else {
             AlignBox::allocate_in(true, align, align_req)
@@ -217,7 +217,7 @@ impl<T> AlignBox<T> {
 
         Some(AlignBox {
             ptr: Unique::new(ptr.cast::<T>().as_ptr()).unwrap(),
-            align_layout: align_layout,
+            align_layout,
             origin_layout: layout,
         })
     }
@@ -242,9 +242,8 @@ impl<T> AlignBox<T> {
     {
         unsafe {
             let mut t = Self::new_in();
-            match t {
-                Some(ref mut b) => initialize(b.ptr.as_mut()),
-                None => (),
+            if let Some(ref mut b) = t {
+                initialize(b.ptr.as_mut())
             }
             t
         }
@@ -255,9 +254,8 @@ impl<T> AlignBox<T> {
     {
         unsafe {
             let mut t = Self::new_with_align(align);
-            match t {
-                Some(ref mut b) => initialize(b.ptr.as_mut()),
-                None => (),
+            if let Some(ref mut b) = t {
+                initialize(b.ptr.as_mut())
             }
             t
         }
@@ -272,9 +270,8 @@ impl<T> AlignBox<T> {
     {
         unsafe {
             let mut t = Self::new_with_req(align, data);
-            match t {
-                Some(ref mut b) => initialize(b.ptr.as_mut()),
-                None => (),
+            if let Some(ref mut b) = t {
+                initialize(b.ptr.as_mut())
             }
             t
         }

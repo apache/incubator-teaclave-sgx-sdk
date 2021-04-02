@@ -143,7 +143,7 @@ unsafe extern "C" fn panic_handler(info: *mut sgx_exception_info_t) -> ContinueT
 
 #[no_mangle]
 #[inline(never)]
-unsafe extern "C" fn exception_panic(vector: sgx_exception_vector_t, rip: usize) {
+unsafe fn exception_panic(vector: sgx_exception_vector_t, rip: usize) {
     let exception = match vector {
         sgx_exception_vector_t::SGX_EXCEPTION_VECTOR_DE => "#DE",
         sgx_exception_vector_t::SGX_EXCEPTION_VECTOR_DB => "#DB",

@@ -57,6 +57,9 @@ pub use core::prelude::v1::{
     PartialEq, PartialOrd, RustcDecodable, RustcEncodable,
 };
 
+#[cfg(derive_macros)]
+#[doc(hidden)]
+pub use core::prelude::v1::derive;
 #[doc(hidden)]
 pub use core::prelude::v1::cfg_accessible;
 

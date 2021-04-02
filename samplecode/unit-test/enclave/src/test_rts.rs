@@ -94,13 +94,14 @@ pub fn test_read_rand(){
 }
 
 pub fn test_data_is_within_enclave() {
+    #[allow(dead_code)]
     #[derive(Clone, Copy)]
     struct SampleDs{
         x: i32,
         y: i32,
         z: [i32; 100],
-    };
-    unsafe impl marker::ContiguousMemory for SampleDs{};
+    }
+    unsafe impl marker::ContiguousMemory for SampleDs {}
     let mut sample_object : SampleDs = SampleDs{ x: 0, y: 0, z: [0; 100]};
     sample_object.x = 100;
     sample_object.y = 100;
@@ -138,13 +139,14 @@ pub fn test_raw_is_within_enclave(){
 }
 
 pub fn test_data_is_outside_enclave() {
+    #[allow(dead_code)]
     #[derive(Clone, Copy)]
     struct SampleDs{
         x: i32,
         y: i32,
         z: [i32; 100],
-    };
-    unsafe impl marker::ContiguousMemory for SampleDs{};
+    }
+    unsafe impl marker::ContiguousMemory for SampleDs {}
     let mut sample_object : SampleDs = SampleDs{ x: 0, y: 0, z: [0; 100]};
     sample_object.x = 100;
     sample_object.y = 100;
