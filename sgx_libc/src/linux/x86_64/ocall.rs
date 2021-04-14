@@ -2091,24 +2091,28 @@ pub unsafe fn epoll_ctl(
 
 pub unsafe fn epoll_wait(
     epfd: c_int,
-    events: &mut epoll_event,
-    maxevents: c_int,
+    events: &mut Vec<epoll_event>,
     timeout: c_int,
 ) -> OCallResult<usize> {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
+    let maxevents: c_int = events.capacity() as c_int;
+    ensure!(maxevents > 0, ecust!("Invalid events capacity"));
 
     let status = u_epoll_wait_ocall(
         &mut result as *mut c_int,
         &mut error as *mut c_int,
         epfd,
-        events,
+        events.as_mut_ptr(),
         maxevents,
         timeout,
     );
 
     ensure!(status == sgx_status_t::SGX_SUCCESS, esgx!(status));
     ensure!(result >= 0, eos!(error));
+    ensure!(result <= maxevents, ecust!("Malformed event count"));
+
+    events.set_len(result as usize);
     Ok(result as usize)
 }
 
