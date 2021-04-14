@@ -29,3 +29,12 @@ sgx_types = { path = "../../sgx_types" }
 sgx_ucrypto = { path = "../../sgx_ucrypto" }
 sgx_unwind = { path = "../../sgx_unwind" }
 sgx_urts = { path = "../../sgx_urts" }
+
+[patch.'https://github.com/mesalock-linux/net2-rs-sgx']
+net2 = { git = "https://github.com/m4sterchain/net2-rs-sgx", branch = "sgx_oc" }
+
+[patch.'https://github.com/mesalock-linux/mio-sgx']
+mio = { git = "https://github.com/m4sterchain/mio-sgx", branch = "sgx_oc" }
+
+[patch.'https://github.com/mesalock-linux/rusty_leveldb_sgx']
+rusty-leveldb = { git = "https://github.com/m4sterchain/rusty_leveldb_sgx", branch = "sgx_oc" }
