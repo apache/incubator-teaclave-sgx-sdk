@@ -22,8 +22,8 @@ jobs:
         build-command:
           #- "cp ../../.github/workflows/Xargo.toml . && RUST_TARGET_PATH=$(pwd) xargo build --target x86_64-unknown-linux-sgx"
           #- "cp ../../.github/workflows/Xargo.toml . && RUST_TARGET_PATH=$(pwd) xargo build --target x86_64-unknown-linux-sgx --release"
-          - "cat ../../.github/workflows/patch.txt >> ./Cargo.toml && cargo build"
-          - "cat ../../.github/workflows/patch.txt >> ./Cargo.toml && cargo build --release"
+          - "cat ../../.github/workflows/patch.txt ../../.github/workflows/dep_patch.txt >> ./Cargo.toml && cargo build"
+          - "cat ../../.github/workflows/patch.txt ../../.github/workflows/dep_patch.txt >> ./Cargo.toml && cargo build --release"
     runs-on: ${{ matrix.runs-on }}
     container: 
       image: ${{ matrix.image }}
