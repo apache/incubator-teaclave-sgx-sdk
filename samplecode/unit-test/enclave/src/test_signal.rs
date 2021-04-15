@@ -63,7 +63,7 @@ pub fn test_signal_with_pid() {
       }
    };
 
-   let pid = unsafe { getpid() };
+   let pid = unsafe { getpid().unwrap() };
    register_sigaction(SIGUSR2, action).unwrap();
    raise_signal(SIGUSR2);
 

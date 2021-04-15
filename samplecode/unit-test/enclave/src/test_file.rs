@@ -71,7 +71,8 @@ pub fn test_sgxfs() {
     {
         let opt1 = SgxFile::open("/dev/isgx");
         let opt2 = SgxFile::open("/dev/sgx/enclave");
-        assert_eq!(opt1.is_ok() || opt2.is_ok(), true);
+        let opt3 = SgxFile::open("/dev/sgx");
+        assert_eq!(opt1.is_ok() || opt2.is_ok() || opt3.is_ok(), true);
     }
     {
         let opt = SgxFile::create("/");

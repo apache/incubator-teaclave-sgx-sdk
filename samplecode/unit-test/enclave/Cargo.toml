@@ -13,7 +13,7 @@ hw_test = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = ["untrusted_fs", "thread", "backtrace"] }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = ["untrusted_fs", "thread", "backtrace", "net", "pipe"] }
 sgx_tcrypto = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_tunittest = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }

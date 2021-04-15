@@ -30,11 +30,6 @@ enclave {
         int u_socketpair_ocall([out] int *error, int domain, int ty, int protocol, [out] int sv[2]);
         int u_bind_ocall([out] int *error, int sockfd, [in, size=addrlen] const struct sockaddr *addr, socklen_t addrlen);
         int u_listen_ocall([out] int *error, int sockfd, int backlog);
-        int u_accept_ocall([out] int *error,
-                           int sockfd,
-                           [in, out, size=addrlen_in] struct sockaddr *addr,
-                           socklen_t addrlen_in,
-                           [out] socklen_t *addrlen_out);
         int u_accept4_ocall([out] int *error,
                             int sockfd,
                             [in, out, size=addrlen_in] struct sockaddr *addr,
@@ -54,7 +49,6 @@ enclave {
                                 [out, size=addrlen_in] struct sockaddr *src_addr,
                                 socklen_t addrlen_in,
                                 [out] socklen_t *addrlen_out);
-        size_t u_recvmsg_ocall([out] int *error, int sockfd, [in, out] struct msghdr *msg, int flags);
         size_t u_send_ocall([out] int *error, int sockfd, [user_check] const void *buf, size_t len, int flags);
         size_t u_sendto_ocall([out] int *error,
                               int sockfd,
@@ -63,7 +57,6 @@ enclave {
                               int flags,
                               [in, size=addrlen] const struct sockaddr *dest_addr,
                               socklen_t addrlen);
-        size_t u_sendmsg_ocall([out] int *error, int sockfd, [in] const struct msghdr *msg, int flags);
         int u_getsockopt_ocall([out] int *error,
                                int sockfd,
                                int level,

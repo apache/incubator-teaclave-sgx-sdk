@@ -15,17 +15,17 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_trts::libc::{c_int, mode_t, time_t, stat64, off64_t, DIR, dirent64};
-use crate::os::unix::prelude::*;
 use crate::ffi::{CStr, CString, OsStr, OsString};
 use crate::io::{self, Error, ErrorKind, IoSlice, IoSliceMut, SeekFrom};
+use crate::os::unix::prelude::*;
 use crate::path::{Path, PathBuf};
 use crate::sys::fd::FileDesc;
 use crate::sys::time::SystemTime;
-use crate::sys::{cvt, cvt_r};
+use crate::sys::{cvt_ocall, cvt_ocall_r};
 use crate::sys_common::{AsInner, FromInner};
-use core::{fmt, mem, ptr};
 use alloc_crate::sync::Arc;
+use core::{fmt, mem, ptr};
+use sgx_trts::libc::{c_int, dirent64, mode_t, off64_t, stat64, time_t, DIR};
 
 pub use crate::sys_common::fs::remove_dir_all;
 
@@ -37,9 +37,9 @@ pub struct FileAttr {
 }
 
 #[derive(Debug)]
-pub struct DirBuilder { 
+pub struct DirBuilder {
     mode: mode_t,
- }
+}
 
 // all DirEntry's will have a reference to this struct
 struct InnerReadDir {
@@ -98,11 +98,15 @@ impl FileAttr {
         self.stat.st_size as u64
     }
     pub fn perm(&self) -> FilePermissions {
-        FilePermissions { mode: (self.stat.st_mode as mode_t) }
+        FilePermissions {
+            mode: (self.stat.st_mode as mode_t),
+        }
     }
 
     pub fn file_type(&self) -> FileType {
-        FileType { mode: self.stat.st_mode as mode_t }
+        FileType {
+            mode: self.stat.st_mode as mode_t,
+        }
     }
 }
 
@@ -174,7 +178,9 @@ impl FileType {
 
 impl FromInner<u32> for FilePermissions {
     fn from_inner(mode: u32) -> FilePermissions {
-        FilePermissions { mode: mode as mode_t }
+        FilePermissions {
+            mode: mode as mode_t,
+        }
     }
 }
 
@@ -195,10 +201,14 @@ impl Iterator for ReadDir {
         }
 
         unsafe {
-            let mut ret = DirEntry { entry: mem::zeroed(), dir: self.clone() };
+            let mut ret = DirEntry {
+                entry: mem::zeroed(),
+                dir: self.clone(),
+            };
             let mut entry_ptr = ptr::null_mut();
             loop {
-                if libc::readdir64_r(self.inner.dirp.0, &mut ret.entry, &mut entry_ptr) != 0 {
+                if let Err(e) = libc::readdir64_r(self.inner.dirp.0, &mut ret.entry, &mut entry_ptr)
+                {
                     if entry_ptr.is_null() {
                         // We encountered an error (which will be returned in this iteration), but
                         // we also reached the end of the directory stream. The `end_of_stream`
@@ -206,8 +216,9 @@ impl Iterator for ReadDir {
                         // (instead of looping forever)
                         self.end_of_stream = true;
                     }
-                    return Some(Err(Error::last_os_error()));
-                }
+                    return Some(Err(e.into()));
+                };
+
                 if entry_ptr.is_null() {
                     return None;
                 }
@@ -222,13 +233,16 @@ impl Iterator for ReadDir {
 impl Drop for Dir {
     fn drop(&mut self) {
         let r = unsafe { libc::closedir(self.0) };
-        debug_assert_eq!(r, 0);
+        debug_assert!(r.is_ok());
     }
 }
 
 impl DirEntry {
     pub fn path(&self) -> PathBuf {
-        self.dir.inner.root.join(OsStr::from_bytes(self.name_bytes()))
+        self.dir
+            .inner
+            .root
+            .join(OsStr::from_bytes(self.name_bytes()))
     }
 
     pub fn file_name(&self) -> OsString {
@@ -236,23 +250,47 @@ impl DirEntry {
     }
 
     pub fn metadata(&self) -> io::Result<FileAttr> {
-        let fd = cvt(unsafe {libc::dirfd(self.dir.inner.dirp.0)})?;
+        let fd = cvt_ocall(unsafe { libc::dirfd(self.dir.inner.dirp.0) })?;
         let mut stat: stat64 = unsafe { mem::zeroed() };
-        cvt(unsafe {
-            libc::fstatat64(fd, self.entry.d_name.as_ptr(), &mut stat, libc::AT_SYMLINK_NOFOLLOW)
+
+        let dname_bytes: Vec<u8> = self.entry.d_name.iter().map(|b| *b as u8).collect();
+        let v = unsafe { libc::shrink_to_fit_os_string(dname_bytes) }?;
+        let dname = CString::new(v)?;
+
+        cvt_ocall(unsafe {
+            libc::fstatat64(
+                fd,
+                &dname,
+                &mut stat,
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
         })?;
         Ok(FileAttr { stat })
     }
 
     pub fn file_type(&self) -> io::Result<FileType> {
         match self.entry.d_type {
-            libc::DT_CHR => Ok(FileType { mode: libc::S_IFCHR }),
-            libc::DT_FIFO => Ok(FileType { mode: libc::S_IFIFO }),
-            libc::DT_LNK => Ok(FileType { mode: libc::S_IFLNK }),
-            libc::DT_REG => Ok(FileType { mode: libc::S_IFREG }),
-            libc::DT_SOCK => Ok(FileType { mode: libc::S_IFSOCK }),
-            libc::DT_DIR => Ok(FileType { mode: libc::S_IFDIR }),
-            libc::DT_BLK => Ok(FileType { mode: libc::S_IFBLK }),
+            libc::DT_CHR => Ok(FileType {
+                mode: libc::S_IFCHR,
+            }),
+            libc::DT_FIFO => Ok(FileType {
+                mode: libc::S_IFIFO,
+            }),
+            libc::DT_LNK => Ok(FileType {
+                mode: libc::S_IFLNK,
+            }),
+            libc::DT_REG => Ok(FileType {
+                mode: libc::S_IFREG,
+            }),
+            libc::DT_SOCK => Ok(FileType {
+                mode: libc::S_IFSOCK,
+            }),
+            libc::DT_DIR => Ok(FileType {
+                mode: libc::S_IFDIR,
+            }),
+            libc::DT_BLK => Ok(FileType {
+                mode: libc::S_IFBLK,
+            }),
             _ => lstat(&self.path()).map(|m| m.file_type()),
         }
     }
@@ -310,11 +348,11 @@ impl OpenOptions {
 
     fn get_access_mode(&self) -> io::Result<c_int> {
         match (self.read, self.write, self.append) {
-            (true,  false, false) => Ok(libc::O_RDONLY),
-            (false, true,  false) => Ok(libc::O_WRONLY),
-            (true,  true,  false) => Ok(libc::O_RDWR),
-            (false, _,     true)  => Ok(libc::O_WRONLY | libc::O_APPEND),
-            (true,  _,     true)  => Ok(libc::O_RDWR | libc::O_APPEND),
+            (true, false, false) => Ok(libc::O_RDONLY),
+            (false, true, false) => Ok(libc::O_WRONLY),
+            (true, true, false) => Ok(libc::O_RDWR),
+            (false, _, true) => Ok(libc::O_WRONLY | libc::O_APPEND),
+            (true, _, true) => Ok(libc::O_RDWR | libc::O_APPEND),
             (false, false, false) => Err(Error::from_raw_os_error(libc::EINVAL)),
         }
     }
@@ -335,12 +373,12 @@ impl OpenOptions {
         }
 
         Ok(match (self.create, self.truncate, self.create_new) {
-                (false, false, false) => 0,
-                (true,  false, false) => libc::O_CREAT,
-                (false, true,  false) => libc::O_TRUNC,
-                (true,  true,  false) => libc::O_CREAT | libc::O_TRUNC,
-                (_,      _,    true)  => libc::O_CREAT | libc::O_EXCL,
-           })
+            (false, false, false) => 0,
+            (true, false, false) => libc::O_CREAT,
+            (false, true, false) => libc::O_TRUNC,
+            (true, true, false) => libc::O_CREAT | libc::O_TRUNC,
+            (_, _, true) => libc::O_CREAT | libc::O_EXCL,
+        })
     }
 }
 
@@ -355,7 +393,7 @@ impl File {
             | opts.get_access_mode()?
             | opts.get_creation_mode()?
             | (opts.custom_flags as c_int & !libc::O_ACCMODE);
-        let fd = cvt_r(|| unsafe { libc::open64(path.as_ptr(), flags, opts.mode as c_int) })?;
+        let fd = cvt_ocall_r(|| unsafe { libc::open64(path, flags, opts.mode as c_int) })?;
         let fd = FileDesc::new(fd);
 
         // Currently the standard library supports Linux 2.6.18 which did not
@@ -404,29 +442,26 @@ impl File {
 
     pub fn file_attr(&self) -> io::Result<FileAttr> {
         let mut stat: stat64 = unsafe { mem::zeroed() };
-        cvt(unsafe { libc::fstat64(self.0.raw(), &mut stat) })?;
+        cvt_ocall(unsafe { libc::fstat64(self.0.raw(), &mut stat) })?;
         Ok(FileAttr::from_stat64(stat))
     }
 
     pub fn fsync(&self) -> io::Result<()> {
-        cvt_r(|| unsafe { libc::fsync(self.0.raw()) })?;
+        cvt_ocall_r(|| unsafe { libc::fsync(self.0.raw()) })?;
         Ok(())
     }
 
     pub fn datasync(&self) -> io::Result<()> {
-        cvt_r(|| unsafe { os_datasync(self.0.raw()) })?;
+        cvt_ocall_r(|| unsafe { libc::fdatasync(self.0.raw()) })?;
         return Ok(());
-
-        unsafe fn os_datasync(fd: c_int) -> c_int {
-            libc::fdatasync(fd)
-        }
     }
 
     pub fn truncate(&self, size: u64) -> io::Result<()> {
         use crate::convert::TryInto;
-            let size: off64_t =
-                size.try_into().map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
-            cvt_r(|| unsafe { libc::ftruncate64(self.0.raw(), size) }).map(drop)
+        let size: off64_t = size
+            .try_into()
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
+        cvt_ocall_r(|| unsafe { libc::ftruncate64(self.0.raw(), size) }).map(drop)
     }
 
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
@@ -466,7 +501,7 @@ impl File {
             SeekFrom::Current(off) => (libc::SEEK_CUR, off),
         };
 
-        let n = cvt(unsafe { libc::lseek64(self.0.raw(), pos, whence) })?;
+        let n = cvt_ocall(unsafe { libc::lseek64(self.0.raw(), pos, whence) })?;
         Ok(n as u64)
     }
 
@@ -483,7 +518,7 @@ impl File {
     }
 
     pub fn set_permissions(&self, perm: FilePermissions) -> io::Result<()> {
-        cvt_r(|| unsafe { libc::fchmod(self.0.raw(), perm.mode) })?;
+        cvt_ocall_r(|| unsafe { libc::fchmod(self.0.raw(), perm.mode) })?;
         Ok(())
     }
 }
@@ -495,7 +530,7 @@ impl DirBuilder {
 
     pub fn mkdir(&self, p: &Path) -> io::Result<()> {
         let p = cstr(p)?;
-        cvt(unsafe { libc::mkdir(p.as_ptr(), self.mode) })?;
+        cvt_ocall(unsafe { libc::mkdir(&p, self.mode) })?;
         Ok(())
     }
 
@@ -523,15 +558,14 @@ impl fmt::Debug for File {
         }
 
         fn get_mode(fd: c_int) -> Option<(bool, bool)> {
-            let mode = unsafe { libc::fcntl_arg0(fd, libc::F_GETFL) };
-            if mode == -1 {
-                return None;
-            }
-            match mode & libc::O_ACCMODE {
-                libc::O_RDONLY => Some((true, false)),
-                libc::O_RDWR => Some((true, true)),
-                libc::O_WRONLY => Some((false, true)),
-                _ => None,
+            match unsafe { libc::fcntl_arg0(fd, libc::F_GETFL) } {
+                Err(_) => None,
+                Ok(mode) => match mode & libc::O_ACCMODE {
+                    libc::O_RDONLY => Some((true, false)),
+                    libc::O_RDWR => Some((true, true)),
+                    libc::O_WRONLY => Some((false, true)),
+                    _ => None,
+                },
             }
         }
 
@@ -552,108 +586,81 @@ pub fn readdir(p: &Path) -> io::Result<ReadDir> {
     let root = p.to_path_buf();
     let p = cstr(p)?;
     unsafe {
-        let ptr = libc::opendir(p.as_ptr());
-        if ptr.is_null() {
-            Err(Error::last_os_error())
-        } else {
-            let inner = InnerReadDir { dirp: Dir(ptr), root };
-            Ok(ReadDir { inner: Arc::new(inner), end_of_stream: false })
-        }
+        let ptr = cvt_ocall(libc::opendir(&p))?;
+        let inner = InnerReadDir {
+            dirp: Dir(ptr),
+            root,
+        };
+        Ok(ReadDir {
+            inner: Arc::new(inner),
+            end_of_stream: false,
+        })
     }
 }
 
 pub fn unlink(p: &Path) -> io::Result<()> {
     let p = cstr(p)?;
-    cvt(unsafe { libc::unlink(p.as_ptr()) })?;
+    cvt_ocall(unsafe { libc::unlink(&p) })?;
     Ok(())
 }
 
 pub fn rename(old: &Path, new: &Path) -> io::Result<()> {
     let old = cstr(old)?;
     let new = cstr(new)?;
-    cvt(unsafe { libc::rename(old.as_ptr(), new.as_ptr()) })?;
+    cvt_ocall(unsafe { libc::rename(&old, &new) })?;
     Ok(())
 }
 
 pub fn set_perm(p: &Path, perm: FilePermissions) -> io::Result<()> {
     let p = cstr(p)?;
-    cvt_r(|| unsafe { libc::chmod(p.as_ptr(), perm.mode) })?;
+    cvt_ocall_r(|| unsafe { libc::chmod(&p, perm.mode) })?;
     Ok(())
 }
 
 pub fn rmdir(p: &Path) -> io::Result<()> {
     let p = cstr(p)?;
-    cvt(unsafe { libc::rmdir(p.as_ptr()) })?;
+    cvt_ocall(unsafe { libc::rmdir(&p) })?;
     Ok(())
 }
 
 pub fn readlink(p: &Path) -> io::Result<PathBuf> {
     let c_path = cstr(p)?;
-    let p = c_path.as_ptr();
-
-    let mut buf = Vec::with_capacity(256);
-
-    loop {
-        let buf_read =
-            cvt(unsafe { libc::readlink(p, buf.as_mut_ptr() as *mut _, buf.capacity()) })? as usize;
-
-        unsafe {
-            buf.set_len(buf_read);
-        }
-
-        if buf_read != buf.capacity() {
-            buf.shrink_to_fit();
-
-            return Ok(PathBuf::from(OsString::from_vec(buf)));
-        }
-
-        // Trigger the internal buffer resizing logic of `Vec` by requiring
-        // more space than the current capacity. The length is guaranteed to be
-        // the same as the capacity due to the if statement above.
-        buf.reserve(1);
-    }
+    let v = cvt_ocall(unsafe { libc::readlink(&c_path) })?;
+    return Ok(PathBuf::from(OsString::from_vec(v)));
 }
 
 pub fn symlink(src: &Path, dst: &Path) -> io::Result<()> {
     let src = cstr(src)?;
     let dst = cstr(dst)?;
-    cvt(unsafe { libc::symlink(src.as_ptr(), dst.as_ptr()) })?;
+    cvt_ocall(unsafe { libc::symlink(&src, &dst) })?;
     Ok(())
 }
 
 pub fn link(src: &Path, dst: &Path) -> io::Result<()> {
     let src = cstr(src)?;
     let dst = cstr(dst)?;
-    cvt(unsafe { libc::link(src.as_ptr(), dst.as_ptr()) })?;
+    cvt_ocall(unsafe { libc::link(&src, &dst) })?;
     Ok(())
 }
 
 pub fn stat(p: &Path) -> io::Result<FileAttr> {
     let p = cstr(p)?;
     let mut stat: stat64 = unsafe { mem::zeroed() };
-    cvt(unsafe { libc::stat64(p.as_ptr(), &mut stat as *mut _) })?;
+    cvt_ocall(unsafe { libc::stat64(&p, &mut stat) })?;
     Ok(FileAttr::from_stat64(stat))
 }
 
 pub fn lstat(p: &Path) -> io::Result<FileAttr> {
     let p = cstr(p)?;
     let mut stat: stat64 = unsafe { mem::zeroed() };
-    cvt(unsafe { libc::lstat64(p.as_ptr(), &mut stat as *mut _) })?;
+    cvt_ocall(unsafe { libc::lstat64(&p, &mut stat) })?;
     Ok(FileAttr::from_stat64(stat))
 }
 
 pub fn canonicalize(p: &Path) -> io::Result<PathBuf> {
     let path = CString::new(p.as_os_str().as_bytes())?;
-    let buf;
-    unsafe {
-        let r = libc::realpath(path.as_ptr());
-        if r.is_null() {
-            return Err(io::Error::last_os_error());
-        }
-        buf = CStr::from_ptr(r).to_bytes().to_vec();
-        libc::free(r as *mut _);
-    }
-    Ok(PathBuf::from(OsString::from_vec(buf)))
+    let v = cvt_ocall(unsafe { libc::realpath(&path) })?;
+    Ok(PathBuf::from(OsString::from_vec(v)))
 }
 
 pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
@@ -683,8 +690,10 @@ pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
 }
 
 mod libc {
+    pub use sgx_trts::libc::ocall::{
+        chmod, closedir, dirfd, fchmod, fcntl_arg0, fdatasync, fstat64, fstatat64, fsync,
+        ftruncate64, link, lseek64, lstat64, mkdir, open64, opendir, readdir64_r, readlink,
+        realpath, rename, rmdir, stat64, symlink, unlink, shrink_to_fit_os_string,
+    };
     pub use sgx_trts::libc::*;
-    pub use sgx_trts::libc::ocall::{open64, fstat64, fsync, fdatasync, ftruncate64, lseek64, fchmod,
-                                    unlink, link, rename, chmod, readlink, symlink, stat64, lstat64,
-                                    fcntl_arg0, realpath, free, readdir64_r, closedir, dirfd, mkdir, rmdir, opendir, fstatat64};
 }

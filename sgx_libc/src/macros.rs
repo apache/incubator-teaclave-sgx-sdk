@@ -161,3 +161,46 @@ macro_rules! align_const {
         };
     )*)
 }
+
+macro_rules! bail {
+    ($e:expr) => {
+        return Err($e);
+    };
+}
+
+macro_rules! ensure {
+    ($cond:expr) => {
+        if !($cond) {
+            bail!(OCallError::from_custom_error(stringify!($cond)));
+        }
+    };
+    ($cond:expr, $e:expr) => {
+        if !($cond) {
+            bail!($e);
+        }
+    };
+}
+
+macro_rules! esgx {
+    ($status:ident) => {
+        OCallError::from_sgx_error($status)
+    };
+}
+
+macro_rules! eos {
+    ($errno:ident) => {
+        OCallError::from_os_error($errno)
+    };
+}
+
+macro_rules! ecust {
+    ($lt:literal) => {
+        OCallError::from_custom_error($lt)
+    };
+}
+
+macro_rules! egai {
+    ($errno:ident) => {
+        OCallError::from_gai_error($errno)
+    };
+}

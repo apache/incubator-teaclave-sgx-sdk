@@ -95,28 +95,6 @@ pub extern "C" fn u_listen_ocall(error: *mut c_int, sockfd: c_int, backlog: c_in
 }
 
 #[no_mangle]
-pub extern "C" fn u_accept_ocall(
-    error: *mut c_int,
-    sockfd: c_int,
-    addr: *mut sockaddr,
-    addrlen_in: socklen_t,
-    addrlen_out: *mut socklen_t,
-) -> c_int {
-    let mut errno = 0;
-    unsafe { *addrlen_out = addrlen_in };
-    let ret = unsafe { libc::accept(sockfd, addr, addrlen_out) };
-    if ret < 0 {
-        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
-    }
-    if !error.is_null() {
-        unsafe {
-            *error = errno;
-        }
-    }
-    ret
-}
-
-#[no_mangle]
 pub extern "C" fn u_accept4_ocall(
     error: *mut c_int,
     sockfd: c_int,

@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use core::ptr;
+
 /// A safe interface to `memchr`.
 ///
 /// Returns the index corresponding to the first occurrence of `needle` in
@@ -36,12 +38,30 @@
 // }
 
 pub fn memchr(needle: u8, haystack: &[u8]) -> Option<usize> {
-    let p = unsafe { sgx_libc::memchr(haystack.as_ptr(), needle, haystack.len()) };
+    let p = unsafe {
+        memchr_impl(
+            haystack.as_ptr(),
+            needle,
+            haystack.len())
+    };
     if p.is_null() {
         None
     } else {
         Some(p as usize - (haystack.as_ptr() as usize))
     }
+}
+
+unsafe fn memchr_impl(s: *const u8, c: u8, n: usize) -> *const u8 {
+    let mut ret = ptr::null();
+    let mut p = s;
+    for _ in 0..n {
+        if *p == c {
+            ret = p;
+            break;
+        }
+        p = p.offset(1);
+    }
+    ret
 }
 
 pub fn memrchr(needle: u8, haystack: &[u8]) -> Option<usize> {
@@ -50,13 +70,31 @@ pub fn memrchr(needle: u8, haystack: &[u8]) -> Option<usize> {
         if haystack.is_empty() {
             return None;
         }
-        let p = unsafe { sgx_libc::memrchr(haystack.as_ptr(), needle, haystack.len()) };
-        if p.is_null() {
-            None
-        } else {
-            Some(p as usize - (haystack.as_ptr() as usize))
-        }
+        let p = unsafe {
+            memrchr_impl(
+                haystack.as_ptr(),
+                needle,
+                haystack.len(),
+            )
+        };
+        if p.is_null() { None } else { Some(p as usize - (haystack.as_ptr() as usize)) }
     }
 
     memrchr_specific(needle, haystack)
+}
+
+unsafe fn memrchr_impl(s: *const u8, c: u8, n: usize) -> *const u8 {
+    if n == 0 {
+        return ptr::null();
+    }
+    let mut ret = ptr::null();
+    let mut p: *const u8 = (s as usize + (n - 1)) as *const u8;
+    for _ in 0..n {
+        if *p == c {
+            ret = p;
+            break;
+        }
+        p = p.offset(-1);
+    }
+    ret
 }

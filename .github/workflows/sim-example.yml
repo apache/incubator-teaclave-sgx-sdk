@@ -69,6 +69,7 @@ jobs:
         . /opt/sgxsdk/environment && 
         export SGX_SDK_RUST=`git worktree list | head | cut -d ' ' -f 1` &&
         cd samplecode/${{ matrix.single-sample }} &&
+        cat ../../.github/workflows/dep_patch.txt >> ./enclave/Cargo.toml &&
         if [ "${{  matrix.single-sample }}" == "protobuf" ]; then cargo install protobuf-codegen --vers=2.8.1; fi
         SGX_MODE=SW make && 
         cd bin &&
@@ -115,6 +116,8 @@ jobs:
         IFS=$(echo -en "\n\b")
         compiles=('make' 'XARGO_SGX=1 make')
         cd samplecode/tls
+        cat ../../.github/workflows/dep_patch.txt >> tlsclient/enclave/Cargo.toml
+        cat ../../.github/workflows/dep_patch.txt >> tlsserver/enclave/Cargo.toml
         for client in ${compiles[@]}
         do
             for server in ${compiles[@]}
@@ -183,6 +186,8 @@ jobs:
         IFS=$(echo -en "\n\b")
         compiles=('make' 'XARGO_SGX=1 make')
         cd samplecode/mio
+        cat ../../.github/workflows/dep_patch.txt >> client/enclave/Cargo.toml
+        cat ../../.github/workflows/dep_patch.txt >> server/enclave/Cargo.toml
         for client in ${compiles[@]}
         do
             for server in ${compiles[@]}

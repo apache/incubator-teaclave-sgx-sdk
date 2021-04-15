@@ -15,21 +15,22 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_trts::libc as c;
-use core::fmt;
-use core::hash;
-use core::mem;
-use core::option;
-use core::iter;
-#[cfg(feature = "net")]
-use core::convert::TryInto;
-use alloc_crate::vec;
-use alloc_crate::slice;
 use crate::io;
 use crate::net::{htons, ntohs, IpAddr, Ipv4Addr, Ipv6Addr};
-use crate::sys_common::{AsInner, FromInner, IntoInner};
 #[cfg(feature = "net")]
 use crate::sys_common::net::LookupHost;
+use crate::sys_common::{AsInner, FromInner, IntoInner};
+use alloc_crate::slice;
+use alloc_crate::vec;
+#[cfg(feature = "net")]
+use core::convert::TryInto;
+use core::convert::TryFrom;
+use core::fmt;
+use core::hash;
+use core::iter;
+use core::mem;
+use core::option;
+use sgx_trts::libc as c;
 
 /// An internet socket address, either IPv4 or IPv6.
 ///
@@ -319,12 +320,47 @@ impl<I: Into<IpAddr>> From<(I, u16)> for SocketAddr {
 impl<'a> IntoInner<(*const c::sockaddr, c::socklen_t)> for &'a SocketAddr {
     fn into_inner(self) -> (*const c::sockaddr, c::socklen_t) {
         match *self {
-            SocketAddr::V4(ref a) => {
-                (a as *const _ as *const _, mem::size_of_val(a) as c::socklen_t)
-            }
-            SocketAddr::V6(ref a) => {
-                (a as *const _ as *const _, mem::size_of_val(a) as c::socklen_t)
-            }
+            SocketAddr::V4(ref a) => (
+                a as *const _ as *const _,
+                mem::size_of_val(a) as c::socklen_t,
+            ),
+            SocketAddr::V6(ref a) => (
+                a as *const _ as *const _,
+                mem::size_of_val(a) as c::socklen_t,
+            ),
+        }
+    }
+}
+
+impl IntoInner<c::sockaddr_in> for SocketAddrV4 {
+    fn into_inner(self) -> c::sockaddr_in {
+        self.inner
+    }
+}
+
+impl IntoInner<c::sockaddr_in6> for SocketAddrV6 {
+    fn into_inner(self) -> c::sockaddr_in6 {
+        self.inner
+    }
+}
+
+impl From<SocketAddr> for c::SockAddr {
+    fn from(addr: SocketAddr) -> c::SockAddr {
+        match addr {
+            SocketAddr::V4(sa) => c::SockAddr::IN4(sa.into_inner()),
+            SocketAddr::V6(sa) => c::SockAddr::IN6(sa.into_inner()),
+        }
+    }
+}
+
+impl TryFrom<c::SockAddr> for SocketAddr {
+    type Error = io::Error;
+
+    fn try_from(addr: c::SockAddr) -> io::Result<SocketAddr> {
+        match addr {
+            c::SockAddr::IN4(sa) => Ok(SocketAddr::V4(SocketAddrV4::from_inner(sa))),
+            c::SockAddr::IN6(sa) => Ok(SocketAddr::V6(SocketAddrV6::from_inner(sa))),
+            _ => Err(io::Error::new(io::ErrorKind::InvalidData, "Unsupported SocketAddr")),
         }
     }
 }
@@ -548,7 +584,10 @@ impl ToSocketAddrs for (&str, u16) {
         }
 
         #[cfg(not(feature = "net"))]
-        let r = Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid socket address"));
+        let r = Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "invalid socket address",
+        ));
         #[cfg(feature = "net")]
         let r = resolve_socket_addr((host, port).try_into()?);
         r
@@ -565,7 +604,10 @@ impl ToSocketAddrs for str {
         }
 
         #[cfg(not(feature = "net"))]
-        let r = Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid socket address"));
+        let r = Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "invalid socket address",
+        ));
         #[cfg(feature = "net")]
         let r = resolve_socket_addr(self.try_into()?);
         r

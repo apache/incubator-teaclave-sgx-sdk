@@ -15,36 +15,57 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use libc::{self, addrinfo, c_char, c_int};
+use libc::{self, addrinfo, c_char, c_int, size_t};
 use std::io::Error;
+
+use core::ptr;
 
 #[no_mangle]
 pub extern "C" fn u_getaddrinfo_ocall(
     error: *mut c_int,
     node: *const c_char,
     service: *const c_char,
-    hints: *const addrinfo,
-    res: *mut *mut addrinfo,
+    hints: *mut addrinfo,
+    entry_size: size_t,
+    buf: *mut u8,
+    bufsz: size_t,
+    out_cnt: *mut size_t,
 ) -> c_int {
     let mut errno = 0;
-    let ret = unsafe { libc::getaddrinfo(node, service, hints, res) };
+    let mut res: *mut addrinfo = ptr::null_mut();
+
+    let ret = unsafe { libc::getaddrinfo(node, service, hints, &mut res) };
+
     if ret == libc::EAI_SYSTEM {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
+
     if !error.is_null() {
         unsafe {
             *error = errno;
         }
     }
-    ret
-}
 
-#[no_mangle]
-pub extern "C" fn u_freeaddrinfo_ocall(res: *mut addrinfo) {
-    unsafe { libc::freeaddrinfo(res) }
-}
+    if ret != 0 {
+        return ret;
+    }
 
-#[no_mangle]
-pub extern "C" fn u_gai_strerror_ocall(errcode: c_int) -> *const c_char {
-    unsafe { libc::gai_strerror(errcode) }
+    unsafe {
+        let mut i = 0;
+        let mut cur_ptr = res;
+        while cur_ptr != ptr::null_mut() && (i + entry_size) < bufsz {
+            let cur: &addrinfo = &*cur_ptr;
+            let len = cur.ai_addrlen as usize;
+            if len > entry_size {
+                return 1;
+            }
+            std::ptr::copy_nonoverlapping(cur.ai_addr as *const u8, buf.add(i), len);
+            i += entry_size;
+            cur_ptr = cur.ai_next;
+        }
+        *out_cnt = i / entry_size;
+    }
+
+    unsafe { libc::freeaddrinfo(res) };
+    return 0;
 }

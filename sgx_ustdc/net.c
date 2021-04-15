@@ -37,8 +37,3 @@ void u_freeaddrinfo_ocall(struct addrinfo *res)
 {
     return freeaddrinfo(res);
 }
-
-const char *u_gai_strerror_ocall(int errcode)
-{
-    return gai_strerror(errcode);
-}

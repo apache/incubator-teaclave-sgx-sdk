@@ -6,6 +6,7 @@ use std::fs;
 use std::panic;
 use core::str;
 use std::io::{Read, Write, ErrorKind};
+use std::io::{IoSliceMut, IoSlice};
 
 macro_rules! check { ($e:expr) => (
     match $e {
@@ -314,4 +315,73 @@ pub fn test_path_copy_file_follows_dst_symlink() {
     assert!(check!(out_path_symlink.symlink_metadata()).file_type().is_symlink());
     assert_eq!(check!(fs::read(&out_path_symlink)), b"foo".to_vec());
     assert_eq!(check!(fs::read(&out_path)), b"foo".to_vec());
+}
+
+pub fn test_rwv() {
+    let chunck_size = 100;
+    let n = 6;
+    let block_size = n * chunck_size;
+
+    let buffer1 = vec![1; block_size];
+    let buffer2 = vec![2; block_size];
+    let buffer3 = vec![3; block_size];
+    let buffer4 = vec![4; block_size];
+
+    let fname = "foo.txt";
+
+    {
+        let mut file = File::create(&fname).unwrap();
+        let input = &[
+            IoSlice::new(&buffer1),
+        ][..];
+        file.write_vectored(input).unwrap();
+
+        let input = &[
+            IoSlice::new(&buffer2),
+            IoSlice::new(&buffer3),
+            IoSlice::new(&buffer4),
+        ][..];
+        file.write_vectored(input).unwrap();
+    }
+
+
+    let mut b1 = vec![0; chunck_size];
+    let mut b2 = vec![0; chunck_size];
+    let mut b3 = vec![0; chunck_size];
+    let mut b4 = vec![0; chunck_size];
+    let mut b5 = vec![0; chunck_size];
+    let mut b6 = vec![0; chunck_size];
+    {
+        let mut file2 = File::open(&fname).unwrap();
+
+        let mut i = 1;
+        loop {
+            {
+                let mut bufs = &mut [
+                    IoSliceMut::new(&mut b1),
+                    IoSliceMut::new(&mut b2),
+                    IoSliceMut::new(&mut b3),
+                    IoSliceMut::new(&mut b4),
+                    IoSliceMut::new(&mut b5),
+                    IoSliceMut::new(&mut b6),
+                ][..];
+
+                if file2.read_vectored(&mut bufs).unwrap() == 0 {
+                    break
+                }
+            }
+
+            let data = vec![i; chunck_size];
+            assert_eq!(&data[..], &b1[..]);
+            assert_eq!(&b1[..], &b2[..]);
+            assert_eq!(&b2[..], &b3[..]);
+            assert_eq!(&b3[..], &b4[..]);
+            assert_eq!(&b4[..], &b5[..]);
+            assert_eq!(&b5[..], &b6[..]);
+
+            i += 1;
+        }
+    }
+
+    check!(fs::remove_file(&fname));
 }

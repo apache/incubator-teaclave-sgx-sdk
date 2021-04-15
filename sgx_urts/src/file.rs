@@ -411,18 +411,25 @@ pub extern "C" fn u_symlink_ocall(
 }
 
 #[no_mangle]
-pub extern "C" fn u_realpath_ocall(error: *mut c_int, pathname: *const c_char) -> *mut c_char {
+pub extern "C" fn u_realpath_ocall(
+    error: *mut c_int,
+    pathname: *const c_char,
+    resolved_buf: *mut c_char,
+    _bufsz: size_t,
+) -> c_int {
     let mut errno = 0;
-    let ret = unsafe { libc::realpath(pathname, ptr::null_mut()) };
+    let mut result = 0;
+    let ret = unsafe { libc::realpath(pathname, resolved_buf) };
     if ret.is_null() {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+        result = -1;
     }
     if !error.is_null() {
         unsafe {
             *error = errno;
         }
     }
-    ret
+    result
 }
 
 #[no_mangle]
@@ -474,9 +481,17 @@ pub extern "C" fn u_opendir_ocall(error: *mut c_int, pathname: *const c_char) ->
 pub extern "C" fn u_readdir64_r_ocall(
     dirp: *mut DIR,
     entry: *mut dirent64,
-    result: *mut *mut dirent64,
+    eods: *mut c_int, // end of directory stream
 ) -> c_int {
-    unsafe { libc::readdir64_r(dirp, entry, result) }
+    let mut result_ptr = ptr::null_mut();
+    let result = unsafe { libc::readdir64_r(dirp, entry, &mut result_ptr) };
+    assert!(!eods.is_null());
+    if result_ptr.is_null() {
+        unsafe {
+            *eods= 1;
+        }
+    }
+    return result;
 }
 
 #[no_mangle]

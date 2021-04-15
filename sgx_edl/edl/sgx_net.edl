@@ -34,8 +34,9 @@ enclave {
                                 [in, string] const char *node,
                                 [in, string] const char *service,
                                 [in] const struct addrinfo *hints,
-                                [out] struct addrinfo **res);
-        void u_freeaddrinfo_ocall([user_check] struct addrinfo *res);
-        char *u_gai_strerror_ocall(int errcode);
+                                size_t entry_size,
+                                [out, size=bufsz] uint8_t *buf,
+                                size_t bufsz,
+                                [out] size_t *entry_count);
     };
 };
