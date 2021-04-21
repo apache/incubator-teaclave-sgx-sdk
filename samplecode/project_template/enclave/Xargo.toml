@@ -1,0 +1,95 @@
+[dependencies]
+alloc = {}
+
+[dependencies.sgx_types]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 1
+
+[dependencies.sgx_alloc]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 1
+
+[dependencies.sgx_unwind]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 1
+
+[dependencies.sgx_demangle]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 1
+
+[dependencies.panic_abort]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 1
+
+[dependencies.sgx_libc]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 2
+
+[dependencies.sgx_tkey_exchange]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 2
+
+[dependencies.sgx_tse]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 2
+
+[dependencies.sgx_tcrypto]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 2
+
+[dependencies.sgx_trts]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 3
+
+[dependencies.sgx_backtrace_sys]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 3
+
+[dependencies.panic_unwind]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 3
+
+[dependencies.sgx_tdh]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 4
+
+[dependencies.sgx_tseal]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 4
+
+[dependencies.sgx_tprotected_fs]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 4
+
+[dependencies.std]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 5
+features = ["backtrace"]
+
+[dependencies.sgx_no_tstd]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 5
+
+[dependencies.sgx_rand]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 6
+
+[dependencies.sgx_serialize]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 6
+
+[dependencies.sgx_tunittest]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 6
+
+[dependencies.sgx_backtrace]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 7
+
+[dependencies.sgx_cov]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 7
+
+[dependencies.sgx_signal]
+git = "https://github.com/apache/teaclave-sgx-sdk.git"
+stage = 7
