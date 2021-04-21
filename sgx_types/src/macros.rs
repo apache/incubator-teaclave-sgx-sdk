@@ -89,6 +89,7 @@ macro_rules! __item {
 macro_rules! impl_copy_clone{
     ($($(#[$attr:meta])* pub struct $i:ident { $($field:tt)* })*) => ($(
         $crate::__item! {
+            #[cfg_attr(feature = "extra_traits", derive(Debug, Eq, PartialEq))]
             #[repr(C)]
             $(#[$attr])*
             pub struct $i { $($field)* }
@@ -119,6 +120,7 @@ macro_rules! s {
 macro_rules! impl_struct {
     ($($(#[$attr:meta])* pub struct $i:ident { $(pub $name:ident: $field:ty,)* })*) => ($(
         $crate::__item! {
+            #[cfg_attr(feature = "extra_traits", derive(Debug, Eq, PartialEq))]
             #[repr(C)]
             $(#[$attr])*
             pub struct $i { $(pub $name: $field,)* }
@@ -133,6 +135,44 @@ macro_rules! impl_struct {
             }
         }
         unsafe impl $crate::marker::ContiguousMemory for $i {}
+    )*)
+}
+
+macro_rules! impl_packed_struct {
+    ($($(#[$attr:meta])* pub struct $i:ident { $(pub $name:ident: $field:ty,)* })*) => ($(
+        $crate::__item! {
+            #[cfg_attr(feature = "extra_traits", derive(Copy, Debug, Eq, PartialEq))]
+            #[repr(C, packed)]
+            $(#[$attr])*
+            pub struct $i { $(pub $name: $field,)* }
+        }
+        #[cfg(not(feature = "extra_traits"))]
+        impl Copy for $i {}
+        impl Clone for $i {
+            fn clone(&self) -> $i { *self }
+        }
+        impl Default for $i {
+            fn default()->$i {
+                $i{$($name: Default::default(),)*}
+            }
+        }
+        unsafe impl $crate::marker::ContiguousMemory for $i {}
+    )*)
+}
+
+macro_rules! impl_packed_copy_clone {
+    ($($(#[$attr:meta])* pub struct $i:ident { $($field:tt)* })*) => ($(
+        $crate::__item! {
+            #[cfg_attr(feature = "extra_traits", derive(Copy, Debug, Eq, PartialEq))]
+            #[repr(C, packed)]
+            $(#[$attr])*
+            pub struct $i { $($field)* }
+        }
+        #[cfg(not(feature = "extra_traits"))]
+        impl Copy for $i {}
+        impl Clone for $i {
+            fn clone(&self) -> $i { *self }
+        }
     )*)
 }
 
