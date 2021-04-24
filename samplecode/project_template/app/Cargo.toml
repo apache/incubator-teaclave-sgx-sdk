@@ -1,0 +1,11 @@
+[package]
+name = "app"
+version = "1.0.0"
+authors = ["Teaclave"]
+build = "build.rs"
+
+[dependencies] # You can specify the features you need for urts, such as global_exit and global_init
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git"}
+
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']

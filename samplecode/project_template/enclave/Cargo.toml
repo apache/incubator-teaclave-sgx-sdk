@@ -1,0 +1,23 @@
+[package]
+name = "template"
+version = "1.0.0"
+authors = ["The Teaclave Authors"]
+
+[lib]
+name = "sample" # Library name. If you change this, please reflect those changes in the Makefile on the variable ENCLAVE_CARGO_LIB
+crate-type = ["staticlib"] 
+
+[features]
+default = []
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies] # You can remove what you don't need, except types and tstd
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = ["backtrace"] }
+sgx_tcrypto = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tseal = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_serialize = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_alloc = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_libc = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
