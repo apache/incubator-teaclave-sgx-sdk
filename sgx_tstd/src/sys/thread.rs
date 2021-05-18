@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_types::sgx_status_t;
+use sgx_types::{sgx_ocalloc, sgx_ocfree, sgx_status_t};
 use core::cmp;
 use core::mem;
 use core::ptr;
@@ -66,8 +66,14 @@ impl Thread {
         const PR_SET_NAME: libc::c_int = 15;
         // pthread wrapper only appeared in glibc 2.12, so we use syscall
         // directly.
+        let name = name.to_bytes_with_nul();
         unsafe {
-            libc::prctl(PR_SET_NAME, name.as_ptr() as libc::c_ulong, 0, 0, 0);
+            let ptr = sgx_ocalloc(name.len());
+            if !ptr.is_null() {
+                ptr::copy_nonoverlapping(name.as_ptr() as *const u8, ptr as *mut u8, name.len());
+                libc::prctl(PR_SET_NAME, ptr as libc::c_ulong, 0, 0, 0);
+                sgx_ocfree();
+            }
         }
     }
 
