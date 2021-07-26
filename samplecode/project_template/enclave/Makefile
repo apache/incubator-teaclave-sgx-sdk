@@ -37,7 +37,7 @@ OUTPUT_W_FU=$(addprefix $(OBJ_U), $(OUTPUT_U))
 FILES_T_F=$(addprefix $(SRC_T), $(FILES_T))
 FILES_T_F_RUST=$(addprefix $(SRC_T), $(FILES_T_RUST))
 OUTPUT_W_FT=$(addprefix $(OBJ_T), $(OUTPUT_T))
-FILES_RUST_F= $(wildcard $(SRC_RST)*.rs) # Wildcare function used, no need to specify the rust files. Safe as we don't compile the rust files with the makefile.
+FILES_RUST_F= $(wildcard $(SRC_RST)*.rs) # Wildcard function used, no need to specify the rust files. Safe as we don't compile the rust files with the makefile.
 
 # Contains compilation rules for the enclave part
 

@@ -26,13 +26,13 @@ BIN_U = $(addprefix $(BIN), $(APP_U))
 NAME_U_D = $(addprefix $(LIB), $(NAME_U))
 FILES_U_F=$(addprefix $(SRC_U), $(FILES_U))
 OUTPUT_W_FU=$(addprefix $(OBJ_U), $(OUTPUT_U))
-FILES_RUST_F= $(wildcard $(SRC_RST)*.rs) # Wildcare function used, no need to specify the rust files. Safe as we don't compile the rust files with the makefile.
+FILES_RUST_F= $(wildcard $(SRC_RST)*.rs) # Wildcard function used, no need to specify the rust files. Safe as we don't compile the rust files with the makefile.
 
 # Contains compilation rules for the enclave part
 
 include ../buildenv.mk
 
-# Custom librairies, EDL paths. Needs to be specified with make (CUSTOM_EDL_PATH) (CUSTOM_COMMON_PATH)
+# Custom libraries, EDL paths. Needs to be specified with make (CUSTOM_EDL_PATH) (CUSTOM_COMMON_PATH)
 
 # Directly imported from the original Intel SGX samples, helpful to detect the system architecture
 
