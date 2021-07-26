@@ -9,7 +9,7 @@ NAME_U = libEnclave_u.a
 SRC_U = ./
 SRC_T = ../enclave/
 OBJ_U = ../obj/
-SGX_SDK = /opt/sgxsdk
+SGX_SDK ?= /opt/sgxsdk
 FLAGS = -Wall -Wextra
 GCC_STEP1_U = -I $(SRC_U) -I./include -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH) -fPIC -Wno-attributes $(SGX_COMMON_CFLAGS)
 FILES_U = Enclave_u.c 
@@ -17,7 +17,6 @@ FILES_U_H = Enclave_u.h
 BUILD_RS = build.rs
 TOML = Cargo.toml 
 SGX_ARCH = x64
-SGX_SDK = /opt/sgxsdk
 TRTS_LIB = sgx_trts
 SERVICE_LIB = sgx_tservice
 # Addprefix dependant variables, no need to change those

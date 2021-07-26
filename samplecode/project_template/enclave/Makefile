@@ -9,7 +9,7 @@ NAME_T = libenclave.a
 SRC_U = ../app/
 SRC_T = ./
 OBJ_T = ../obj/
-SGX_SDK = /opt/sgxsdk
+SGX_SDK ?= /opt/sgxsdk
 FLAGS = -Wall -Wextra
 GCC_STEP1_T = -fstack-protector -I$(CUSTOM_COMMON_PATH)/inc -I$(CUSTOM_EDL_PATH) -I$(SGX_SDK)/include \
 	-I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/stlport -I$(SGX_SDK)/include/epid -I $(SRC_T) \
@@ -24,7 +24,6 @@ EDL_FILE = Enclave.edl
 TOML = Cargo.toml
 ENCLAVE_CONFIG = Enclave.config.xml
 SGX_ARCH = x64
-SGX_SDK = /opt/sgxsdk
 TRTS_LIB = sgx_trts
 SERVICE_LIB = sgx_tservice
 ENCLAVE_CARGO_LIB=libsample.a # This is the name of the enclave static library compiled by Cargo/Xargo. You will have to change it, depending of your project.
