@@ -1,7 +1,7 @@
 # Rust SGX - Template project
 ==================================
 
-### This is a template project to start developing with the Teaenclave Rust SGX SDK (https://github.com/apache/incubator-teaclave-sgx-sdk/) easily.
+### This is a template project to start developing with the Rust SGX SDK (https://github.com/apache/incubator-teaclave-sgx-sdk/) easily.
 
 You will find in its template:
 - Makefiles to build your project easily, and link the ```SGX EDL C``` generated files to your Rust SGX projects
@@ -39,7 +39,7 @@ You can find those files in this template:
 You need to follow a few steps to use this template properly:
 - Add your ```.rs``` files to the ```src/``` folders (```lib.rs``` / your enclave source code goes in ```enclave/src```, your host/app source code goes in ```app/src```), or modify the ```.rs``` files already included with the project
 - Add your own ```Enclave.edl``` file, or modify the one joined in the project.
-- Change the ```Cargo.toml (or/and Xargo.toml if you want to use Xargo)``` files depending of your needs (adding/removing dependences). 
+- Change the ```Cargo.toml (or/and Xargo.toml if you want to use Xargo)``` files depending on of your needs (adding/removing dependencies).
     - Be careful if you want to change the library name on the ```Cargo.toml``` file (enclave part), you will need to reflect this change on the enclave ```Makefile```, more specifically on the ```ENCLAVE_CARGO_LIB``` variable, and on the ```lib.rs``` file.
     - If you need to change the app/host name, please make sure to edit the host ```Makefile```, and change the variable ```APP_U```.
 
@@ -49,7 +49,7 @@ You need to follow a few steps to use this template properly:
 
 Once you downloaded the Rust SGX SDK, you have multiple ways to start the building process: 
 - Run this command: ```CUSTOM_EDL_PATH=~/teaenclave/edl CUSTOM_COMMON_PATH=~/teaenclave/common make``` (replace ```~/teaenclave``` by the actual SDK location)
-- You can also run the command export (```export CUSTOM_EDL_PATH=~/teaenclave/edl```), and specify the variables before calling make. It is adviced to add this command on your ```.bashrc``` file (if you use bash), or your favorite shell configuration file.
+- You can also run the command export (```export CUSTOM_EDL_PATH=~/teaenclave/edl```), and specify the variables before calling make. It is advised to add this command on your ```.bashrc``` file (if you use bash), or your favorite shell configuration file.
 
 ### By default, your project will be compiled in hardware mode. If you wish to compile your project in software/simulation mode, you will need to specify it, either by adding ```SGX_MODE=SW``` before make, or by setting the SGX_MODE variable environment to SW.
 
@@ -62,9 +62,9 @@ Once you downloaded the Rust SGX SDK, you have multiple ways to start the buildi
 - make clean (will clean the objects/C edl files generated)
 - make clean_host (will clean the objects/C edl files generated for the host only)
 - make clean_enclave (will clean the objects/C edl files generated for the enclave only)
-- make fclean (will clean objects/C edl files and the binairies, plus calling cargo clean for everything)
-- make fclean_host (will clean objects/C edl files and the binairies, plus calling cargo clean for the host only)
-- make fclean_enclave (will clean objects/C edl files and the binairies, plus calling cargo clean for the enclave only)
+- make fclean (will clean objects/C edl files and the binaries, plus calling cargo clean for everything)
+- make fclean_host (will clean objects/C edl files and the binaries, plus calling cargo clean for the host only)
+- make fclean_enclave (will clean objects/C edl files and the binaries, plus calling cargo clean for the enclave only)
 - make re (re as relink, will clean everything then compile everything again)
 - make re_host (re as relink, will clean the host part then compile it again)
 - make re_enclave (re as relink, will clean the enclave part then compile it again)
