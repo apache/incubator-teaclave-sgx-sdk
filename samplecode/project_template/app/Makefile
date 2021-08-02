@@ -12,10 +12,10 @@ OBJ_U = ../obj/
 SGX_SDK ?= /opt/sgxsdk
 FLAGS = -Wall -Wextra
 GCC_STEP1_U = -I $(SRC_U) -I./include -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH) -fPIC -Wno-attributes $(SGX_COMMON_CFLAGS)
-FILES_U = Enclave_u.c 
+FILES_U = Enclave_u.c
 FILES_U_H = Enclave_u.h
 BUILD_RS = build.rs
-TOML = Cargo.toml 
+TOML = Cargo.toml
 SGX_ARCH = x64
 TRTS_LIB = sgx_trts
 SERVICE_LIB = sgx_tservice
@@ -111,7 +111,6 @@ fclean_host:
 	@rm -f $(BIN_U)
 	@rm -f $(NAME_U_D)
 	@cargo clean && rm -f Cargo.lock
-
 
 c_clean:
 	@echo "\033[32mC edl generated files deleted\033[0m"

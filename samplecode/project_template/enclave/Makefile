@@ -18,7 +18,7 @@ GCC_STEP2_T = -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_
 	-Wl,--whole-archive -l$(TRTS_LIB) -Wl,--no-whole-archive \
 	-Wl,--start-group -lsgx_tstdc -l$(SERVICE_LIB) -lsgx_tcrypto -L$(LIB) -lenclave -Wl,--end-group \
 	-Wl,--version-script=$(SRC_T)Enclave.lds $(ENCLAVE_LDFLAGS)
-FILES_T = Enclave_t.c 
+FILES_T = Enclave_t.c
 FILES_T_H = Enclave_t.h
 EDL_FILE = Enclave.edl
 TOML = Cargo.toml
@@ -70,7 +70,6 @@ else ifeq ($(MITIGATION-CVE-2020-0551), CF)
 export MITIGATION_CVE_2020_0551=CF
 endif
 
-
 # If specified, software / simulation mode. Otherwise, hardware mode no matter what.
 
 ifeq ($(SGX_MODE), SW)
@@ -106,7 +105,7 @@ endif
 
 $(BIN_T): $(NAME_T_D)
 	@echo "\033[32mBuilding the enclave...\033[0m"
-	@$(CXX) $(OUTPUT_W_FT) -o $@ $(GCC_STEP2_T) 
+	@$(CXX) $(OUTPUT_W_FT) -o $@ $(GCC_STEP2_T)
 
 $(NAME_T_D): $(FILES_T_F) $(OUTPUT_W_FT) $(FILES_RUST_F) $(EDL_FILE) $(ENCLAVE_CONFIG) $(TOML) # We added as a reference the rust files, along with the EDL, the XML config file and the cargo.toml file, so Make can detect if any change was made
 ifeq ($(XARGO_SGX), 1) # Building with Xargo
@@ -134,7 +133,7 @@ clean: c_clean
 
 fclean: clean fclean_enclave
 
-fclean_enclave: 
+fclean_enclave:
 	@echo "\033[32mBinary file $(NAME) deleted\033[0m"
 	@rm -f $(NAME)
 	@rm -f $(BIN_T)
