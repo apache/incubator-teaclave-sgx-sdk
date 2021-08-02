@@ -73,7 +73,6 @@
     all(target_env = "sgx", target_vendor = "mesalock"),
     feature(rustc_private)
 )]
-#![feature(const_fn)]
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]

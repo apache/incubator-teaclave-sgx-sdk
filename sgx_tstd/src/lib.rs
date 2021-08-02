@@ -57,7 +57,6 @@
 #![feature(cfg_target_has_atomic)]
 #![feature(char_error_internals)]
 #![feature(concat_idents)]
-#![feature(const_fn)]
 #![feature(const_fn_fn_ptr_basics)]
 #![feature(core_intrinsics)]
 #![feature(custom_test_frameworks)]
