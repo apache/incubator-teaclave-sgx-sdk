@@ -1,3 +1,6 @@
+---
+permalink: /sgx-sdk-docs/sgx_in_mesalock_linux
+---
 # Run Rust SGX Applications in Mesalock Linux
 
 MesaLock Linux is a general purpose Linux distribution which aims to provide a safe and secure user space environment. To eliminate high-severe vulnerabilities caused by memory corruption, the whole user space applications are rewritten in memory-safe programming languages like Rust and Go. This extremely reduces attack surfaces of an operating system exposed in the wild, leaving the remaining attack surfaces auditable and restricted.  Therefore, MesaLock Linux can substantially improve the security of the Linux ecosystem. Additionally, thanks to the Linux kernel, MesaLock Linux supports a broad hardware environment, making it deployable in many places. Two main usage scenarios of MesaLock Linux are for containers and security-sensitive embedded devices. With the growth of the ecosystem, MesaLock Linux would also be adopted in the server environment in the future.
@@ -8,7 +11,7 @@ We believe that running Rust SGX applications inside Mesalock Linux could improv
 
 A typical Rust SGX application has at least to components: one enclave, and one untrusted component. The enclave is self-contained and doesn't need dynamic loading. The untrusted component depends on `liburts` (untrusted runtime service library), which depends on the Application Enclave Services Manager library.
 
-We show the dependency tree as follows. In this tree, we hide all the dynamic libraries which already exist in Mesalock Linux. 
+We show the dependency tree as follows. In this tree, we hide all the dynamic libraries which already exist in Mesalock Linux.
 
 ```bash
 SGX Application
@@ -28,7 +31,7 @@ We refined the rules-of-thumb for hybrid memory-safe architecture designing and 
 
 1. Unsafe components must not taint safe components, especially for public APIs and data structures.
 2. Unsafe components should be as small as possible and decoupled from safe components.
-3. Unsafe components should be explicitly marked during deployment and ready to upgrade. 
+3. Unsafe components should be explicitly marked during deployment and ready to upgrade.
 
 Hence, we believe that running Rust SGX applications in Mesalock Linux could provide better security guarantees if they follow the memory safety principles.
 
@@ -44,7 +47,7 @@ For step 2, the Intel AESM service is required. Technically, Intel AESM service 
 
 There are two options for running the aesm service: (1) start `aesmd` inside the Mesalock Linux container, or (2) start `aesmd` on the host OS and provide service to the SGX application inside the container. The first method provides better isolation for `aesmd`, but it would start a set of infrastructure enclaves for each docker container, wasting the limited EPC memory. The second one only launches one set of infrastructure enclaves for all SGX containers and we believe it is more efficient.
 
-In our current solution, we put the AESM service process `aesmd` outside the Mesalock Linux docker container and only expose the domain socket `/var/run/aesm/aesm.socket` to the container. In this way, we isolate the AESM service along with the six foundation enclaves (Launch Enclave/Quoting Enclave/Provisioning Enclave/Provisioning Certification Enclave/Platform Service Enclave for long term pairing/Platform Service Enclave for session management) from Mesalock Linux docker container. 
+In our current solution, we put the AESM service process `aesmd` outside the Mesalock Linux docker container and only expose the domain socket `/var/run/aesm/aesm.socket` to the container. In this way, we isolate the AESM service along with the six foundation enclaves (Launch Enclave/Quoting Enclave/Provisioning Enclave/Provisioning Certification Enclave/Platform Service Enclave for long term pairing/Platform Service Enclave for session management) from Mesalock Linux docker container.
 
 ![overview](mesa.png)
 
@@ -113,5 +116,3 @@ All these runtime shared libraries come from official releases, including Intel 
 | libsgx_urts.so | 166376 | 05a15c27432bded48b49b98f94649b4e90abaedbb4ce8f3c44baa1ff5ce2493d | [sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin](https://download.01.org/intel-sgx/linux-2.0/sgx_linux_ubuntu16.04.1_x64_psw_2.0.100.40950.bin) |
 | libstdc++.so.6 | 1594800 | 5e68ec758e36fb2db90f6be673cf4112d144a2f29ba400cd5c6e0c8e56ad9408 | [libstdc++6_7.2.0-1ubuntu1~16.04_amd64.deb](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test/+files/libstdc++6_7.2.0-1ubuntu1~16.04_amd64.deb) |
 | libz.so.1 | 104864 | a04cab74df9c7f96f82b34286bda5d4ee810feaac92dd2e8bcfe931d9c8baef4 | [zlib1g_1.2.11.dfsg-0ubuntu1_amd64.deb](http://us.archive.ubuntu.com/ubuntu/pool/main/z/zlib/zlib1g_1.2.11.dfsg-0ubuntu1_amd64.deb) |
-
-

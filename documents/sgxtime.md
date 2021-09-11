@@ -1,3 +1,6 @@
+---
+permalink: /sgx-sdk-docs/sgxtime
+---
 # Acquiring Trusted timestamp from Intel ME in SGX enclave
 
 Intel provides Trusted Platform Service via Intel Management Engine. Part of the Intel SGX features depend on the trusted platform service, including the trusted timestamp service. We implemented `sgx_tservice::SgxTime` for this feature. To use it in Linux, the prerequisites are:
@@ -117,4 +120,3 @@ Install iclsClient following Intel's setup [instruction](https://download.01.org
 Next, uninstall the current PSW (if installed) and reinstall it.
 
 Now, `sgxtime` should work.
-
