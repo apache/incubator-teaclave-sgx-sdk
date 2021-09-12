@@ -35,6 +35,7 @@ fn build_libunwind(host: &str, target: &str) -> Result<(), ()> {
         "autom4te.cache",
         "Makefile.in",
         "config.h.in",
+        "config.h.in~",
         "configure",
         "aclocal.m4",
         "INSTALL"];
