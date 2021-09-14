@@ -34,7 +34,7 @@ permalink: /sgx-sdk-docs/developing-with-vscode
 
 ### Create an rls-friendly Teaclave SGX SDK project.
 
-[hello-rust-vscode-debug](https://github.com/baidu/rust-sgx-sdk/tree/master/samplecode/hello-rust-vscode-debug)
+[hello-rust-vscode-debug](https://github.com/apacher/incubator-teaclave-sgx-sdk/tree/master/samplecode/hello-rust-vscode-debug)
 is an example. Differences between this and `hello-rust` are:
 1. An extra `Cargo.toml` at the root, which contains two Rust crates: `app` and `enclave`. This change would result in changing the path of `target` folders.
 2. Tweak `Makefile` and `enclave/Makefile` and correct the path of `target` folders.
