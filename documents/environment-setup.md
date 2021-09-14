@@ -82,7 +82,7 @@ $ docker run -ti --rm -v /path/to/sdk:/root/sgx \
 root@913e6a00c8d8:~#
 ```
 
-(Optional) Install iCls and jhi daemon. Steps are [here](https://github.com/baidu/rust-sgx-sdk/blob/5b8c9c9027b40a1948480a32a9277c301c09cd1f/dockerfile/Dockerfile.1604.nightly#L50)
+(Optional) Install iCls and jhi daemon. Steps are [here](https://github.com/apache/incubator-teaclave-sgx-sdk/blob/master/dockerfile/Dockerfile.1604.nightly#L50)
 
 (Optional) Start jhi daemon: `jhid -d`
 
@@ -120,7 +120,7 @@ $ ./app
 
 ### Use docker with hardware support, and run aesm outside docker (on the host OS)
 
-![overview](https://github.com/baidu/rust-sgx-sdk/raw/master/documents/mesa.png)
+![overview](https://github.com/apache/incubator-teaclave-sgx-sdk/raw/master/documents/mesa.png)
 
 Just add another device mapping to the command to have `aesm.socket` works in SGX. This requires step 3 finished on the host OS and `/var/run/aesmd/aesm.socket` exists on the host OS.
 

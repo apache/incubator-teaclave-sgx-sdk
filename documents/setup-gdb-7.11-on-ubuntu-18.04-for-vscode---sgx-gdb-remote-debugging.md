@@ -20,7 +20,7 @@ A short description of the process needed in order to use GDB to remotely debug 
 ```
   $ source ${sgx-sdk-install-path}/environment  
 ```
-3. As documented here : https://github.com/baidu/rust-sgx-sdk/wiki/Debugging-a-local-Rust-SGX-enclave-in-docker-with-sgx-gdb#before-start , an older version of GDB debugger has to be utilized for debugging.  The steps to use gdb-7.11.1 are
+3. As documented [here](debugging-a-local-rust-sgx-enclave-in-docker-with-sgx-gdb.md) , an older version of GDB debugger has to be utilized for debugging.  The steps to use gdb-7.11.1 are
 
 - get the source code of version 7.11.1 :
 ```
@@ -67,4 +67,4 @@ If GDB 7.11.1 is desired to be located in a different location, two symbolic lin
  cd python
  sudo ln -s /opt/gdb-7.11.1/gdb/data-directory/python/gdb/ /usr/local/share/gdb/python/
 ```
-4. Up until this point, local debugging should be successful. The final step is to use VS Code, by following the steps described here: https://github.com/baidu/rust-sgx-sdk/wiki/Use-VSCode---rls---rust-analysis---sgx-gdb-for-graphic-developing-(not-in-docker)
+4. Up until this point, local debugging should be successful. The final step is to use VS Code, by following the steps described [here](use-vscode---rls---rust-analysis---sgx-gdb-for-graphic-developing-(not-in-docker).

@@ -14,7 +14,7 @@ As of today (03/19/2019), `sgx-gdb` cannot work well with gdb > 7.12. In this wi
 
 # Prepare the code
 
-Let's use [hello-rust](https://github.com/baidu/rust-sgx-sdk/tree/master/samplecode/hello-rust) as debuggee. We need to add debug info for all of the Rust/C codes.
+Let's use [hello-rust](https://github.com/apache/incubator-teaclave-sgx-sdk/tree/master/samplecode/hello-rust) as debuggee. We need to add debug info for all of the Rust/C codes.
 
 First, switch to debug build for the Rust codes. In the root Makefile of hello-rust, remove the `--release` Rust flag and fix the path:
 ```diff

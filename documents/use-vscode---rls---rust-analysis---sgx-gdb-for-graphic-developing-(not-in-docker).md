@@ -34,7 +34,7 @@ My personal setup is:
 
 ## Create an rls-friendly rust-sgx project.
 
-[hello-rust-vscode-debug](https://github.com/baidu/rust-sgx-sdk/tree/master/samplecode/hello-rust-vscode-debug) is an example. Differences between this and `hello-rust` are:
+[hello-rust-vscode-debug](https://github.com/apache/incubator-teaclave-sgx-sdk/tree/master/samplecode/hello-rust-vscode-debug) is an example. Differences between this and `hello-rust` are:
 1. An extra `Cargo.toml` at the root, which contains two Rust crates: `app` and `enclave`. This change would result in changing the path of `target` folders.
 2. Tweak `Makefile` and `enclave/Makefile` and correct the path of `target` folders.
 3. Tweak `Makefile` and `enclave/Makefile` to enable debug compilation. Changes include: (1) remove `--release` in `cargo build`, (2) add `-ggdb` to `SGX_COMMON_FLAGS`.
