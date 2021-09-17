@@ -22,6 +22,8 @@ use alloc::vec::Vec;
 use alloc::boxed::Box;
 use core::ptr;
 use core::mem;
+use core::convert::TryInto;
+use core::cmp;
 
 const MAX_OCALL_ALLOC_SIZE: size_t = 0x4000; //16K
 extern "C" {
@@ -1372,7 +1374,7 @@ pub unsafe fn read(fd: c_int, buf: *mut c_void, count: size_t) -> ssize_t {
     }
 
     if result != -1 {
-        ptr::copy_nonoverlapping(tmp_buf as *const u8, buf as *mut u8, count);
+        ptr::copy_nonoverlapping(tmp_buf as *const u8, buf as *mut u8, cmp::min(count, result.try_into().unwrap_or(0)));
     }
     if count <= MAX_OCALL_ALLOC_SIZE {
         sgx_ocfree();
@@ -1423,7 +1425,7 @@ pub unsafe fn pread64(fd: c_int, buf: *mut c_void, count: size_t, offset: off64_
     }
 
     if result != -1 {
-        ptr::copy_nonoverlapping(tmp_buf as *const u8, buf as *mut u8, count);
+        ptr::copy_nonoverlapping(tmp_buf as *const u8, buf as *mut u8, cmp::min(count, result.try_into().unwrap_or(0)));
     }
     if count <= MAX_OCALL_ALLOC_SIZE {
         sgx_ocfree();
@@ -1488,8 +1490,18 @@ pub unsafe fn readv(fd: c_int, iov: *const iovec, iovcnt: c_int) -> ssize_t {
     }
 
     if result != -1 {
+        let mut remaining_bytes : usize = result.try_into().unwrap_or(0);
         for i in 0..v.len() {
-            ptr::copy_nonoverlapping(tmpiovec[i].iov_base as *const u8, v[i].iov_base as *mut u8, v[i].iov_len as usize);
+            if remaining_bytes == 0 {
+                break;
+            }
+            // Here, we only copy the remaining bytes if there are less than the iov_len.
+            // Otherwise, the default 0s are copied into the buffer and overwrite data that should not be overwritten.
+            ptr::copy_nonoverlapping(
+                tmpiovec[i].iov_base as *const u8,
+                v[i].iov_base as *mut u8,
+                cmp::min(v[i].iov_len, remaining_bytes));
+            remaining_bytes = remaining_bytes.saturating_sub(v[i].iov_len);
         }
     }
 
@@ -1553,8 +1565,13 @@ pub unsafe fn preadv64(fd: c_int, iov: *const iovec, iovcnt: c_int, offset: off6
     }
 
     if result != -1 {
+        let mut remaining_bytes : usize = result.try_into().unwrap_or(0);
         for i in 0..v.len() {
-            ptr::copy_nonoverlapping(tmpiovec[i].iov_base as *const u8, v[i].iov_base as *mut u8, v[i].iov_len as usize);
+            if remaining_bytes == 0 {
+                break;
+            }
+            ptr::copy_nonoverlapping(tmpiovec[i].iov_base as *const u8, v[i].iov_base as *mut u8, cmp::min(v[i].iov_len, remaining_bytes));
+            remaining_bytes = remaining_bytes.saturating_sub(v[i].iov_len);
         }
     }
 
