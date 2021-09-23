@@ -9,15 +9,14 @@ NAME_U = libEnclave_u.a
 SRC_U = ./
 SRC_T = ../enclave/
 OBJ_U = ../obj/
-SGX_SDK = /opt/sgxsdk
+SGX_SDK ?= /opt/sgxsdk
 FLAGS = -Wall -Wextra
 GCC_STEP1_U = -I $(SRC_U) -I./include -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH) -fPIC -Wno-attributes $(SGX_COMMON_CFLAGS)
-FILES_U = Enclave_u.c 
+FILES_U = Enclave_u.c
 FILES_U_H = Enclave_u.h
 BUILD_RS = build.rs
-TOML = Cargo.toml 
+TOML = Cargo.toml
 SGX_ARCH = x64
-SGX_SDK = /opt/sgxsdk
 TRTS_LIB = sgx_trts
 SERVICE_LIB = sgx_tservice
 # Addprefix dependant variables, no need to change those
@@ -26,13 +25,13 @@ BIN_U = $(addprefix $(BIN), $(APP_U))
 NAME_U_D = $(addprefix $(LIB), $(NAME_U))
 FILES_U_F=$(addprefix $(SRC_U), $(FILES_U))
 OUTPUT_W_FU=$(addprefix $(OBJ_U), $(OUTPUT_U))
-FILES_RUST_F= $(wildcard $(SRC_RST)*.rs) # Wildcare function used, no need to specify the rust files. Safe as we don't compile the rust files with the makefile.
+FILES_RUST_F= $(wildcard $(SRC_RST)*.rs) # Wildcard function used, no need to specify the rust files. Safe as we don't compile the rust files with the makefile.
 
 # Contains compilation rules for the enclave part
 
 include ../buildenv.mk
 
-# Custom librairies, EDL paths. Needs to be specified with make (CUSTOM_EDL_PATH) (CUSTOM_COMMON_PATH)
+# Custom libraries, EDL paths. Needs to be specified with make (CUSTOM_EDL_PATH) (CUSTOM_COMMON_PATH)
 
 # Directly imported from the original Intel SGX samples, helpful to detect the system architecture
 
@@ -112,7 +111,6 @@ fclean_host:
 	@rm -f $(BIN_U)
 	@rm -f $(NAME_U_D)
 	@cargo clean && rm -f Cargo.lock
-
 
 c_clean:
 	@echo "\033[32mC edl generated files deleted\033[0m"
