@@ -230,11 +230,7 @@ impl SignalManager {
     }
 
     pub fn get_action(&self, signo: SigNum) -> Option<ActionSlot> {
-        if let Some(slot) = self.action_set.lock().unwrap().get(&signo) {
-            Some(slot.clone())
-        } else {
-            None
-        }
+        self.action_set.lock().unwrap().get(&signo).cloned()
     }
 
     pub fn remove_action(&self, signo: SigNum, id: ActionId) -> bool {

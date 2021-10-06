@@ -26,3 +26,5 @@ pub use core::num::Wrapping;
 pub use core::num::{FpCategory, ParseFloatError, ParseIntError, TryFromIntError};
 pub use core::num::{NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize};
 pub use core::num::{NonZeroU128, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize};
+
+pub use core::num::IntErrorKind;

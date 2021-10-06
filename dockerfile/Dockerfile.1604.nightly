@@ -39,7 +39,7 @@ RUN bash /root/04_psw.sh
 
 # Seventh, Rust
 
-ENV rust_toolchain  nightly-2020-10-25
+ENV rust_toolchain  nightly-2021-09-13
 ADD 05_rust.sh /root
 RUN bash /root/05_rust.sh
 

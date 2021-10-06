@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use crate::cell::RefCell;
 use crate::thread::SgxThread;
-use core::cell::RefCell;
 
 struct SgxThreadInfo {
     thread: SgxThread,

@@ -15,14 +15,15 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use alloc_crate::collections::LinkedList;
-use core::cell::UnsafeCell;
+use crate::cell::UnsafeCell;
+use crate::collections::LinkedList;
 use crate::sync::SgxThreadSpinlock;
-use crate::time::Duration;
-use crate::thread::rsgx_thread_self;
 use crate::sys::mutex;
+use crate::thread::rsgx_thread_self;
+use crate::time::Duration;
+
+use sgx_libc as libc;
 use sgx_trts::enclave::SgxThreadData;
-use sgx_trts::libc;
 use sgx_types::{sgx_thread_t, SysError, SGX_THREAD_T_NULL};
 
 struct SgxThreadRwLockInner {
@@ -162,8 +163,8 @@ impl SgxThreadRwLockInner {
         if self.reader_count == 0 {
             let waiter = self.reader_queue.front();
             self.lock.unlock();
-            if waiter.is_some() {
-                mutex::thread_set_event(SgxThreadData::from_raw(*waiter.unwrap()).get_tcs());
+            if let Some(td) = waiter {
+                mutex::thread_set_event(SgxThreadData::from_raw(*td).get_tcs());
             }
         } else {
             self.lock.unlock();
@@ -192,8 +193,8 @@ impl SgxThreadRwLockInner {
         } else {
             let waiter = self.writer_queue.front();
             self.lock.unlock();
-            if waiter.is_some() {
-                mutex::thread_set_event(SgxThreadData::from_raw(*waiter.unwrap()).get_tcs());
+            if let Some(td) = waiter {
+                mutex::thread_set_event(SgxThreadData::from_raw(*td).get_tcs());
             }
         }
         Ok(())
@@ -223,6 +224,8 @@ impl SgxThreadRwLockInner {
         ret
     }
 }
+
+pub type SgxMovableThreadRwLock = Box<SgxThreadRwLock>;
 
 unsafe impl Send for SgxThreadRwLock {}
 unsafe impl Sync for SgxThreadRwLock {}

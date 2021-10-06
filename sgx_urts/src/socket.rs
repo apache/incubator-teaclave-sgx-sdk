@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use libc::{self, c_int, c_void, msghdr, size_t, sockaddr, socklen_t, ssize_t};
+use libc::{self, c_int, c_void, iovec, msghdr, size_t, sockaddr, socklen_t, ssize_t};
 use std::io::Error;
 
 #[no_mangle]
@@ -209,14 +209,47 @@ pub extern "C" fn u_recvfrom_ocall(
 pub extern "C" fn u_recvmsg_ocall(
     error: *mut c_int,
     sockfd: c_int,
-    msg: *mut msghdr,
+    msg_name: *mut c_void,
+    msg_namelen: socklen_t,
+    msg_namelen_out: *mut socklen_t,
+    msg_iov: *mut iovec,
+    msg_iovlen: usize,
+    msg_control: *mut c_void,
+    msg_controllen: usize,
+    msg_controllen_out: *mut usize,
+    msg_flags: *mut c_int,
     flags: c_int,
 ) -> ssize_t {
+    if msg_namelen_out.is_null() || msg_controllen_out.is_null() || msg_flags.is_null() {
+        if !error.is_null() {
+            unsafe {
+                *error = libc::EINVAL;
+            }
+        }
+        return -1;
+    }
+
     let mut errno = 0;
-    let ret = unsafe { libc::recvmsg(sockfd, msg, flags) };
+    let mut msg = msghdr {
+        msg_name,
+        msg_namelen,
+        msg_iov,
+        msg_iovlen,
+        msg_control,
+        msg_controllen,
+        msg_flags: 0,
+    };
+    let ret = unsafe { libc::recvmsg(sockfd, &mut msg, flags) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    } else {
+        unsafe {
+            *msg_namelen_out = msg.msg_namelen;
+            *msg_controllen_out = msg.msg_controllen;
+            *msg_flags = msg.msg_flags;
+        }
     }
+
     if !error.is_null() {
         unsafe {
             *error = errno;
@@ -273,11 +306,25 @@ pub extern "C" fn u_sendto_ocall(
 pub extern "C" fn u_sendmsg_ocall(
     error: *mut c_int,
     sockfd: c_int,
-    msg: *const msghdr,
+    msg_name: *mut c_void,
+    msg_namelen: socklen_t,
+    msg_iov: *mut iovec,
+    msg_iovlen: usize,
+    msg_control: *mut c_void,
+    msg_controllen: usize,
     flags: c_int,
 ) -> ssize_t {
     let mut errno = 0;
-    let ret = unsafe { libc::sendmsg(sockfd, msg, flags) };
+    let msg = msghdr {
+        msg_name,
+        msg_namelen,
+        msg_iov,
+        msg_iovlen,
+        msg_control,
+        msg_controllen,
+        msg_flags: 0,
+    };
+    let ret = unsafe { libc::sendmsg(sockfd, &msg, flags) };
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }

@@ -53,40 +53,41 @@ static GLOBAL_COND_BUFFER: AtomicPtr<()> = AtomicPtr::new(0 as * mut ());
 
 #[no_mangle]
 pub extern "C" fn ecall_initialize() {
-
-    let lock = Box::new((SgxMutex::<CondBuffer>::new(CondBuffer::default()), SgxCondvar::new(), SgxCondvar::new()));
+    let lock = Box::new((
+        SgxMutex::<CondBuffer>::new(CondBuffer::default()),
+        SgxCondvar::new(),
+        SgxCondvar::new(),
+    ));
     let ptr = Box::into_raw(lock);
     GLOBAL_COND_BUFFER.store(ptr as *mut (), Ordering::SeqCst);
 }
 
 #[no_mangle]
 pub extern "C" fn ecall_uninitialize() {
-
-    let ptr = GLOBAL_COND_BUFFER.swap(0 as * mut (), Ordering::SeqCst) as * mut (SgxMutex<CondBuffer>, SgxCondvar, SgxCondvar);
+    let ptr = GLOBAL_COND_BUFFER.swap(0 as *mut (), Ordering::SeqCst)
+        as *mut (SgxMutex<CondBuffer>, SgxCondvar, SgxCondvar);
     if ptr.is_null() {
-       return;
+        return;
     }
     let _ = unsafe { Box::from_raw(ptr) };
 }
 
-fn get_ref_cond_buffer() -> Option<&'static (SgxMutex<CondBuffer>, SgxCondvar, SgxCondvar)>
-{
-    let ptr = GLOBAL_COND_BUFFER.load(Ordering::SeqCst) as * mut (SgxMutex<CondBuffer>, SgxCondvar, SgxCondvar);
+fn get_ref_cond_buffer() -> Option<&'static (SgxMutex<CondBuffer>, SgxCondvar, SgxCondvar)> {
+    let ptr = GLOBAL_COND_BUFFER.load(Ordering::SeqCst)
+        as *mut (SgxMutex<CondBuffer>, SgxCondvar, SgxCondvar);
     if ptr.is_null() {
         None
     } else {
-        Some(unsafe { &* ptr })
+        Some(unsafe { &*ptr })
     }
 }
 
 #[no_mangle]
 pub extern "C" fn ecall_producer() {
-
     let max_index = 4 * LOOPS_PER_THREAD;
     let &(ref mutex, ref more, ref less) = get_ref_cond_buffer().unwrap();
 
     for _ in 0..max_index {
-
         let mut guard = mutex.lock().unwrap();
 
         while guard.occupied >= BUFFER_SIZE as i32 {
@@ -105,12 +106,10 @@ pub extern "C" fn ecall_producer() {
 
 #[no_mangle]
 pub extern "C" fn ecall_consumer() {
-
     let max_index = 4 * LOOPS_PER_THREAD;
     let &(ref mutex, ref more, ref less) = get_ref_cond_buffer().unwrap();
 
     for _ in 0..max_index {
-
         let mut guard = mutex.lock().unwrap();
 
         while guard.occupied <= 0 {

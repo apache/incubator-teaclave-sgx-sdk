@@ -16,13 +16,22 @@
 // under the License..
 
 //! Inspection and manipulation of the process's environment.
+//!
+//! This module contains functions to inspect various aspects such as
+//! environment variables, process arguments, the current directory, and various
+//! other important directories.
+//!
+//! There are several functions and structs in this module that have a
+//! counterpart ending in `os`. Those ending in `os` will return an [`OsString`]
+//! and those without will return a [`String`].
 
-use core::fmt;
+#![allow(clippy::needless_doctest_main)]
 use crate::error::Error;
 use crate::ffi::{OsStr, OsString};
+use crate::fmt;
+use crate::io;
 use crate::path::{Path, PathBuf};
 use crate::sys::os as os_imp;
-use crate::io;
 
 /// Returns the current working directory as a [`PathBuf`].
 ///
@@ -34,9 +43,17 @@ use crate::io;
 /// * Current directory does not exist.
 /// * There are insufficient permissions to access the current directory.
 ///
-/// [`PathBuf`]: ../../std/path/struct.PathBuf.html
-/// [`Err`]: ../../std/result/enum.Result.html#method.err
+/// # Examples
 ///
+/// ```
+/// use std::env;
+///
+/// fn main() -> std::io::Result<()> {
+///     let path = env::current_dir()?;
+///     println!("The current directory is {}", path.display());
+///     Ok(())
+/// }
+/// ```
 pub fn current_dir() -> io::Result<PathBuf> {
     os_imp::getcwd()
 }
@@ -45,28 +62,34 @@ pub fn current_dir() -> io::Result<PathBuf> {
 ///
 /// Returns an [`Err`] if the operation fails.
 ///
-/// [`Err`]: ../../std/result/enum.Result.html#method.err
+/// # Examples
 ///
+/// ```
+/// use std::env;
+/// use std::path::Path;
+///
+/// let root = Path::new("/");
+/// assert!(env::set_current_dir(&root).is_ok());
+/// println!("Successfully changed working directory to {}!", root.display());
+/// ```
 pub fn set_current_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
     os_imp::chdir(path.as_ref())
 }
 
 /// An iterator over a snapshot of the environment variables of this process.
 ///
-/// This structure is created by the [`std::env::vars`] function. See its
-/// documentation for more.
+/// This structure is created by [`env::vars()`]. See its documentation for more.
 ///
-/// [`std::env::vars`]: fn.vars.html
+/// [`env::vars()`]: vars
 pub struct Vars {
     inner: VarsOs,
 }
 
 /// An iterator over a snapshot of the environment variables of this process.
 ///
-/// This structure is created by the [`std::env::vars_os`] function. See
-/// its documentation for more.
+/// This structure is created by [`env::vars_os()`]. See its documentation for more.
 ///
-/// [`std::env::vars_os`]: fn.vars_os.html
+/// [`env::vars_os()`]: vars_os
 pub struct VarsOs {
     inner: os_imp::Env,
 }
@@ -81,10 +104,22 @@ pub struct VarsOs {
 /// # Panics
 ///
 /// While iterating, the returned iterator will panic if any key or value in the
-/// environment is not valid unicode. If this is not desired, consider using the
-/// [`env::vars_os`] function.
+/// environment is not valid unicode. If this is not desired, consider using
+/// [`env::vars_os()`].
 ///
-/// [`env::vars_os`]: fn.vars_os.html
+/// # Examples
+///
+/// ```
+/// use std::env;
+///
+/// // We will iterate through the references to the element returned by
+/// // env::vars();
+/// for (key, value) in env::vars() {
+///     println!("{}: {}", key, value);
+/// }
+/// ```
+///
+/// [`env::vars_os()`]: vars_os
 pub fn vars() -> Vars {
     Vars { inner: vars_os() }
 }
@@ -96,6 +131,21 @@ pub fn vars() -> Vars {
 /// variables at the time of this invocation. Modifications to environment
 /// variables afterwards will not be reflected in the returned iterator.
 ///
+/// Note that the returned iterator will not check if the environment variables
+/// are valid Unicode. If you want to panic on invalid UTF-8,
+/// use the [`vars`] function instead.
+///
+/// # Examples
+///
+/// ```
+/// use std::env;
+///
+/// // We will iterate through the references to the element returned by
+/// // env::vars_os();
+/// for (key, value) in env::vars_os() {
+///     println!("{:?}: {:?}", key, value);
+/// }
+/// ```
 pub fn vars_os() -> VarsOs {
     VarsOs { inner: os_imp::env() }
 }
@@ -112,7 +162,7 @@ impl Iterator for Vars {
 
 impl fmt::Debug for Vars {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.pad("Vars { .. }")
+        f.debug_struct("Vars").finish_non_exhaustive()
     }
 }
 
@@ -128,7 +178,7 @@ impl Iterator for VarsOs {
 
 impl fmt::Debug for VarsOs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.pad("VarsOs { .. }")
+        f.debug_struct("VarOs").finish_non_exhaustive()
     }
 }
 
@@ -136,15 +186,25 @@ impl fmt::Debug for VarsOs {
 ///
 /// # Errors
 ///
-/// * Environment variable is not present
-/// * Environment variable is not valid unicode
+/// This function will return an error if the environment variable isn't set.
 ///
-/// # Panics
+/// This function may return an error if the environment variable's name contains
+/// the equal sign character (`=`) or the NUL character.
 ///
-/// This function may panic if `key` is empty, contains an ASCII equals sign
-/// `'='` or the NUL character `'\0'`, or when the value contains the NUL
-/// character.
+/// This function will return an error if the environment variable's value is
+/// not valid Unicode. If this is not desired, consider using [`var_os`].
 ///
+/// # Examples
+///
+/// ```
+/// use std::env;
+///
+/// let key = "HOME";
+/// match env::var(key) {
+///     Ok(val) => println!("{}: {:?}", key, val),
+///     Err(e) => println!("couldn't interpret {}: {}", key, e),
+/// }
+/// ```
 pub fn var<K: AsRef<OsStr>>(key: K) -> Result<String, VarError> {
     _var(key.as_ref())
 }
@@ -157,16 +217,33 @@ fn _var(key: &OsStr) -> Result<String, VarError> {
 }
 
 /// Fetches the environment variable `key` from the current process, returning
-/// [`None`] if the variable isn't set.
+/// [`None`] if the variable isn't set or there's another error.
 ///
-/// [`None`]: ../option/enum.Option.html#variant.None
+/// Note that the method will not check if the environment variable
+/// is valid Unicode. If you want to have an error on invalid UTF-8,
+/// use the [`var`] function instead.
 ///
-/// # Panics
+/// # Errors
 ///
-/// This function may panic if `key` is empty, contains an ASCII equals sign
-/// `'='` or the NUL character `'\0'`, or when the value contains the NUL
-/// character.
+/// This function returns an error if the environment variable isn't set.
 ///
+/// This function may return an error if the environment variable's name contains
+/// the equal sign character (`=`) or the NUL character.
+///
+/// This function may return an error if the environment variable's value contains
+/// the NUL character.
+///
+/// # Examples
+///
+/// ```
+/// use std::env;
+///
+/// let key = "HOME";
+/// match env::var_os(key) {
+///     Some(val) => println!("{}: {:?}", key, val),
+///     None => println!("{} is not defined in the environment.", key)
+/// }
+/// ```
 pub fn var_os<K: AsRef<OsStr>>(key: K) -> Option<OsString> {
     _var_os(key.as_ref())
 }
@@ -177,9 +254,9 @@ fn _var_os(key: &OsStr) -> Option<OsString> {
 }
 
 /// The error type for operations interacting with environment variables.
-/// Possibly returned from the [`env::var`] function.
+/// Possibly returned from [`env::var()`].
 ///
-/// [`env::var`]: fn.var.html
+/// [`env::var()`]: var
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum VarError {
     /// The specified environment variable was not present in the current
@@ -204,6 +281,7 @@ impl fmt::Display for VarError {
 }
 
 impl Error for VarError {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match *self {
             VarError::NotPresent => "environment variable not found",
@@ -212,7 +290,7 @@ impl Error for VarError {
     }
 }
 
-/// Sets the environment variable `k` to the value `v` for the currently running
+/// Sets the environment variable `key` to the value `value` for the currently running
 /// process.
 ///
 /// Note that while concurrent access to environment variables is safe in Rust,
@@ -223,22 +301,30 @@ impl Error for VarError {
 ///
 /// Discussion of this unsafety on Unix may be found in:
 ///
-///  - [Austin Group Bugzilla](http://austingroupbugs.net/view.php?id=188)
+///  - [Austin Group Bugzilla](https://austingroupbugs.net/view.php?id=188)
 ///  - [GNU C library Bugzilla](https://sourceware.org/bugzilla/show_bug.cgi?id=15607#c2)
 ///
 /// # Panics
 ///
-/// This function may panic if `key` is empty, contains an ASCII equals sign
-/// `'='` or the NUL character `'\0'`, or when the value contains the NUL
-/// character.
+/// This function may panic if `key` is empty, contains an ASCII equals sign `'='`
+/// or the NUL character `'\0'`, or when `value` contains the NUL character.
 ///
-pub fn set_var<K: AsRef<OsStr>, V: AsRef<OsStr>>(k: K, v: V) {
-    _set_var(k.as_ref(), v.as_ref())
+/// # Examples
+///
+/// ```
+/// use std::env;
+///
+/// let key = "KEY";
+/// env::set_var(key, "VALUE");
+/// assert_eq!(env::var(key), Ok("VALUE".to_string()));
+/// ```
+pub fn set_var<K: AsRef<OsStr>, V: AsRef<OsStr>>(key: K, value: V) {
+    _set_var(key.as_ref(), value.as_ref())
 }
 
-fn _set_var(k: &OsStr, v: &OsStr) {
-    os_imp::setenv(k, v).unwrap_or_else(|e| {
-        panic!("failed to set environment variable `{:?}` to `{:?}`: {}", k, v, e)
+fn _set_var(key: &OsStr, value: &OsStr) {
+    os_imp::setenv(key, value).unwrap_or_else(|e| {
+        panic!("failed to set environment variable `{:?}` to `{:?}`: {}", key, value, e)
     })
 }
 
@@ -252,7 +338,7 @@ fn _set_var(k: &OsStr, v: &OsStr) {
 ///
 /// Discussion of this unsafety on Unix may be found in:
 ///
-///  - [Austin Group Bugzilla](http://austingroupbugs.net/view.php?id=188)
+///  - [Austin Group Bugzilla](https://austingroupbugs.net/view.php?id=188)
 ///  - [GNU C library Bugzilla](https://sourceware.org/bugzilla/show_bug.cgi?id=15607#c2)
 ///
 /// # Panics
@@ -261,13 +347,25 @@ fn _set_var(k: &OsStr, v: &OsStr) {
 /// `'='` or the NUL character `'\0'`, or when the value contains the NUL
 /// character.
 ///
-pub fn remove_var<K: AsRef<OsStr>>(k: K) {
-    _remove_var(k.as_ref())
+/// # Examples
+///
+/// ```
+/// use std::env;
+///
+/// let key = "KEY";
+/// env::set_var(key, "VALUE");
+/// assert_eq!(env::var(key), Ok("VALUE".to_string()));
+///
+/// env::remove_var(key);
+/// assert!(env::var(key).is_err());
+/// ```
+pub fn remove_var<K: AsRef<OsStr>>(key: K) {
+    _remove_var(key.as_ref())
 }
 
-fn _remove_var(k: &OsStr) {
-    os_imp::unsetenv(k)
-        .unwrap_or_else(|e| panic!("failed to remove environment variable `{:?}`: {}", k, e))
+fn _remove_var(key: &OsStr) {
+    os_imp::unsetenv(key)
+        .unwrap_or_else(|e| panic!("failed to remove environment variable `{:?}`: {}", key, e))
 }
 
 /// An iterator that splits an environment variable into paths according to
@@ -275,11 +373,10 @@ fn _remove_var(k: &OsStr) {
 ///
 /// The iterator element type is [`PathBuf`].
 ///
-/// This structure is created by the [`std::env::split_paths`] function. See its
+/// This structure is created by [`env::split_paths()`]. See its
 /// documentation for more.
 ///
-/// [`PathBuf`]: ../../std/path/struct.PathBuf.html
-/// [`std::env::split_paths`]: fn.split_paths.html
+/// [`env::split_paths()`]: split_paths
 pub struct SplitPaths<'a> {
     inner: os_imp::SplitPaths<'a>,
 }
@@ -290,6 +387,21 @@ pub struct SplitPaths<'a> {
 /// Returns an iterator over the paths contained in `unparsed`. The iterator
 /// element type is [`PathBuf`].
 ///
+/// # Examples
+///
+/// ```
+/// use std::env;
+///
+/// let key = "PATH";
+/// match env::var_os(key) {
+///     Some(paths) => {
+///         for path in env::split_paths(&paths) {
+///             println!("'{}'", path.display());
+///         }
+///     }
+///     None => println!("{} is not defined in the environment.", key)
+/// }
+/// ```
 pub fn split_paths<T: AsRef<OsStr> + ?Sized>(unparsed: &T) -> SplitPaths<'_> {
     SplitPaths { inner: os_imp::split_paths(unparsed.as_ref()) }
 }
@@ -306,14 +418,14 @@ impl<'a> Iterator for SplitPaths<'a> {
 
 impl fmt::Debug for SplitPaths<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.pad("SplitPaths { .. }")
+        f.debug_struct("SplitPaths").finish_non_exhaustive()
     }
 }
 
 /// The error type for operations on the `PATH` variable. Possibly returned from
-/// the [`env::join_paths`] function.
+/// [`env::join_paths()`].
 ///
-/// [`env::join_paths`]: fn.join_paths.html
+/// [`env::join_paths()`]: join_paths
 #[derive(Debug)]
 pub struct JoinPathsError {
     inner: os_imp::JoinPathsError,
@@ -324,14 +436,62 @@ pub struct JoinPathsError {
 ///
 /// # Errors
 ///
-/// Returns an [`Err`][err] (containing an error message) if one of the input
+/// Returns an [`Err`] (containing an error message) if one of the input
 /// [`Path`]s contains an invalid character for constructing the `PATH`
 /// variable (a double quote on Windows or a colon on Unix).
 ///
-/// [`Path`]: ../../std/path/struct.Path.html
-/// [`OsString`]: ../../std/ffi/struct.OsString.html
-/// [err]: ../../std/result/enum.Result.html#variant.Err
+/// # Examples
 ///
+/// Joining paths on a Unix-like platform:
+///
+/// ```
+/// use std::env;
+/// use std::ffi::OsString;
+/// use std::path::Path;
+///
+/// fn main() -> Result<(), env::JoinPathsError> {
+/// # if cfg!(unix) {
+///     let paths = [Path::new("/bin"), Path::new("/usr/bin")];
+///     let path_os_string = env::join_paths(paths.iter())?;
+///     assert_eq!(path_os_string, OsString::from("/bin:/usr/bin"));
+/// # }
+///     Ok(())
+/// }
+/// ```
+///
+/// Joining a path containing a colon on a Unix-like platform results in an
+/// error:
+///
+/// ```
+/// # if cfg!(unix) {
+/// use std::env;
+/// use std::path::Path;
+///
+/// let paths = [Path::new("/bin"), Path::new("/usr/bi:n")];
+/// assert!(env::join_paths(paths.iter()).is_err());
+/// # }
+/// ```
+///
+/// Using `env::join_paths()` with [`env::split_paths()`] to append an item to
+/// the `PATH` environment variable:
+///
+/// ```
+/// use std::env;
+/// use std::path::PathBuf;
+///
+/// fn main() -> Result<(), env::JoinPathsError> {
+///     if let Some(path) = env::var_os("PATH") {
+///         let mut paths = env::split_paths(&path).collect::<Vec<_>>();
+///         paths.push(PathBuf::from("/home/xyz/bin"));
+///         let new_path = env::join_paths(paths)?;
+///         env::set_var("PATH", &new_path);
+///     }
+///
+///     Ok(())
+/// }
+/// ```
+///
+/// [`env::split_paths()`]: split_paths
 pub fn join_paths<I, T>(paths: I) -> Result<OsString, JoinPathsError>
 where
     I: IntoIterator<Item = T>,
@@ -347,6 +507,7 @@ impl fmt::Display for JoinPathsError {
 }
 
 impl Error for JoinPathsError {
+    #[allow(deprecated, deprecated_in_future)]
     fn description(&self) -> &str {
         self.inner.description()
     }
@@ -373,11 +534,28 @@ impl Error for JoinPathsError {
 ///
 /// [msdn]: https://docs.microsoft.com/en-us/windows/win32/api/userenv/nf-userenv-getuserprofiledirectorya
 ///
+/// # Examples
+///
+/// ```
+/// use std::env;
+///
+/// match env::home_dir() {
+///     Some(path) => println!("Your home directory, probably: {}", path.display()),
+///     None => println!("Impossible to get your home dir!"),
+/// }
+/// ```
 pub fn home_dir() -> Option<PathBuf> {
     os_imp::home_dir()
 }
 
 /// Returns the path of a temporary directory.
+///
+/// The temporary directory may be shared among users, or between processes
+/// with different privileges; thus, the creation of any files or directories
+/// in the temporary directory must use a secure method to create a uniquely
+/// named file. Creating a file or directory with a fixed or predictable name
+/// may result in "insecure temporary file" security vulnerabilities. Consider
+/// using a crate that securely creates temporary files or directories.
 ///
 /// # Unix
 ///
@@ -396,6 +574,14 @@ pub fn home_dir() -> Option<PathBuf> {
 ///
 /// [msdn]: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-gettemppatha
 ///
+/// ```no_run
+/// use std::env;
+///
+/// fn main() {
+///     let mut dir = env::temp_dir();
+///     println!("Temporary directory: {}", dir.display());
+/// }
+/// ```
 pub fn temp_dir() -> PathBuf {
     os_imp::temp_dir()
 }
@@ -407,6 +593,9 @@ pub fn temp_dir() -> PathBuf {
 /// If the executable was invoked through a symbolic link, some platforms will
 /// return the path of the symbolic link and other platforms will return the
 /// path of the symbolic link’s target.
+///
+/// If the executable is renamed while it is running, platforms may return the
+/// path at the time it was loaded instead of the new path.
 ///
 /// # Errors
 ///
@@ -452,6 +641,17 @@ pub fn temp_dir() -> PathBuf {
 ///
 /// [lead to privilege escalation]: https://securityvulns.com/Wdocument183.html
 ///
+/// # Examples
+///
+/// ```
+/// use std::env;
+///
+/// match env::current_exe() {
+///     Ok(exe_path) => println!("Path of this executable is: {}",
+///                              exe_path.display()),
+///     Err(e) => println!("failed to get current exe path: {}", e),
+/// };
+/// ```
 pub fn current_exe() -> io::Result<PathBuf> {
     os_imp::current_exe()
 }

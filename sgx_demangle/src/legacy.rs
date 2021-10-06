@@ -1,3 +1,23 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
+
+#![allow(clippy::manual_strip)]
+
+use core::char;
 use core::fmt;
 
 /// Representation of a demangled symbol name.
@@ -21,7 +41,7 @@ pub struct Demangle<'a> {
 /// # Examples
 ///
 /// ```
-/// use rustc_demangle::demangle;
+/// use sgx_demangle::demangle;
 ///
 /// assert_eq!(demangle("_ZN4testE").to_string(), "test");
 /// assert_eq!(demangle("_ZN3foo3barE").to_string(), "foo::bar");
@@ -45,23 +65,22 @@ pub struct Demangle<'a> {
 // Note that this demangler isn't quite as fancy as it could be. We have lots
 // of other information in our symbols like hashes, version, type information,
 // etc. Additionally, this doesn't handle glue symbols at all.
-pub fn demangle(s: &str) -> Result<Demangle, ()> {
+pub fn demangle(s: &str) -> Result<(Demangle, &str), ()> {
     // First validate the symbol. If it doesn't look like anything we're
     // expecting, we just print it literally. Note that we must handle non-Rust
     // symbols because we could have any function in the backtrace.
-    let inner;
-    if s.len() > 4 && s.starts_with("_ZN") && s.ends_with('E') {
-        inner = &s[3..s.len() - 1];
-    } else if s.len() > 3 && s.starts_with("ZN") && s.ends_with('E') {
+    let inner = if s.starts_with("_ZN") {
+        &s[3..]
+    } else if s.starts_with("ZN") {
         // On Windows, dbghelp strips leading underscores, so we accept "ZN...E"
         // form too.
-        inner = &s[2..s.len() - 1];
-    } else if s.len() > 5 && s.starts_with("__ZN") && s.ends_with('E') {
+        &s[2..]
+    } else if s.starts_with("__ZN") {
         // On OSX, symbols are prefixed with an extra _
-        inner = &s[4..s.len() - 1];
+        &s[4..]
     } else {
         return Err(());
-    }
+    };
 
     // only work with ascii text
     if inner.bytes().any(|c| c & 0x80 != 0) {
@@ -69,40 +88,32 @@ pub fn demangle(s: &str) -> Result<Demangle, ()> {
     }
 
     let mut elements = 0;
-    let mut chars = inner.chars().peekable();
-    loop {
-        let mut i = 0usize;
-        while let Some(&c) = chars.peek() {
-            if !c.is_digit(10) {
-                break
-            }
-            chars.next();
-            let next = i.checked_mul(10)
-                .and_then(|i| i.checked_add(c as usize - '0' as usize));
-            i = match next {
-                Some(i) => i,
-                None => {
-                    return Err(());
-                }
-            };
+    let mut chars = inner.chars();
+    let mut c = chars.next().ok_or(())?;
+    while c != 'E' {
+        // Decode an identifier element's length.
+        if !c.is_digit(10) {
+            return Err(());
+        }
+        let mut len = 0usize;
+        while let Some(d) = c.to_digit(10) {
+            len = len
+                .checked_mul(10)
+                .and_then(|len| len.checked_add(d as usize))
+                .ok_or(())?;
+            c = chars.next().ok_or(())?;
         }
 
-        if i == 0 {
-            if !chars.next().is_none() {
-                return Err(());
-            }
-            break;
-        } else if chars.by_ref().take(i).count() != i {
-            return Err(());
-        } else {
-            elements += 1;
+        // `c` already contains the first character of this identifier, skip it and
+        // all the other characters of this identifier, to reach the next element.
+        for _ in 0..len {
+            c = chars.next().ok_or(())?;
         }
+
+        elements += 1;
     }
 
-    Ok(Demangle {
-        inner: inner,
-        elements: elements,
-    })
+    Ok((Demangle { inner, elements }, chars.as_str()))
 }
 
 // Rust hashes are hex digits with an `h` prepended.
@@ -124,7 +135,7 @@ impl<'a> fmt::Display for Demangle<'a> {
             rest = &rest[..i];
             // Skip printing the hash if alternate formatting
             // was requested.
-            if f.alternate() && element+1 == self.elements && is_rust_hash(&rest) {
+            if f.alternate() && element + 1 == self.elements && is_rust_hash(rest) {
                 break;
             }
             if element != 0 {
@@ -133,7 +144,7 @@ impl<'a> fmt::Display for Demangle<'a> {
             if rest.starts_with("_$") {
                 rest = &rest[1..];
             }
-            while !rest.is_empty() {
+            loop {
                 if rest.starts_with('.') {
                     if let Some('.') = rest[1..].chars().next() {
                         f.write_str("::")?;
@@ -143,55 +154,53 @@ impl<'a> fmt::Display for Demangle<'a> {
                         rest = &rest[1..];
                     }
                 } else if rest.starts_with('$') {
-                    macro_rules! demangle {
-                        ($($pat:expr => $demangled:expr,)*) => ({
-                            $(if rest.starts_with($pat) {
-                                f.write_str($demangled)?;
-                                rest = &rest[$pat.len()..];
-                              } else)*
-                            {
-                                f.write_str(rest)?;
-                                break;
-                            }
-
-                        })
-                    }
-
-                    // see src/librustc/back/link.rs for these mappings
-                    demangle! {
-                        "$SP$" => "@",
-                        "$BP$" => "*",
-                        "$RF$" => "&",
-                        "$LT$" => "<",
-                        "$GT$" => ">",
-                        "$LP$" => "(",
-                        "$RP$" => ")",
-                        "$C$" => ",",
-
-                        // in theory we can demangle any Unicode code point, but
-                        // for simplicity we just catch the common ones.
-                        "$u7e$" => "~",
-                        "$u20$" => " ",
-                        "$u27$" => "'",
-                        "$u3d$" => "=",
-                        "$u5b$" => "[",
-                        "$u5d$" => "]",
-                        "$u7b$" => "{",
-                        "$u7d$" => "}",
-                        "$u3b$" => ";",
-                        "$u2b$" => "+",
-                        "$u21$" => "!",
-                        "$u22$" => "\"",
-                    }
-                } else {
-                    let idx = match rest.char_indices().find(|&(_, c)| c == '$' || c == '.') {
-                        None => rest.len(),
-                        Some((i, _)) => i,
+                    let (escape, after_escape) = if let Some(end) = rest[1..].find('$') {
+                        (&rest[1..=end], &rest[end + 2..])
+                    } else {
+                        break;
                     };
-                    f.write_str(&rest[..idx])?;
-                    rest = &rest[idx..];
+
+                    // see src/librustc_codegen_utils/symbol_names/legacy.rs for these mappings
+                    let unescaped = match escape {
+                        "SP" => "@",
+                        "BP" => "*",
+                        "RF" => "&",
+                        "LT" => "<",
+                        "GT" => ">",
+                        "LP" => "(",
+                        "RP" => ")",
+                        "C" => ",",
+
+                        _ => {
+                            if escape.starts_with('u') {
+                                let digits = &escape[1..];
+                                let all_lower_hex =
+                                    digits.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f'));
+                                let c = u32::from_str_radix(digits, 16)
+                                    .ok()
+                                    .and_then(char::from_u32);
+                                if let (true, Some(c)) = (all_lower_hex, c) {
+                                    // FIXME(eddyb) do we need to filter out control codepoints?
+                                    if !c.is_control() {
+                                        c.fmt(f)?;
+                                        rest = after_escape;
+                                        continue;
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                    };
+                    f.write_str(unescaped)?;
+                    rest = after_escape;
+                } else if let Some(i) = rest.find(|c| c == '$' || c == '.') {
+                    f.write_str(&rest[..i])?;
+                    rest = &rest[i..];
+                } else {
+                    break;
                 }
             }
+            f.write_str(rest)?;
         }
 
         Ok(())

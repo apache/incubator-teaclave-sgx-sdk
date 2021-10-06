@@ -27,12 +27,9 @@
 //!
 //! The [`escape_default`] function provides an iterator over the bytes of an
 //! escaped version of the character given.
-//!
-//! [`AsciiExt`]: trait.AsciiExt.html
-//! [`escape_default`]: fn.escape_default.html
 
-use alloc::vec::Vec;
 use alloc::string::String;
+use alloc::vec::Vec;
 
 pub use core::ascii::{escape_default, EscapeDefault};
 
@@ -41,6 +38,23 @@ pub use core::ascii::{escape_default, EscapeDefault};
 /// Be aware that operations on seemingly non-ASCII characters can sometimes
 /// have unexpected results. Consider this example:
 ///
+/// ```
+/// use std::ascii::AsciiExt;
+///
+/// assert_eq!(AsciiExt::to_ascii_uppercase("café"), "CAFÉ");
+/// assert_eq!(AsciiExt::to_ascii_uppercase("café"), "CAFé");
+/// ```
+///
+/// In the first example, the lowercased string is represented `"cafe\u{301}"`
+/// (the last character is an acute accent [combining character]). Unlike the
+/// other characters in the string, the combining character will not get mapped
+/// to an uppercase variant, resulting in `"CAFE\u{301}"`. In the second
+/// example, the lowercased string is represented `"caf\u{e9}"` (the last
+/// character is a single Unicode character representing an 'e' with an acute
+/// accent). Since the last character is defined outside the scope of ASCII,
+/// it will not get mapped to an uppercase variant, resulting in `"CAF\u{e9}"`.
+///
+/// [combining character]: https://en.wikipedia.org/wiki/Combining_character
 pub trait AsciiExt {
     /// Container type for copied ASCII characters.
     type Owned;
@@ -49,7 +63,7 @@ pub trait AsciiExt {
     ///
     /// # Note
     ///
-    /// This method will be deprecated in favor of the identically-named
+    /// This method is deprecated in favor of the identically-named
     /// inherent methods on `u8`, `char`, `[u8]` and `str`.
     fn is_ascii(&self) -> bool;
 
@@ -65,9 +79,10 @@ pub trait AsciiExt {
     ///
     /// # Note
     ///
-    /// This method will be deprecated in favor of the identically-named
+    /// This method is deprecated in favor of the identically-named
     /// inherent methods on `u8`, `char`, `[u8]` and `str`.
     ///
+    /// [`make_ascii_uppercase`]: AsciiExt::make_ascii_uppercase
     #[allow(deprecated)]
     fn to_ascii_uppercase(&self) -> Self::Owned;
 
@@ -83,9 +98,10 @@ pub trait AsciiExt {
     ///
     /// # Note
     ///
-    /// This method will be deprecated in favor of the identically-named
+    /// This method is deprecated in favor of the identically-named
     /// inherent methods on `u8`, `char`, `[u8]` and `str`.
     ///
+    /// [`make_ascii_lowercase`]: AsciiExt::make_ascii_lowercase
     #[allow(deprecated)]
     fn to_ascii_lowercase(&self) -> Self::Owned;
 
@@ -96,7 +112,7 @@ pub trait AsciiExt {
     ///
     /// # Note
     ///
-    /// This method will be deprecated in favor of the identically-named
+    /// This method is deprecated in favor of the identically-named
     /// inherent methods on `u8`, `char`, `[u8]` and `str`.
     fn eq_ignore_ascii_case(&self, other: &Self) -> bool;
 
@@ -110,9 +126,10 @@ pub trait AsciiExt {
     ///
     /// # Note
     ///
-    /// This method will be deprecated in favor of the identically-named
+    /// This method is deprecated in favor of the identically-named
     /// inherent methods on `u8`, `char`, `[u8]` and `str`.
     ///
+    /// [`to_ascii_uppercase`]: AsciiExt::to_ascii_uppercase
     fn make_ascii_uppercase(&mut self);
 
     /// Converts this type to its ASCII lower case equivalent in-place.
@@ -125,32 +142,45 @@ pub trait AsciiExt {
     ///
     /// # Note
     ///
-    /// This method will be deprecated in favor of the identically-named
+    /// This method is deprecated in favor of the identically-named
     /// inherent methods on `u8`, `char`, `[u8]` and `str`.
     ///
+    /// [`to_ascii_lowercase`]: AsciiExt::to_ascii_lowercase
     fn make_ascii_lowercase(&mut self);
 }
 
 macro_rules! delegating_ascii_methods {
     () => {
         #[inline]
-        fn is_ascii(&self) -> bool { self.is_ascii() }
+        fn is_ascii(&self) -> bool {
+            self.is_ascii()
+        }
 
         #[inline]
-        fn to_ascii_uppercase(&self) -> Self::Owned { self.to_ascii_uppercase() }
+        fn to_ascii_uppercase(&self) -> Self::Owned {
+            self.to_ascii_uppercase()
+        }
 
         #[inline]
-        fn to_ascii_lowercase(&self) -> Self::Owned { self.to_ascii_lowercase() }
+        fn to_ascii_lowercase(&self) -> Self::Owned {
+            self.to_ascii_lowercase()
+        }
 
         #[inline]
-        fn eq_ignore_ascii_case(&self, o: &Self) -> bool { self.eq_ignore_ascii_case(o) }
+        fn eq_ignore_ascii_case(&self, o: &Self) -> bool {
+            self.eq_ignore_ascii_case(o)
+        }
 
         #[inline]
-        fn make_ascii_uppercase(&mut self) { self.make_ascii_uppercase(); }
+        fn make_ascii_uppercase(&mut self) {
+            self.make_ascii_uppercase();
+        }
 
         #[inline]
-        fn make_ascii_lowercase(&mut self) { self.make_ascii_lowercase(); }
-    }
+        fn make_ascii_lowercase(&mut self) {
+            self.make_ascii_lowercase();
+        }
+    };
 }
 
 #[allow(deprecated)]

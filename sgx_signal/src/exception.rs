@@ -23,6 +23,7 @@ use sgx_types::SE_WORDSIZE;
 use sgx_types::{sgx_exception_info_t, sgx_exception_vector_t};
 use sgx_types::{EXCEPTION_CONTINUE_EXECUTION, EXCEPTION_CONTINUE_SEARCH};
 use std::collections::LinkedList;
+use std::convert::From;
 use std::num::NonZeroU64;
 use std::ops::Drop;
 use std::sync::{Arc, Once, SgxRwLock, SgxThreadMutex, ONCE_INIT};
@@ -35,9 +36,9 @@ pub enum ContinueType {
     Execution,
 }
 
-impl Into<i32> for ContinueType {
-    fn into(self) -> i32 {
-        match self {
+impl From<ContinueType> for i32 {
+    fn from(continue_type: ContinueType) -> i32 {
+        match continue_type {
             ContinueType::Search => EXCEPTION_CONTINUE_SEARCH,
             ContinueType::Execution => EXCEPTION_CONTINUE_EXECUTION,
         }
@@ -136,7 +137,7 @@ unsafe extern "C" fn panic_handler(info: *mut sgx_exception_info_t) -> ContinueT
 
     exception_info.cpu_context.rdi = exception_info.exception_vector as u32 as u64;
     exception_info.cpu_context.rsi = exception_info.cpu_context.rip;
-    exception_info.cpu_context.rip = exception_panic as u64;
+    exception_info.cpu_context.rip = exception_panic as usize as u64;
 
     ContinueType::Execution
 }

@@ -16,8 +16,10 @@
 // under the License..
 
 #![no_std]
-
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+#![cfg_attr(
+    all(target_env = "sgx", target_vendor = "mesalock"),
+    feature(rustc_private)
+)]
 #![allow(non_camel_case_types)]
 
 extern crate sgx_libc as libc;
@@ -25,45 +27,46 @@ extern crate sgx_libc as libc;
 pub use self::bindings::*;
 
 mod bindings {
+    use libc::{c_char, c_int, c_void, uintptr_t};
 
     pub type backtrace_syminfo_callback = extern "C" fn(
-        data: *mut libc::c_void,
-        pc: libc::uintptr_t,
-        symname: *const libc::c_char,
-        symval: libc::uintptr_t,
-        symsize: libc::uintptr_t);
+        data: *mut c_void,
+        pc: uintptr_t,
+        symname: *const c_char,
+        symval: uintptr_t,
+        symsize: uintptr_t,
+    );
     pub type backtrace_full_callback = extern "C" fn(
-        data: *mut libc::c_void,
-        pc: libc::uintptr_t,
-        filename: *const libc::c_char,
-        lineno: libc::c_int,
-        function: *const libc::c_char) -> libc::c_int;
-    pub type backtrace_error_callback = extern "C" fn(
-        data: *mut libc::c_void,
-        msg: *const libc::c_char,
-        errnum: libc::c_int);
+        data: *mut c_void,
+        pc: uintptr_t,
+        filename: *const c_char,
+        lineno: c_int,
+        function: *const c_char,
+    ) -> c_int;
+    pub type backtrace_error_callback =
+        extern "C" fn(data: *mut c_void, msg: *const c_char, errnum: c_int);
     pub enum backtrace_state {}
 
     extern "C" {
         pub fn backtrace_create_state(
-            filename: *const libc::c_char,
-            threaded: libc::c_int,
+            filename: *const c_char,
+            threaded: c_int,
             error: backtrace_error_callback,
-            data: *mut libc::c_void,
+            data: *mut c_void,
         ) -> *mut backtrace_state;
         pub fn backtrace_syminfo(
             state: *mut backtrace_state,
-            addr: libc::uintptr_t,
+            addr: uintptr_t,
             cb: backtrace_syminfo_callback,
             error: backtrace_error_callback,
-            data: *mut libc::c_void,
-        ) -> libc::c_int;
+            data: *mut c_void,
+        ) -> c_int;
         pub fn backtrace_pcinfo(
             state: *mut backtrace_state,
-            addr: libc::uintptr_t,
+            addr: uintptr_t,
             cb: backtrace_full_callback,
             error: backtrace_error_callback,
-            data: *mut libc::c_void,
-        ) -> libc::c_int;
+            data: *mut c_void,
+        ) -> c_int;
     }
 }

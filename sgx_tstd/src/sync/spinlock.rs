@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_types::{self, sgx_spinlock_t};
 use core::marker;
 use core::cell::UnsafeCell;
+use sgx_types::{self, sgx_spinlock_t};
 
 unsafe fn raw_lock(lock: &mut sgx_spinlock_t) -> *mut sgx_spinlock_t {
     lock as *mut _
@@ -77,7 +77,6 @@ unsafe impl Send for SgxThreadSpinlock {}
 unsafe impl Sync for SgxThreadSpinlock {}
 
 impl SgxThreadSpinlock {
-
     pub const fn new() -> SgxThreadSpinlock {
         SgxThreadSpinlock{ lock: UnsafeCell::new(sgx_types::SGX_SPINLOCK_INITIALIZER) }
     }
@@ -126,7 +125,7 @@ impl<'a> !marker::Send for SgxSpinlockGuard<'a> { }
 
 impl<'spinlock> SgxSpinlockGuard<'spinlock> {
     unsafe fn new(lock: &'spinlock SgxSpinlock) -> Self {
-        SgxSpinlockGuard{lock: lock}
+        SgxSpinlockGuard{ lock }
     }
 }
 
@@ -137,4 +136,3 @@ impl<'a> Drop for SgxSpinlockGuard<'a> {
         }
     }
 }
-

@@ -6,7 +6,7 @@ pub fn test_env_vars_os() {
     assert_ne!(0, p.size_hint().0);
 }
 
-pub  fn test_env_self_exe_path() {
+pub fn test_env_self_exe_path() {
     let path = current_exe();
     assert!(path.is_ok());
     let path = path.unwrap();

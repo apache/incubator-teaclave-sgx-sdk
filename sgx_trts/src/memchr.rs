@@ -15,28 +15,19 @@
 // specific language governing permissions and limitations
 // under the License..
 
-/// A safe interface to `memchr`.
-///
-/// Returns the index corresponding to the first occurrence of `needle` in
-/// `haystack`, or `None` if one is not found.
-///
-// #[inline]
-// pub fn memchr(needle: u8, haystack: &[u8]) -> Option<usize> {
-//     ::sys::memchr::memchr(needle, haystack)
-// }
-
 /// A safe interface to `memrchr`.
 ///
 /// Returns the index corresponding to the last occurrence of `needle` in
 /// `haystack`, or `None` if one is not found.
 ///
-// #[inline]
-// pub fn memrchr(needle: u8, haystack: &[u8]) -> Option<usize> {
-//     ::sys::memchr::memrchr(needle, haystack)
-// }
-
 pub fn memchr(needle: u8, haystack: &[u8]) -> Option<usize> {
-    let p = unsafe { sgx_libc::memchr(haystack.as_ptr(), needle, haystack.len()) };
+    let p = unsafe {
+        sgx_libc::memchr(
+            haystack.as_ptr(),
+            needle,
+            haystack.len(),
+        )
+    };
     if p.is_null() {
         None
     } else {
@@ -50,7 +41,13 @@ pub fn memrchr(needle: u8, haystack: &[u8]) -> Option<usize> {
         if haystack.is_empty() {
             return None;
         }
-        let p = unsafe { sgx_libc::memrchr(haystack.as_ptr(), needle, haystack.len()) };
+        let p = unsafe {
+            sgx_libc::memrchr(
+                haystack.as_ptr(),
+                needle,
+                haystack.len(),
+            )
+        };
         if p.is_null() {
             None
         } else {

@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
+//! Linux-specific raw type definitions.
+
 pub type c_char = i8;
 pub type c_schar = i8;
 pub type c_uchar = u8;

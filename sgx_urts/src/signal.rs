@@ -21,6 +21,7 @@ use libc::{SA_SIGINFO, SIG_DFL, SIG_ERR, SIG_SETMASK};
 use std::collections::HashMap;
 use std::io::Error;
 use std::mem;
+use std::ptr;
 use std::sync::{Mutex, Once};
 
 static DISPATCHER_INIT: Once = Once::new();
@@ -53,6 +54,7 @@ impl SigNum {
         }
     }
 
+    /// # Safety
     pub unsafe fn from_raw_uncheck(signo: i32) -> SigNum {
         SigNum(signo)
     }
@@ -65,14 +67,20 @@ impl SigNum {
 #[derive(Copy, Clone)]
 pub struct SigSet(sigset_t);
 
-impl SigSet {
-    pub fn new() -> SigSet {
+impl Default for SigSet {
+    fn default() -> Self {
         let set = unsafe {
             let mut set: sigset_t = mem::zeroed();
             libc::sigemptyset(&mut set as *mut sigset_t);
             set
         };
-        SigSet(set)
+        Self(set)
+    }
+}
+
+impl SigSet {
+    pub fn new() -> SigSet {
+        SigSet::default()
     }
 
     pub fn fill(&mut self) {
@@ -81,6 +89,7 @@ impl SigSet {
         }
     }
 
+    /// # Safety
     pub unsafe fn from_raw(set: sigset_t) -> SigSet {
         SigSet(set)
     }
@@ -139,7 +148,7 @@ impl SignalDispatcher {
         }
         let old = self.signal_set.lock().unwrap().insert(signo, enclave_id);
         unsafe {
-            libc::sigprocmask(SIG_SETMASK, &oldmask.raw(), 0 as *mut sigset_t);
+            libc::sigprocmask(SIG_SETMASK, &oldmask.raw(), ptr::null_mut::<sigset_t>());
         }
         old
     }
@@ -169,7 +178,7 @@ impl SignalDispatcher {
             v != eid
         });
         unsafe {
-            libc::sigprocmask(SIG_SETMASK, &oldmask.raw(), 0 as *mut sigset_t);
+            libc::sigprocmask(SIG_SETMASK, &oldmask.raw(), ptr::null_mut::<sigset_t>());
         }
     }
 
@@ -185,11 +194,8 @@ impl SignalDispatcher {
             None => return -1,
         };
 
-        let result = t_signal_handler_ecall(
-            eid,
-            &mut retval as *mut c_int,
-            info as *const siginfo_t,
-        );
+        let result =
+            t_signal_handler_ecall(eid, &mut retval as *mut c_int, info as *const siginfo_t);
         if result != sgx_status_t::SGX_SUCCESS {
             return -1;
         }
@@ -230,9 +236,8 @@ pub extern "C" fn u_sigaction_ocall(
             .signal_dispatcher
             .register_signal(signo.unwrap(), enclave_id);
 
-        type FnSaSigaction = extern "C" fn(c_int, *const siginfo_t, *const c_void);
         let new_act = sigaction {
-            sa_sigaction: unsafe { mem::transmute::<FnSaSigaction, usize>(handle_signal_entry) },
+            sa_sigaction: handle_signal_entry as usize,
             // Set the flag so that sa_sigaction is registered as the signal handler
             // instead of sa_handler.
             sa_flags: e_act.sa_flags | SA_SIGINFO,

@@ -15,18 +15,20 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use alloc_crate::collections::LinkedList;
-use core::cell::UnsafeCell;
-use core::cmp;
-use core::ptr;
+use crate::boxed::Box;
+use crate::cell::UnsafeCell;
+use crate::cmp;
+use crate::collections::LinkedList;
+use crate::ptr;
 use crate::sync::SgxThreadSpinlock;
 use crate::thread::rsgx_thread_self;
 use crate::time::Duration;
 use crate::u64;
+
+use sgx_libc as libc;
 use sgx_libc::{c_int, c_long, c_void, time_t, timespec};
 use sgx_trts::enclave::SgxThreadData;
 use sgx_trts::error::set_errno;
-use sgx_trts::libc;
 use sgx_types::{self, sgx_status_t, sgx_thread_t, SysError, SGX_THREAD_T_NULL};
 
 extern "C" {
@@ -182,7 +184,7 @@ impl SgxThreadMutexInner {
     const fn new(control: SgxThreadMutexControl) -> Self {
         SgxThreadMutexInner {
             refcount: 0,
-            control: control,
+            control,
             lock: SgxThreadSpinlock::new(),
             owner: SGX_THREAD_T_NULL,
             queue: LinkedList::new(),
@@ -201,8 +203,7 @@ impl SgxThreadMutexInner {
             }
 
             if self.owner == SGX_THREAD_T_NULL
-                && (self.queue.front() == Some(&rsgx_thread_self())
-                    || self.queue.front() == None)
+                && (self.queue.front() == Some(&rsgx_thread_self()) || self.queue.front() == None)
             {
                 if self.queue.front() == Some(&rsgx_thread_self()) {
                     self.queue.pop_front();
@@ -237,8 +238,7 @@ impl SgxThreadMutexInner {
         }
 
         if self.owner == SGX_THREAD_T_NULL
-            && (self.queue.front() == Some(&rsgx_thread_self())
-                || self.queue.front() == None)
+            && (self.queue.front() == Some(&rsgx_thread_self()) || self.queue.front() == None)
         {
             if self.queue.front() == Some(&rsgx_thread_self()) {
                 self.queue.pop_front();
@@ -311,6 +311,8 @@ impl SgxThreadMutexInner {
     }
 }
 
+pub type SgxMovableThreadMutex = Box<SgxThreadMutex>;
+
 unsafe impl Send for SgxThreadMutex {}
 unsafe impl Sync for SgxThreadMutex {}
 
@@ -319,9 +321,58 @@ pub struct SgxThreadMutex {
 }
 
 impl SgxThreadMutex {
-    pub const fn new(control: SgxThreadMutexControl) -> Self {
+    pub const fn new() -> Self {
         SgxThreadMutex {
-            lock: UnsafeCell::new(SgxThreadMutexInner::new(control)),
+            lock: UnsafeCell::new(SgxThreadMutexInner::new(
+                SgxThreadMutexControl::SGX_THREAD_MUTEX_NONRECURSIVE,
+            )),
+        }
+    }
+
+    #[inline]
+    pub unsafe fn lock(&self) -> SysError {
+        let mutex: &mut SgxThreadMutexInner = &mut *self.lock.get();
+        mutex.lock()
+    }
+
+    #[inline]
+    pub unsafe fn try_lock(&self) -> SysError {
+        let mutex: &mut SgxThreadMutexInner = &mut *self.lock.get();
+        mutex.try_lock()
+    }
+
+    #[inline]
+    pub unsafe fn unlock(&self) -> SysError {
+        let mutex: &mut SgxThreadMutexInner = &mut *self.lock.get();
+        mutex.unlock()
+    }
+
+    #[inline]
+    pub unsafe fn unlock_lazy(&self, waiter: &mut sgx_thread_t) -> SysError {
+        let mutex: &mut SgxThreadMutexInner = &mut *self.lock.get();
+        mutex.unlock_lazy(waiter)
+    }
+
+    #[inline]
+    pub unsafe fn destroy(&self) -> SysError {
+        let mutex: &mut SgxThreadMutexInner = &mut *self.lock.get();
+        mutex.destroy()
+    }
+}
+
+pub struct SgxReentrantThreadMutex {
+    lock: UnsafeCell<SgxThreadMutexInner>,
+}
+
+unsafe impl Send for SgxReentrantThreadMutex {}
+unsafe impl Sync for SgxReentrantThreadMutex {}
+
+impl SgxReentrantThreadMutex {
+    pub const fn new() -> Self {
+        SgxReentrantThreadMutex {
+            lock: UnsafeCell::new(SgxThreadMutexInner::new(
+                SgxThreadMutexControl::SGX_THREAD_MUTEX_RECURSIVE,
+            )),
         }
     }
 

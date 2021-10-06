@@ -17,19 +17,19 @@
 
 //! Runtime services
 
-use alloc_crate::slice;
-use core::str;
 use crate::enclave;
+use crate::slice;
+use crate::str;
 use crate::sync::SgxSpinlock;
 use crate::thread;
 use sgx_trts::enclave::rsgx_is_supported_EDMM;
 use sgx_types::{sgx_enclave_id_t, sgx_thread_t, SGX_THREAD_T_NULL};
 
 // Reexport some of our utilities which are expected by other crates.
-pub use crate::panicking::{begin_panic, begin_panic_fmt, update_panic_count};
-pub use crate::sys_common::at_exit;
-use crate::sys_common::cleanup;
+pub use crate::panicking::{begin_panic, begin_panic_fmt, panic_count};
 use crate::sync::Once;
+pub use crate::sys_common::at_exit;
+use crate::sys_common::rt::cleanup;
 
 static INIT: Once = Once::new();
 static EXIT: Once = Once::new();
@@ -43,13 +43,9 @@ pub extern "C" fn t_global_exit_ecall() {
     }
 
     GLOBAL_INIT_LOCK.lock();
-    EXIT.call_once(|| {
-        unsafe {
-            if INIT_TCS == thread::rsgx_thread_self() {
-                if !rsgx_is_supported_EDMM() {
-                    uninit_global_object();
-                }
-            }
+    EXIT.call_once(|| unsafe {
+        if INIT_TCS == thread::rsgx_thread_self() && !rsgx_is_supported_EDMM() {
+            uninit_global_object();
         }
     });
 }
@@ -76,4 +72,3 @@ pub extern "C" fn t_global_init_ecall(id: u64, path: *const u8, len: usize) {
 global_dtors_object! {
     GLOBAL_DTORS, global_exit = { cleanup(); }
 }
-

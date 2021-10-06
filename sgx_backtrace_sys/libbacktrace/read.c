@@ -34,12 +34,15 @@ POSSIBILITY OF SUCH DAMAGE.  */
 
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include "backtrace.h"
 #include "backtrace_t.h"
 #include "internal.h"
+
+#include "sgx_edger8r.h"
 
 /* This file implements file views when mmap is not available.  */
 
@@ -54,7 +57,7 @@ backtrace_get_view(struct backtrace_state* state, int descriptor,
     int error = 0;
     off_t retval = 0;
     uint32_t status = 0;
-
+    void *host = NULL;
 
     status = u_lseek_ocall((uint64_t *)&retval, &error, descriptor, offset, SEEK_SET);
     if (status != 0) {
@@ -66,19 +69,26 @@ backtrace_get_view(struct backtrace_state* state, int descriptor,
         return 0;
     }
 
-    view->base = backtrace_alloc(state, size, error_callback, data);
+    host = sgx_ocalloc(size);
+    if (host == NULL) {
+        error_callback(data, "sgx ocalloc failed", ENOMEM);
+        return 0;
+    }
 
+    view->base = backtrace_alloc(state, size, error_callback, data);
     if (view->base == NULL) {
+        sgx_ocfree();
         return 0;
     }
 
     view->data = view->base;
     view->len = size;
 
-    status = u_read_ocall((size_t *)&got, &error, descriptor, view->base, size);
+    status = u_read_ocall((size_t *)&got, &error, descriptor, host, size);
     if (status != 0) {
         error_callback(data, "sgx ocall failed", status);
         free(view->base);
+        sgx_ocfree();
         return 0;
     }
     if (got < 0) {
@@ -90,8 +100,12 @@ backtrace_get_view(struct backtrace_state* state, int descriptor,
     if ((size_t) got < size) {
         error_callback(data, "file too short", 0);
         free(view->base);
+        sgx_ocfree();
         return 0;
     }
+
+    memcpy(view->base, host, size);
+    sgx_ocfree();
 
     return 1;
 }

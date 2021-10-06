@@ -16,9 +16,7 @@
 // under the License..
 
 #![no_std]
-
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
-
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 #![allow(overflowing_literals)]

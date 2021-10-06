@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use core::ffi::c_void;
-use core::fmt;
+use crate::ffi::c_void;
+use crate::fmt;
 
 /// Same as `trace`, only unsafe as it's unsynchronized.
 ///
@@ -55,6 +55,14 @@ impl Frame {
         self.inner.ip()
     }
 
+    /// Returns the current stack pointer of this frame.
+    ///
+    /// In the case that a backend cannot recover the stack pointer for this
+    /// frame, a null pointer is returned.
+    pub fn sp(&self) -> *mut c_void {
+        self.inner.sp()
+    }
+
     /// Returns the starting symbol address of the frame of this function.
     ///
     /// This will attempt to rewind the instruction pointer returned by `ip` to
@@ -66,10 +74,15 @@ impl Frame {
     pub fn symbol_address(&self) -> *mut c_void {
         self.inner.symbol_address()
     }
+
+    /// Returns the base address of the module to which the frame belongs.
+    pub fn module_base_address(&self) -> Option<*mut c_void> {
+        self.inner.module_base_address()
+    }
 }
 
 impl fmt::Debug for Frame {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Frame")
             .field("ip", &self.ip())
             .field("symbol_address", &self.symbol_address())

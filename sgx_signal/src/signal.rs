@@ -28,6 +28,7 @@ use sgx_types::{c_int, c_void, sgx_enclave_id_t, sgx_status_t, SysResult};
 use std::enclave::get_enclave_id;
 use std::io::Error;
 use std::mem;
+use std::ptr;
 use std::rt::*;
 use std::sync::{Arc, Once, SgxMutex};
 
@@ -64,7 +65,7 @@ impl GlobalData {
                 signal_action_lock: SgxMutex::new(()),
             });
 
-            let _r = at_exit(|| Self::clear());
+            let _r = at_exit(Self::clear);
         });
         Self::get()
     }
@@ -76,28 +77,28 @@ impl GlobalData {
     }
 }
 
+/// # Safety
 #[no_mangle]
-pub extern "C" fn t_signal_handler_ecall(info: *const siginfo_t) -> c_int {
+pub unsafe extern "C" fn t_signal_handler_ecall(info: *const siginfo_t) -> c_int {
     if info.is_null() {
         return -1;
     }
-    let si_info = unsafe { &*(info) };
+
+    let si_info = &*(info);
     let global = GlobalData::get();
     let mask = manager::get_block_mask();
     // If the signal is blocked and still passed into the enclave. The signal
     // masks inside the enclave is out of sync with the untrusted signal mask.
-    unsafe {
-        let signo = SigNum::from_raw_uncheck(si_info.si_signo);
-        if mask.is_member(signo) {
-            -1
-        } else {
-            global.signal_manager.handler(
-                si_info.si_signo,
-                info as *const siginfo_t,
-                0 as *const c_void,
-            );
-            0
-        }
+    let signo = SigNum::from_raw_uncheck(si_info.si_signo);
+    if mask.is_member(signo) {
+        -1
+    } else {
+        global.signal_manager.handler(
+            si_info.si_signo,
+            info as *const siginfo_t,
+            ptr::null::<c_void>(),
+        );
+        0
     }
 }
 
@@ -262,7 +263,7 @@ pub fn rsgx_sigprocmask(how: c_int, set: &sigset_t, oldset: &mut sigset_t) -> c_
     // Unblock signals inside the enclave before unblocking signals on the host.
     // |oldset| is already filled with the signal mask inside the enclave.
     manager::unblock(&signals_to_unblock);
-    let result = unsafe { sigprocmask(how, set as *const sigset_t, 0 as *mut sigset_t) };
+    let result = unsafe { sigprocmask(how, set as *const sigset_t, ptr::null_mut::<sigset_t>()) };
     // Block signals inside the enclave after the host.
     manager::block(&signals_to_block);
     result
@@ -326,7 +327,7 @@ where
             signal: signo,
             action: action_id,
         })
-        .map_err(|err| Error::from_raw_os_error(err))
+        .map_err(Error::from_raw_os_error)
 }
 
 pub fn unregister(id: SignalId) -> bool {

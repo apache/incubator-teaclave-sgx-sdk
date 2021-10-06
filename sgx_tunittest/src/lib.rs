@@ -73,7 +73,6 @@
     all(target_env = "sgx", target_vendor = "mesalock"),
     feature(rustc_private)
 )]
-#![feature(const_fn)]
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
@@ -150,8 +149,8 @@ macro_rules! rsgx_unit_tests {
     ) => {
         {
             rsgx_unit_test_start();
-            let mut ntestcases : u64 = 0u64;
-            let mut failurecases : Vec<String> = Vec::new();
+            let mut ntestcases: u64 = 0u64;
+            let mut failurecases: ::std::vec::Vec<String> = Vec::new();
             $(rsgx_unit_test(&mut ntestcases, &mut failurecases, $f,stringify!($f));)*
             rsgx_unit_test_end(ntestcases, failurecases)
         }
@@ -176,7 +175,7 @@ pub fn rsgx_unit_test_end(ntestcases: u64, failurecases: Vec<String>) -> usize {
     let ntotal = ntestcases as usize;
     let nsucc = ntestcases as usize - failurecases.len();
 
-    if failurecases.len() != 0 {
+    if !failurecases.is_empty() {
         print!("\nfailures: ");
         println!(
             "    {}",
@@ -208,11 +207,12 @@ pub fn rsgx_unit_test_end(ntestcases: u64, failurecases: Vec<String>) -> usize {
 /// and on test fails, it records the failed test.
 /// Required test function must be `Fn()`, taking nothing as input and returns
 /// nothing.
+#[allow(clippy::print_literal)]
 pub fn rsgx_unit_test<F, R>(ncases: &mut u64, failurecases: &mut Vec<String>, f: F, name: &str)
 where
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
-    *ncases = *ncases + 1;
+    *ncases += 1;
     match std::panic::catch_unwind(|| {
         f();
     })

@@ -17,14 +17,16 @@
 
 //! Lazy values and one-time initialization of static data.
 
-use core::cell::{Cell, UnsafeCell};
-use core::fmt;
-use core::marker::PhantomData;
-use core::mem::MaybeUninit;
-use core::ops::{Deref, Drop};
-use core::pin::Pin;
-use crate::panic::{RefUnwindSafe, UnwindSafe};
-use crate::sync::Once;
+use crate::{
+    cell::{Cell, UnsafeCell},
+    fmt,
+    marker::PhantomData,
+    mem::MaybeUninit,
+    ops::{Deref, Drop},
+    panic::{RefUnwindSafe, UnwindSafe},
+    pin::Pin,
+    sync::Once,
+};
 
 #[doc(inline)]
 pub use core::lazy::*;
@@ -91,7 +93,19 @@ unsafe impl<T: Send> Send for SyncOnceCell<T> {}
 impl<T: RefUnwindSafe + UnwindSafe> RefUnwindSafe for SyncOnceCell<T> {}
 impl<T: UnwindSafe> UnwindSafe for SyncOnceCell<T> {}
 
-impl<T> Default for SyncOnceCell<T> {
+impl<T> const Default for SyncOnceCell<T> {
+    /// Creates a new empty cell.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// #![feature(once_cell)]
+    ///
+    /// use std::lazy::SyncOnceCell;
+    ///
+    /// assert_eq!(SyncOnceCell::<()>::new(), SyncOnceCell::default());
+    ///
+    /// ```
     fn default() -> SyncOnceCell<T> {
         SyncOnceCell::new()
     }
@@ -120,6 +134,23 @@ impl<T: Clone> Clone for SyncOnceCell<T> {
 }
 
 impl<T> From<T> for SyncOnceCell<T> {
+    /// Create a new cell with its contents set to `value`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// #![feature(once_cell)]
+    ///
+    /// use std::lazy::SyncOnceCell;
+    ///
+    /// # fn main() -> Result<(), i32> {
+    /// let a = SyncOnceCell::from(3);
+    /// let b = SyncOnceCell::new();
+    /// b.set(3)?;
+    /// assert_eq!(a, b);
+    /// Ok(())
+    /// # }
+    /// ```
     fn from(value: T) -> Self {
         let cell = Self::new();
         match cell.set(value) {
@@ -174,7 +205,10 @@ impl<T> SyncOnceCell<T> {
 
     /// Sets the contents of this cell to `value`.
     ///
-    /// Returns `Ok(())` if the cell's value was updated.
+    /// May block if another thread is currently attempting to initialize the cell. The cell is
+    /// guaranteed to contain a value when set returns, though not necessarily the one provided.
+    ///
+    /// Returns `Ok(())` if the cell's value was set by this call.
     ///
     /// # Examples
     ///
@@ -389,6 +423,7 @@ impl<T> SyncOnceCell<T> {
     /// assert_eq!(cell.take(), Some("hello".to_string()));
     /// assert_eq!(cell.get(), None);
     /// ```
+    #[allow(clippy::unnecessary_mut_passed)]
     pub fn take(&mut self) -> Option<T> {
         if self.is_initialized() {
             self.once = Once::new();
@@ -433,13 +468,17 @@ impl<T> SyncOnceCell<T> {
         res
     }
 
-    /// Safety: The value must be initialized
+    /// # Safety
+    ///
+    /// The value must be initialized
     unsafe fn get_unchecked(&self) -> &T {
         debug_assert!(self.is_initialized());
         (&*self.value.get()).assume_init_ref()
     }
 
-    /// Safety: The value must be initialized
+    /// # Safety
+    ///
+    /// The value must be initialized
     unsafe fn get_unchecked_mut(&mut self) -> &mut T {
         debug_assert!(self.is_initialized());
         (&mut *self.value.get()).assume_init_mut()
@@ -449,7 +488,7 @@ impl<T> SyncOnceCell<T> {
 unsafe impl<#[may_dangle] T> Drop for SyncOnceCell<T> {
     fn drop(&mut self) {
         if self.is_initialized() {
-            // Safety: The cell is initialized and being dropped, so it can't
+            // SAFETY: The cell is initialized and being dropped, so it can't
             // be accessed again. We also don't touch the `T` other than
             // dropping it, which validates our usage of #[may_dangle].
             unsafe { (&mut *self.value.get()).assume_init_drop() };
@@ -499,7 +538,7 @@ pub struct SyncLazy<T, F = fn() -> T> {
 
 impl<T: fmt::Debug, F> fmt::Debug for SyncLazy<T, F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Lazy").field("cell", &self.cell).field("init", &"..").finish()
+        f.debug_struct("Lazy").field("cell", &self.cell).finish_non_exhaustive()
     }
 }
 

@@ -22,7 +22,7 @@ ENV PSW_REPO="https://download.01.org/intel-sgx/sgx-linux/2.14/distro/centos8.2-
 ADD 04_psw_rpm.sh /root
 RUN bash /root/04_psw_rpm.sh
 
-ENV rust_toolchain  nightly-2020-10-25
+ENV rust_toolchain  nightly-2021-09-13
 ADD 05_rust.sh /root
 RUN bash /root/05_rust.sh
 

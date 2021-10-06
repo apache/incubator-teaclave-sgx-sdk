@@ -338,6 +338,28 @@ pub extern "C" fn u_link_ocall(
 }
 
 #[no_mangle]
+pub extern "C" fn u_linkat_ocall(
+    error: *mut c_int,
+    olddirfd: c_int,
+    oldpath: *const c_char,
+    newdirfd: c_int,
+    newpath: *const c_char,
+    flags: c_int,
+) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::linkat(olddirfd, oldpath, newdirfd, newpath, flags) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe {
+            *error = errno;
+        }
+    }
+    ret
+}
+
+#[no_mangle]
 pub extern "C" fn u_rename_ocall(
     error: *mut c_int,
     oldpath: *const c_char,

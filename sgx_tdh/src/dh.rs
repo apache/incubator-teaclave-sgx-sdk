@@ -175,9 +175,13 @@ impl SgxDhMsg3 {
             return None;
         }
 
-        let mut dh_msg3 = SgxDhMsg3::default();
-        dh_msg3.cmac = raw_msg3.cmac;
-        dh_msg3.msg3_body.report = raw_msg3.msg3_body.report;
+        let mut dh_msg3 = SgxDhMsg3 {
+            cmac: raw_msg3.cmac,
+            msg3_body: SgxDhMsg3Body {
+                report: raw_msg3.msg3_body.report,
+                additional_prop: Default::default(),
+            },
+        };
 
         if additional_prop_len > 0 {
             let mut additional_prop: Vec<u8> = vec![0_u8; additional_prop_len as usize];
@@ -809,9 +813,11 @@ impl SgxDhInitiator {
         }
 
         #[cfg(feature = "use_lav2")]
-        self.lav2_verify_message3(msg3).map_err(|ret| self.set_error(ret))?;
+        self.lav2_verify_message3(msg3)
+            .map_err(|ret| self.set_error(ret))?;
         #[cfg(not(feature = "use_lav2"))]
-        self.dh_verify_message3(msg3).map_err(|ret| self.set_error(ret))?;
+        self.dh_verify_message3(msg3)
+            .map_err(|ret| self.set_error(ret))?;
 
         let align_aek =
             derive_key(&self.shared_key.key, &EC_AEK_LABEL).map_err(|ret| self.set_error(ret))?;
@@ -965,6 +971,7 @@ struct SgxLAv2ProtoSpec {
 unsafe impl ContiguousMemory for SgxLAv2ProtoSpec {}
 
 impl SgxLAv2ProtoSpec {
+    #[allow(clippy::wrong_self_convention)]
     pub unsafe fn to_report_data(&self) -> sgx_report_data_t {
         mem::transmute::<SgxLAv2ProtoSpec, sgx_report_data_t>(*self)
     }
@@ -1011,12 +1018,10 @@ impl SgxLAv2ProtoSpec {
                         size as usize,
                     );
                 }
+            } else if from == -1 {
+                break;
             } else {
-                if from == -1 {
-                    break;
-                } else {
-                    return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
-                }
+                return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
             }
             to += size;
         }

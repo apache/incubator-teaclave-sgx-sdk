@@ -15,11 +15,12 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use core::{fmt, str};
-use core::ffi::c_void;
-use alloc_crate::vec::Vec;
-use crate::sys::backtrace::Frame;
+use crate::ffi::c_void;
+use crate::fmt;
+use crate::str;
 use crate::sys::backtrace::BytesOrWideString;
+use crate::sys::backtrace::Frame;
+
 use sgx_demangle::{try_demangle, Demangle};
 
 pub enum ResolveWhat<'a> {
@@ -112,6 +113,7 @@ pub struct Symbol {
     addr: Option<*mut c_void>,
     filename: Option<Vec<u8>>,
     lineno: Option<u32>,
+    colno: Option<u32>,
 }
 
 impl Symbol {
@@ -124,19 +126,29 @@ impl Symbol {
     /// * The raw `str` value of the symbol can be accessed (if it's valid
     ///   utf-8).
     /// * The raw bytes for the symbol name can be accessed.
-    pub fn name(&self) -> Option<SymbolName> {
+    pub fn name(&self) -> Option<SymbolName<'_>> {
         self.name.as_ref().map(|m| SymbolName::new(m.as_slice()))
     }
 
     /// Returns the starting address of this function.
     pub fn addr(&self) -> Option<*mut c_void> {
-       self.addr
+        self.addr
     }
 
     /// Returns the raw filename as a slice. This is mainly useful for `no_std`
     /// environments.
-    pub fn filename_raw(&self) -> Option<BytesOrWideString> {
-        self.filename.as_ref().map(|f| BytesOrWideString::Bytes(f.as_slice()))
+    pub fn filename_raw(&self) -> Option<BytesOrWideString<'_>> {
+        self.filename
+            .as_ref()
+            .map(|f| BytesOrWideString::Bytes(f.as_slice()))
+    }
+
+    /// Returns the column number for where this symbol is currently executing.
+    ///
+    /// Only gimli currently provides a value here and even then only if `filename`
+    /// returns `Some`, and so it is then consequently subject to similar caveats.
+    pub fn colno(&self) -> Option<u32> {
+        self.colno
     }
 
     /// Returns the line number for where this symbol is currently executing.
@@ -149,7 +161,7 @@ impl Symbol {
 }
 
 impl fmt::Debug for Symbol {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut d = f.debug_struct("Symbol");
         if let Some(name) = self.name() {
             d.field("name", &name);
@@ -167,6 +179,9 @@ impl fmt::Debug for Symbol {
 
         if let Some(lineno) = self.lineno() {
             d.field("lineno", &lineno);
+        }
+        if let Some(colno) = self.colno() {
+            d.field("colno", &colno);
         }
         d.finish()
     }
@@ -188,8 +203,8 @@ impl<'a> SymbolName<'a> {
         let demangled = str_bytes.and_then(|s| try_demangle(s).ok());
 
         SymbolName {
-            bytes: bytes,
-            demangled: demangled,
+            bytes,
+            demangled,
         }
     }
 
@@ -210,11 +225,11 @@ impl<'a> SymbolName<'a> {
 }
 
 fn format_symbol_name(
-    fmt: fn(&str, &mut fmt::Formatter) -> fmt::Result,
+    fmt: fn(&str, &mut fmt::Formatter<'_>) -> fmt::Result,
     mut bytes: &[u8],
-    f: &mut fmt::Formatter,
+    f: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
-    while bytes.len() > 0 {
+    while !bytes.is_empty() {
         match str::from_utf8(bytes) {
             Ok(name) => {
                 fmt(name, f)?;
@@ -234,7 +249,7 @@ fn format_symbol_name(
 }
 
 impl<'a> fmt::Display for SymbolName<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(ref s) = self.demangled {
             s.fmt(f)
         } else {
@@ -244,7 +259,7 @@ impl<'a> fmt::Display for SymbolName<'a> {
 }
 
 impl<'a> fmt::Debug for SymbolName<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(ref s) = self.demangled {
             s.fmt(f)
         } else {
@@ -255,4 +270,3 @@ impl<'a> fmt::Debug for SymbolName<'a> {
 
 mod libbacktrace;
 use self::libbacktrace::resolve as resolve_imp;
-

@@ -17,16 +17,16 @@
 
 //! Generic support for building blocking abstractions.
 
-use core::sync::atomic::{AtomicBool, Ordering};
-use core::mem;
-use alloc_crate::sync::Arc;
-use crate::thread::{self, SgxThread};
+use crate::mem;
+use crate::sync::atomic::{AtomicBool, Ordering};
+use crate::sync::Arc;
+use crate::thread::{self, SgxThread as Thread};
 use crate::time::Instant;
 #[cfg(not(feature = "untrusted_time"))]
 use crate::untrusted::time::InstantEx;
 
 struct Inner {
-    thread: SgxThread,
+    thread: Thread,
     woken: AtomicBool,
 }
 
@@ -55,7 +55,11 @@ pub fn tokens() -> (WaitToken, SignalToken) {
 
 impl SignalToken {
     pub fn signal(&self) -> bool {
-        let wake = !self.inner.woken.compare_and_swap(false, true, Ordering::SeqCst);
+        let wake = self
+            .inner
+            .woken
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok();
         if wake {
             self.inner.thread.unpark();
         }

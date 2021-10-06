@@ -23,25 +23,6 @@
 //! parsed, for example, and expose the functionality of multiple backend
 //! implementations.
 //!
-//! # Implementation
-//!
-//! This library makes use of a number of strategies for actually acquiring a
-//! backtrace. For example unix uses libgcc's libunwind bindings by default to
-//! acquire a backtrace, but coresymbolication or dladdr is used on OSX to
-//! acquire symbol names while linux uses gcc's libbacktrace.
-//!
-//! When using the default feature set of this library the "most reasonable" set
-//! of defaults is chosen for the current platform, but the features activated
-//! can also be controlled at a finer granularity.
-//!
-//! # API Principles
-//!
-//! This library attempts to be as flexible as possible to accommodate different
-//! backend implementations of acquiring a backtrace. Consequently the currently
-//! exported functions are closure-based as opposed to the likely expected
-//! iterator-based versions. This is done due to limitations of the underlying
-//! APIs used from the system.
-//!
 //! # Usage
 //!
 //! First, add this to your Cargo.toml
@@ -80,9 +61,12 @@
 //! # }
 //! ```
 #![no_std]
-
-#![cfg_attr(all(target_env = "sgx", target_vendor = "mesalock", feature = "std"), feature(rustc_private))]
+#![cfg_attr(
+    all(target_env = "sgx", target_vendor = "mesalock", feature = "std"),
+    feature(rustc_private)
+)]
 #![cfg_attr(feature = "nostd", feature(panic_unwind))]
+#![allow(clippy::missing_safety_doc)]
 
 #[cfg(all(not(target_env = "sgx"), feature = "std"))]
 #[macro_use]
@@ -100,9 +84,9 @@ extern crate sgx_unwind;
 
 #[macro_use]
 extern crate sgx_types;
-extern crate sgx_trts;
-extern crate sgx_libc;
 extern crate sgx_demangle;
+extern crate sgx_libc as libc;
+extern crate sgx_trts;
 
 #[cfg(feature = "serialize")]
 extern crate sgx_serialize;
@@ -110,27 +94,27 @@ extern crate sgx_serialize;
 #[macro_use]
 extern crate sgx_serialize_derive;
 
-pub use crate::backtrace::{trace_unsynchronized, Frame};
+pub use self::backtrace::{trace_unsynchronized, Frame};
 mod backtrace;
 
-pub use crate::symbolize::resolve_frame_unsynchronized;
-pub use crate::symbolize::{resolve_unsynchronized, Symbol, SymbolName};
-pub use crate::symbolize::set_enclave_path;
+pub use self::symbolize::resolve_frame_unsynchronized;
+pub use self::symbolize::set_enclave_path;
+pub use self::symbolize::{resolve_unsynchronized, Symbol, SymbolName};
 mod symbolize;
 
-pub use crate::types::BytesOrWideString;
+pub use self::types::BytesOrWideString;
 mod types;
 
 #[cfg(feature = "std")]
-pub use crate::symbolize::clear_symbol_cache;
+pub use self::symbolize::clear_symbol_cache;
 
 mod print;
 pub use print::{BacktraceFmt, BacktraceFrameFmt, PrintFmt};
 cfg_if! {
     if #[cfg(feature = "std")] {
-        pub use crate::backtrace::trace;
-        pub use crate::symbolize::{resolve, resolve_frame};
-        pub use crate::capture::{Backtrace, BacktraceFrame, BacktraceSymbol};
+        pub use self::backtrace::trace;
+        pub use self::symbolize::{resolve, resolve_frame};
+        pub use self::capture::{Backtrace, BacktraceFrame, BacktraceSymbol};
         mod capture;
     }
 }
@@ -154,7 +138,7 @@ impl Drop for Bomb {
 mod lock {
     use std::boxed::Box;
     use std::cell::Cell;
-    use std::sync::{SgxMutex, SgxMutexGuard, Once};
+    use std::sync::{Once, SgxMutex, SgxMutexGuard};
 
     pub struct LockGuard(Option<SgxMutexGuard<'static, ()>>);
 

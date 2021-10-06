@@ -50,8 +50,8 @@ impl<'a> BytesOrWideString<'a> {
         use self::BytesOrWideString::*;
 
         match self {
-            &Bytes(slice) => String::from_utf8_lossy(slice),
-            &Wide(wide) => Cow::Owned(String::from_utf16_lossy(wide)),
+            Bytes(slice) => String::from_utf8_lossy(slice),
+            Wide(wide) => Cow::Owned(String::from_utf16_lossy(wide)),
         }
     }
 
@@ -62,20 +62,19 @@ impl<'a> BytesOrWideString<'a> {
     /// This function requires the `std` feature of the `backtrace` crate to be
     /// enabled, and the `std` feature is enabled by default.
     pub fn into_path_buf(self) -> PathBuf {
-        use self::BytesOrWideString::*;
         use std::ffi::OsStr;
         use std::os::unix::ffi::OsStrExt;
 
-        match self {
-            Bytes(slice) => PathBuf::from(OsStr::from_bytes(slice)),
-            _ => unreachable!(),
+        if let BytesOrWideString::Bytes(slice) = self {
+            return PathBuf::from(OsStr::from_bytes(slice));
         }
+        unreachable!()
     }
 }
 
 #[cfg(feature = "std")]
 impl<'a> fmt::Display for BytesOrWideString<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.to_str_lossy().fmt(f)
     }
 }

@@ -15,69 +15,92 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_trts::libc;
-use sgx_trts::trts;
 use crate::io::ErrorKind;
+use sgx_libc as libc;
+use sgx_trts::trts;
 
 pub use self::rand::hashmap_random_keys;
 
-pub mod mutex;
+#[cfg(feature = "backtrace")]
+pub mod backtrace;
+pub mod cmath;
 pub mod condvar;
-pub mod rwlock;
+pub mod env;
 pub mod fd;
 pub mod fs;
-pub mod sgxfs;
 pub mod io;
+pub mod memchr;
+pub mod mutex;
+#[cfg(feature = "net")]
+pub mod net;
+pub mod os;
+pub mod os_str;
+pub mod path;
+#[cfg(feature = "pipe")]
+pub mod pipe;
+pub mod rand;
+pub mod rwlock;
+pub mod sgxfs;
+#[cfg(feature = "stdio")]
+pub mod stdio;
 #[cfg(feature = "thread")]
 pub mod thread;
 #[cfg(feature = "thread")]
-pub mod fast_thread_local;
+pub mod thread_local_dtor;
 #[cfg(feature = "thread")]
-pub mod thread_local;
-#[cfg(feature = "net")]
-pub mod net;
-pub mod path;
-pub mod ext;
-pub mod rand;
-pub mod os;
-#[cfg(feature = "stdio")]
-pub mod stdio;
-#[cfg(feature = "backtrace")]
-pub mod backtrace;
+pub mod thread_local_key;
 pub mod time;
-pub mod memchr;
-pub mod cmath;
-pub mod env;
-#[cfg(feature = "pipe")]
-pub mod pipe;
-
-pub use crate::sys_common::os_str_bytes as os_str;
 
 pub fn decode_error_kind(errno: i32) -> ErrorKind {
+    use ErrorKind::*;
     match errno as libc::c_int {
-        libc::ECONNREFUSED => ErrorKind::ConnectionRefused,
-        libc::ECONNRESET => ErrorKind::ConnectionReset,
-        libc::EPERM | libc::EACCES => ErrorKind::PermissionDenied,
-        libc::EPIPE => ErrorKind::BrokenPipe,
-        libc::ENOTCONN => ErrorKind::NotConnected,
-        libc::ECONNABORTED => ErrorKind::ConnectionAborted,
-        libc::EADDRNOTAVAIL => ErrorKind::AddrNotAvailable,
-        libc::EADDRINUSE => ErrorKind::AddrInUse,
-        libc::ENOENT => ErrorKind::NotFound,
-        libc::EINTR => ErrorKind::Interrupted,
-        libc::EINVAL => ErrorKind::InvalidInput,
-        libc::ETIMEDOUT => ErrorKind::TimedOut,
-        libc::EEXIST => ErrorKind::AlreadyExists,
+        libc::E2BIG => ArgumentListTooLong,
+        libc::EADDRINUSE => AddrInUse,
+        libc::EADDRNOTAVAIL => AddrNotAvailable,
+        libc::EBUSY => ResourceBusy,
+        libc::ECONNABORTED => ConnectionAborted,
+        libc::ECONNREFUSED => ConnectionRefused,
+        libc::ECONNRESET => ConnectionReset,
+        libc::EDEADLK => Deadlock,
+        libc::EDQUOT => FilesystemQuotaExceeded,
+        libc::EEXIST => AlreadyExists,
+        libc::EFBIG => FileTooLarge,
+        libc::EHOSTUNREACH => HostUnreachable,
+        libc::EINTR => Interrupted,
+        libc::EINVAL => InvalidInput,
+        libc::EISDIR => IsADirectory,
+        libc::ELOOP => FilesystemLoop,
+        libc::ENOENT => NotFound,
+        libc::ENOMEM => OutOfMemory,
+        libc::ENOSPC => StorageFull,
+        libc::ENOSYS => Unsupported,
+        libc::EMLINK => TooManyLinks,
+        libc::ENAMETOOLONG => FilenameTooLong,
+        libc::ENETDOWN => NetworkDown,
+        libc::ENETUNREACH => NetworkUnreachable,
+        libc::ENOTCONN => NotConnected,
+        libc::ENOTDIR => NotADirectory,
+        libc::ENOTEMPTY => DirectoryNotEmpty,
+        libc::EPIPE => BrokenPipe,
+        libc::EROFS => ReadOnlyFilesystem,
+        libc::ESPIPE => NotSeekable,
+        libc::ESTALE => StaleNetworkFileHandle,
+        libc::ETIMEDOUT => TimedOut,
+        libc::ETXTBSY => ExecutableFileBusy,
+        libc::EXDEV => CrossesDevices,
+
+        libc::EACCES | libc::EPERM => PermissionDenied,
 
         // These two constants can have the same value on some systems,
         // but different values on others, so we can't use a match
         // clause
-        x if x == libc::EAGAIN || x == libc::EWOULDBLOCK => ErrorKind::WouldBlock,
+        x if x == libc::EAGAIN || x == libc::EWOULDBLOCK => WouldBlock,
 
-        _ => ErrorKind::Other,
+        _ => Uncategorized,
     }
 }
 
+#[doc(hidden)]
 pub trait IsMinusOne {
     fn is_minus_one(&self) -> bool;
 }
@@ -109,6 +132,25 @@ where
     }
 }
 
-pub unsafe fn abort_internal() -> ! {
+pub fn cvt_nz(error: libc::c_int) -> crate::io::Result<()> {
+    if error == 0 { Ok(()) } else { Err(crate::io::Error::from_raw_os_error(error)) }
+}
+
+pub fn abort_internal() -> ! {
     trts::rsgx_abort()
+}
+
+pub mod unsupported {
+    use crate::io;
+
+    pub fn unsupported<T>() -> io::Result<T> {
+        Err(unsupported_err())
+    }
+
+    pub fn unsupported_err() -> io::Error {
+        io::Error::new_const(
+            io::ErrorKind::Unsupported,
+            &"operation not supported on this platform",
+        )
+    }
 }

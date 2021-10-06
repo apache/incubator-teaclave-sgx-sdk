@@ -15,16 +15,15 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use std::panic;
 use std::vec::Vec;
 
-pub fn foo_panic () {
-    let v:Vec<u32> = vec![1];
+pub fn foo_panic() {
+    let v: Vec<u32> = vec![1];
     v[0];
 }
 
 pub fn foo_should() {
-    let v:Vec<u32> = vec![];
+    let v: Vec<u32> = vec![];
     should_panic!(v[0]);
 }
 

@@ -22,7 +22,7 @@ use sgx_types::*;
 // #[sgx_align(align=1, size=64)]
 // pub struct user_struct {
 //     pub a: u8,
-//     pub b: [u16; 2], 
+//     pub b: [u16; 2],
 //     pub c: u32,
 //     pub d: [u64; 6],
 // }
@@ -32,7 +32,7 @@ use sgx_types::*;
 // #[repr(align(4))]
 // pub struct user_struct {
 //     pub a: u8,
-//     pub b: [u16; 2], 
+//     pub b: [u16; 2],
 //     pub c: u32,
 //     pub d: [u64; 6],
 // }
@@ -42,7 +42,7 @@ use sgx_types::*;
 //     #[sgx_align(align=1, size=64)]
 //     pub struct user_struct {
 //         pub a: u8,
-//         pub b: [u16; 2], 
+//         pub b: [u16; 2],
 //         pub c: u32,
 //         pub d: [u64; 6],
 //     }
@@ -53,7 +53,7 @@ use sgx_types::*;
 //     #[sgx_align(align=16, size=64)]
 //     pub struct user_struct {
 //         pub a: u8,
-//         pub b: [u16; 2], 
+//         pub b: [u16; 2],
 //         pub c: u32,
 //         pub d: [u64; 6],
 //     }
@@ -77,6 +77,3 @@ s! {
 //         pub key4: sgx_key_128bit_t,
 //     }
 // }
-
-
-

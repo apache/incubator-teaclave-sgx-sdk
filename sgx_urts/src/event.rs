@@ -16,11 +16,16 @@ pub struct SeEvent {
     event: AtomicI32,
 }
 
-impl SeEvent {
-    pub fn new() -> SeEvent {
-        SeEvent {
+impl Default for SeEvent {
+    fn default() -> Self {
+        Self {
             event: AtomicI32::new(0),
         }
+    }
+}
+impl SeEvent {
+    pub fn new() -> SeEvent {
+        SeEvent::default()
     }
 
     pub fn wait_timeout(&self, timeout: &timespec) -> i32 {
@@ -85,13 +90,13 @@ impl<'a> SgxTcsInfoCache<'a> {
 
     pub fn get_event(&self, tcs: usize) -> &SeEvent {
         let v = &mut *self.cache.lock().unwrap();
-        let op = v.as_slice().iter().position(|ref x| x.tcs == tcs);
+        let op = v.as_slice().iter().position(|x| x.tcs == tcs);
         match op {
             Some(i) => v[i].se_event,
             None => {
                 let event: &SeEvent = unsafe { &*Box::into_raw(Box::new(SeEvent::new())) };
                 v.push(SgxTcsInfo {
-                    tcs: tcs,
+                    tcs,
                     se_event: event,
                 });
                 let len = v.len();

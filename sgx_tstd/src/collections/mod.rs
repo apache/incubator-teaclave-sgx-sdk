@@ -103,7 +103,7 @@
 //! cost are suffixed with a `~`.
 //!
 //! All amortized costs are for the potential need to resize when capacity is
-//! exhausted. If a resize occurs it will take O(n) time. Our collections never
+//! exhausted. If a resize occurs it will take *O*(*n*) time. Our collections never
 //! automatically shrink, so removal operations aren't amortized. Over a
 //! sufficiently large series of operations, the average cost per operation will
 //! deterministically equal the given cost.
@@ -127,10 +127,10 @@
 //!
 //! For Sets, all operations have the cost of the equivalent Map operation.
 //!
-//! |              | get       | insert   | remove   | predecessor | append |
-//! |--------------|-----------|----------|----------|-------------|--------|
-//! | [`HashMap`]  | O(1)~     | O(1)~*   | O(1)~    | N/A         | N/A    |
-//! | [`BTreeMap`] | O(log n)  | O(log n) | O(log n) | O(log n)    | O(n+m) |
+//! |              | get       | insert    | remove    | range     | append |
+//! |--------------|-----------|-----------|-----------|-----------|--------|
+//! | [`HashMap`]  | O(1)~     | O(1)~*    | O(1)~     | N/A       | N/A    |
+//! | [`BTreeMap`] | O(log(n)) | O(log(n)) | O(log(n)) | O(log(n)) | O(n+m) |
 //!
 //! # Correct and Efficient Usage of Collections
 //!
@@ -256,7 +256,7 @@
 //! Iterators also provide a series of *adapter* methods for performing common
 //! threads to sequences. Among the adapters are functional favorites like `map`,
 //! `fold`, `skip` and `take`. Of particular interest to collections is the
-//! `rev` adapter, that reverses any iterator that supports this operation. Most
+//! `rev` adapter, which reverses any iterator that supports this operation. Most
 //! collections provide reversible iterators as the way to iterate over them in
 //! reverse order.
 //!
@@ -413,15 +413,7 @@
 //! assert_eq!(map.keys().next().unwrap().b, "baz");
 //! ```
 //!
-//! [`Vec`]: ../../std/vec/struct.Vec.html
-//! [`HashMap`]: ../../std/collections/struct.HashMap.html
-//! [`VecDeque`]: ../../std/collections/struct.VecDeque.html
-//! [`LinkedList`]: ../../std/collections/struct.LinkedList.html
-//! [`BTreeMap`]: ../../std/collections/struct.BTreeMap.html
-//! [`HashSet`]: ../../std/collections/struct.HashSet.html
-//! [`BTreeSet`]: ../../std/collections/struct.BTreeSet.html
-//! [`BinaryHeap`]: ../../std/collections/struct.BinaryHeap.html
-//! [`IntoIterator`]: ../../std/iter/trait.IntoIterator.html
+//! [`IntoIterator`]: crate::iter::IntoIterator
 
 pub use crate::ops::Bound;
 pub use alloc_crate::collections::{binary_heap, btree_map, btree_set};
@@ -433,6 +425,7 @@ pub use self::hash_map::HashMap;
 pub use self::hash_set::HashSet;
 
 pub use alloc_crate::collections::TryReserveError;
+pub use alloc_crate::collections::TryReserveErrorKind;
 
 mod hash;
 
