@@ -157,9 +157,9 @@ macro_rules! __thread_local_inner {
                 static mut VAL: $t = $init;
                 Ok(&VAL)
             } else {
-                Err(AccessError {
-                    msg: "If TLS data needs to be destructed, TCS policy must be bound.",
-                })
+                Err($crate::thread::AccessError::new(
+                    "If TLS data needs to be destructed, TCS policy must be bound."
+                ))
             }
         }
 
@@ -203,6 +203,12 @@ macro_rules! __thread_local_inner {
 #[derive(Debug)]
 pub struct AccessError {
     msg: &'static str,
+}
+
+impl AccessError {
+    pub fn new(msg: &'static str) -> Self {
+        Self { msg }
+    }
 }
 
 impl fmt::Display for AccessError {
@@ -368,9 +374,9 @@ pub mod statik {
                 };
                 Ok(value)
             } else {
-                Err(AccessError {
-                    msg: "If TLS data needs to be destructed, TCS policy must be bound.",
-                })
+                Err(AccessError::new(
+                    "If TLS data needs to be destructed, TCS policy must be bound."
+                ))
             }
         }
     }
@@ -470,9 +476,9 @@ pub mod fast {
         #[inline(never)]
         unsafe fn try_initialize<F: FnOnce() -> T>(&self, init: F) -> Result<&'static T, AccessError> {
             if mem::needs_drop::<T>() && thread::thread_policy() == SgxThreadPolicy::Unbound {
-                return Err(AccessError {
-                    msg: "If TLS data needs to be destructed, TCS policy must be bound.",
-                });
+                return Err(AccessError::new(
+                    "If TLS data needs to be destructed, TCS policy must be bound."
+                ));
             }
 
             if !super::pthread_info_tls.m_pthread.is_null() {
@@ -489,9 +495,7 @@ pub mod fast {
                 // SAFETY: See comment above (his function doc).
                     Ok(self.inner.initialize(init))
                 } else {
-                    Err(AccessError {
-                        msg: "Failed to register destructor.",
-                    })
+                    Err(AccessError::new("Failed to register destructor."))
                 }
             } else {
                 Ok(self.inner.initialize(init))
@@ -604,9 +608,7 @@ pub mod os {
             let ptr = self.os.get() as *mut Value<T>;
             if ptr as usize == 1 {
                 // destructor is running
-                return Err(AccessError {
-                    msg: "Destructor is running.",
-                });
+                return Err(AccessError::new("Destructor is running."));
             }
 
             let ptr = if ptr.is_null() {
