@@ -449,6 +449,7 @@ impl_enum! {
         SGX_QL_QVEIDENTITY_MISMATCH                         = 0x0000_E050,
         SGX_QL_QVE_OUT_OF_DATE                              = 0x0000_E051,
         SGX_QL_PSW_NOT_AVAILABLE                            = 0x0000_E052,
+        SGX_QL_COLLATERAL_VERSION_NOT_SUPPORTED             = 0x0000_E053,
         SGX_QL_ERROR_MAX                                    = 0x0000_E0FF,
     }
 }
@@ -533,6 +534,7 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_QVEIDENTITY_MISMATCH => "QvE Identity is NOT match to Intel signed QvE identity.",
             sgx_quote3_error_t::SGX_QL_QVE_OUT_OF_DATE => "QvE ISVSVN is smaller then the ISVSVN threshold.",
             sgx_quote3_error_t::SGX_QL_PSW_NOT_AVAILABLE => "SGX PSW library cannot be loaded, could be due to file I/O error.",
+            sgx_quote3_error_t::SGX_QL_COLLATERAL_VERSION_NOT_SUPPORTED => "SGX quote verification collateral version not supported by QVL/QvE",
             sgx_quote3_error_t::SGX_QL_ERROR_MAX => "Indicate max error to allow better translation.",
         }
     }
@@ -616,6 +618,7 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_QVEIDENTITY_MISMATCH => "SGX_QL_QVEIDENTITY_MISMATCH",
             sgx_quote3_error_t::SGX_QL_QVE_OUT_OF_DATE => "SGX_QL_QVE_OUT_OF_DATE",
             sgx_quote3_error_t::SGX_QL_PSW_NOT_AVAILABLE => "SGX_QL_PSW_NOT_AVAILABLE",
+            sgx_quote3_error_t::SGX_QL_COLLATERAL_VERSION_NOT_SUPPORTED => "SGX_QL_COLLATERAL_VERSION_NOT_SUPPORTED",
             sgx_quote3_error_t::SGX_QL_ERROR_MAX => "SGX_QL_ERROR_MAX",
         }
     }
@@ -650,6 +653,8 @@ impl_enum! {
         SGX_QCNL_ERROR_STATUS_PLATFORM_UNKNOWN  = 0x0000_B010,
         SGX_QCNL_ERROR_STATUS_UNEXPECTED        = 0x0000_B011,
         SGX_QCNL_ERROR_STATUS_CERTS_UNAVAILABLE = 0x0000_B012,
+        SGX_QCNL_ERROR_STATUS_SERVICE_UNAVAILABLE = 0x0000_B013,
+        SGX_QCNL_INVALID_CONFIG                 = 0x0000_B030,
     }
 }
 
@@ -675,6 +680,8 @@ impl sgx_qcnl_error_t {
             sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_PLATFORM_UNKNOWN => "Platform unknown.",
             sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_UNEXPECTED => "Unexpected cache error",
             sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_CERTS_UNAVAILABLE => "Certs not available",
+            sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_SERVICE_UNAVAILABLE => "Service is currently not available",
+            sgx_qcnl_error_t::SGX_QCNL_INVALID_CONFIG => "Error in configuration file",
         }
     }
 
@@ -699,6 +706,8 @@ impl sgx_qcnl_error_t {
             sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_PLATFORM_UNKNOWN => "SGX_QCNL_ERROR_STATUS_PLATFORM_UNKNOWN",
             sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_UNEXPECTED => "SGX_QCNL_ERROR_STATUS_UNEXPECTED",
             sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_CERTS_UNAVAILABLE => "SGX_QCNL_ERROR_STATUS_CERTS_UNAVAILABLE",
+            sgx_qcnl_error_t::SGX_QCNL_ERROR_STATUS_SERVICE_UNAVAILABLE => "SGX_QCNL_ERROR_STATUS_SERVICE_UNAVAILABLE",
+            sgx_qcnl_error_t::SGX_QCNL_INVALID_CONFIG => "SGX_QCNL_INVALID_CONFIG",
         }
     }
 }
