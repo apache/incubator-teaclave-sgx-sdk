@@ -318,6 +318,13 @@ extern "C" {
                             p_key: *const sgx_rsa3072_key_t,
                             p_signature: *mut sgx_rsa3072_signature_t) -> sgx_status_t;
 
+    /* intel sgx sdk 2.15 */
+    pub fn sgx_rsa3072_sign_ex(p_data: *const uint8_t,
+                               data_size: uint32_t,
+                               p_key: *const sgx_rsa3072_key_t,
+                               p_public: *const sgx_rsa3072_public_key_t,
+                               p_signature: *mut sgx_rsa3072_signature_t) -> sgx_status_t;
+
     pub fn sgx_rsa3072_verify(p_data: *const uint8_t,
                               data_size: uint32_t,
                               p_public: *const sgx_rsa3072_public_key_t,

@@ -85,7 +85,7 @@ CFLAGS += -Wjump-misses-init -Wstrict-prototypes -Wunsuffixed-float-constants
 CXXFLAGS += -Wnon-virtual-dtor
 
 # for static_assert()
-CXXFLAGS += -std=c++0x
+CXXFLAGS += -std=c++14
 
 .DEFAULT_GOAL := all
 # this turns off the RCS / SCCS implicit rules of GNU Make
