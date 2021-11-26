@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
+
 //! Demangle Rust compiler symbol names.
 //!
 //! This crate provides a `demangle` function which will return a `Demangle`
@@ -12,7 +29,7 @@
 //! # Examples
 //!
 //! ```
-//! use rustc_demangle::demangle;
+//! use sgx_demangle::demangle;
 //!
 //! assert_eq!(demangle("_ZN4testE").to_string(), "test");
 //! assert_eq!(demangle("_ZN3foo3barE").to_string(), "foo::bar");
@@ -24,13 +41,16 @@
 //! ```
 
 #![no_std]
-
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+#![cfg_attr(
+    all(target_env = "sgx", target_vendor = "mesalock"),
+    feature(rustc_private)
+)]
+#![allow(clippy::many_single_char_names)]
 
 mod legacy;
 mod v0;
 
-use core::fmt;
+use core::fmt::{self, Write as _};
 
 /// Representation of a demangled symbol name.
 pub struct Demangle<'a> {
@@ -53,7 +73,7 @@ enum DemangleStyle<'a> {
 /// # Examples
 ///
 /// ```
-/// use rustc_demangle::demangle;
+/// use sgx_demangle::demangle;
 ///
 /// assert_eq!(demangle("_ZN4testE").to_string(), "test");
 /// assert_eq!(demangle("_ZN3foo3barE").to_string(), "foo::bar");
@@ -66,41 +86,51 @@ pub fn demangle(mut s: &str) -> Demangle {
     let llvm = ".llvm.";
     if let Some(i) = s.find(llvm) {
         let candidate = &s[i + llvm.len()..];
-        let all_hex = candidate.chars().all(|c| {
-            match c {
-                'A' ..= 'F' | '0' ..= '9' | '@' => true,
-                _ => false,
-            }
-        });
+        let all_hex = candidate
+            .chars()
+            .all(|c| matches!(c, 'A'..='F' | '0'..='9' | '@'));
 
         if all_hex {
             s = &s[..i];
         }
     }
 
+    let mut suffix = "";
+    let mut style = match legacy::demangle(s) {
+        Ok((d, s)) => {
+            suffix = s;
+            Some(DemangleStyle::Legacy(d))
+        }
+        Err(()) => match v0::demangle(s) {
+            Ok((d, s)) => {
+                suffix = s;
+                Some(DemangleStyle::V0(d))
+            }
+            // FIXME(eddyb) would it make sense to treat an unknown-validity
+            // symbol (e.g. one that errored with `RecursedTooDeep`) as
+            // v0-mangled, and have the error show up in the demangling?
+            // (that error already gets past this initial check, and therefore
+            // will show up in the demangling, if hidden behind a backref)
+            Err(v0::ParseError::Invalid) | Err(v0::ParseError::RecursedTooDeep) => None,
+        },
+    };
+
     // Output like LLVM IR adds extra period-delimited words. See if
     // we are in that case and save the trailing words if so.
-    let mut suffix = "";
-    if let Some(i) = s.rfind("E.") {
-        let (head, tail) = s.split_at(i + 1); // After the E, before the period
-
-        if is_symbol_like(tail) {
-            s = head;
-            suffix = tail;
+    if !suffix.is_empty() {
+        if suffix.starts_with('.') && is_symbol_like(suffix) {
+            // Keep the suffix.
+        } else {
+            // Reset the suffix and invalidate the demangling.
+            suffix = "";
+            style = None;
         }
     }
 
-    let style = match legacy::demangle(s) {
-        Ok(d) => Some(DemangleStyle::Legacy(d)),
-        Err(()) => match v0::demangle(s) {
-            Ok(d) => Some(DemangleStyle::V0(d)),
-            Err(v0::Invalid) => None,
-        },
-    };
     Demangle {
-        style: style,
+        style,
         original: s,
-        suffix: suffix,
+        suffix,
     }
 }
 
@@ -114,15 +144,15 @@ pub struct TryDemangleError {
 /// to be a Rust symbol, rather than "demangling" the given string as a no-op.
 ///
 /// ```
-/// extern crate rustc_demangle;
+/// extern crate sgx_demangle;
 ///
 /// let not_a_rust_symbol = "la la la";
 ///
 /// // The `try_demangle` function will reject strings which are not Rust symbols.
-/// assert!(rustc_demangle::try_demangle(not_a_rust_symbol).is_err());
+/// assert!(sgx_demangle::try_demangle(not_a_rust_symbol).is_err());
 ///
 /// // While `demangle` will just pass the non-symbol through as a no-op.
-/// assert_eq!(rustc_demangle::demangle(not_a_rust_symbol).as_str(), not_a_rust_symbol);
+/// assert_eq!(sgx_demangle::demangle(not_a_rust_symbol).as_str(), not_a_rust_symbol);
 /// ```
 pub fn try_demangle(s: &str) -> Result<Demangle, TryDemangleError> {
     let sym = demangle(s);
@@ -150,22 +180,44 @@ fn is_symbol_like(s: &str) -> bool {
 
 // Copied from the documentation of `char::is_ascii_alphanumeric`
 fn is_ascii_alphanumeric(c: char) -> bool {
-    match c {
-        '\u{0041}' ..= '\u{005A}' |
-        '\u{0061}' ..= '\u{007A}' |
-        '\u{0030}' ..= '\u{0039}' => true,
-        _ => false,
-    }
+    matches!(c, '\u{0041}'..='\u{005A}' | '\u{0061}'..='\u{007A}' | '\u{0030}'..='\u{0039}')
 }
 
 // Copied from the documentation of `char::is_ascii_punctuation`
 fn is_ascii_punctuation(c: char) -> bool {
-    match c {
-        '\u{0021}' ..= '\u{002F}' |
-        '\u{003A}' ..= '\u{0040}' |
-        '\u{005B}' ..= '\u{0060}' |
-        '\u{007B}' ..= '\u{007E}' => true,
-        _ => false,
+    matches!(c, '\u{0021}'..='\u{002F}' | '\u{003A}'..='\u{0040}' | '\u{005B}'..='\u{0060}' | '\u{007B}'..='\u{007E}')
+}
+
+impl<'a> fmt::Display for DemangleStyle<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            DemangleStyle::Legacy(ref d) => fmt::Display::fmt(d, f),
+            DemangleStyle::V0(ref d) => fmt::Display::fmt(d, f),
+        }
+    }
+}
+
+// Maximum size of the symbol that we'll print.
+const MAX_SIZE: usize = 1_000_000;
+
+#[derive(Copy, Clone, Debug)]
+struct SizeLimitExhausted;
+
+struct SizeLimitedFmtAdapter<F> {
+    remaining: Result<usize, SizeLimitExhausted>,
+    inner: F,
+}
+
+impl<F: fmt::Write> fmt::Write for SizeLimitedFmtAdapter<F> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.remaining = self
+            .remaining
+            .and_then(|r| r.checked_sub(s.len()).ok_or(SizeLimitExhausted));
+
+        match self.remaining {
+            Ok(_) => self.inner.write_str(s),
+            Err(SizeLimitExhausted) => Err(fmt::Error),
+        }
     }
 }
 
@@ -173,11 +225,31 @@ impl<'a> fmt::Display for Demangle<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.style {
             None => f.write_str(self.original)?,
-            Some(DemangleStyle::Legacy(ref d)) => {
-                fmt::Display::fmt(d, f)?
-            }
-            Some(DemangleStyle::V0(ref d)) => {
-                fmt::Display::fmt(d, f)?
+            Some(ref d) => {
+                let alternate = f.alternate();
+                let mut size_limited_fmt = SizeLimitedFmtAdapter {
+                    remaining: Ok(MAX_SIZE),
+                    inner: &mut *f,
+                };
+                let fmt_result = if alternate {
+                    write!(size_limited_fmt, "{:#}", d)
+                } else {
+                    write!(size_limited_fmt, "{}", d)
+                };
+                let size_limit_result = size_limited_fmt.remaining.map(|_| ());
+
+                // Translate a `fmt::Error` generated by `SizeLimitedFmtAdapter`
+                // into an error message, instead of propagating it upwards
+                // (which could cause panicking from inside e.g. `std::io::print`).
+                match (fmt_result, size_limit_result) {
+                    (Err(_), Err(SizeLimitExhausted)) => f.write_str("{size limit reached}")?,
+
+                    _ => {
+                        fmt_result?;
+                        size_limit_result
+                            .expect("`fmt::Error` from `SizeLimitedFmtAdapter` was discarded");
+                    }
+                }
             }
         }
         f.write_str(self.suffix)

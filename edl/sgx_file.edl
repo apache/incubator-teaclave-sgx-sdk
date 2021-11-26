@@ -46,6 +46,7 @@ enclave {
         int u_fchmod_ocall([out] int *error, int fd, uint32_t mode);
         int u_unlink_ocall([out] int *error, [in, string] const char *pathname);
         int u_link_ocall([out] int *error, [in, string] const char *oldpath, [in, string] const char *newpath);
+        int u_linkat_ocall([out] int *error, int olddirfd, [in, string] const char *oldpath, int newdirfd, [in, string] const char *newpath, int flags);
         int u_rename_ocall([out] int *error, [in, string] const char *oldpath, [in, string] const char *newpath);
         int u_chmod_ocall([out] int *error, [in, string] const char *path, uint32_t mode);
         size_t u_readlink_ocall([out] int *error, [in, string] const char *path, [out, size=bufsz] char *buf, size_t bufsz);

@@ -15,12 +15,13 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use crate::alloc::Allocator;
+use crate::cmp;
+use crate::fmt;
 use crate::io::{
     self, BufRead, Error, ErrorKind, Initializer, IoSlice, IoSliceMut, Read, Seek, SeekFrom, Write,
 };
-use core::cmp;
-use core::fmt;
-use core::mem;
+use crate::mem;
 
 // =============================================================================
 // Forwarding implementations
@@ -34,6 +35,11 @@ impl<R: Read + ?Sized> Read for &mut R {
     #[inline]
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         (**self).read_vectored(bufs)
+    }
+
+    #[inline]
+    fn is_read_vectored(&self) -> bool {
+        (**self).is_read_vectored()
     }
 
     #[inline]
@@ -69,6 +75,11 @@ impl<W: Write + ?Sized> Write for &mut W {
     }
 
     #[inline]
+    fn is_write_vectored(&self) -> bool {
+        (**self).is_write_vectored()
+    }
+
+    #[inline]
     fn flush(&mut self) -> io::Result<()> {
         (**self).flush()
     }
@@ -88,6 +99,11 @@ impl<S: Seek + ?Sized> Seek for &mut S {
     #[inline]
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         (**self).seek(pos)
+    }
+
+    #[inline]
+    fn stream_position(&mut self) -> io::Result<u64> {
+        (**self).stream_position()
     }
 }
 
@@ -125,6 +141,11 @@ impl<R: Read + ?Sized> Read for Box<R> {
     }
 
     #[inline]
+    fn is_read_vectored(&self) -> bool {
+        (**self).is_read_vectored()
+    }
+
+    #[inline]
     unsafe fn initializer(&self) -> Initializer {
         (**self).initializer()
     }
@@ -157,6 +178,11 @@ impl<W: Write + ?Sized> Write for Box<W> {
     }
 
     #[inline]
+    fn is_write_vectored(&self) -> bool {
+        (**self).is_write_vectored()
+    }
+
+    #[inline]
     fn flush(&mut self) -> io::Result<()> {
         (**self).flush()
     }
@@ -176,6 +202,11 @@ impl<S: Seek + ?Sized> Seek for Box<S> {
     #[inline]
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         (**self).seek(pos)
+    }
+
+    #[inline]
+    fn stream_position(&mut self) -> io::Result<u64> {
+        (**self).stream_position()
     }
 }
 
@@ -241,6 +272,11 @@ impl Read for &[u8] {
     }
 
     #[inline]
+    fn is_read_vectored(&self) -> bool {
+        true
+    }
+
+    #[inline]
     unsafe fn initializer(&self) -> Initializer {
         Initializer::nop()
     }
@@ -248,7 +284,7 @@ impl Read for &[u8] {
     #[inline]
     fn read_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
         if buf.len() > self.len() {
-            return Err(Error::new(ErrorKind::UnexpectedEof, "failed to fill whole buffer"));
+            return Err(Error::new_const(ErrorKind::UnexpectedEof, &"failed to fill whole buffer"));
         }
         let (a, b) = self.split_at(buf.len());
 
@@ -291,6 +327,10 @@ impl BufRead for &[u8] {
 ///
 /// Note that writing updates the slice to point to the yet unwritten part.
 /// The slice will be empty when it has been completely overwritten.
+///
+/// If the number of bytes to be written exceeds the size of the slice, write operations will
+/// return short writes: ultimately, `Ok(0)`; in this situation, `write_all` returns an error of
+/// kind `ErrorKind::WriteZero`.
 impl Write for &mut [u8] {
     #[inline]
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
@@ -315,11 +355,16 @@ impl Write for &mut [u8] {
     }
 
     #[inline]
+    fn is_write_vectored(&self) -> bool {
+        true
+    }
+
+    #[inline]
     fn write_all(&mut self, data: &[u8]) -> io::Result<()> {
         if self.write(data)? == data.len() {
             Ok(())
         } else {
-            Err(Error::new(ErrorKind::WriteZero, "failed to write whole buffer"))
+            Err(Error::new_const(ErrorKind::WriteZero, &"failed to write whole buffer"))
         }
     }
 
@@ -331,7 +376,7 @@ impl Write for &mut [u8] {
 
 /// Write is implemented for `Vec<u8>` by appending to the vector.
 /// The vector will grow as needed.
-impl Write for Vec<u8> {
+impl<A: Allocator> Write for Vec<u8, A> {
     #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.extend_from_slice(buf);
@@ -346,6 +391,11 @@ impl Write for Vec<u8> {
             self.extend_from_slice(buf);
         }
         Ok(len)
+    }
+
+    #[inline]
+    fn is_write_vectored(&self) -> bool {
+        true
     }
 
     #[inline]

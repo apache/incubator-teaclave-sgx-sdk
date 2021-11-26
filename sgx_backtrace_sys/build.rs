@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_build_helper as build_helper;
 use self::build_helper::native_lib_boilerplate;
+use sgx_build_helper as build_helper;
 use std::env;
 use std::fs::File;
 use std::path::Path;
@@ -27,8 +27,7 @@ fn main() {
 }
 
 fn build_libbacktrace(_target: &str) -> Result<(), ()> {
-    let mut sdk_dir = env::var("SGX_SDK")
-                    .unwrap_or_else(|_| "/opt/sgxsdk".to_string());
+    let mut sdk_dir = env::var("SGX_SDK").unwrap_or_else(|_| "/opt/sgxsdk".to_string());
 
     if !Path::new(&sdk_dir).exists() {
         sdk_dir = "/opt/intel/sgxsdk".to_string();
@@ -37,11 +36,12 @@ fn build_libbacktrace(_target: &str) -> Result<(), ()> {
     let sdk_include = format!("{}/{}", sdk_dir, "include");
 
     let native = native_lib_boilerplate(
-                    "sgx_backtrace_sys/libbacktrace",
-                    "libbacktrace",
-                    "backtrace",
-                    "",
-                    &vec![])?;
+        "sgx_backtrace_sys/libbacktrace",
+        "libbacktrace",
+        "backtrace",
+        "",
+        &[],
+    )?;
 
     let mut build = cc::Build::new();
     build
@@ -82,7 +82,7 @@ fn build_libbacktrace(_target: &str) -> Result<(), ()> {
                 .flag(mitigation_asflags)
                 .flag(mitigation_loadflags1)
                 .flag(mitigation_loadflags2);
-        },
+        }
         "CF" => {
             build
                 .flag(mitigation_cflags1)
@@ -90,12 +90,12 @@ fn build_libbacktrace(_target: &str) -> Result<(), ()> {
                 .flag(mitigation_asflags)
                 .flag(mitigation_cfflags1)
                 .flag(mitigation_cfflags2);
-        },
-        _  => {},
+        }
+        _ => {}
     }
 
-    let any_debug = env::var("RUSTC_DEBUGINFO").unwrap_or_default() == "true" ||
-        env::var("RUSTC_DEBUGINFO_LINES").unwrap_or_default() == "true";
+    let any_debug = env::var("RUSTC_DEBUGINFO").unwrap_or_default() == "true"
+        || env::var("RUSTC_DEBUGINFO_LINES").unwrap_or_default() == "true";
     build.debug(any_debug);
 
     build.file("./libbacktrace/elf.c");

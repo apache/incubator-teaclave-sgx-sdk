@@ -39,18 +39,18 @@
 /// implementation shares almost all code for the buffered and unbuffered cases
 /// of a synchronous channel. There are a few branches for the unbuffered case,
 /// but they're mostly just relevant to blocking senders.
-
 pub use self::Failure::*;
 use self::Blocker::*;
 
-use core::intrinsics::abort;
 use core::mem;
 use core::ptr;
-use core::sync::atomic::{AtomicUsize, Ordering};
 
+use crate::sync::atomic::{AtomicUsize, Ordering};
 use crate::sync::mpsc::blocking::{self, SignalToken, WaitToken};
-use crate::sync::{SgxMutex, SgxMutexGuard};
+use crate::sync::{SgxMutex as Mutex, SgxMutexGuard as MutexGuard};
 use crate::time::Instant;
+
+use sgx_trts::trts;
 
 const MAX_REFCOUNT: usize = (isize::MAX) as usize;
 
@@ -59,7 +59,7 @@ pub struct Packet<T> {
     /// the other shared channel already had the code implemented
     channels: AtomicUsize,
 
-    lock: SgxMutex<State<T>>,
+    lock: Mutex<State<T>>,
 }
 
 unsafe impl<T: Send> Send for Packet<T> {}
@@ -121,10 +121,10 @@ pub enum Failure {
 /// Atomically blocks the current thread, placing it into `slot`, unlocking `lock`
 /// in the meantime. This re-locks the mutex upon returning.
 fn wait<'a, 'b, T>(
-    lock: &'a SgxMutex<State<T>>,
-    mut guard: SgxMutexGuard<'b, State<T>>,
+    lock: &'a Mutex<State<T>>,
+    mut guard: MutexGuard<'b, State<T>>,
     f: fn(SignalToken) -> Blocker,
-) -> SgxMutexGuard<'a, State<T>> {
+) -> MutexGuard<'a, State<T>> {
     let (wait_token, signal_token) = blocking::tokens();
     match mem::replace(&mut guard.blocker, f(signal_token)) {
         NoneBlocked => {}
@@ -137,11 +137,11 @@ fn wait<'a, 'b, T>(
 
 /// Same as wait, but waiting at most until `deadline`.
 fn wait_timeout_receiver<'a, 'b, T>(
-    lock: &'a SgxMutex<State<T>>,
+    lock: &'a Mutex<State<T>>,
     deadline: Instant,
-    mut guard: SgxMutexGuard<'b, State<T>>,
+    mut guard: MutexGuard<'b, State<T>>,
     success: &mut bool,
-) -> SgxMutexGuard<'a, State<T>> {
+) -> MutexGuard<'a, State<T>> {
     let (wait_token, signal_token) = blocking::tokens();
     match mem::replace(&mut guard.blocker, BlockedReceiver(signal_token)) {
         NoneBlocked => {}
@@ -156,7 +156,7 @@ fn wait_timeout_receiver<'a, 'b, T>(
     new_guard
 }
 
-fn abort_selection<T>(guard: &mut SgxMutexGuard<'_, State<T>>) -> bool {
+fn abort_selection<T>(guard: &mut MutexGuard<'_, State<T>>) -> bool {
     match mem::replace(&mut guard.blocker, NoneBlocked) {
         NoneBlocked => true,
         BlockedSender(token) => {
@@ -171,7 +171,7 @@ fn abort_selection<T>(guard: &mut SgxMutexGuard<'_, State<T>>) -> bool {
 }
 
 /// Wakes up a thread, dropping the lock at the correct time
-fn wakeup<T>(token: SignalToken, guard: SgxMutexGuard<'_, State<T>>) {
+fn wakeup<T>(token: SignalToken, guard: MutexGuard<'_, State<T>>) {
     // We need to be careful to wake up the waiting thread *outside* of the mutex
     // in case it incurs a context switch.
     drop(guard);
@@ -182,7 +182,7 @@ impl<T> Packet<T> {
     pub fn new(capacity: usize) -> Packet<T> {
         Packet {
             channels: AtomicUsize::new(1),
-            lock: SgxMutex::new(State {
+            lock: Mutex::new(State {
                 disconnected: false,
                 blocker: NoneBlocked,
                 cap: capacity,
@@ -199,7 +199,7 @@ impl<T> Packet<T> {
 
     // wait until a send slot is available, returning locked access to
     // the channel state.
-    fn acquire_send_slot(&self) -> SgxMutexGuard<'_, State<T>> {
+    fn acquire_send_slot(&self) -> MutexGuard<'_, State<T>> {
         let mut node = Node { token: None, next: ptr::null_mut() };
         loop {
             let mut guard = self.lock.lock().unwrap();
@@ -340,7 +340,7 @@ impl<T> Packet<T> {
     // * `waited` - flag if the receiver blocked to receive some data, or if it
     //              just picked up some data on the way out
     // * `guard` - the lock guard that is held over this channel's lock
-    fn wakeup_senders(&self, waited: bool, mut guard: SgxMutexGuard<'_, State<T>>) {
+    fn wakeup_senders(&self, waited: bool, mut guard: MutexGuard<'_, State<T>>) {
         let pending_sender1: Option<SignalToken> = guard.queue.dequeue();
 
         // If this is a no-buffer channel (cap == 0), then if we didn't wait we
@@ -361,8 +361,12 @@ impl<T> Packet<T> {
         mem::drop(guard);
 
         // only outside of the lock do we wake up the pending threads
-        pending_sender1.map(|t| t.signal());
-        pending_sender2.map(|t| t.signal());
+        if let Some(token) = pending_sender1 {
+            token.signal();
+        }
+        if let Some(token) = pending_sender2 {
+            token.signal();
+        }
     }
 
     // Prepares this shared packet for a channel clone, essentially just bumping
@@ -372,7 +376,7 @@ impl<T> Packet<T> {
 
         // See comments on Arc::clone() on why we do this (for `mem::forget`).
         if old_count > MAX_REFCOUNT {
-            abort();
+            trts::rsgx_abort();
         }
     }
 
@@ -426,7 +430,9 @@ impl<T> Packet<T> {
         while let Some(token) = queue.dequeue() {
             token.signal();
         }
-        waiter.map(|t| t.signal());
+        if let Some(token) = waiter {
+            token.signal();
+        }
     }
 }
 

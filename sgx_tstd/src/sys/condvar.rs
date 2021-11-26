@@ -15,17 +15,19 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use alloc_crate::collections::LinkedList;
-use core::cell::UnsafeCell;
+use crate::boxed::Box;
+use crate::cell::UnsafeCell;
+use crate::collections::LinkedList;
 use crate::io::{self, Error};
-use crate::sys::mutex::{self, SgxThreadMutex};
 use crate::sync::SgxThreadSpinlock;
-use crate::time::Duration;
+use crate::sys::mutex::{self, SgxThreadMutex};
 use crate::thread::rsgx_thread_self;
+use crate::time::Duration;
 use crate::u64;
+
+use sgx_libc as libc;
 use sgx_trts::enclave::SgxThreadData;
-use sgx_trts::libc;
-use sgx_types::{SysError, sgx_thread_t, SGX_THREAD_T_NULL};
+use sgx_types::{sgx_thread_t, SysError, SGX_THREAD_T_NULL};
 
 struct SgxThreadCondvarInner {
     lock: SgxThreadSpinlock,
@@ -54,7 +56,10 @@ impl SgxThreadCondvarInner {
         loop {
             self.lock.unlock();
             if waiter == SGX_THREAD_T_NULL {
-                mutex::thread_wait_event(SgxThreadData::current().get_tcs(), Duration::new(u64::MAX, 1_000_000_000 - 1));
+                mutex::thread_wait_event(
+                    SgxThreadData::current().get_tcs(),
+                    Duration::new(u64::MAX, 1_000_000_000 - 1),
+                );
             } else {
                 mutex::thread_setwait_events(
                     SgxThreadData::from_raw(waiter).get_tcs(),
@@ -143,7 +148,7 @@ impl SgxThreadCondvarInner {
 
         let mut tcs_vec: Vec<usize> = Vec::new();
         while let Some(waiter) = self.queue.pop_back() {
-           tcs_vec.push(SgxThreadData::from_raw(waiter).get_tcs())
+            tcs_vec.push(SgxThreadData::from_raw(waiter).get_tcs())
         }
         self.lock.unlock();
         mutex::thread_set_multiple_events(tcs_vec.as_slice());
@@ -170,9 +175,10 @@ impl SgxThreadCondvarInner {
     }
 }
 
+pub type SgxMovableThreadCondvar = Box<SgxThreadCondvar>;
+
 unsafe impl Send for SgxThreadCondvar {}
 unsafe impl Sync for SgxThreadCondvar {}
-
 
 pub struct SgxThreadCondvar {
     inner: UnsafeCell<SgxThreadCondvarInner>,
@@ -180,14 +186,15 @@ pub struct SgxThreadCondvar {
 
 impl SgxThreadCondvar {
     pub const fn new() -> Self {
-        SgxThreadCondvar { inner: UnsafeCell::new(SgxThreadCondvarInner::new()) }
+        SgxThreadCondvar {
+            inner: UnsafeCell::new(SgxThreadCondvarInner::new()),
+        }
     }
 
     #[inline]
     pub unsafe fn wait(&self, mutex: &SgxThreadMutex) -> SysError {
         let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
         condvar.wait(mutex)
-        
     }
 
     #[inline]

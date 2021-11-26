@@ -15,13 +15,13 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_types::*;
-use sgx_trts::enclave;
-use crate::sync::SgxThreadSpinlock;
-use crate::path::{Path, PathBuf};
-use crate::untrusted::fs;
-use crate::io;
 use core::sync::atomic::{AtomicU64, Ordering};
+use crate::io;
+use crate::path::{Path, PathBuf};
+use crate::sync::SgxThreadSpinlock;
+use crate::untrusted::fs;
+use sgx_trts::enclave;
+use sgx_types::*;
 
 pub use sgx_trts::enclave::SgxThreadPolicy;
 

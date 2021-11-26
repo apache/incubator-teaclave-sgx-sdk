@@ -15,8 +15,6 @@
 // specific language governing permissions and limitations
 // under the License..
 
-// ignore-tidy-filelength
-
 //! Multi-producer, single-consumer FIFO queue communication primitives.
 //!
 //! This module provides message-based communication over channels, concretely
@@ -44,12 +42,7 @@
 //!    that a bound of 0 is allowed, causing the channel to become a "rendezvous"
 //!    channel where each sender atomically hands off a message to a receiver.
 //!
-//! [`Sender`]: ../../../std/sync/mpsc/struct.Sender.html
-//! [`SyncSender`]: ../../../std/sync/mpsc/struct.SyncSender.html
-//! [`Receiver`]: ../../../std/sync/mpsc/struct.Receiver.html
-//! [`send`]: ../../../std/sync/mpsc/struct.Sender.html#method.send
-//! [`channel`]: ../../../std/sync/mpsc/fn.channel.html
-//! [`sync_channel`]: ../../../std/sync/mpsc/fn.sync_channel.html
+//! [`send`]: Sender::send
 //!
 //! ## Disconnection
 //!
@@ -63,9 +56,7 @@
 //! will continue to [`unwrap`] the results returned from this module,
 //! instigating a propagation of failure among threads if one unexpectedly dies.
 //!
-//! [`Result`]: ../../../std/result/enum.Result.html
-//! [`Err`]: ../../../std/result/enum.Result.html#variant.Err
-//! [`unwrap`]: ../../../std/result/enum.Result.html#method.unwrap
+//! [`unwrap`]: Result::unwrap
 //!
 //! # Examples
 //!
@@ -130,6 +121,35 @@
 //!     tx.send(53).unwrap();
 //! });
 //! rx.recv().unwrap();
+//! ```
+//!
+//! Unbounded receive loop:
+//!
+//! ```
+//! use std::sync::mpsc::sync_channel;
+//! use std::thread;
+//!
+//! let (tx, rx) = sync_channel(3);
+//!
+//! for _ in 0..3 {
+//!     // It would be the same without thread and clone here
+//!     // since there will still be one `tx` left.
+//!     let tx = tx.clone();
+//!     // cloned tx dropped within thread
+//!     thread::spawn(move || tx.send("ok").unwrap());
+//! }
+//!
+//! // Drop the last sender to stop `rx` waiting for message.
+//! // The program will not complete if we comment this out.
+//! // **All** `tx` needs to be dropped for `rx` to have `Err`.
+//! drop(tx);
+//!
+//! // Unbounded receiver waiting for all senders to complete.
+//! while let Ok(msg) = rx.recv() {
+//!     println!("{}", msg);
+//! }
+//!
+//! println!("completed");
 //! ```
 
 
@@ -285,21 +305,22 @@
 // And now that you've seen all the races that I found and attempted to fix,
 // here's the code for you to find some more!
 
-use alloc_crate::sync::Arc;
-use core::fmt;
-use core::mem;
-use core::cell::UnsafeCell;
+use crate::cell::UnsafeCell;
 use crate::error;
+use crate::fmt;
+use crate::mem;
+use crate::sync::Arc;
 use crate::time::{Duration, Instant};
 #[cfg(not(feature = "untrusted_time"))]
 use crate::untrusted::time::InstantEx;
+
 mod blocking;
+mod mpsc_queue;
 mod oneshot;
 mod shared;
+mod spsc_queue;
 mod stream;
 mod sync;
-mod mpsc_queue;
-mod spsc_queue;
 
 mod cache_aligned;
 
@@ -308,9 +329,7 @@ mod cache_aligned;
 ///
 /// Messages sent to the channel can be retrieved using [`recv`].
 ///
-/// [`channel`]: fn.channel.html
-/// [`sync_channel`]: fn.sync_channel.html
-/// [`recv`]: struct.Receiver.html#method.recv
+/// [`recv`]: Receiver::recv
 ///
 /// # Examples
 ///
@@ -347,10 +366,8 @@ impl<T> !Sync for Receiver<T> {}
 /// waiting for a new message, and [`None`] will be returned
 /// when the corresponding channel has hung up.
 ///
-/// [`iter`]: struct.Receiver.html#method.iter
-/// [`Receiver`]: struct.Receiver.html
-/// [`next`]: ../../../std/iter/trait.Iterator.html#tymethod.next
-/// [`None`]: ../../../std/option/enum.Option.html#variant.None
+/// [`iter`]: Receiver::iter
+/// [`next`]: Iterator::next
 ///
 /// # Examples
 ///
@@ -384,9 +401,7 @@ pub struct Iter<'a, T: 'a> {
 /// This iterator will never block the caller in order to wait for data to
 /// become available. Instead, it will return [`None`].
 ///
-/// [`Receiver`]: struct.Receiver.html
-/// [`try_iter`]: struct.Receiver.html#method.try_iter
-/// [`None`]: ../../../std/option/enum.Option.html#variant.None
+/// [`try_iter`]: Receiver::try_iter
 ///
 /// # Examples
 ///
@@ -426,9 +441,7 @@ pub struct TryIter<'a, T: 'a> {
 /// is called, waiting for a new message, and [`None`] will be
 /// returned if the corresponding channel has hung up.
 ///
-/// [`Receiver`]: struct.Receiver.html
-/// [`next`]: ../../../std/iter/trait.Iterator.html#tymethod.next
-/// [`None`]: ../../../std/option/enum.Option.html#variant.None
+/// [`next`]: Iterator::next
 ///
 /// # Examples
 ///
@@ -458,8 +471,10 @@ pub struct IntoIter<T> {
 ///
 /// Messages can be sent through this channel with [`send`].
 ///
-/// [`channel`]: fn.channel.html
-/// [`send`]: struct.Sender.html#method.send
+/// Note: all senders (the original and the clones) need to be dropped for the receiver
+/// to stop blocking to receive messages with [`Receiver::recv`].
+///
+/// [`send`]: Sender::send
 ///
 /// # Examples
 ///
@@ -501,9 +516,8 @@ impl<T> !Sync for Sender<T> {}
 ///
 /// [`send`] will block if there is no space in the internal buffer.
 ///
-/// [`sync_channel`]: fn.sync_channel.html
-/// [`send`]: struct.SyncSender.html#method.send
-/// [`try_send`]: struct.SyncSender.html#method.try_send
+/// [`send`]: SyncSender::send
+/// [`try_send`]: SyncSender::try_send
 ///
 /// # Examples
 ///
@@ -554,9 +568,6 @@ unsafe impl<T: Send> Send for SyncSender<T> {}
 /// A **send** operation can only fail if the receiving end of a channel is
 /// disconnected, implying that the data could never be received. The error
 /// contains the data being sent as a payload so it can be recovered.
-///
-/// [`Sender::send`]: struct.Sender.html#method.send
-/// [`SyncSender::send`]: struct.SyncSender.html#method.send
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub struct SendError<T>(pub T);
 
@@ -566,10 +577,7 @@ pub struct SendError<T>(pub T);
 /// [`channel`] (or [`sync_channel`]) is disconnected, implying that no further
 /// messages will ever be received.
 ///
-/// [`recv`]: struct.Receiver.html#method.recv
-/// [`Receiver`]: struct.Receiver.html
-/// [`channel`]: fn.channel.html
-/// [`sync_channel`]: fn.sync_channel.html
+/// [`recv`]: Receiver::recv
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct RecvError;
 
@@ -577,9 +585,7 @@ pub struct RecvError;
 /// not return data when called. This can occur with both a [`channel`] and
 /// a [`sync_channel`].
 ///
-/// [`try_recv`]: struct.Receiver.html#method.try_recv
-/// [`channel`]: fn.channel.html
-/// [`sync_channel`]: fn.sync_channel.html
+/// [`try_recv`]: Receiver::try_recv
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum TryRecvError {
     /// This **channel** is currently empty, but the **Sender**(s) have not yet
@@ -595,9 +601,7 @@ pub enum TryRecvError {
 /// unable to return data when called. This can occur with both a [`channel`] and
 /// a [`sync_channel`].
 ///
-/// [`recv_timeout`]: struct.Receiver.html#method.recv_timeout
-/// [`channel`]: fn.channel.html
-/// [`sync_channel`]: fn.sync_channel.html
+/// [`recv_timeout`]: Receiver::recv_timeout
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum RecvTimeoutError {
     /// This **channel** is currently empty, but the **Sender**(s) have not yet
@@ -611,7 +615,7 @@ pub enum RecvTimeoutError {
 /// This enumeration is the list of the possible error outcomes for the
 /// [`try_send`] method.
 ///
-/// [`try_send`]: struct.SyncSender.html#method.try_send
+/// [`try_send`]: SyncSender::try_send
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum TrySendError<T> {
     /// The data could not be sent on the [`sync_channel`] because it would require that
@@ -620,15 +624,10 @@ pub enum TrySendError<T> {
     /// If this is a buffered channel, then the buffer is full at this time. If
     /// this is not a buffered channel, then there is no [`Receiver`] available to
     /// acquire the data.
-    ///
-    /// [`sync_channel`]: fn.sync_channel.html
-    /// [`Receiver`]: struct.Receiver.html
     Full(T),
 
     /// This [`sync_channel`]'s receiving half has disconnected, so the data could not be
     /// sent. The data is returned back to the callee in this case.
-    ///
-    /// [`sync_channel`]: fn.sync_channel.html
     Disconnected(T),
 }
 
@@ -639,6 +638,8 @@ enum Flavor<T> {
     Sync(Arc<sync::Packet<T>>),
 }
 
+#[doc(hidden)]
+#[allow(clippy::mut_from_ref)]
 trait UnsafeFlavor<T> {
     fn inner_unsafe(&self) -> &UnsafeCell<Flavor<T>>;
     unsafe fn inner_mut(&self) -> &mut Flavor<T> {
@@ -664,7 +665,7 @@ impl<T> UnsafeFlavor<T> for Receiver<T> {
 /// the same order as it was sent, and no [`send`] will block the calling thread
 /// (this channel has an "infinite buffer", unlike [`sync_channel`], which will
 /// block after its buffer limit is reached). [`recv`] will block until a message
-/// is available.
+/// is available while there is at least one [`Sender`] alive (including clones).
 ///
 /// The [`Sender`] can be cloned to [`send`] to the same channel multiple times, but
 /// only one [`Receiver`] is supported.
@@ -674,13 +675,8 @@ impl<T> UnsafeFlavor<T> for Receiver<T> {
 /// [`Sender`] is disconnected while trying to [`recv`], the [`recv`] method will
 /// return a [`RecvError`].
 ///
-/// [`send`]: struct.Sender.html#method.send
-/// [`recv`]: struct.Receiver.html#method.recv
-/// [`Sender`]: struct.Sender.html
-/// [`Receiver`]: struct.Receiver.html
-/// [`sync_channel`]: fn.sync_channel.html
-/// [`SendError`]: struct.SendError.html
-/// [`RecvError`]: struct.RecvError.html
+/// [`send`]: Sender::send
+/// [`recv`]: Receiver::recv
 ///
 /// # Examples
 ///
@@ -726,13 +722,8 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
 /// [`SendError`]. Similarly, If the [`SyncSender`] is disconnected while trying
 /// to [`recv`], the [`recv`] method will return a [`RecvError`].
 ///
-/// [`channel`]: fn.channel.html
-/// [`send`]: struct.SyncSender.html#method.send
-/// [`recv`]: struct.Receiver.html#method.recv
-/// [`SyncSender`]: struct.SyncSender.html
-/// [`Receiver`]: struct.Receiver.html
-/// [`SendError`]: struct.SendError.html
-/// [`RecvError`]: struct.RecvError.html
+/// [`send`]: SyncSender::send
+/// [`recv`]: Receiver::recv
 ///
 /// # Examples
 ///
@@ -777,9 +768,6 @@ impl<T> Sender<T> {
     /// received, but a return value of [`Ok`] does *not* mean that the data
     /// will be received. It is possible for the corresponding receiver to
     /// hang up immediately after this function returns [`Ok`].
-    ///
-    /// [`Err`]: ../../../std/result/enum.Result.html#variant.Err
-    /// [`Ok`]: ../../../std/result/enum.Result.html#variant.Ok
     ///
     /// This method will never block the current thread.
     ///
@@ -836,6 +824,11 @@ impl<T> Sender<T> {
 }
 
 impl<T> Clone for Sender<T> {
+    /// Clone a sender to send to other threads.
+    ///
+    /// Note, be aware of the lifetime of the sender because all senders
+    /// (including the original) need to be dropped in order for
+    /// [`Receiver::recv`] to stop blocking.
     fn clone(&self) -> Sender<T> {
         let packet = match *unsafe { self.inner() } {
             Flavor::Oneshot(ref p) => {
@@ -892,7 +885,7 @@ impl<T> Drop for Sender<T> {
 
 impl<T> fmt::Debug for Sender<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Sender").finish()
+        f.debug_struct("Sender").finish_non_exhaustive()
     }
 }
 
@@ -920,9 +913,6 @@ impl<T> SyncSender<T> {
     /// This function will never panic, but it may return [`Err`] if the
     /// [`Receiver`] has disconnected and is no longer able to receive
     /// information.
-    ///
-    /// [`Err`]: ../../../std/result/enum.Result.html#variant.Err
-    /// [`Receiver`]: ../../../std/sync/mpsc/struct.Receiver.html
     ///
     /// # Examples
     ///
@@ -958,7 +948,7 @@ impl<T> SyncSender<T> {
     /// See [`send`] for notes about guarantees of whether the
     /// receiver has received the data or not if this function is successful.
     ///
-    /// [`send`]: ../../../std/sync/mpsc/struct.SyncSender.html#method.send
+    /// [`send`]: Self::send
     ///
     /// # Examples
     ///
@@ -1017,7 +1007,7 @@ impl<T> Drop for SyncSender<T> {
 
 impl<T> fmt::Debug for SyncSender<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SyncSender").finish()
+        f.debug_struct("SyncSender").finish_non_exhaustive()
     }
 }
 
@@ -1042,7 +1032,7 @@ impl<T> Receiver<T> {
     /// Compared with [`recv`], this function has two failure cases instead of one
     /// (one for disconnection, one for an empty buffer).
     ///
-    /// [`recv`]: struct.Receiver.html#method.recv
+    /// [`recv`]: Self::recv
     ///
     /// # Examples
     ///
@@ -1089,19 +1079,16 @@ impl<T> Receiver<T> {
     /// corresponding channel has hung up.
     ///
     /// This function will always block the current thread if there is no data
-    /// available and it's possible for more data to be sent. Once a message is
-    /// sent to the corresponding [`Sender`] (or [`SyncSender`]), then this
-    /// receiver will wake up and return that message.
+    /// available and it's possible for more data to be sent (at least one sender
+    /// still exists). Once a message is sent to the corresponding [`Sender`]
+    /// (or [`SyncSender`]), this receiver will wake up and return that
+    /// message.
     ///
     /// If the corresponding [`Sender`] has disconnected, or it disconnects while
     /// this call is blocking, this call will wake up and return [`Err`] to
     /// indicate that no more messages can ever be received on this channel.
     /// However, since channels are buffered, messages sent before the disconnect
     /// will still be properly received.
-    ///
-    /// [`Sender`]: struct.Sender.html
-    /// [`SyncSender`]: struct.SyncSender.html
-    /// [`Err`]: ../../../std/result/enum.Result.html#variant.Err
     ///
     /// # Examples
     ///
@@ -1174,19 +1161,16 @@ impl<T> Receiver<T> {
     /// corresponding channel has hung up, or if it waits more than `timeout`.
     ///
     /// This function will always block the current thread if there is no data
-    /// available and it's possible for more data to be sent. Once a message is
-    /// sent to the corresponding [`Sender`] (or [`SyncSender`]), then this
-    /// receiver will wake up and return that message.
+    /// available and it's possible for more data to be sent (at least one sender
+    /// still exists). Once a message is sent to the corresponding [`Sender`]
+    /// (or [`SyncSender`]), this receiver will wake up and return that
+    /// message.
     ///
     /// If the corresponding [`Sender`] has disconnected, or it disconnects while
     /// this call is blocking, this call will wake up and return [`Err`] to
     /// indicate that no more messages can ever be received on this channel.
     /// However, since channels are buffered, messages sent before the disconnect
     /// will still be properly received.
-    ///
-    /// [`Sender`]: struct.Sender.html
-    /// [`SyncSender`]: struct.SyncSender.html
-    /// [`Err`]: ../../../std/result/enum.Result.html#variant.Err
     ///
     /// # Known Issues
     ///
@@ -1284,10 +1268,6 @@ impl<T> Receiver<T> {
     /// However, since channels are buffered, messages sent before the disconnect
     /// will still be properly received.
     ///
-    /// [`Sender`]: struct.Sender.html
-    /// [`SyncSender`]: struct.SyncSender.html
-    /// [`Err`]: ../../../std/result/enum.Result.html#variant.Err
-    ///
     /// # Examples
     ///
     /// Successfully receiving value before reaching deadline:
@@ -1376,9 +1356,6 @@ impl<T> Receiver<T> {
     /// Returns an iterator that will block waiting for messages, but never
     /// [`panic!`]. It will return [`None`] when the channel has hung up.
     ///
-    /// [`panic!`]: ../../../std/macro.panic.html
-    /// [`None`]: ../../../std/option/enum.Option.html#variant.None
-    ///
     /// # Examples
     ///
     /// ```rust
@@ -1407,8 +1384,6 @@ impl<T> Receiver<T> {
     /// It will return `None` if there are no more pending values or if the
     /// channel has hung up. The iterator will never [`panic!`] or block the
     /// user by waiting for values.
-    ///
-    /// [`panic!`]: ../../../std/macro.panic.html
     ///
     /// # Examples
     ///
@@ -1500,13 +1475,13 @@ impl<T> Drop for Receiver<T> {
 
 impl<T> fmt::Debug for Receiver<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Receiver").finish()
+        f.debug_struct("Receiver").finish_non_exhaustive()
     }
 }
 
 impl<T> fmt::Debug for SendError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        "SendError(..)".fmt(f)
+        f.debug_struct("SendError").finish_non_exhaustive()
     }
 }
 
@@ -1517,6 +1492,7 @@ impl<T> fmt::Display for SendError<T> {
 }
 
 impl<T: Send> error::Error for SendError<T> {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         "sending on a closed channel"
     }
@@ -1541,20 +1517,21 @@ impl<T> fmt::Display for TrySendError<T> {
 }
 
 impl<T: Send> error::Error for TrySendError<T> {
-
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match *self {
             TrySendError::Full(..) => "sending on a full channel",
             TrySendError::Disconnected(..) => "sending on a closed channel",
         }
     }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
-        None
-    }
 }
 
 impl<T> From<SendError<T>> for TrySendError<T> {
+    /// Converts a `SendError<T>` into a `TrySendError<T>`.
+    ///
+    /// This conversion always returns a `TrySendError::Disconnected` containing the data in the `SendError<T>`.
+    ///
+    /// No data is allocated on the heap.
     fn from(err: SendError<T>) -> TrySendError<T> {
         match err {
             SendError(t) => TrySendError::Disconnected(t),
@@ -1569,7 +1546,7 @@ impl fmt::Display for RecvError {
 }
 
 impl error::Error for RecvError {
-
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         "receiving on a closed channel"
     }
@@ -1585,7 +1562,7 @@ impl fmt::Display for TryRecvError {
 }
 
 impl error::Error for TryRecvError {
-
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match *self {
             TryRecvError::Empty => "receiving on an empty channel",
@@ -1595,6 +1572,11 @@ impl error::Error for TryRecvError {
 }
 
 impl From<RecvError> for TryRecvError {
+    /// Converts a `RecvError` into a `TryRecvError`.
+    ///
+    /// This conversion always returns `TryRecvError::Disconnected`.
+    ///
+    /// No data is allocated on the heap.
     fn from(err: RecvError) -> TryRecvError {
         match err {
             RecvError => TryRecvError::Disconnected,
@@ -1612,6 +1594,7 @@ impl fmt::Display for RecvTimeoutError {
 }
 
 impl error::Error for RecvTimeoutError {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         match *self {
             RecvTimeoutError::Timeout => "timed out waiting on channel",
@@ -1621,11 +1604,14 @@ impl error::Error for RecvTimeoutError {
 }
 
 impl From<RecvError> for RecvTimeoutError {
+    /// Converts a `RecvError` into a `RecvTimeoutError`.
+    ///
+    /// This conversion always returns `RecvTimeoutError::Disconnected`.
+    ///
+    /// No data is allocated on the heap.
     fn from(err: RecvError) -> RecvTimeoutError {
         match err {
             RecvError => RecvTimeoutError::Disconnected,
         }
     }
 }
-
-

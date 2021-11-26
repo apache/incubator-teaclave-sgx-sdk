@@ -21,10 +21,14 @@
 //!
 
 #![no_std]
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+#![cfg_attr(
+    all(target_env = "sgx", target_vendor = "mesalock"),
+    feature(rustc_private)
+)]
 #![allow(non_camel_case_types)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
+#![allow(clippy::missing_safety_doc)]
 
 #[macro_use]
 extern crate alloc;

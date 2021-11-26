@@ -21,12 +21,13 @@
 //! concurrently between two threads. This data structure is safe to use and
 //! enforces the semantics that there is one pusher and one popper.
 
-// http://www.1024cores.net/home/lock-free-algorithms/queues/unbounded-spsc-queue
+// https://www.1024cores.net/home/lock-free-algorithms/queues/unbounded-spsc-queue
 
-use core::ptr;
 use core::cell::UnsafeCell;
-use core::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
-use alloc_crate::boxed::Box;
+use core::ptr;
+
+use crate::boxed::Box;
+use crate::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
 
 use super::cache_aligned::CacheAligned;
 
@@ -247,4 +248,3 @@ impl<T, ProducerAddition, ConsumerAddition> Drop for Queue<T, ProducerAddition, 
         }
     }
 }
-

@@ -435,9 +435,11 @@ pub fn rsgx_create_enclave_with_workers(
     num_uworkers: u32,
     num_tworkers: u32,
 ) -> SgxResult<sgx_enclave_id_t> {
-    let mut us_config = sgx_uswitchless_config_t::default();
-    us_config.num_tworkers = num_tworkers;
-    us_config.num_uworkers = num_uworkers;
+    let us_config = sgx_uswitchless_config_t {
+        num_tworkers,
+        num_uworkers,
+        ..Default::default()
+    };
     let mut enclave_ex_p: [*const c_void; 32] = [ptr::null(); 32];
     enclave_ex_p[SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX] =
         &us_config as *const sgx_uswitchless_config_t as *const c_void;
@@ -671,8 +673,19 @@ impl SgxEnclave {
         // before this function returns.
     }
 
+    #[inline]
     pub fn geteid(&self) -> sgx_enclave_id_t {
         self.id
+    }
+
+    #[inline]
+    pub fn is_debug(&self) -> bool {
+        self.debug != 0
+    }
+
+    #[inline]
+    pub fn path(&self) -> &Path {
+        self.path.as_path()
     }
 
     pub fn get_target_info(&self) -> SgxResult<sgx_target_info_t> {

@@ -38,22 +38,21 @@
 /// consuming the port). This upgrade is then also stored in the shared packet.
 /// The one caveat to consider is that when a port sees a disconnected channel
 /// it must check for data because there is no "data plus upgrade" state.
-
 pub use self::Failure::*;
 use self::MyUpgrade::*;
 pub use self::UpgradeResult::*;
 
-use core::cell::UnsafeCell;
-use core::ptr;
-use core::sync::atomic::{AtomicUsize, Ordering};
+use crate::cell::UnsafeCell;
+use crate::ptr;
+use crate::sync::atomic::{AtomicUsize, Ordering};
 use crate::sync::mpsc::blocking::{self, SignalToken};
 use crate::sync::mpsc::Receiver;
 use crate::time::Instant;
 
 // Various states you can find a port in.
-const EMPTY: usize = 0;          // initial state: no data, no blocked receiver
-const DATA: usize = 1;           // data ready for receiver to take
-const DISCONNECTED: usize = 2;   // channel is disconnected OR upgraded
+const EMPTY: usize = 0; // initial state: no data, no blocked receiver
+const DATA: usize = 1; // data ready for receiver to take
+const DISCONNECTED: usize = 2; // channel is disconnected OR upgraded
 // Any other value represents a pointer to a SignalToken value. The
 // protocol ensures that when the state moves *to* a pointer,
 // ownership of the token is given to the packet, and when the state
@@ -76,6 +75,7 @@ pub enum Failure<T> {
     Upgraded(Receiver<T>),
 }
 
+#[allow(clippy::enum_variant_names)]
 pub enum UpgradeResult {
     UpSuccess,
     UpDisconnected,
@@ -147,7 +147,7 @@ impl<T> Packet<T> {
             let ptr = unsafe { signal_token.cast_to_usize() };
 
             // race with senders to enter the blocking state
-            if self.state.compare_and_swap(EMPTY, ptr, Ordering::SeqCst) == EMPTY {
+            if self.state.compare_exchange(EMPTY, ptr, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
                 if let Some(deadline) = deadline {
                     let timed_out = !wait_token.wait_max_until(deadline);
                     // Try to reset the state
@@ -179,7 +179,12 @@ impl<T> Packet<T> {
                 // the state changes under our feet we'd rather just see that state
                 // change.
                 DATA => {
-                    self.state.compare_and_swap(DATA, EMPTY, Ordering::SeqCst);
+                    let _ = self.state.compare_exchange(
+                        DATA,
+                        EMPTY,
+                        Ordering::SeqCst,
+                        Ordering::SeqCst,
+                    );
                     match (&mut *self.data.get()).take() {
                         Some(data) => Ok(data),
                         None => unreachable!(),
@@ -278,11 +283,14 @@ impl<T> Packet<T> {
         let state = match self.state.load(Ordering::SeqCst) {
             // Each of these states means that no further activity will happen
             // with regard to abortion selection
-            s @ EMPTY | s @ DATA | s @ DISCONNECTED => s,
+            s @ (EMPTY | DATA | DISCONNECTED) => s,
 
             // If we've got a blocked thread, then use an atomic to gain ownership
             // of it (may fail)
-            ptr => self.state.compare_and_swap(ptr, EMPTY, Ordering::SeqCst),
+            ptr => self
+                .state
+                .compare_exchange(ptr, EMPTY, Ordering::SeqCst, Ordering::SeqCst)
+                .unwrap_or_else(|x| x),
         };
 
         // Now that we've got ownership of our state, figure out what to do

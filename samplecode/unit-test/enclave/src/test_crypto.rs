@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use utils::*;
-use std::string::String;
 use sgx_tcrypto::*;
+use std::string::String;
+use utils::*;
 
 static HASH_TEST_VEC: &'static [&'static str] = &[
     &"abc",
@@ -40,7 +40,7 @@ pub fn test_rsgx_sha256_slice() {
     }
 }
 
-pub fn test_rsgx_sha256_handle(){
+pub fn test_rsgx_sha256_handle() {
     let test_size = HASH_TEST_VEC.len();
     for i in 0..test_size {
         let input_str = String::from(HASH_TEST_VEC[i]);
@@ -52,4 +52,3 @@ pub fn test_rsgx_sha256_handle(){
         assert_eq!(hex_to_bytes(HASH_SHA256_TRUTH[i]), hash);
     }
 }
-

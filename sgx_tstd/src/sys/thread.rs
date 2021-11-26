@@ -15,14 +15,17 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_types::{sgx_ocalloc, sgx_ocfree, sgx_status_t};
-use core::cmp;
-use core::mem;
-use core::ptr;
+use crate::cmp;
 use crate::ffi::CStr;
 use crate::io;
+use crate::mem;
+use crate::num::NonZeroUsize;
+use crate::ptr;
 use crate::sys::os;
 use crate::time::Duration;
+
+use sgx_trts::enclave;
+use sgx_types::{sgx_ocalloc, sgx_ocfree, sgx_status_t};
 
 pub struct Thread {
     id: libc::pthread_t,
@@ -62,6 +65,11 @@ impl Thread {
         }
     }
 
+    pub fn yield_now() {
+        let ret = unsafe { libc::sched_yield() };
+        debug_assert_eq!(ret, 0);
+    }
+
     pub fn set_name(name: &CStr) {
         const PR_SET_NAME: libc::c_int = 15;
         // pthread wrapper only appeared in glibc 2.12, so we use syscall
@@ -77,11 +85,6 @@ impl Thread {
         }
     }
 
-    pub fn yield_now() {
-        let ret = unsafe { libc::sched_yield() };
-        debug_assert_eq!(ret, 0);
-    }
-
     pub fn sleep(dur: Duration) {
         let mut secs = dur.as_secs();
         let mut nsecs = dur.subsec_nanos() as _;
@@ -91,11 +94,12 @@ impl Thread {
         unsafe {
             while secs > 0 || nsecs > 0 {
                 let mut ts = libc::timespec {
-                    tv_sec: cmp::min(libc::time_t::max_value() as u64, secs) as libc::time_t,
+                    tv_sec: cmp::min(libc::time_t::MAX as u64, secs) as libc::time_t,
                     tv_nsec: nsecs,
                 };
                 secs -= ts.tv_sec as u64;
-                if libc::nanosleep(&ts, &mut ts) == -1 {
+                let ts_ptr = &mut ts as *mut _;
+                if libc::nanosleep(ts_ptr, ts_ptr) == -1 {
                     assert_eq!(os::errno(), libc::EINTR);
                     secs += ts.tv_sec as u64;
                     nsecs = ts.tv_nsec;
@@ -132,7 +136,16 @@ impl Drop for Thread {
     }
 }
 
+pub fn available_concurrency() -> io::Result<NonZeroUsize> {
+    let cpus = enclave::rsgx_get_cpu_core_num();
+    NonZeroUsize::new(cpus as usize).ok_or_else(|| io::Error::new_const(
+        io::ErrorKind::NotFound,
+        &"The number of hardware threads is not known for the target platform",
+    ))
+}
+
 mod libc {
-    pub use sgx_trts::libc::*;
-    pub use sgx_trts::libc::ocall::{sched_yield, nanosleep, prctl};
+    pub use sgx_libc::ocall::{sched_yield, nanosleep, prctl};
+    pub use sgx_libc::*;
+    
 }

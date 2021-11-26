@@ -1,17 +1,18 @@
 [package]
 name = "sgx_unwind"
-version = "0.1.1"
+version = "1.1.4"
 authors = ["The Teaclave Authors"]
 build = "build.rs"
 repository = "https://github.com/apache/teaclave-sgx-sdk"
 license-file = "LICENSE"
-documentation = "https://dingelish.github.io/"
+documentation = "https://teaclave.apache.org/sgx-sdk-docs/"
 description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
 edition = "2018"
 exclude = [
     "libunwind/autom4te.cache/*",
     "libunwind/aclocal.m4",
     "libunwind/config/*",
+    "libunwind/m4/*",
     "libunwind/configure",
     "libunwind/INSTALL",
     "libunwind/Makefile.in",
@@ -21,7 +22,6 @@ exclude = [
 
 [lib]
 name = "sgx_unwind"
-path = "lib.rs"
 test = false
 bench = false
 doc = false

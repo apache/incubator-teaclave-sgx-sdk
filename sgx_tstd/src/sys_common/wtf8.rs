@@ -15,25 +15,37 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//! Implementation of [the WTF-8 encoding]
+//! Implementation of [the WTF-8 encoding](https://simonsapin.github.io/wtf-8/).
 //!
+//! This library uses Rust’s type system to maintain
+//! [well-formedness](https://simonsapin.github.io/wtf-8/#well-formed),
+//! like the `String` and `&str` types do for UTF-8.
+//!
+//! Since [WTF-8 must not be used
+//! for interchange](https://simonsapin.github.io/wtf-8/#intended-audience),
+//! this library deliberately does not provide access to the underlying bytes
+//! of WTF-8 strings,
+//! nor can it decode WTF-8 from arbitrary bytes.
+//! WTF-8 strings can be obtained from UTF-8, UTF-16, or code points.
 
 // this module is imported from @SimonSapin's repo and has tons of dead code on
 // unix (it's mostly used on windows), so don't worry about dead code here.
 #![allow(dead_code)]
+#![allow(clippy::derive_hash_xor_eq)]
 
-use core::char;
-use core::fmt;
-use core::str;
 use core::str::next_code_point;
-use core::hash::{Hash, Hasher};
-use core::iter::FromIterator;
-use core::mem;
-use core::ops;
-use alloc_crate::slice;
-use alloc_crate::rc::Rc;
-use alloc_crate::sync::Arc;
-use alloc_crate::borrow::Cow;
+
+use crate::borrow::Cow;
+use crate::char;
+use crate::fmt;
+use crate::hash::{Hash, Hasher};
+use crate::iter::FromIterator;
+use crate::mem;
+use crate::ops;
+use crate::rc::Rc;
+use crate::slice;
+use crate::str;
+use crate::sync::Arc;
 use crate::sys_common::AsInner;
 
 const UTF8_REPLACEMENT_CHARACTER: &str = "\u{FFFD}";
@@ -207,9 +219,8 @@ impl Wtf8Buf {
     /// Copied from String::push
     /// This does **not** include the WTF-8 concatenation check.
     fn push_code_point_unchecked(&mut self, code_point: CodePoint) {
-        let c = unsafe { char::from_u32_unchecked(code_point.value) };
         let mut bytes = [0; 4];
-        let bytes = c.encode_utf8(&mut bytes).as_bytes();
+        let bytes = char::encode_utf8_raw(code_point.value, &mut bytes);
         self.bytes.extend_from_slice(bytes)
     }
 
@@ -391,6 +402,17 @@ impl Extend<CodePoint> for Wtf8Buf {
         // Lower bound of one byte per code point (ASCII only)
         self.bytes.reserve(low);
         iterator.for_each(move |code_point| self.push(code_point));
+    }
+
+    #[inline]
+    fn extend_one(&mut self, code_point: CodePoint) {
+        self.push(code_point);
+    }
+
+    #[inline]
+    fn extend_reserve(&mut self, additional: usize) {
+        // Lower bound of one byte per code point (ASCII only)
+        self.bytes.reserve(additional);
     }
 }
 
@@ -764,6 +786,7 @@ fn decode_surrogate_pair(lead: u16, trail: u16) -> char {
 }
 
 /// Copied from core::str::StrPrelude::is_char_boundary
+#[allow(clippy::manual_range_contains)]
 #[inline]
 pub fn is_code_point_boundary(slice: &Wtf8, index: usize) -> bool {
     if index == slice.len() {
@@ -778,7 +801,7 @@ pub fn is_code_point_boundary(slice: &Wtf8, index: usize) -> bool {
 /// Copied from core::str::raw::slice_unchecked
 #[inline]
 pub unsafe fn slice_unchecked(s: &Wtf8, begin: usize, end: usize) -> &Wtf8 {
-    // memory layout of an &[u8] and &Wtf8 are the same
+    // memory layout of a &[u8] and &Wtf8 are the same
     Wtf8::from_bytes_unchecked(slice::from_raw_parts(s.bytes.as_ptr().add(begin), end - begin))
 }
 
@@ -833,8 +856,7 @@ impl<'a> Iterator for EncodeWide<'a> {
 
         let mut buf = [0; 2];
         self.code_points.next().map(|code_point| {
-            let c = unsafe { char::from_u32_unchecked(code_point.value) };
-            let n = c.encode_utf16(&mut buf).len();
+            let n = char::encode_utf16_raw(code_point.value, &mut buf).len();
             if n == 2 {
                 self.extra = buf[1];
             }
@@ -845,10 +867,11 @@ impl<'a> Iterator for EncodeWide<'a> {
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (low, high) = self.code_points.size_hint();
+        let ext = (self.extra != 0) as usize;
         // every code point gets either one u16 or two u16,
         // so this iterator is between 1 or 2 times as
         // long as the underlying iterator.
-        (low, high.and_then(|n| n.checked_mul(2)))
+        (low + ext, high.and_then(|n| n.checked_mul(2)).and_then(|n| n.checked_add(ext)))
     }
 }
 

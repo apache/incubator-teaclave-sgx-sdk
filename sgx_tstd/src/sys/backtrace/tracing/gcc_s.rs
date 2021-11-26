@@ -15,14 +15,16 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_unwind as uw;
-use core::ffi::c_void;
+use crate::ffi::c_void;
 use crate::sys::backtrace::Bomb;
+
+use sgx_unwind as uw;
 
 pub enum Frame {
     Raw(*mut uw::_Unwind_Context),
     Cloned {
         ip: *mut c_void,
+        sp: *mut c_void,
         symbol_address: *mut c_void,
     },
 }
@@ -41,6 +43,13 @@ impl Frame {
             Frame::Cloned { ip, .. } => return ip,
         };
         unsafe { uw::_Unwind_GetIP(ctx) as *mut c_void }
+    }
+
+    pub fn sp(&self) -> *mut c_void {
+        match *self {
+            Frame::Raw(ctx) => unsafe { uw::_Unwind_GetCFA(ctx) as *mut c_void },
+            Frame::Cloned { sp, .. } => sp,
+        }
     }
 
     pub fn symbol_address(&self) -> *mut c_void {
@@ -62,12 +71,17 @@ impl Frame {
             unsafe { uw::_Unwind_FindEnclosingFunction(self.ip()) }
         }
     }
+
+    pub fn module_base_address(&self) -> Option<*mut c_void> {
+        None
+    }
 }
 
 impl Clone for Frame {
     fn clone(&self) -> Frame {
         Frame::Cloned {
             ip: self.ip(),
+            sp: self.sp(),
             symbol_address: self.symbol_address(),
         }
     }

@@ -1,9 +1,9 @@
-use std::vec::Vec;
+use sgx_serialize::{DeSerializable, DeSerializeHelper, Serializable, SerializeHelper};
 use std::fmt::Debug;
-use std::string::{ToString, String};
-use sgx_serialize::{Serializable, DeSerializable, SerializeHelper, DeSerializeHelper};
+use std::string::{String, ToString};
+use std::vec::Vec;
 
-fn test_serialize_internal<T: Serializable + DeSerializable>(target: &T) -> Option<T>{
+fn test_serialize_internal<T: Serializable + DeSerializable>(target: &T) -> Option<T> {
     let helper = SerializeHelper::new();
     let data = helper.encode(target).unwrap();
     let helper = DeSerializeHelper::<T>::new(data);
@@ -16,7 +16,10 @@ pub fn test_serialize_struct() {
         a1: u32,
         a2: u32,
     }
-    let a = TestSturct {a1: 2017u32, a2: 829u32};
+    let a = TestSturct {
+        a1: 2017u32,
+        a2: 829u32,
+    };
     let c = test_serialize_internal::<TestSturct>(&a).unwrap();
     assert_eq!(a, c);
 
@@ -50,11 +53,14 @@ pub fn test_serialize_enum() {
         EnumUnit,
         EnumNewType(u32),
         EnumTuple(u32, u32),
-        EnumStruct{a1:i32, a2:i32},
+        EnumStruct { a1: i32, a2: i32 },
         EnumSubStruct(TestSturct),
     }
 
-    let a = TestSturct { a1: 2017u32, a2: 928u32 };
+    let a = TestSturct {
+        a1: 2017u32,
+        a2: 928u32,
+    };
     let a = TestEnum::EnumSubStruct(a);
     let c = test_serialize_internal::<TestEnum>(&a).unwrap();
     assert_eq!(a, c);
@@ -67,7 +73,7 @@ pub fn test_serialize_enum() {
     let c = test_serialize_internal::<TestEnum>(&a).unwrap();
     assert_eq!(a, c);
 
-    let a = TestEnum::EnumStruct {a1: 2017, a2:829};
+    let a = TestEnum::EnumStruct { a1: 2017, a2: 829 };
     let c = test_serialize_internal::<TestEnum>(&a).unwrap();
     assert_eq!(a, c);
 }
@@ -130,7 +136,17 @@ pub fn test_serialize_base() {
     }
 
     fn test_usize() {
-        check_round_trip(vec![1, 2, 3, ::std::usize::MIN, 0, 1, ::std::usize::MAX, 2, 1]);
+        check_round_trip(vec![
+            1,
+            2,
+            3,
+            ::std::usize::MIN,
+            0,
+            1,
+            ::std::usize::MAX,
+            2,
+            1,
+        ]);
     }
 
     fn test_i8() {
@@ -148,15 +164,45 @@ pub fn test_serialize_base() {
     }
 
     fn test_i32() {
-        check_round_trip(vec![-1, 2, -3, ::std::i32::MIN, 0, 1, ::std::i32::MAX, 2, 1]);
+        check_round_trip(vec![
+            -1,
+            2,
+            -3,
+            ::std::i32::MIN,
+            0,
+            1,
+            ::std::i32::MAX,
+            2,
+            1,
+        ]);
     }
 
     fn test_i64() {
-        check_round_trip(vec![-1, 2, -3, ::std::i64::MIN, 0, 1, ::std::i64::MAX, 2, 1]);
+        check_round_trip(vec![
+            -1,
+            2,
+            -3,
+            ::std::i64::MIN,
+            0,
+            1,
+            ::std::i64::MAX,
+            2,
+            1,
+        ]);
     }
 
     fn test_isize() {
-        check_round_trip(vec![-1, 2, -3, ::std::isize::MIN, 0, 1, ::std::isize::MAX, 2, 1]);
+        check_round_trip(vec![
+            -1,
+            2,
+            -3,
+            ::std::isize::MIN,
+            0,
+            1,
+            ::std::isize::MAX,
+            2,
+            1,
+        ]);
     }
 
     fn test_bool() {
@@ -185,13 +231,15 @@ pub fn test_serialize_base() {
     }
 
     fn test_string() {
-        let vec = vec!["abcbuÖeiovÄnameÜavmpßvmea€µsbpnvapeapmaebn".to_string(),
-                       "abcbuÖganeiovÄnameÜavmpßvmea€µsbpnvapeapmaebn".to_string(),
-                       "abcbuÖganeiovÄnameÜavmpßvmea€µsbpapmaebn".to_string(),
-                       "abcbuÖganeiovÄnameÜavmpßvmeabpnvapeapmaebn".to_string(),
-                       "abcbuÖganeiÄnameÜavmpßvmea€µsbpnvapeapmaebn".to_string(),
-                       "abcbuÖganeiovÄnameÜavmpßvmea€µsbpmaebn".to_string(),
-                       "abcbuÖganeiovÄnameÜavmpßvmea€µnvapeapmaebn".to_string()];
+        let vec = vec![
+            "abcbuÖeiovÄnameÜavmpßvmea€µsbpnvapeapmaebn".to_string(),
+            "abcbuÖganeiovÄnameÜavmpßvmea€µsbpnvapeapmaebn".to_string(),
+            "abcbuÖganeiovÄnameÜavmpßvmea€µsbpapmaebn".to_string(),
+            "abcbuÖganeiovÄnameÜavmpßvmeabpnvapeapmaebn".to_string(),
+            "abcbuÖganeiÄnameÜavmpßvmea€µsbpnvapeapmaebn".to_string(),
+            "abcbuÖganeiovÄnameÜavmpßvmea€µsbpmaebn".to_string(),
+            "abcbuÖganeiovÄnameÜavmpßvmea€µnvapeapmaebn".to_string(),
+        ];
 
         check_round_trip(vec);
     }
@@ -221,74 +269,72 @@ pub fn test_serialize_base() {
 
     fn test_struct() {
         check_round_trip(vec![Struct {
-                                  a: (),
-                                  b: 10,
-                                  c: 11,
-                                  d: 12,
-                                  e: 13,
-                                  f: 14,
+            a: (),
+            b: 10,
+            c: 11,
+            d: 12,
+            e: 13,
+            f: 14,
 
-                                  g: 15,
-                                  h: 16,
-                                  i: 17,
-                                  j: 18,
-                                  k: 19,
+            g: 15,
+            h: 16,
+            i: 17,
+            j: 18,
+            k: 19,
 
-                                  l: 'x',
-                                  m: "abc".to_string(),
-                                  n: 20.5,
-                                  o: 21.5,
-                                  p: false,
-                                  q: None,
-                              }]);
+            l: 'x',
+            m: "abc".to_string(),
+            n: 20.5,
+            o: 21.5,
+            p: false,
+            q: None,
+        }]);
 
         check_round_trip(vec![Struct {
-                                  a: (),
-                                  b: 101,
-                                  c: 111,
-                                  d: 121,
-                                  e: 131,
-                                  f: 141,
+            a: (),
+            b: 101,
+            c: 111,
+            d: 121,
+            e: 131,
+            f: 141,
 
-                                  g: -15,
-                                  h: -16,
-                                  i: -17,
-                                  j: -18,
-                                  k: -19,
+            g: -15,
+            h: -16,
+            i: -17,
+            j: -18,
+            k: -19,
 
-                                  l: 'y',
-                                  m: "def".to_string(),
-                                  n: -20.5,
-                                  o: -21.5,
-                                  p: true,
-                                  q: Some(1234567),
-                              }]);
+            l: 'y',
+            m: "def".to_string(),
+            n: -20.5,
+            o: -21.5,
+            p: true,
+            q: Some(1234567),
+        }]);
     }
 
     #[derive(PartialEq, Clone, Debug, Serializable, DeSerializable)]
     enum Enum {
         Variant1,
         Variant2(usize, f32),
-        Variant3 {
-            a: i32,
-            b: char,
-            c: bool,
-        },
+        Variant3 { a: i32, b: char, c: bool },
     }
 
     fn test_enum() {
-        check_round_trip(vec![Enum::Variant1,
-                              Enum::Variant2(1, 2.5),
-                              Enum::Variant3 {
-                                  a: 3,
-                                  b: 'b',
-                                  c: false,
-                              },
-                              Enum::Variant3 {
-                                  a: -4,
-                                  b: 'f',
-                                  c: true,
-                              }]);
+        check_round_trip(vec![
+            Enum::Variant1,
+            Enum::Variant2(1, 2.5),
+            Enum::Variant3 {
+                a: 3,
+                b: 'b',
+                c: false,
+            },
+            Enum::Variant3 {
+                a: -4,
+                b: 'f',
+                c: true,
+            },
+        ]);
     }
 
     fn test_sequence() {

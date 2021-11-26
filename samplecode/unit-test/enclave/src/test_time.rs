@@ -3,13 +3,13 @@ use std::untrusted::time::{InstantEx, SystemTimeEx};
 
 pub fn test_std_time() {
     macro_rules! assert_almost_eq {
-        ($a:expr, $b:expr) => ({
+        ($a:expr, $b:expr) => {{
             let (a, b) = ($a, $b);
             if a != b {
-                let (a, b) = if a > b {(a, b)} else {(b, a)};
+                let (a, b) = if a > b { (a, b) } else { (b, a) };
                 assert!(a - Duration::new(0, 100) <= b);
             }
-        })
+        }};
     }
 
     {
@@ -61,8 +61,7 @@ pub fn test_std_time() {
 
         let second = Duration::new(1, 0);
         assert_almost_eq!(a.duration_since(a - second).unwrap(), second);
-        assert_almost_eq!(a.duration_since(a + second).unwrap_err()
-                           .duration(), second);
+        assert_almost_eq!(a.duration_since(a + second).unwrap_err().duration(), second);
 
         assert_almost_eq!(a - second + second, a);
 
@@ -74,8 +73,8 @@ pub fn test_std_time() {
         //}
 
         let one_second_from_epoch = UNIX_EPOCH + Duration::new(1, 0);
-        let one_second_from_epoch2 = UNIX_EPOCH + Duration::new(0, 500_000_000)
-            + Duration::new(0, 500_000_000);
+        let one_second_from_epoch2 =
+            UNIX_EPOCH + Duration::new(0, 500_000_000) + Duration::new(0, 500_000_000);
         assert_eq!(one_second_from_epoch, one_second_from_epoch2);
     }
 
@@ -109,4 +108,3 @@ pub fn test_std_time() {
         assert!(a < hundred_twenty_years);
     }
 }
-

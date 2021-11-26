@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -193,6 +194,15 @@ int u_unlink_ocall(int *error, const char *pathname)
 int u_link_ocall(int *error, const char *oldpath, const char *newpath)
 {
     int ret = link(oldpath, newpath);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
+int u_linkat_ocall(int *error, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags)
+{
+    int ret = linkat(olddirfd, oldpath, newdirfd, newpath, flags);
     if (error) {
         *error = ret == -1 ? errno : 0;
     }

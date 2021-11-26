@@ -9,6 +9,8 @@ description = "Rust SGX SDK provides the ability to write Intel SGX applications
 edition = "2018"
 
 [lib]
-path = "lib.rs"
+test = false
+bench = false
+doc = false
 
 [dependencies]

@@ -62,7 +62,7 @@ impl SgxInternalUnsealedData {
 #[derive(Clone, Default)]
 struct SgxPayload {
     payload_size: u32,
-    reserved: [u8; 12],
+    _reserved: [u8; 12],
     payload_tag: [u8; SGX_SEAL_TAG_SIZE],
     encrypt: Box<[u8]>,
     additional: Box<[u8]>,
@@ -110,9 +110,7 @@ impl SgxInternalSealedData {
 
     pub fn get_add_mac_txt_len(&self) -> u32 {
         let data_size = self.payload_data.additional.len();
-        if data_size > self.payload_data.payload_size as usize
-            || data_size >= u32::MAX as usize
-        {
+        if data_size > self.payload_data.payload_size as usize || data_size >= u32::MAX as usize {
             u32::MAX
         } else {
             data_size as u32
@@ -121,9 +119,7 @@ impl SgxInternalSealedData {
 
     pub fn get_encrypt_txt_len(&self) -> u32 {
         let data_size = self.payload_data.encrypt.len();
-        if data_size > self.payload_data.payload_size as usize
-            || data_size >= u32::MAX as usize
-        {
+        if data_size > self.payload_data.payload_size as usize || data_size >= u32::MAX as usize {
             u32::MAX
         } else {
             data_size as u32
@@ -255,14 +251,16 @@ impl SgxInternalSealedData {
             Vec::new()
         };
 
-        let mut sealed_data = Self::default();
-        sealed_data.key_request = raw_sealed_data.key_request;
-        sealed_data.payload_data.payload_size = raw_sealed_data.aes_data.payload_size;
-        sealed_data.payload_data.payload_tag = raw_sealed_data.aes_data.payload_tag;
-        sealed_data.payload_data.additional = additional.into_boxed_slice();
-        sealed_data.payload_data.encrypt = encrypt.into_boxed_slice();
-
-        Some(sealed_data)
+        Some(Self {
+            key_request: raw_sealed_data.key_request,
+            payload_data: SgxPayload {
+                payload_size: raw_sealed_data.aes_data.payload_size,
+                _reserved: [0; 12],
+                payload_tag: raw_sealed_data.aes_data.payload_tag,
+                additional: additional.into_boxed_slice(),
+                encrypt: encrypt.into_boxed_slice(),
+            },
+        })
     }
 
     pub fn seal_data(additional_text: &[u8], encrypt_text: &[u8]) -> SgxResult<Self> {
@@ -298,14 +296,10 @@ impl SgxInternalSealedData {
         let additional_len = additional_text.len();
         let encrypt_len = encrypt_text.len();
 
-        if (additional_len >= u32::MAX as usize)
-            || (encrypt_len >= u32::MAX as usize)
-        {
+        if (additional_len >= u32::MAX as usize) || (encrypt_len >= u32::MAX as usize) {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
-        if Self::calc_raw_sealed_data_size(additional_len as u32, encrypt_len as u32)
-            == u32::MAX
-        {
+        if Self::calc_raw_sealed_data_size(additional_len as u32, encrypt_len as u32) == u32::MAX {
             return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
         }
         if encrypt_len == 0 {
@@ -347,10 +341,10 @@ impl SgxInternalSealedData {
         let mut report = rsgx_self_report();
 
         let error = rsgx_read_rand(&mut key_id.id);
-        if error.is_err() {
+        if let Err(e) = error {
             report = sgx_report_t::default();
             key_id = sgx_key_id_t::default();
-            return Err(error.unwrap_err());
+            return Err(e);
         }
 
         let key_request = sgx_key_request_t {
@@ -476,10 +470,10 @@ impl SgxInternalSealedData {
         let mut report = rsgx_self_report();
 
         let error = rsgx_read_rand(&mut key_id.id);
-        if error.is_err() {
+        if let Err(e) = error {
             report = sgx_report_t::default();
             key_id = sgx_key_id_t::default();
-            return Err(error.unwrap_err());
+            return Err(e);
         }
 
         let key_request = sgx_key_request_t {
@@ -558,13 +552,13 @@ impl SgxInternalSealedData {
             &seal_key.key,
             encrypt_text,
             payload_iv,
-            &additional_text,
+            additional_text,
             &mut sealed_data.payload_data.encrypt,
             &mut sealed_data.payload_data.payload_tag,
         );
-        if error.is_err() {
+        if let Err(e) = error {
             seal_key.key = sgx_key_128bit_t::default();
-            return Err(error.unwrap_err());
+            return Err(e);
         }
 
         sealed_data.payload_data.payload_size = (encrypt_text.len() + additional_text.len()) as u32;
@@ -598,8 +592,10 @@ impl SgxInternalSealedData {
         rsgx_lfence();
 
         let payload_iv = [0_u8; SGX_SEAL_IV_SIZE];
-        let mut unsealed_data: SgxInternalUnsealedData = SgxInternalUnsealedData::default();
-        unsealed_data.decrypt = vec![0_u8; self.payload_data.encrypt.len()].into_boxed_slice();
+        let mut unsealed_data = SgxInternalUnsealedData {
+            decrypt: vec![0_u8; self.payload_data.encrypt.len()].into_boxed_slice(),
+            ..Default::default()
+        };
 
         let error = rsgx_rijndael128GCM_decrypt(
             &seal_key.key,
@@ -609,9 +605,9 @@ impl SgxInternalSealedData {
             self.get_payload_tag(),
             &mut unsealed_data.decrypt,
         );
-        if error.is_err() {
+        if let Err(e) = error {
             seal_key.key = sgx_key_128bit_t::default();
-            return Err(error.unwrap_err());
+            return Err(e);
         }
 
         if self.payload_data.additional.len() > 0 {

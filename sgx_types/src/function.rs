@@ -318,6 +318,13 @@ extern "C" {
                             p_key: *const sgx_rsa3072_key_t,
                             p_signature: *mut sgx_rsa3072_signature_t) -> sgx_status_t;
 
+    /* intel sgx sdk 2.15 */
+    pub fn sgx_rsa3072_sign_ex(p_data: *const uint8_t,
+                               data_size: uint32_t,
+                               p_key: *const sgx_rsa3072_key_t,
+                               p_public: *const sgx_rsa3072_public_key_t,
+                               p_signature: *mut sgx_rsa3072_signature_t) -> sgx_status_t;
+
     pub fn sgx_rsa3072_verify(p_data: *const uint8_t,
                               data_size: uint32_t,
                               p_public: *const sgx_rsa3072_public_key_t,
@@ -741,7 +748,7 @@ extern "C" {
     pub fn sgx_ql_free_qve_identity(p_qve_identity: *const c_char, p_qve_identity_issuer_chain: *const c_char) -> sgx_quote3_error_t;
 
     /* intel DCAP 1.4 */
-    pub fn sgx_ql_get_root_ca_crl(pp_root_ca_crl: *mut *mut uint8_t, p_root_ca_cal_size: *mut uint16_t) -> sgx_quote3_error_t;
+    pub fn sgx_ql_get_root_ca_crl(pp_root_ca_crl: *mut *mut uint8_t, p_root_ca_crl_size: *mut uint16_t) -> sgx_quote3_error_t;
     pub fn sgx_ql_free_root_ca_crl(p_root_ca_crl: *const uint8_t) -> sgx_quote3_error_t;
     /* intel DCAP 2.14 */
     pub fn sgx_ql_set_logging_callback(logger: sgx_ql_logging_callback_t) -> sgx_quote3_error_t;
@@ -765,14 +772,14 @@ extern "C" {
                                      pp_qve_identity_issuer_chain: *mut *mut c_char,
                                      p_qve_identity_issuer_chain_size: *mut uint32_t) -> sgx_qcnl_error_t;
     pub fn sgx_qcnl_free_qve_identity(p_qve_identity: *const c_char, p_qve_identity_issuer_chain: *const c_char);
-    pub fn sgx_qcnl_get_root_ca_crl(p_root_ca_crl: *mut *mut uint8_t, p_root_ca_cal_size: *mut uint16_t) -> sgx_qcnl_error_t;
+    pub fn sgx_qcnl_get_root_ca_crl(root_ca_cdp_url: *const c_char, p_root_ca_crl: *mut *mut uint8_t, p_root_ca_cal_size: *mut uint16_t) -> sgx_qcnl_error_t;
     pub fn sgx_qcnl_free_root_ca_crl(p_root_ca_crl: *const uint8_t);
     pub fn sgx_qcnl_register_platform(p_pck_cert_id: *const sgx_ql_pck_cert_id_t,
                                       platform_manifest: *const uint8_t,
                                       platform_manifest_size: uint16_t,
                                       user_token: *const uint8_t,
                                       user_token_size: uint16_t) -> sgx_qcnl_error_t;
-    pub fn sgx_qcnl_get_api_version() -> int32_t;
+    pub fn sgx_qcnl_get_api_version() -> uint32_t;
 }
 
 //#[link(name = "dcap_quoteverify")]

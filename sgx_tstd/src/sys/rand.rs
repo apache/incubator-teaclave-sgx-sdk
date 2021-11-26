@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use core::mem;
 use alloc_crate::slice;
+use core::mem;
 
 pub fn hashmap_random_keys() -> (u64, u64) {
     let mut v = (0, 0);
@@ -39,11 +39,7 @@ mod imp {
         getrandom(v).expect("unexpected getrandom error");
     }
 
-    #[allow(dead_code)]
-    fn is_getrandom_available() -> bool { true }
-
     pub fn fill_bytes(v: &mut [u8]) {
         getrandom_fill_bytes(v)
     }
 }
-

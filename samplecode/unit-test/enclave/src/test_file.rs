@@ -16,14 +16,13 @@
 // under the License..
 
 use sgx_rand::{Rng, StdRng};
-use std::sgxfs::{self, SgxFile};
-use std::untrusted::fs::File;
-use std::untrusted::fs::remove_file;
 use std::io::{Read, Write};
+use std::sgxfs::{self, SgxFile};
 use std::string::*;
+use std::untrusted::fs::remove_file;
+use std::untrusted::fs::File;
 
 pub fn test_sgxfs() {
-
     let mut write_data: [u8; 16] = [0; 16];
     let mut read_data: [u8; 16] = [0; 16];
     let write_size;
@@ -87,7 +86,7 @@ pub fn test_sgxfs() {
     }
 }
 
-pub fn test_fs () {
+pub fn test_fs() {
     {
         let f = File::create("foo.txt");
         assert!(f.is_ok());

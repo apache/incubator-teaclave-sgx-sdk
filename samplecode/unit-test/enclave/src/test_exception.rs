@@ -15,22 +15,26 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use sgx_signal::exception::{register_exception, unregister};
+use sgx_signal::ContinueType;
+use sgx_trts::enclave;
+use sgx_types::sgx_exception_info_t;
+use std::backtrace::{self, PrintFormat};
+use std::panic;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-use std::backtrace::{self, PrintFormat};
-use std::panic;
-use sgx_signal::ContinueType;
-use sgx_signal::exception::{register_exception, unregister};
-use sgx_types::sgx_exception_info_t;
-use sgx_trts::enclave;
 
 #[no_mangle]
 #[inline(never)]
 fn test_abort() -> ! {
     let td = enclave::SgxThreadData::current();
-    println!("test_abort stack: {:x}-{:x}", td.stack_base(), td.stack_limit());
+    println!(
+        "test_abort stack: {:x}-{:x}",
+        td.stack_base(),
+        td.stack_limit()
+    );
 
     std::intrinsics::abort()
 }
@@ -62,9 +66,7 @@ pub fn test_exception_handler() {
     let r1 = register_exception(false, handler1);
     let r2 = register_exception(true, handler2);
 
-    panic::catch_unwind(||{
-        test_abort()
-    }).ok();
+    panic::catch_unwind(|| test_abort()).ok();
 
     for _ in 0..10 {
         thread::sleep(Duration::from_millis(100));
@@ -82,4 +84,3 @@ pub fn test_exception_handler() {
     unregister(r2.unwrap());
     panic!("Timed out waiting for the exception");
 }
-

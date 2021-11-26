@@ -17,11 +17,11 @@
 
 //! Filesystem manipulation operations.
 
-use sgx_types::{sgx_key_128bit_t, sgx_align_key_128bit_t};
 use crate::io::{self, SeekFrom, Seek, Read, Initializer, Write};
 use crate::path::Path;
 use crate::sys::sgxfs as fs_imp;
 use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
+use sgx_types::{sgx_key_128bit_t, sgx_align_key_128bit_t};
 
 /// A reference to an open file on the filesystem.
 ///
@@ -275,12 +275,12 @@ impl OpenOptions {
 
     fn _open(&self, path: &Path) -> io::Result<SgxFile> {
         let inner = fs_imp::SgxFile::open(path, &self.0)?;
-        Ok(SgxFile { inner: inner })
+        Ok(SgxFile { inner })
     }
 
     fn _open_ex(&self, path: &Path, key: &sgx_key_128bit_t) -> io::Result<SgxFile> {
         let inner = fs_imp::SgxFile::open_ex(path, &self.0, key)?;
-        Ok(SgxFile { inner: inner })
+        Ok(SgxFile { inner })
     }
 }
 

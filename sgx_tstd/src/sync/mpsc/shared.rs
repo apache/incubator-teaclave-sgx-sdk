@@ -24,25 +24,25 @@
 /// High level implementation details can be found in the comment of the parent
 /// module. You'll also note that the implementation of the shared and stream
 /// channels are quite similar, and this is no coincidence!
-
 pub use self::Failure::*;
 use self::StartResult::*;
 
 use core::cmp;
-use core::intrinsics::abort;
-use core::cell::UnsafeCell;
-use core::ptr;
-use core::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
+
+use crate::cell::UnsafeCell;
+use crate::ptr;
+use crate::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
 use crate::sync::mpsc::blocking::{self, SignalToken};
 use crate::sync::mpsc::mpsc_queue as mpsc;
-use crate::sync::{SgxMutex, SgxMutexGuard};
+use crate::sync::{SgxMutex as Mutex, SgxMutexGuard as MutexGuard};
 use crate::thread;
 use crate::time::Instant;
+
+use sgx_trts::trts;
 
 const DISCONNECTED: isize = isize::MIN;
 const FUDGE: isize = 1024;
 const MAX_REFCOUNT: usize = (isize::MAX) as usize;
-
 const MAX_STEALS: isize = 1 << 20;
 
 pub struct Packet<T> {
@@ -61,7 +61,7 @@ pub struct Packet<T> {
 
     // this lock protects various portions of this implementation during
     // select()
-    select_lock: SgxMutex<()>,
+    select_lock: Mutex<()>,
 }
 
 pub enum Failure {
@@ -87,7 +87,7 @@ impl<T> Packet<T> {
             channels: AtomicUsize::new(2),
             port_dropped: AtomicBool::new(false),
             sender_drain: AtomicIsize::new(0),
-            select_lock: SgxMutex::new(()),
+            select_lock: Mutex::new(()),
         }
     }
 
@@ -96,7 +96,7 @@ impl<T> Packet<T> {
     // In other case mutex data will be duplicated while cloning
     // and that could cause problems on platforms where it is
     // represented by opaque data structure
-    pub fn postinit_lock(&self) -> SgxMutexGuard<'_, ()> {
+    pub fn postinit_lock(&self) -> MutexGuard<'_, ()> {
         self.select_lock.lock().unwrap()
     }
 
@@ -105,8 +105,8 @@ impl<T> Packet<T> {
     // threads in select().
     //
     // This can only be called at channel-creation time
-    pub fn inherit_blocker(&self, token: Option<SignalToken>, guard: SgxMutexGuard<'_, ()>) {
-        token.map(|token| {
+    pub fn inherit_blocker(&self, token: Option<SignalToken>, guard: MutexGuard<'_, ()>) {
+        if let Some(token) = token {
             assert_eq!(self.cnt.load(Ordering::SeqCst), 0);
             assert_eq!(self.to_wake.load(Ordering::SeqCst), 0);
             self.to_wake.store(unsafe { token.cast_to_usize() }, Ordering::SeqCst);
@@ -133,7 +133,7 @@ impl<T> Packet<T> {
             unsafe {
                 *self.steals.get() = -1;
             }
-        });
+        }
 
         // When the shared packet is constructed, we grabbed this lock. The
         // purpose of this lock is to ensure that abort_selection() doesn't
@@ -369,7 +369,7 @@ impl<T> Packet<T> {
 
         // See comments on Arc::clone() on why we do this (for `mem::forget`).
         if old_count > MAX_REFCOUNT {
-            abort();
+            trts::rsgx_abort();
         }
     }
 
@@ -396,12 +396,18 @@ impl<T> Packet<T> {
 
     // See the long discussion inside of stream.rs for why the queue is drained,
     // and why it is done in this fashion.
+    #[allow(clippy::while_let_loop)]
     pub fn drop_port(&self) {
         self.port_dropped.store(true, Ordering::SeqCst);
         let mut steals = unsafe { *self.steals.get() };
-        while {
-            let cnt = self.cnt.compare_and_swap(steals, DISCONNECTED, Ordering::SeqCst);
-            cnt != DISCONNECTED && cnt != steals
+        while match self.cnt.compare_exchange(
+            steals,
+            DISCONNECTED,
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+        ) {
+            Ok(_) => false,
+            Err(old) => old != DISCONNECTED,
         } {
             // See the discussion in 'try_recv' for why we yield
             // control of this thread.

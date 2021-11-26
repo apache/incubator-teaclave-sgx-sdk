@@ -33,17 +33,18 @@ pub use core::sync::atomic;
 pub use self::barrier::{Barrier, BarrierWaitResult};
 pub use self::condvar::{SgxCondvar, SgxThreadCondvar, WaitTimeoutResult};
 pub use self::mutex::{SgxMutex, SgxMutexGuard, SgxThreadMutex};
-pub use self::remutex::{SgxReentrantMutex, SgxReentrantMutexGuard, SgxReentrantThreadMutex};
 pub use self::once::{Once, OnceState, ONCE_INIT};
+pub use self::poison::{LockResult, PoisonError, TryLockError, TryLockResult};
 pub use self::rwlock::{SgxRwLock, SgxRwLockReadGuard, SgxRwLockWriteGuard, SgxThreadRwLock};
 pub use self::spinlock::{SgxSpinlock, SgxSpinlockGuard, SgxThreadSpinlock};
-pub use crate::sys_common::poison::{PoisonError, TryLockError, TryLockResult, LockResult};
+
 #[cfg(feature = "thread")]
 pub mod mpsc;
+
 mod barrier;
 mod condvar;
 mod mutex;
-mod remutex;
 mod once;
+mod poison;
 mod rwlock;
 mod spinlock;

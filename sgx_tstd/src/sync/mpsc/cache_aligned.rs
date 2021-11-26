@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use core::ops::{Deref, DerefMut};
+use crate::ops::{Deref, DerefMut};
 
 #[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(align(64))]

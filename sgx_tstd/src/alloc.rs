@@ -15,15 +15,65 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//! Memory allocation APIs
+//! Memory allocation APIs.
 //!
 //! In a given program, the standard library has one “global” memory allocator
 //! that is used for example by `Box<T>` and `Vec<T>`.
 //!
+//! Currently the default global allocator is unspecified. Libraries, however,
+//! like `cdylib`s and `staticlib`s are guaranteed to use the [`System`] by
+//! default.
+//!
+//! # The `#[global_allocator]` attribute
+//!
+//! This attribute allows configuring the choice of global allocator.
+//! You can use this to implement a completely custom global allocator
+//! to route all default allocation requests to a custom object.
+//!
+//! ```rust
+//! use std::alloc::{GlobalAlloc, System, Layout};
+//!
+//! struct MyAllocator;
+//!
+//! unsafe impl GlobalAlloc for MyAllocator {
+//!     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+//!         System.alloc(layout)
+//!     }
+//!
+//!     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+//!         System.dealloc(ptr, layout)
+//!     }
+//! }
+//!
+//! #[global_allocator]
+//! static GLOBAL: MyAllocator = MyAllocator;
+//!
+//! fn main() {
+//!     // This `Vec` will allocate memory through `GLOBAL` above
+//!     let mut v = Vec::new();
+//!     v.push(1);
+//! }
+//! ```
+//!
+//! The attribute is used on a `static` item whose type implements the
+//! [`GlobalAlloc`] trait. This type can be provided by an external library:
+//!
+//! ```rust,ignore (demonstrates crates.io usage)
+//! extern crate jemallocator;
+//!
+//! use jemallocator::Jemalloc;
+//!
+//! #[global_allocator]
+//! static GLOBAL: Jemalloc = Jemalloc;
+//!
+//! fn main() {}
+//! ```
+//!
+//! The `#[global_allocator]` can only be used once in a crate
+//! or its recursive dependencies.
 
 use core::sync::atomic::{AtomicPtr, Ordering};
 use core::{mem, ptr};
-use crate::sys_common::util::dumb_print;
 
 #[doc(inline)]
 pub use alloc_crate::alloc::*;
@@ -58,7 +108,7 @@ pub fn take_alloc_error_hook() -> fn(Layout) {
 }
 
 fn default_alloc_error_hook(layout: Layout) {
-    dumb_print(format_args!("memory allocation of {} bytes failed", layout.size()));
+    rtprintpanic!("memory allocation of {} bytes failed\n", layout.size());
 }
 
 #[doc(hidden)]
@@ -68,7 +118,7 @@ pub fn rust_oom(layout: Layout) -> ! {
     let hook: fn(Layout) =
         if hook.is_null() { default_alloc_error_hook } else { unsafe { mem::transmute(hook) } };
     hook(layout);
-    unsafe { crate::sys::abort_internal() }
+    crate::sys::abort_internal()
 }
 
 #[doc(hidden)]
@@ -87,12 +137,16 @@ pub mod __default_lib_allocator {
 
     #[rustc_std_internal_symbol]
     pub unsafe extern "C" fn __rdl_alloc(size: usize, align: usize) -> *mut u8 {
+        // SAFETY: see the guarantees expected by `Layout::from_size_align` and
+        // `GlobalAlloc::alloc`.
         let layout = Layout::from_size_align_unchecked(size, align);
         System.alloc(layout)
     }
 
     #[rustc_std_internal_symbol]
     pub unsafe extern "C" fn __rdl_dealloc(ptr: *mut u8, size: usize, align: usize) {
+        // SAFETY: see the guarantees expected by `Layout::from_size_align` and
+        // `GlobalAlloc::dealloc`.
         System.dealloc(ptr, Layout::from_size_align_unchecked(size, align))
     }
 
@@ -103,12 +157,16 @@ pub mod __default_lib_allocator {
         align: usize,
         new_size: usize,
     ) -> *mut u8 {
+        // SAFETY: see the guarantees expected by `Layout::from_size_align` and
+        // `GlobalAlloc::realloc`.
         let old_layout = Layout::from_size_align_unchecked(old_size, align);
         System.realloc(ptr, old_layout, new_size)
     }
 
     #[rustc_std_internal_symbol]
     pub unsafe extern "C" fn __rdl_alloc_zeroed(size: usize, align: usize) -> *mut u8 {
+        // SAFETY: see the guarantees expected by `Layout::from_size_align` and
+        // `GlobalAlloc::alloc_zeroed`.
         let layout = Layout::from_size_align_unchecked(size, align);
         System.alloc_zeroed(layout)
     }

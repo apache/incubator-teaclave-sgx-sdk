@@ -17,9 +17,8 @@
 
 //! # The Rust SGX SDK Standard Library
 //!
-//! The Rust SGX standard library (previously named as `sgx_tstdc`) is
-//! the foundation of portable Rust SGX SDK, a
-//! set of minimal and battle-tested shared abstractions for the Rust SGX
+//! The Rust SGX standard library is the foundation of portable Rust SGX SDK,
+//! a set of minimal and battle-tested shared abstractions for the Rust SGX
 //! ecosystem. Similar to Rust's libstd, it offers core types, like [`Vec<T>`] and
 //! [`Option<T>`], library-defined [operations on language
 //! primitives](#primitives), [standard macros](#macros), [I/O] and
@@ -31,7 +30,10 @@
 //! `std`, as in [`use std::env`], or in expressions through the absolute path
 //! `::std`, as in [`::std::env::args`].
 
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+#![cfg_attr(
+    all(target_env = "sgx", target_vendor = "mesalock"),
+    feature(rustc_private)
+)]
 
 #![no_std]
 #![needs_panic_runtime]
@@ -39,73 +41,87 @@
 #![allow(unused_must_use)]
 #![allow(dead_code)]
 #![allow(deprecated)]
+#![allow(incomplete_features)]
 #![allow(unused_assignments)]
-#![allow(stable_features)]
+
+#![allow(clippy::declare_interior_mutable_const)]
+#![allow(clippy::len_without_is_empty)]
+#![allow(clippy::mem_replace_with_default)]
+#![allow(clippy::missing_safety_doc)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::transmute_ptr_to_ptr)]
+#![allow(clippy::wrong_self_convention)]
+
+#![feature(rustc_allow_const_fn_unstable)]
 
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]
-#![feature(allow_internal_unsafe)]
 #![feature(allocator_internals)]
+#![feature(allow_internal_unsafe)]
 #![feature(allow_internal_unstable)]
 #![feature(array_error_internals)]
 #![feature(asm)]
-#![cfg_attr(enable_auto_traits, feature(auto_traits))]
-#![cfg_attr(not(enable_auto_traits), feature(optin_builtin_traits))]
+#![feature(assert_matches)]
+#![feature(async_stream)]
+#![feature(bench_black_box)]
 #![feature(box_syntax)]
 #![feature(c_variadic)]
+#![feature(c_unwind)]
 #![feature(cfg_accessible)]
+#![feature(cfg_eval)]
 #![feature(cfg_target_has_atomic)]
 #![feature(char_error_internals)]
+#![feature(char_internals)]
 #![feature(concat_idents)]
-#![feature(const_fn)]
 #![feature(const_fn_fn_ptr_basics)]
+#![feature(const_format_args)]
+#![feature(const_raw_ptr_deref)]
+#![feature(const_trait_impl)]
 #![feature(core_intrinsics)]
 #![feature(custom_test_frameworks)]
+#![feature(decl_macro)]
 #![feature(dropck_eyepatch)]
+#![feature(duration_checked_float)]
+#![feature(edition_panic)]
 #![feature(extend_one)]
 #![feature(fn_traits)]
-#![feature(generator_trait)]
 #![feature(format_args_nl)]
 #![feature(gen_future)]
 #![feature(global_asm)]
 #![feature(hashmap_internals)]
-#![feature(int_error_internals)]
 #![feature(into_future)]
+#![feature(int_error_internals)]
+#![feature(iter_zip)]
 #![feature(lang_items)]
+#![feature(linked_list_remove)]
 #![feature(llvm_asm)]
 #![feature(log_syntax)]
+#![feature(map_try_insert)]
 #![feature(maybe_uninit_extra)]
-#![feature(maybe_uninit_ref)]
-#![feature(never_type)]
+#![feature(maybe_uninit_slice)]
 #![feature(needs_panic_runtime)]
+#![feature(negative_impls)]
+#![feature(never_type)]
+#![feature(new_uninit)]
 #![feature(once_cell)]
+#![feature(panic_info_message)]
+#![feature(panic_internals)]
 #![feature(panic_unwind)]
-#![cfg_attr(enable_prelude_version, feature(prelude_2021))]
+#![feature(pin_static_ref)]
 #![feature(prelude_import)]
 #![feature(ptr_internals)]
-#![feature(raw)]
-#![feature(shrink_to)]
 #![feature(rustc_attrs)]
-#![feature(slice_concat_ext)]
+#![feature(specialization)]
+#![feature(std_internals)]
 #![feature(str_internals)]
+#![feature(test)]
 #![feature(thread_local)]
 #![feature(toowned_clone_into)]
 #![feature(trace_macros)]
 #![feature(try_reserve)]
+#![feature(try_reserve_kind)]
 #![feature(unboxed_closures)]
-#![feature(untagged_unions)]
-#![feature(unwind_attributes)]
-#![feature(wake_trait)]
-#![feature(libc)]
-#![feature(panic_internals)]
-#![feature(std_internals)]
-#![feature(panic_info_message)]
-#![feature(unicode_internals)]
-#![feature(alloc_layout_extra)]
-#![feature(linked_list_remove)]
-#![feature(int_error_matching)]
-#![feature(drain_filter)]
-#![feature(negative_impls)]
+#![feature(vec_spare_capacity)]
 #![default_lib_allocator]
 
 // Explicitly import the prelude. The compiler uses this same unstable attribute
@@ -152,7 +168,7 @@ mod macros;
 // The Rust prelude
 pub mod prelude;
 
-// Public module declarations and reexports
+// Public module declarations and re-exports
 pub use alloc_crate::borrow;
 pub use alloc_crate::boxed;
 pub use alloc_crate::fmt;
@@ -170,6 +186,7 @@ pub use core::clone;
 pub use core::cmp;
 pub use core::convert;
 pub use core::default;
+pub use core::future;
 pub use core::hash;
 pub use core::hint;
 pub use core::i128;
@@ -186,8 +203,8 @@ pub use core::ops;
 pub use core::option;
 pub use core::pin;
 pub use core::ptr;
-pub use core::raw;
 pub use core::result;
+pub use core::stream;
 pub use core::u128;
 pub use core::u16;
 pub use core::u32;
@@ -223,14 +240,13 @@ pub mod lazy;
 
 pub mod task {
     //! Types and Traits for working with asynchronous tasks.
+
     #[doc(inline)]
     pub use core::task::*;
 
     #[doc(inline)]
     pub use alloc_crate::task::*;
 }
-
-pub mod future;
 
 // Platform-abstraction modules
 #[macro_use]
@@ -240,9 +256,9 @@ mod sys;
 pub mod alloc;
 
 // Private support modules
-mod panicking;
 mod cpuid;
-mod memchr;
+mod panicking;
+
 #[cfg(not(feature = "untrusted_fs"))]
 mod fs;
 
@@ -259,53 +275,26 @@ pub use self::thread::{
     rsgx_thread_equal
 };
 
-#[cfg(debug_assertions)]
-pub mod debug;
-
 // Re-export macros defined in libcore.
 #[allow(deprecated, deprecated_in_future)]
 pub use core::{
-    // Stable
-    assert_eq,
-    assert_ne,
-    debug_assert,
-    debug_assert_eq,
-    debug_assert_ne,
-    // Unstable
-    matches,
-    r#try,
-    todo,
-    unimplemented,
-    unreachable,
-    write,
-    writeln,
+    assert_eq, assert_ne, debug_assert, debug_assert_eq, debug_assert_ne, matches, r#try, todo,
+    unimplemented, unreachable, write, writeln,
 };
 
 // Re-export built-in macros defined through libcore.
+#[allow(deprecated)]
 pub use core::{
-    // Unstable
-    asm,
-    // Stable
-    assert,
-    cfg,
-    column,
-    compile_error,
-    concat,
-    concat_idents,
-    env,
-    file,
-    format_args,
-    format_args_nl,
-    global_asm,
-    include,
-    include_bytes,
-    include_str,
-    line,
-    log_syntax,
-    module_path,
-    option_env,
-    stringify,
-    trace_macros,
+    assert, assert_matches, cfg, column, compile_error, concat, concat_idents, const_format_args,
+    env, file, format_args, format_args_nl, include, include_bytes, include_str, line, llvm_asm,
+    log_syntax, module_path, option_env, stringify, trace_macros,
 };
 
 pub use core::primitive;
+
+mod sealed {
+    /// This trait being unreachable from outside the crate
+    /// prevents outside implementations of our extension traits.
+    /// This allows adding more trait methods in the future.
+    pub trait Sealed {}
+}

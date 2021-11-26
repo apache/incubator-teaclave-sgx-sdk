@@ -41,17 +41,19 @@
 #![allow(bad_style)]
 #![allow(dead_code)]
 
-use core::{ptr, slice};
 use crate::bt;
+use core::{marker, ptr, slice};
+use libc::{self, c_char, c_int, c_void, uintptr_t};
+use sgx_trts::c_str::CString;
+
 use crate::symbolize::{ResolveWhat, SymbolName};
 use crate::types::BytesOrWideString;
-use sgx_trts::c_str::CString;
-use sgx_libc::{self, c_char, c_int, c_void, uintptr_t};
 
-pub enum Symbol {
+pub enum Symbol<'a> {
     Syminfo {
         pc: uintptr_t,
         symname: *const c_char,
+        _marker: marker::PhantomData<&'a ()>,
     },
     Pcinfo {
         pc: uintptr_t,
@@ -62,13 +64,13 @@ pub enum Symbol {
     },
 }
 
-impl Symbol {
-    pub fn name(&self) -> Option<SymbolName> {
+impl Symbol<'_> {
+    pub fn name(&self) -> Option<SymbolName<'_>> {
         let symbol = |ptr: *const c_char| unsafe {
             if ptr.is_null() {
                 None
             } else {
-                let len = sgx_libc::strlen(ptr);
+                let len = libc::strlen(ptr);
                 Some(SymbolName::new(slice::from_raw_parts(
                     ptr as *const u8,
                     len,
@@ -102,11 +104,8 @@ impl Symbol {
             if ptr.is_null() {
                 None
             } else {
-                let len = sgx_libc::strlen(ptr);
-                Some(slice::from_raw_parts(
-                    ptr as *const u8,
-                    len,
-                ))
+                let len = libc::strlen(ptr);
+                Some(slice::from_raw_parts(ptr as *const u8, len))
             }
         };
         match *self {
@@ -143,7 +142,7 @@ impl Symbol {
         }
     }
 
-    pub fn filename_bytes(&self) -> Option<&[u8]> {
+    fn filename_bytes(&self) -> Option<&[u8]> {
         match *self {
             Symbol::Syminfo { .. } => None,
             Symbol::Pcinfo { filename, .. } => {
@@ -152,14 +151,14 @@ impl Symbol {
                     return None;
                 }
                 unsafe {
-                    let len = sgx_libc::strlen(filename);
+                    let len = libc::strlen(filename);
                     Some(slice::from_raw_parts(ptr, len))
                 }
             }
         }
     }
 
-    pub fn filename_raw(&self) -> Option<BytesOrWideString> {
+    pub fn filename_raw(&self) -> Option<BytesOrWideString<'_>> {
         self.filename_bytes().map(BytesOrWideString::Bytes)
     }
 
@@ -167,6 +166,7 @@ impl Symbol {
     pub fn filename(&self) -> Option<&::std::path::Path> {
         use std::path::Path;
 
+        #[allow(clippy::unnecessary_wraps)]
         fn bytes2path(bytes: &[u8]) -> Option<&Path> {
             use std::ffi::OsStr;
             use std::os::unix::prelude::*;
@@ -180,6 +180,10 @@ impl Symbol {
             Symbol::Syminfo { .. } => None,
             Symbol::Pcinfo { lineno, .. } => Some(lineno as u32),
         }
+    }
+
+    pub fn colno(&self) -> Option<u32> {
+        None
     }
 }
 
@@ -215,7 +219,7 @@ extern "C" fn syminfo_cb(
     // not debug info, so if that happens we're sure to call the callback with
     // at least one symbol from the `syminfo_cb`.
     unsafe {
-        let syminfo_state = &mut *(data as *mut SyminfoState);
+        let syminfo_state = &mut *(data as *mut SyminfoState<'_>);
         let mut pcinfo_state = PcinfoState {
             symname,
             called: false,
@@ -230,14 +234,16 @@ extern "C" fn syminfo_cb(
         );
         if !pcinfo_state.called {
             let inner = Symbol::Syminfo {
-                pc: pc,
-                symname: symname,
+                pc,
+                symname,
+                _marker: marker::PhantomData,
             };
             (pcinfo_state.cb)(&super::Symbol {
                 name: inner.name_bytes().map(|m| m.to_vec()),
                 addr: inner.addr(),
                 filename: inner.filename_bytes().map(|m| m.to_vec()),
                 lineno: inner.lineno(),
+                colno: inner.colno(),
             });
         }
     }
@@ -268,9 +274,9 @@ extern "C" fn pcinfo_cb(
         let state = &mut *(data as *mut PcinfoState);
         state.called = true;
         let inner = Symbol::Pcinfo {
-            pc: pc,
-            filename: filename,
-            lineno: lineno,
+            pc,
+            filename,
+            lineno,
             symname: state.symname,
             function,
         };
@@ -279,11 +285,12 @@ extern "C" fn pcinfo_cb(
             addr: inner.addr(),
             filename: inner.filename_bytes().map(|m| m.to_vec()),
             lineno: inner.lineno(),
+            colno: inner.colno(),
         });
     }
 
     bomb.enabled = false;
-    return 0;
+    0
 }
 
 // The libbacktrace API supports creating a state, but it does not
@@ -356,7 +363,7 @@ unsafe fn init_state() -> *mut bt::backtrace_state {
     }
 }
 
-pub unsafe fn resolve(what: ResolveWhat, cb: &mut dyn FnMut(&super::Symbol)) {
+pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol)) {
     let symaddr = what.address_or_ip() as usize;
 
     // backtrace errors are currently swept under the rug
@@ -365,30 +372,23 @@ pub unsafe fn resolve(what: ResolveWhat, cb: &mut dyn FnMut(&super::Symbol)) {
         return;
     }
 
-    // Call the `backtrace_syminfo` API first. This is (from reading the code)
-    // guaranteed to call `syminfo_cb` exactly once (or fail with an error
+    // Call the `backtrace_syminfo` API which (from reading the code)
+    // should call `syminfo_cb` exactly once (or fail with an error
     // presumably). We then handle more within the `syminfo_cb`.
     //
     // Note that we do this since `syminfo` will consult the symbol table,
     // finding symbol names even if there's no debug information in the binary.
-    let mut called = false;
-    {
-        let mut syminfo_state = SyminfoState {
-            pc: symaddr,
-            cb: &mut |sym| {
-                called = true;
-                cb(sym);
-            },
-        };
-        bt::backtrace_syminfo(
-            state,
-            symaddr as uintptr_t,
-            syminfo_cb,
-            error_cb,
-            &mut syminfo_state as *mut _ as *mut _,
-        );
-    }
+    let mut syminfo_state = SyminfoState { pc: symaddr, cb };
+    bt::backtrace_syminfo(
+        state,
+        symaddr as uintptr_t,
+        syminfo_cb,
+        error_cb,
+        &mut syminfo_state as *mut _ as *mut _,
+    );
 }
+
+pub unsafe fn clear_symbol_cache() {}
 
 static mut ENCLAVE_PATH: Option<CString> = None;
 

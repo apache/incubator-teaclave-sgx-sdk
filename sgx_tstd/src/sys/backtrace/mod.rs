@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
+pub use self::printing::{BacktraceFmt, BacktraceFrameFmt, PrintFmt};
 /// Backtrace support built on libgcc with some extra OS-specific support
 ///
 /// Some methods of getting a backtrace:
@@ -89,9 +90,7 @@
 /// pointers, and we use dladdr() or libbacktrace to translate these addresses
 /// to symbols. This is a bit of a hokey implementation as-is, but it works for
 /// all unix platforms we support right now, so it at least gets the job done.
-
 pub use self::tracing::{trace_unsynchronized, Frame};
-pub use self::printing::{BacktraceFmt, BacktraceFrameFmt, PrintFmt};
 
 // tracing impls:
 mod tracing;
@@ -132,22 +131,21 @@ impl Drop for Bomb {
 }
 
 pub mod gnu {
-    use crate::ffi::CString;
     use crate::enclave;
+    use crate::ffi::CString;
     use crate::io::{self, Error, ErrorKind};
+    use crate::mem;
     use crate::os::unix::ffi::OsStrExt;
-    use core::mem;
-    use sgx_trts::libc::c_char;
 
-    pub fn get_enclave_filename() -> io::Result<Vec<c_char>> {
+    pub fn get_enclave_filename() -> io::Result<Vec<u8>> {
         let p = enclave::get_enclave_path();
         let result = match p {
-            None => { Err(Error::new(ErrorKind::Other, "Not implemented")) },
+            None => Err(Error::new(ErrorKind::Other, "Not implemented")),
             Some(path) => {
-                let c_str = CString::new(path.as_os_str().as_bytes())?;
-                let c_vec = unsafe{ mem::transmute(c_str.into_bytes_with_nul()) };
-                Ok(c_vec)
-            },
+                let cstr = CString::new(path.as_os_str().as_bytes())?;
+                let v = unsafe { mem::transmute(cstr.into_bytes_with_nul()) };
+                Ok(v)
+            }
         };
         result
     }

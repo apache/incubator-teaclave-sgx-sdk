@@ -15,12 +15,15 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_trts::libc;
-use core::cmp::Ordering;
-use core::hash::{Hash, Hasher};
-use core::convert::TryInto;
+use crate::cmp::Ordering;
 use crate::time::Duration;
+
+use core::hash::{Hash, Hasher};
+
 pub use self::inner::{Instant, SystemTime, UNIX_EPOCH};
+use crate::convert::TryInto;
+
+use sgx_libc as libc;
 
 const NSEC_PER_SEC: u64 = 1_000_000_000;
 
@@ -36,17 +39,29 @@ impl Timespec {
 
     fn sub_timespec(&self, other: &Timespec) -> Result<Duration, Duration> {
         if self >= other {
-            Ok(if self.t.tv_nsec >= other.t.tv_nsec {
-                Duration::new(
-                    (self.t.tv_sec - other.t.tv_sec) as u64,
-                    (self.t.tv_nsec - other.t.tv_nsec) as u32,
-                )
+            // NOTE(eddyb) two aspects of this `if`-`else` are required for LLVM
+            // to optimize it into a branchless form (see also #75545):
+            //
+            // 1. `self.t.tv_sec - other.t.tv_sec` shows up as a common expression
+            //    in both branches, i.e. the `else` must have its `- 1`
+            //    subtraction after the common one, not interleaved with it
+            //    (it used to be `self.t.tv_sec - 1 - other.t.tv_sec`)
+            //
+            // 2. the `Duration::new` call (or any other additional complexity)
+            //    is outside of the `if`-`else`, not duplicated in both branches
+            //
+            // Ideally this code could be rearranged such that it more
+            // directly expresses the lower-cost behavior we want from it.
+            let (secs, nsec) = if self.t.tv_nsec >= other.t.tv_nsec {
+                ((self.t.tv_sec - other.t.tv_sec) as u64, (self.t.tv_nsec - other.t.tv_nsec) as u32)
             } else {
-                Duration::new(
-                    (self.t.tv_sec - 1 - other.t.tv_sec) as u64,
+                (
+                    (self.t.tv_sec - other.t.tv_sec - 1) as u64,
                     self.t.tv_nsec as u32 + (NSEC_PER_SEC as u32) - other.t.tv_nsec as u32,
                 )
-            })
+            };
+
+            Ok(Duration::new(secs, nsec))
         } else {
             match other.sub_timespec(self) {
                 Ok(d) => Err(d),
@@ -119,7 +134,7 @@ impl Hash for Timespec {
 }
 
 mod inner {
-    use core::fmt;
+    use crate::fmt;
     use crate::sys::cvt;
     use crate::time::Duration;
 
@@ -135,9 +150,7 @@ mod inner {
         t: Timespec,
     }
 
-    pub const UNIX_EPOCH: SystemTime = SystemTime {
-        t: Timespec::zero(),
-    };
+    pub const UNIX_EPOCH: SystemTime = SystemTime { t: Timespec::zero() };
 
     impl Instant {
         pub fn now() -> Instant {
@@ -145,15 +158,12 @@ mod inner {
         }
 
         pub const fn zero() -> Instant {
-            Instant {
-                t: Timespec::zero(),
-            }
+            Instant { t: Timespec::zero() }
         }
 
         pub fn actually_monotonic() -> bool {
-            (cfg!(target_os = "linux") && cfg!(target_arch = "x86_64")) ||
-            (cfg!(target_os = "linux") && cfg!(target_arch = "x86")) ||
-            false // last clause, used so `||` is always trailing above
+            (cfg!(target_os = "linux") && cfg!(target_arch = "x86_64"))
+                || (cfg!(target_os = "linux") && cfg!(target_arch = "x86"))
         }
 
         pub fn checked_sub_instant(&self, other: &Instant) -> Option<Duration> {
@@ -226,7 +236,7 @@ mod inner {
     }
 
     mod libc {
-        pub use sgx_trts::libc::*;
-        pub use sgx_trts::libc::ocall::clock_gettime;
+        pub use sgx_libc::ocall::clock_gettime;
+        pub use sgx_libc::*;
     }
 }

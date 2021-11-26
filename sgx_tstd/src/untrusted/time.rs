@@ -25,6 +25,14 @@ pub trait InstantEx {
 impl InstantEx for Instant {
     /// Returns an instant corresponding to "now".
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Instant;
+    /// use std::untrusted::time::InstantEx;
+    ///
+    /// let now = Instant::now();
+    /// ```
     fn now() -> Instant {
         Instant::_now()
     }
@@ -37,6 +45,18 @@ impl InstantEx for Instant {
     /// instant, which is something that can happen if an `Instant` is
     /// produced synthetically.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::thread::sleep;
+    /// use std::time::{Duration, Instant};
+    /// use std::untrusted::time::InstantEx;
+    ///
+    /// let instant = Instant::now();
+    /// let three_secs = Duration::from_secs(3);
+    /// sleep(three_secs);
+    /// assert!(instant.elapsed() >= three_secs);
+    /// ```
     fn elapsed(&self) -> Duration {
         Instant::_now() - *self
     }
@@ -50,21 +70,44 @@ pub trait SystemTimeEx {
 impl SystemTimeEx for SystemTime {
     /// Returns the system time corresponding to "now".
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::SystemTime;
+    /// use std::untrusted::time::SystemTimeEx;
+    ///
+    /// let sys_time = SystemTime::now();
+    /// ```
     fn now() -> SystemTime {
         SystemTime::_now()
     }
 
-    /// Returns the amount of time elapsed since this system time was created.
+    /// Returns the difference between the clock time when this
+    /// system time was created, and the current clock time.
     ///
     /// This function may fail as the underlying system clock is susceptible to
-    /// drift and updates (e.g. the system clock could go backwards), so this
+    /// drift and updates (e.g., the system clock could go backwards), so this
     /// function may not always succeed. If successful, [`Ok`]`(`[`Duration`]`)` is
     /// returned where the duration represents the amount of time elapsed from
     /// this time measurement to the current time.
     ///
+    /// To measure elapsed time reliably, use [`Instant`] instead.
+    ///
     /// Returns an [`Err`] if `self` is later than the current system time, and
     /// the error contains how far from the current system time `self` is.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::thread::sleep;
+    /// use std::time::{Duration, SystemTime};
+    /// use std::untrusted::time::SystemTimeEx;
+    ///
+    /// let sys_time = SystemTime::now();
+    /// let one_sec = Duration::from_secs(1);
+    /// sleep(one_sec);
+    /// assert!(sys_time.elapsed().unwrap() >= one_sec);
+    /// ```
     fn elapsed(&self) -> Result<Duration, SystemTimeError> {
         SystemTime::_now().duration_since(*self)
     }

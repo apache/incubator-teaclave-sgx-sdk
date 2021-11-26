@@ -15,11 +15,13 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//use sync::SgxThreadMutex;
-use crate::sync::SgxThreadSpinlock;
+//! Implementation of running at_exit routines
+//!
+//! Documentation can be found on the `rt::at_exit` function.
 
-use core::ptr;
-use core::mem;
+use crate::mem;
+use crate::ptr;
+use crate::sync::SgxThreadSpinlock as ThreadSpinlock;
 
 type Queue = Vec<Box<dyn FnOnce()>>;
 
@@ -27,7 +29,7 @@ type Queue = Vec<Box<dyn FnOnce()>>;
 // on poisoning and this module needs to operate at a lower level than requiring
 // the thread infrastructure to be in place (useful on the borders of
 // initialization/destruction).
-static LOCK: SgxThreadSpinlock = SgxThreadSpinlock::new();
+static LOCK: ThreadSpinlock = ThreadSpinlock::new();
 static mut QUEUE: *mut Queue = ptr::null_mut();
 const DONE: *mut Queue = 1_usize as *mut _;
 

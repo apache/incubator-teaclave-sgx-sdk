@@ -23,17 +23,19 @@
 //!
 //! Note that the current implementation of this queue has a caveat of the `pop`
 //! method, and see the method for more information about it. Due to this
-//! caveat, this queue may not be appropriate for all use-cases.
+//! caveat, this queue might not be appropriate for all use-cases.
 
-// http://www.1024cores.net/home/lock-free-algorithms
-//                         /queues/non-intrusive-mpsc-node-based-queue
+// https://www.1024cores.net/home/lock-free-algorithms
+//                          /queues/non-intrusive-mpsc-node-based-queue
+
 
 pub use self::PopResult::*;
 
-use core::ptr;
 use core::cell::UnsafeCell;
-use core::sync::atomic::{AtomicPtr, Ordering};
-use alloc_crate::boxed::Box;
+use core::ptr;
+
+use crate::boxed::Box;
+use crate::sync::atomic::{AtomicPtr, Ordering};
 
 /// A result of the `pop` function.
 pub enum PopResult<T> {

@@ -15,6 +15,10 @@
 // specific language governing permissions and limitations
 // under the License..
 
-pub use crate::sys::ext as unix;
-pub mod raw;
+//! OS-specific functionality.
+
 pub mod fs;
+pub mod raw;
+pub mod unix;
+
+mod fd;

@@ -25,6 +25,7 @@ use syn::{
     Token, Type,
 };
 
+#[allow(dead_code)]
 struct KeyValue {
     pub ident: Ident,
     pub punct: Punct,
@@ -62,8 +63,7 @@ impl AlignArgs {
         let align_iter = self
             .vars
             .iter()
-            .filter(|v| v.ident.to_string() == "align")
-            .next();
+            .find(|v| v.ident.to_string() == "align");
         let align: usize = if let Some(align_value) = align_iter {
             self.parse_align(&align_value.value)?
         } else {
@@ -76,8 +76,7 @@ impl AlignArgs {
         let size_iter = self
             .vars
             .iter()
-            .filter(|v| v.ident.to_string() == "size")
-            .next();
+            .find(|v| v.ident.to_string() == "size");
         let size: usize = if let Some(size_value) = size_iter {
             self.parse_size(&size_value.value)?
         } else {
@@ -194,7 +193,7 @@ impl AlignStruct {
             let ident = attr.path.get_ident();
             let meta = attr.parse_meta();
             if ident.map_or(false, |v| v.to_string() == "repr") && meta.is_ok() {
-                if let Some(Meta::List(ref m)) = meta.ok() {
+                if let Ok(Meta::List(ref m)) = meta {
                     if m.nested.len() > 0 {
                         erxcept_attr = m
                             .nested

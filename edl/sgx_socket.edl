@@ -54,7 +54,18 @@ enclave {
                                 [out, size=addrlen_in] struct sockaddr *src_addr,
                                 socklen_t addrlen_in,
                                 [out] socklen_t *addrlen_out);
-        size_t u_recvmsg_ocall([out] int *error, int sockfd, [in, out] struct msghdr *msg, int flags);
+        size_t u_recvmsg_ocall([out] int *error,
+                               int sockfd,
+                               [out, size=msg_namelen] void *msg_name,
+                               socklen_t msg_namelen,
+                               [out] socklen_t* msg_namelen_out,
+                               [in, count=msg_iovlen] struct iovec* msg_iov,
+                               size_t msg_iovlen,
+                               [out, size=msg_controllen] void *msg_control,
+                               size_t msg_controllen,
+                               [out] size_t* msg_controllen_out,
+                               [out] int* msg_flags,
+                               int flags);
         size_t u_send_ocall([out] int *error, int sockfd, [user_check] const void *buf, size_t len, int flags);
         size_t u_sendto_ocall([out] int *error,
                               int sockfd,
@@ -63,7 +74,15 @@ enclave {
                               int flags,
                               [in, size=addrlen] const struct sockaddr *dest_addr,
                               socklen_t addrlen);
-        size_t u_sendmsg_ocall([out] int *error, int sockfd, [in] const struct msghdr *msg, int flags);
+        size_t u_sendmsg_ocall([out] int *error,
+                               int sockfd,
+                               [in, size=msg_namelen] const void* msg_name,
+                               socklen_t msg_namelen,
+                               [in, count=msg_iovlen] const struct iovec* msg_iov,
+                               size_t msg_iovlen,
+                               [in, size=msg_controllen] const void* msg_control,
+                               size_t msg_controllen,
+                               int flags);
         int u_getsockopt_ocall([out] int *error,
                                int sockfd,
                                int level,

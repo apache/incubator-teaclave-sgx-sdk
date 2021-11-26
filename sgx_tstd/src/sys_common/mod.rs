@@ -15,52 +15,50 @@
 // specific language governing permissions and limitations
 // under the License..
 
-macro_rules! rtabort {
-    ($($t:tt)*) => (crate::sys_common::util::abort(format_args!($($t)*)))
-}
+//! Platform-independent platform abstraction
+//!
+//! This is the platform-independent portion of the standard library's
+//! platform abstraction layer, whereas `std::sys` is the
+//! platform-specific portion.
+//!
+//! The relationship between `std::sys_common`, `std::sys` and the
+//! rest of `std` is complex, with dependencies going in all
+//! directions: `std` depending on `sys_common`, `sys_common`
+//! depending on `sys`, and `sys` depending on `sys_common` and `std`.
+//! This is because `sys_common` not only contains platform-independent code,
+//! but also code that is shared between the different platforms in `sys`.
+//! Ideally all that shared code should be moved to `sys::common`,
+//! and the dependencies between `std`, `sys_common` and `sys` all would form a dag.
+//! Progress on this is tracked in #84187.
 
-#[allow(unused_macros)]
-macro_rules! rtassert {
-    ($e:expr) => {
-        if !$e {
-            rtabort!(concat!("assertion failed: ", stringify!($e)));
-        }
-    };
-}
-
-#[allow(unused_macros)] // not used on all platforms
-macro_rules! rtunwrap {
-    ($ok:ident, $e:expr) => {
-        match $e {
-            $ok(v) => v,
-            ref err => {
-                let err = err.as_ref().map(drop); // map Ok/Some which might not be Debug
-                rtabort!(concat!("unwrap failed: ", stringify!($e), " = {:?}"), err)
-            }
-        }
-    };
-}
+#![allow(missing_docs)]
+#![allow(missing_debug_implementations)]
 
 pub mod at_exit_imp;
-pub mod os_str_bytes;
 #[cfg(feature = "backtrace")]
 pub mod backtrace;
+pub mod condvar;
+pub mod fs;
 #[cfg(feature = "backtrace")]
 pub mod gnu;
 pub mod io;
 pub mod memchr;
-pub mod poison;
-pub mod thread_info;
-#[cfg(feature = "thread")]
-pub mod thread;
-#[cfg(feature = "thread")]
-pub mod thread_local;
-pub mod util;
-pub mod wtf8;
+pub mod mutex;
 #[cfg(feature = "net")]
 pub mod net;
-pub mod bytestring;
-pub mod fs;
+pub mod remutex;
+#[macro_use]
+pub mod rt;
+pub mod rwlock;
+#[cfg(feature = "thread")]
+pub mod thread;
+pub mod thread_info;
+#[cfg(feature = "thread")]
+pub mod thread_local_dtor;
+#[cfg(feature = "thread")]
+pub mod thread_local_key;
+pub mod thread_parker;
+pub mod wtf8;
 
 /// A trait for viewing representations from std types
 #[doc(hidden)]
@@ -96,37 +94,9 @@ pub trait FromInner<Inner> {
 /// closure will be run once the main thread exits. Returns `Err` to indicate
 /// that the closure could not be registered, meaning that it is not scheduled
 /// to be run.
+#[allow(clippy::result_unit_err)]
 pub fn at_exit<F: FnOnce() + Send + 'static>(f: F) -> Result<(), ()> {
     if at_exit_imp::push(Box::new(f)) { Ok(()) } else { Err(()) }
-}
-
-/// One-time runtime cleanup.
-//#[allow(dead_code)]
-//pub fn cleanup() {
-//
-//    use crate::sync::Once;
-//
-//    static CLEANUP: Once = Once::new();
-//    CLEANUP.call_once(||
-//        at_exit_imp::cleanup()
-//    );
-//}
-
-/// One-time runtime cleanup.
-pub fn cleanup() {
-    use crate::sync::SgxThreadSpinlock;
-
-    static SPIN_LOCK: SgxThreadSpinlock = SgxThreadSpinlock::new();
-    static mut IS_CLEAUP: bool = false;
-
-    unsafe {
-        SPIN_LOCK.lock();
-        if IS_CLEAUP == false {
-            at_exit_imp::cleanup();
-            IS_CLEAUP = true;
-        }
-        SPIN_LOCK.unlock();
-    }
 }
 
 // Computes (value*numer)/denom without overflow, as long as both

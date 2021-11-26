@@ -15,14 +15,14 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use sgx_types::{sgx_status_t, sgx_key_128bit_t, sgx_align_key_128bit_t};
-use sgx_trts::libc;
-use sgx_tprotected_fs::{self, SgxFileStream};
 use crate::os::unix::prelude::*;
 use crate::ffi::{CString, CStr};
-use crate::io::{self, Error, ErrorKind, SeekFrom};
+use crate::io::{self, Error, SeekFrom};
 use crate::path::Path;
 use crate::sys_common::FromInner;
+use sgx_libc as libc;
+use sgx_tprotected_fs::{self, SgxFileStream};
+use sgx_types::{sgx_status_t, sgx_key_128bit_t, sgx_align_key_128bit_t};
 
 pub struct SgxFile(SgxFileStream);
 
@@ -46,24 +46,33 @@ impl OpenOptions {
         }
     }
 
-    pub fn read(&mut self, read: bool) { self.read = read; }
-    pub fn write(&mut self, write: bool) { self.write = write; }
-    pub fn append(&mut self, append: bool) { self.append = append; }
-    pub fn update(&mut self, update: bool) { self.update = update; }
-    pub fn binary(&mut self, binary: bool) { self.binary = binary; }
+    pub fn read(&mut self, read: bool) {
+        self.read = read;
+    }
+    pub fn write(&mut self, write: bool) {
+        self.write = write;
+    }
+    pub fn append(&mut self, append: bool) {
+        self.append = append;
+    }
+    pub fn update(&mut self, update: bool) {
+        self.update = update;
+    }
+    pub fn binary(&mut self, binary: bool) {
+        self.binary = binary;
+    }
 
     fn get_access_mode(&self) -> io::Result<String> {
-
         let mut mode = match (self.read, self.write, self.append) {
             (true,  false, false) => "r".to_string(),
             (false, true,  false) => "w".to_string(),
             (false, false, true)  => "a".to_string(),
             _ => {return Err(Error::from_raw_os_error(libc::EINVAL))},
         };
-        if self.update == true {
+        if self.update {
             mode += "+";
         }
-        if self.binary == true {
+        if self.binary {
             mode += "b";
         }
         Ok(mode)
@@ -86,13 +95,13 @@ impl SgxFile {
     }
 
     pub fn open_c(path: &CStr, opts: &CStr, key: &sgx_key_128bit_t, auto: bool) -> io::Result<SgxFile> {
-        let file = if auto == true {
+        let file = if auto {
             SgxFileStream::open_auto_key(path, opts)
         } else {
             SgxFileStream::open(path, opts, key)
         };
 
-        file.map(|stream| SgxFile(stream))
+        file.map(SgxFile)
             .map_err(|err| {
                 match err {
                     1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
@@ -294,8 +303,9 @@ impl FromInner<SgxFileStream> for SgxFile {
 }
 
 pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
-
     use crate::sgxfs::SgxFile;
+    use crate::sys_common::fs::NOT_FILE_ERROR;
+
     cfg_if! {
         if #[cfg(feature = "untrusted_fs")] {
             use crate::fs;
@@ -307,17 +317,14 @@ pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
 
     let metadata = from.metadata()?;
     if !metadata.is_file() {
-        return Err(Error::new(
-            ErrorKind::InvalidInput,
-            "the source path is not an existing regular file",
-        ));
+        return Err(NOT_FILE_ERROR);
     }
 
     let mut reader = SgxFile::open(from)?;
     let mut writer = SgxFile::create(to)?;
     let perm = metadata.permissions();
 
-    let ret = io::copy(&mut reader, &mut writer)?;
+    let ret = io::copy::copy(&mut reader, &mut writer)?;
     fs::set_permissions(to, perm)?;
     Ok(ret)
 }

@@ -1,18 +1,19 @@
+use core::str;
 use sgx_rand::*;
 use std::env;
-use std::path::{Path, PathBuf};
-use std::fs::File;
 use std::fs;
-use std::panic;
-use core::str;
-use std::io::{Read, Write, ErrorKind};
+use std::fs::File;
+use std::io::{ErrorKind, Read, Write};
+use std::path::{Path, PathBuf};
 
-macro_rules! check { ($e:expr) => (
-    match $e {
-        Ok(t) => t,
-        Err(e) => panic!("{} failed with: {}", stringify!($e), e),
-    }
-) }
+macro_rules! check {
+    ($e:expr) => {
+        match $e {
+            Ok(t) => t,
+            Err(e) => panic!("{} failed with: {}", stringify!($e), e),
+        }
+    };
+}
 
 pub struct TempDir(PathBuf);
 
@@ -48,7 +49,7 @@ pub fn tmpdir() -> TempDir {
 pub fn test_path_stat_is_correct_on_is_dir() {
     let tmpdir = tmpdir();
     let filename = &tmpdir.join("file_stat_correct_on_is_dir");
-    
+
     check!(fs::create_dir(filename));
     let stat_res_fn = check!(fs::metadata(filename));
     assert!(stat_res_fn.is_dir());
@@ -88,12 +89,12 @@ pub fn test_path_directoryinfo_readdir() {
         let msg = msg_str.as_bytes();
         check!(w.write(msg));
     }
-  
+
     let files = check!(fs::read_dir(dir));
     let mut mem = [0; 4];
     for f in files {
         let f = f.unwrap().path();
-    
+
         {
             let n = f.file_stem().unwrap();
             check!(check!(File::open(&f)).read(&mut mem));
@@ -172,7 +173,7 @@ pub fn test_path_recursive_rmdir_of_symlink() {
     let dir = tmpdir.join("d2");
     let canary = dir.join("do_not_delete");
     check!(fs::create_dir_all(&dir));
-  
+
     check!(check!(File::create(&canary)).write(b"foo"));
     check!(fs::soft_link(&dir, &link));
 
@@ -218,17 +219,18 @@ pub fn test_path_copy_file_dst_dir() {
 
     check!(File::create(&out));
     match fs::copy(&*out, tmpdir.path()) {
-        Ok(..) => panic!(), Err(..) => {}
+        Ok(..) => panic!(),
+        Err(..) => {}
     }
 }
-
 
 pub fn test_path_copy_file_src_dir() {
     let tmpdir = tmpdir();
     let out = tmpdir.join("out");
 
     match fs::copy(tmpdir.path(), &out) {
-        Ok(..) => panic!(), Err(..) => {}
+        Ok(..) => panic!(),
+        Err(..) => {}
     }
     assert!(!out.exists());
 }
@@ -250,8 +252,8 @@ pub fn test_path_canonicalize_works_simple() {
 pub fn test_path_dir_entry_methods() {
     let tmpdir = tmpdir();
 
-   fs::create_dir_all(&tmpdir.join("a")).unwrap();
-   File::create(&tmpdir.join("b")).unwrap();
+    fs::create_dir_all(&tmpdir.join("a")).unwrap();
+    File::create(&tmpdir.join("b")).unwrap();
 
     for file in tmpdir.path().read_dir().unwrap().map(|f| f.unwrap()) {
         let fname = file.file_name();
@@ -311,7 +313,9 @@ pub fn test_path_copy_file_follows_dst_symlink() {
 
     check!(fs::copy(&in_path, &out_path_symlink));
 
-    assert!(check!(out_path_symlink.symlink_metadata()).file_type().is_symlink());
+    assert!(check!(out_path_symlink.symlink_metadata())
+        .file_type()
+        .is_symlink());
     assert_eq!(check!(fs::read(&out_path_symlink)), b"foo".to_vec());
     assert_eq!(check!(fs::read(&out_path)), b"foo".to_vec());
 }
