@@ -217,7 +217,8 @@ use crate::sys;
 /// }
 /// ```
 
-#[cfg_attr(not(test), rustc_diagnostic_item = "hashmap_type")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "HashMap")]
+#[rustc_insignificant_dtor]
 pub struct HashMap<K, V, S = RandomState> {
     base: base::HashMap<K, V, S>,
 }
@@ -235,6 +236,7 @@ impl<K, V> HashMap<K, V, RandomState> {
     /// let mut map: HashMap<&str, i32> = HashMap::new();
     /// ```
     #[inline]
+    #[must_use]
     pub fn new() -> HashMap<K, V, RandomState> {
         Default::default()
     }
@@ -251,6 +253,7 @@ impl<K, V> HashMap<K, V, RandomState> {
     /// let mut map: HashMap<&str, i32> = HashMap::with_capacity(10);
     /// ```
     #[inline]
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> HashMap<K, V, RandomState> {
         HashMap::with_capacity_and_hasher(capacity, Default::default())
     }
@@ -459,7 +462,6 @@ impl<K, V, S> HashMap<K, V, S> {
     /// a.insert(1, "a");
     /// assert_eq!(a.len(), 1);
     /// ```
-    #[doc(alias = "length")]
     pub fn len(&self) -> usize {
         self.base.len()
     }
@@ -621,7 +623,6 @@ where
     /// # Examples
     ///
     /// ```
-    /// #![feature(try_reserve)]
     /// use std::collections::HashMap;
     ///
     /// let mut map: HashMap<&str, isize> = HashMap::new();
@@ -1226,9 +1227,10 @@ impl<'a, K, V> IterMut<'a, K, V> {
 /// An owning iterator over the entries of a `HashMap`.
 ///
 /// This `struct` is created by the [`into_iter`] method on [`HashMap`]
-/// (provided by the `IntoIterator` trait). See its documentation for more.
+/// (provided by the [`IntoIterator`] trait). See its documentation for more.
 ///
 /// [`into_iter`]: IntoIterator::into_iter
+/// [`IntoIterator`]: crate::iter::IntoIterator
 ///
 /// # Example
 ///
@@ -1647,12 +1649,14 @@ impl<'a, K, V, S> RawEntryMut<'a, K, V, S> {
 impl<'a, K, V, S> RawOccupiedEntryMut<'a, K, V, S> {
     /// Gets a reference to the key in the entry.
     #[inline]
+    #[must_use]
     pub fn key(&self) -> &K {
         self.base.key()
     }
 
     /// Gets a mutable reference to the key in the entry.
     #[inline]
+    #[must_use]
     pub fn key_mut(&mut self) -> &mut K {
         self.base.key_mut()
     }
@@ -1660,12 +1664,14 @@ impl<'a, K, V, S> RawOccupiedEntryMut<'a, K, V, S> {
     /// Converts the entry into a mutable reference to the key in the entry
     /// with a lifetime bound to the map itself.
     #[inline]
+    #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_key(self) -> &'a mut K {
         self.base.into_key()
     }
 
     /// Gets a reference to the value in the entry.
     #[inline]
+    #[must_use]
     pub fn get(&self) -> &V {
         self.base.get()
     }
@@ -1673,18 +1679,21 @@ impl<'a, K, V, S> RawOccupiedEntryMut<'a, K, V, S> {
     /// Converts the `OccupiedEntry` into a mutable reference to the value in the entry
     /// with a lifetime bound to the map itself.
     #[inline]
+    #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_mut(self) -> &'a mut V {
         self.base.into_mut()
     }
 
     /// Gets a mutable reference to the value in the entry.
     #[inline]
+    #[must_use]
     pub fn get_mut(&mut self) -> &mut V {
         self.base.get_mut()
     }
 
     /// Gets a reference to the key and value in the entry.
     #[inline]
+    #[must_use]
     pub fn get_key_value(&mut self) -> (&K, &V) {
         self.base.get_key_value()
     }
@@ -1698,6 +1707,7 @@ impl<'a, K, V, S> RawOccupiedEntryMut<'a, K, V, S> {
     /// Converts the `OccupiedEntry` into a mutable reference to the key and value in the entry
     /// with a lifetime bound to the map itself.
     #[inline]
+    #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_key_value(self) -> (&'a mut K, &'a mut V) {
         self.base.into_key_value()
     }
@@ -2757,6 +2767,7 @@ impl RandomState {
     #[inline]
     #[allow(deprecated)]
     // rand
+    #[must_use]
     pub fn new() -> RandomState {
         // Historically this function did not cache keys from the OS and instead
         // simply always called `rand::thread_rng().gen()` twice. In #31356 it
@@ -2805,6 +2816,7 @@ impl DefaultHasher {
     /// `DefaultHasher` instances, but is the same as all other `DefaultHasher`
     /// instances created through `new` or `default`.
     #[allow(deprecated)]
+    #[must_use]
     pub fn new() -> DefaultHasher {
         DefaultHasher(SipHasher13::new_with_keys(0, 0))
     }

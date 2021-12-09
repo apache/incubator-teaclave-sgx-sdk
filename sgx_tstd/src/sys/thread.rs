@@ -136,7 +136,7 @@ impl Drop for Thread {
     }
 }
 
-pub fn available_concurrency() -> io::Result<NonZeroUsize> {
+pub fn available_parallelism() -> io::Result<NonZeroUsize> {
     let cpus = enclave::rsgx_get_cpu_core_num();
     NonZeroUsize::new(cpus as usize).ok_or_else(|| io::Error::new_const(
         io::ErrorKind::NotFound,

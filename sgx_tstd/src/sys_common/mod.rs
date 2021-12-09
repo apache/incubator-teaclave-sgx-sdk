@@ -47,8 +47,6 @@ pub mod mutex;
 #[cfg(feature = "net")]
 pub mod net;
 pub mod remutex;
-#[macro_use]
-pub mod rt;
 pub mod rwlock;
 #[cfg(feature = "thread")]
 pub mod thread;

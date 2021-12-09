@@ -181,7 +181,7 @@ impl<'a, E: Error + 'a> From<E> for Box<dyn Error + 'a> {
     ///
     /// impl fmt::Display for AnError {
     ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    ///         write!(f , "An error")
+    ///         write!(f, "An error")
     ///     }
     /// }
     ///
@@ -213,7 +213,7 @@ impl<'a, E: Error + Send + Sync + 'a> From<E> for Box<dyn Error + Send + Sync + 
     ///
     /// impl fmt::Display for AnError {
     ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    ///         write!(f , "An error")
+    ///         write!(f, "An error")
     ///     }
     /// }
     ///

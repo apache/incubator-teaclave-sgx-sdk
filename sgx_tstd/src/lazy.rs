@@ -170,6 +170,7 @@ impl<T: Eq> Eq for SyncOnceCell<T> {}
 
 impl<T> SyncOnceCell<T> {
     /// Creates a new empty cell.
+    #[must_use]
     pub const fn new() -> SyncOnceCell<T> {
         SyncOnceCell {
             once: Once::new(),

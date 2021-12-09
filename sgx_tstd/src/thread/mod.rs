@@ -140,9 +140,7 @@ impl Builder {
     /// handler.join().unwrap();
     /// ```
     pub fn new() -> Builder {
-        if rsgx_get_thread_policy() != SgxThreadPolicy::Bound {
-            panic!("The sgx thread policy must be Bound!");
-        }
+        assert!(!(rsgx_get_thread_policy() != SgxThreadPolicy::Bound), "The sgx thread policy must be Bound!");
         Builder { name: None }
     }
 
@@ -243,9 +241,9 @@ impl Builder {
     ///
     /// # Safety
     ///
-    /// The caller has to ensure that no references in the supplied thread closure
-    /// or its return type can outlive the spawned thread's lifetime. This can be
-    /// guaranteed in two ways:
+    /// The caller has to ensure that the spawned thread does not outlive any
+    /// references in the supplied thread closure and its return type.
+    /// This can be guaranteed in two ways:
     ///
     /// - ensure that [`join`][`JoinHandle::join`] is called before any referenced
     /// data is dropped
@@ -285,7 +283,9 @@ impl Builder {
     {
         let Builder { name } = self;
 
-        let my_thread = SgxThread::new(name);
+        let my_thread = SgxThread::new(name.map(|name| {
+            CString::new(name).expect("thread name may not contain interior null bytes")
+        }));
         let their_thread = my_thread.clone();
 
         let my_packet: Arc<UnsafeCell<Option<Result<T>>>> = Arc::new(UnsafeCell::new(None));
@@ -466,6 +466,7 @@ where
 ///
 /// handler.join().unwrap();
 /// ```
+#[must_use]
 pub fn current() -> SgxThread {
     thread_info::current_thread().expect(
         "Use of thread::current() need TCS policy is bound",
@@ -552,6 +553,7 @@ pub fn yield_now() {
 ///
 /// [Mutex]: crate::sync::Mutex
 #[inline]
+#[must_use]
 pub fn panicking() -> bool {
     panicking::panicking()
 }
@@ -819,9 +821,7 @@ impl ThreadId {
 
             // If we somehow use up all our bits, panic so that we're not
             // covering up subtle bugs of IDs being reused.
-            if COUNTER == u64::MAX {
-                panic!("failed to generate unique thread ID: bitspace exhausted");
-            }
+            assert!(!(COUNTER == u64::MAX), "failed to generate unique thread ID: bitspace exhausted");
 
             let id = COUNTER;
             COUNTER += 1;
@@ -839,6 +839,7 @@ impl ThreadId {
     /// value is entirely opaque -- only equality testing is stable. Note that
     /// it is not guaranteed which values new threads will return, and this may
     /// change across Rust versions.
+    #[must_use]
     pub fn as_u64(&self) -> NonZeroU64 {
         self.0
     }
@@ -881,12 +882,8 @@ pub struct SgxThread {
 impl SgxThread {
     // Used only internally to construct a thread object without spawning
     // Panics if the name contains nuls.
-    pub(crate) fn new(name: Option<String>) -> SgxThread {
-        let cname =
-            name.map(|n| CString::new(n).expect("thread name may not contain interior null bytes"));
-        SgxThread {
-            inner: Arc::new(Inner { name: cname, id: ThreadId::new(), parker: Parker::new() }),
-        }
+    pub(crate) fn new(name: Option<CString>) -> SgxThread {
+        SgxThread { inner: Arc::new(Inner { name, id: ThreadId::new(), parker: Parker::new() }) }
     }
 
     /// Atomically makes the handle's token available if it is not already.
@@ -938,6 +935,7 @@ impl SgxThread {
     /// let other_thread_id = other_thread.join().unwrap();
     /// assert!(thread::current().id() != other_thread_id);
     /// ```
+    #[must_use]
     pub fn id(&self) -> ThreadId {
         self.inner.id
     }
@@ -979,6 +977,7 @@ impl SgxThread {
     /// ```
     ///
     /// [naming-threads]: ./index.html#naming-threads
+    #[must_use]
     pub fn name(&self) -> Option<&str> {
         self.cname().map(|s| unsafe { str::from_utf8_unchecked(s.to_bytes()) })
     }
@@ -1169,6 +1168,7 @@ impl<T> JoinHandle<T> {
     /// let thread = join_handle.thread();
     /// println!("thread id: {:?}", thread.id());
     /// ```
+    #[must_use]
     pub fn thread(&self) -> &SgxThread {
         &self.0.thread
     }
@@ -1239,40 +1239,67 @@ fn _assert_sync_and_send() {
     _assert_both::<SgxThread>();
 }
 
-/// Returns the number of hardware threads available to the program.
+/// Returns an estimate of the default amount of parallelism a program should use.
 ///
-/// This value should be considered only a hint.
+/// Parallelism is a resource. A given machine provides a certain capacity for
+/// parallelism, i.e., a bound on the number of computations it can perform
+/// simultaneously. This number often corresponds to the amount of CPUs or
+/// computer has, but it may diverge in various cases.
 ///
-/// # Platform-specific behavior
+/// Host environments such as VMs or container orchestrators may want to
+/// restrict the amount of parallelism made available to programs in them. This
+/// is often done to limit the potential impact of (unintentionally)
+/// resource-intensive programs on other programs running on the same machine.
 ///
-/// If interpreted as the number of actual hardware threads, it may undercount on
-/// Windows systems with more than 64 hardware threads. If interpreted as the
-/// available concurrency for that process, it may overcount on Windows systems
-/// when limited by a process wide affinity mask or job object limitations, and
-/// it may overcount on Linux systems when limited by a process wide affinity
-/// mask or affected by cgroups limits.
+/// # Limitations
+///
+/// The purpose of this API is to provide an easy and portable way to query
+/// the default amount of parallelism the program should use. Among other things it
+/// does not expose information on NUMA regions, does not account for
+/// differences in (co)processor capabilities, and will not modify the program's
+/// global state in order to more accurately query the amount of available
+/// parallelism.
+///
+/// Resource limits can be changed during the runtime of a program, therefore the value is
+/// not cached and instead recomputed every time this function is called. It should not be
+/// called from hot code.
+///
+/// The value returned by this function should be considered a simplified
+/// approximation of the actual amount of parallelism available at any given
+/// time. To get a more detailed or precise overview of the amount of
+/// parallelism available to the program, you may wish to use
+/// platform-specific APIs as well. The following platform limitations currently
+/// apply to `available_parallelism`:
+///
+/// On Linux:
+/// - It may overcount the amount of parallelism available when limited by a
+///   process-wide affinity mask, or when affected by cgroup limits.
+///
+/// On all targets:
+/// - It may overcount the amount of parallelism available when running in a VM
+/// with CPU usage limits (e.g. an overcommitted host).
 ///
 /// # Errors
 ///
-/// This function will return an error in the following situations, but is not
-/// limited to just these cases:
+/// This function will, but is not limited to, return errors in the following
+/// cases:
 ///
-/// - If the number of hardware threads is not known for the target platform.
-/// - The process lacks permissions to view the number of hardware threads
-///   available.
+/// - If the amount of parallelism is not known for the target platform.
+/// - If the program lacks permission to query the amount of parallelism made
+///   available to it.
 ///
 /// # Examples
 ///
 /// ```
 /// # #![allow(dead_code)]
-/// #![feature(available_concurrency)]
+/// #![feature(available_parallelism)]
 /// use std::thread;
 ///
-/// let count = thread::available_concurrency().map(|n| n.get()).unwrap_or(1);
+/// let count = thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
 /// ```
 #[cfg(feature = "thread")]
-pub fn available_concurrency() -> io::Result<NonZeroUsize> {
-    imp::available_concurrency()
+pub fn available_parallelism() -> io::Result<NonZeroUsize> {
+    imp::available_parallelism()
 }
 
 ///

@@ -35,7 +35,7 @@ use crate::ptr;
 /// *repeated* write calls to the same file or network socket. It does not
 /// help when writing very large amounts at once, or writing just one or a few
 /// times. It also provides no advantage when writing to a destination that is
-/// in memory, like a [`Vec`]`<u8>`.
+/// in memory, like a <code>[Vec]\<u8></code>.
 ///
 /// It is critical to call [`flush`] before `BufWriter<W>` is dropped. Though
 /// dropping will attempt to flush the contents of the buffer, any errors
@@ -483,6 +483,7 @@ pub struct WriterPanicked {
 impl WriterPanicked {
     /// Returns the perhaps-unwritten data.  Some of this data may have been written by the
     /// panicking call(s) to the underlying writer, so simply writing it again is not a good idea.
+    #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_inner(self) -> Vec<u8> {
         self.buf
     }

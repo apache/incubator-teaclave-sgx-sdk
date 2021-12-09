@@ -148,7 +148,8 @@ macro_rules! thread_local {
 macro_rules! __thread_local_inner {
     // used to generate the `LocalKey` value for const-initialized thread locals
     (@key $t:ty, const $init:expr) => {{
-        #[cfg_attr(not(windows), inline)] // see comments below
+        #[cfg(not(feature = "thread"))]
+        #[inline] // see comments below
         unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
             const _REQUIRE_UNSTABLE: () = $crate::thread::require_unstable_const_init_thread_local();
 
@@ -160,6 +161,62 @@ macro_rules! __thread_local_inner {
                 Err($crate::thread::AccessError::new(
                     "If TLS data needs to be destructed, TCS policy must be bound."
                 ))
+            }
+        }
+
+        #[cfg(feature = "thread")]
+        unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
+            const _REQUIRE_UNSTABLE: () = $crate::thread::require_unstable_const_init_thread_local();
+
+            // If a dtor isn't needed we can do something "very raw" and
+            // just get going.
+            if !$crate::mem::needs_drop::<$t>() {
+                #[thread_local]
+                static mut VAL: $t = $init;
+                return Ok(&VAL)
+            }
+
+            if $crate::thread::thread_policy() == $crate::thread::SgxThreadPolicy::Unbound  {
+                return Err($crate::thread::AccessError::new(
+                    "If TLS data needs to be destructed, TCS policy must be bound."
+                ));
+            }
+
+            #[thread_local]
+            static mut VAL: $t = $init;
+            // 0 == dtor not registered
+            // 1 == dtor registered, dtor not run
+            // 2 == dtor registered and is running or has run
+            #[thread_local]
+            static mut STATE: u8 = 0;
+
+            unsafe extern "C" fn destroy(ptr: *mut u8) {
+                let ptr = ptr as *mut $t;
+
+                debug_assert_eq!(STATE, 1);
+                STATE = 2;
+                $crate::ptr::drop_in_place(ptr);
+            }
+
+            match STATE {
+                // 0 == we haven't registered a destructor, so do
+                //   so now.
+                0 => {
+                    $crate::thread::__FastLocalKeyInner::<$t>::register_dtor(
+                        $crate::ptr::addr_of_mut!(VAL) as *mut u8,
+                        destroy,
+                    );
+                    STATE = 1;
+                    Ok(&VAL)
+                }
+                // 1 == the destructor is registered and the value
+                //   is valid, so return the pointer.
+                1 => Ok(&VAL),
+                // otherwise the destructor has already run, so we
+                // can't give access.
+                _ => Err($crate::thread::AccessError::new(
+                    "The destructor has already run."
+                )),
             }
         }
 
@@ -452,6 +509,13 @@ pub mod fast {
             Key { inner: LazyKeyInner::new(), dtor_state: Cell::new(DtorState::Unregistered) }
         }
 
+        // note that this is just a publically-callable function only for the
+        // const-initialized form of thread locals, basically a way to call the
+        // free `register_dtor` function defined elsewhere in libstd.
+        pub unsafe fn register_dtor(a: *mut u8, dtor: unsafe extern "C" fn(*mut u8)) {
+            register_dtor(a, dtor);
+        }
+
         pub unsafe fn get<F: FnOnce() -> T>(&self, init: F) -> Result<&'static T, AccessError> {
             // SAFETY: See the definitions of `LazyKeyInner::get` and
             // `try_initialize` for more informations.
@@ -492,7 +556,7 @@ pub mod fast {
                 // because sys_common::thread_local::StaticKey does not call pthread_key_delete
                 // to trigger the destructor.
                 if !mem::needs_drop::<T>() || self.try_register_dtor() {
-                // SAFETY: See comment above (his function doc).
+                    // SAFETY: See comment above (his function doc).
                     Ok(self.inner.initialize(init))
                 } else {
                     Err(AccessError::new("Failed to register destructor."))
@@ -528,7 +592,6 @@ pub mod fast {
 
     unsafe extern "C" fn destroy_value<T>(ptr: *mut u8) {
         let ptr = ptr as *mut Key<T>;
-
         // SAFETY:
         //
         // The pointer `ptr` has been built just above and comes from
@@ -608,7 +671,7 @@ pub mod os {
             let ptr = self.os.get() as *mut Value<T>;
             if ptr as usize == 1 {
                 // destructor is running
-                return Err(AccessError::new("Destructor is running."));
+                return Err(AccessError::new("The destructor has already run."));
             }
 
             let ptr = if ptr.is_null() {

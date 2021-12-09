@@ -39,10 +39,12 @@ const TMPBUF_SZ: usize = 128;
 const PATH_SEPARATOR: u8 = b':';
 static ENV_LOCK: SgxThreadRwLock = SgxThreadRwLock::new();
 
+#[inline]
 pub fn errno() -> i32 {
     trts_error::errno()
 }
 
+#[inline]
 pub fn set_errno(e: i32) {
     trts_error::set_errno(e)
 }
@@ -50,9 +52,7 @@ pub fn set_errno(e: i32) {
 pub fn error_string(error: i32) -> String {
     let mut buf = [0_i8; TMPBUF_SZ];
     unsafe {
-        if trts_error::error_string(error, &mut buf) < 0 {
-            panic!("strerror_r failure");
-        }
+        assert!(!(trts_error::error_string(error, &mut buf) < 0), "strerror_r failure");
 
         let p = buf.as_ptr() as *const _;
         str::from_utf8(CStr::from_ptr(p).to_bytes()).unwrap().to_owned()

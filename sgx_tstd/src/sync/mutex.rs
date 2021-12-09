@@ -189,7 +189,7 @@ pub use crate::sys_common::mutex::SgxThreadMutex;
 ///
 /// assert_eq!(*res_mutex.lock().unwrap(), 800);
 /// ```
-#[cfg_attr(not(test), rustc_diagnostic_item = "mutex_type")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "Mutex")]
 pub struct SgxMutex<T: ?Sized> {
     inner: sys::SgxMovableThreadMutex,
     poison: poison::Flag,

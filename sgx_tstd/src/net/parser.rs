@@ -121,14 +121,17 @@ impl<'a> Parser<'a> {
     // Read a number off the front of the input in the given radix, stopping
     // at the first non-digit character or eof. Fails if the number has more
     // digits than max_digits or if there is no number.
+    #[allow(clippy::if_same_then_else)]
     fn read_number<T: ReadNumberHelper>(
         &mut self,
         radix: u32,
         max_digits: Option<usize>,
+        allow_zero_prefix: bool,
     ) -> Option<T> {
         self.read_atomically(move |p| {
             let mut result = T::ZERO;
             let mut digit_count = 0;
+            let has_leading_zero = p.peek_char() == Some('0');
 
             while let Some(digit) = p.read_atomically(|p| p.read_char()?.to_digit(radix)) {
                 result = result.checked_mul(radix)?;
@@ -141,7 +144,13 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            if digit_count == 0 { None } else { Some(result) }
+            if digit_count == 0 {
+                None
+            } else if !allow_zero_prefix && has_leading_zero && digit_count > 1 {
+                None
+            } else {
+                Some(result)
+            }
         })
     }
 
@@ -154,10 +163,7 @@ impl<'a> Parser<'a> {
                 *slot = p.read_separator('.', i, |p| {
                     // Disallow octal number in IP string.
                     // https://tools.ietf.org/html/rfc6943#section-3.1.1
-                    match (p.peek_char(), p.read_number(10, None)) {
-                        (Some('0'), Some(number)) if number != 0 => None,
-                        (_, number) => number,
-                    }
+                    p.read_number(10, Some(3), false)
                 })?;
             }
 
@@ -189,7 +195,7 @@ impl<'a> Parser<'a> {
                     }
                 }
 
-                let group = p.read_separator(':', i, |p| p.read_number(16, Some(4)));
+                let group = p.read_separator(':', i, |p| p.read_number(16, Some(4), true));
 
                 match group {
                     Some(g) => *slot = g,
@@ -241,7 +247,7 @@ impl<'a> Parser<'a> {
     fn read_port(&mut self) -> Option<u16> {
         self.read_atomically(|p| {
             p.read_given_char(':')?;
-            p.read_number(10, None)
+            p.read_number(10, None, true)
         })
     }
 
@@ -249,7 +255,7 @@ impl<'a> Parser<'a> {
     fn read_scope_id(&mut self) -> Option<u32> {
         self.read_atomically(|p| {
             p.read_given_char('%')?;
-            p.read_number(10, None)
+            p.read_number(10, None, true)
         })
     }
 
@@ -293,7 +299,12 @@ impl FromStr for IpAddr {
 impl FromStr for Ipv4Addr {
     type Err = AddrParseError;
     fn from_str(s: &str) -> Result<Ipv4Addr, AddrParseError> {
-        Parser::new(s).parse_with(|p| p.read_ipv4_addr())
+        // don't try to parse if too long
+        if s.len() > 15 {
+            Err(AddrParseError(()))
+        } else {
+            Parser::new(s).parse_with(|p| p.read_ipv4_addr())
+        }
     }
 }
 

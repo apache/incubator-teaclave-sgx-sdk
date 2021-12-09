@@ -51,6 +51,7 @@ impl PathEx for Path {
     /// let metadata = path.metadata().expect("metadata call failed");
     /// println!("{:?}", metadata.file_type());
     /// ```
+    #[inline]
     fn metadata(&self) -> io::Result<fs::Metadata> {
         fs::metadata(self)
     }
@@ -69,6 +70,7 @@ impl PathEx for Path {
     /// let metadata = path.symlink_metadata().expect("symlink_metadata call failed");
     /// println!("{:?}", metadata.file_type());
     /// ```
+    #[inline]
     fn symlink_metadata(&self) -> io::Result<fs::Metadata> {
         fs::symlink_metadata(self)
     }
@@ -87,6 +89,7 @@ impl PathEx for Path {
     /// let path = Path::new("/foo/test/../test/bar.rs");
     /// assert_eq!(path.canonicalize().unwrap(), PathBuf::from("/foo/test/bar.rs"));
     /// ```
+    #[inline]
     fn canonicalize(&self) -> io::Result<PathBuf> {
         fs::canonicalize(self)
     }
@@ -104,6 +107,7 @@ impl PathEx for Path {
     /// let path = Path::new("/laputa/sky_castle.rs");
     /// let path_link = path.read_link().expect("read_link call failed");
     /// ```
+    #[inline]
     fn read_link(&self) -> io::Result<PathBuf> {
         fs::read_link(self)
     }
@@ -128,6 +132,7 @@ impl PathEx for Path {
     ///     }
     /// }
     /// ```
+    #[inline]
     fn read_dir(&self) -> io::Result<fs::ReadDir> {
         fs::read_dir(self)
     }
@@ -152,6 +157,8 @@ impl PathEx for Path {
     ///
     /// This is a convenience function that coerces errors to false. If you want to
     /// check errors, call [`fs::metadata`].
+    #[must_use]
+    #[inline]
     fn exists(&self) -> bool {
         fs::metadata(self).is_ok()
     }
@@ -210,6 +217,7 @@ impl PathEx for Path {
     /// it. Only using `is_file` can break workflows like `diff <( prog_a )` on
     /// a Unix-like system for example. See [`fs::File::open`] or
     /// [`fs::OpenOptions::open`] for more information.
+    #[must_use]
     fn is_file(&self) -> bool {
         fs::metadata(self).map(|m| m.is_file()).unwrap_or(false)
     }
@@ -236,6 +244,7 @@ impl PathEx for Path {
     /// This is a convenience function that coerces errors to false. If you want to
     /// check errors, call [`fs::metadata`] and handle its [`Result`]. Then call
     /// [`fs::Metadata::is_dir`] if it was [`Ok`].
+    #[must_use]
     fn is_dir(&self) -> bool {
         fs::metadata(self).map(|m| m.is_dir()).unwrap_or(false)
     }
@@ -252,16 +261,16 @@ impl PathEx for Path {
     ///
     #[cfg_attr(unix, doc = "```no_run")]
     #[cfg_attr(not(unix), doc = "```ignore")]
-    /// #![feature(is_symlink)]
     /// use std::path::Path;
-    /// use std::untrusted::path::PathEx;
     /// use std::os::unix::fs::symlink;
+    /// use std::untrusted::path::PathEx;
     ///
     /// let link_path = Path::new("link");
     /// symlink("/origin_does_not_exists/", link_path).unwrap();
     /// assert_eq!(link_path.is_symlink(), true);
     /// assert_eq!(link_path.exists(), false);
     /// ```
+    #[must_use]
     fn is_symlink(&self) -> bool {
         fs::symlink_metadata(self).map(|m| m.is_symlink()).unwrap_or(false)
     }

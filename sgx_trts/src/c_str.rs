@@ -15,6 +15,9 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use crate::ascii;
+use crate::libc;
+use crate::memchr;
 use alloc::borrow::{Borrow, Cow, ToOwned};
 use alloc::boxed::Box;
 use alloc::rc::Rc;
@@ -29,9 +32,6 @@ use core::mem;
 use core::num::NonZeroU8;
 use core::ops;
 use core::ptr;
-use crate::ascii;
-use crate::libc;
-use crate::memchr;
 use sgx_types::c_char;
 
 /// A type representing an owned, C-compatible, nul-terminated string with no nul bytes in the
@@ -42,18 +42,18 @@ use sgx_types::c_char;
 /// type is a static guarantee that the underlying bytes contain no interior 0
 /// bytes ("nul characters") and that the final byte is 0 ("nul terminator").
 ///
-/// `CString` is to [`&CStr`] as [`String`] is to [`&str`]: the former
+/// `CString` is to <code>&[CStr]</code> as [`String`] is to <code>&[str]</code>: the former
 /// in each pair are owned strings; the latter are borrowed
 /// references.
 ///
 /// # Creating a `CString`
 ///
 /// A `CString` is created from either a byte slice or a byte vector,
-/// or anything that implements [`Into`]`<`[`Vec`]`<`[`u8`]`>>` (for
+/// or anything that implements <code>[Into]<[Vec]<[u8]>></code> (for
 /// example, you can build a `CString` straight out of a [`String`] or
-/// a [`&str`], since both implement that trait).
+/// a <code>&[str]</code>, since both implement that trait).
 ///
-/// The [`CString::new`] method will actually check that the provided `&[u8]`
+/// The [`CString::new`] method will actually check that the provided <code>&[[u8]]</code>
 /// does not have 0 bytes in the middle, and return an error if it
 /// finds one.
 ///
@@ -68,7 +68,7 @@ use sgx_types::c_char;
 ///
 /// # Extracting a slice of the whole C string
 ///
-/// Alternatively, you can obtain a `&[`[`u8`]`]` slice from a
+/// Alternatively, you can obtain a <code>&[[u8]]</code> slice from a
 /// `CString` with the [`CString::as_bytes`] method. Slices produced in this
 /// way do *not* contain the trailing nul terminator. This is useful
 /// when you will be calling an extern function that takes a `*const
@@ -77,7 +77,7 @@ use sgx_types::c_char;
 /// You can of course get the slice's length with its
 /// [`len`][slice::len] method.
 ///
-/// If you need a `&[`[`u8`]`]` slice *with* the nul terminator, you
+/// If you need a <code>&[[u8]]</code> slice *with* the nul terminator, you
 /// can use [`CString::as_bytes_with_nul`] instead.
 ///
 /// Once you have the kind of slice you need (with or without a nul
@@ -86,9 +86,8 @@ use sgx_types::c_char;
 /// extern functions. See the documentation for that function for a
 /// discussion on ensuring the lifetime of the raw pointer.
 ///
-/// [`&str`]: prim@str
+/// [str]: prim@str "str"
 /// [`Deref`]: ops::Deref
-/// [`&CStr`]: CStr
 ///
 /// # Examples
 ///
@@ -132,12 +131,12 @@ pub struct CString {
 /// Representation of a borrowed C string.
 ///
 /// This type represents a borrowed reference to a nul-terminated
-/// array of bytes. It can be constructed safely from a `&[`[`u8`]`]`
+/// array of bytes. It can be constructed safely from a <code>&[[u8]]</code>
 /// slice, or unsafely from a raw `*const c_char`. It can then be
-/// converted to a Rust [`&str`] by performing UTF-8 validation, or
+/// converted to a Rust <code>&[str]</code> by performing UTF-8 validation, or
 /// into an owned [`CString`].
 ///
-/// `&CStr` is to [`CString`] as [`&str`] is to [`String`]: the former
+/// `&CStr` is to [`CString`] as <code>&[str]</code> is to [`String`]: the former
 /// in each pair are borrowed references; the latter are owned
 /// strings.
 ///
@@ -195,7 +194,7 @@ pub struct CString {
 /// println!("string: {}", my_string_safe());
 /// ```
 ///
-/// [`&str`]: prim@str
+/// [str]: prim@str "str"
 #[derive(Hash)]
 #[cfg_attr(not(test), rustc_diagnostic_item = "CStr")]
 // FIXME:
@@ -301,7 +300,6 @@ impl FromBytesWithNulError {
 /// # Examples
 ///
 /// ```
-/// #![feature(cstring_from_vec_with_nul)]
 /// use std::ffi::{CString, FromVecWithNulError};
 ///
 /// let _: FromVecWithNulError = CString::from_vec_with_nul(b"f\0oo".to_vec()).unwrap_err();
@@ -315,11 +313,13 @@ pub struct FromVecWithNulError {
 impl fmt::Display for FromVecWithNulError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.error_kind {
-            FromBytesWithNulErrorKind::InteriorNul(pos) => write!(
-                f,
-                "data provided contains an interior nul byte at pos {}",
-                pos
-            ),
+            FromBytesWithNulErrorKind::InteriorNul(pos) => {
+                write!(
+                    f,
+                    "data provided contains an interior nul byte at pos {}",
+                    pos
+                )
+            }
             FromBytesWithNulErrorKind::NotNulTerminated => {
                 write!(f, "data provided is not nul terminated")
             }
@@ -341,7 +341,6 @@ impl FromVecWithNulError {
     /// Basic usage:
     ///
     /// ```
-    /// #![feature(cstring_from_vec_with_nul)]
     /// use std::ffi::CString;
     ///
     /// // Some invalid bytes in a vector
@@ -351,6 +350,7 @@ impl FromVecWithNulError {
     ///
     /// assert_eq!(&bytes[..], value.unwrap_err().as_bytes());
     /// ```
+    #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         &self.bytes[..]
     }
@@ -376,6 +376,7 @@ impl FromVecWithNulError {
     ///
     /// assert_eq!(bytes, value.unwrap_err().into_bytes());
     /// ```
+    #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_bytes(self) -> Vec<u8> {
         self.bytes
     }
@@ -479,6 +480,8 @@ impl CString {
     /// Creates a C-compatible string by consuming a byte vector,
     /// without checking for interior 0 bytes.
     ///
+    /// Trailing 0 byte will be appended by this function.
+    ///
     /// This method is equivalent to [`CString::new`] except that no runtime
     /// assertion is made that `v` contains no 0 bytes, and it requires an
     /// actual byte vector, not anything that can be converted to one with Into.
@@ -493,6 +496,7 @@ impl CString {
     ///     let c_string = CString::from_vec_unchecked(raw);
     /// }
     /// ```
+    #[must_use]
     pub unsafe fn from_vec_unchecked(mut v: Vec<u8>) -> CString {
         v.reserve_exact(1);
         v.push(0);
@@ -545,6 +549,7 @@ impl CString {
     ///     let c_string = CString::from_raw(raw);
     /// }
     /// ```
+    #[must_use = "call `drop(from_raw(ptr))` if you intend to drop the `CString`"]
     pub unsafe fn from_raw(ptr: *mut c_char) -> CString {
         // SAFETY: This is called with a pointer that was obtained from a call
         // to `CString::into_raw` and the length has not been modified. As such,
@@ -592,6 +597,7 @@ impl CString {
     /// }
     /// ```
     #[inline]
+    #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_raw(self) -> *mut c_char {
         Box::into_raw(self.into_inner()) as *mut c_char
     }
@@ -637,6 +643,7 @@ impl CString {
     /// let bytes = c_string.into_bytes();
     /// assert_eq!(bytes, vec![b'f', b'o', b'o']);
     /// ```
+    #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_bytes(self) -> Vec<u8> {
         let mut vec = self.into_inner().into_vec();
         let _nul = vec.pop();
@@ -656,6 +663,7 @@ impl CString {
     /// let bytes = c_string.into_bytes_with_nul();
     /// assert_eq!(bytes, vec![b'f', b'o', b'o', b'\0']);
     /// ```
+    #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_bytes_with_nul(self) -> Vec<u8> {
         self.into_inner().into_vec()
     }
@@ -677,6 +685,7 @@ impl CString {
     /// assert_eq!(bytes, &[b'f', b'o', b'o']);
     /// ```
     #[inline]
+    #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         // SAFETY: CString has a length at least 1
         unsafe { self.inner.get_unchecked(..self.inner.len() - 1) }
@@ -695,6 +704,7 @@ impl CString {
     /// assert_eq!(bytes, &[b'f', b'o', b'o', b'\0']);
     /// ```
     #[inline]
+    #[must_use]
     pub fn as_bytes_with_nul(&self) -> &[u8] {
         &self.inner
     }
@@ -712,6 +722,7 @@ impl CString {
     ///            CStr::from_bytes_with_nul(b"foo\0").expect("CStr::from_bytes_with_nul failed"));
     /// ```
     #[inline]
+    #[must_use]
     pub fn as_c_str(&self) -> &CStr {
         &*self
     }
@@ -728,6 +739,7 @@ impl CString {
     /// assert_eq!(&*boxed,
     ///            CStr::from_bytes_with_nul(b"foo\0").expect("CStr::from_bytes_with_nul failed"));
     /// ```
+    #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_boxed_c_str(self) -> Box<CStr> {
         unsafe { Box::from_raw(Box::into_raw(self.into_inner()) as *mut CStr) }
     }
@@ -743,7 +755,7 @@ impl CString {
         unsafe { ptr::read(&this.inner) }
     }
 
-    /// Converts a [`Vec`]`<u8>` to a [`CString`] without checking the
+    /// Converts a <code>[Vec]<[u8]></code> to a [`CString`] without checking the
     /// invariants on the given [`Vec`].
     ///
     /// # Safety
@@ -761,13 +773,14 @@ impl CString {
     ///     unsafe { CString::from_vec_unchecked(b"abc".to_vec()) }
     /// );
     /// ```
+    #[must_use]
     pub unsafe fn from_vec_with_nul_unchecked(v: Vec<u8>) -> Self {
         Self {
             inner: v.into_boxed_slice(),
         }
     }
 
-    /// Attempts to converts a [`Vec`]`<u8>` to a [`CString`].
+    /// Attempts to converts a <code>[Vec]<[u8]></code> to a [`CString`].
     ///
     /// Runtime checks are present to ensure there is only one nul byte in the
     /// [`Vec`], its last element.
@@ -850,7 +863,7 @@ impl fmt::Debug for CString {
 }
 
 impl From<CString> for Vec<u8> {
-    /// Converts a [`CString`] into a [`Vec`]`<u8>`.
+    /// Converts a [`CString`] into a <code>[Vec]<[u8]></code>.
     ///
     /// The conversion consumes the [`CString`], and removes the terminating NUL byte.
     #[inline]
@@ -920,7 +933,7 @@ impl From<Cow<'_, CStr>> for Box<CStr> {
 }
 
 impl From<Box<CStr>> for CString {
-    /// Converts a [`Box`]`<CStr>` into a [`CString`] without copying or allocating.
+    /// Converts a <code>[Box]<[CStr]></code> into a [`CString`] without copying or allocating.
     #[inline]
     fn from(s: Box<CStr>) -> CString {
         s.into_c_string()
@@ -928,7 +941,7 @@ impl From<Box<CStr>> for CString {
 }
 
 impl From<Vec<NonZeroU8>> for CString {
-    /// Converts a [`Vec`]`<`[`NonZeroU8`]`>` into a [`CString`] without
+    /// Converts a <code>[Vec]<[NonZeroU8]></code> into a [`CString`] without
     /// copying nor checking for inner null bytes.
     #[inline]
     fn from(v: Vec<NonZeroU8>) -> CString {
@@ -956,7 +969,7 @@ impl Clone for Box<CStr> {
 }
 
 impl From<CString> for Box<CStr> {
-    /// Converts a [`CString`] into a [`Box`]`<CStr>` without copying or allocating.
+    /// Converts a [`CString`] into a <code>[Box]<[CStr]></code> without copying or allocating.
     #[inline]
     fn from(s: CString) -> Box<CStr> {
         s.into_boxed_c_str()
@@ -964,6 +977,7 @@ impl From<CString> for Box<CStr> {
 }
 
 impl<'a> From<CString> for Cow<'a, CStr> {
+    /// Converts a [`CString`] into an owned [`Cow`] without copying or allocating.
     #[inline]
     fn from(s: CString) -> Cow<'a, CStr> {
         Cow::Owned(s)
@@ -971,6 +985,7 @@ impl<'a> From<CString> for Cow<'a, CStr> {
 }
 
 impl<'a> From<&'a CStr> for Cow<'a, CStr> {
+    /// Converts a [`CStr`] into a borrowed [`Cow`] without copying or allocating.
     #[inline]
     fn from(s: &'a CStr) -> Cow<'a, CStr> {
         Cow::Borrowed(s)
@@ -978,6 +993,7 @@ impl<'a> From<&'a CStr> for Cow<'a, CStr> {
 }
 
 impl<'a> From<&'a CString> for Cow<'a, CStr> {
+    /// Converts a `&`[`CString`] into a borrowed [`Cow`] without copying or allocating.
     #[inline]
     fn from(s: &'a CString) -> Cow<'a, CStr> {
         Cow::Borrowed(s.as_c_str())
@@ -985,7 +1001,7 @@ impl<'a> From<&'a CString> for Cow<'a, CStr> {
 }
 
 impl From<CString> for Arc<CStr> {
-    /// Converts a [`CString`] into an [`Arc`]`<CStr>` without copying or allocating.
+    /// Converts a [`CString`] into an <code>[Arc]<[CStr]></code> without copying or allocating.
     #[inline]
     fn from(s: CString) -> Arc<CStr> {
         let arc: Arc<[u8]> = Arc::from(s.into_inner());
@@ -1002,7 +1018,7 @@ impl From<&CStr> for Arc<CStr> {
 }
 
 impl From<CString> for Rc<CStr> {
-    /// Converts a [`CString`] into an [`Rc`]`<CStr>` without copying or allocating.
+    /// Converts a [`CString`] into an <code>[Rc]<[CStr]></code> without copying or allocating.
     #[inline]
     fn from(s: CString) -> Rc<CStr> {
         let rc: Rc<[u8]> = Rc::from(s.into_inner());
@@ -1040,6 +1056,7 @@ impl NulError {
     /// let nul_error = CString::new("foo bar\0").unwrap_err();
     /// assert_eq!(nul_error.nul_position(), 7);
     /// ```
+    #[must_use]
     pub fn nul_position(&self) -> usize {
         self.0
     }
@@ -1055,6 +1072,7 @@ impl NulError {
     /// let nul_error = CString::new("foo\0bar").unwrap_err();
     /// assert_eq!(nul_error.into_vec(), b"foo\0bar");
     /// ```
+    #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_vec(self) -> Vec<u8> {
         self.1
     }
@@ -1063,11 +1081,13 @@ impl NulError {
 impl IntoStringError {
     /// Consumes this error, returning original [`CString`] which generated the
     /// error.
+    #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_cstring(self) -> CString {
         self.inner
     }
 
     /// Access the underlying UTF-8 error that was the cause of this error.
+    #[must_use]
     pub fn utf8_error(&self) -> Utf8Error {
         self.error
     }
@@ -1111,6 +1131,8 @@ impl CStr {
     /// }
     /// # }
     /// ```
+    #[inline]
+    #[must_use]
     pub unsafe fn from_ptr<'a>(ptr: *const c_char) -> &'a CStr {
         // SAFETY: The caller has provided a pointer that points to a valid C
         // string with a NUL terminator of size less than `isize::MAX`, whose
@@ -1189,6 +1211,7 @@ impl CStr {
     /// }
     /// ```
     #[inline]
+    #[must_use]
     pub const unsafe fn from_bytes_with_nul_unchecked(bytes: &[u8]) -> &CStr {
         // SAFETY: Casting to CStr is safe because its internal representation
         // is a [u8] too (safe only inside std).
@@ -1245,6 +1268,7 @@ impl CStr {
     /// This way, the lifetime of the [`CString`] in `hello` encompasses
     /// the lifetime of `ptr` and the `unsafe` block.
     #[inline]
+    #[must_use]
     pub const fn as_ptr(&self) -> *const c_char {
         self.inner.as_ptr()
     }
@@ -1267,6 +1291,8 @@ impl CStr {
     /// assert_eq!(cstr.to_bytes(), b"foo");
     /// ```
     #[inline]
+    #[must_use = "this returns the result of the operation, \
+                  without modifying the original"]
     pub fn to_bytes(&self) -> &[u8] {
         let bytes = self.to_bytes_with_nul();
         // SAFETY: to_bytes_with_nul returns slice with length at least 1
@@ -1291,17 +1317,19 @@ impl CStr {
     /// assert_eq!(cstr.to_bytes_with_nul(), b"foo\0");
     /// ```
     #[inline]
+    #[must_use = "this returns the result of the operation, \
+                  without modifying the original"]
     pub fn to_bytes_with_nul(&self) -> &[u8] {
         unsafe { &*(&self.inner as *const [c_char] as *const [u8]) }
     }
 
-    /// Yields a [`&str`] slice if the `CStr` contains valid UTF-8.
+    /// Yields a <code>&[str]</code> slice if the `CStr` contains valid UTF-8.
     ///
     /// If the contents of the `CStr` are valid UTF-8 data, this
-    /// function will return the corresponding [`&str`] slice. Otherwise,
+    /// function will return the corresponding <code>&[str]</code> slice. Otherwise,
     /// it will return an error with details of where UTF-8 validation failed.
     ///
-    /// [`&str`]: prim@str
+    /// [str]: prim@str "str"
     ///
     /// # Examples
     ///
@@ -1319,20 +1347,19 @@ impl CStr {
         str::from_utf8(self.to_bytes())
     }
 
-    /// Converts a `CStr` into a [`Cow`]`<`[`str`]`>`.
+    /// Converts a `CStr` into a <code>[Cow]<[str]></code>.
     ///
     /// If the contents of the `CStr` are valid UTF-8 data, this
-    /// function will return a [`Cow`]`::`[`Borrowed`]`(`[`&str`]`)`
-    /// with the corresponding [`&str`] slice. Otherwise, it will
+    /// function will return a <code>[Cow]::[Borrowed]\(&[str])</code>
+    /// with the corresponding <code>&[str]</code> slice. Otherwise, it will
     /// replace any invalid UTF-8 sequences with
     /// [`U+FFFD REPLACEMENT CHARACTER`][U+FFFD] and return a
-    /// [`Cow`]`::`[`Owned`]`(`[`String`]`)` with the result.
+    /// <code>[Cow]::[Owned]\(&[str])</code> with the result.
     ///
-    /// [`str`]: primitive@str
-    /// [`&str`]: primitive@str
-    /// [`Borrowed`]: Cow::Borrowed
-    /// [`Owned`]: Cow::Owned
-    /// [U+FFFD]: crate::char::REPLACEMENT_CHARACTER
+    /// [str]: prim@str "str"
+    /// [Borrowed]: Cow::Borrowed
+    /// [Owned]: Cow::Owned
+    /// [U+FFFD]: crate::char::REPLACEMENT_CHARACTER "std::char::REPLACEMENT_CHARACTER"
     ///
     /// # Examples
     ///
@@ -1360,11 +1387,13 @@ impl CStr {
     ///     Cow::Owned(String::from("Hello �World")) as Cow<'_, str>
     /// );
     /// ```
+    #[must_use = "this returns the result of the operation, \
+                  without modifying the original"]
     pub fn to_string_lossy(&self) -> Cow<'_, str> {
         String::from_utf8_lossy(self.to_bytes())
     }
 
-    /// Converts a [`Box`]`<CStr>` into a [`CString`] without copying or allocating.
+    /// Converts a <code>[Box]<[CStr]></code> into a [`CString`] without copying or allocating.
     ///
     /// # Examples
     ///
@@ -1375,6 +1404,7 @@ impl CStr {
     /// let boxed = c_string.into_boxed_c_str();
     /// assert_eq!(boxed.into_c_string(), CString::new("foo").expect("CString::new failed"));
     /// ```
+    #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_c_string(self: Box<CStr>) -> CString {
         let raw = Box::into_raw(self) as *mut [u8];
         CString {
@@ -1399,7 +1429,7 @@ impl PartialOrd for CStr {
 
 impl Ord for CStr {
     fn cmp(&self, other: &CStr) -> Ordering {
-        self.to_bytes().cmp(&other.to_bytes())
+        self.to_bytes().cmp(other.to_bytes())
     }
 }
 

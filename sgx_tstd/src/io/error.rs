@@ -422,6 +422,7 @@ impl Error {
     ///
     /// println!("last OS error: {:?}", Error::last_os_error());
     /// ```
+    #[must_use]
     #[inline]
     pub fn last_os_error() -> Error {
         Error::from_raw_os_error(sys::os::errno() as i32)
@@ -452,6 +453,7 @@ impl Error {
     /// assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
     /// # }
     /// ```
+    #[must_use]
     #[inline]
     pub fn from_raw_os_error(code: i32) -> Error {
         Error { repr: Repr::Os(code) }
@@ -486,6 +488,7 @@ impl Error {
     ///     print_os_error(&Error::new(ErrorKind::Other, "oh no!"));
     /// }
     /// ```
+    #[must_use]
     #[inline]
     pub fn raw_os_error(&self) -> Option<i32> {
         match self.repr {
@@ -544,6 +547,8 @@ impl Error {
     ///     print_error(&Error::new(ErrorKind::Other, "oh no!"));
     /// }
     /// ```
+    #[must_use]
+    #[inline]
     pub fn get_ref(&self) -> Option<&(dyn error::Error + Send + Sync + 'static)> {
         match self.repr {
             Repr::Os(..) => None,
@@ -616,6 +621,8 @@ impl Error {
     ///     print_error(&change_error(Error::new(ErrorKind::Other, MyError::new())));
     /// }
     /// ```
+    #[must_use]
+    #[inline]
     pub fn get_mut(&mut self) -> Option<&mut (dyn error::Error + Send + Sync + 'static)> {
         match self.repr {
             Repr::Os(..) => None,
@@ -653,6 +660,8 @@ impl Error {
     ///     print_error(Error::new(ErrorKind::Other, "oh no!"));
     /// }
     /// ```
+    #[must_use = "`self` will be dropped if the result is not used"]
+    #[inline]
     pub fn into_inner(self) -> Option<Box<dyn error::Error + Send + Sync>> {
         match self.repr {
             Repr::Os(..) => None,
@@ -681,6 +690,8 @@ impl Error {
     ///     print_error(Error::new(ErrorKind::AddrInUse, "oh no!"));
     /// }
     /// ```
+    #[must_use]
+    #[inline]
     pub fn kind(&self) -> ErrorKind {
         match self.repr {
             Repr::Os(code) => sys::decode_error_kind(code),

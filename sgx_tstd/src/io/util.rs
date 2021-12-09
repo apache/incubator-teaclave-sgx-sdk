@@ -32,7 +32,7 @@ pub struct Empty;
 
 /// Constructs a new handle to an empty reader.
 ///
-/// All reads from the returned reader will return [`Ok`]`(0)`.
+/// All reads from the returned reader will return <code>[Ok]\(0)</code>.
 ///
 /// # Examples
 ///
@@ -45,6 +45,7 @@ pub struct Empty;
 /// io::empty().read_to_string(&mut buffer).unwrap();
 /// assert!(buffer.is_empty());
 /// ```
+#[must_use]
 pub const fn empty() -> Empty {
     Empty
 }
@@ -119,6 +120,7 @@ pub struct Repeat {
 /// io::repeat(0b101).read_exact(&mut buffer).unwrap();
 /// assert_eq!(buffer, [0b101, 0b101, 0b101]);
 /// ```
+#[must_use]
 pub const fn repeat(byte: u8) -> Repeat {
     Repeat { byte }
 }
@@ -194,6 +196,7 @@ pub struct Sink;
 /// let num_bytes = io::sink().write(&buffer).unwrap();
 /// assert_eq!(num_bytes, 5);
 /// ```
+#[must_use]
 pub const fn sink() -> Sink {
     Sink
 }

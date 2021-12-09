@@ -21,6 +21,7 @@ use crate::error::Error;
 use crate::io;
 
 impl Error for NulError {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         "nul byte found in data"
     }
@@ -34,6 +35,7 @@ impl From<NulError> for io::Error {
 }
 
 impl Error for FromBytesWithNulError {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         self.__description()
     }
@@ -42,6 +44,7 @@ impl Error for FromBytesWithNulError {
 impl Error for FromVecWithNulError {}
 
 impl Error for IntoStringError {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         self.__description()
     }

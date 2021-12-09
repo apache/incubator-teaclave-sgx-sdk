@@ -124,9 +124,7 @@ impl Bomb {
 
 impl Drop for Bomb {
     fn drop(&mut self) {
-        if self.enabled {
-            panic!("cannot panic during the backtrace function");
-        }
+        assert!(!self.enabled, "cannot panic during the backtrace function");
     }
 }
 

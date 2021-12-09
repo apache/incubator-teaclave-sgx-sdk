@@ -33,6 +33,7 @@ impl InstantEx for Instant {
     ///
     /// let now = Instant::now();
     /// ```
+    #[must_use]
     fn now() -> Instant {
         Instant::_now()
     }
@@ -57,6 +58,7 @@ impl InstantEx for Instant {
     /// sleep(three_secs);
     /// assert!(instant.elapsed() >= three_secs);
     /// ```
+    #[must_use]
     fn elapsed(&self) -> Duration {
         Instant::_now() - *self
     }
@@ -78,6 +80,7 @@ impl SystemTimeEx for SystemTime {
     ///
     /// let sys_time = SystemTime::now();
     /// ```
+    #[must_use]
     fn now() -> SystemTime {
         SystemTime::_now()
     }

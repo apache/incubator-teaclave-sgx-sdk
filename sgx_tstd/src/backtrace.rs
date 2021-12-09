@@ -111,6 +111,7 @@ use crate::vec::Vec;
 /// previous point in time. In some instances the `Backtrace` type may
 /// internally be empty due to configuration. For more information see
 /// `Backtrace::capture`.
+#[must_use]
 pub struct Backtrace {
     inner: Inner,
 }
@@ -328,6 +329,7 @@ impl Backtrace {
     /// Returns the status of this backtrace, indicating whether this backtrace
     /// request was unsupported, disabled, or a stack trace was actually
     /// captured.
+    #[must_use]
     pub fn status(&self) -> BacktraceStatus {
         match self.inner {
             Inner::Unsupported => BacktraceStatus::Unsupported,
@@ -339,6 +341,7 @@ impl Backtrace {
 
 impl<'a> Backtrace {
     /// Returns an iterator over the backtrace frames.
+    #[must_use]
     pub fn frames(&'a self) -> &'a [BacktraceFrame] {
         if let Inner::Captured(c) = &self.inner { &c.force().frames } else { &[] }
     }

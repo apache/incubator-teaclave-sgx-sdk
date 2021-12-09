@@ -120,6 +120,7 @@ pub struct VarsOs {
 /// ```
 ///
 /// [`env::vars_os()`]: vars_os
+#[must_use]
 pub fn vars() -> Vars {
     Vars { inner: vars_os() }
 }
@@ -146,6 +147,7 @@ pub fn vars() -> Vars {
 ///     println!("{:?}: {:?}", key, value);
 /// }
 /// ```
+#[must_use]
 pub fn vars_os() -> VarsOs {
     VarsOs { inner: os_imp::env() }
 }
@@ -244,6 +246,7 @@ fn _var(key: &OsStr) -> Result<String, VarError> {
 ///     None => println!("{} is not defined in the environment.", key)
 /// }
 /// ```
+#[must_use]
 pub fn var_os<K: AsRef<OsStr>>(key: K) -> Option<OsString> {
     _var_os(key.as_ref())
 }
@@ -377,6 +380,7 @@ fn _remove_var(key: &OsStr) {
 /// documentation for more.
 ///
 /// [`env::split_paths()`]: split_paths
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct SplitPaths<'a> {
     inner: os_imp::SplitPaths<'a>,
 }
@@ -544,6 +548,7 @@ impl Error for JoinPathsError {
 ///     None => println!("Impossible to get your home dir!"),
 /// }
 /// ```
+#[must_use]
 pub fn home_dir() -> Option<PathBuf> {
     os_imp::home_dir()
 }
@@ -582,6 +587,7 @@ pub fn home_dir() -> Option<PathBuf> {
 ///     println!("Temporary directory: {}", dir.display());
 /// }
 /// ```
+#[must_use]
 pub fn temp_dir() -> PathBuf {
     os_imp::temp_dir()
 }

@@ -188,6 +188,7 @@ struct WaiterQueue<'a> {
 impl Once {
     /// Creates a new `Once` value.
     #[inline]
+    #[must_use]
     pub const fn new() -> Once {
         Once { state_and_queue: AtomicUsize::new(INCOMPLETE), _marker: marker::PhantomData }
     }

@@ -112,7 +112,7 @@ pub struct Metadata(fs_imp::FileAttr);
 /// Iterator over the entries in a directory.
 ///
 /// This iterator is returned from the [`read_dir`] function of this module and
-/// will yield instances of [`io::Result`]`<`[`DirEntry`]`>`. Through a [`DirEntry`]
+/// will yield instances of <code>[io::Result]<[DirEntry]></code>. Through a [`DirEntry`]
 /// information like the entry's path and possibly other metadata can be
 /// learned.
 ///
@@ -198,20 +198,10 @@ pub struct DirBuilder {
     recursive: bool,
 }
 
-/// Indicates how large a buffer to pre-allocate before reading the entire file.
-fn initial_buffer_size(file: &File) -> usize {
-    // Allocate one extra byte so the buffer doesn't need to grow before the
-    // final `read` call at the end of the file.  Don't worry about `usize`
-    // overflow because reading will fail regardless in that case.
-    file.metadata().map(|m| m.len() as usize + 1).unwrap_or(0)
-}
-
 /// Read the entire contents of a file into a bytes vector.
 ///
 /// This is a convenience function for using [`File::open`] and [`read_to_end`]
-/// with fewer imports and without an intermediate variable. It pre-allocates a
-/// buffer based on the file size when available, so it is generally faster than
-/// reading into a vector created with [`Vec::new()`].
+/// with fewer imports and without an intermediate variable.
 ///
 /// [`read_to_end`]: Read::read_to_end
 ///
@@ -237,7 +227,7 @@ fn initial_buffer_size(file: &File) -> usize {
 pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
     fn inner(path: &Path) -> io::Result<Vec<u8>> {
         let mut file = File::open(path)?;
-        let mut bytes = Vec::with_capacity(initial_buffer_size(&file));
+        let mut bytes = Vec::new();
         file.read_to_end(&mut bytes)?;
         Ok(bytes)
     }
@@ -247,9 +237,7 @@ pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
 /// Read the entire contents of a file into a string.
 ///
 /// This is a convenience function for using [`File::open`] and [`read_to_string`]
-/// with fewer imports and without an intermediate variable. It pre-allocates a
-/// buffer based on the file size when available, so it is generally faster than
-/// reading into a string created with [`String::new()`].
+/// with fewer imports and without an intermediate variable.
 ///
 /// [`read_to_string`]: Read::read_to_string
 ///
@@ -277,7 +265,7 @@ pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
 pub fn read_to_string<P: AsRef<Path>>(path: P) -> io::Result<String> {
     fn inner(path: &Path) -> io::Result<String> {
         let mut file = File::open(path)?;
-        let mut string = String::with_capacity(initial_buffer_size(&file));
+        let mut string = String::new();
         file.read_to_string(&mut string)?;
         Ok(string)
     }
@@ -381,6 +369,7 @@ impl File {
     ///     Ok(())
     /// }
     /// ```
+    #[must_use]
     pub fn with_options() -> OpenOptions {
         OpenOptions::new()
     }
@@ -603,6 +592,15 @@ impl fmt::Debug for File {
     }
 }
 
+/// Indicates how much extra capacity is needed to read the rest of the file.
+fn buffer_capacity_required(mut file: &File) -> usize {
+    let size = file.metadata().map(|m| m.len()).unwrap_or(0);
+    let pos = file.stream_position().unwrap_or(0);
+    // Don't worry about `usize` overflow because reading will fail regardless
+    // in that case.
+    size.saturating_sub(pos) as usize
+}
+
 impl Read for File {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
@@ -622,8 +620,19 @@ impl Read for File {
         // SAFETY: Read is guaranteed to work on uninitialized memory
         unsafe { Initializer::nop() }
     }
-}
 
+    // Reserves space in the buffer based on the file size when available.
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
+        buf.reserve(buffer_capacity_required(self));
+        io::default_read_to_end(self, buf)
+    }
+
+    // Reserves space in the buffer based on the file size when available.
+    fn read_to_string(&mut self, buf: &mut String) -> io::Result<usize> {
+        buf.reserve(buffer_capacity_required(self));
+        io::default_read_to_string(self, buf)
+    }
+}
 impl Write for File {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.inner.write(buf)
@@ -668,8 +677,19 @@ impl Read for &File {
         // SAFETY: Read is guaranteed to work on uninitialized memory
         unsafe { Initializer::nop() }
     }
-}
 
+    // Reserves space in the buffer based on the file size when available.
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
+        buf.reserve(buffer_capacity_required(self));
+        io::default_read_to_end(self, buf)
+    }
+
+    // Reserves space in the buffer based on the file size when available.
+    fn read_to_string(&mut self, buf: &mut String) -> io::Result<usize> {
+        buf.reserve(buffer_capacity_required(self));
+        io::default_read_to_string(self, buf)
+    }
+}
 impl Write for &File {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.inner.write(buf)
@@ -708,6 +728,7 @@ impl OpenOptions {
     /// let mut options = OpenOptions::new();
     /// let file = options.read(true).open("foo.txt");
     /// ```
+    #[must_use]
     pub fn new() -> Self {
         OpenOptions(fs_imp::OpenOptions::new())
     }
@@ -769,17 +790,17 @@ impl OpenOptions {
     /// If a file is opened with both read and append access, beware that after
     /// opening, and after every write, the position for reading may be set at the
     /// end of the file. So, before writing, save the current position (using
-    /// [`seek`]`(`[`SeekFrom`]`::`[`Current`]`(0))`), and restore it before the next read.
+    /// <code>[seek]\([SeekFrom]::[Current]\(0))</code>), and restore it before the next read.
     ///
     /// ## Note
     ///
     /// This function doesn't create the file if it doesn't exist. Use the
     /// [`OpenOptions::create`] method to do so.
     ///
-    /// [`write()`]: Write::write
-    /// [`flush()`]: Write::flush
-    /// [`seek`]: Seek::seek
-    /// [`Current`]: SeekFrom::Current
+    /// [`write()`]: Write::write "io::Write::write"
+    /// [`flush()`]: Write::flush "io::Write::flush"
+    /// [seek]: Seek::seek "io::Seek::seek"
+    /// [Current]: SeekFrom::Current "io::SeekFrom::Current"
     ///
     /// # Examples
     ///
@@ -939,6 +960,7 @@ impl Metadata {
     ///     Ok(())
     /// }
     /// ```
+    #[must_use]
     pub fn file_type(&self) -> FileType {
         FileType(self.0.file_type())
     }
@@ -960,6 +982,7 @@ impl Metadata {
     ///     Ok(())
     /// }
     /// ```
+    #[must_use]
     pub fn is_dir(&self) -> bool {
         self.file_type().is_dir()
     }
@@ -987,6 +1010,7 @@ impl Metadata {
     ///     Ok(())
     /// }
     /// ```
+    #[must_use]
     pub fn is_file(&self) -> bool {
         self.file_type().is_file()
     }
@@ -1012,6 +1036,7 @@ impl Metadata {
     ///     Ok(())
     /// }
     /// ```
+    #[must_use]
     pub fn is_symlink(&self) -> bool {
         self.file_type().is_symlink()
     }
@@ -1030,6 +1055,7 @@ impl Metadata {
     ///     Ok(())
     /// }
     /// ```
+    #[must_use]
     pub fn len(&self) -> u64 {
         self.0.size()
     }
@@ -1048,6 +1074,7 @@ impl Metadata {
     ///     Ok(())
     /// }
     /// ```
+    #[must_use]
     pub fn permissions(&self) -> Permissions {
         Permissions(self.0.perm())
     }
@@ -1190,6 +1217,7 @@ impl Permissions {
     ///     Ok(())
     /// }
     /// ```
+    #[must_use = "call `set_readonly` to modify the readonly flag"]
     pub fn readonly(&self) -> bool {
         self.0.readonly()
     }
@@ -1250,6 +1278,7 @@ impl FileType {
     ///     Ok(())
     /// }
     /// ```
+    #[must_use]
     pub fn is_dir(&self) -> bool {
         self.0.is_dir()
     }
@@ -1281,6 +1310,7 @@ impl FileType {
     ///     Ok(())
     /// }
     /// ```
+    #[must_use]
     pub fn is_file(&self) -> bool {
         self.0.is_file()
     }
@@ -1315,6 +1345,7 @@ impl FileType {
     ///     Ok(())
     /// }
     /// ```
+    #[must_use]
     pub fn is_symlink(&self) -> bool {
         self.0.is_symlink()
     }
@@ -1375,6 +1406,7 @@ impl DirEntry {
     /// ```
     ///
     /// The exact text, of course, depends on what files you have in `.`.
+    #[must_use]
     pub fn path(&self) -> PathBuf {
         self.0.path()
     }
@@ -1467,6 +1499,7 @@ impl DirEntry {
     ///     }
     /// }
     /// ```
+    #[must_use]
     pub fn file_name(&self) -> OsString {
         self.0.file_name()
     }
@@ -1517,7 +1550,6 @@ impl AsInner<fs_imp::DirEntry> for DirEntry {
 ///     Ok(())
 /// }
 /// ```
-#[doc(alias = "delete")]
 pub fn remove_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
     fs_imp::unlink(path.as_ref())
 }
@@ -1984,7 +2016,7 @@ pub fn remove_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
 
 /// Returns an iterator over the entries within a directory.
 ///
-/// The iterator will yield instances of [`io::Result`]`<`[`DirEntry`]`>`.
+/// The iterator will yield instances of <code>[io::Result]<[DirEntry]></code>.
 /// New errors may be encountered after an iterator is initially constructed.
 /// Entries for the current and parent directories (typically `.` and `..`) are
 /// skipped.
@@ -2101,6 +2133,7 @@ impl DirBuilder {
     ///
     /// let builder = DirBuilder::new();
     /// ```
+    #[must_use]
     pub fn new() -> DirBuilder {
         DirBuilder { inner: fs_imp::DirBuilder::new(), recursive: false }
     }

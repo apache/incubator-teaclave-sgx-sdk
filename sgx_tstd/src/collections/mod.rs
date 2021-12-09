@@ -114,11 +114,11 @@
 //!
 //! ## Sequences
 //!
-//! |                | get(i)         | insert(i)       | remove(i)      | append | split_off(i)   |
-//! |----------------|----------------|-----------------|----------------|--------|----------------|
-//! | [`Vec`]        | O(1)           | O(n-i)*         | O(n-i)         | O(m)*  | O(n-i)         |
-//! | [`VecDeque`]   | O(1)           | O(min(i, n-i))* | O(min(i, n-i)) | O(m)*  | O(min(i, n-i)) |
-//! | [`LinkedList`] | O(min(i, n-i)) | O(min(i, n-i))  | O(min(i, n-i)) | O(1)   | O(min(i, n-i)) |
+//! |                | get(i)                 | insert(i)               | remove(i)              | append    | split_off(i)           |
+//! |----------------|------------------------|-------------------------|------------------------|-----------|------------------------|
+//! | [`Vec`]        | *O*(1)                 | *O*(*n*-*i*)*           | *O*(*n*-*i*)           | *O*(*m*)* | *O*(*n*-*i*)           |
+//! | [`VecDeque`]   | *O*(1)                 | *O*(min(*i*, *n*-*i*))* | *O*(min(*i*, *n*-*i*)) | *O*(*m*)* | *O*(min(*i*, *n*-*i*)) |
+//! | [`LinkedList`] | *O*(min(*i*, *n*-*i*)) | *O*(min(*i*, *n*-*i*))  | *O*(min(*i*, *n*-*i*)) | *O*(1)    | *O*(min(*i*, *n*-*i*)) |
 //!
 //! Note that where ties occur, [`Vec`] is generally going to be faster than [`VecDeque`], and
 //! [`VecDeque`] is generally going to be faster than [`LinkedList`].
@@ -127,10 +127,10 @@
 //!
 //! For Sets, all operations have the cost of the equivalent Map operation.
 //!
-//! |              | get       | insert    | remove    | range     | append |
-//! |--------------|-----------|-----------|-----------|-----------|--------|
-//! | [`HashMap`]  | O(1)~     | O(1)~*    | O(1)~     | N/A       | N/A    |
-//! | [`BTreeMap`] | O(log(n)) | O(log(n)) | O(log(n)) | O(log(n)) | O(n+m) |
+//! |              | get           | insert        | remove        | range         | append       |
+//! |--------------|---------------|---------------|---------------|---------------|--------------|
+//! | [`HashMap`]  | *O*(1)~       | *O*(1)~*      | *O*(1)~       | N/A           | N/A          |
+//! | [`BTreeMap`] | *O*(log(*n*)) | *O*(log(*n*)) | *O*(log(*n*)) | *O*(log(*n*)) | *O*(*n*+*m*) |
 //!
 //! # Correct and Efficient Usage of Collections
 //!
@@ -234,7 +234,7 @@
 //! contents by-value. This is great when the collection itself is no longer
 //! needed, and the values are needed elsewhere. Using `extend` with `into_iter`
 //! is the main way that contents of one collection are moved into another.
-//! `extend` automatically calls `into_iter`, and takes any `T: `[`IntoIterator`].
+//! `extend` automatically calls `into_iter`, and takes any <code>T: [IntoIterator]</code>.
 //! Calling `collect` on an iterator itself is also a great way to convert one
 //! collection into another. Both of these methods should internally use the
 //! capacity management tools discussed in the previous section to do this as
@@ -413,7 +413,7 @@
 //! assert_eq!(map.keys().next().unwrap().b, "baz");
 //! ```
 //!
-//! [`IntoIterator`]: crate::iter::IntoIterator
+//! [IntoIterator]: crate::iter::IntoIterator "iter::IntoIterator"
 
 pub use crate::ops::Bound;
 pub use alloc_crate::collections::{binary_heap, btree_map, btree_set};

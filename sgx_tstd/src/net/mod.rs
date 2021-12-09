@@ -55,15 +55,15 @@ mod udp;
 pub enum Shutdown {
     /// The reading portion of the [`TcpStream`] should be shut down.
     ///
-    /// All currently blocked and future [reads] will return [`Ok`]`(0)`.
+    /// All currently blocked and future [reads] will return <code>[Ok]\(0)</code>.
     ///
-    /// [reads]: crate::io::Read
+    /// [reads]: crate::io::Read "io::Read"
     Read,
     /// The writing portion of the [`TcpStream`] should be shut down.
     ///
     /// All currently blocked and future [writes] will return an error.
     ///
-    /// [writes]: crate::io::Write
+    /// [writes]: crate::io::Write "io::Write"
     Write,
     /// Both the reading and the writing portions of the [`TcpStream`] should be shut down.
     ///

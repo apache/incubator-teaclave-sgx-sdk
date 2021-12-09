@@ -50,6 +50,7 @@ pub unsafe fn lock() -> impl Drop {
 /// Prints the current backtrace.
 pub fn print(w: &mut dyn Write, format: PrintFmt) -> io::Result<()> {
     // Use a lock to prevent mixed output in multithreading context.
+    // Some platforms also requires it, like `SymFromAddr` on Windows.
     unsafe {
         let _lock = lock();
         _print(w, format)

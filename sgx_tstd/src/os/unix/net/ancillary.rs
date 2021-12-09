@@ -191,6 +191,7 @@ impl SocketCred {
     /// Create a Unix credential struct.
     ///
     /// PID, UID and GID is set to 0.
+    #[must_use]
     pub fn new() -> SocketCred {
         SocketCred(libc::ucred { pid: 0, uid: 0, gid: 0 })
     }
@@ -201,6 +202,7 @@ impl SocketCred {
     }
 
     /// Get the current PID.
+    #[must_use]
     pub fn get_pid(&self) -> libc::pid_t {
         self.0.pid
     }
@@ -211,6 +213,7 @@ impl SocketCred {
     }
 
     /// Get the current UID.
+    #[must_use]
     pub fn get_uid(&self) -> libc::uid_t {
         self.0.uid
     }
@@ -221,6 +224,7 @@ impl SocketCred {
     }
 
     /// Get the current GID.
+    #[must_use]
     pub fn get_gid(&self) -> libc::gid_t {
         self.0.gid
     }
@@ -314,6 +318,7 @@ impl<'a> AncillaryData<'a> {
 }
 
 /// This struct is used to iterate through the control messages.
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct Messages<'a> {
     buffer: &'a [u8],
     current: Option<&'a libc::cmsghdr>,
@@ -405,16 +410,19 @@ impl<'a> SocketAncillary<'a> {
     }
 
     /// Returns the capacity of the buffer.
+    #[must_use]
     pub fn capacity(&self) -> usize {
         self.buffer.len()
     }
 
     /// Returns `true` if the ancillary data is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.length == 0
     }
 
     /// Returns the number of used bytes.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.length
     }
@@ -447,6 +455,7 @@ impl<'a> SocketAncillary<'a> {
     ///     Ok(())
     /// }
     /// ```
+    #[must_use]
     pub fn truncated(&self) -> bool {
         self.truncated
     }
@@ -482,7 +491,7 @@ impl<'a> SocketAncillary<'a> {
     pub fn add_fds(&mut self, fds: &[RawFd]) -> bool {
         self.truncated = false;
         add_to_ancillary_data(
-            &mut self.buffer,
+            self.buffer,
             &mut self.length,
             fds,
             libc::SOL_SOCKET,
@@ -500,7 +509,7 @@ impl<'a> SocketAncillary<'a> {
     pub fn add_creds(&mut self, creds: &[SocketCred]) -> bool {
         self.truncated = false;
         add_to_ancillary_data(
-            &mut self.buffer,
+            self.buffer,
             &mut self.length,
             creds,
             libc::SOL_SOCKET,

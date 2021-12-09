@@ -54,6 +54,7 @@ pub trait MetadataExt {
     ///     Ok(())
     /// }
     /// ```
+    #[allow(deprecated)]
     fn as_raw_stat(&self) -> &raw::stat;
 
     /// Returns the device ID on which this file resides.

@@ -94,6 +94,7 @@ impl WaitTimeoutResult {
     ///     }
     /// }
     /// ```
+    #[must_use]
     pub fn timed_out(&self) -> bool {
         self.0
     }
@@ -151,6 +152,7 @@ impl SgxCondvar {
     ///
     /// let condvar = Condvar::new();
     /// ```
+    #[must_use]
     pub fn new() -> SgxCondvar {
         SgxCondvar { inner: sys::SgxMovableThreadCondvar::new() }
     }

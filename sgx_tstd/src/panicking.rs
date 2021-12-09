@@ -99,9 +99,7 @@ static PANIC_HANDLER: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());
 /// Panics if called from a panicking thread.
 ///
 pub fn set_hook(hook: fn(&PanicInfo<'_>)) {
-    if thread::panicking() {
-        panic!("cannot modify the panic hook from a panicking thread");
-    }
+    assert!(!thread::panicking(), "cannot modify the panic hook from a panicking thread");
     PANIC_HANDLER.store(hook as *mut (), Ordering::SeqCst);
 }
 
@@ -158,8 +156,7 @@ fn default_hook(info: &PanicInfo<'_>) {
     let write = |err: &mut dyn crate::io::Write| {
         let _ = writeln!(err, "thread '{}' panicked at '{}', {}", name, msg, location);
 
-        #[cfg(feature = "backtrace")]
-        {
+        #[cfg(feature = "backtrace")] {
             use crate::sync::atomic::AtomicBool;
             static FIRST_PANIC: AtomicBool = AtomicBool::new(true);
 
@@ -244,11 +241,13 @@ pub mod panic_count {
     }
 
     // Disregards ALWAYS_ABORT_FLAG
+    #[must_use]
     pub fn get_count() -> usize {
         LOCAL_PANIC_COUNT.with(|c| c.get())
     }
 
     // Disregards ALWAYS_ABORT_FLAG
+    #[must_use]
     #[inline]
     pub fn count_is_zero() -> bool {
         if GLOBAL_PANIC_COUNT.load(Ordering::Relaxed) & !ALWAYS_ABORT_FLAG == 0 {
@@ -392,23 +391,6 @@ pub fn panicking() -> bool {
     !panic_count::count_is_zero()
 }
 
-/// The entry point for panicking with a formatted message.
-///
-/// This is designed to reduce the amount of code required at the call
-/// site as much as possible (so that `panic!()` has as low an impact
-/// on (e.g.) the inlining of other functions as possible), by moving
-/// the actual formatting into this shared place.
-#[cold]
-// If panic_immediate_abort, inline the abort call,
-// otherwise avoid inlining because of it is cold path.
-#[track_caller]
-#[inline(never)]
-#[lang = "begin_panic_fmt"]
-pub fn begin_panic_fmt(msg: &fmt::Arguments<'_>) -> ! {
-    let info = PanicInfo::internal_constructor(Some(msg), Location::caller());
-    begin_panic_handler(&info)
-}
-
 /// Entry point of panics from the libcore crate (`panic_impl` lang item).
 #[panic_handler]
 pub fn begin_panic_handler(info: &PanicInfo<'_>) -> ! {
@@ -464,8 +446,7 @@ pub fn begin_panic_handler(info: &PanicInfo<'_>) -> ! {
 
     let loc = info.location().unwrap(); // The current implementation always returns Some
     let msg = info.message().unwrap(); // The current implementation always returns Some
-    #[cfg(feature = "backtrace")]
-    {
+    #[cfg(feature = "backtrace")] {
         crate::sys_common::backtrace::__rust_end_short_backtrace(move || {
             if let Some(msg) = msg.as_str() {
                 rust_panic_with_hook(&mut StrPanicPayload(msg), info.message(), loc);
@@ -474,8 +455,7 @@ pub fn begin_panic_handler(info: &PanicInfo<'_>) -> ! {
             }
         })
     }
-    #[cfg(not(feature = "backtrace"))]
-    {
+    #[cfg(not(feature = "backtrace"))] {
         if let Some(msg) = msg.as_str() {
             rust_panic_with_hook(&mut StrPanicPayload(msg), info.message(), loc);
         } else {
@@ -528,14 +508,12 @@ pub fn begin_panic<M: Any + Send>(msg: M) -> ! {
     }
 
     let loc = Location::caller();
-    #[cfg(feature = "backtrace")]
-    {
+    #[cfg(feature = "backtrace")] {
         crate::sys_common::backtrace::__rust_end_short_backtrace(move || {
             rust_panic_with_hook(&mut PanicPayload::new(msg), None, loc)
         })
     }
-    #[cfg(not(feature = "backtrace"))]
-    {
+    #[cfg(not(feature = "backtrace"))] {
         rust_panic_with_hook(&mut PanicPayload::new(msg), None, loc)
     }
 }

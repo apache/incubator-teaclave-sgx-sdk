@@ -41,6 +41,9 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+//! [`OsStr`]: crate::ffi::OsStr
+//! [`OsString`]: crate::ffi::OsString
 
 pub mod ffi;
 pub mod fs;

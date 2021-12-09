@@ -64,6 +64,7 @@
 #![feature(assert_matches)]
 #![feature(async_stream)]
 #![feature(bench_black_box)]
+#![feature(bool_to_option)]
 #![feature(box_syntax)]
 #![feature(c_variadic)]
 #![feature(c_unwind)]
@@ -73,20 +74,25 @@
 #![feature(char_error_internals)]
 #![feature(char_internals)]
 #![feature(concat_idents)]
+#![feature(const_caller_location)]
 #![feature(const_fn_fn_ptr_basics)]
+#![feature(const_fn_trait_bound)]
 #![feature(const_format_args)]
 #![feature(const_raw_ptr_deref)]
 #![feature(const_trait_impl)]
 #![feature(core_intrinsics)]
+#![feature(core_panic)]
 #![feature(custom_test_frameworks)]
 #![feature(decl_macro)]
 #![feature(dropck_eyepatch)]
 #![feature(duration_checked_float)]
+#![feature(duration_constants)]
 #![feature(edition_panic)]
 #![feature(extend_one)]
 #![feature(fn_traits)]
 #![feature(format_args_nl)]
 #![feature(gen_future)]
+#![feature(get_mut_unchecked)]
 #![feature(global_asm)]
 #![feature(hashmap_internals)]
 #![feature(into_future)]
@@ -99,6 +105,8 @@
 #![feature(map_try_insert)]
 #![feature(maybe_uninit_extra)]
 #![feature(maybe_uninit_slice)]
+#![feature(mixed_integer_ops)]
+#![feature(must_not_suspend)]
 #![feature(needs_panic_runtime)]
 #![feature(negative_impls)]
 #![feature(never_type)]
@@ -117,8 +125,9 @@
 #![feature(test)]
 #![feature(thread_local)]
 #![feature(toowned_clone_into)]
+#![feature(total_cmp)]
 #![feature(trace_macros)]
-#![feature(try_reserve)]
+#![feature(try_blocks)]
 #![feature(try_reserve_kind)]
 #![feature(unboxed_closures)]
 #![feature(vec_spare_capacity)]
@@ -248,10 +257,14 @@ pub mod task {
     pub use alloc_crate::task::*;
 }
 
-// Platform-abstraction modules
+// The runtime entry point and a few unstable public functions used by the
+// compiler
 #[macro_use]
-mod sys_common;
+pub mod rt;
+
+// Platform-abstraction modules
 mod sys;
+mod sys_common;
 
 pub mod alloc;
 
@@ -261,10 +274,6 @@ mod panicking;
 
 #[cfg(not(feature = "untrusted_fs"))]
 mod fs;
-
-// The runtime entry point and a few unstable public functions used by the
-// compiler
-pub mod rt;
 
 #[cfg(feature = "backtrace")]
 pub mod backtrace;

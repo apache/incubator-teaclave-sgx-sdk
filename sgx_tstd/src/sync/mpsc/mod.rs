@@ -697,6 +697,7 @@ impl<T> UnsafeFlavor<T> for Receiver<T> {
 /// // Let's see what that answer was
 /// println!("{:?}", receiver.recv().unwrap());
 /// ```
+#[must_use]
 pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     let a = Arc::new(oneshot::Packet::new());
     (Sender::new(Flavor::Oneshot(a.clone())), Receiver::new(Flavor::Oneshot(a)))
@@ -744,6 +745,7 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
 /// assert_eq!(receiver.recv().unwrap(), 1);
 /// assert_eq!(receiver.recv().unwrap(), 2);
 /// ```
+#[must_use]
 pub fn sync_channel<T>(bound: usize) -> (SyncSender<T>, Receiver<T>) {
     let a = Arc::new(sync::Packet::new(bound));
     (SyncSender::new(a.clone()), Receiver::new(Flavor::Sync(a)))

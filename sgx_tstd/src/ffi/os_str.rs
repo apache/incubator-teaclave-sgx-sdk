@@ -49,7 +49,7 @@ use crate::sys_common::{AsInner, FromInner, IntoInner};
 /// of this is that `OsString` instances are *not* `NUL` terminated; in order
 /// to pass to e.g., Unix system call, you should create a [`CStr`].
 ///
-/// `OsString` is to [`&OsStr`] as [`String`] is to [`&str`]: the former
+/// `OsString` is to <code>&[OsStr]</code> as [`String`] is to <code>&[str]</code>: the former
 /// in each pair are owned strings; the latter are borrowed
 /// references.
 ///
@@ -63,18 +63,18 @@ use crate::sys_common::{AsInner, FromInner, IntoInner};
 /// # Creating an `OsString`
 ///
 /// **From a Rust string**: `OsString` implements
-/// [`From`]`<`[`String`]`>`, so you can use `my_string.from` to
+/// <code>[From]<[String]></code>, so you can use <code>my_string.[into]\()</code> to
 /// create an `OsString` from a normal Rust string.
 ///
 /// **From slices:** Just like you can start with an empty Rust
-/// [`String`] and then [`String::push_str`] `&str`
+/// [`String`] and then [`String::push_str`] some <code>&[str]</code>
 /// sub-string slices into it, you can create an empty `OsString` with
 /// the [`OsString::new`] method and then push string slices into it with the
 /// [`OsString::push`] method.
 ///
 /// # Extracting a borrowed reference to the whole OS string
 ///
-/// You can use the [`OsString::as_os_str`] method to get an `&`[`OsStr`] from
+/// You can use the [`OsString::as_os_str`] method to get an <code>&[OsStr]</code> from
 /// an `OsString`; this is effectively a borrowed reference to the
 /// whole string.
 ///
@@ -83,10 +83,9 @@ use crate::sys_common::{AsInner, FromInner, IntoInner};
 /// See the [module's toplevel documentation about conversions][conversions] for a discussion on
 /// the traits which `OsString` implements for [conversions] from/to native representations.
 ///
-/// [`&OsStr`]: OsStr
-/// [`&str`]: str
 /// [`CStr`]: crate::ffi::CStr
 /// [conversions]: super#conversions
+/// [into]: Into::into
 #[cfg_attr(not(test), rustc_diagnostic_item = "OsString")]
 pub struct OsString {
     inner: Buf,
@@ -100,13 +99,12 @@ impl crate::sealed::Sealed for OsString {}
 /// This type represents a borrowed reference to a string in the operating system's preferred
 /// representation.
 ///
-/// `&OsStr` is to [`OsString`] as [`&str`] is to [`String`]: the former in each pair are borrowed
-/// references; the latter are owned strings.
+/// `&OsStr` is to [`OsString`] as <code>&[str]</code> is to [`String`]: the
+/// former in each pair are borrowed references; the latter are owned strings.
 ///
 /// See the [module's toplevel documentation about conversions][conversions] for a discussion on
 /// the traits which `OsStr` implements for [conversions] from/to native representations.
 ///
-/// [`&str`]: str
 /// [conversions]: super#conversions
 #[cfg_attr(not(test), rustc_diagnostic_item = "OsStr")]
 // FIXME:
@@ -132,6 +130,7 @@ impl OsString {
     ///
     /// let os_string = OsString::new();
     /// ```
+    #[must_use]
     #[inline]
     pub fn new() -> OsString {
         OsString { inner: Buf::from_string(String::new()) }
@@ -148,6 +147,7 @@ impl OsString {
     /// let os_str = OsStr::new("foo");
     /// assert_eq!(os_string.as_os_str(), os_str);
     /// ```
+    #[must_use]
     #[inline]
     pub fn as_os_str(&self) -> &OsStr {
         self
@@ -171,9 +171,7 @@ impl OsString {
         self.inner.into_string().map_err(|buf| OsString { inner: buf })
     }
 
-    /// Extends the string with the given [`&OsStr`] slice.
-    ///
-    /// [`&OsStr`]: OsStr
+    /// Extends the string with the given <code>&[OsStr]</code> slice.
     ///
     /// # Examples
     ///
@@ -210,6 +208,7 @@ impl OsString {
     ///
     /// assert_eq!(capacity, os_string.capacity());
     /// ```
+    #[must_use]
     #[inline]
     pub fn with_capacity(capacity: usize) -> OsString {
         OsString { inner: Buf::with_capacity(capacity) }
@@ -245,6 +244,7 @@ impl OsString {
     /// let os_string = OsString::with_capacity(10);
     /// assert!(os_string.capacity() >= 10);
     /// ```
+    #[must_use]
     #[inline]
     pub fn capacity(&self) -> usize {
         self.inner.capacity()
@@ -351,6 +351,7 @@ impl OsString {
     ///
     /// let b: Box<OsStr> = s.into_boxed_os_str();
     /// ```
+    #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_boxed_os_str(self) -> Box<OsStr> {
         let rw = Box::into_raw(self.inner.into_box()) as *mut OsStr;
         unsafe { Box::from_raw(rw) }
@@ -543,11 +544,9 @@ impl OsStr {
         unsafe { &mut *(inner as *mut Slice as *mut OsStr) }
     }
 
-    /// Yields a [`&str`] slice if the `OsStr` is valid Unicode.
+    /// Yields a <code>&[str]</code> slice if the `OsStr` is valid Unicode.
     ///
     /// This conversion may entail doing a check for UTF-8 validity.
-    ///
-    /// [`&str`]: str
     ///
     /// # Examples
     ///
@@ -557,12 +556,14 @@ impl OsStr {
     /// let os_str = OsStr::new("foo");
     /// assert_eq!(os_str.to_str(), Some("foo"));
     /// ```
+    #[must_use = "this returns the result of the operation, \
+                  without modifying the original"]
     #[inline]
     pub fn to_str(&self) -> Option<&str> {
         self.inner.to_str()
     }
 
-    /// Converts an `OsStr` to a [`Cow`]`<`[`str`]`>`.
+    /// Converts an `OsStr` to a <code>[Cow]<[str]></code>.
     ///
     /// Any non-Unicode sequences are replaced with
     /// [`U+FFFD REPLACEMENT CHARACTER`][U+FFFD].
@@ -607,6 +608,8 @@ impl OsStr {
     ///     assert_eq!(os_str.to_string_lossy(), "fo�o");
     /// }
     /// ```
+    #[must_use = "this returns the result of the operation, \
+                  without modifying the original"]
     #[inline]
     pub fn to_string_lossy(&self) -> Cow<'_, str> {
         self.inner.to_string_lossy()
@@ -623,6 +626,8 @@ impl OsStr {
     /// let os_string = os_str.to_os_string();
     /// assert_eq!(os_string, OsString::from("foo"));
     /// ```
+    #[must_use = "this returns the result of the operation, \
+                  without modifying the original"]
     #[inline]
     pub fn to_os_string(&self) -> OsString {
         OsString { inner: self.inner.to_owned() }
@@ -641,6 +646,7 @@ impl OsStr {
     /// let os_str = OsStr::new("foo");
     /// assert!(!os_str.is_empty());
     /// ```
+    #[must_use]
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.inner.inner.is_empty()
@@ -671,12 +677,14 @@ impl OsStr {
     /// let os_str = OsStr::new("foo");
     /// assert_eq!(os_str.len(), 3);
     /// ```
+    #[must_use]
     #[inline]
     pub fn len(&self) -> usize {
         self.inner.inner.len()
     }
 
-    /// Converts a [`Box`]`<OsStr>` into an [`OsString`] without copying or allocating.
+    /// Converts a <code>[Box]<[OsStr]></code> into an [`OsString`] without copying or allocating.
+    #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_os_string(self: Box<OsStr>) -> OsString {
         let boxed = unsafe { Box::from_raw(Box::into_raw(self) as *mut Slice) };
         OsString { inner: Buf::from_box(boxed) }
@@ -755,6 +763,7 @@ impl OsStr {
     ///
     /// assert_eq!("grüße, jürgen ❤", s.to_ascii_lowercase());
     /// ```
+    #[must_use = "to lowercase the value in-place, use `make_ascii_lowercase`"]
     pub fn to_ascii_lowercase(&self) -> OsString {
         OsString::from_inner(self.inner.to_ascii_lowercase())
     }
@@ -775,6 +784,7 @@ impl OsStr {
     ///
     /// assert_eq!("GRüßE, JüRGEN ❤", s.to_ascii_uppercase());
     /// ```
+    #[must_use = "to uppercase the value in-place, use `make_ascii_uppercase`"]
     pub fn to_ascii_uppercase(&self) -> OsString {
         OsString::from_inner(self.inner.to_ascii_uppercase())
     }
@@ -792,6 +802,7 @@ impl OsStr {
     /// assert!(ascii.is_ascii());
     /// assert!(!non_ascii.is_ascii());
     /// ```
+    #[must_use]
     #[inline]
     pub fn is_ascii(&self) -> bool {
         self.inner.is_ascii()
@@ -835,7 +846,7 @@ impl From<Cow<'_, OsStr>> for Box<OsStr> {
 }
 
 impl From<Box<OsStr>> for OsString {
-    /// Converts a [`Box`]`<`[`OsStr`]`>` into an [`OsString`] without copying or
+    /// Converts a <code>[Box]<[OsStr]></code> into an [`OsString`] without copying or
     /// allocating.
     #[inline]
     fn from(boxed: Box<OsStr>) -> OsString {
@@ -844,7 +855,7 @@ impl From<Box<OsStr>> for OsString {
 }
 
 impl From<OsString> for Box<OsStr> {
-    /// Converts an [`OsString`] into a [`Box`]`<OsStr>` without copying or allocating.
+    /// Converts an [`OsString`] into a <code>[Box]<[OsStr]></code> without copying or allocating.
     #[inline]
     fn from(s: OsString) -> Box<OsStr> {
         s.into_boxed_os_str()
@@ -859,7 +870,7 @@ impl Clone for Box<OsStr> {
 }
 
 impl From<OsString> for Arc<OsStr> {
-    /// Converts an [`OsString`] into an [`Arc`]`<OsStr>` without copying or allocating.
+    /// Converts an [`OsString`] into an <code>[Arc]<[OsStr]></code> without copying or allocating.
     #[inline]
     fn from(s: OsString) -> Arc<OsStr> {
         let arc = s.inner.into_arc();
@@ -876,7 +887,7 @@ impl From<&OsStr> for Arc<OsStr> {
 }
 
 impl From<OsString> for Rc<OsStr> {
-    /// Converts an [`OsString`] into an [`Rc`]`<OsStr>` without copying or allocating.
+    /// Converts an [`OsString`] into an <code>[Rc]<[OsStr]></code> without copying or allocating.
     #[inline]
     fn from(s: OsString) -> Rc<OsStr> {
         let rc = s.inner.into_rc();
