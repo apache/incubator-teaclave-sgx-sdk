@@ -40,3 +40,4 @@ sgx_unwind/libunwind/aclocal.m4
 sgx_unwind/libunwind/autom4te.cache/*
 sgx_unwind/libunwind/configure
 sgx_unwind/libunwind/src/Makefile.in
+sgx_unwind/libunwind/m4/*
