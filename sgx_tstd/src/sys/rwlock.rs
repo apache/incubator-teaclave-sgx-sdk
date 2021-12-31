@@ -161,7 +161,7 @@ impl SgxThreadRwLockInner {
 
         self.reader_count -= 1;
         if self.reader_count == 0 {
-            let waiter = self.reader_queue.front();
+            let waiter = self.writer_queue.front();
             self.lock.unlock();
             if let Some(td) = waiter {
                 mutex::thread_set_event(SgxThreadData::from_raw(*td).get_tcs());
