@@ -825,7 +825,9 @@ impl<'a> Iterator for Wtf8CodePoints<'a> {
 
     #[inline]
     fn next(&mut self) -> Option<CodePoint> {
-        next_code_point(&mut self.bytes).map(|c| CodePoint { value: c })
+        unsafe {
+            next_code_point(&mut self.bytes).map(|c| CodePoint { value: c })
+        }
     }
 
     #[inline]
