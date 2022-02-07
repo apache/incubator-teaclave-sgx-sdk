@@ -16,6 +16,7 @@
 // under the License..
 
 use crate::libc;
+use core::arch::asm;
 use core::mem;
 use sgx_types::marker::ContiguousMemory;
 use sgx_types::*;

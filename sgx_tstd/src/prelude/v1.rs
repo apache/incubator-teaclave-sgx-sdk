@@ -51,12 +51,6 @@ pub use core::prelude::v1::{
     PartialOrd,
 };
 
-#[doc(no_inline)]
-pub use core::prelude::v1::asm;
-
-#[doc(no_inline)]
-pub use core::prelude::v1::global_asm;
-
 // FIXME: Attribute and internal derive macros are not documented because for them rustdoc generates
 // dead links which fail link checker testing.
 #[allow(deprecated, deprecated_in_future)]
