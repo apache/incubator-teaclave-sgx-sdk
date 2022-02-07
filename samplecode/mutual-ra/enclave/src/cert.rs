@@ -26,6 +26,7 @@ use chrono::Utc as TzUtc;
 use itertools::Itertools;
 
 extern "C" {
+    #[allow(dead_code)]
     pub fn ocall_get_update_info (ret_val: *mut sgx_status_t,
                                   platformBlob: * const sgx_platform_info_t,
                                   enclaveTrusted: i32,
@@ -307,37 +308,43 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
             "GROUP_OUT_OF_DATE" | "GROUP_REVOKED" | "CONFIGURATION_NEEDED" => {
                 // Verify platformInfoBlob for further info if status not OK
                 if let Value::String(pib) = &attn_report["platformInfoBlob"] {
-                    let mut buf = Vec::new();
+                    let mut platform_info = Vec::new();
 
                     // the TLV Header (4 bytes/8 hexes) should be skipped
                     let n = (pib.len() - 8)/2;
                     for i in 0..n {
-                        buf.push(u8::from_str_radix(&pib[(i*2+8)..(i*2+10)], 16).unwrap());
+                        platform_info.push(u8::from_str_radix(&pib[(i*2+8)..(i*2+10)], 16).unwrap());
                     }
 
-                    let mut update_info = sgx_update_info_bit_t::default();
-                    let mut rt : sgx_status_t = sgx_status_t::SGX_ERROR_UNEXPECTED;
-                    let res = unsafe{
-                        ocall_get_update_info(&mut rt as *mut sgx_status_t,
-                                              buf.as_slice().as_ptr() as * const sgx_platform_info_t,
-                                              1,
-                                              &mut update_info as * mut sgx_update_info_bit_t)
-                    };
-                    if res != sgx_status_t::SGX_SUCCESS {
-                        println!("res={:?}", res);
-                        return Err(res);
-                    }
+                    // Optionally, a signed Platform Info Blob Type-Length-Value (TLV)will be generated and included
+                    // in the report (as defined in Platform Info Blobsection).The SP involved in the remote attestation
+                    // process shouldforward Platform Info Blob, excluding the TLV header, to ISV SGX application running
+                    // on the client platform that is being attested. The ISV SGX application can then process the Platform
+                    // Info Blob using SGX SDK API sgx_report_attestation_status().
 
-                    if rt != sgx_status_t::SGX_SUCCESS {
-                        println!("rt={:?}", rt);
-                        // Borrow of packed field is unsafe in future Rust releases
-                        unsafe{
-                            println!("update_info.pswUpdate: {}", update_info.pswUpdate);
-                            println!("update_info.csmeFwUpdate: {}", update_info.csmeFwUpdate);
-                            println!("update_info.ucodeUpdate: {}", update_info.ucodeUpdate);
-                        }
-                        return Err(rt);
-                    }
+                    // let mut update_info = sgx_update_info_bit_t::default();
+                    // let mut rt : sgx_status_t = sgx_status_t::SGX_ERROR_UNEXPECTED;
+                    // let res = unsafe{
+                    //     ocall_get_update_info(&mut rt as *mut sgx_status_t,
+                    //                           platform_info.as_slice().as_ptr() as * const sgx_platform_info_t,
+                    //                           1,
+                    //                           &mut update_info as * mut sgx_update_info_bit_t)
+                    // };
+                    // if res != sgx_status_t::SGX_SUCCESS {
+                    //     println!("res={:?}", res);
+                    //     return Err(res);
+                    // }
+
+                    // if rt != sgx_status_t::SGX_SUCCESS {
+                    //     println!("rt={:?}", rt);
+                    //     // Borrow of packed field is unsafe in future Rust releases
+                    //     unsafe{
+                    //         println!("update_info.pswUpdate: {}", update_info.pswUpdate);
+                    //         println!("update_info.csmeFwUpdate: {}", update_info.csmeFwUpdate);
+                    //         println!("update_info.ucodeUpdate: {}", update_info.ucodeUpdate);
+                    //     }
+                    //     return Err(rt);
+                    // }
                 } else {
                     println!("Failed to fetch platformInfoBlob from attestation report");
                     return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
