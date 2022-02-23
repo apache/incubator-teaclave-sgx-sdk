@@ -11,12 +11,12 @@ crate-type = ["staticlib"]
 default = []
 
 [dependencies]
-prost = { git = "https://github.com/mesalock-linux/prost-sgx" }
-bytes = { git = "https://github.com/mesalock-linux/bytes-sgx" }
-prost-types = { git = "https://github.com/mesalock-linux/prost-sgx" }
+prost = { version = "0.9", default-features = false, features = ["prost-derive"] }
+bytes = { version = "1.0", default-features = false }
+prost-types = { version = "0.9", default-features = false }
 
 [build-dependencies]
-prost-build = "0.6"
+prost-build = "0.9"
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
