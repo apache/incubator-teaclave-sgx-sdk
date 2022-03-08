@@ -1,6 +1,6 @@
 # Tonic based gRPC client and server in enclave
 
-Tonic and tokio is not available in enclave. Place this in Cargo.toml and you're good to go.
+Tonic and tokio is now available in enclave. Place this in Cargo.toml and you're good to go.
 
 ```toml
 [dependencies]
