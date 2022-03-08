@@ -16,16 +16,18 @@
 // under the License..
 
 use super::{sockaddr_un, SocketAddr};
+
 use crate::convert::TryFrom;
 use crate::io::{self, IoSlice, IoSliceMut};
 use crate::marker::PhantomData;
 use crate::mem::{size_of, zeroed};
 use crate::os::unix::io::RawFd;
 use crate::path::Path;
-use crate::ptr::{eq, read_unaligned};
+use crate::ptr::{copy_nonoverlapping, eq, read_unaligned};
 use crate::slice::from_raw_parts;
 use crate::sys::net::Socket;
-use sgx_libc as libc;
+
+use sgx_oc as libc;
 
 pub(super) fn recv_vectored_with_ancillary_from(
     socket: &Socket,
@@ -45,7 +47,11 @@ pub(super) fn recv_vectored_with_ancillary_from(
             msg.msg_control = ancillary.buffer.as_mut_ptr().cast();
         }
 
-        let count = socket.recv_msg(&mut msg)?;
+        let mut msghdr = libc::ocall::MsgHdrMut::from_raw(&mut msg);
+        let count = socket.recv_msg(&mut msghdr)?;
+        msg.msg_namelen = msghdr.name_len;
+        msg.msg_controllen = msghdr.control_len;
+        msg.msg_flags = msghdr.flags.bits();
 
         ancillary.length = msg.msg_controllen as usize;
         ancillary.truncated = msg.msg_flags & libc::MSG_CTRUNC == libc::MSG_CTRUNC;
@@ -80,7 +86,8 @@ pub(super) fn send_vectored_with_ancillary_to(
 
         ancillary.truncated = false;
 
-        socket.send_msg(&mut msg)
+        let msghdr = libc::ocall::MsgHdr::from_raw(&msg);
+        socket.send_msg(&msghdr)
     }
 }
 
@@ -144,9 +151,9 @@ fn add_to_ancillary_data<T>(
         (*previous_cmsg).cmsg_type = cmsg_type;
         (*previous_cmsg).cmsg_len = libc::CMSG_LEN(source_len) as _;
 
-        let data = libc::CMSG_DATA(previous_cmsg).cast();
+        let data: *mut u8 = libc::CMSG_DATA(previous_cmsg).cast();
 
-        libc::memcpy(data, source.as_ptr().cast(), source_len as usize);
+        copy_nonoverlapping(source.as_ptr().cast(), data, source_len as usize);
     }
     true
 }

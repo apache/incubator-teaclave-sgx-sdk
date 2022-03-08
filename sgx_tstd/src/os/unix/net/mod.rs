@@ -15,13 +15,15 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//! Unix-specific networking functionality
+//! Unix-specific networking functionality.
 
 mod addr;
 mod ancillary;
 mod datagram;
 mod listener;
 mod stream;
+#[cfg(feature = "unit_test")]
+mod tests;
 
 pub use self::addr::*;
 pub use self::ancillary::*;

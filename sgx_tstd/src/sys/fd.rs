@@ -15,43 +15,35 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use crate::cmp;
-use crate::io::{self, Initializer, IoSlice, IoSliceMut, Read};
+use crate::io::{self, IoSlice, IoSliceMut, Read, ReadBuf};
+use crate::ops::{Deref, DerefMut};
 use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
-use crate::sys::cvt;
+use crate::sys::cvt_ocall;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 
-use sgx_libc::{c_int, c_void};
+use sgx_oc::c_int;
 
 #[derive(Debug)]
 pub struct FileDesc(OwnedFd);
 
-const READ_LIMIT: usize = libc::ssize_t::MAX as usize;
-
 const fn max_iov() -> usize {
-    sgx_libc::UIO_MAXIOV as usize
+    sgx_oc::UIO_MAXIOV as usize
 }
 
 impl FileDesc {
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
-        let ret = cvt(unsafe {
-            libc::read(
-                self.as_raw_fd(),
-                buf.as_mut_ptr() as *mut c_void,
-                cmp::min(buf.len(), READ_LIMIT),
-            )
-        })?;
+        let ret = cvt_ocall(unsafe { libc::read(self.as_raw_fd(), buf) })?;
         Ok(ret as usize)
     }
 
     pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
-        let ret = cvt(unsafe {
-            libc::readv(
-                self.as_raw_fd(),
-                bufs.as_ptr() as *const libc::iovec,
-                cmp::min(bufs.len(), max_iov()) as c_int,
-            )
-        })?;
+        let len = cmp::min(bufs.len(), max_iov());
+        let vbufs: Vec<&mut [u8]> = bufs[..len].iter_mut().map(|msl| msl.deref_mut()).collect();
+        let ret = cvt_ocall(unsafe { libc::readv(self.as_raw_fd(), vbufs) })?;
         Ok(ret as usize)
     }
 
@@ -66,46 +58,33 @@ impl FileDesc {
     }
 
     pub fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize> {
-        unsafe fn cvt_pread64(
-            fd: c_int,
-            buf: *mut c_void,
-            count: usize,
-            offset: i64,
-        ) -> io::Result<isize> {
-            use libc::pread64;
-            cvt(pread64(fd, buf, count, offset))
-        }
+        cvt_ocall(unsafe { libc::pread64(self.as_raw_fd(), buf, offset as i64) })
+    }
 
+    pub fn read_buf(&self, buf: &mut ReadBuf<'_>) -> io::Result<()> {
+        let ret = cvt_ocall(unsafe {
+            libc::read(self.as_raw_fd(), core::mem::MaybeUninit::slice_assume_init_mut(buf.unfilled_mut()))
+        })?;
+
+        // Safety: `ret` bytes were written to the initialized portion of the buffer
         unsafe {
-            cvt_pread64(
-                self.as_raw_fd(),
-                buf.as_mut_ptr() as *mut c_void,
-                cmp::min(buf.len(), READ_LIMIT),
-                offset as i64,
-            )
-            .map(|n| n as usize)
+            buf.assume_init(ret as usize);
         }
+        buf.add_filled(ret as usize);
+        Ok(())
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
-        let ret = cvt(unsafe {
-            libc::write(
-                self.as_raw_fd(),
-                buf.as_ptr() as *const c_void,
-                cmp::min(buf.len(), READ_LIMIT),
-            )
-        })?;
+        let ret = cvt_ocall(unsafe { libc::write(self.as_raw_fd(), buf) })?;
         Ok(ret as usize)
     }
 
     pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
-        let ret = cvt(unsafe {
-            libc::writev(
-                self.as_raw_fd(),
-                bufs.as_ptr() as *const libc::iovec,
-                cmp::min(bufs.len(), max_iov()) as c_int,
-            )
-        })?;
+        let vbufs: Vec<&[u8]> = bufs[..cmp::min(bufs.len(), max_iov())]
+            .iter()
+            .map(|msl| msl.deref())
+            .collect();
+        let ret = cvt_ocall(unsafe { libc::writev(self.as_raw_fd(), vbufs) })?;
         Ok(ret as usize)
     }
 
@@ -115,37 +94,19 @@ impl FileDesc {
     }
 
     pub fn write_at(&self, buf: &[u8], offset: u64) -> io::Result<usize> {
-        unsafe fn cvt_pwrite64(
-            fd: c_int,
-            buf: *const c_void,
-            count: usize,
-            offset: i64,
-        ) -> io::Result<isize> {
-            use libc::pwrite64;
-            cvt(pwrite64(fd, buf, count, offset))
-        }
-
-        unsafe {
-            cvt_pwrite64(
-                self.as_raw_fd(),
-                buf.as_ptr() as *const c_void,
-                cmp::min(buf.len(), READ_LIMIT),
-                offset as i64,
-            )
-            .map(|n| n as usize)
-        }
+        cvt_ocall(unsafe { libc::pwrite64(self.as_raw_fd(), buf, offset as i64) })
     }
 
     pub fn get_cloexec(&self) -> io::Result<bool> {
-        unsafe { Ok((cvt(libc::fcntl_arg0(self.as_raw_fd(), libc::F_GETFD))? & libc::FD_CLOEXEC) != 0) }
+        unsafe { Ok((cvt_ocall(libc::fcntl_arg0(self.as_raw_fd(), libc::F_GETFD))? & libc::FD_CLOEXEC) != 0) }
     }
 
     pub fn set_cloexec(&self) -> io::Result<()> {
         unsafe {
-            let previous = cvt(libc::fcntl_arg0(self.as_raw_fd(), libc::F_GETFD))?;
+            let previous = cvt_ocall(libc::fcntl_arg0(self.as_raw_fd(), libc::F_GETFD))?;
             let new = previous | libc::FD_CLOEXEC;
             if new != previous {
-                cvt(libc::fcntl_arg1(self.as_raw_fd(), libc::F_SETFD, new))?;
+                cvt_ocall(libc::fcntl_arg1(self.as_raw_fd(), libc::F_SETFD, new))?;
             }
             Ok(())
         }
@@ -154,28 +115,24 @@ impl FileDesc {
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<()> {
         unsafe {
             let mut v = nonblocking as c_int;
-            cvt(libc::ioctl_arg1(self.as_raw_fd(), libc::FIONBIO, &mut v as *mut c_int))?;
+            cvt_ocall(libc::ioctl_arg1(
+                self.as_raw_fd(),
+                libc::FIONBIO as u64,
+                &mut v,
+            ))?;
             Ok(())
         }
     }
 
+    #[inline]
     pub fn duplicate(&self) -> io::Result<FileDesc> {
-        // We want to atomically duplicate this file descriptor and set the
-        // CLOEXEC flag, and currently that's done via F_DUPFD_CLOEXEC. This
-        // is a POSIX flag that was added to Linux in 2.6.24.
-        let fd = cvt(unsafe { libc::fcntl_arg1(self.as_raw_fd(), libc::F_DUPFD_CLOEXEC, 0) })?;
-        Ok(unsafe { FileDesc::from_raw_fd(fd) })
+        Ok(Self(self.0.try_clone()?))
     }
 }
 
 impl<'a> Read for &'a FileDesc {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         (**self).read(buf)
-    }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        Initializer::nop()
     }
 }
 
@@ -222,9 +179,9 @@ impl FromRawFd for FileDesc {
 }
 
 mod libc {
-    pub use sgx_libc::ocall::{
+    pub use sgx_oc::ocall::{
         close, fcntl_arg0, fcntl_arg1, ioctl_arg0, ioctl_arg1, pread64, pwrite64, read, readv,
         write, writev,
     };
-    pub use sgx_libc::*;
+    pub use sgx_oc::*;
 }

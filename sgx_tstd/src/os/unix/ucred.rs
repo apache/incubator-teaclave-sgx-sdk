@@ -1,4 +1,3 @@
-
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
@@ -24,7 +23,10 @@
 //       For reference, the link is here: https://github.com/tokio-rs/tokio-uds/pull/13
 //       Credit to Martin Habovštiak (GitHub username Kixunil) and contributors for this work.
 
-use sgx_libc::{gid_t, pid_t, uid_t};
+#[cfg(feature = "unit_test")]
+mod tests;
+
+use sgx_oc::{gid_t, pid_t, uid_t};
 
 /// Credentials for a UNIX process for credentials passing.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -48,9 +50,10 @@ pub mod impl_linux {
     use super::UCred;
     use crate::os::unix::io::AsRawFd;
     use crate::os::unix::net::UnixStream;
+    use crate::sys::cvt_ocall;
     use crate::{io, mem};
-    use sgx_libc::{c_void, socklen_t, ucred, SOL_SOCKET, SO_PEERCRED};
-    use sgx_libc::ocall::getsockopt;
+    use sgx_oc::ocall::getsockopt;
+    use sgx_oc::{c_void, socklen_t, ucred, SOL_SOCKET, SO_PEERCRED};
 
     pub fn peer_cred(socket: &UnixStream) -> io::Result<UCred> {
         let ucred_size = mem::size_of::<ucred>();
@@ -63,18 +66,18 @@ pub mod impl_linux {
         let mut ucred: ucred = ucred { pid: 1, uid: 1, gid: 1 };
 
         unsafe {
-            let ret = getsockopt(
+            cvt_ocall(getsockopt(
                 socket.as_raw_fd(),
                 SOL_SOCKET,
                 SO_PEERCRED,
                 &mut ucred as *mut ucred as *mut c_void,
                 &mut ucred_size,
-            );
+            ))?;
 
-            if ret == 0 && ucred_size as usize == mem::size_of::<ucred>() {
+            if ucred_size as usize == mem::size_of::<ucred>() {
                 Ok(UCred { uid: ucred.uid, gid: ucred.gid, pid: Some(ucred.pid) })
             } else {
-                Err(io::Error::last_os_error())
+                Err(io::const_io_error!(io::ErrorKind::Other, "Malformed return value"))
             }
         }
     }

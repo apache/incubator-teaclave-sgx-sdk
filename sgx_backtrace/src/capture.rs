@@ -22,6 +22,9 @@ use core::fmt;
 use std::path::{Path, PathBuf};
 use std::prelude::v1::*;
 
+#[cfg(feature = "serialize")]
+use sgx_serialize::{Deserialize, Serialize};
+
 /// Representation of an owned and self-contained backtrace.
 ///
 /// This structure can be used to capture a backtrace at various points in a
@@ -35,7 +38,7 @@ use std::prelude::v1::*;
 /// This function requires the `std` feature of the `backtrace` crate to be
 /// enabled, and the `std` feature is enabled by default.
 #[derive(Clone)]
-#[cfg_attr(feature = "serialize", derive(Serializable, DeSerializable))]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Backtrace {
     // Frames here are listed from top-to-bottom of the stack
     frames: Vec<BacktraceFrame>,
@@ -111,7 +114,7 @@ impl Frame {
 /// This function requires the `std` feature of the `backtrace` crate to be
 /// enabled, and the `std` feature is enabled by default.
 #[derive(Clone)]
-#[cfg_attr(feature = "serialize", derive(Serializable, DeSerializable))]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct BacktraceSymbol {
     name: Option<Vec<u8>>,
     addr: Option<usize>,
@@ -438,9 +441,9 @@ impl fmt::Debug for BacktraceSymbol {
 #[cfg(feature = "serialize")]
 mod sgx_serialize_impls {
     use super::*;
-    use sgx_serialize::{DeSerializable, Decoder, Encoder, Serializable};
+    use sgx_serialize::{Decodable, Decoder, Deserialize, Encodable, Encoder, Serialize};
 
-    #[derive(Serializable, DeSerializable)]
+    #[derive(Serialize, Deserialize)]
     struct SerializedFrame {
         ip: usize,
         symbol_address: usize,
@@ -448,7 +451,7 @@ mod sgx_serialize_impls {
         symbols: Option<Vec<BacktraceSymbol>>,
     }
 
-    impl DeSerializable for BacktraceFrame {
+    impl Decodable for BacktraceFrame {
         fn decode<D>(d: &mut D) -> Result<Self, D::Error>
         where
             D: Decoder,
@@ -465,7 +468,7 @@ mod sgx_serialize_impls {
         }
     }
 
-    impl Serializable for BacktraceFrame {
+    impl Encodable for BacktraceFrame {
         fn encode<E>(&self, e: &mut E) -> Result<(), E::Error>
         where
             E: Encoder,

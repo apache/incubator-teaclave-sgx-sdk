@@ -21,15 +21,40 @@
 Core encoding and decoding interfaces.
 */
 
-#![cfg_attr(not(target_env = "sgx"), no_std)]
-#![cfg_attr(all(target_env = "sgx", target_vendor = "mesalock"), feature(rustc_private))]
+#![cfg_attr(all(feature = "tserialize", not(target_vendor = "teaclave")), no_std)]
+#![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
+#![feature(box_syntax)]
+#![feature(never_type)]
+#![feature(nll)]
+#![feature(associated_type_bounds)]
+#![feature(min_specialization)]
+#![feature(core_intrinsics)]
+#![feature(maybe_uninit_slice)]
+#![feature(new_uninit)]
 
-#[cfg(not(target_env = "sgx"))]
+#[cfg(all(feature = "tserialize", feature = "userialize"))]
+compile_error!(
+    "feature \"tserialize\" and feature \"userialize\" cannot be enabled at the same time"
+);
+
+#[cfg(not(any(feature = "tserialize", feature = "userialize")))]
+compile_error!("need to enable feature \"tserialize\" or feature \"userialize\"");
+
+#[cfg(all(feature = "tserialize", not(target_vendor = "teaclave")))]
+#[macro_use]
 extern crate sgx_tstd as std;
+extern crate sgx_types;
 
+mod collection;
 mod serialize;
-pub use self::serialize::{Decoder, Encoder, DeSerializable, Serializable, SerializeHelper, DeSerializeHelper};
+mod types;
 
-mod opaque;
-mod leb128;
+pub mod json;
 
+pub mod leb128;
+pub mod opaque;
+
+pub use self::serialize::{Decodable, Decoder, Encodable, Encoder};
+
+#[cfg(feature = "derive")]
+pub use sgx_serialize_derive::{Deserialize, Serialize};

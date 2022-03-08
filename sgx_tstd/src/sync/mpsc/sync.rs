@@ -47,10 +47,10 @@ use core::ptr;
 
 use crate::sync::atomic::{AtomicUsize, Ordering};
 use crate::sync::mpsc::blocking::{self, SignalToken, WaitToken};
-use crate::sync::{SgxMutex as Mutex, SgxMutexGuard as MutexGuard};
+use crate::sync::{Mutex, MutexGuard};
 use crate::time::Instant;
 
-use sgx_trts::trts;
+use sgx_trts::error::abort;
 
 const MAX_REFCOUNT: usize = (isize::MAX) as usize;
 
@@ -376,7 +376,7 @@ impl<T> Packet<T> {
 
         // See comments on Arc::clone() on why we do this (for `mem::forget`).
         if old_count > MAX_REFCOUNT {
-            trts::rsgx_abort();
+            abort();
         }
     }
 

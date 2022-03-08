@@ -17,13 +17,17 @@
 
 #![allow(clippy::many_single_char_names)]
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use crate::cmp::Ordering;
 use crate::fmt::{self, Write as FmtWrite};
 use crate::hash;
 use crate::io::Write as IoWrite;
 use crate::mem::transmute;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
-use sgx_libc as c;
+
+use sgx_oc as c;
 
 /// An IP address, either IPv4 or IPv6.
 ///
@@ -841,12 +845,7 @@ impl Ipv4Addr {
     #[inline]
     #[allow(clippy::match_like_matches_macro)]
     pub const fn is_documentation(&self) -> bool {
-        match self.octets() {
-            [192, 0, 2, _] => true,
-            [198, 51, 100, _] => true,
-            [203, 0, 113, _] => true,
-            _ => false,
-        }
+        matches!(self.octets(), [192, 0, 2, _] | [198, 51, 100, _] | [203, 0, 113, _])
     }
 
     /// Converts this address to an [IPv4-compatible] [`IPv6` address].
@@ -1087,8 +1086,8 @@ impl From<Ipv4Addr> for u32 {
     /// ```
     /// use std::net::Ipv4Addr;
     ///
-    /// let addr = Ipv4Addr::new(0xca, 0xfe, 0xba, 0xbe);
-    /// assert_eq!(0xcafebabe, u32::from(addr));
+    /// let addr = Ipv4Addr::new(0x12, 0x34, 0x56, 0x78);
+    /// assert_eq!(0x12345678, u32::from(addr));
     /// ```
     #[inline]
     fn from(ip: Ipv4Addr) -> u32 {
@@ -1105,8 +1104,8 @@ impl From<u32> for Ipv4Addr {
     /// ```
     /// use std::net::Ipv4Addr;
     ///
-    /// let addr = Ipv4Addr::from(0xcafebabe);
-    /// assert_eq!(Ipv4Addr::new(0xca, 0xfe, 0xba, 0xbe), addr);
+    /// let addr = Ipv4Addr::from(0x12345678);
+    /// assert_eq!(Ipv4Addr::new(0x12, 0x34, 0x56, 0x78), addr);
     /// ```
     #[inline]
     fn from(ip: u32) -> Ipv4Addr {
@@ -1161,7 +1160,6 @@ impl Ipv6Addr {
     /// let addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff);
     /// ```
     #[allow(clippy::too_many_arguments)]
-    #[cfg_attr(bootstrap, rustc_allow_const_fn_unstable(const_fn_transmute))]
     #[must_use]
     #[inline]
     pub const fn new(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16) -> Ipv6Addr {
@@ -1736,7 +1734,7 @@ impl fmt::Display for Ipv6Addr {
                 }
             }
         } else {
-            // Slow path: write the address to a local buffer, the use f.pad.
+            // Slow path: write the address to a local buffer, then use f.pad.
             // Defined recursively by using the fast path to write to the
             // buffer.
 

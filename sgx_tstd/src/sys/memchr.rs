@@ -15,4 +15,4 @@
 // specific language governing permissions and limitations
 // under the License..
 
-pub use sgx_trts::memchr::*;
+pub use sgx_ffi::memchr::*;

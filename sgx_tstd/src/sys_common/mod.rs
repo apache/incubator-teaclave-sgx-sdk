@@ -34,6 +34,9 @@
 #![allow(missing_docs)]
 #![allow(missing_debug_implementations)]
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 pub mod at_exit_imp;
 #[cfg(feature = "backtrace")]
 pub mod backtrace;
@@ -44,6 +47,8 @@ pub mod gnu;
 pub mod io;
 pub mod memchr;
 pub mod mutex;
+#[cfg(feature = "unsupported_process")]
+pub mod process;
 #[cfg(feature = "net")]
 pub mod net;
 pub mod remutex;

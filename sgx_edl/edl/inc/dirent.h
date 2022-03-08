@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
-#ifndef _EDL_DIRENT_H
-#define _EDL_DIRENT_H
+#ifndef _EDL_DIRENT_H_
+#define _EDL_DIRENT_H_
 
 struct dirent_t
 {
@@ -36,4 +36,4 @@ struct dirent64_t
     char d_name[256];
 };
 
-#endif
+#endif /* _EDL_DIRENT_H_ */

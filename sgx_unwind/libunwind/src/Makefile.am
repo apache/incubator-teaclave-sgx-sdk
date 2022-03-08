@@ -5,7 +5,7 @@ COREDUMP_SO_VERSION=0:0:0
 # Don't link with start-files since we don't use any constructors/destructors:
 #
 COMMON_SO_LDFLAGS = $(LDFLAGS_NOSTARTFILES)
-SGX_SDK ?= /opt/sgxsdk
+# SGX_SDK ?= /opt/intel/sgxsdk
 
 lib_LIBRARIES =
 lib_LTLIBRARIES =
@@ -689,7 +689,7 @@ libunwind_la_LIBADD  += -lc $(LIBCRTS)
 libunwind_la_LIBADD += $(LIBLZMA)
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/include/tdep-$(arch) -I.
-AM_CPPFLAGS+= -I$(SGX_SDK)/include/
+# AM_CPPFLAGS += -I$(SGX_SDK)/include/
 AM_CCASFLAGS = $(AM_CPPFLAGS)
 noinst_HEADERS += unwind/unwind-internal.h
 

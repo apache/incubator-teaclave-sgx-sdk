@@ -28,18 +28,10 @@ pub fn hashmap_random_keys() -> (u64, u64) {
 }
 
 mod imp {
-    use sgx_types::SgxError;
-    use sgx_trts::trts;
-
-    fn getrandom(buf: &mut [u8]) -> SgxError {
-        trts::rsgx_read_rand(buf)
-    }
-
-    fn getrandom_fill_bytes(v: &mut [u8]) {
-        getrandom(v).expect("unexpected getrandom error");
-    }
+    use sgx_trts::rand::Rng;
 
     pub fn fill_bytes(v: &mut [u8]) {
-        getrandom_fill_bytes(v)
+        let mut rng = Rng::new();
+        rng.fill_bytes(v)
     }
 }

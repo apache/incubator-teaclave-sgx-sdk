@@ -15,16 +15,14 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use crate::cell::UnsafeCell;
 use crate::fmt;
 use crate::ops::{Deref, DerefMut};
 use crate::sync::{poison, LockResult, TryLockError, TryLockResult};
 use crate::sys_common::rwlock as sys;
-
-use sgx_libc as libc;
-
-pub use crate::sys_common::rwlock::SgxThreadRwLock;
-
 
 /// A reader-writer lock
 ///
@@ -64,7 +62,7 @@ pub use crate::sys_common::rwlock::SgxThreadRwLock;
 ///
 /// # Poisoning
 ///
-/// An `RwLock`, like [`SgxMutex`], will become poisoned on a panic. Note, however,
+/// An `RwLock`, like [`Mutex`], will become poisoned on a panic. Note, however,
 /// that an `RwLock` may only be poisoned if a panic occurs while it is locked
 /// exclusively (write mode). If a panic occurs in any reader, then the lock
 /// will not be poisoned.
@@ -72,7 +70,7 @@ pub use crate::sys_common::rwlock::SgxThreadRwLock;
 /// # Examples
 ///
 /// ```
-/// use std::sync::SgxRwLock as RwLock;
+/// use std::sync::RwLock;
 ///
 /// let lock = RwLock::new(5);
 ///
@@ -92,15 +90,15 @@ pub use crate::sys_common::rwlock::SgxThreadRwLock;
 /// } // write lock is dropped here
 /// ```
 ///
-/// [`SgxMutex`]: super::SgxMutex
-pub struct SgxRwLock<T: ?Sized> {
-    inner: sys::SgxMovableThreadRwLock,
+/// [`Mutex`]: super::Mutex
+pub struct RwLock<T: ?Sized> {
+    inner: sys::MovableRwLock,
     poison: poison::Flag,
     data: UnsafeCell<T>,
 }
 
-unsafe impl<T: ?Sized + Send> Send for SgxRwLock<T> {}
-unsafe impl<T: ?Sized + Send + Sync> Sync for SgxRwLock<T> {}
+unsafe impl<T: ?Sized + Send> Send for RwLock<T> {}
+unsafe impl<T: ?Sized + Send + Sync> Sync for RwLock<T> {}
 
 /// RAII structure used to release the shared read access of a lock when
 /// dropped.
@@ -110,12 +108,17 @@ unsafe impl<T: ?Sized + Send + Sync> Sync for SgxRwLock<T> {}
 ///
 /// [`read`]: RwLock::read
 /// [`try_read`]: RwLock::try_read
-pub struct SgxRwLockReadGuard<'a, T: ?Sized + 'a> {
-    lock: &'a SgxRwLock<T>,
+#[must_use = "if unused the RwLock will immediately unlock"]
+#[must_not_suspend = "holding a RwLockReadGuard across suspend \
+                      points can cause deadlocks, delays, \
+                      and cause Futures to not implement `Send`"]
+pub struct RwLockReadGuard<'a, T: ?Sized + 'a> {
+    lock: &'a RwLock<T>,
 }
 
-impl<T: ?Sized> !Send for SgxRwLockReadGuard<'_, T> {}
-unsafe impl<T: ?Sized + Sync> Sync for SgxRwLockReadGuard<'_, T> {}
+impl<T: ?Sized> !Send for RwLockReadGuard<'_, T> {}
+
+unsafe impl<T: ?Sized + Sync> Sync for RwLockReadGuard<'_, T> {}
 
 /// RAII structure used to release the exclusive write access of a lock when
 /// dropped.
@@ -125,34 +128,39 @@ unsafe impl<T: ?Sized + Sync> Sync for SgxRwLockReadGuard<'_, T> {}
 ///
 /// [`write`]: RwLock::write
 /// [`try_write`]: RwLock::try_write
-pub struct SgxRwLockWriteGuard<'a, T: ?Sized + 'a> {
-    lock: &'a SgxRwLock<T>,
+#[must_use = "if unused the RwLock will immediately unlock"]
+#[must_not_suspend = "holding a RwLockWriteGuard across suspend \
+                      points can cause deadlocks, delays, \
+                      and cause Future's to not implement `Send`"]
+pub struct RwLockWriteGuard<'a, T: ?Sized + 'a> {
+    lock: &'a RwLock<T>,
     poison: poison::Guard,
 }
 
-impl<T: ?Sized> !Send for SgxRwLockWriteGuard<'_, T> {}
-unsafe impl<T: ?Sized + Sync> Sync for SgxRwLockWriteGuard<'_, T> {}
+impl<T: ?Sized> !Send for RwLockWriteGuard<'_, T> {}
 
-impl<T> SgxRwLock<T> {
+unsafe impl<T: ?Sized + Sync> Sync for RwLockWriteGuard<'_, T> {}
+
+impl<T> RwLock<T> {
     /// Creates a new instance of an `RwLock<T>` which is unlocked.
     ///
     /// # Examples
     ///
     /// ```
-    /// use std::sync::SgxRwLock as RwLock;
+    /// use std::sync::RwLock;
     ///
     /// let lock = RwLock::new(5);
     /// ```
-    pub fn new(t: T) -> SgxRwLock<T> {
-        SgxRwLock {
-            inner: sys::SgxMovableThreadRwLock::new(),
+    pub fn new(t: T) -> RwLock<T> {
+        RwLock {
+            inner: sys::MovableRwLock::new(),
             poison: poison::Flag::new(),
             data: UnsafeCell::new(t),
         }
     }
 }
 
-impl<T: ?Sized> SgxRwLock<T> {
+impl<T: ?Sized> RwLock<T> {
     /// Locks this rwlock with shared read access, blocking the current thread
     /// until it can be acquired.
     ///
@@ -178,7 +186,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::{Arc, SgxRwLock as RwLock};
+    /// use std::sync::{Arc, RwLock};
     /// use std::thread;
     ///
     /// let lock = Arc::new(RwLock::new(1));
@@ -193,14 +201,10 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// }).join().unwrap();
     /// ```
     #[inline]
-    pub fn read(&self) -> LockResult<SgxRwLockReadGuard<'_, T>> {
+    pub fn read(&self) -> LockResult<RwLockReadGuard<'_, T>> {
         unsafe {
-            let ret = self.inner.read();
-            match ret {
-                Err(libc::EAGAIN) => panic!("rwlock maximum reader count exceeded"),
-                Err(libc::EDEADLK) => panic!("rwlock read lock would result in deadlock"),
-                _ => SgxRwLockReadGuard::new(self),
-            }
+            self.inner.read();
+            RwLockReadGuard::new(self)
         }
     }
 
@@ -231,7 +235,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::SgxRwLock as RwLock;
+    /// use std::sync::RwLock;
     ///
     /// let lock = RwLock::new(1);
     ///
@@ -241,11 +245,12 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// };
     /// ```
     #[inline]
-    pub fn try_read(&self) -> TryLockResult<SgxRwLockReadGuard<'_, T>> {
+    pub fn try_read(&self) -> TryLockResult<RwLockReadGuard<'_, T>> {
         unsafe {
-            match self.inner.try_read() {
-                Ok(_) => Ok(SgxRwLockReadGuard::new(self)?),
-                Err(_) => Err(TryLockError::WouldBlock),
+            if self.inner.try_read() {
+                Ok(RwLockReadGuard::new(self)?)
+            } else {
+                Err(TryLockError::WouldBlock)
             }
         }
     }
@@ -272,7 +277,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::SgxRwLock as RwLock;
+    /// use std::sync::RwLock;
     ///
     /// let lock = RwLock::new(1);
     ///
@@ -282,13 +287,10 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// assert!(lock.try_read().is_err());
     /// ```
     #[inline]
-    pub fn write(&self) -> LockResult<SgxRwLockWriteGuard<'_, T>> {
+    pub fn write(&self) -> LockResult<RwLockWriteGuard<'_, T>> {
         unsafe {
-            match self.inner.write() {
-                Err(libc::EAGAIN) => panic!("rwlock maximum writer count exceeded"),
-                Err(libc::EDEADLK) => panic!("rwlock write lock would result in deadlock"),
-                _ => SgxRwLockWriteGuard::new(self),
-            }
+            self.inner.write();
+            RwLockWriteGuard::new(self)
         }
     }
 
@@ -320,7 +322,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::SgxRwLock as RwLock;
+    /// use std::sync::RwLock;
     ///
     /// let lock = RwLock::new(1);
     ///
@@ -330,11 +332,12 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// assert!(lock.try_write().is_err());
     /// ```
     #[inline]
-    pub fn try_write(&self) -> TryLockResult<SgxRwLockWriteGuard<'_, T>> {
+    pub fn try_write(&self) -> TryLockResult<RwLockWriteGuard<'_, T>> {
         unsafe {
-            match self.inner.try_write() {
-                Ok(_) => Ok(SgxRwLockWriteGuard::new(self)?),
-                Err(_) => Err(TryLockError::WouldBlock),
+            if self.inner.try_write() {
+                Ok(RwLockWriteGuard::new(self)?)
+            } else {
+                Err(TryLockError::WouldBlock)
             }
         }
     }
@@ -348,7 +351,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::{Arc, SgxRwLock as RwLock};
+    /// use std::sync::{Arc, RwLock};
     /// use std::thread;
     ///
     /// let lock = Arc::new(RwLock::new(0));
@@ -377,7 +380,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::SgxRwLock as RwLock;
+    /// use std::sync::RwLock;
     ///
     /// let lock = RwLock::new(String::new());
     /// {
@@ -409,7 +412,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::SgxRwLock as RwLock;
+    /// use std::sync::RwLock;
     ///
     /// let mut lock = RwLock::new(0);
     /// *lock.get_mut().unwrap() = 10;
@@ -421,9 +424,9 @@ impl<T: ?Sized> SgxRwLock<T> {
     }
 }
 
-impl<T: ?Sized + fmt::Debug> fmt::Debug for SgxRwLock<T> {
+impl<T: ?Sized + fmt::Debug> fmt::Debug for RwLock<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut d = f.debug_struct("SgxRwLock");
+        let mut d = f.debug_struct("RwLock");
         match self.try_read() {
             Ok(guard) => {
                 d.field("data", &&*guard);
@@ -446,59 +449,58 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for SgxRwLock<T> {
     }
 }
 
-impl<T: Default> Default for SgxRwLock<T> {
-    /// Creates a new `SgxRwLock<T>`, with the `Default` value for T.
-    fn default() -> SgxRwLock<T> {
-        SgxRwLock::new(Default::default())
+impl<T: Default> Default for RwLock<T> {
+    /// Creates a new `RwLock<T>`, with the `Default` value for T.
+    fn default() -> RwLock<T> {
+        RwLock::new(Default::default())
     }
 }
 
-impl<T> From<T> for SgxRwLock<T> {
-    /// Creates a new instance of an `SgxRwLock<T>` which is unlocked.
-    /// This is equivalent to [`SgxRwLock::new`].
+impl<T> From<T> for RwLock<T> {
+    /// Creates a new instance of an `RwLock<T>` which is unlocked.
+    /// This is equivalent to [`RwLock::new`].
     fn from(t: T) -> Self {
-        SgxRwLock::new(t)
+        RwLock::new(t)
     }
 }
 
-impl<'rwlock, T: ?Sized> SgxRwLockReadGuard<'rwlock, T> {
-
-    unsafe fn new(lock: &'rwlock SgxRwLock<T>) -> LockResult<SgxRwLockReadGuard<'rwlock, T>> {
-        poison::map_result(lock.poison.borrow(), |_| SgxRwLockReadGuard { lock })
+impl<'rwlock, T: ?Sized> RwLockReadGuard<'rwlock, T> {
+    unsafe fn new(lock: &'rwlock RwLock<T>) -> LockResult<RwLockReadGuard<'rwlock, T>> {
+        poison::map_result(lock.poison.borrow(), |_| RwLockReadGuard { lock })
     }
 }
 
-impl<'rwlock, T: ?Sized> SgxRwLockWriteGuard<'rwlock, T> {
-    unsafe fn new(lock: &'rwlock SgxRwLock<T>) -> LockResult<SgxRwLockWriteGuard<'rwlock, T>> {
-        poison::map_result(lock.poison.borrow(), |guard| SgxRwLockWriteGuard { lock, poison: guard })
+impl<'rwlock, T: ?Sized> RwLockWriteGuard<'rwlock, T> {
+    unsafe fn new(lock: &'rwlock RwLock<T>) -> LockResult<RwLockWriteGuard<'rwlock, T>> {
+        poison::map_result(lock.poison.borrow(), |guard| RwLockWriteGuard { lock, poison: guard })
     }
 }
 
-impl<T: fmt::Debug> fmt::Debug for SgxRwLockReadGuard<'_, T> {
+impl<T: fmt::Debug> fmt::Debug for RwLockReadGuard<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (**self).fmt(f)
     }
 }
 
-impl<T: ?Sized + fmt::Display> fmt::Display for SgxRwLockReadGuard<'_, T> {
+impl<T: ?Sized + fmt::Display> fmt::Display for RwLockReadGuard<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (**self).fmt(f)
     }
 }
 
-impl<T: fmt::Debug> fmt::Debug for SgxRwLockWriteGuard<'_, T> {
+impl<T: fmt::Debug> fmt::Debug for RwLockWriteGuard<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (**self).fmt(f)
     }
 }
 
-impl<T: ?Sized + fmt::Display> fmt::Display for SgxRwLockWriteGuard<'_, T> {
+impl<T: ?Sized + fmt::Display> fmt::Display for RwLockWriteGuard<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (**self).fmt(f)
     }
 }
 
-impl<T: ?Sized> Deref for SgxRwLockReadGuard<'_, T> {
+impl<T: ?Sized> Deref for RwLockReadGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -506,7 +508,7 @@ impl<T: ?Sized> Deref for SgxRwLockReadGuard<'_, T> {
     }
 }
 
-impl<T: ?Sized> Deref for SgxRwLockWriteGuard<'_, T> {
+impl<T: ?Sized> Deref for RwLockWriteGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -514,27 +516,25 @@ impl<T: ?Sized> Deref for SgxRwLockWriteGuard<'_, T> {
     }
 }
 
-impl<T: ?Sized> DerefMut for SgxRwLockWriteGuard<'_, T> {
+impl<T: ?Sized> DerefMut for RwLockWriteGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.lock.data.get() }
     }
 }
 
-impl<T: ?Sized> Drop for SgxRwLockReadGuard<'_, T> {
+impl<T: ?Sized> Drop for RwLockReadGuard<'_, T> {
     fn drop(&mut self) {
-        let result = unsafe {
-            self.lock.inner.read_unlock()
-        };
-        debug_assert_eq!(result, Ok(()), "Error when unlocking an SgxRwLock: {}", result.unwrap_err());
+        unsafe {
+            self.lock.inner.read_unlock();
+        }
     }
 }
 
-impl<T: ?Sized> Drop for SgxRwLockWriteGuard<'_, T> {
+impl<T: ?Sized> Drop for RwLockWriteGuard<'_, T> {
     fn drop(&mut self) {
         self.lock.poison.done(&self.poison);
-        let result = unsafe {
-            self.lock.inner.write_unlock()
-        };
-        debug_assert_eq!(result, Ok(()), "Error when unlocking an SgxRwLock: {}", result.unwrap_err());
+        unsafe {
+            self.lock.inner.write_unlock();
+        }
     }
 }

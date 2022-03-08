@@ -15,16 +15,17 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use crate::io::prelude::*;
 
 use crate::fmt;
-use crate::io::{self, Initializer, IoSlice, IoSliceMut};
+use crate::io::{self, IoSlice, IoSliceMut};
 use crate::net::{Shutdown, SocketAddr, ToSocketAddrs};
 use crate::sys_common::net as net_imp;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 use crate::time::Duration;
-
-use sgx_libc::c_int;
 
 /// A TCP stream between a local and a remote socket.
 ///
@@ -120,18 +121,6 @@ pub struct IntoIncoming {
 }
 
 impl TcpStream {
-    pub fn new(sockfd: c_int) -> io::Result<TcpStream> {
-        net_imp::TcpStream::new(sockfd).map(TcpStream)
-    }
-
-    pub fn new_v4() -> io::Result<TcpStream> {
-        net_imp::TcpStream::new_v4().map(TcpStream)
-    }
-
-    pub fn new_v6() -> io::Result<TcpStream> {
-        net_imp::TcpStream::new_v6().map(TcpStream)
-    }
-
     /// Opens a TCP connection to a remote host.
     ///
     /// `addr` is an address of the remote host. Anything which implements
@@ -177,21 +166,6 @@ impl TcpStream {
         super::each_addr(addr, net_imp::TcpStream::connect).map(TcpStream)
     }
 
-    /// Opens a TCP connection to a remote host.
-    ///
-    /// `addr` is an address of the remote host. Anything which implements
-    /// [`ToSocketAddrs`] trait can be supplied for the address; see this trait
-    /// documentation for concrete examples.
-    ///
-    /// If `addr` yields multiple addresses, `connect` will be attempted with
-    /// each of the addresses until a connection is successful. If none of
-    /// the addresses result in a successful connection, the error returned from
-    /// the last connection attempt (the last address) is returned.
-    ///
-    pub fn connect_socket<A: ToSocketAddrs>(&self, addr: A) -> io::Result<()> {
-        super::each_addr(addr, |addr| self.0.connect_socket(addr))
-    }
-    
     /// Opens a TCP connection to a remote host with a timeout.
     ///
     /// Unlike `connect`, `connect_timeout` takes a single [`SocketAddr`] since
@@ -205,22 +179,6 @@ impl TcpStream {
     /// connection request.
     pub fn connect_timeout(addr: &SocketAddr, timeout: Duration) -> io::Result<TcpStream> {
         net_imp::TcpStream::connect_timeout(addr, timeout).map(TcpStream)
-    }
-
-    /// Opens a TCP connection to a remote host with a timeout.
-    ///
-    /// Unlike `connect_socket`, `connect_socket_timeout` takes a single [`SocketAddr`] since
-    /// timeout must be applied to individual addresses.
-    ///
-    /// It is an error to pass a zero `Duration` to this function.
-    ///
-    /// Unlike other methods on `TcpStream`, this does not correspond to a
-    /// single system call. It instead calls `connect` in nonblocking mode and
-    /// then uses an OS-specific mechanism to await the completion of the
-    /// connection request.
-    ///
-    pub fn connect_socket_timeout(&self, addr: &SocketAddr, timeout: Duration) -> io::Result<()> {
-        self.0.connect_socket_timeout(addr, timeout)
     }
 
     /// Returns the socket address of the remote peer of this TCP connection.
@@ -448,7 +406,7 @@ impl TcpStream {
     /// use std::net::TcpStream;
     ///
     /// let stream = TcpStream::connect("127.0.0.1:8000")
-    ///                        .expect("couldn't bind to address");
+    ///                        .expect("Couldn't connect to the server...");
     /// let mut buf = [0; 10];
     /// let len = stream.peek(&mut buf).expect("peek failed");
     /// ```
@@ -659,12 +617,6 @@ impl Read for TcpStream {
     fn is_read_vectored(&self) -> bool {
         self.0.is_read_vectored()
     }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        // SAFETY: Read is guaranteed to work on uninitialized memory
-        Initializer::nop()
-    }
 }
 
 impl Write for TcpStream {
@@ -698,12 +650,6 @@ impl Read for &TcpStream {
     #[inline]
     fn is_read_vectored(&self) -> bool {
         self.0.is_read_vectored()
-    }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        // SAFETY: Read is guaranteed to work on uninitialized memory
-        Initializer::nop()
     }
 }
 
@@ -751,18 +697,6 @@ impl fmt::Debug for TcpStream {
 }
 
 impl TcpListener {
-    pub fn new(sockfd: c_int) -> io::Result<TcpListener> {
-        net_imp::TcpListener::new(sockfd).map(TcpListener)
-    }
-
-    pub fn new_v4() -> io::Result<TcpListener> {
-        net_imp::TcpListener::new_v4().map(TcpListener)
-    }
-
-    pub fn new_v6() -> io::Result<TcpListener> {
-        net_imp::TcpListener::new_v6().map(TcpListener)
-    }
-
     /// Creates a new `TcpListener` which will be bound to the specified
     /// address.
     ///
@@ -804,26 +738,6 @@ impl TcpListener {
     /// ```
     pub fn bind<A: ToSocketAddrs>(addr: A) -> io::Result<TcpListener> {
         super::each_addr(addr, net_imp::TcpListener::bind).map(TcpListener)
-    }
-
-    /// TcpListener will be bound to the specified address.
-    ///
-    /// The returned listener is ready for accepting connections.
-    ///
-    /// Binding with a port number of 0 will request that the OS assigns a port
-    /// to this listener. The port allocated can be queried via the
-    /// [`local_addr`] method.
-    ///
-    /// The address type can be any implementor of [`ToSocketAddrs`] trait. See
-    /// its documentation for concrete examples.
-    ///
-    /// If `addr` yields multiple addresses, `bind` will be attempted with
-    /// each of the addresses until one succeeds and returns the listener. If
-    /// none of the addresses succeed in creating a listener, the error returned
-    /// from the last attempt (the last address) is returned.
-    ///
-    pub fn bind_socket<A: ToSocketAddrs>(&self, addr: A) -> io::Result<()> {
-        super::each_addr(addr, |addr| self.0.bind_socket(addr))
     }
 
     /// Returns the local socket address of this listener.

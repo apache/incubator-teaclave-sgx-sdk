@@ -1,0 +1,114 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+FROM ubuntu:18.04
+
+LABEL authors="The Teaclave Authors"
+
+SHELL ["/bin/bash", "-c"]
+
+RUN apt-get update && DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-install-recommends \
+        apt-utils \
+        alien \
+        astyle \
+        autoconf \
+        automake \
+        bison \
+        build-essential \
+        ca-certificates \
+        cmake \
+        curl \
+        debhelper \
+        dpkg-dev \
+        expect \
+        g++ \
+        gawk \
+        flex \
+        gdb \
+        git-core \
+        jq \
+        kmod \
+        lcov \
+        libboost-system-dev \
+        libboost-thread-dev \
+        libclang-dev \
+        libcurl4-openssl-dev \
+        libfuse-dev \
+        libjsoncpp-dev \
+        liblog4cpp5-dev \
+        libprotobuf-c0-dev \
+        libprotobuf-dev \
+        libssl-dev \
+        libtool \
+        libxml2-dev \
+        nano \
+        ocaml \
+        ocamlbuild \
+        pkg-config \
+        protobuf-compiler \
+        python3 \
+        python3-pip \
+        sudo \
+        unzip \
+        uuid-dev \
+        vim \
+        wget \
+        zip \
+        gnupg2 \
+        aptitude \
+        rsync \
+        apt-transport-https \
+        software-properties-common \
+        && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV CODENAME                    bionic
+ENV SGX_SDK_RELEASE_VERSION     2.15.1
+ENV SGX_DCAP_RELEASE_VERSION    1.12.1
+ENV SGX_SDK_CODE_VERSION        2.15.101.1
+ENV SGX_DCAP_CODE_VERSION       1.12.101.1
+ENV SGX_SDK_VERSION             ${SGX_SDK_CODE_VERSION}-bionic1
+ENV SGX_DCAP_VERSION            ${SGX_DCAP_CODE_VERSION}-bionic1
+ENV RUST_TOOLCHAIN              nightly-2022-02-23
+ENV BINUTILS_DIST               ubuntu18.04
+ENV SGX_SDK_URL                 "https://download.01.org/intel-sgx/sgx-linux/${SGX_SDK_RELEASE_VERSION}/distro/${BINUTILS_DIST}-server/sgx_linux_x64_sdk_${SGX_SDK_CODE_VERSION}.bin"
+
+ENV LD_LIBRARY_PATH=/usr/lib:/usr/local/lib
+ENV LD_RUN_PATH=/usr/lib:/usr/local/lib
+
+ADD 02_binutils.sh /root
+RUN bash /root/02_binutils.sh
+
+ADD 03_sdk.sh /root
+RUN bash /root/03_sdk.sh
+
+ADD 04_psw.sh /root
+RUN bash /root/04_psw.sh
+
+ADD 05_optlibs.sh /root
+RUN bash /root/05_optlibs.sh
+
+ADD 06_rust.sh /root
+RUN bash /root/06_rust.sh
+
+RUN rm -rf /root/02_binutils.sh /root/03_sdk.sh /root/04_psw.sh /root/05_optlibs.sh /root/06_rust.sh
+
+ADD start_aesm.sh /opt/intel/sgx-aesm-service
+RUN echo '/opt/intel/sgx-aesm-service/start_aesm.sh' >> /root/.bashrc
+
+WORKDIR /root

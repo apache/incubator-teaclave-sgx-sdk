@@ -26,17 +26,17 @@
 
 use std::marker;
 
-use crate::{Rng, Rand};
+use crate::{Rand, Rng};
 
-pub use self::range::Range;
-pub use self::gamma::{Gamma, ChiSquared, FisherF, StudentT};
-pub use self::normal::{Normal, LogNormal};
 pub use self::exponential::Exp;
+pub use self::gamma::{ChiSquared, FisherF, Gamma, StudentT};
+pub use self::normal::{LogNormal, Normal};
+pub use self::range::Range;
 
-pub mod range;
+pub mod exponential;
 pub mod gamma;
 pub mod normal;
-pub mod exponential;
+pub mod range;
 
 /// Types that can be used to create a random instance of `Support`.
 pub trait Sample<Support> {
@@ -67,11 +67,15 @@ pub struct RandSample<Sup> {
 
 impl<Sup> Copy for RandSample<Sup> {}
 impl<Sup> Clone for RandSample<Sup> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl<Sup: Rand> Sample<Sup> for RandSample<Sup> {
-    fn sample<R: Rng>(&mut self, rng: &mut R) -> Sup { self.ind_sample(rng) }
+    fn sample<R: Rng>(&mut self, rng: &mut R) -> Sup {
+        self.ind_sample(rng)
+    }
 }
 
 impl<Sup: Rand> IndependentSample<Sup> for RandSample<Sup> {
@@ -82,7 +86,15 @@ impl<Sup: Rand> IndependentSample<Sup> for RandSample<Sup> {
 
 impl<Sup> RandSample<Sup> {
     pub fn new() -> RandSample<Sup> {
-        RandSample { _marker: marker::PhantomData }
+        RandSample {
+            _marker: marker::PhantomData,
+        }
+    }
+}
+
+impl<Sup> Default for RandSample<Sup> {
+    fn default() -> RandSample<Sup> {
+        Self::new()
     }
 }
 
@@ -121,9 +133,9 @@ pub struct Weighted<T> {
 /// }
 /// ```
 #[derive(Debug)]
-pub struct WeightedChoice<'a, T:'a> {
+pub struct WeightedChoice<'a, T: 'a> {
     items: &'a mut [Weighted<T>],
-    weight_range: Range<u32>
+    weight_range: Range<u32>,
 }
 
 impl<'a, T: Clone> WeightedChoice<'a, T> {
@@ -135,7 +147,10 @@ impl<'a, T: Clone> WeightedChoice<'a, T> {
     /// - the total weight is larger than a `u32` can contain.
     pub fn new(items: &'a mut [Weighted<T>]) -> WeightedChoice<'a, T> {
         // strictly speaking, this is subsumed by the total weight == 0 case
-        assert!(!items.is_empty(), "WeightedChoice::new called with no items");
+        assert!(
+            !items.is_empty(),
+            "WeightedChoice::new called with no items"
+        );
 
         let mut running_total: u32 = 0;
 
@@ -145,25 +160,32 @@ impl<'a, T: Clone> WeightedChoice<'a, T> {
         for item in items.iter_mut() {
             running_total = match running_total.checked_add(item.weight) {
                 Some(n) => n,
-                None => panic!("WeightedChoice::new called with a total weight \
-                               larger than a u32 can contain")
+                None => panic!(
+                    "WeightedChoice::new called with a total weight \
+                               larger than a u32 can contain"
+                ),
             };
 
             item.weight = running_total;
         }
-        assert!(running_total != 0, "WeightedChoice::new called with a total weight of 0");
+        assert!(
+            running_total != 0,
+            "WeightedChoice::new called with a total weight of 0"
+        );
 
         WeightedChoice {
-            items: items,
+            items,
             // we're likely to be generating numbers in this range
             // relatively often, so might as well cache it
-            weight_range: Range::new(0, running_total)
+            weight_range: Range::new(0, running_total),
         }
     }
 }
 
 impl<'a, T: Clone> Sample<T> for WeightedChoice<'a, T> {
-    fn sample<R: Rng>(&mut self, rng: &mut R) -> T { self.ind_sample(rng) }
+    fn sample<R: Rng>(&mut self, rng: &mut R) -> T {
+        self.ind_sample(rng)
+    }
 }
 
 impl<'a, T: Clone> IndependentSample<T> for WeightedChoice<'a, T> {
@@ -205,7 +227,7 @@ impl<'a, T: Clone> IndependentSample<T> for WeightedChoice<'a, T> {
             }
             modifier /= 2;
         }
-        return self.items[idx + 1].item.clone();
+        self.items[idx + 1].item.clone()
     }
 }
 
@@ -228,13 +250,17 @@ mod ziggurat_tables;
 // size from force-inlining.
 #[inline(always)]
 fn ziggurat<R: Rng, P, Z>(
-            rng: &mut R,
-            symmetric: bool,
-            x_tab: ziggurat_tables::ZigTable,
-            f_tab: ziggurat_tables::ZigTable,
-            mut pdf: P,
-            mut zero_case: Z)
-            -> f64 where P: FnMut(f64) -> f64, Z: FnMut(&mut R, f64) -> f64 {
+    rng: &mut R,
+    symmetric: bool,
+    x_tab: ziggurat_tables::ZigTable,
+    f_tab: ziggurat_tables::ZigTable,
+    mut pdf: P,
+    mut zero_case: Z,
+) -> f64
+where
+    P: FnMut(f64) -> f64,
+    Z: FnMut(&mut R, f64) -> f64,
+{
     const SCALE: f64 = (1u64 << 53) as f64;
     loop {
         // reimplement the f64 generation as an optimisation suggested
@@ -256,10 +282,10 @@ fn ziggurat<R: Rng, P, Z>(
 
         // u is either U(-1, 1) or U(0, 1) depending on if this is a
         // symmetric distribution or not.
-        let u = if symmetric {2.0 * f - 1.0} else {f};
+        let u = if symmetric { 2.0 * f - 1.0 } else { f };
         let x = u * x_tab[i];
 
-        let test_x = if symmetric { x.abs() } else {x};
+        let test_x = if symmetric { x.abs() } else { x };
 
         // algebraically equivalent to |u| < x_tab[i+1]/x_tab[i] (or u < x_tab[i+1]/x_tab[i])
         if test_x < x_tab[i + 1] {

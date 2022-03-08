@@ -16,26 +16,23 @@
 // under the License.
 
 enclave {
-
     include "sys/socket.h"
     include "netdb.h"
+    include "inc/addrinfo.h"
 
     from "sgx_socket.edl" import *;
     from "sgx_asyncio.edl" import *;
     from "sgx_fd.edl" import *;
     from "sgx_time.edl" import *;
 
-    trusted {
-        /* define ECALLs here. */
-    };
-
     untrusted {
-        int u_getaddrinfo_ocall([out] int *error,
-                                [in, string] const char *node,
-                                [in, string] const char *service,
-                                [in] const struct addrinfo *hints,
-                                [out] struct addrinfo **res);
-        void u_freeaddrinfo_ocall([user_check] struct addrinfo *res);
-        char *u_gai_strerror_ocall(int errcode);
+        int u_getaddrinfo_ocall(
+            [out] int *error,
+            [in, string] const char *node,
+            [in, string] const char *service,
+            [in] const struct addrinfo *hints,
+            [out, count=in_count] struct addr_info *res,
+            size_t in_count,
+            [out] size_t *out_count);
     };
 };

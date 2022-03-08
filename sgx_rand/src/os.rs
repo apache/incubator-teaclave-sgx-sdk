@@ -18,81 +18,49 @@
 //! Interfaces to the operating system provided random number
 //! generators.
 
-use std::{io, mem, fmt};
 use crate::Rng;
+use std::{fmt, io};
+
+#[cfg(feature = "urand")]
+use rand_core::RngCore;
+#[cfg(feature = "urand")]
+use rdrand::RdRand as RandRng;
+#[cfg(feature = "trand")]
+use sgx_trts::rand::Rng as RandRng;
 
 /// A random number generator
-pub struct SgxRng(imp::SgxRng);
+pub struct RdRand(RandRng);
 
-impl SgxRng {
-    /// Create a new `SgxRng`.
-    pub fn new() -> io::Result<SgxRng> {
-        imp::SgxRng::new().map(SgxRng)
+impl RdRand {
+    /// Create a new `RdRand`.
+    pub fn new() -> io::Result<RdRand> {
+        #[cfg(feature = "trand")]
+        {
+            Ok(RdRand(RandRng::new()))
+        }
+        #[cfg(feature = "urand")]
+        {
+            use std::io::ErrorKind;
+            let rng = RandRng::new().map_err(|_| ErrorKind::Unsupported)?;
+            Ok(RdRand(rng))
+        }
     }
 }
 
-impl Rng for SgxRng {
-    fn next_u32(&mut self) -> u32 { self.0.next_u32() }
-    fn next_u64(&mut self) -> u64 { self.0.next_u64() }
-    fn fill_bytes(&mut self, v: &mut [u8]) { self.0.fill_bytes(v) }
+impl Rng for RdRand {
+    fn next_u32(&mut self) -> u32 {
+        self.0.next_u32()
+    }
+    fn next_u64(&mut self) -> u64 {
+        self.0.next_u64()
+    }
+    fn fill_bytes(&mut self, v: &mut [u8]) {
+        self.0.fill_bytes(v)
+    }
 }
 
-impl fmt::Debug for SgxRng {
+impl fmt::Debug for RdRand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "SgxRng {{}}")
-    }
-}
-
-fn next_u32(fill_buf: &mut dyn FnMut(&mut [u8])) -> u32 {
-    let mut buf: [u8; 4] = [0; 4];
-    fill_buf(&mut buf);
-    unsafe { mem::transmute::<[u8; 4], u32>(buf) }
-}
-
-fn next_u64(fill_buf: &mut dyn FnMut(&mut [u8])) -> u64 {
-    let mut buf: [u8; 8] = [0; 8];
-    fill_buf(&mut buf);
-    unsafe { mem::transmute::<[u8; 8], u64>(buf) }
-}
-
-mod imp {
-
-    use sgx_types::*;
-    use sgx_trts::trts::rsgx_read_rand;
-    use std::io;
-
-    use super::{next_u32, next_u64};
-    use crate::Rng;
-
-    fn getrandom(buf: &mut [u8]) -> SgxError {
-        rsgx_read_rand(buf)
-    }
-
-    fn getrandom_fill_bytes(v: &mut [u8]) {
-        getrandom(v).expect("unexpected getrandom error");
-    }
-
-    #[allow(dead_code)]
-    fn is_getrandom_available() -> bool { true }
-
-    pub struct SgxRng;
-
-    impl SgxRng {
-        /// Create a new `SgxRng`.
-        pub fn new() -> io::Result<SgxRng> {
-            Ok(SgxRng)
-        }
-    }
-
-    impl Rng for SgxRng {
-        fn next_u32(&mut self) -> u32 {
-            next_u32(&mut getrandom_fill_bytes)
-        }
-        fn next_u64(&mut self) -> u64 {
-            next_u64(&mut getrandom_fill_bytes)
-        }
-        fn fill_bytes(&mut self, v: &mut [u8]) {
-            getrandom_fill_bytes(v)
-        }
+        write!(f, "RdRand {{}}")
     }
 }

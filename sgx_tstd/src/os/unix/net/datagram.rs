@@ -17,15 +17,18 @@
 
 use super::{recv_vectored_with_ancillary_from, send_vectored_with_ancillary_to, SocketAncillary};
 use super::{sockaddr_un, SocketAddr};
+use crate::convert::TryInto;
 use crate::io::{IoSlice, IoSliceMut};
 use crate::net::Shutdown;
 use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 use crate::path::Path;
-use crate::sys::cvt;
+use crate::sys::cvt_ocall;
 use crate::sys::net::Socket;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 use crate::time::Duration;
 use crate::{fmt, io};
+
+use sgx_oc::ocall::SockAddr;
 
 /// A Unix datagram socket.
 ///
@@ -79,9 +82,9 @@ impl UnixDatagram {
         unsafe {
             let socket = UnixDatagram::unbound()?;
             let (addr, len) = sockaddr_un(path.as_ref())?;
+            let sock_addr = SockAddr::UN((addr, len));
 
-            cvt(libc::bind(socket.as_raw_fd(), &addr as *const _ as *const _, len as _))?;
-
+            cvt_ocall(libc::bind(socket.as_raw_fd(), &sock_addr))?;
             Ok(socket)
         }
     }
@@ -111,11 +114,8 @@ impl UnixDatagram {
     pub fn bind_addr(socket_addr: &SocketAddr) -> io::Result<UnixDatagram> {
         unsafe {
             let socket = UnixDatagram::unbound()?;
-            cvt(libc::bind(
-                socket.as_raw_fd(),
-                &socket_addr.addr as *const _ as *const _,
-                socket_addr.len as _,
-            ))?;
+            let sock_addr = socket_addr.into();
+            cvt_ocall(libc::bind(socket.as_raw_fd(), &sock_addr))?;
             Ok(socket)
         }
     }
@@ -191,8 +191,9 @@ impl UnixDatagram {
     pub fn connect<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
         unsafe {
             let (addr, len) = sockaddr_un(path.as_ref())?;
+            let sock_addr = SockAddr::UN((addr, len));
 
-            cvt(libc::connect(self.as_raw_fd(), &addr as *const _ as *const _, len))?;
+            cvt_ocall(libc::connect(self.as_raw_fd(), &sock_addr))?;
         }
         Ok(())
     }
@@ -222,11 +223,9 @@ impl UnixDatagram {
     /// ```
     pub fn connect_addr(&self, socket_addr: &SocketAddr) -> io::Result<()> {
         unsafe {
-            cvt(libc::connect(
-                self.as_raw_fd(),
-                &socket_addr.addr as *const _ as *const _,
-                socket_addr.len,
-            ))?;
+            let sock_addr = socket_addr.into();
+
+            cvt_ocall(libc::connect(self.as_raw_fd(), &sock_addr))?;
         }
         Ok(())
     }
@@ -266,7 +265,7 @@ impl UnixDatagram {
     /// }
     /// ```
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        SocketAddr::new(|addr, len| unsafe { libc::getsockname(self.as_raw_fd(), addr, len) })
+        SocketAddr::new(|| unsafe { libc::getsockname(self.as_raw_fd()) })
     }
 
     /// Returns the address of this socket's peer.
@@ -289,35 +288,19 @@ impl UnixDatagram {
     /// }
     /// ```
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
-        SocketAddr::new(|addr, len| unsafe { libc::getpeername(self.as_raw_fd(), addr, len) })
+        SocketAddr::new(|| unsafe { libc::getpeername(self.as_raw_fd()) })
     }
 
-    #[allow(clippy::comparison_chain)]
     fn recv_from_flags(
         &self,
         buf: &mut [u8],
         flags: libc::c_int,
     ) -> io::Result<(usize, SocketAddr)> {
-        let mut count = 0;
-        let addr = SocketAddr::new(|addr, len| unsafe {
-            count = libc::recvfrom(
-                self.as_raw_fd(),
-                buf.as_mut_ptr() as *mut _,
-                buf.len(),
-                flags,
-                addr,
-                len,
-            );
-            if count > 0 {
-                1
-            } else if count == 0 {
-                0
-            } else {
-                -1
-            }
-        })?;
-
-        Ok((count as usize, addr))
+        unsafe {
+            let (count, addr) = cvt_ocall(libc::recvfrom(self.as_raw_fd(), buf, flags))?;
+            let addr = addr.try_into()?;
+            Ok((count as usize, addr))
+        }
     }
 
     /// Receives data from the socket.
@@ -474,14 +457,13 @@ impl UnixDatagram {
     pub fn send_to<P: AsRef<Path>>(&self, buf: &[u8], path: P) -> io::Result<usize> {
         unsafe {
             let (addr, len) = sockaddr_un(path.as_ref())?;
+            let sock_addr = SockAddr::UN((addr, len));
 
-            let count = cvt(libc::sendto(
+            let count = cvt_ocall(libc::sendto(
                 self.as_raw_fd(),
-                buf.as_ptr() as *const _,
-                buf.len(),
+                buf,
                 libc::MSG_NOSIGNAL,
-                &addr as *const _ as *const _,
-                len,
+                &sock_addr,
             ))?;
             Ok(count as usize)
         }
@@ -510,13 +492,13 @@ impl UnixDatagram {
     /// ```
     pub fn send_to_addr(&self, buf: &[u8], socket_addr: &SocketAddr) -> io::Result<usize> {
         unsafe {
-            let count = cvt(libc::sendto(
+            let sock_addr = socket_addr.into();
+
+            let count = cvt_ocall(libc::sendto(
                 self.as_raw_fd(),
-                buf.as_ptr() as *const _,
-                buf.len(),
+                buf,
                 libc::MSG_NOSIGNAL,
-                &socket_addr.addr as *const _ as *const _,
-                socket_addr.len,
+                &sock_addr,
             ))?;
             Ok(count as usize)
         }
@@ -933,8 +915,6 @@ impl From<OwnedFd> for UnixDatagram {
 }
 
 mod libc {
-    pub use sgx_libc::ocall::{
-        bind, connect, getpeername, getsockname, recvfrom, sendto,
-    };
-    pub use sgx_libc::*;
+    pub use sgx_oc::ocall::{bind, connect, getpeername, getsockname, recvfrom, sendto};
+    pub use sgx_oc::*;
 }

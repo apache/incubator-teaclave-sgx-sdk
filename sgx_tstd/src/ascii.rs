@@ -15,4 +15,4 @@
 // specific language governing permissions and limitations
 // under the License..
 
-pub use sgx_trts::ascii::*;
+pub use sgx_ffi::ascii::*;

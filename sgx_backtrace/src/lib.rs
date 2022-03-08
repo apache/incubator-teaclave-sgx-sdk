@@ -29,7 +29,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! sgx_backtrace = "1.1.2"
+//! sgx_backtrace = "2.0.0"
 //! ```
 //!
 //! Next:
@@ -61,19 +61,18 @@
 //! # }
 //! ```
 #![no_std]
-#![cfg_attr(
-    all(target_env = "sgx", target_vendor = "mesalock", feature = "std"),
-    feature(rustc_private)
-)]
+#![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 #![cfg_attr(feature = "nostd", feature(panic_unwind))]
 #![allow(clippy::missing_safety_doc)]
 
-#[cfg(all(not(target_env = "sgx"), feature = "std"))]
+#[cfg(all(not(target_vendor = "teaclave"), feature = "std"))]
 #[macro_use]
 extern crate sgx_tstd as std;
-#[cfg(all(target_env = "sgx", feature = "std"))]
+#[cfg(all(target_vendor = "teaclave", feature = "std"))]
 #[macro_use]
 extern crate std;
+#[macro_use]
+extern crate sgx_types;
 
 extern crate alloc;
 extern crate sgx_backtrace_sys as bt;
@@ -82,17 +81,13 @@ extern crate sgx_backtrace_sys as bt;
 #[allow(unused_extern_crates)]
 extern crate sgx_unwind;
 
-#[macro_use]
-extern crate sgx_types;
 extern crate sgx_demangle;
-extern crate sgx_libc as libc;
+extern crate sgx_ffi;
+extern crate sgx_tlibc_sys as libc;
 extern crate sgx_trts;
 
 #[cfg(feature = "serialize")]
 extern crate sgx_serialize;
-#[cfg(feature = "serialize")]
-#[macro_use]
-extern crate sgx_serialize_derive;
 
 pub use self::backtrace::{trace_unsynchronized, Frame};
 mod backtrace;
@@ -127,9 +122,7 @@ struct Bomb {
 #[allow(dead_code)]
 impl Drop for Bomb {
     fn drop(&mut self) {
-        if self.enabled {
-            panic!("cannot panic during the backtrace function");
-        }
+        assert!(!self.enabled, "cannot panic during the backtrace function");
     }
 }
 
@@ -138,11 +131,11 @@ impl Drop for Bomb {
 mod lock {
     use std::boxed::Box;
     use std::cell::Cell;
-    use std::sync::{Once, SgxMutex, SgxMutexGuard};
+    use std::sync::{Mutex, MutexGuard, Once};
 
-    pub struct LockGuard(Option<SgxMutexGuard<'static, ()>>);
+    pub struct LockGuard(Option<MutexGuard<'static, ()>>);
 
-    static mut LOCK: *mut SgxMutex<()> = 0 as *mut _;
+    static mut LOCK: *mut Mutex<()> = 0 as *mut _;
     static INIT: Once = Once::new();
     thread_local!(static LOCK_HELD: Cell<bool> = Cell::new(false));
 
@@ -164,7 +157,7 @@ mod lock {
         LOCK_HELD.with(|s| s.set(true));
         unsafe {
             INIT.call_once(|| {
-                LOCK = Box::into_raw(Box::new(SgxMutex::new(())));
+                LOCK = Box::into_raw(Box::new(Mutex::new(())));
             });
             LockGuard(Some((*LOCK).lock().unwrap()))
         }

@@ -36,7 +36,7 @@
 #ifndef PTHREAD_COMPAT_H
 #define PTHREAD_COMPAT_H
 
-#include "sgx_spinlock.h"
+#include "spinlock.h"
 
 #define pthread_mutex_t           sgx_spinlock_t
 #define PTHREAD_MUTEX_INITIALIZER SGX_SPINLOCK_INITIALIZER

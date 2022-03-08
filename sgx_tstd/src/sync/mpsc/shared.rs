@@ -34,11 +34,11 @@ use crate::ptr;
 use crate::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
 use crate::sync::mpsc::blocking::{self, SignalToken};
 use crate::sync::mpsc::mpsc_queue as mpsc;
-use crate::sync::{SgxMutex as Mutex, SgxMutexGuard as MutexGuard};
+use crate::sync::{Mutex, MutexGuard};
 use crate::thread;
 use crate::time::Instant;
 
-use sgx_trts::trts;
+use sgx_trts::error::abort;
 
 const DISCONNECTED: isize = isize::MIN;
 const FUDGE: isize = 1024;
@@ -373,7 +373,7 @@ impl<T> Packet<T> {
 
         // See comments on Arc::clone() on why we do this (for `mem::forget`).
         if old_count > MAX_REFCOUNT {
-            trts::rsgx_abort();
+            abort();
         }
     }
 

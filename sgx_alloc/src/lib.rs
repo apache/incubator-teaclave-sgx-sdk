@@ -23,14 +23,15 @@
 //! 2018-06-22 Add liballoc components here
 
 #![no_std]
+#![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
+#![allow(clippy::missing_safety_doc)]
 #![allow(non_camel_case_types)]
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
-#![feature(alloc_layout_extra)]
-#![feature(ptr_internals)]
-#![feature(dropck_eyepatch)]
 #![feature(allocator_api)]
+#![feature(alloc_layout_extra)]
 #![feature(core_intrinsics)]
+#![feature(dropck_eyepatch)]
 #![feature(nonnull_slice_from_raw_parts)]
+#![feature(ptr_internals)]
 #![feature(slice_ptr_get)]
 
 extern crate alloc;
@@ -40,4 +41,4 @@ pub use system::System;
 
 pub mod alignalloc;
 pub mod alignbox;
-pub mod rsrvmem;
+pub mod capi;

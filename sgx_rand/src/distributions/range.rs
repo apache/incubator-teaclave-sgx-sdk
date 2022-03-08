@@ -21,9 +21,10 @@
 
 use std::num::Wrapping as w;
 
+use crate::distributions::{IndependentSample, Sample};
 use crate::Rng;
-use crate::distributions::{Sample, IndependentSample};
 
+#[allow(clippy::needless_doctest_main)]
 /// Sample values uniformly between two bounds.
 ///
 /// This gives a uniform distribution (assuming the RNG used to sample
@@ -57,7 +58,7 @@ use crate::distributions::{Sample, IndependentSample};
 pub struct Range<X> {
     low: X,
     range: X,
-    accept_zone: X
+    accept_zone: X,
 }
 
 impl<X: SampleRange + PartialOrd> Range<X> {
@@ -71,7 +72,9 @@ impl<X: SampleRange + PartialOrd> Range<X> {
 
 impl<Sup: SampleRange> Sample<Sup> for Range<Sup> {
     #[inline]
-    fn sample<R: Rng>(&mut self, rng: &mut R) -> Sup { self.ind_sample(rng) }
+    fn sample<R: Rng>(&mut self, rng: &mut R) -> Sup {
+        self.ind_sample(rng)
+    }
 }
 impl<Sup: SampleRange> IndependentSample<Sup> for Range<Sup> {
     fn ind_sample<R: Rng>(&self, rng: &mut R) -> Sup {
@@ -82,7 +85,7 @@ impl<Sup: SampleRange> IndependentSample<Sup> for Range<Sup> {
 /// The helper trait for types that have a sensible way to sample
 /// uniformly between two values. This should not be used directly,
 /// and is only to facilitate `Range`.
-pub trait SampleRange : Sized {
+pub trait SampleRange: Sized {
     /// Construct the `Range` object that `sample_range`
     /// requires. This should not ever be called directly, only via
     /// `Range::new`, which will check that `low < high`, so this
@@ -115,9 +118,9 @@ macro_rules! integer_impl {
                 let zone = unsigned_max - unsigned_max % range;
 
                 Range {
-                    low: low,
+                    low,
                     range: range as $ty,
-                    accept_zone: zone as $ty
+                    accept_zone: zone as $ty,
                 }
             }
             #[inline]
@@ -135,7 +138,7 @@ macro_rules! integer_impl {
                 }
             }
         }
-    }
+    };
 }
 
 integer_impl! { i8, u8 }
@@ -154,16 +157,16 @@ macro_rules! float_impl {
         impl SampleRange for $ty {
             fn construct_range(low: $ty, high: $ty) -> Range<$ty> {
                 Range {
-                    low: low,
+                    low,
                     range: high - low,
-                    accept_zone: 0.0 // unused
+                    accept_zone: 0.0, // unused
                 }
             }
             fn sample_range<R: Rng>(r: &Range<$ty>, rng: &mut R) -> $ty {
                 r.low + r.range * rng.gen::<$ty>()
             }
         }
-    }
+    };
 }
 
 float_impl! { f32 }

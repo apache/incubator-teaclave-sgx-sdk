@@ -15,14 +15,15 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use crate::fmt;
-use crate::io::{self, Error, ErrorKind};
+use crate::io::{self, ErrorKind};
 use crate::net::{Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
 use crate::sys_common::net as net_imp;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 use crate::time::Duration;
-
-use sgx_libc::c_int;
 
 /// A UDP socket.
 ///
@@ -73,18 +74,6 @@ use sgx_libc::c_int;
 pub struct UdpSocket(net_imp::UdpSocket);
 
 impl UdpSocket {
-    pub fn new(sockfd: c_int) -> io::Result<UdpSocket> {
-        net_imp::UdpSocket::new(sockfd).map(UdpSocket)
-    }
-
-    pub fn new_v4() -> io::Result<UdpSocket> {
-        net_imp::UdpSocket::new_v4().map(UdpSocket)
-    }
-
-    pub fn new_v6() -> io::Result<UdpSocket> {
-        net_imp::UdpSocket::new_v6().map(UdpSocket)
-    }
-
     /// Creates a UDP socket from the given address.
     ///
     /// The address type can be any implementor of [`ToSocketAddrs`] trait. See
@@ -119,11 +108,6 @@ impl UdpSocket {
     /// ```
     pub fn bind<A: ToSocketAddrs>(addr: A) -> io::Result<UdpSocket> {
         super::each_addr(addr, net_imp::UdpSocket::bind).map(UdpSocket)
-    }
-
-    /// Bound this UDP socket to a the specified address.
-    pub fn bind_socket<A: ToSocketAddrs>(&self, addr: A) -> io::Result<()> {
-        super::each_addr(addr, |addr| self.0.bind_socket(addr))
     }
 
     /// Receives a single datagram message on the socket. On success, returns the number
@@ -203,7 +187,9 @@ impl UdpSocket {
     pub fn send_to<A: ToSocketAddrs>(&self, buf: &[u8], addr: A) -> io::Result<usize> {
         match addr.to_socket_addrs()?.next() {
             Some(addr) => self.0.send_to(buf, &addr),
-            None => Err(Error::new_const(ErrorKind::InvalidInput, &"no addresses to send data to")),
+            None => {
+                Err(io::const_io_error!(ErrorKind::InvalidInput, "no addresses to send data to"))
+            }
         }
     }
 

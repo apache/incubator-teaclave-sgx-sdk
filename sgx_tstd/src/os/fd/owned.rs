@@ -23,6 +23,7 @@ use super::raw::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use crate::fmt;
 use crate::marker::PhantomData;
 use crate::mem::forget;
+use crate::sys::cvt_ocall;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 use crate::untrusted::fs;
 
@@ -78,6 +79,21 @@ impl BorrowedFd<'_> {
         // SAFETY: we just asserted that the value is in the valid range and isn't `-1` (the only value bigger than `0xFF_FF_FF_FE` unsigned)
         unsafe { Self { fd, _phantom: PhantomData } }
     }
+}
+
+impl OwnedFd {
+    /// Creates a new `OwnedFd` instance that shares the same underlying file handle
+    /// as the existing `OwnedFd` instance.
+    pub fn try_clone(&self) -> crate::io::Result<Self> {
+        // We want to atomically duplicate this file descriptor and set the
+        // CLOEXEC flag, and currently that's done via F_DUPFD_CLOEXEC. This
+        // is a POSIX flag that was added to Linux in 2.6.24.
+        let cmd = libc::F_DUPFD_CLOEXEC;
+
+        let fd = cvt_ocall(unsafe { libc::fcntl_arg1(self.as_raw_fd(), cmd, 0) })?;
+        Ok(unsafe { Self::from_raw_fd(fd) })
+    }
+
 }
 
 impl AsRawFd for BorrowedFd<'_> {
@@ -169,6 +185,20 @@ pub trait AsFd {
     /// # Ok::<(), io::Error>(())
     /// ```
     fn as_fd(&self) -> BorrowedFd<'_>;
+}
+
+impl<T: AsFd> AsFd for &T {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        T::as_fd(self)
+    }
+}
+
+impl<T: AsFd> AsFd for &mut T {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        T::as_fd(self)
+    }
 }
 
 impl AsFd for BorrowedFd<'_> {
@@ -291,5 +321,6 @@ impl From<OwnedFd> for crate::net::UdpSocket {
 }
 
 mod libc {
-    pub use sgx_libc::ocall::close;
+    pub use sgx_oc::F_DUPFD_CLOEXEC;
+    pub use sgx_oc::ocall::{close, fcntl_arg1};
 }

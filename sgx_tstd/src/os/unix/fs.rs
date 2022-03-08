@@ -15,10 +15,13 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//! Unix-specific extensions to primitives in the `std::fs` module.
+//! Unix-specific extensions to primitives in the [`std::fs`] module.
+//!
+//! [`std::fs`]: crate::fs
 
+use super::platform::fs::MetadataExt as _;
 use crate::io;
-use crate::os::fs::MetadataExt as _;
+use crate::os::unix::io::{AsFd, AsRawFd};
 use crate::path::Path;
 use crate::sys;
 use crate::sys_common::{AsInner, AsInnerMut, FromInner};
@@ -29,7 +32,9 @@ use crate::sealed::Sealed;
 #[allow(unused_imports)]
 use io::{Read, Write};
 
-use sgx_libc as libc;
+use sgx_oc as libc;
+use sgx_rsrvmm::map::Map;
+use sgx_types::error::OsResult;
 
 /// Unix-specific extensions to [`fs::File`].
 pub trait FileExt {
@@ -125,7 +130,7 @@ pub trait FileExt {
             }
         }
         if !buf.is_empty() {
-            Err(io::Error::new_const(io::ErrorKind::UnexpectedEof, &"failed to fill whole buffer"))
+            Err(io::const_io_error!(io::ErrorKind::UnexpectedEof, "failed to fill whole buffer",))
         } else {
             Ok(())
         }
@@ -205,9 +210,9 @@ pub trait FileExt {
         while !buf.is_empty() {
             match self.write_at(buf, offset) {
                 Ok(0) => {
-                    return Err(io::Error::new_const(
+                    return Err(io::const_io_error!(
                         io::ErrorKind::WriteZero,
-                        &"failed to write whole buffer",
+                        "failed to write whole buffer",
                     ));
                 }
                 Ok(n) => {
@@ -885,6 +890,72 @@ impl DirBuilderExt for fs::DirBuilder {
     }
 }
 
+/// Change the owner and group of the specified path.
+///
+/// Specifying either the uid or gid as `None` will leave it unchanged.
+///
+/// Changing the owner typically requires privileges, such as root or a specific capability.
+/// Changing the group typically requires either being the owner and a member of the group, or
+/// having privileges.
+///
+/// If called on a symbolic link, this will change the owner and group of the link target. To
+/// change the owner and group of the link itself, see [`lchown`].
+///
+/// # Examples
+///
+/// ```no_run
+/// #![feature(unix_chown)]
+/// use std::os::unix::fs;
+///
+/// fn main() -> std::io::Result<()> {
+///     fs::chown("/sandbox", Some(0), Some(0))?;
+///     Ok(())
+/// }
+/// ```
+pub fn chown<P: AsRef<Path>>(dir: P, uid: Option<u32>, gid: Option<u32>) -> io::Result<()> {
+    sys::fs::chown(dir.as_ref(), uid.unwrap_or(u32::MAX), gid.unwrap_or(u32::MAX))
+}
+
+/// Change the owner and group of the file referenced by the specified open file descriptor.
+///
+/// For semantics and required privileges, see [`chown`].
+///
+/// # Examples
+///
+/// ```no_run
+/// #![feature(unix_chown)]
+/// use std::os::unix::fs;
+///
+/// fn main() -> std::io::Result<()> {
+///     let f = std::fs::File::open("/file")?;
+///     fs::fchown(&f, Some(0), Some(0))?;
+///     Ok(())
+/// }
+/// ```
+pub fn fchown<F: AsFd>(fd: F, uid: Option<u32>, gid: Option<u32>) -> io::Result<()> {
+    sys::fs::fchown(fd.as_fd().as_raw_fd(), uid.unwrap_or(u32::MAX), gid.unwrap_or(u32::MAX))
+}
+
+/// Change the owner and group of the specified path, without dereferencing symbolic links.
+///
+/// Identical to [`chown`], except that if called on a symbolic link, this will change the owner
+/// and group of the link itself rather than the owner and group of the link target.
+///
+/// # Examples
+///
+/// ```no_run
+/// #![feature(unix_chown)]
+/// use std::os::unix::fs;
+///
+/// fn main() -> std::io::Result<()> {
+///     fs::lchown("/symlink", Some(0), Some(0))?;
+///     Ok(())
+/// }
+/// ```
+pub fn lchown<P: AsRef<Path>>(dir: P, uid: Option<u32>, gid: Option<u32>) -> io::Result<()> {
+    sys::fs::lchown(dir.as_ref(), uid.unwrap_or(u32::MAX), gid.unwrap_or(u32::MAX))
+}
+
 /// Change the root directory of the current process to the specified path.
 ///
 /// This typically requires privileges, such as root or a specific capability.
@@ -906,4 +977,23 @@ impl DirBuilderExt for fs::DirBuilder {
 /// ```
 pub fn chroot<P: AsRef<Path>>(dir: P) -> io::Result<()> {
     sys::fs::chroot(dir.as_ref())
+}
+
+impl Map for fs::File {
+    fn read_at(&self, buf: &mut [u8], offset: usize) -> OsResult<usize> {
+        self.as_inner()
+            .read_at(buf, offset as u64)
+            .map_err(|e| e.raw_os_error().unwrap_or(libc::EOCALL))
+    }
+    fn write_at(&self, buf: &[u8], offset: usize) -> OsResult<usize> {
+        self.as_inner()
+            .write_at(buf, offset as u64)
+            .map_err(|e| e.raw_os_error().unwrap_or(libc::EOCALL))
+    }
+    #[inline]
+    fn flush(&self) -> OsResult {
+        self.as_inner()
+            .flush()
+            .map_err(|e| e.raw_os_error().unwrap_or(libc::EOCALL))
+    }
 }

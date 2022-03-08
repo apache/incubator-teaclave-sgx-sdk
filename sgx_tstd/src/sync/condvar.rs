@@ -15,30 +15,15 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//!
-//! The Intel(R) Software Guard Extensions SDK already supports mutex and conditional
-//! variable synchronization mechanisms by means of the following API and data types
-//! defined in the Types and Enumerations section. Some functions included in the
-//! trusted Thread Synchronization library may make calls outside the enclave (OCALLs).
-//! If you use any of the APIs below, you must first import the needed OCALL functions
-//! from sgx_tstd.edl. Otherwise, you will get a linker error when the enclave is
-//! being built; see Calling Functions outside the Enclave for additional details.
-//! The table below illustrates the primitives that the Intel(R) SGX Thread
-//! Synchronization library supports, as well as the OCALLs that each API function needs.
-//!
+#[cfg(feature = "unit_test")]
+mod tests;
 
-use crate::alloc::AllocError;
 use crate::fmt;
-use crate::sync::{mutex, poison, LockResult, SgxMutexGuard, PoisonError};
+use crate::sync::{mutex, poison, LockResult, MutexGuard, PoisonError};
 use crate::sys_common::condvar as sys;
 use crate::time::{Duration, Instant};
 #[cfg(not(feature = "untrusted_time"))]
 use crate::untrusted::time::InstantEx;
-
-use sgx_libc as libc;
-use sgx_trts::oom;
-
-pub use crate::sys_common::condvar::SgxThreadCondvar;
 
 /// A type indicating whether a timed wait on a condition variable returned
 /// due to a time out or not.
@@ -61,7 +46,7 @@ impl WaitTimeoutResult {
     /// once the boolean has been updated and notified.
     ///
     /// ```
-    /// use std::sync::{Arc, SgxCondvar as Condvar, SgxMutex as Mutex};
+    /// use std::sync::{Arc, Condvar, Mutex};
     /// use std::thread;
     /// use std::time::Duration;
     ///
@@ -115,7 +100,7 @@ impl WaitTimeoutResult {
 /// # Examples
 ///
 /// ```
-/// use std::sync::{Arc, SgxMutex as Mutex, SgxCondvar as Condvar};
+/// use std::sync::{Arc, Mutex, Condvar};
 /// use std::thread;
 ///
 /// let pair = Arc::new((Mutex::new(false), Condvar::new()));
@@ -137,24 +122,24 @@ impl WaitTimeoutResult {
 ///     started = cvar.wait(started).unwrap();
 /// }
 /// ```
-pub struct SgxCondvar {
-    inner: sys::SgxMovableThreadCondvar,
+pub struct Condvar {
+    inner: sys::Condvar,
 }
 
-impl SgxCondvar {
+impl Condvar {
     /// Creates a new condition variable which is ready to be waited on and
     /// notified.
     ///
     /// # Examples
     ///
     /// ```
-    /// use std::sync::SgxCondvar as Condvar;
+    /// use std::sync::Condvar;
     ///
     /// let condvar = Condvar::new();
     /// ```
     #[must_use]
-    pub fn new() -> SgxCondvar {
-        SgxCondvar { inner: sys::SgxMovableThreadCondvar::new() }
+    pub fn new() -> Condvar {
+        Condvar { inner: sys::Condvar::new() }
     }
 
     /// Blocks the current thread until this condition variable receives a
@@ -175,7 +160,7 @@ impl SgxCondvar {
     ///
     /// This function will return an error if the mutex being waited on is
     /// poisoned when this thread re-acquires the lock. For more information,
-    /// see information about [poisoning] on the [`SgxMutex`] type.
+    /// see information about [poisoning] on the [`Mutex`] type.
     ///
     /// # Panics
     ///
@@ -190,7 +175,7 @@ impl SgxCondvar {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::{Arc, SgxMutex as Mutex, SgxCondvar as Condvar};
+    /// use std::sync::{Arc, Mutex, Condvar};
     /// use std::thread;
     ///
     /// let pair = Arc::new((Mutex::new(false), Condvar::new()));
@@ -212,7 +197,7 @@ impl SgxCondvar {
     ///     started = cvar.wait(started).unwrap();
     /// }
     /// ```
-    pub fn wait<'a, T>(&self, guard: SgxMutexGuard<'a, T>) -> LockResult<SgxMutexGuard<'a, T>> {
+    pub fn wait<'a, T>(&self, guard: MutexGuard<'a, T>) -> LockResult<MutexGuard<'a, T>> {
         let poisoned = unsafe {
             let lock = mutex::guard_lock(&guard);
             self.inner.wait(lock);
@@ -244,7 +229,7 @@ impl SgxCondvar {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::{Arc, SgxMutex as Mutex, SgxCondvar as Condvar};
+    /// use std::sync::{Arc, Mutex, Condvar};
     /// use std::thread;
     ///
     /// let pair = Arc::new((Mutex::new(true), Condvar::new()));
@@ -265,9 +250,9 @@ impl SgxCondvar {
     /// ```
     pub fn wait_while<'a, T, F>(
         &self,
-        mut guard: SgxMutexGuard<'a, T>,
+        mut guard: MutexGuard<'a, T>,
         mut condition: F,
-    ) -> LockResult<SgxMutexGuard<'a, T>>
+    ) -> LockResult<MutexGuard<'a, T>>
     where
         F: FnMut(&mut T) -> bool,
     {
@@ -302,7 +287,7 @@ impl SgxCondvar {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::{Arc, SgxMutex as Mutex, SgxCondvar as Condvar};
+    /// use std::sync::{Arc, Mutex, Condvar};
     /// use std::thread;
     ///
     /// let pair = Arc::new((Mutex::new(false), Condvar::new()));
@@ -332,9 +317,9 @@ impl SgxCondvar {
     /// ```
     pub fn wait_timeout_ms<'a, T>(
         &self,
-        guard: SgxMutexGuard<'a, T>,
+        guard: MutexGuard<'a, T>,
         ms: u32,
-    ) -> LockResult<(SgxMutexGuard<'a, T>, bool)> {
+    ) -> LockResult<(MutexGuard<'a, T>, bool)> {
         let res = self.wait_timeout(guard, Duration::from_millis(ms as u64));
         poison::map_result(res, |(a, b)| (a, !b.timed_out()))
     }
@@ -371,7 +356,7 @@ impl SgxCondvar {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::{Arc, SgxMutex as Mutex, SgxCondvar as Condvar};
+    /// use std::sync::{Arc, Mutex, Condvar};
     /// use std::thread;
     /// use std::time::Duration;
     ///
@@ -402,13 +387,13 @@ impl SgxCondvar {
     /// ```
     pub fn wait_timeout<'a, T>(
         &self,
-        guard: SgxMutexGuard<'a, T>,
+        guard: MutexGuard<'a, T>,
         dur: Duration,
-    ) -> LockResult<(SgxMutexGuard<'a, T>, WaitTimeoutResult)> {
+    ) -> LockResult<(MutexGuard<'a, T>, WaitTimeoutResult)> {
         let (poisoned, result) = unsafe {
             let lock = mutex::guard_lock(&guard);
-            let result = self.inner.wait_timeout(lock, dur);
-            (mutex::guard_poison(&guard).get(), WaitTimeoutResult(result.err() == Some(libc::ETIMEDOUT)))
+            let success = self.inner.wait_timeout(lock, dur);
+            (mutex::guard_poison(&guard).get(), WaitTimeoutResult(!success))
         };
         if poisoned { Err(PoisonError::new((guard, result))) } else { Ok((guard, result)) }
     }
@@ -438,7 +423,7 @@ impl SgxCondvar {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::{Arc, SgxMutex as Mutex, SgxCondvar as Condvar};
+    /// use std::sync::{Arc, Mutex, Condvar};
     /// use std::thread;
     /// use std::time::Duration;
     ///
@@ -467,10 +452,10 @@ impl SgxCondvar {
     /// ```
     pub fn wait_timeout_while<'a, T, F>(
         &self,
-        mut guard: SgxMutexGuard<'a, T>,
+        mut guard: MutexGuard<'a, T>,
         dur: Duration,
         mut condition: F,
-    ) -> LockResult<(SgxMutexGuard<'a, T>, WaitTimeoutResult)>
+    ) -> LockResult<(MutexGuard<'a, T>, WaitTimeoutResult)>
     where
         F: FnMut(&mut T) -> bool,
     {
@@ -491,36 +476,6 @@ impl SgxCondvar {
     ///
     /// If there is a blocked thread on this condition variable, then it will
     /// be woken up from its call to [`wait`] or [`wait_timeout`]. Calls to
-    /// `signal` are not buffered in any way.
-    ///
-    /// To wake up all threads, see [`broadcast`].
-    pub fn signal(&self) {
-        unsafe { self.inner.signal(); }
-    }
-
-    /// Wakes up all blocked threads on this condvar.
-    ///
-    /// This method will ensure that any current waiters on the condition
-    /// variable are awoken. Calls to `broadcast()` are not buffered in any
-    /// way.
-    ///
-    /// To wake up only one thread, see [`signal`].
-    pub fn broadcast(&self) {
-        unsafe {
-            let ret = self.inner.broadcast();
-            match ret {
-                Err(r) if r == libc::ENOMEM => {
-                    oom::rsgx_oom(AllocError)
-                },
-                _ => {},
-            }
-        }
-    }
-
-    /// Wakes up one blocked thread on this condvar.
-    ///
-    /// If there is a blocked thread on this condition variable, then it will
-    /// be woken up from its call to [`wait`] or [`wait_timeout`]. Calls to
     /// `notify_one` are not buffered in any way.
     ///
     /// To wake up all threads, see [`notify_all`].
@@ -532,7 +487,7 @@ impl SgxCondvar {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::{Arc, SgxMutex as Mutex, SgxCondvar as Condvar};
+    /// use std::sync::{Arc, Mutex, Condvar};
     /// use std::thread;
     ///
     /// let pair = Arc::new((Mutex::new(false), Condvar::new()));
@@ -554,9 +509,8 @@ impl SgxCondvar {
     ///     started = cvar.wait(started).unwrap();
     /// }
     /// ```
-    #[inline]
     pub fn notify_one(&self) {
-        self.signal()
+        self.inner.notify_one()
     }
 
     /// Wakes up all blocked threads on this condvar.
@@ -572,7 +526,7 @@ impl SgxCondvar {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::{Arc, SgxMutex as Mutex, SgxCondvar as Condvar};
+    /// use std::sync::{Arc, Mutex, Condvar};
     /// use std::thread;
     ///
     /// let pair = Arc::new((Mutex::new(false), Condvar::new()));
@@ -594,21 +548,20 @@ impl SgxCondvar {
     ///     started = cvar.wait(started).unwrap();
     /// }
     /// ```
-    #[inline]
     pub fn notify_all(&self) {
-        self.broadcast()
+        self.inner.notify_all()
     }
 }
 
-impl fmt::Debug for SgxCondvar {
+impl fmt::Debug for Condvar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SgxCondvar").finish_non_exhaustive()
+        f.debug_struct("Condvar").finish_non_exhaustive()
     }
 }
 
-impl Default for SgxCondvar {
+impl Default for Condvar {
     /// Creates a `Condvar` which is ready to be waited on and notified.
-    fn default() -> SgxCondvar {
-        SgxCondvar::new()
+    fn default() -> Condvar {
+        Condvar::new()
     }
 }

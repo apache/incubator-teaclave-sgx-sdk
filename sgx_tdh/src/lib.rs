@@ -15,30 +15,25 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//! # Diffie–Hellman (DH) Session Establishment Functions
-//!
-//! These functions allow an ISV to establish secure session between two enclaves using the EC DH Key exchange protocol.
-//!
-
 #![no_std]
-#![cfg_attr(
-    all(target_env = "sgx", target_vendor = "mesalock"),
-    feature(rustc_private)
-)]
-#![allow(non_camel_case_types)]
-#![allow(unused_assignments)]
-#![allow(dead_code)]
-#![allow(clippy::missing_safety_doc)]
+#![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 
 #[macro_use]
 extern crate alloc;
 
-extern crate sgx_tcrypto;
+extern crate sgx_crypto;
 extern crate sgx_trts;
 extern crate sgx_tse;
+#[macro_use]
 extern crate sgx_types;
 
-mod dh;
-pub use self::dh::*;
+#[cfg(feature = "serialize")]
+extern crate sgx_serialize;
 
-mod ecp;
+mod message;
+mod session;
+pub use message::*;
+pub use session::*;
+
+#[cfg(feature = "capi")]
+pub mod capi;

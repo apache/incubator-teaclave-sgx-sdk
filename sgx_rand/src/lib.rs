@@ -16,47 +16,55 @@
 // under the License..
 
 //! Utilities for random number generation
-//!
-//! This crate provides similar functionalities as `librand` in Rust
 
-#![cfg_attr(not(target_env = "sgx"), no_std)]
-#![cfg_attr(all(target_env = "sgx", target_vendor = "mesalock"), feature(rustc_private))]
+#![cfg_attr(all(feature = "trand", not(target_vendor = "teaclave")), no_std)]
+#![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 
-extern crate sgx_types;
-extern crate sgx_trts;
-#[cfg(not(target_env = "sgx"))]
+#[cfg(all(feature = "trand", feature = "urand"))]
+compile_error!("feature \"trand\" and feature \"urand\" cannot be enabled at the same time");
+
+#[cfg(not(any(feature = "trand", feature = "urand")))]
+compile_error!("need to enable feature \"trand\" or feature \"urand\"");
+
+#[cfg(all(feature = "trand", not(target_vendor = "teaclave")))]
 #[macro_use]
 extern crate sgx_tstd as std;
 
+#[cfg(feature = "trand")]
+extern crate sgx_trts;
+
 use std::boxed::Box;
-use std::vec::Vec;
 use std::cell::RefCell;
-use std::marker;
-use std::mem;
 use std::io;
-use std::rc::Rc;
+use std::marker;
 use std::num::Wrapping as w;
+use std::rc::Rc;
+use std::vec::Vec;
 
-pub use os::SgxRng;
+pub use os::RdRand;
 
-pub use isaac::{IsaacRng, Isaac64Rng};
+#[cfg(feature = "derive")]
+pub use sgx_rand_derive::Random;
+
 pub use chacha::ChaChaRng;
+pub use isaac::{Isaac64Rng, IsaacRng};
 
-#[cfg(target_pointer_width = "32")]
-use IsaacRng as IsaacWordRng;
 #[cfg(target_pointer_width = "64")]
 use Isaac64Rng as IsaacWordRng;
+#[cfg(target_pointer_width = "32")]
+use IsaacRng as IsaacWordRng;
 
-use distributions::{Range, IndependentSample};
 use distributions::range::SampleRange;
+use distributions::{IndependentSample, Range};
 
+pub mod chacha;
 pub mod distributions;
 pub mod isaac;
-pub mod chacha;
-pub mod reseeding;
-mod rand_impls;
 pub mod os;
 pub mod read;
+pub mod reseeding;
+
+mod rand_impls;
 
 #[allow(bad_style)]
 type w64 = w<u64>;
@@ -96,7 +104,7 @@ type w32 = w<u32>;
 /// * `Option<T>`: Returns `None` with probability 0.5; otherwise generates a
 ///   random `T` and returns `Some(T)`.
 
-pub trait Rand : Sized {
+pub trait Rand: Sized {
     /// Generates a random instance of this type using the specified source of
     /// randomness.
     fn rand<R: Rng>(rng: &mut R) -> Self;
@@ -150,7 +158,7 @@ pub trait Rng {
         const UPPER_MASK: u32 = 0x3F800000;
         const LOWER_MASK: u32 = 0x7FFFFF;
         let tmp = UPPER_MASK | (self.next_u32() & LOWER_MASK);
-        let result: f32 = unsafe { mem::transmute(tmp) };
+        let result = f32::from_bits(tmp);
         result - 1.0
     }
 
@@ -168,7 +176,7 @@ pub trait Rng {
         const UPPER_MASK: u64 = 0x3FF0000000000000;
         const LOWER_MASK: u64 = 0xFFFFFFFFFFFFF;
         let tmp = UPPER_MASK | (self.next_u64() & LOWER_MASK);
-        let result: f64 = unsafe { mem::transmute(tmp) };
+        let result = f64::from_bits(tmp);
         result - 1.0
     }
 
@@ -236,7 +244,10 @@ pub trait Rng {
     /// println!("{:?}", rng.gen::<(f64, bool)>());
     /// ```
     #[inline(always)]
-    fn gen<T: Rand>(&mut self) -> T where Self: Sized {
+    fn gen<T: Rand>(&mut self) -> T
+    where
+        Self: Sized,
+    {
         Rand::rand(self)
     }
 
@@ -254,8 +265,14 @@ pub trait Rng {
     /// println!("{:?}", rng.gen_iter::<(f64, bool)>().take(5)
     ///                     .collect::<Vec<(f64, bool)>>());
     /// ```
-    fn gen_iter<'a, T: Rand>(&'a mut self) -> Generator<'a, T, Self> where Self: Sized {
-        Generator { rng: self, _marker: marker::PhantomData }
+    fn gen_iter<T: Rand>(&mut self) -> Generator<'_, T, Self>
+    where
+        Self: Sized,
+    {
+        Generator {
+            rng: self,
+            _marker: marker::PhantomData,
+        }
     }
 
     /// Generate a random value in the range [`low`, `high`).
@@ -281,7 +298,10 @@ pub trait Rng {
     /// let m: f64 = rng.gen_range(-40.0f64, 1.3e5f64);
     /// println!("{}", m);
     /// ```
-    fn gen_range<T: PartialOrd + SampleRange>(&mut self, low: T, high: T) -> T where Self: Sized {
+    fn gen_range<T: PartialOrd + SampleRange>(&mut self, low: T, high: T) -> T
+    where
+        Self: Sized,
+    {
         assert!(low < high, "Rng.gen_range called with low >= high");
         Range::new(low, high).ind_sample(self)
     }
@@ -296,7 +316,10 @@ pub trait Rng {
     /// let mut rng = thread_rng();
     /// println!("{}", rng.gen_weighted_bool(3));
     /// ```
-    fn gen_weighted_bool(&mut self, n: u32) -> bool where Self: Sized {
+    fn gen_weighted_bool(&mut self, n: u32) -> bool
+    where
+        Self: Sized,
+    {
         n <= 1 || self.gen_range(0, n) == 0
     }
 
@@ -310,7 +333,10 @@ pub trait Rng {
     /// let s: String = thread_rng().gen_ascii_chars().take(10).collect();
     /// println!("{}", s);
     /// ```
-    fn gen_ascii_chars<'a>(&'a mut self) -> AsciiGenerator<'a, Self> where Self: Sized {
+    fn gen_ascii_chars(&mut self) -> AsciiGenerator<'_, Self>
+    where
+        Self: Sized,
+    {
         AsciiGenerator { rng: self }
     }
 
@@ -328,7 +354,10 @@ pub trait Rng {
     /// println!("{:?}", rng.choose(&choices));
     /// assert_eq!(rng.choose(&choices[..0]), None);
     /// ```
-    fn choose<'a, T>(&mut self, values: &'a [T]) -> Option<&'a T> where Self: Sized {
+    fn choose<'a, T>(&mut self, values: &'a [T]) -> Option<&'a T>
+    where
+        Self: Sized,
+    {
         if values.is_empty() {
             None
         } else {
@@ -339,7 +368,10 @@ pub trait Rng {
     /// Return a mutable pointer to a random element from `values`.
     ///
     /// Return `None` if `values` is empty.
-    fn choose_mut<'a, T>(&mut self, values: &'a mut [T]) -> Option<&'a mut T> where Self: Sized {
+    fn choose_mut<'a, T>(&mut self, values: &'a mut [T]) -> Option<&'a mut T>
+    where
+        Self: Sized,
+    {
         if values.is_empty() {
             None
         } else {
@@ -365,7 +397,10 @@ pub trait Rng {
     /// rng.shuffle(&mut y);
     /// println!("{:?}", y);
     /// ```
-    fn shuffle<T>(&mut self, values: &mut [T]) where Self: Sized {
+    fn shuffle<T>(&mut self, values: &mut [T])
+    where
+        Self: Sized,
+    {
         let mut i = values.len();
         while i >= 2 {
             // invariant: elements with index >= i have been locked in place.
@@ -376,7 +411,10 @@ pub trait Rng {
     }
 }
 
-impl<'a, R: ?Sized> Rng for &'a mut R where R: Rng {
+impl<'a, R: ?Sized> Rng for &'a mut R
+where
+    R: Rng,
+{
     fn next_u32(&mut self) -> u32 {
         (**self).next_u32()
     }
@@ -398,7 +436,10 @@ impl<'a, R: ?Sized> Rng for &'a mut R where R: Rng {
     }
 }
 
-impl<R: ?Sized> Rng for Box<R> where R: Rng {
+impl<R: ?Sized> Rng for Box<R>
+where
+    R: Rng,
+{
     fn next_u32(&mut self) -> u32 {
         (**self).next_u32()
     }
@@ -427,7 +468,7 @@ impl<R: ?Sized> Rng for Box<R> where R: Rng {
 /// [`gen_iter`]: trait.Rng.html#method.gen_iter
 /// [`Rng`]: trait.Rng.html
 #[derive(Debug)]
-pub struct Generator<'a, T, R:'a> {
+pub struct Generator<'a, T, R: 'a> {
     rng: &'a mut R,
     _marker: marker::PhantomData<fn() -> T>,
 }
@@ -447,7 +488,7 @@ impl<'a, T: Rand, R: Rng> Iterator for Generator<'a, T, R> {
 /// [`gen_ascii_chars`]: trait.Rng.html#method.gen_ascii_chars
 /// [`Rng`]: trait.Rng.html
 #[derive(Debug)]
-pub struct AsciiGenerator<'a, R:'a> {
+pub struct AsciiGenerator<'a, R: 'a> {
     rng: &'a mut R,
 }
 
@@ -455,8 +496,7 @@ impl<'a, R: Rng> Iterator for AsciiGenerator<'a, R> {
     type Item = char;
 
     fn next(&mut self) -> Option<char> {
-        const GEN_ASCII_STR_CHARSET: &'static [u8] =
-            b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+        const GEN_ASCII_STR_CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
               abcdefghijklmnopqrstuvwxyz\
               0123456789";
         Some(*self.rng.choose(GEN_ASCII_STR_CHARSET).unwrap() as char)
@@ -500,7 +540,7 @@ pub trait SeedableRng<Seed>: Rng {
 ///
 /// The Xorshift algorithm is not suitable for cryptographic purposes
 /// but is very fast. If you do not know for sure that it fits your
-/// requirements, use a more secure one such as `IsaacRng` or `SgxRng`.
+/// requirements, use a more secure one such as `IsaacRng` or `RdRand`.
 ///
 /// [1]: Marsaglia, George (July 2003). ["Xorshift
 /// RNGs"](http://www.jstatsoft.org/v08/i14/paper). *Journal of
@@ -548,8 +588,10 @@ impl Rng for XorShiftRng {
 impl SeedableRng<[u32; 4]> for XorShiftRng {
     /// Reseed an XorShiftRng. This will panic if `seed` is entirely 0.
     fn reseed(&mut self, seed: [u32; 4]) {
-        assert!(!seed.iter().all(|&x| x == 0),
-                "XorShiftRng.reseed called with an all zero seed.");
+        assert!(
+            !seed.iter().all(|&x| x == 0),
+            "XorShiftRng.reseed called with an all zero seed."
+        );
 
         self.x = w(seed[0]);
         self.y = w(seed[1]);
@@ -559,8 +601,10 @@ impl SeedableRng<[u32; 4]> for XorShiftRng {
 
     /// Create a new XorShiftRng. This will panic if `seed` is entirely 0.
     fn from_seed(seed: [u32; 4]) -> XorShiftRng {
-        assert!(!seed.iter().all(|&x| x == 0),
-                "XorShiftRng::from_seed called with an all zero seed.");
+        assert!(
+            !seed.iter().all(|&x| x == 0),
+            "XorShiftRng::from_seed called with an all zero seed."
+        );
 
         XorShiftRng {
             x: w(seed[0]),
@@ -578,7 +622,12 @@ impl Rand for XorShiftRng {
             tuple = rng.gen();
         }
         let (x, y, z, w_) = tuple;
-        XorShiftRng { x: w(x), y: w(y), z: w(z), w: w(w_) }
+        XorShiftRng {
+            x: w(x),
+            y: w(y),
+            z: w(z),
+            w: w(w_),
+        }
     }
 }
 
@@ -637,7 +686,7 @@ impl StdRng {
     /// Reading the randomness from the OS may fail, and any error is
     /// propagated via the `io::Result` return value.
     pub fn new() -> io::Result<StdRng> {
-        SgxRng::new().map(|mut r| StdRng { rng: r.gen() })
+        RdRand::new().map(|mut r| StdRng { rng: r.gen() })
     }
 }
 
@@ -657,11 +706,14 @@ impl<'a> SeedableRng<&'a [usize]> for StdRng {
     fn reseed(&mut self, seed: &'a [usize]) {
         // the internal RNG can just be seeded from the above
         // randomness.
-        self.rng.reseed(unsafe {mem::transmute(seed)})
+        self.rng
+            .reseed(unsafe { &*(seed as *const [usize] as *const [u64]) })
     }
 
     fn from_seed(seed: &'a [usize]) -> StdRng {
-        StdRng { rng: SeedableRng::from_seed(unsafe {mem::transmute(seed)}) }
+        StdRng {
+            rng: SeedableRng::from_seed(unsafe { &*(seed as *const [usize] as *const [u64]) }),
+        }
     }
 }
 
@@ -675,9 +727,9 @@ impl<'a> SeedableRng<&'a [usize]> for StdRng {
 /// This will read randomness from the operating system to seed the
 /// generator.
 pub fn weak_rng() -> XorShiftRng {
-    match SgxRng::new() {
+    match RdRand::new() {
         Ok(mut r) => r.gen(),
-        Err(e) => panic!("weak_rng: failed to create seeded RNG: {:?}", e)
+        Err(e) => panic!("weak_rng: failed to create seeded RNG: {:?}", e),
     }
 }
 
@@ -689,7 +741,7 @@ impl reseeding::Reseeder<StdRng> for ThreadRngReseeder {
     fn reseed(&mut self, rng: &mut StdRng) {
         *rng = match StdRng::new() {
             Ok(r) => r,
-            Err(e) => panic!("could not reseed thread_rng: {}", e)
+            Err(e) => panic!("could not reseed thread_rng: {}", e),
         }
     }
 }
@@ -726,7 +778,9 @@ pub fn thread_rng() -> ThreadRng {
         Rc::new(RefCell::new(rng))
     });
 
-    ThreadRng { rng: THREAD_RNG_KEY.with(|t| t.clone()) }
+    ThreadRng {
+        rng: THREAD_RNG_KEY.with(|t| t.clone()),
+    }
 }
 
 impl Rng for ThreadRng {
@@ -804,8 +858,9 @@ pub fn random<T: Rand>() -> T {
 /// println!("{:?}", sample);
 /// ```
 pub fn sample<T, I, R>(rng: &mut R, iterable: I, amount: usize) -> Vec<T>
-    where I: IntoIterator<Item=T>,
-          R: Rng,
+where
+    I: IntoIterator<Item = T>,
+    R: Rng,
 {
     let mut iter = iterable.into_iter();
     let mut reservoir: Vec<T> = iter.by_ref().take(amount).collect();

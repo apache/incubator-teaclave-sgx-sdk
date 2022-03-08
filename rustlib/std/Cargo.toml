@@ -1,0 +1,66 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[package]
+name = "std"
+version = "0.0.0"
+authors = ["The Teaclave Authors"]
+repository = "https://github.com/apache/teaclave-sgx-sdk"
+license-file = "LICENSE"
+documentation = "https://teaclave.apache.org/sgx-sdk-docs/"
+description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
+edition = "2021"
+
+[lib]
+name = "std"
+path = "../../sgx_tstd/src/lib.rs"
+crate-type = ["rlib"]
+
+[features]
+default = ["stdio", "panic_unwind"]
+backtrace = ["stdio", "sgx_backtrace_sys", "sgx_demangle"]
+stdio = []
+net = []
+pipe = []
+thread = ["sgx_trts/thread"]
+untrusted_fs = []
+untrusted_time = []
+unsupported_process = []
+panic-unwind = ["panic_unwind"]
+profiler = ["profiler_builtins"]
+
+[dependencies]
+sgx_alloc = { path = "../../sgx_alloc" }
+sgx_backtrace_sys = { path = "../../sgx_backtrace/sgx_backtrace_sys", optional = true }
+sgx_demangle = { path = "../../sgx_demangle", optional = true }
+sgx_ffi = { path = "../../sgx_ffi" }
+sgx_oc = { path = "../../sgx_oc" }
+sgx_sync = { path = "../../sgx_sync" }
+sgx_trts = { path = "../../sgx_trts" }
+sgx_types = { path = "../../sgx_types" }
+sgx_unwind = { path = "../../sgx_unwind" }
+sgx_rsrvmm = { path = "../../sgx_rsrvmm" }
+
+panic_abort = { path = "../panic_abort" }
+panic_unwind = { path = "../panic_unwind", optional = true }
+profiler_builtins = { path = "../profiler_builtins", optional = true }
+
+[dependencies.hashbrown]
+package = "hashbrown_tstd"
+path = "../../sgx_tstd/hashbrown"
+default-features = false
+features = ['rustc-dep-of-std']

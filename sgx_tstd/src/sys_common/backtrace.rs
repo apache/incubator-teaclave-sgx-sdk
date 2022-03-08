@@ -24,31 +24,28 @@ use crate::fmt;
 use crate::io;
 use crate::io::prelude::*;
 use crate::path::{Path, PathBuf};
-use crate::sync::atomic::{self, Ordering};
-use crate::sync::SgxThreadMutex as ThreadMutex;
+use crate::sys_common::mutex::StaticMutex;
 use crate::sys::backtrace::{self, BacktraceFmt, BytesOrWideString, PrintFmt};
 
 /// Max number of frames to print.
 const MAX_NB_FRAMES: usize = 100;
 
+// SAFETY: Don't attempt to lock this reentrantly.
 pub unsafe fn lock() -> impl Drop {
-    struct Guard;
-    static LOCK: ThreadMutex = ThreadMutex::new();
-
-    impl Drop for Guard {
-        fn drop(&mut self) {
-            unsafe {
-                LOCK.unlock();
-            }
-        }
-    }
-
-    LOCK.lock();
-    Guard
+    static LOCK: StaticMutex = StaticMutex::new();
+    LOCK.lock()
 }
 
 /// Prints the current backtrace.
 pub fn print(w: &mut dyn Write, format: PrintFmt) -> io::Result<()> {
+    // There are issues currently linking libbacktrace into tests, and in
+    // general during libstd's own unit tests we're not testing this path. In
+    // test mode immediately return here to optimize away any references to the
+    // libbacktrace symbols
+    if cfg!(feature = "unit_test") {
+        return Ok(());
+    }
+
     // Use a lock to prevent mixed output in multithreading context.
     // Some platforms also requires it, like `SymFromAddr` on Windows.
     unsafe {
@@ -163,58 +160,14 @@ where
     result
 }
 
-pub enum RustBacktrace {
-    Print(PrintFmt),
-    Disabled,
-    RuntimeDisabled,
-}
-
-/// Controls how the backtrace should be formatted.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum PrintFormat {
-    /// Show only relevant data from the backtrace.
-    Short = 2,
-    /// Show all the frames with absolute path for files.
-    Full = 3,
-}
-
-static ENABLED: atomic::AtomicIsize = atomic::AtomicIsize::new(1);
-
-// For now logging is turned off by default, and this function checks to see
-// whether the magical environment variable is present to see if it's turned on.
-pub fn rust_backtrace_env() -> RustBacktrace {
-    // If the `backtrace` feature of this crate isn't enabled quickly return
-    // `None` so this can be constant propagated all over the place to turn
-    // optimize away callers.
-    if !cfg!(feature = "backtrace") {
-        return RustBacktrace::Disabled;
-    }
-
-    match ENABLED.load(Ordering::SeqCst) {
-        0 => RustBacktrace::Disabled,
-        1 => RustBacktrace::RuntimeDisabled,
-        2 => RustBacktrace::Print(PrintFmt::Short),
-        3 => RustBacktrace::Print(PrintFmt::Full),
-        _ => unreachable!(),
-    }
-}
-
-pub fn set_enabled(print_fmt: PrintFormat) {
-    ENABLED.store(match print_fmt {
-        PrintFormat::Short => 2,
-        PrintFormat::Full => 3,
-    }, Ordering::SeqCst);
-}
-
 /// Prints the filename of the backtrace frame.
 ///
 /// See also `output`.
-#[allow(unused_variables)]
 pub fn output_filename(
     fmt: &mut fmt::Formatter<'_>,
     bows: BytesOrWideString<'_>,
-    print_fmt: PrintFmt,
-    cwd: Option<&PathBuf>,
+    _print_fmt: PrintFmt,
+    _cwd: Option<&PathBuf>,
 ) -> fmt::Result {
     let file: Cow<'_, Path> = match bows {
         BytesOrWideString::Bytes(bytes) => {

@@ -65,7 +65,7 @@ pub struct Guard {
 
 /// A type of error which can be returned whenever a lock is acquired.
 ///
-/// Both [`SgxMutex`]es and [`SgxRwLock`]s are poisoned whenever a thread fails while the lock
+/// Both [`Mutex`]es and [`RwLock`]s are poisoned whenever a thread fails while the lock
 /// is held. The precise semantics for when a lock is poisoned is documented on
 /// each lock, but once a lock is poisoned then all future acquisitions will
 /// return this error.
@@ -73,7 +73,7 @@ pub struct Guard {
 /// # Examples
 ///
 /// ```
-/// use std::sync::{Arc, SgxMutex as Mutex};
+/// use std::sync::{Arc, Mutex};
 /// use std::thread;
 ///
 /// let mutex = Arc::new(Mutex::new(1));
@@ -94,21 +94,21 @@ pub struct Guard {
 ///     }
 /// };
 /// ```
-/// [`SgxMutex`]: crate::sync::SgxMutex
-/// [`SgxRwLock`]: crate::sync::SgxRwLock
+/// [`Mutex`]: crate::sync::Mutex
+/// [`RwLock`]: crate::sync::RwLock
 pub struct PoisonError<T> {
     guard: T,
 }
 
 /// An enumeration of possible errors associated with a [`TryLockResult`] which
 /// can occur while trying to acquire a lock, from the [`try_lock`] method on a
-/// [`SgxMutex`] or the [`try_read`] and [`try_write`] methods on an [`SgxRwLock`].
+/// [`Mutex`] or the [`try_read`] and [`try_write`] methods on an [`RwLock`].
 ///
-/// [`try_lock`]: crate::sync::SgxMutex::try_lock
-/// [`try_read`]: crate::sync::SgxRwLock::try_read
-/// [`try_write`]: crate::sync::SgxRwLock::try_write
-/// [`SgxMutex`]: crate::sync::SgxMutex
-/// [`SgxRwLock`]: crate::sync::SgxRwLock
+/// [`try_lock`]: crate::sync::Mutex::try_lock
+/// [`try_read`]: crate::sync::RwLock::try_read
+/// [`try_write`]: crate::sync::RwLock::try_write
+/// [`Mutex`]: crate::sync::Mutex
+/// [`RwLock`]: crate::sync::RwLock
 pub enum TryLockError<T> {
     /// The lock could not be acquired because another thread failed while holding
     /// the lock.
@@ -171,7 +171,7 @@ impl<T> PoisonError<T> {
     ///
     /// ```
     /// use std::collections::HashSet;
-    /// use std::sync::{Arc, SgxMutex as Mutex};
+    /// use std::sync::{Arc, Mutex};
     /// use std::thread;
     ///
     /// let mutex = Arc::new(Mutex::new(HashSet::new()));

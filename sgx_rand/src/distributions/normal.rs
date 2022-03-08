@@ -15,10 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use crate::distributions::{ziggurat, ziggurat_tables, IndependentSample, Sample};
 /// The normal and derived distributions.
-
-use crate::{Rng, Rand, Open01};
-use crate::distributions::{ziggurat, ziggurat_tables, Sample, IndependentSample};
+use crate::{Open01, Rand, Rng};
 
 /// A wrapper around an `f64` to generate N(0, 1) random numbers
 /// (a.k.a.  a standard normal, or Gaussian).
@@ -44,13 +43,13 @@ use crate::distributions::{ziggurat, ziggurat_tables, Sample, IndependentSample}
 pub struct StandardNormal(pub f64);
 
 impl Rand for StandardNormal {
-    fn rand<R:Rng>(rng: &mut R) -> StandardNormal {
+    fn rand<R: Rng>(rng: &mut R) -> StandardNormal {
         #[inline]
         fn pdf(x: f64) -> f64 {
-            (-x*x/2.0).exp()
+            (-x * x / 2.0).exp()
         }
         #[inline]
-        fn zero_case<R:Rng>(rng: &mut R, u: f64) -> f64 {
+        fn zero_case<R: Rng>(rng: &mut R, u: f64) -> f64 {
             // compute a random number in the tail by hand
 
             // strange initial conditions, because the loop is not
@@ -68,7 +67,11 @@ impl Rand for StandardNormal {
                 y = y_.ln();
             }
 
-            if u < 0.0 { x - ziggurat_tables::ZIG_NORM_R } else { ziggurat_tables::ZIG_NORM_R - x }
+            if u < 0.0 {
+                x - ziggurat_tables::ZIG_NORM_R
+            } else {
+                ziggurat_tables::ZIG_NORM_R - x
+            }
         }
 
         StandardNormal(ziggurat(
@@ -76,7 +79,9 @@ impl Rand for StandardNormal {
             true, // this is symmetric
             &ziggurat_tables::ZIG_NORM_X,
             &ziggurat_tables::ZIG_NORM_F,
-            pdf, zero_case))
+            pdf,
+            zero_case,
+        ))
     }
 }
 
@@ -111,14 +116,13 @@ impl Normal {
     #[inline]
     pub fn new(mean: f64, std_dev: f64) -> Normal {
         assert!(std_dev >= 0.0, "Normal::new called with `std_dev` < 0");
-        Normal {
-            mean: mean,
-            std_dev: std_dev
-        }
+        Normal { mean, std_dev }
     }
 }
 impl Sample<f64> for Normal {
-    fn sample<R: Rng>(&mut self, rng: &mut R) -> f64 { self.ind_sample(rng) }
+    fn sample<R: Rng>(&mut self, rng: &mut R) -> f64 {
+        self.ind_sample(rng)
+    }
 }
 impl IndependentSample<f64> for Normal {
     fn ind_sample<R: Rng>(&self, rng: &mut R) -> f64 {
@@ -126,7 +130,6 @@ impl IndependentSample<f64> for Normal {
         self.mean + self.std_dev * n
     }
 }
-
 
 /// The log-normal distribution `ln N(mean, std_dev**2)`.
 ///
@@ -145,7 +148,7 @@ impl IndependentSample<f64> for Normal {
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct LogNormal {
-    norm: Normal
+    norm: Normal,
 }
 
 impl LogNormal {
@@ -158,11 +161,15 @@ impl LogNormal {
     #[inline]
     pub fn new(mean: f64, std_dev: f64) -> LogNormal {
         assert!(std_dev >= 0.0, "LogNormal::new called with `std_dev` < 0");
-        LogNormal { norm: Normal::new(mean, std_dev) }
+        LogNormal {
+            norm: Normal::new(mean, std_dev),
+        }
     }
 }
 impl Sample<f64> for LogNormal {
-    fn sample<R: Rng>(&mut self, rng: &mut R) -> f64 { self.ind_sample(rng) }
+    fn sample<R: Rng>(&mut self, rng: &mut R) -> f64 {
+        self.ind_sample(rng)
+    }
 }
 impl IndependentSample<f64> for LogNormal {
     fn ind_sample<R: Rng>(&self, rng: &mut R) -> f64 {

@@ -16,24 +16,24 @@
 // under the License..
 
 use crate::cell::RefCell;
-use crate::thread::SgxThread;
+use crate::thread::Thread;
 
-struct SgxThreadInfo {
-    thread: SgxThread,
+struct ThreadInfo {
+    thread: Thread,
 }
 
-thread_local! { static THREAD_INFO: RefCell<Option<SgxThreadInfo>> = const { RefCell::new(None) } }
+thread_local! { static THREAD_INFO: RefCell<Option<ThreadInfo>> = const { RefCell::new(None) } }
 
-impl SgxThreadInfo {
+impl ThreadInfo {
     fn with<R, F>(f: F) -> Option<R>
     where
-        F: FnOnce(&mut SgxThreadInfo) -> R,
+        F: FnOnce(&mut ThreadInfo) -> R,
     {
         THREAD_INFO
             .try_with(move |thread_info| {
                 let mut thread_info = thread_info.borrow_mut();
-                let thread_info = thread_info.get_or_insert_with(|| SgxThreadInfo {
-                    thread: SgxThread::new(None),
+                let thread_info = thread_info.get_or_insert_with(|| ThreadInfo {
+                    thread: Thread::new(None),
                 });
                 f(thread_info)
             })
@@ -41,14 +41,14 @@ impl SgxThreadInfo {
     }
 }
 
-pub fn current_thread() -> Option<SgxThread> {
-    SgxThreadInfo::with(|info| info.thread.clone())
+pub fn current_thread() -> Option<Thread> {
+    ThreadInfo::with(|info| info.thread.clone())
 }
 
-pub fn set(thread: SgxThread) {
+pub fn set(thread: Thread) {
     THREAD_INFO.with(move |thread_info| {
         let mut thread_info = thread_info.borrow_mut();
-        // rtassert!(thread_info.is_none());
-        *thread_info = Some(SgxThreadInfo { thread });
+        //rtassert!(thread_info.is_none());
+        *thread_info = Some(ThreadInfo { thread });
     });
 }

@@ -23,10 +23,17 @@ use core::alloc::Layout;
 use core::fmt;
 use core::ptr::NonNull;
 
-#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct AlignReq {
     pub offset: usize,
     pub len: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AlignLayout {
+    pub layout: Layout,
+    pub pad: usize,
 }
 
 pub struct AlignAlloc;
@@ -89,12 +96,12 @@ impl AlignAlloc {
         &self,
         layout: Layout,
         align_req: &[AlignReq],
-    ) -> Result<Layout, AlignLayoutErr> {
+    ) -> Result<AlignLayout, AlignLayoutErr> {
         platform::pad_align_to(layout, align_req)
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AlighAllocErr;
 
 impl fmt::Display for AlighAllocErr {
@@ -103,7 +110,7 @@ impl fmt::Display for AlighAllocErr {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AlignLayoutErr;
 
 impl fmt::Display for AlignLayoutErr {
@@ -113,6 +120,7 @@ impl fmt::Display for AlignLayoutErr {
 }
 
 mod platform {
+    use super::AlignLayout;
     use super::AlignLayoutErr;
     use super::AlignReq;
     use core::alloc::Layout;
@@ -127,8 +135,7 @@ mod platform {
             offset: 0,
             len: layout.size(),
         }];
-        let align_req = &req[..];
-        alloc_with_req(layout, align_req)
+        alloc_with_req(layout, &req)
     }
 
     pub unsafe fn alloc_with_req(layout: Layout, align_req: &[AlignReq]) -> *mut u8 {
@@ -140,11 +147,11 @@ mod platform {
                 offset: 0,
                 len: layout.size(),
             }];
-            pad_align_to(layout, &req[..])
+            pad_align_to(layout, &req)
         } else {
             pad_align_to(layout, align_req)
         } {
-            Ok(l) => l,
+            Ok(l) => l.layout,
             Err(_) => return ptr::null_mut(),
         };
         alloc_with_pad_align(layout, align_layout)
@@ -161,8 +168,7 @@ mod platform {
             offset: 0,
             len: layout.size(),
         }];
-        let align_req = &req[..];
-        alloc_with_req_zeroed(layout, align_req)
+        alloc_with_req_zeroed(layout, &req)
     }
 
     pub unsafe fn alloc_with_req_zeroed(layout: Layout, align_req: &[AlignReq]) -> *mut u8 {
@@ -174,11 +180,11 @@ mod platform {
                 offset: 0,
                 len: layout.size(),
             }];
-            pad_align_to(layout, &req[..])
+            pad_align_to(layout, &req)
         } else {
             pad_align_to(layout, align_req)
         } {
-            Ok(l) => l,
+            Ok(l) => l.layout,
             Err(_) => return ptr::null_mut(),
         };
         alloc_with_pad_align_zeroed(layout, align_layout)
@@ -226,10 +232,15 @@ mod platform {
         libc::free(raw as *mut c_void)
     }
 
-    pub fn pad_align_to(layout: Layout, align_req: &[AlignReq]) -> Result<Layout, AlignLayoutErr> {
+    pub fn pad_align_to(
+        layout: Layout,
+        align_req: &[AlignReq],
+    ) -> Result<AlignLayout, AlignLayoutErr> {
         let pad = padding_needed_for(layout, align_req)?;
-        let align = align_needed_for(layout, pad)?;
-        Layout::from_size_align(pad + align + layout.size(), align).map_err(|_| AlignLayoutErr)
+        let align = align_needed_for(layout, pad);
+        let layout = Layout::from_size_align(pad + align + layout.size(), align)
+            .map_err(|_| AlignLayoutErr)?;
+        Ok(AlignLayout { layout, pad })
     }
 
     fn padding_needed_for(layout: Layout, align_req: &[AlignReq]) -> Result<usize, AlignLayoutErr> {
@@ -248,8 +259,9 @@ mod platform {
         }
     }
 
-    fn align_needed_for(layout: Layout, offset: usize) -> Result<usize, AlignLayoutErr> {
-        Ok(calc_algn(layout.align(), layout.size() + offset))
+    #[inline]
+    fn align_needed_for(layout: Layout, offset: usize) -> usize {
+        calc_algn(layout.align(), layout.size() + offset)
     }
 
     #[inline]
@@ -262,6 +274,7 @@ mod platform {
         buf.checked_add(len).is_none()
     }
 
+    #[inline]
     fn check_layout(layout: &Layout) -> bool {
         !(layout.size() == 0
             || !layout.align().is_power_of_two()
@@ -373,7 +386,7 @@ mod platform {
             if req.len > 63 {
                 return -1;
             } else {
-                bmp |= rol(((1 as i64) << req.len) - 1, req.offset);
+                bmp |= rol(((1_i64) << req.len) - 1, req.offset);
             }
         }
         bmp

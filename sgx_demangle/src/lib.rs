@@ -41,10 +41,7 @@
 //! ```
 
 #![no_std]
-#![cfg_attr(
-    all(target_env = "sgx", target_vendor = "mesalock"),
-    feature(rustc_private)
-)]
+#![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 #![allow(clippy::many_single_char_names)]
 
 mod legacy;

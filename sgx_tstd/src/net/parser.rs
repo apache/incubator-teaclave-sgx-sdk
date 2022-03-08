@@ -20,6 +20,9 @@
 //! This module is "publicly exported" through the `FromStr` implementations
 //! below.
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use crate::convert::TryInto as _;
 use crate::error::Error;
 use crate::fmt;

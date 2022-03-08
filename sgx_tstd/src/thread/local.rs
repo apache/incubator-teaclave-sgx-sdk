@@ -17,6 +17,12 @@
 
 //! Thread local storage
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
+#[cfg(feature = "unit_test")]
+mod dynamic_tests;
+
 use crate::error::Error;
 use crate::fmt;
 
@@ -116,6 +122,7 @@ impl<T: 'static> fmt::Debug for LocalKey<T> {
 ///
 /// [`std::thread::LocalKey`]: crate::thread::LocalKey
 #[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "thread_local_macro")]
 #[allow_internal_unstable(thread_local_internals)]
 macro_rules! thread_local {
     // empty (base case for the recursion)
@@ -151,11 +158,11 @@ macro_rules! __thread_local_inner {
         #[cfg(not(feature = "thread"))]
         #[inline] // see comments below
         unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
-            const _REQUIRE_UNSTABLE: () = $crate::thread::require_unstable_const_init_thread_local();
+            const INIT_EXPR: $t = $init;
 
-            if !$crate::mem::needs_drop::<$t>() || $crate::thread::thread_policy() == $crate::thread::SgxThreadPolicy::Bound {
+            if !$crate::mem::needs_drop::<$t>() || $crate::thread::tcs_policy() == $crate::thread::TcsPolicy::Bind {
                 #[thread_local]
-                static mut VAL: $t = $init;
+                static mut VAL: $t = INIT_EXPR;
                 Ok(&VAL)
             } else {
                 Err($crate::thread::AccessError::new(
@@ -166,24 +173,23 @@ macro_rules! __thread_local_inner {
 
         #[cfg(feature = "thread")]
         unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
-            const _REQUIRE_UNSTABLE: () = $crate::thread::require_unstable_const_init_thread_local();
+            const INIT_EXPR: $t = $init;
+
+            #[thread_local]
+            static mut VAL: $t = INIT_EXPR;
 
             // If a dtor isn't needed we can do something "very raw" and
             // just get going.
             if !$crate::mem::needs_drop::<$t>() {
-                #[thread_local]
-                static mut VAL: $t = $init;
                 return Ok(&VAL)
             }
 
-            if $crate::thread::thread_policy() == $crate::thread::SgxThreadPolicy::Unbound  {
+            if $crate::thread::tcs_policy() == $crate::thread::TcsPolicy::Unbind  {
                 return Err($crate::thread::AccessError::new(
                     "If TLS data needs to be destructed, TCS policy must be bound."
                 ));
             }
 
-            #[thread_local]
-            static mut VAL: $t = $init;
             // 0 == dtor not registered
             // 1 == dtor registered, dtor not run
             // 2 == dtor registered and is running or has run
@@ -242,7 +248,11 @@ macro_rules! __thread_local_inner {
                 static __KEY: $crate::thread::__FastLocalKeyInner<$t> =
                     $crate::thread::__FastLocalKeyInner::new();
 
-                __KEY.get(__init)
+                // FIXME: remove the #[allow(...)] marker when macros don't
+                // raise warning for missing/extraneous unsafe blocks anymore.
+                // See https://github.com/rust-lang/rust/issues/74838.
+                #[allow(unused_unsafe)]
+                unsafe { __KEY.get(__init) }
             }
 
             unsafe {
@@ -400,7 +410,8 @@ pub mod statik {
     use super::AccessError;
     use crate::fmt;
     use crate::mem;
-    use crate::thread::{self, SgxThreadPolicy};
+
+    use sgx_trts::tcs::{self, TcsPolicy};
 
     pub struct Key<T> {
         inner: LazyKeyInner<T>,
@@ -420,8 +431,8 @@ pub mod statik {
         }
 
         pub unsafe fn get(&self, init: fn() -> T) -> Result<&'static T, AccessError> {
-            if !mem::needs_drop::<T>() || thread::thread_policy() == SgxThreadPolicy::Bound {
-	        // SAFETY: The caller must ensure no reference is ever handed out to
+            if !mem::needs_drop::<T>() || tcs::tcs_policy() == TcsPolicy::Bind {
+	            // SAFETY: The caller must ensure no reference is ever handed out to
                 // the inner cell nor mutable reference to the Option<T> inside said
                 // cell. This make it safe to hand a reference, though the lifetime
                 // of 'static is itself unsafe, making the get method unsafe.
@@ -439,27 +450,6 @@ pub mod statik {
     }
 }
 
-cfg_if! {
-if #[cfg(feature = "thread")] {
-    use sgx_libc::{c_void, c_long};
-    use sgx_types::sgx_status_t;
-
-    #[repr(C)]
-    struct pthread_info {
-        m_pthread: *mut c_void,       // struct _pthread
-        m_local_storage: *mut c_void, // struct sgx_pthread_storage
-        m_mark: [c_long; 8],          // jmpbuf
-        m_state: sgx_status_t,
-    }
-
-    #[link(name = "sgx_pthread")]
-    extern "C" {
-        #[thread_local]
-        static pthread_info_tls: pthread_info;
-    }
-}
-} // cfg_if!
-
 #[cfg(feature = "thread")]
 pub mod fast {
     use super::lazy::LazyKeyInner;
@@ -468,7 +458,8 @@ pub mod fast {
     use crate::fmt;
     use crate::mem;
     use crate::sys::thread_local_dtor::register_dtor;
-    use crate::thread::{self, SgxThreadPolicy};
+
+    use sgx_trts::tcs::{self, TcsPolicy, TdFlags};
 
     #[derive(Copy, Clone)]
     enum DtorState {
@@ -509,7 +500,7 @@ pub mod fast {
             Key { inner: LazyKeyInner::new(), dtor_state: Cell::new(DtorState::Unregistered) }
         }
 
-        // note that this is just a publically-callable function only for the
+        // note that this is just a publicly-callable function only for the
         // const-initialized form of thread locals, basically a way to call the
         // free `register_dtor` function defined elsewhere in libstd.
         pub unsafe fn register_dtor(a: *mut u8, dtor: unsafe extern "C" fn(*mut u8)) {
@@ -518,7 +509,7 @@ pub mod fast {
 
         pub unsafe fn get<F: FnOnce() -> T>(&self, init: F) -> Result<&'static T, AccessError> {
             // SAFETY: See the definitions of `LazyKeyInner::get` and
-            // `try_initialize` for more informations.
+            // `try_initialize` for more information.
             //
             // The caller must ensure no mutable references are ever active to
             // the inner cell or the inner T when this is called.
@@ -539,21 +530,20 @@ pub mod fast {
         // LLVM issue: https://bugs.llvm.org/show_bug.cgi?id=41722
         #[inline(never)]
         unsafe fn try_initialize<F: FnOnce() -> T>(&self, init: F) -> Result<&'static T, AccessError> {
-            if mem::needs_drop::<T>() && thread::thread_policy() == SgxThreadPolicy::Unbound {
+            if mem::needs_drop::<T>() && tcs::tcs_policy() == TcsPolicy::Unbind {
                 return Err(AccessError::new(
                     "If TLS data needs to be destructed, TCS policy must be bound."
                 ));
             }
 
-            if !super::pthread_info_tls.m_pthread.is_null() {
+            if tcs::current().td_flags().contains(TdFlags::PTHREAD_CREATE) {
                 // Note:
-                // If the current thread was created by pthread_create, we should call
-                // the try_register_dtor function. You can know whether the current thread has
-                // been created by pthread_create() through the m_thread member of pthread_info
-                // (thread local storage) of pthread library in intel sgx sdk.
+                // If the current thread was created by `pthread_create`, we should call
+                // the try_register_dtor function. Through the `TdFlags` flag, you can know whether 
+                // the current thread is created by `pthread_create`.
                 //
-                // Destructor will only be called when a thread created by pthread_create exits,
-                // because sys_common::thread_local::StaticKey does not call pthread_key_delete
+                // Destructor will only be called when a thread created by `pthread_create` exits,
+                // because `sys_common::thread_local::StaticKey` does not call `pthread_key_delete`
                 // to trigger the destructor.
                 if !mem::needs_drop::<T>() || self.try_register_dtor() {
                     // SAFETY: See comment above (his function doc).

@@ -28,6 +28,9 @@
 
 #![allow(missing_docs)]
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use crate::intrinsics;
 use crate::sys::cmath;
 

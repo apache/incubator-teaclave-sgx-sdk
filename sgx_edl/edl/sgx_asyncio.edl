@@ -16,13 +16,8 @@
 // under the License.
 
 enclave {
-
     include "sys/epoll.h"
     include "poll.h"
-
-    trusted {
-        /* define ECALLs here. */
-    };
 
     untrusted {
         int u_poll_ocall([out] int *error, [in, out, count=nfds] struct pollfd *fds, nfds_t nfds, int timeout);

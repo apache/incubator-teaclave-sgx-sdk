@@ -15,26 +15,21 @@
 // specific language governing permissions and limitations
 // under the License..
 
-#![feature(linkage)]
-#![allow(clippy::not_unsafe_ptr_arg_deref)]
+#![feature(allocator_api)]
+#![feature(nonnull_slice_from_raw_parts)]
+#![allow(clippy::missing_safety_doc)]
+
+#[cfg(all(feature = "sim", feature = "hyper"))]
+compile_error!("feature \"sim\" and feature \"hyper\" cannot be enabled at the same time");
 
 extern crate libc;
+#[macro_use]
 extern crate sgx_types;
+extern crate sgx_uprotected_fs;
 
-pub mod asyncio;
-pub mod env;
-pub mod event;
-pub mod fd;
-pub mod file;
-pub mod mem;
-pub mod net;
-pub mod pipe;
-pub mod process;
-pub mod signal;
-pub mod socket;
-pub mod sys;
-pub mod thread;
-pub mod time;
-
-mod enclave;
-pub use enclave::*;
+#[cfg(feature = "capi")]
+pub mod capi;
+pub mod enclave;
+#[cfg(feature = "hyper")]
+pub mod msbuf;
+pub mod ocall;

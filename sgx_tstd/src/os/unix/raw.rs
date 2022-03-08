@@ -17,6 +17,8 @@
 
 //! Unix-specific primitives available on all unix platforms.
 
+#![allow(deprecated)]
+
 #[allow(non_camel_case_types)]
 pub type uid_t = u32;
 #[allow(non_camel_case_types)]
@@ -25,8 +27,8 @@ pub type gid_t = u32;
 pub type pid_t = i32;
 
 #[doc(inline)]
-pub use crate::os::raw::pthread_t;
+pub use super::platform::raw::pthread_t;
 #[doc(inline)]
-pub use crate::os::raw::{blkcnt_t, time_t};
+pub use super::platform::raw::{blkcnt_t, time_t};
 #[doc(inline)]
-pub use crate::os::raw::{blksize_t, dev_t, ino_t, mode_t, nlink_t, off_t};
+pub use super::platform::raw::{blksize_t, dev_t, ino_t, mode_t, nlink_t, off_t};

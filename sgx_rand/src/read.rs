@@ -17,9 +17,9 @@
 
 //! A wrapper around any Read to treat it as an RNG.
 
+use crate::Rng;
 use std::io::{self, Read};
 use std::mem;
-use crate::Rng;
 
 /// An RNG that reads random bytes straight from a `Read`. This will
 /// work best with an infinite reader, but this is not required.
@@ -39,15 +39,13 @@ use crate::Rng;
 /// ```
 #[derive(Debug)]
 pub struct ReadRng<R> {
-    reader: R
+    reader: R,
 }
 
 impl<R: Read> ReadRng<R> {
     /// Create a new `ReadRng` from a `Read`.
     pub fn new(r: R) -> ReadRng<R> {
-        ReadRng {
-            reader: r
-        }
+        ReadRng { reader: r }
     }
 }
 
@@ -67,18 +65,18 @@ impl<R: Read> Rng for ReadRng<R> {
         unsafe { *(buf.as_ptr() as *const u64) }
     }
     fn fill_bytes(&mut self, v: &mut [u8]) {
-        if v.len() == 0 { return }
+        if v.is_empty() {
+            return;
+        }
         fill(&mut self.reader, v).unwrap();
     }
 }
 
+#[allow(clippy::mem_replace_with_default)]
 fn fill(r: &mut dyn Read, mut buf: &mut [u8]) -> io::Result<()> {
-    while buf.len() > 0 {
+    while !buf.is_empty() {
         match (r.read(buf))? {
-            0 => return Err(io::Error::new(
-                io::ErrorKind::Other,
-                "end of file reached",
-            )),
+            0 => return Err(io::Error::new(io::ErrorKind::Other, "end of file reached")),
             n => buf = &mut mem::replace(&mut buf, &mut [])[n..],
         }
     }

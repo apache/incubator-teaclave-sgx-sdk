@@ -16,17 +16,23 @@
 // under the License..
 
 #![no_std]
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
-#![allow(non_camel_case_types)]
-#![allow(non_upper_case_globals)]
-#![allow(overflowing_literals)]
-#![allow(non_snake_case)]
+#![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
+#![feature(const_extern_fn)]
+#![allow(clippy::missing_safety_doc)]
 #![allow(unused_macros)]
-#![allow(unused_assignments)]
+#![allow(non_camel_case_types)]
 
-#[macro_use]
 extern crate alloc;
 
+#[cfg(target_os = "linux")]
+extern crate sgx_ffi;
+extern crate sgx_oc;
+#[cfg(target_os = "linux")]
+extern crate sgx_sync;
+#[cfg(target_os = "linux")]
+extern crate sgx_tlibc_sys;
+#[cfg(target_os = "linux")]
+extern crate sgx_trts;
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 extern crate sgx_types;
 

@@ -101,11 +101,15 @@
 //   processor. Because both use Acquire ordering such a reordering is not
 //   allowed, so no need for SeqCst.
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use crate::cell::Cell;
 use crate::fmt;
 use crate::marker;
+use crate::panic::{RefUnwindSafe, UnwindSafe};
 use crate::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use crate::thread::{self, SgxThread as Thread};
+use crate::thread::{self, Thread};
 
 /// A synchronization primitive which can be used to run a one-time global
 /// initialization. Useful for one-time initialization for FFI or related
@@ -133,6 +137,10 @@ pub struct Once {
 // enforce both below in the implementation so this should be safe to add.
 unsafe impl Sync for Once {}
 unsafe impl Send for Once {}
+
+impl UnwindSafe for Once {}
+
+impl RefUnwindSafe for Once {}
 
 /// State yielded to [`Once::call_once_force()`]’s closure parameter. The state
 /// can be used to query the poison status of the [`Once`].

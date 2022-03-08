@@ -16,9 +16,9 @@
 // under the License..
 
 cfg_if! {
-    if #[cfg(all(target_os = "android", target_arch = "aarch64"))] {
+    if #[cfg(target_arch = "aarch64")] {
         mod aarch64;
-        pub use self::aarch64::*;
+        pub use aarch64::*;
     } else {
 
     }

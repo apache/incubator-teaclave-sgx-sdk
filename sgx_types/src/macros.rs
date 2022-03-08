@@ -15,67 +15,72 @@
 // specific language governing permissions and limitations
 // under the License..
 
-pub use crate::marker::ContiguousMemory;
-pub use core::clone::Clone;
-pub use core::default::Default;
-pub use core::marker::Copy;
-pub use core::mem::size_of;
-pub use core::mem::transmute;
-pub use core::ptr;
-
 #[macro_export]
 macro_rules! cfg_if {
     // match if/else chains with a final `else`
-    ($(
-        if #[cfg($($meta:meta),*)] { $($it:item)* }
-    ) else * else {
-        $($it2:item)*
-    }) => {
-        cfg_if! {
-            @__items
-            () ;
-            $( ( ($($meta),*) ($($it)*) ), )*
-            ( () ($($it2)*) ),
+    (
+        $(
+            if #[cfg( $i_meta:meta )] { $( $i_tokens:tt )* }
+        ) else+
+        else { $( $e_tokens:tt )* }
+    ) => {
+        $crate::cfg_if! {
+            @__items () ;
+            $(
+                (( $i_meta ) ( $( $i_tokens )* )) ,
+            )+
+            (() ( $( $e_tokens )* )) ,
         }
     };
 
     // match if/else chains lacking a final `else`
     (
-        if #[cfg($($i_met:meta),*)] { $($i_it:item)* }
+        if #[cfg( $i_meta:meta )] { $( $i_tokens:tt )* }
         $(
-            else if #[cfg($($e_met:meta),*)] { $($e_it:item)* }
+            else if #[cfg( $e_meta:meta )] { $( $e_tokens:tt )* }
         )*
     ) => {
-        cfg_if! {
-            @__items
-            () ;
-            ( ($($i_met),*) ($($i_it)*) ),
-            $( ( ($($e_met),*) ($($e_it)*) ), )*
-            ( () () ),
+        $crate::cfg_if! {
+            @__items () ;
+            (( $i_meta ) ( $( $i_tokens )* )) ,
+            $(
+                (( $e_meta ) ( $( $e_tokens )* )) ,
+            )*
         }
     };
 
     // Internal and recursive macro to emit all the items
     //
-    // Collects all the negated cfgs in a list at the beginning and after the
-    // semicolon is all the remaining items
-    (@__items ($($not:meta,)*) ; ) => {};
-    (@__items ($($not:meta,)*) ; ( ($($m:meta),*) ($($it:item)*) ),
-     $($rest:tt)*) => {
-        // Emit all items within one block, applying an approprate #[cfg]. The
-        // #[cfg] will require all `$m` matchers specified and must also negate
+    // Collects all the previous cfgs in a list at the beginning, so they can be
+    // negated. After the semicolon is all the remaining items.
+    (@__items ( $( $_:meta , )* ) ; ) => {};
+    (
+        @__items ( $( $no:meta , )* ) ;
+        (( $( $yes:meta )? ) ( $( $tokens:tt )* )) ,
+        $( $rest:tt , )*
+    ) => {
+        // Emit all items within one block, applying an appropriate #[cfg]. The
+        // #[cfg] will require all `$yes` matchers specified and must also negate
         // all previous matchers.
-        cfg_if! { @__apply cfg(all($($m,)* not(any($($not),*)))), $($it)* }
+        #[cfg(all(
+            $( $yes , )?
+            not(any( $( $no ),* ))
+        ))]
+        $crate::cfg_if! { @__identity $( $tokens )* }
 
         // Recurse to emit all other items in `$rest`, and when we do so add all
-        // our `$m` matchers to the list of `$not` matchers as future emissions
+        // our `$yes` matchers to the list of `$no` matchers as future emissions
         // will have to negate everything we just matched as well.
-        cfg_if! { @__items ($($not,)* $($m,)*) ; $($rest)* }
+        $crate::cfg_if! {
+            @__items ( $( $no , )* $( $yes , )? ) ;
+            $( $rest , )*
+        }
     };
 
-    // Internal macro to Apply a cfg attribute to a list of items
-    (@__apply $m:meta, $($it:item)*) => {
-        $(#[$m] $it)*
+    // Internal macro to make __apply work out right for different match types,
+    // because of how macros match/expand stuff.
+    (@__identity $( $tokens:tt )* ) => {
+        $( $tokens )*
     };
 }
 
@@ -86,16 +91,15 @@ macro_rules! __item {
     };
 }
 
-macro_rules! impl_copy_clone{
+#[macro_export]
+macro_rules! impl_copy_clone {
     ($($(#[$attr:meta])* pub struct $i:ident { $($field:tt)* })*) => ($(
         $crate::__item! {
-            #[cfg_attr(feature = "extra_traits", derive(Debug, Eq, PartialEq))]
-            #[repr(C)]
             $(#[$attr])*
             pub struct $i { $($field)* }
         }
-        impl Copy for $i {}
-        impl Clone for $i {
+        impl ::core::marker::Copy for $i {}
+        impl ::core::clone::Clone for $i {
             fn clone(&self) -> $i { *self }
         }
     )*)
@@ -109,8 +113,8 @@ macro_rules! s {
             $(#[$attr])*
             pub struct $i { $($field)* }
         }
-        impl Copy for $i {}
-        impl Clone for $i {
+        impl ::core::marker::Copy for $i {}
+        impl ::core::clone::Clone for $i {
             fn clone(&self) -> $i { *self }
         }
     )*)
@@ -120,16 +124,14 @@ macro_rules! s {
 macro_rules! impl_struct {
     ($($(#[$attr:meta])* pub struct $i:ident { $(pub $name:ident: $field:ty,)* })*) => ($(
         $crate::__item! {
-            #[cfg_attr(feature = "extra_traits", derive(Debug, Eq, PartialEq))]
-            #[repr(C)]
             $(#[$attr])*
             pub struct $i { $(pub $name: $field,)* }
         }
-        impl Copy for $i {}
-        impl Clone for $i {
+        impl ::core::marker::Copy for $i {}
+        impl ::core::clone::Clone for $i {
             fn clone(&self) -> $i { *self }
         }
-        impl Default for $i {
+        impl ::core::default::Default for $i {
             fn default()->$i {
                 $i{$($name: Default::default(),)*}
             }
@@ -138,67 +140,21 @@ macro_rules! impl_struct {
     )*)
 }
 
-macro_rules! impl_packed_struct {
-    ($($(#[$attr:meta])* pub struct $i:ident { $(pub $name:ident: $field:ty,)* })*) => ($(
-        $crate::__item! {
-            #[cfg_attr(feature = "extra_traits", derive(Copy, Debug, Eq, PartialEq))]
-            #[repr(C, packed)]
-            $(#[$attr])*
-            pub struct $i { $(pub $name: $field,)* }
-        }
-        #[cfg(not(feature = "extra_traits"))]
-        impl Copy for $i {}
-        impl Clone for $i {
-            fn clone(&self) -> $i { *self }
-        }
-        impl Default for $i {
-            fn default()->$i {
-                $i{$($name: Default::default(),)*}
-            }
-        }
-        unsafe impl $crate::marker::ContiguousMemory for $i {}
-    )*)
-}
-
-macro_rules! impl_packed_copy_clone {
-    ($($(#[$attr:meta])* pub struct $i:ident { $($field:tt)* })*) => ($(
-        $crate::__item! {
-            #[cfg_attr(feature = "extra_traits", derive(Copy, Debug, Eq, PartialEq))]
-            #[repr(C, packed)]
-            $(#[$attr])*
-            pub struct $i { $($field)* }
-        }
-        #[cfg(not(feature = "extra_traits"))]
-        impl Copy for $i {}
-        impl Clone for $i {
-            fn clone(&self) -> $i { *self }
-        }
-    )*)
-}
-
+#[macro_export]
 macro_rules! impl_struct_default {
     ($($t:ty;)*) => {$(
-        impl Default for $t {
+        impl ::core::default::Default for $t {
             fn default() -> $t {
-                unsafe{macros::transmute([0u8; macros::size_of::<$t>()])}
+                unsafe { ::core::mem::transmute([0_u8; ::core::mem::size_of::<$t>()]) }
             }
         }
     )*}
 }
 
-macro_rules! impl_struct_clone {
-    ($($t:ty;)*) => {$(
-        impl Clone for $t {
-            fn clone(&self) -> $t {
-                unsafe{macros::ptr::read(self)}
-            }
-        }
-    )*}
-}
-
+#[macro_export]
 macro_rules! impl_struct_ContiguousMemory {
     ($($t:ty;)*) => {$(
-        unsafe impl ContiguousMemory for $t {}
+        unsafe impl $crate::marker::ContiguousMemory for $t {}
     )*}
 }
 
@@ -219,62 +175,254 @@ macro_rules! impl_enum {
             $($keys = $vals,)*
         }
 
-        impl Default for $name {
+        impl ::core::default::Default for $name {
             fn default() -> $name {
                  $name::$key
             }
         }
 
-        impl $name {
-            pub fn from_repr(v: $repr) -> Option<Self> {
+        impl ::core::convert::TryFrom<$repr> for $name {
+            type Error = ::core::num::TryFromIntError;
+            fn try_from(v: $repr) -> Result<Self, Self::Error> {
                 match v {
-                    $val => Some($name::$key),
-                    $($vals => Some($name::$keys),)*
-                    _ => None,
+                    $val => Ok($name::$key),
+                    $($vals => Ok($name::$keys),)*
+                    _ => Err(u8::try_from(256_u16).unwrap_err()),
                 }
             }
+        }
 
-            pub fn from_key(self) -> $repr {
-                match self {
+        impl ::core::convert::From<$name> for $repr {
+            fn from(n: $name) -> $repr {
+                match n {
                     $name::$key => $val,
                     $($name::$keys => $vals,)*
                 }
             }
         }
+
+        unsafe impl $crate::marker::ContiguousMemory for $name {}
     )
 }
 
 #[macro_export]
-macro_rules! meta_data_make_version {
-    ($major:ident, $minor:ident) => {
-        ($major as u64) << 32 | $minor as u64
-    };
+macro_rules! impl_bitflags {
+    (
+        $(#[$outer:meta])*
+        pub struct $BitFlags:ident: $T:ty {
+            $(
+                const $Flag:ident = $value:expr;
+            )+
+        }
+    )
+    => (
+        $(#[$outer])*
+        pub struct $BitFlags($T);
+
+        impl $BitFlags {
+            $(
+                pub const $Flag: $BitFlags = $BitFlags($value);
+            )+
+
+            #[inline]
+            pub const fn empty() -> $BitFlags {
+                $BitFlags(0)
+            }
+
+            #[inline]
+            pub const fn all() -> $BitFlags {
+                $BitFlags($($value)|+)
+            }
+
+            #[inline]
+            pub const fn bits(&self) -> $T {
+                self.0
+            }
+
+            #[inline]
+            pub fn from_bits(bits: $T) -> Option<$BitFlags> {
+                if (bits & !$BitFlags::all().bits()) == 0 {
+                    Some($BitFlags(bits))
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            pub const fn from_bits_truncate(bits: $T) -> $BitFlags {
+                $BitFlags(bits & $BitFlags::all().bits())
+            }
+
+            /// # Safety
+            #[inline]
+            pub const unsafe fn from_bits_unchecked(bits: $T) -> $BitFlags {
+                $BitFlags(bits)
+            }
+
+            #[inline]
+            pub const fn is_empty(&self) -> bool {
+                self.bits() == Self::empty().bits()
+            }
+
+            #[inline]
+            pub const fn is_all(&self) -> bool {
+                self.0 == Self::all().0
+            }
+
+            #[inline]
+            pub const fn contains(&self, other: $BitFlags) -> bool {
+                (self.0 & other.0) == other.0
+            }
+
+            #[inline]
+            pub const fn intersects(&self, other: $BitFlags) -> bool {
+                !$BitFlags(self.0 & other.0).is_empty()
+            }
+
+            #[inline]
+            pub fn insert(&mut self, other: $BitFlags) {
+                self.0 |= other.0;
+            }
+
+            #[inline]
+            pub fn remove(&mut self, other: $BitFlags) {
+                self.0 &= !other.0;
+            }
+
+            #[inline]
+            pub fn toggle(&mut self, other: $BitFlags) {
+                self.0 ^= other.0;
+            }
+        }
+
+        impl ::core::default::Default for $BitFlags {
+            #[inline]
+            fn default() -> Self {
+                Self::empty()
+            }
+        }
+
+        impl ::core::ops::Not for $BitFlags {
+            type Output = $BitFlags;
+            #[inline]
+            fn not(self) -> $BitFlags {
+                $BitFlags(!self.0) & $BitFlags::all()
+            }
+        }
+
+        impl ::core::ops::BitAnd for $BitFlags {
+            type Output = $BitFlags;
+            #[inline]
+            fn bitand(self, rhs: $BitFlags) -> $BitFlags {
+                $BitFlags(self.0 & rhs.0)
+            }
+        }
+
+        impl ::core::ops::BitOr for $BitFlags {
+            type Output = $BitFlags;
+            #[inline]
+            fn bitor(self, rhs: $BitFlags) -> $BitFlags {
+                $BitFlags(self.0 | rhs.0)
+            }
+        }
+
+        impl ::core::ops::BitXor for $BitFlags {
+            type Output = $BitFlags;
+            #[inline]
+            fn bitxor(self, rhs: $BitFlags) -> $BitFlags {
+                $BitFlags(self.0 ^ rhs.0)
+            }
+        }
+
+        impl ::core::ops::BitAndAssign for $BitFlags {
+            #[inline]
+            fn bitand_assign(&mut self, rhs: $BitFlags) {
+                self.0 &= rhs.0;
+            }
+        }
+
+        impl ::core::ops::BitOrAssign for $BitFlags {
+            #[inline]
+            fn bitor_assign(&mut self, rhs: $BitFlags) {
+                self.0 |= rhs.0;
+            }
+        }
+
+        impl ::core::ops::BitXorAssign for $BitFlags {
+            #[inline]
+            fn bitxor_assign(&mut self, rhs: $BitFlags) {
+                self.0 ^= rhs.0;
+            }
+        }
+
+        impl ::core::ops::Sub for $BitFlags {
+            type Output = $BitFlags;
+            #[inline]
+            fn sub(self, rhs: $BitFlags) -> $BitFlags {
+                $BitFlags(self.0 & !rhs.0)
+            }
+        }
+
+        impl ::core::ops::SubAssign for $BitFlags {
+            #[inline]
+            fn sub_assign(&mut self, rhs: $BitFlags) {
+                self.0 &= !rhs.0;
+            }
+        }
+
+        unsafe impl $crate::marker::ContiguousMemory for $BitFlags {}
+    )
 }
 
 #[macro_export]
-macro_rules! major_version_of_metadata {
-    ($version:ident) => {
-        ($version as u64) >> 32
-    };
+macro_rules! impl_asref_array {
+    ($($t:ty;)*) => {$(
+        impl ::core::convert::AsRef<[u8; ::core::mem::size_of::<$t>()]> for $t {
+            #[inline]
+            fn as_ref(&self) -> &[u8; ::core::mem::size_of::<$t>()] {
+                unsafe { &*(self as *const _ as *const [u8; ::core::mem::size_of::<$t>()]) }
+            }
+        }
+    )*}
 }
 
 #[macro_export]
-macro_rules! minor_version_of_metadata {
-    ($version:ident) => {
-        ($version as u64) & 0x0000_0000_FFFF_FFFF
-    };
+macro_rules! impl_asmut_array {
+    ($($t:ty;)*) => {$(
+        impl ::core::convert::AsMut<[u8; ::core::mem::size_of::<$t>()]> for $t {
+            #[inline]
+            fn as_mut(&mut self) -> &mut [u8; ::core::mem::size_of::<$t>()] {
+                unsafe { &mut *(self as *mut _ as *mut [u8; ::core::mem::size_of::<$t>()]) }
+            }
+        }
+    )*}
 }
 
 #[macro_export]
-macro_rules! group_id {
-    ($gid:expr) => {
-        (GROUP_FLAG | $gid)
-    };
-}
+macro_rules! impl_from_array  {
+    ($($t:ty;)*) => {$(
+        impl ::core::convert::From<[u8; ::core::mem::size_of::<$t>()]> for $t {
+            #[inline]
+            fn from(array: [u8; ::core::mem::size_of::<$t>()]) -> $t {
+                unsafe { ::core::mem::transmute(array) }
+            }
+        }
 
-#[macro_export]
-macro_rules! is_group_id {
-    ($gid:expr) => {
-        (($gid & GROUP_FLAG) != 0)
-    };
+        impl ::core::convert::From<&[u8; ::core::mem::size_of::<$t>()]> for $t {
+            #[inline]
+            fn from(array: &[u8; ::core::mem::size_of::<$t>()]) -> $t {
+                unsafe { ::core::mem::transmute(*array) }
+            }
+        }
+
+        impl ::core::convert::TryFrom<&[u8]> for $t {
+            type Error = ::core::array::TryFromSliceError;
+
+            #[inline]
+            fn try_from(slice: &[u8]) -> ::core::result::Result<$t, Self::Error> {
+                let array: &[u8; ::core::mem::size_of::<$t>()] = slice.try_into()?;
+                Ok(::core::convert::From::from(*array))
+            }
+        }
+    )*}
 }

@@ -18,6 +18,7 @@
 use crate::ffi::c_void;
 use crate::sys::backtrace::Bomb;
 
+use sgx_trts::trts::MmLayout;
 use sgx_unwind as uw;
 
 pub enum Frame {
@@ -101,8 +102,12 @@ pub unsafe fn trace(mut cb: &mut dyn FnMut(&super::Frame) -> bool) {
         };
 
         let mut bomb = Bomb::new(true);
-        let keep_going = cb(&cx);
+        let mut keep_going = cb(&cx);
         bomb.set(false);
+
+        if MmLayout::entry_address() == cx.symbol_address() as usize {
+            keep_going = false;
+        }
 
         if keep_going {
             uw::_URC_NO_REASON

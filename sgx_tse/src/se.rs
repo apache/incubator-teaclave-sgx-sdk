@@ -15,213 +15,195 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//! # Trusted SE Library
-//!
-//! The library provides functions for getting specific keys and for creating and verifying an enclave report.
-//!
+use core::mem;
+use core::ptr;
+use sgx_crypto::mac::AesCMac;
+use sgx_trts::fence::lfence;
+use sgx_trts::se::{AlignKeyRequest, AlignReport, AlignReportData, AlignTargetInfo};
+use sgx_trts::trts::EnclaveRange;
+use sgx_types::error::{SgxResult, SgxStatus};
+use sgx_types::memeq::ConstTimeEq;
+use sgx_types::types::{AlignKey128bit, Key128bit, KeyRequest, Report, ReportData, TargetInfo};
 
-use sgx_types::*;
+pub trait EnclaveReport: Sized {
+    type Error;
 
-///
-/// The rsgx_create_report function tries to use the information of the target enclave and other information
-/// to create a cryptographic report of the enclave.
-///
-/// This function is a wrapper for the SGX EREPORT instruction.
-///
-/// # Description
-///
-/// Use the function rsgx_create_report to create a cryptographic report that describes the contents of the
-/// calling enclave. The report can be used by other enclaves to verify that the enclave is running on the
-/// same platform. When an enclave calls rsgx_verify_report to verify a report, it will succeed only if
-/// the report was generated using the target_info for said enclave. This function is a wrapper for the SGX EREPORT
-/// instruction.
-///
-/// Before the source enclave calls rsgx_create_report to generate a report, it needs to populate target_info with
-/// information about the target enclave that will verify the report. The target enclave may obtain this information
-/// calling rsgx_create_report with a default value for target_info and pass it to the source enclave at the beginning
-/// of the inter-enclave attestation process.
-///
-/// # Parameters
-///
-/// **target_info**
-///
-/// A pointer to the sgx_target_info_t object that contains the information of the target enclave,
-/// which will be able to cryptographically verify the report calling rsgx_verify_report.efore calling this function.
-///
-/// If value is default, sgx_create_report retrieves information about the calling enclave,
-/// but the generated report cannot be verified by any enclave.
-///
-/// **report_data**
-///
-/// A pointer to the sgx_report_data_t object which contains a set of data used for communication between the enclaves.
-///
-/// # Requirements
-///
-/// Library: libsgx_tservice.a
-///
-/// # Return value
-///
-/// Cryptographic report of the enclave
-///
-/// # Errors
-///
-/// **SGX_ERROR_INVALID_PARAMETER**
-///
-/// An error is reported if any of the parameters memory is not within the enclave or the reserved fields
-/// of the data structure are not set to zero.
-///
-/// **SGX_ERROR_OUT_OF_MEMORY**
-///
-/// Indicates that the enclave is out of memory.
-///
-pub fn rsgx_create_report(
-    target_info: &sgx_target_info_t,
-    report_data: &sgx_report_data_t,
-) -> SgxResult<sgx_report_t> {
-    let mut report = sgx_report_t::default();
-    let ret = unsafe {
-        sgx_create_report(
-            target_info as *const sgx_target_info_t,
-            report_data as *const sgx_report_data_t,
-            &mut report as *mut sgx_report_t,
+    fn for_target(target_info: &TargetInfo, report_data: &ReportData) -> Result<Self, Self::Error>;
+
+    fn for_self() -> Result<Self, Self::Error>;
+
+    fn get_self() -> &'static Self;
+
+    fn verify(&self) -> Result<(), Self::Error>;
+
+    fn to_target(&self) -> Result<TargetInfo, Self::Error>;
+}
+
+pub trait EnclaveKey {
+    type Error;
+
+    fn get_key(&self) -> Result<Key128bit, Self::Error> {
+        self.get_align_key().map(|key| key.key)
+    }
+
+    fn get_align_key(&self) -> Result<AlignKey128bit, Self::Error>;
+}
+
+pub trait EnclaveTarget: Sized {
+    type Error;
+
+    fn for_self() -> Result<Self, Self::Error>;
+}
+
+impl EnclaveReport for Report {
+    type Error = SgxStatus;
+
+    #[inline]
+    fn get_self() -> &'static Report {
+        &AlignReport::get_self().0
+    }
+
+    #[inline]
+    fn for_self() -> SgxResult<Report> {
+        AlignReport::for_self().map(|report| report.into())
+    }
+
+    #[inline]
+    fn for_target(target_info: &TargetInfo, report_data: &ReportData) -> SgxResult<Report> {
+        ensure!(
+            target_info.is_enclave_range() && report_data.is_enclave_range(),
+            SgxStatus::InvalidParameter
+        );
+
+        AlignReport::for_target(
+            &AlignTargetInfo::from(target_info),
+            &AlignReportData::from(report_data),
         )
-    };
-    match ret {
-        sgx_status_t::SGX_SUCCESS => Ok(report),
-        _ => Err(ret),
+        .map(|report| report.into())
+    }
+
+    #[inline]
+    fn verify(&self) -> SgxResult {
+        ensure!(self.is_enclave_range(), SgxStatus::InvalidParameter);
+
+        let report = AlignReport::from(self);
+        report.verify(|key, body, mac| {
+            let report_mac = AesCMac::cmac(key, body)?;
+            if report_mac.ct_eq(mac) {
+                Ok(())
+            } else {
+                Err(SgxStatus::MacMismatch)
+            }
+        })
+    }
+
+    #[inline]
+    fn to_target(&self) -> SgxResult<TargetInfo> {
+        LAV2_PROTO_SPEC.make_target_info(self)
     }
 }
 
-///
-/// The rsgx_verify_report function provides software verification for the report which is expected to be
-/// generated by the rsgx_create_report function.
-///
-/// # Description
-///
-/// The rsgx_verify_report performs a cryptographic CMAC function of the input sgx_report_data_t object
-/// in the report using the report key. Then the function compares the input report MAC value with the
-/// calculated MAC value to determine whether the report is valid or not.
-///
-/// # Parameters
-///
-/// **report**
-///
-/// A pointer to an sgx_report_t object that contains the cryptographic report to be verified.
-/// The report buffer must be within the enclave.
-///
-/// # Requirements
-///
-/// Library: libsgx_tservice.a
-///
-/// # Errors
-///
-/// **SGX_ERROR_INVALID_PARAMETER**
-///
-/// The report object is invalid.
-///
-/// **SGX_ERROR_MAC_MISMATCH**
-///
-/// Indicates report verification error.
-///
-/// **SGX_ERROR_UNEXPECTED**
-///
-/// Indicates an unexpected error occurs during the report verification process.
-///
-pub fn rsgx_verify_report(report: &sgx_report_t) -> SgxError {
-    let ret = unsafe { sgx_verify_report(report as *const sgx_report_t) };
-    match ret {
-        sgx_status_t::SGX_SUCCESS => Ok(()),
-        _ => Err(ret),
+impl EnclaveKey for KeyRequest {
+    type Error = SgxStatus;
+
+    #[inline]
+    fn get_align_key(&self) -> SgxResult<AlignKey128bit> {
+        ensure!(self.is_enclave_range(), SgxStatus::InvalidParameter);
+
+        let req = AlignKeyRequest::from(self);
+        req.egetkey()
+    }
+
+    #[inline]
+    fn get_key(&self) -> SgxResult<Key128bit> {
+        self.get_align_key().map(|key| key.key)
     }
 }
 
-///
-/// The rsgx_get_key function generates a 128-bit secret key using the input information.
-///
-/// This function is a wrapper for the SGX EGETKEY instruction.
-///
-/// # Description
-///
-/// The rsgx_get_key function generates a 128-bit secret key from the processor specific key hierarchy with
-/// the key_request information. If the function fails with an error code, the key buffer will be filled with
-/// random numbers. The key_request structure needs to be initialized properly to obtain the requested key type.
-/// See sgx_key_request_t for structure details.
-///
-/// # Parameters
-///
-/// **key_request**
-///
-/// A pointer to a sgx_key_request_t object used for selecting the appropriate key and any additional parameters
-/// required in the derivation of that key. The pointer must be located within the enclave.
-///
-/// See details on the sgx_key_request_t to understand initializing this structure before calling this function.
-///
-/// # Requirements
-///
-/// Library: libsgx_tservice.a
-///
-/// # Return value
-///
-/// Cryptographic key
-///
-/// # Errors
-///
-/// **SGX_ERROR_INVALID_PARAMETER**
-///
-/// Indicates an error that the input parameters are invalid.
-///
-/// **SGX_ERROR_OUT_OF_MEMORY**
-///
-/// Indicates an error that the enclave is out of memory.
-///
-/// **SGX_ERROR_INVALID_ATTRIBUTE**
-///
-/// Indicates the key_request requests a key for a KEYNAME which the enclave is not authorized.
-///
-/// **SGX_ERROR_INVALID_CPUSVN**
-///
-/// Indicates key_request->cpu_svn is beyond platform CPUSVN value
-///
-/// **SGX_ERROR_INVALID_ISVSVN**
-///
-/// Indicates key_request->isv_svn is greater than the enclave’s ISVSVN
-///
-/// **SGX_ERROR_INVALID_KEYNAME**
-///
-/// Indicates key_request->key_name is an unsupported value
-///
-/// **SGX_ERROR_UNEXPECTED**
-///
-/// Indicates an unexpected error occurs during the key generation process.
-///
-pub fn rsgx_get_key(key_request: &sgx_key_request_t) -> SgxResult<sgx_key_128bit_t> {
-    let mut key = sgx_key_128bit_t::default();
-    let ret = unsafe {
-        sgx_get_key(
-            key_request as *const sgx_key_request_t,
-            &mut key as *mut sgx_key_128bit_t,
-        )
-    };
-    match ret {
-        sgx_status_t::SGX_SUCCESS => Ok(key),
-        _ => Err(ret),
+impl EnclaveTarget for TargetInfo {
+    type Error = SgxStatus;
+
+    #[inline]
+    fn for_self() -> SgxResult<TargetInfo> {
+        Report::get_self().to_target()
     }
 }
 
-pub fn rsgx_get_align_key(key_request: &sgx_key_request_t) -> SgxResult<sgx_align_key_128bit_t> {
-    let mut align_key = sgx_align_key_128bit_t::default();
-    let ret = unsafe {
-        sgx_get_key(
-            key_request as *const sgx_key_request_t,
-            &mut align_key.key as *mut sgx_key_128bit_t,
-        )
-    };
-    match ret {
-        sgx_status_t::SGX_SUCCESS => Ok(align_key),
-        _ => Err(ret),
-    }
+const LAV2_PROTO_SPEC: LAv2ProtoSpec = LAv2ProtoSpec {
+    signature: [0x53, 0x47, 0x58, 0x20, 0x4C, 0x41], // "SGX LA"
+    ver: 2,
+    rev: 0,
+    target_spec: [
+        0x0600, // target_spec count & revision
+        0x0405, // MRENCLAVE
+        0x0304, // ATTRIBUTES
+        0x0140, // CET_ATTRIBUTES
+        0x1041, // CONFIGSVN
+        0x0102, // MISCSELECT
+        0x0C06, // CONFIGID
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ],
+};
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Default, Debug)]
+struct LAv2ProtoSpec {
+    signature: [u8; 6],
+    ver: u8,
+    rev: u8,
+    target_spec: [u16; 28],
 }
 
-pub fn rsgx_self_report() -> sgx_report_t {
-    unsafe { *sgx_self_report() }
+impl LAv2ProtoSpec {
+    fn make_target_info(&self, report: &Report) -> SgxResult<TargetInfo> {
+        ensure!(self.is_valid(), SgxStatus::InvalidParameter);
+
+        let mut ti = TargetInfo::default();
+        let d = &mut ti as *mut TargetInfo as *mut u8;
+        let f = report as *const Report as *const u8;
+
+        lfence();
+
+        let mut to = 0_i32;
+        for i in 1..(self.ts_count() + 1) as usize {
+            let size = (1 << (self.target_spec[i] & 0xF)) as i32;
+            to += size - 1;
+            to &= -size;
+
+            ensure!(
+                (to + size) as usize <= mem::size_of::<TargetInfo>(),
+                SgxStatus::Unexpected
+            );
+
+            let from = (self.target_spec[i] >> 4) as i32;
+            if from >= 0 {
+                ensure!(
+                    (from + size) as usize <= mem::size_of::<Report>(),
+                    SgxStatus::Unexpected
+                );
+
+                unsafe {
+                    ptr::copy_nonoverlapping(
+                        f.offset(from as isize),
+                        d.offset(to as isize),
+                        size as usize,
+                    );
+                }
+            } else if from == -1 {
+                break;
+            } else {
+                bail!(SgxStatus::Unexpected);
+            }
+            to += size;
+        }
+        Ok(ti)
+    }
+
+    fn ts_count(&self) -> u16 {
+        self.target_spec[0] >> 8
+    }
+
+    fn is_valid(&self) -> bool {
+        self.ver == 2 && self.rev == 0 && self.target_spec[0] as u8 == 0 && self.ts_count() < 28
+    }
 }

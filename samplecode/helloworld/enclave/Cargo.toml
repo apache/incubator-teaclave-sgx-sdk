@@ -1,44 +1,33 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 [package]
-name = "Helloworldsampleenclave"
+name = "helloworld"
 version = "1.0.0"
 authors = ["The Teaclave Authors"]
+edition = "2021"
 
 [lib]
-name = "helloworldsampleenclave"
+name = "helloworld"
 crate-type = ["staticlib"]
 
 [features]
 default = []
 
-[target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-
-[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
-sgx_alloc = { path = "../../../sgx_alloc" }
-sgx_backtrace = { path = "../../../sgx_backtrace" }
-sgx_backtrace_sys = { path = "../../../sgx_backtrace_sys" }
-sgx_build_helper = { path = "../../../sgx_build_helper" }
-sgx_cov = { path = "../../../sgx_cov" }
-sgx_crypto_helper = { path = "../../../sgx_crypto_helper" }
-sgx_demangle = { path = "../../../sgx_demangle" }
-sgx_libc = { path = "../../../sgx_libc" }
-sgx_rand = { path = "../../../sgx_rand" }
-sgx_rand_derive = { path = "../../../sgx_rand_derive" }
-sgx_serialize = { path = "../../../sgx_serialize" }
-sgx_serialize_derive = { path = "../../../sgx_serialize_derive" }
-sgx_serialize_derive_internals = { path = "../../../sgx_serialize_derive_internals" }
-sgx_tcrypto = { path = "../../../sgx_tcrypto" }
-sgx_tcrypto_helper = { path = "../../../sgx_tcrypto_helper" }
-sgx_tdh = { path = "../../../sgx_tdh" }
-sgx_tkey_exchange = { path = "../../../sgx_tkey_exchange" }
-sgx_tprotected_fs = { path = "../../../sgx_tprotected_fs" }
-sgx_trts = { path = "../../../sgx_trts" }
-sgx_tse = { path = "../../../sgx_tse" }
-sgx_tseal = { path = "../../../sgx_tseal" }
-sgx_tstd = { path = "../../../sgx_tstd" }
-sgx_tunittest = { path = "../../../sgx_tunittest" }
+[target.'cfg(not(target_vendor = "teaclave"))'.dependencies]
 sgx_types = { path = "../../../sgx_types" }
-#sgx_ucrypto = { path = "../../../sgx_ucrypto" }
-sgx_unwind = { path = "../../../sgx_unwind" }
-#sgx_urts = { path = "../../../sgx_urts" }
+sgx_tstd = { path = "../../../sgx_tstd" }

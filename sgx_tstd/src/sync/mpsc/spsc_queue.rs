@@ -23,6 +23,9 @@
 
 // https://www.1024cores.net/home/lock-free-algorithms/queues/unbounded-spsc-queue
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use core::cell::UnsafeCell;
 use core::ptr;
 

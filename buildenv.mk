@@ -141,22 +141,19 @@ MITIGATION_RET ?= 0
 MITIGATION_C ?= 0
 MITIGATION_ASM ?= 0
 MITIGATION_AFTERLOAD ?= 0
-MITIGATION_LIB_PATH :=
 
-ifeq ($(MITIGATION-CVE-2020-0551), LOAD)
+ifeq ($(MITIGATION_CVE_2020_0551), LOAD)
     MITIGATION_C := 1
     MITIGATION_ASM := 1
     MITIGATION_INDIRECT := 1
     MITIGATION_RET := 1
     MITIGATION_AFTERLOAD := 1
-    MITIGATION_LIB_PATH := cve_2020_0551_load
-else ifeq ($(MITIGATION-CVE-2020-0551), CF)
+else ifeq ($(MITIGATION_CVE_2020_0551), CF)
     MITIGATION_C := 1
     MITIGATION_ASM := 1
     MITIGATION_INDIRECT := 1
     MITIGATION_RET := 1
     MITIGATION_AFTERLOAD := 0
-    MITIGATION_LIB_PATH := cve_2020_0551_cf
 endif
 
 ifeq ($(MITIGATION_C), 1)
@@ -186,6 +183,12 @@ endif
 
 MITIGATION_CFLAGS += $(MITIGATION_ASFLAGS)
 
+ifeq ($(MITIGATION_CVE_2020_0551), LOAD)
+    MITIGATION_RUSTFLAGS = "-C target-feature=+rdrnd,+rdseed,+lvi-cfi,+lvi-load-hardening"
+else ifeq ($(MITIGATION_CVE_2020_0551), CF)
+    MITIGATION_RUSTFLAGS = "-C target-feature=+rdrnd,+rdseed,+lvi-cfi"
+endif
+
 # Compiler and linker options for an Enclave
 #
 # We are using '--export-dynamic' so that `g_global_data_sim' etc.
@@ -197,10 +200,29 @@ MITIGATION_CFLAGS += $(MITIGATION_ASFLAGS)
 ENCLAVE_CFLAGS   = -ffreestanding -nostdinc -fvisibility=hidden -fpie -fno-strict-overflow -fno-delete-null-pointer-checks
 ENCLAVE_CXXFLAGS = $(ENCLAVE_CFLAGS) -nostdinc++
 ENCLAVE_LDFLAGS  = $(COMMON_LDFLAGS) -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
-                   -Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
-                   -Wl,--gc-sections \
-                   -Wl,--defsym,__ImageBase=0
+                   -Wl,-pie -Wl,--export-dynamic  \
+                   -Wl,--gc-sections
+
+# ENCLAVE_LDFLAGS  = $(COMMON_LDFLAGS) -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
+#                    -Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
+#                    -Wl,--gc-sections \
+#                    -Wl,--defsym,ImageBase=0
 
 ENCLAVE_CFLAGS += $(MITIGATION_CFLAGS)
 ENCLAVE_ASFLAGS = $(MITIGATION_ASFLAGS)
+ENCLAVE_RUSTFLAGS = $(MITIGATION_RUSTFLAGS)
 
+
+# We have below choices as to math and string libs:
+# 1. math   - optimized (1), open sourced (0)
+# 2. string - optimized (1), open sourced (0)
+#
+# A macro 'USE_OPT_LIBS' is provided to allow users to build
+# RUST SGX SDK with different library combination by setting different
+# value to 'USE_OPT_LIBS'.
+# By default, choose to build SDK using optimized IPP crypto +
+# open sourced string + open sourced math.
+#
+# IPP + open sourced string + open sourced math
+USE_OPT_LIBS  ?= 1
+OPT_LIBS_PATH ?= $(ROOT_DIR)

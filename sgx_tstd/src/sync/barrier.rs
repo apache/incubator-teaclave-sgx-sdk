@@ -15,8 +15,11 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use crate::fmt;
-use crate::sync::{SgxCondvar as Condvar, SgxMutex as Mutex};
+use crate::sync::{Condvar, Mutex};
 
 /// A barrier enables multiple threads to synchronize the beginning
 /// of some computation.

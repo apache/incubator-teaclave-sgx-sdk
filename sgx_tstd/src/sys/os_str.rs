@@ -19,6 +19,7 @@
 //! systems: just a `Vec<u8>`/`[u8]`.
 
 use crate::borrow::Cow;
+use crate::collections::TryReserveError;
 use crate::fmt;
 use crate::fmt::Write;
 use crate::mem;
@@ -28,6 +29,9 @@ use crate::sync::Arc;
 use crate::sys_common::{AsInner, IntoInner};
 
 use core::str::lossy::{Utf8Lossy, Utf8LossyChunk};
+
+#[cfg(feature = "unit_test")]
+mod tests;
 
 #[derive(Hash)]
 #[repr(transparent)]
@@ -126,8 +130,18 @@ impl Buf {
     }
 
     #[inline]
+    pub fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
+        self.inner.try_reserve(additional)
+    }
+
+    #[inline]
     pub fn reserve_exact(&mut self, additional: usize) {
         self.inner.reserve_exact(additional)
+    }
+
+    #[inline]
+    pub fn try_reserve_exact(&mut self, additional: usize) -> Result<(), TryReserveError> {
+        self.inner.try_reserve_exact(additional)
     }
 
     #[inline]

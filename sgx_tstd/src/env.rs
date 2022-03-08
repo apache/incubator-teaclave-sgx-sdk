@@ -26,14 +26,24 @@
 //! and those without will return a [`String`].
 
 #![allow(clippy::needless_doctest_main)]
+
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use crate::error::Error;
 use crate::ffi::{OsStr, OsString};
 use crate::fmt;
 use crate::io;
 use crate::path::{Path, PathBuf};
+use crate::sys;
 use crate::sys::os as os_imp;
 
 /// Returns the current working directory as a [`PathBuf`].
+///
+/// # Platform-specific behavior
+///
+/// This function currently corresponds to the `getcwd` function on Unix
+/// and the `GetCurrentDirectoryW` function on Windows.
 ///
 /// # Errors
 ///
@@ -59,6 +69,11 @@ pub fn current_dir() -> io::Result<PathBuf> {
 }
 
 /// Changes the current working directory to the specified path.
+///
+/// # Platform-specific behavior
+///
+/// This function currently corresponds to the `chdir` function on Unix
+/// and the `SetCurrentDirectoryW` function on Windows.
 ///
 /// Returns an [`Err`] if the operation fails.
 ///
@@ -562,28 +577,25 @@ pub fn home_dir() -> Option<PathBuf> {
 /// may result in "insecure temporary file" security vulnerabilities. Consider
 /// using a crate that securely creates temporary files or directories.
 ///
-/// # Unix
+/// # Platform-specific behavior
 ///
-/// Returns the value of the `TMPDIR` environment variable if it is
+/// On Unix, returns the value of the `TMPDIR` environment variable if it is
 /// set, otherwise for non-Android it returns `/tmp`. If Android, since there
 /// is no global temporary folder (it is usually allocated per-app), it returns
 /// `/data/local/tmp`.
+/// On Windows, the behavior is equivalent to that of [`GetTempPath2`][GetTempPath2] /
+/// [`GetTempPath`][GetTempPath], which this function uses internally.
+/// Note that, this [may change in the future][changes].
 ///
-/// # Windows
-///
-/// Returns the value of, in order, the `TMP`, `TEMP`,
-/// `USERPROFILE` environment variable if any are set and not the empty
-/// string. Otherwise, `temp_dir` returns the path of the Windows directory.
-/// This behavior is identical to that of [`GetTempPath`][msdn], which this
-/// function uses internally.
-///
-/// [msdn]: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-gettemppatha
+/// [changes]: io#platform-specific-behavior
+/// [GetTempPath2]: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-gettemppath2a
+/// [GetTempPath]: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-gettemppatha
 ///
 /// ```no_run
 /// use std::env;
 ///
 /// fn main() {
-///     let mut dir = env::temp_dir();
+///     let dir = env::temp_dir();
 ///     println!("Temporary directory: {}", dir.display());
 /// }
 /// ```
@@ -662,6 +674,178 @@ pub fn current_exe() -> io::Result<PathBuf> {
     os_imp::current_exe()
 }
 
+/// An iterator over the arguments of a process, yielding a [`String`] value for
+/// each argument.
+///
+/// This struct is created by [`env::args()`]. See its documentation
+/// for more.
+///
+/// The first element is traditionally the path of the executable, but it can be
+/// set to arbitrary text, and might not even exist. This means this property
+/// should not be relied upon for security purposes.
+///
+/// [`env::args()`]: args
+#[must_use = "iterators are lazy and do nothing unless consumed"]
+pub struct Args {
+    inner: ArgsOs,
+}
+
+/// An iterator over the arguments of a process, yielding an [`OsString`] value
+/// for each argument.
+///
+/// This struct is created by [`env::args_os()`]. See its documentation
+/// for more.
+///
+/// The first element is traditionally the path of the executable, but it can be
+/// set to arbitrary text, and might not even exist. This means this property
+/// should not be relied upon for security purposes.
+///
+/// [`env::args_os()`]: args_os
+#[must_use = "iterators are lazy and do nothing unless consumed"]
+pub struct ArgsOs {
+    inner: sys::args::Args,
+}
+
+/// Returns the arguments that this program was started with (normally passed
+/// via the command line).
+///
+/// The first element is traditionally the path of the executable, but it can be
+/// set to arbitrary text, and might not even exist. This means this property should
+/// not be relied upon for security purposes.
+///
+/// On Unix systems the shell usually expands unquoted arguments with glob patterns
+/// (such as `*` and `?`). On Windows this is not done, and such arguments are
+/// passed as-is.
+///
+/// On glibc Linux systems, arguments are retrieved by placing a function in `.init_array`.
+/// glibc passes `argc`, `argv`, and `envp` to functions in `.init_array`, as a non-standard
+/// extension. This allows `std::env::args` to work even in a `cdylib` or `staticlib`, as it
+/// does on macOS and Windows.
+///
+/// # Panics
+///
+/// The returned iterator will panic during iteration if any argument to the
+/// process is not valid Unicode. If this is not desired,
+/// use the [`args_os`] function instead.
+///
+/// # Examples
+///
+/// ```
+/// use std::env;
+///
+/// // Prints each argument on a separate line
+/// for argument in env::args() {
+///     println!("{}", argument);
+/// }
+/// ```
+pub fn args() -> Args {
+    Args { inner: args_os() }
+}
+
+/// Returns the arguments that this program was started with (normally passed
+/// via the command line).
+///
+/// The first element is traditionally the path of the executable, but it can be
+/// set to arbitrary text, and might not even exist. This means this property should
+/// not be relied upon for security purposes.
+///
+/// On Unix systems the shell usually expands unquoted arguments with glob patterns
+/// (such as `*` and `?`). On Windows this is not done, and such arguments are
+/// passed as-is.
+///
+/// On glibc Linux systems, arguments are retrieved by placing a function in `.init_array`.
+/// glibc passes `argc`, `argv`, and `envp` to functions in `.init_array`, as a non-standard
+/// extension. This allows `std::env::args_os` to work even in a `cdylib` or `staticlib`, as it
+/// does on macOS and Windows.
+///
+/// Note that the returned iterator will not check if the arguments to the
+/// process are valid Unicode. If you want to panic on invalid UTF-8,
+/// use the [`args`] function instead.
+///
+/// # Examples
+///
+/// ```
+/// use std::env;
+///
+/// // Prints each argument on a separate line
+/// for argument in env::args_os() {
+///     println!("{:?}", argument);
+/// }
+/// ```
+pub fn args_os() -> ArgsOs {
+    ArgsOs { inner: sys::args::args() }
+}
+
+impl !Send for Args {}
+
+impl !Sync for Args {}
+
+impl Iterator for Args {
+    type Item = String;
+    fn next(&mut self) -> Option<String> {
+        self.inner.next().map(|s| s.into_string().unwrap())
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
+impl ExactSizeIterator for Args {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+    fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+}
+
+impl DoubleEndedIterator for Args {
+    fn next_back(&mut self) -> Option<String> {
+        self.inner.next_back().map(|s| s.into_string().unwrap())
+    }
+}
+
+impl fmt::Debug for Args {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Args").field("inner", &self.inner.inner).finish()
+    }
+}
+
+impl !Send for ArgsOs {}
+
+impl !Sync for ArgsOs {}
+
+impl Iterator for ArgsOs {
+    type Item = OsString;
+    fn next(&mut self) -> Option<OsString> {
+        self.inner.next()
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
+impl ExactSizeIterator for ArgsOs {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+    fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+}
+
+impl DoubleEndedIterator for ArgsOs {
+    fn next_back(&mut self) -> Option<OsString> {
+        self.inner.next_back()
+    }
+}
+
+impl fmt::Debug for ArgsOs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ArgsOs").field("inner", &self.inner).finish()
+    }
+}
+
 /// Constants associated with the current target
 pub mod consts {
     use crate::sys::env::os;
@@ -675,6 +859,7 @@ pub mod consts {
     /// - x86_64
     /// - arm
     /// - aarch64
+    /// - m68k
     /// - mips
     /// - mips64
     /// - powerpc

@@ -29,6 +29,9 @@
 //                          /queues/non-intrusive-mpsc-node-based-queue
 
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 pub use self::PopResult::*;
 
 use core::cell::UnsafeCell;

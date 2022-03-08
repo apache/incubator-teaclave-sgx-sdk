@@ -15,7 +15,10 @@
 // specific language governing permissions and limitations
 // under the License..
 
-
 //! Owned and borrowed file descriptors.
+
+// Tests for this module
+#[cfg(feature = "unit_test")]
+mod tests;
 
 pub use crate::os::fd::owned::*;

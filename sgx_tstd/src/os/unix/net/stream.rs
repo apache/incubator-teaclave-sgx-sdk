@@ -18,15 +18,17 @@
 use super::{recv_vectored_with_ancillary_from, send_vectored_with_ancillary_to, SocketAncillary};
 use super::{sockaddr_un, SocketAddr};
 use crate::fmt;
-use crate::io::{self, Initializer, IoSlice, IoSliceMut};
+use crate::io::{self, IoSlice, IoSliceMut};
 use crate::net::Shutdown;
 use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 use crate::os::unix::ucred;
 use crate::path::Path;
-use crate::sys::cvt;
+use crate::sys::cvt_ocall;
 use crate::sys::net::Socket;
 use crate::sys_common::{AsInner, FromInner};
 use crate::time::Duration;
+
+use sgx_oc::ocall::SockAddr;
 
 pub use ucred::UCred;
 
@@ -83,8 +85,9 @@ impl UnixStream {
         unsafe {
             let inner = Socket::new_raw(libc::AF_UNIX, libc::SOCK_STREAM)?;
             let (addr, len) = sockaddr_un(path.as_ref())?;
+            let sock_addr = SockAddr::UN((addr, len));
 
-            cvt(libc::connect(inner.as_raw_fd(), &addr as *const _ as *const _, len))?;
+            cvt_ocall(libc::connect(inner.as_raw_fd(), &sock_addr))?;
             Ok(UnixStream(inner))
         }
     }
@@ -116,11 +119,9 @@ impl UnixStream {
     pub fn connect_addr(socket_addr: &SocketAddr) -> io::Result<UnixStream> {
         unsafe {
             let inner = Socket::new_raw(libc::AF_UNIX, libc::SOCK_STREAM)?;
-            cvt(libc::connect(
-                inner.as_raw_fd(),
-                &socket_addr.addr as *const _ as *const _,
-                socket_addr.len,
-            ))?;
+            let sock_addr = socket_addr.into();
+
+            cvt_ocall(libc::connect(inner.as_raw_fd(), &sock_addr))?;
             Ok(UnixStream(inner))
         }
     }
@@ -183,7 +184,7 @@ impl UnixStream {
     /// }
     /// ```
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        SocketAddr::new(|addr, len| unsafe { libc::getsockname(self.as_raw_fd(), addr, len) })
+        SocketAddr::new(|| unsafe { libc::getsockname(self.as_raw_fd()) })
     }
 
     /// Returns the socket address of the remote half of this connection.
@@ -200,7 +201,7 @@ impl UnixStream {
     /// }
     /// ```
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
-        SocketAddr::new(|addr, len| unsafe { libc::getpeername(self.as_raw_fd(), addr, len) })
+        SocketAddr::new(|| unsafe { libc::getpeername(self.as_raw_fd()) })
     }
 
     /// Gets the peer credentials for this Unix domain socket.
@@ -556,11 +557,6 @@ impl io::Read for UnixStream {
     fn is_read_vectored(&self) -> bool {
         io::Read::is_read_vectored(&&*self)
     }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        Initializer::nop()
-    }
 }
 
 impl<'a> io::Read for &'a UnixStream {
@@ -575,11 +571,6 @@ impl<'a> io::Read for &'a UnixStream {
     #[inline]
     fn is_read_vectored(&self) -> bool {
         self.0.is_read_vectored()
-    }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        Initializer::nop()
     }
 }
 
@@ -664,6 +655,6 @@ impl From<OwnedFd> for UnixStream {
 }
 
 mod libc {
-    pub use sgx_libc::ocall::{connect, getpeername, getsockname};
-    pub use sgx_libc::*;
+    pub use sgx_oc::ocall::{connect, getpeername, getsockname};
+    pub use sgx_oc::*;
 }

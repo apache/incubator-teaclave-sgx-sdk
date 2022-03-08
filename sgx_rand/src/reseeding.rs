@@ -45,12 +45,12 @@ impl<R: Rng, Rsdr: Reseeder<R>> ReseedingRng<R, Rsdr> {
     /// * `rng`: the random number generator to use.
     /// * `generation_threshold`: the number of bytes of entropy at which to reseed the RNG.
     /// * `reseeder`: the reseeding object to use.
-    pub fn new(rng: R, generation_threshold: u64, reseeder: Rsdr) -> ReseedingRng<R,Rsdr> {
+    pub fn new(rng: R, generation_threshold: u64, reseeder: Rsdr) -> ReseedingRng<R, Rsdr> {
         ReseedingRng {
-            rng: rng,
-            generation_threshold: generation_threshold,
+            rng,
+            generation_threshold,
             bytes_generated: 0,
-            reseeder: reseeder
+            reseeder,
         }
     }
 
@@ -63,7 +63,6 @@ impl<R: Rng, Rsdr: Reseeder<R>> ReseedingRng<R, Rsdr> {
         }
     }
 }
-
 
 impl<R: Rng, Rsdr: Reseeder<R>> Rng for ReseedingRng<R, Rsdr> {
     fn next_u32(&mut self) -> u32 {
@@ -85,8 +84,9 @@ impl<R: Rng, Rsdr: Reseeder<R>> Rng for ReseedingRng<R, Rsdr> {
     }
 }
 
-impl<S, R: SeedableRng<S>, Rsdr: Reseeder<R> + Default>
-     SeedableRng<(Rsdr, S)> for ReseedingRng<R, Rsdr> {
+impl<S, R: SeedableRng<S>, Rsdr: Reseeder<R> + Default> SeedableRng<(Rsdr, S)>
+    for ReseedingRng<R, Rsdr>
+{
     fn reseed(&mut self, (rsdr, seed): (Rsdr, S)) {
         self.rng.reseed(seed);
         self.reseeder = rsdr;
@@ -100,11 +100,12 @@ impl<S, R: SeedableRng<S>, Rsdr: Reseeder<R> + Default>
             rng: SeedableRng::from_seed(seed),
             generation_threshold: DEFAULT_GENERATION_THRESHOLD,
             bytes_generated: 0,
-            reseeder: rsdr
+            reseeder: rsdr,
         }
     }
 }
 
+#[allow(clippy::needless_doctest_main)]
 /// Something that can be used to reseed an RNG via `ReseedingRng`.
 ///
 /// # Example
@@ -149,5 +150,7 @@ impl<R: Rng + Default> Reseeder<R> for ReseedWithDefault {
     }
 }
 impl Default for ReseedWithDefault {
-    fn default() -> ReseedWithDefault { ReseedWithDefault }
+    fn default() -> ReseedWithDefault {
+        ReseedWithDefault
+    }
 }

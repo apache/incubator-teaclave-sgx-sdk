@@ -15,120 +15,103 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use core::sync::atomic::{AtomicU64, Ordering};
 use crate::io;
 use crate::path::{Path, PathBuf};
-use crate::sync::SgxThreadSpinlock;
 use crate::untrusted::fs;
-use sgx_trts::enclave;
-use sgx_types::*;
 
-pub use sgx_trts::enclave::SgxThreadPolicy;
+use sgx_sync::SpinMutex;
+use sgx_types::types::EnclaveId;
 
-static LOCK: SgxThreadSpinlock = SgxThreadSpinlock::new();
-static mut ENCLAVE_PATH: Option<PathBuf> = None;
-static ENCLAVE_ID: AtomicU64 = AtomicU64::new(0);
+static ENCLAVE: Enclave = Enclave::new();
 
-///
-/// get_enclave_base is to get enclave map base address.
-///
-#[inline]
-pub fn get_enclave_base() -> *const u8 {
-    enclave::rsgx_get_enclave_base()
+#[derive(Debug)]
+pub struct Enclave {
+    inner: SpinMutex<Inner>,
 }
 
-///
-/// get_enclave_size is to get enclave map size.
-///
-#[inline]
-pub fn get_enclave_size() -> usize {
-    enclave::rsgx_get_enclave_size()
+#[derive(Debug)]
+struct Inner {
+    eid: Option<EnclaveId>,
+    path: Option<PathBuf>,
 }
 
-///
-/// get_heap_base is to get heap base address.
-///
-#[inline]
-pub fn get_heap_base() -> *const u8 {
-    enclave::rsgx_get_heap_base()
-}
+impl Inner {
+    const fn new() -> Inner {
+        Self {
+            eid: None,
+            path: None,
+        }
+    }
 
-///
-/// get_heap_size is to get heap size.
-///
-#[inline]
-pub fn get_heap_size() -> usize {
-    enclave::rsgx_get_heap_size()
-}
+    #[inline]
+    fn get_id(&self) -> Option<EnclaveId> {
+        self.eid
+    }
 
-///
-/// get_rsrv_base is to get reserved memory base address.
-///
-#[inline]
-pub fn get_rsrv_base() -> *const u8 {
-    enclave::rsgx_get_rsrv_base()
-}
+    #[inline]
+    fn get_path(&self) -> Option<PathBuf> {
+        self.path.as_ref().map(|p| p.to_owned())
+    }
 
-///
-/// get_rsrv_size is to get reserved memory size.
-///
-#[inline]
-pub fn get_rsrv_size() -> usize {
-    enclave::rsgx_get_rsrv_size()
-}
+    fn set_id(&mut self, eid: EnclaveId) -> io::Result<()> {
+        if eid == 0 {
+            return Err(io::const_io_error!(io::ErrorKind::InvalidInput, "eid is incorrect"));
+        }
+        self.eid = Some(eid);
+        Ok(())
+    }
 
-///
-/// get_tcs_max_num is to get max tcs number.
-///
-#[inline]
-pub fn get_tcs_max_num() -> u32 {
-    enclave::rsgx_get_tcs_max_num()
-}
-///
-/// get_thread_policy is to get TCS policy.
-///
-#[inline]
-pub fn get_thread_policy() -> SgxThreadPolicy {
-    enclave::rsgx_get_thread_policy()
-}
+    fn set_path<P: AsRef<Path>>(&mut self, path: P) -> io::Result<()> {
+        let _ = fs::metadata(&path)?;
+        self.path = Some(path.as_ref().to_owned());
+        Ok(())
+    }
 
-///
-/// get_enclave_id is to get enclave ID.
-///
-pub fn get_enclave_id() -> sgx_enclave_id_t {
-    ENCLAVE_ID.load(Ordering::SeqCst) as sgx_enclave_id_t
-}
-
-///
-/// set_enclave_id is to set enclave ID.
-///
-pub fn set_enclave_id(eid: sgx_enclave_id_t) {
-    ENCLAVE_ID.store(eid as u64, Ordering::SeqCst);
-}
-
-///
-/// get_enclave_path is to get the path or name of the enclave.
-///
-pub fn get_enclave_path() -> Option<PathBuf> {
-    unsafe {
-        LOCK.lock();
-        let path = ENCLAVE_PATH.as_ref().map(|p| p.to_owned());
-        LOCK.unlock();
-        path
+    #[inline]
+    unsafe fn set_path_unchecked<P: AsRef<Path>>(&mut self, path: P) -> io::Result<()> {
+        self.path = Some(path.as_ref().to_owned());
+        Ok(())
     }
 }
 
-///
-/// set_enclave_path is to set the path or name of the enclave.
-///
-pub fn set_enclave_path<P: AsRef<Path>>(path: P) -> io::Result<()> {
-    let _ = fs::metadata(&path)?;
-    unsafe {
-        LOCK.lock();
-        if ENCLAVE_PATH.is_none() {
-            ENCLAVE_PATH = Some(path.as_ref().to_owned());
+impl Enclave {
+    const fn new() -> Enclave {
+        Self {
+            inner: SpinMutex::new(Inner::new()),
         }
-        LOCK.unlock();
-        Ok(())
+    }
+}
+
+impl Enclave {
+    ///
+    /// get_id is to get enclave ID.
+    ///
+    pub fn get_id() -> Option<EnclaveId> {
+        ENCLAVE.inner.lock().get_id()
+    }
+
+    ///
+    /// set_id is to set enclave ID.
+    ///
+    pub fn set_id(eid: EnclaveId) -> io::Result<()> {
+        ENCLAVE.inner.lock().set_id(eid)
+    }
+
+    ///
+    /// get_path is to get the path or name of the enclave.
+    ///
+    pub fn get_path() -> Option<PathBuf> {
+        ENCLAVE.inner.lock().get_path()
+    }
+
+    ///
+    /// set_path is to set the path or name of the enclave.
+    ///
+    pub fn set_path<P: AsRef<Path>>(path: P) -> io::Result<()> {
+        ENCLAVE.inner.lock().set_path(path)
+    }
+
+    pub(crate) unsafe fn set_path_unchecked<P: AsRef<Path>>(path: P) -> io::Result<()> {
+        ENCLAVE.inner.lock().set_path_unchecked(path)
     }
 }

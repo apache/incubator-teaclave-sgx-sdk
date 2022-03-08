@@ -21,10 +21,15 @@
 //!
 
 #![no_std]
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
-#![allow(non_camel_case_types)]
+#![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 
+extern crate sgx_crypto;
+extern crate sgx_trts;
+#[macro_use]
 extern crate sgx_types;
 
 mod se;
 pub use self::se::*;
+
+#[cfg(feature = "capi")]
+pub mod capi;

@@ -15,25 +15,14 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//!
-//! The Intel(R) Software Guard Extensions SDK already supports mutex and conditional
-//! variable synchronization mechanisms by means of the following API and data types
-//! defined in the Types and Enumerations section. Some functions included in the
-//! trusted Thread Synchronization library may make calls outside the enclave (OCALLs).
-//! If you use any of the APIs below, you must first import the needed OCALL functions
-//! from sgx_tstd.edl. Otherwise, you will get a linker error when the enclave is
-//! being built; see Calling Functions outside the Enclave for additional details.
-//! The table below illustrates the primitives that the Intel(R) SGX Thread
-//! Synchronization library supports, as well as the OCALLs that each API function needs.
-//!
+#[cfg(feature = "unit_test")]
+mod tests;
 
 use crate::cell::UnsafeCell;
 use crate::fmt;
 use crate::ops::{Deref, DerefMut};
 use crate::sync::{poison, LockResult, TryLockError, TryLockResult};
 use crate::sys_common::mutex as sys;
-
-pub use crate::sys_common::mutex::SgxThreadMutex;
 
 /// A mutual exclusion primitive useful for protecting shared data
 ///
@@ -72,7 +61,7 @@ pub use crate::sys_common::mutex::SgxThreadMutex;
 /// # Examples
 ///
 /// ```
-/// use std::sync::{Arc, SgxMutex as Mutex};
+/// use std::sync::{Arc, Mutex};
 /// use std::thread;
 /// use std::sync::mpsc::channel;
 ///
@@ -190,16 +179,16 @@ pub use crate::sys_common::mutex::SgxThreadMutex;
 /// assert_eq!(*res_mutex.lock().unwrap(), 800);
 /// ```
 #[cfg_attr(not(test), rustc_diagnostic_item = "Mutex")]
-pub struct SgxMutex<T: ?Sized> {
-    inner: sys::SgxMovableThreadMutex,
+pub struct Mutex<T: ?Sized> {
+    inner: sys::MovableMutex,
     poison: poison::Flag,
     data: UnsafeCell<T>,
 }
 
 // these are the only places where `T: Send` matters; all other
 // functionality works fine on a single thread.
-unsafe impl<T: ?Sized + Send> Send for SgxMutex<T> {}
-unsafe impl<T: ?Sized + Send> Sync for SgxMutex<T> {}
+unsafe impl<T: ?Sized + Send> Send for Mutex<T> {}
+unsafe impl<T: ?Sized + Send> Sync for Mutex<T> {}
 
 /// An RAII implementation of a "scoped lock" of a mutex. When this structure is
 /// dropped (falls out of scope), the lock will be unlocked.
@@ -213,37 +202,37 @@ unsafe impl<T: ?Sized + Send> Sync for SgxMutex<T> {}
 /// [`lock`]: Mutex::lock
 /// [`try_lock`]: Mutex::try_lock
 #[must_use = "if unused the Mutex will immediately unlock"]
-pub struct SgxMutexGuard<'a, T: ?Sized + 'a> {
-    lock: &'a SgxMutex<T>,
+#[must_not_suspend = "holding a MutexGuard across suspend \
+                      points can cause deadlocks, delays, \
+                      and cause Futures to not implement `Send`"]
+pub struct MutexGuard<'a, T: ?Sized + 'a> {
+    lock: &'a Mutex<T>,
     poison: poison::Guard,
 }
 
-impl<T: ?Sized> !Send for SgxMutexGuard<'_, T> {}
-unsafe impl<T: ?Sized + Sync> Sync for SgxMutexGuard<'_, T> {}
+impl<T: ?Sized> !Send for MutexGuard<'_, T> {}
+unsafe impl<T: ?Sized + Sync> Sync for MutexGuard<'_, T> {}
 
-impl<T> SgxMutex<T> {
+impl<T> Mutex<T> {
     /// Creates a new mutex in an unlocked state ready for use.
     ///
     /// # Examples
     ///
     /// ```
-    /// use std::sync::SgxMutex;
+    /// use std::sync::Mutex;
     ///
-    /// let mutex = SgxMutex::new(0);
+    /// let mutex = Mutex::new(0);
     /// ```
-    pub fn new(t: T) -> SgxMutex<T> {
-        SgxMutex {
-            inner: sys::SgxMovableThreadMutex::new(),
+    pub fn new(t: T) -> Mutex<T> {
+        Mutex {
+            inner: sys::MovableMutex::new(),
             poison: poison::Flag::new(),
             data: UnsafeCell::new(t),
         }
     }
 }
 
-impl<T: ?Sized> SgxMutex<T> {
-    ///
-    /// The function locks a trusted mutex object within an enclave.
-    ///
+impl<T: ?Sized> Mutex<T> {
     /// Acquires a mutex, blocking the current thread until it is able to do so.
     ///
     /// This function will block the local thread until it is available to acquire
@@ -268,7 +257,7 @@ impl<T: ?Sized> SgxMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::{Arc, SgxMutex as Mutex};
+    /// use std::sync::{Arc, Mutex};
     /// use std::thread;
     ///
     /// let mutex = Arc::new(Mutex::new(0));
@@ -279,16 +268,13 @@ impl<T: ?Sized> SgxMutex<T> {
     /// }).join().expect("thread::spawn failed");
     /// assert_eq!(*mutex.lock().unwrap(), 10);
     /// ```
-    pub fn lock(&self) -> LockResult<SgxMutexGuard<'_, T>> {
+    pub fn lock(&self) -> LockResult<MutexGuard<'_, T>> {
         unsafe {
             self.inner.raw_lock();
-            SgxMutexGuard::new(self)
+            MutexGuard::new(self)
         }
     }
 
-    ///
-    /// The function tries to lock a trusted mutex object within an enclave.
-    ///
     /// Attempts to acquire this lock.
     ///
     /// If the lock could not be acquired at this time, then [`Err`] is returned.
@@ -312,7 +298,7 @@ impl<T: ?Sized> SgxMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::{Arc, SgxMutex as Mutex};
+    /// use std::sync::{Arc, Mutex};
     /// use std::thread;
     ///
     /// let mutex = Arc::new(Mutex::new(0));
@@ -328,11 +314,12 @@ impl<T: ?Sized> SgxMutex<T> {
     /// }).join().expect("thread::spawn failed");
     /// assert_eq!(*mutex.lock().unwrap(), 10);
     /// ```
-    pub fn try_lock(&self) -> TryLockResult<SgxMutexGuard<'_, T>> {
+    pub fn try_lock(&self) -> TryLockResult<MutexGuard<'_, T>> {
         unsafe {
-            match self.inner.try_lock() {
-                Ok(_) => Ok(SgxMutexGuard::new(self)?),
-                Err(_) => Err(TryLockError::WouldBlock),
+            if self.inner.try_lock() {
+                Ok(MutexGuard::new(self)?)
+            } else {
+                Err(TryLockError::WouldBlock)
             }
         }
     }
@@ -345,14 +332,14 @@ impl<T: ?Sized> SgxMutex<T> {
     /// ```
     /// #![feature(mutex_unlock)]
     ///
-    /// use std::sync::SgxMutex as Mutex;
+    /// use std::sync::Mutex;
     /// let mutex = Mutex::new(0);
     ///
     /// let mut guard = mutex.lock().unwrap();
     /// *guard += 20;
     /// Mutex::unlock(guard);
     /// ```
-    pub fn unlock(guard: SgxMutexGuard<'_, T>) {
+    pub fn unlock(guard: MutexGuard<'_, T>) {
         drop(guard);
     }
 
@@ -365,7 +352,7 @@ impl<T: ?Sized> SgxMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::{Arc, SgxMutex as Mutex};
+    /// use std::sync::{Arc, Mutex};
     /// use std::thread;
     ///
     /// let mutex = Arc::new(Mutex::new(0));
@@ -392,9 +379,9 @@ impl<T: ?Sized> SgxMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::SgxMutex;
+    /// use std::sync::Mutex;
     ///
-    /// let mutex = SgxMutex::new(0);
+    /// let mutex = Mutex::new(0);
     /// assert_eq!(mutex.into_inner().unwrap(), 0);
     /// ```
     pub fn into_inner(self) -> LockResult<T>
@@ -418,9 +405,9 @@ impl<T: ?Sized> SgxMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::SgxMutex;
+    /// use std::sync::Mutex;
     ///
-    /// let mut mutex = SgxMutex::new(0);
+    /// let mut mutex = Mutex::new(0);
     /// *mutex.get_mut().unwrap() = 10;
     /// assert_eq!(*mutex.lock().unwrap(), 10);
     /// ```
@@ -430,24 +417,24 @@ impl<T: ?Sized> SgxMutex<T> {
     }
 }
 
-impl<T> From<T> for SgxMutex<T> {
+impl<T> From<T> for Mutex<T> {
     /// Creates a new mutex in an unlocked state ready for use.
     /// This is equivalent to [`Mutex::new`].
     fn from(t: T) -> Self {
-        SgxMutex::new(t)
+        Mutex::new(t)
     }
 }
 
-impl<T: ?Sized + Default> Default for SgxMutex<T> {
-    /// Creates a `SgxMutex<T>`, with the `Default` value for T.
-    fn default() -> SgxMutex<T> {
-        SgxMutex::new(Default::default())
+impl<T: ?Sized + Default> Default for Mutex<T> {
+    /// Creates a `Mutex<T>`, with the `Default` value for T.
+    fn default() -> Mutex<T> {
+        Mutex::new(Default::default())
     }
 }
 
-impl<T: ?Sized + fmt::Debug> fmt::Debug for SgxMutex<T> {
+impl<T: ?Sized + fmt::Debug> fmt::Debug for Mutex<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut d = f.debug_struct("SgxMutex");
+        let mut d = f.debug_struct("Mutex");
         match self.try_lock() {
             Ok(guard) => {
                 d.field("data", &&*guard);
@@ -470,13 +457,13 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for SgxMutex<T> {
     }
 }
 
-impl<'mutex, T: ?Sized> SgxMutexGuard<'mutex, T> {
-    unsafe fn new(lock: &'mutex SgxMutex<T>) -> LockResult<SgxMutexGuard<'mutex, T>> {
-        poison::map_result(lock.poison.borrow(), |guard| SgxMutexGuard { lock, poison: guard })
+impl<'mutex, T: ?Sized> MutexGuard<'mutex, T> {
+    unsafe fn new(lock: &'mutex Mutex<T>) -> LockResult<MutexGuard<'mutex, T>> {
+        poison::map_result(lock.poison.borrow(), |guard| MutexGuard { lock, poison: guard })
     }
 }
 
-impl<T: ?Sized> Deref for SgxMutexGuard<'_, T> {
+impl<T: ?Sized> Deref for MutexGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -484,39 +471,38 @@ impl<T: ?Sized> Deref for SgxMutexGuard<'_, T> {
     }
 }
 
-impl<T: ?Sized> DerefMut for SgxMutexGuard<'_, T> {
+impl<T: ?Sized> DerefMut for MutexGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.lock.data.get() }
     }
 }
 
-impl<T: ?Sized> Drop for SgxMutexGuard<'_, T> {
+impl<T: ?Sized> Drop for MutexGuard<'_, T> {
     #[inline]
     fn drop(&mut self) {
-        let result = unsafe {
+        unsafe {
             self.lock.poison.done(&self.poison);
-            self.lock.inner.raw_unlock()
-        };
-        debug_assert_eq!(result, Ok(()), "Error when unlocking an SgxMutex: {}", result.unwrap_err());
+            self.lock.inner.raw_unlock();
+        }
     }
 }
 
-impl<T: ?Sized + fmt::Debug> fmt::Debug for SgxMutexGuard<'_, T> {
+impl<T: ?Sized + fmt::Debug> fmt::Debug for MutexGuard<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
     }
 }
 
-impl<T: ?Sized + fmt::Display> fmt::Display for SgxMutexGuard<'_, T> {
+impl<T: ?Sized + fmt::Display> fmt::Display for MutexGuard<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (**self).fmt(f)
     }
 }
 
-pub fn guard_lock<'a, T: ?Sized>(guard: &SgxMutexGuard<'a, T>) -> &'a sys::SgxMovableThreadMutex {
+pub fn guard_lock<'a, T: ?Sized>(guard: &MutexGuard<'a, T>) -> &'a sys::MovableMutex {
     &guard.lock.inner
 }
 
-pub fn guard_poison<'a, T: ?Sized>(guard: &SgxMutexGuard<'a, T>) -> &'a poison::Flag {
+pub fn guard_poison<'a, T: ?Sized>(guard: &MutexGuard<'a, T>) -> &'a poison::Flag {
     &guard.lock.poison
 }

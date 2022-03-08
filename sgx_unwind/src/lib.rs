@@ -16,10 +16,7 @@
 // under the License..
 
 #![no_std]
-#![cfg_attr(
-    all(target_env = "sgx", target_vendor = "mesalock"),
-    feature(rustc_private)
-)]
+#![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 #![unstable(feature = "panic_unwind", issue = "32837")]
 #![feature(c_unwind)]
 #![feature(nll)]

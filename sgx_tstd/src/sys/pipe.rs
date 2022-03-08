@@ -19,7 +19,7 @@ use crate::io::{self, IoSlice, IoSliceMut};
 use crate::mem;
 use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, RawFd};
 use crate::sys::fd::FileDesc;
-use crate::sys::{cvt, cvt_r};
+use crate::sys::{cvt_ocall, cvt_ocall_r};
 use crate::sys_common::IntoInner;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -30,8 +30,9 @@ pub struct AnonPipe(FileDesc);
 
 pub fn anon_pipe() -> io::Result<(AnonPipe, AnonPipe)> {
     let mut fds = [0; 2];
+
     unsafe {
-        cvt(libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC))?;
+        cvt_ocall(libc::pipe2(&mut fds, libc::O_CLOEXEC))?;
         Ok((AnonPipe(FileDesc::from_raw_fd(fds[0])), AnonPipe(FileDesc::from_raw_fd(fds[1]))))
     }
 }
@@ -85,7 +86,7 @@ pub fn read2(p1: AnonPipe, v1: &mut Vec<u8>, p2: AnonPipe, v2: &mut Vec<u8>) -> 
     fds[1].events = libc::POLLIN;
     loop {
         // wait for either pipe to become readable using `poll`
-        cvt_r(|| unsafe { libc::poll(fds.as_mut_ptr(), 2, -1) })?;
+        cvt_ocall_r(|| unsafe { libc::poll(&mut fds, -1) })?;
 
         if fds[0].revents != 0 && read(&p1, v1)? {
             p2.set_nonblocking(false)?;
@@ -143,7 +144,6 @@ impl FromRawFd for AnonPipe {
 }
 
 mod libc {
-    pub use sgx_libc::ocall::{pipe2, poll};
-    pub use sgx_libc::*;
-    
+    pub use sgx_oc::ocall::{pipe2, poll};
+    pub use sgx_oc::*;
 }

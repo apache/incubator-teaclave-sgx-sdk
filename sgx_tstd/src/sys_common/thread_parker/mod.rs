@@ -16,4 +16,6 @@
 // under the License..
 
 mod generic;
+mod futex;
+
 pub use generic::Parker;

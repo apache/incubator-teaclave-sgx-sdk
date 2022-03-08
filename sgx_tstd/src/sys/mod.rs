@@ -15,22 +15,26 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use crate::ffi::CString;
 use crate::io::ErrorKind;
-use sgx_libc as libc;
-use sgx_trts::trts;
+
+use sgx_oc::ocall::{self, OCallResult};
+use sgx_oc as libc;
+use sgx_trts::error::abort;
 
 pub use self::rand::hashmap_random_keys;
 
+pub mod args;
 #[cfg(feature = "backtrace")]
 pub mod backtrace;
 pub mod cmath;
-pub mod condvar;
 pub mod env;
 pub mod fd;
 pub mod fs;
+pub mod futex;
 pub mod io;
+pub mod kernel_copy;
 pub mod memchr;
-pub mod mutex;
 #[cfg(feature = "net")]
 pub mod net;
 pub mod os;
@@ -38,9 +42,10 @@ pub mod os_str;
 pub mod path;
 #[cfg(feature = "pipe")]
 pub mod pipe;
+#[cfg(feature = "unsupported_process")]
+#[path = "unsupported/process.rs"]
+pub mod process;
 pub mod rand;
-pub mod rwlock;
-pub mod sgxfs;
 #[cfg(feature = "stdio")]
 pub mod stdio;
 #[cfg(feature = "thread")]
@@ -50,6 +55,18 @@ pub mod thread_local_dtor;
 #[cfg(feature = "thread")]
 pub mod thread_local_key;
 pub mod time;
+pub mod unsupported;
+
+// SAFETY: must be called only once during runtime initialization.
+// NOTE: this is not guaranteed to run, for example when Rust code is called externally.
+pub unsafe fn init(env: Vec<CString>, args: Vec<CString>) {
+    let _ = ocall::initenv(Some(env));
+    let _ = ocall::initargs(Some(args));
+}
+
+// SAFETY: must be called only once during runtime cleanup.
+// NOTE: this is not guaranteed to run, for example when the program aborts.
+pub unsafe fn cleanup() {}
 
 pub fn decode_error_kind(errno: i32) -> ErrorKind {
     use ErrorKind::*;
@@ -75,7 +92,7 @@ pub fn decode_error_kind(errno: i32) -> ErrorKind {
         libc::ENOSPC => StorageFull,
         libc::ENOSYS => Unsupported,
         libc::EMLINK => TooManyLinks,
-        libc::ENAMETOOLONG => FilenameTooLong,
+        libc::ENAMETOOLONG => InvalidFilename,
         libc::ENETDOWN => NetworkDown,
         libc::ENETUNREACH => NetworkUnreachable,
         libc::ENOTCONN => NotConnected,
@@ -136,21 +153,31 @@ pub fn cvt_nz(error: libc::c_int) -> crate::io::Result<()> {
     if error == 0 { Ok(()) } else { Err(crate::io::Error::from_raw_os_error(error)) }
 }
 
-pub fn abort_internal() -> ! {
-    trts::rsgx_abort()
+pub fn cvt_ocall<T>(result: OCallResult<T>) -> crate::io::Result<T> {
+    result.map_err(|e| e.into())
 }
 
-pub mod unsupported {
-    use crate::io;
-
-    pub fn unsupported<T>() -> io::Result<T> {
-        Err(unsupported_err())
+pub fn cvt_ocall_r<T, F>(mut f: F) -> crate::io::Result<T>
+where
+    F: FnMut() -> OCallResult<T>,
+{
+    loop {
+        match cvt_ocall(f()) {
+            Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
+            other => return other,
+        }
     }
+}
 
-    pub fn unsupported_err() -> io::Error {
-        io::Error::new_const(
-            io::ErrorKind::Unsupported,
-            &"operation not supported on this platform",
-        )
+pub fn abort_internal() -> ! {
+    abort()
+}
+
+pub unsafe fn strlen(mut s: *const i8) -> usize {
+    let mut n = 0;
+    while *s != 0 {
+        n += 1;
+        s = s.offset(1);
     }
+    n
 }

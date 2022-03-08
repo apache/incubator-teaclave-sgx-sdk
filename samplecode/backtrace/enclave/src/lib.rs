@@ -15,91 +15,34 @@
 // specific language governing permissions and limitations
 // under the License..
 
-#![crate_name = "backtracesampleenclave"]
-#![crate_type = "staticlib"]
+#![cfg_attr(not(target_vendor = "teaclave"), no_std)]
+#![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 
-#![cfg_attr(not(target_env = "sgx"), no_std)]
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
-
-extern crate sgx_types;
-#[cfg(not(target_env = "sgx"))]
+#[cfg(not(target_vendor = "teaclave"))]
 #[macro_use]
 extern crate sgx_tstd as std;
+extern crate sgx_types;
 
-extern crate sgx_backtrace;
-use sgx_backtrace::Backtrace;
-
-use sgx_types::*;
-use std::string::String;
-use std::vec::Vec;
-use std::slice;
-use std::io::{self, Write};
-use std::backtrace::{self, PrintFormat};
+use sgx_types::error::SgxStatus;
+use std::backtrace::PrintFormat;
 use std::panic;
 
-/// A function simply invokes ocall print to print the incoming string
-///
-/// # Parameters
-///
-/// **some_string**
-///
-/// A pointer to the string to be printed
-///
-/// **len**
-///
-/// An unsigned int indicates the length of str
-///
-/// # Return value
-///
-/// Always returns SGX_SUCCESS
+///# Safety
 #[no_mangle]
-pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_status_t {
+pub unsafe extern "C" fn backtrace() -> SgxStatus {
+    let _ = std::backtrace::enable_backtrace(PrintFormat::Short);
+    panic::catch_unwind(|| std::backtrace::__rust_begin_short_backtrace(test_backtrace_1)).ok();
 
-    let str_slice = unsafe { slice::from_raw_parts(some_string, some_len) };
-    let _ = io::stdout().write(str_slice);
-
-    // A sample &'static string
-    let rust_raw_string = "This is a ";
-    // An array
-    let word:[u8;4] = [82, 117, 115, 116];
-    // An vector
-    let word_vec:Vec<u8> = vec![32, 115, 116, 114, 105, 110, 103, 33];
-
-    // Construct a string from &'static string
-    let mut hello_string = String::from(rust_raw_string);
-
-    // Iterate on word array
-    for c in word.iter() {
-        hello_string.push(*c as char);
-    }
-
-    // Rust style convertion
-    hello_string += String::from_utf8(word_vec).expect("Invalid UTF-8")
-                                               .as_str();
-
-    // Ocall to normal world for output
-    println!("{}", &hello_string);
-
-    let _ = backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Short);
-    panic::catch_unwind(||{
-        backtrace::__rust_begin_short_backtrace(||{
-            test_backtrace_1()
-        })
-    }).ok();
-
-    let _ = backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Full);
-    panic::catch_unwind(||{
-        test_backtrace_2()
-    }).ok();
+    let _ = std::backtrace::enable_backtrace(PrintFormat::Full);
+    panic::catch_unwind(test_backtrace_2).ok();
 
     println!("\nsgx_backtrace sample code:");
-    let _  = sgx_backtrace::set_enclave_path("enclave.signed.so");
     foo();
 
     println!("\nstd::backtrace sample code:");
     foo_1();
 
-    sgx_status_t::SGX_SUCCESS
+    SgxStatus::Success
 }
 
 #[inline(never)]
@@ -113,7 +56,7 @@ fn test_backtrace_2() {
 }
 
 #[inline(never)]
-fn test_panic() -> !{
+fn test_panic() -> ! {
     panic!("enclave panicked.");
 }
 
@@ -129,7 +72,7 @@ fn bar() {
 
 #[inline(never)]
 fn baz() {
-    println!("{:?}", Backtrace::new());
+    println!("{:?}", sgx_backtrace::Backtrace::new());
     raw()
 }
 
@@ -186,7 +129,7 @@ fn print() {
                     print!("\n{:13}{:4$}@ {}:{}", "", "", file.display(), l, HEX_WIDTH);
                 }
             }
-            println!("");
+            println!();
         });
         if !resolved {
             println!(" - <no info>");

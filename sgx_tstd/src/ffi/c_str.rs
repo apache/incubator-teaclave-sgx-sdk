@@ -15,7 +15,10 @@
 // specific language governing permissions and limitations
 // under the License..
 
-pub use sgx_trts::c_str::*;
+#[cfg(feature = "unit_test")]
+mod tests;
+
+pub use sgx_ffi::c_str::*;
 
 use crate::error::Error;
 use crate::io;
@@ -30,7 +33,7 @@ impl Error for NulError {
 impl From<NulError> for io::Error {
     /// Converts a [`NulError`] into a [`io::Error`].
     fn from(_: NulError) -> io::Error {
-        io::Error::new_const(io::ErrorKind::InvalidInput, &"data provided contains a nul byte")
+        io::const_io_error!(io::ErrorKind::InvalidInput, "data provided contains a nul byte")
     }
 }
 

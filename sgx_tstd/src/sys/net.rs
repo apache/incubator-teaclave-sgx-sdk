@@ -16,22 +16,21 @@
 // under the License..
 
 use crate::cmp;
-use crate::ffi::CStr;
+use crate::convert::TryInto;
 use crate::io::{self, IoSlice, IoSliceMut};
-use crate::mem;
 use crate::net::{Shutdown, SocketAddr};
 use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, RawFd};
-use crate::str;
 use crate::sys::fd::FileDesc;
-use crate::sys_common::net::{getsockopt, setsockopt, sockaddr_to_addr};
+use crate::sys_common::net::{getsockopt, setsockopt};
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 use crate::time::{Duration, Instant};
 #[cfg(not(feature = "untrusted_time"))]
 use crate::untrusted::time::InstantEx;
 
-use sgx_libc::{c_int, c_void, size_t, sockaddr, socklen_t, MSG_PEEK};
+use sgx_oc::ocall::{PolledOk, SockAddr};
+use sgx_oc::{c_int, size_t, EAI_SYSTEM, MSG_PEEK};
 
-pub use crate::sys::{cvt, cvt_r};
+pub use crate::sys::{cvt_ocall, cvt_ocall_r};
 
 pub type wrlen_t = size_t;
 
@@ -44,20 +43,11 @@ pub fn cvt_gai(err: c_int) -> io::Result<()> {
         return Ok(());
     }
 
-    // We may need to trigger a glibc workaround. See on_resolver_failure() for details.
-    // on_resolver_failure();
-
-    if err == libc::EAI_SYSTEM {
+    if err == EAI_SYSTEM {
         return Err(io::Error::last_os_error());
     }
 
-    let detail = unsafe {
-        let strerr = libc::gai_strerror(err);
-        if strerr.is_null() {
-            return Err(io::Error::from_raw_os_error(libc::ESGX));
-        }
-        str::from_utf8(CStr::from_ptr(strerr).to_bytes()).unwrap().to_owned()
-    };
+    let detail = libc::gai_error_string(err);
     Err(io::Error::new(
         io::ErrorKind::Uncategorized,
         &format!("failed to lookup address information: {}", detail)[..],
@@ -65,13 +55,7 @@ pub fn cvt_gai(err: c_int) -> io::Result<()> {
 }
 
 impl Socket {
-    pub fn new(sockfd: c_int) -> io::Result<Socket> {
-        let fd = unsafe { FileDesc::from_raw_fd(sockfd) };
-        fd.set_cloexec()?;
-        Ok(Socket(fd))
-    }
-
-    pub fn new_socket_addr_type(addr: &SocketAddr, ty: c_int) -> io::Result<Socket> {
+    pub fn new(addr: &SocketAddr, ty: c_int) -> io::Result<Socket> {
         let fam = match *addr {
             SocketAddr::V4(..) => libc::AF_INET,
             SocketAddr::V6(..) => libc::AF_INET6,
@@ -84,7 +68,7 @@ impl Socket {
             // On platforms that support it we pass the SOCK_CLOEXEC
             // flag to atomically create the socket and set it as
             // CLOEXEC. On Linux this was added in 2.6.27.
-            let fd = cvt(libc::socket(fam, ty | libc::SOCK_CLOEXEC, 0))?;
+            let fd = cvt_ocall(libc::socket(fam, ty | libc::SOCK_CLOEXEC, 0))?;
             Ok(Socket(FileDesc::from_raw_fd(fd)))
         }
     }
@@ -94,7 +78,7 @@ impl Socket {
             let mut fds = [0, 0];
 
             // Like above, set cloexec atomically
-            cvt(libc::socketpair(fam, ty | libc::SOCK_CLOEXEC, 0, fds.as_mut_ptr()))?;
+            cvt_ocall(libc::socketpair(fam, ty | libc::SOCK_CLOEXEC, 0, &mut fds))?;
             Ok((Socket(FileDesc::from_raw_fd(fds[0])), Socket(FileDesc::from_raw_fd(fds[1]))))
         }
     }
@@ -102,8 +86,8 @@ impl Socket {
     pub fn connect_timeout(&self, addr: &SocketAddr, timeout: Duration) -> io::Result<()> {
         self.set_nonblocking(true)?;
         let r = unsafe {
-            let (addrp, len) = addr.into_inner();
-            cvt(libc::connect(self.as_raw_fd(), addrp, len))
+            let addr = addr.to_owned().into();
+            cvt_ocall(libc::connect(self.as_raw_fd(), &addr))
         };
         self.set_nonblocking(false)?;
 
@@ -114,12 +98,12 @@ impl Socket {
             Err(e) => return Err(e),
         }
 
-        let mut pollfd = libc::pollfd { fd: self.as_raw_fd(), events: libc::POLLOUT, revents: 0 };
+        let mut pollfds = [libc::pollfd { fd: self.as_raw_fd(), events: libc::POLLOUT, revents: 0 }];
 
         if timeout.as_secs() == 0 && timeout.subsec_nanos() == 0 {
-            return Err(io::Error::new_const(
+            return Err(io::const_io_error!(
                 io::ErrorKind::InvalidInput,
-                &"cannot set a 0 duration timeout",
+                "cannot set a 0 duration timeout",
             ));
         }
 
@@ -128,7 +112,7 @@ impl Socket {
         loop {
             let elapsed = start.elapsed();
             if elapsed >= timeout {
-                return Err(io::Error::new_const(io::ErrorKind::TimedOut, &"connection timed out"));
+                return Err(io::const_io_error!(io::ErrorKind::TimedOut, "connection timed out"));
             }
 
             let timeout = timeout - elapsed;
@@ -142,29 +126,26 @@ impl Socket {
 
             let timeout = cmp::min(timeout, c_int::MAX as u64) as c_int;
 
-            match unsafe { libc::poll(&mut pollfd, 1, timeout) } {
-                -1 => {
-                    let err = io::Error::last_os_error();
-                    if err.kind() != io::ErrorKind::Interrupted {
-                        return Err(err);
-                    }
-                }
-                0 => {}
-                _ => {
-                    // linux returns POLLOUT|POLLERR|POLLHUP for refused connections (!), so look
-                    // for POLLHUP rather than read readiness
-                    if pollfd.revents & libc::POLLHUP != 0 {
-                        let e = self.take_error()?.unwrap_or_else(|| {
-                            io::Error::new_const(
+            match unsafe { cvt_ocall(libc::poll(&mut pollfds, timeout)) } {
+                Ok(polled_ok) => match polled_ok {
+                    PolledOk::TimeLimitExpired => {}
+                    PolledOk::ReadyFdCount(_) => {
+                        // linux returns POLLOUT|POLLERR|POLLHUP for refused connections (!), so look
+                        // for POLLHUP rather than read readiness
+                        if pollfds[0].revents & libc::POLLHUP != 0 {
+                            let e = self.take_error()?.unwrap_or_else(|| {
+                            io::const_io_error!(
                                 io::ErrorKind::Uncategorized,
-                                &"no error set after POLLHUP",
-                            )
-                        });
-                        return Err(e);
+                                "no error set after POLLHUP",
+                                )
+                            });
+                            return Err(e);
+                        }
+                        return Ok(());
                     }
-
-                    return Ok(());
                 }
+                Err(ref e) if e.raw_os_error() == Some(libc::EINTR) => {}
+                Err(e) => return Err(e),
             }
         }
     }
@@ -179,14 +160,10 @@ impl Socket {
     // This function is guarded by feature `net` and should only
     // be used on demand.
     // We don't support linux kernel < 2.6.28. So we only use accept4.
-    pub fn accept(&self, storage: *mut sockaddr, len: *mut socklen_t) -> io::Result<Socket> {
-        // Unfortunately the only known way right now to accept a socket and
-        // atomically set the CLOEXEC flag is to use the `accept4` syscall on
-        // platforms that support it. On Linux, this was added in 2.6.28,
-        // glibc 2.10 and musl 0.9.5.
+    pub fn accept(&self) -> io::Result<(Socket, SockAddr)> {
         unsafe {
-            let fd = cvt_r(|| libc::accept4(self.as_raw_fd(), storage, len, libc::SOCK_CLOEXEC))?;
-            Ok(Socket(FileDesc::from_raw_fd(fd)))
+            let (fd, addr) = cvt_ocall_r(|| libc::accept4(self.as_raw_fd(), libc::SOCK_CLOEXEC))?;
+            Ok((Socket(FileDesc::from_raw_fd(fd)), addr))
         }
     }
 
@@ -195,9 +172,7 @@ impl Socket {
     }
 
     fn recv_with_flags(&self, buf: &mut [u8], flags: c_int) -> io::Result<usize> {
-        let ret = cvt(unsafe {
-            libc::recv(self.as_raw_fd(), buf.as_mut_ptr() as *mut c_void, buf.len(), flags)
-        })?;
+        let ret = cvt_ocall(unsafe { libc::recv(self.as_raw_fd(), buf, flags) })?;
         Ok(ret as usize)
     }
 
@@ -223,28 +198,16 @@ impl Socket {
         buf: &mut [u8],
         flags: c_int,
     ) -> io::Result<(usize, SocketAddr)> {
-        let mut storage: libc::sockaddr_storage = unsafe { mem::zeroed() };
-        let mut addrlen = mem::size_of_val(&storage) as libc::socklen_t;
-
-        let n = cvt(unsafe {
-            libc::recvfrom(
-                self.as_raw_fd(),
-                buf.as_mut_ptr() as *mut c_void,
-                buf.len(),
-                flags,
-                &mut storage as *mut _ as *mut _,
-                &mut addrlen,
-            )
-        })?;
-        Ok((n as usize, sockaddr_to_addr(&storage, addrlen as usize)?))
+        let (n, addr) = cvt_ocall(unsafe { libc::recvfrom(self.as_raw_fd(), buf, flags) })?;
+        Ok((n, addr.try_into()?))
     }
 
     pub fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
         self.recv_from_with_flags(buf, 0)
     }
 
-    pub fn recv_msg(&self, msg: &mut libc::msghdr) -> io::Result<usize> {
-        let n = cvt(unsafe { libc::recvmsg(self.as_raw_fd(), msg, libc::MSG_CMSG_CLOEXEC) })?;
+    pub fn recv_msg(&self, msg: &mut libc::MsgHdrMut) -> io::Result<usize> {
+        let n = cvt_ocall(unsafe { libc::recvmsg(self.as_raw_fd(), msg, libc::MSG_CMSG_CLOEXEC) })?;
         Ok(n as usize)
     }
 
@@ -265,8 +228,8 @@ impl Socket {
         self.0.is_write_vectored()
     }
 
-    pub fn send_msg(&self, msg: &mut libc::msghdr) -> io::Result<usize> {
-        let n = cvt(unsafe { libc::sendmsg(self.as_raw_fd(), msg, 0) })?;
+    pub fn send_msg(&self, msg: &libc::MsgHdr) -> io::Result<usize> {
+        let n = cvt_ocall(unsafe { libc::sendmsg(self.as_raw_fd(), msg, 0) })?;
         Ok(n as usize)
     }
 
@@ -274,9 +237,9 @@ impl Socket {
         let timeout = match dur {
             Some(dur) => {
                 if dur.as_secs() == 0 && dur.subsec_nanos() == 0 {
-                    return Err(io::Error::new_const(
+                    return Err(io::const_io_error!(
                         io::ErrorKind::InvalidInput,
-                        &"cannot set a 0 duration timeout",
+                        "cannot set a 0 duration timeout",
                     ));
                 }
 
@@ -316,7 +279,7 @@ impl Socket {
             Shutdown::Read => libc::SHUT_RD,
             Shutdown::Both => libc::SHUT_RDWR,
         };
-        cvt(unsafe { libc::shutdown(self.as_raw_fd(), how) })?;
+        cvt_ocall(unsafe { libc::shutdown(self.as_raw_fd(), how) })?;
         Ok(())
     }
 
@@ -345,7 +308,7 @@ impl Socket {
     }
 
     pub fn set_passcred(&self, passcred: bool) -> io::Result<()> {
-        setsockopt(self, libc::SOL_SOCKET, libc::SO_PASSCRED, passcred as libc::c_int)
+        setsockopt(self, libc::SOL_SOCKET, libc::SO_PASSCRED, passcred as c_int)
     }
 
     pub fn passcred(&self) -> io::Result<bool> {
@@ -355,7 +318,7 @@ impl Socket {
 
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<()> {
         let mut nonblocking = nonblocking as c_int;
-        cvt(unsafe { libc::ioctl_arg1(self.as_raw_fd(), libc::FIONBIO, &mut nonblocking) }).map(drop)
+        cvt_ocall(unsafe { libc::ioctl_arg1(self.as_raw_fd(), libc::FIONBIO as u64, &mut nonblocking) }).map(drop)
     }
 
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
@@ -412,9 +375,9 @@ impl FromRawFd for Socket {
 }
 
 mod libc {
-    pub use sgx_libc::ocall::{
-        accept4, connect, gai_strerror, ioctl_arg1, poll, recv, recvfrom, recvmsg, sendmsg, shutdown, socket,
-        socketpair,
+    pub use sgx_oc::ocall::{
+        accept4, connect, gai_error_string, ioctl_arg1, poll, recv, recvfrom, recvmsg, sendmsg,
+        shutdown, socket, socketpair, MsgHdr, MsgHdrMut,
     };
-    pub use sgx_libc::*;
+    pub use sgx_oc::*;
 }

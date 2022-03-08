@@ -19,7 +19,8 @@ use crate::io::{self, IoSlice, IoSliceMut};
 use crate::mem::ManuallyDrop;
 use crate::os::unix::io::{AsFd, BorrowedFd, FromRawFd};
 use crate::sys::fd::FileDesc;
-use sgx_libc as libc;
+
+use sgx_oc as libc;
 
 pub struct Stdin(());
 pub struct Stdout(());

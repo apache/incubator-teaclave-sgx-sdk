@@ -20,7 +20,7 @@
 use crate::mem;
 use crate::sync::atomic::{AtomicBool, Ordering};
 use crate::sync::Arc;
-use crate::thread::{self, SgxThread as Thread};
+use crate::thread::{self, Thread};
 use crate::time::Instant;
 #[cfg(not(feature = "untrusted_time"))]
 use crate::untrusted::time::InstantEx;

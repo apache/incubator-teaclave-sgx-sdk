@@ -15,9 +15,13 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use crate::cmp::Ordering;
 #[cfg(feature = "net")]
 use crate::convert::TryInto;
+use crate::convert::TryFrom;
 use crate::fmt;
 use crate::hash;
 use crate::io::{self, Write};
@@ -31,7 +35,8 @@ use crate::sys_common::net::LookupHost;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 use crate::vec;
 
-use sgx_libc as c;
+use sgx_oc::ocall::SockAddr;
+use sgx_oc as c;
 
 /// An internet socket address, either IPv4 or IPv6.
 ///
@@ -587,6 +592,36 @@ impl IntoInner<c::sockaddr_in6> for SocketAddrV6 {
     }
 }
 
+impl From<SocketAddr> for SockAddr {
+    fn from(addr: SocketAddr) -> SockAddr {
+        match addr {
+            SocketAddr::V4(sa) => SockAddr::IN4(sa.into_inner()),
+            SocketAddr::V6(sa) => SockAddr::IN6(sa.into_inner()),
+        }
+    }
+}
+
+impl From<&SocketAddr> for SockAddr {
+    fn from(addr: &SocketAddr) -> SockAddr {
+        match *addr {
+            SocketAddr::V4(sa) => SockAddr::IN4(sa.into_inner()),
+            SocketAddr::V6(sa) => SockAddr::IN6(sa.into_inner()),
+        }
+    }
+}
+
+impl TryFrom<SockAddr> for SocketAddr {
+    type Error = io::Error;
+
+    fn try_from(addr: SockAddr) -> io::Result<SocketAddr> {
+        match addr {
+            SockAddr::IN4(sa) => Ok(SocketAddr::V4(SocketAddrV4::from_inner(sa))),
+            SockAddr::IN6(sa) => Ok(SocketAddr::V6(SocketAddrV6::from_inner(sa))),
+            _ => Err(io::const_io_error!(io::ErrorKind::InvalidData, "Unsupported SocketAddr")),
+        }
+    }
+}
+
 impl fmt::Display for SocketAddr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
@@ -919,8 +954,7 @@ impl ToSocketAddrs for (Ipv6Addr, u16) {
 }
 
 #[cfg(feature = "net")]
-#[allow(clippy::unnecessary_wraps)]
-#[allow(clippy::needless_collect)]
+#[allow(clippy::unnecessary_wraps, clippy::needless_collect)]
 fn resolve_socket_addr(lh: LookupHost) -> io::Result<vec::IntoIter<SocketAddr>> {
     let p = lh.port();
     let v: Vec<_> = lh
@@ -948,7 +982,7 @@ impl ToSocketAddrs for (&str, u16) {
         }
 
         #[cfg(not(feature = "net"))]
-        let r = Err(io::Error::new_const(io::ErrorKind::InvalidInput, &"invalid socket address"));
+        let r = Err(io::const_io_error!(io::ErrorKind::InvalidInput, "invalid socket address"));
         #[cfg(feature = "net")]
         let r = resolve_socket_addr((host, port).try_into()?);
         r
@@ -972,7 +1006,7 @@ impl ToSocketAddrs for str {
         }
 
         #[cfg(not(feature = "net"))]
-        let r = Err(io::Error::new_const(io::ErrorKind::InvalidInput, &"invalid socket address"));
+        let r = Err(io::const_io_error!(io::ErrorKind::InvalidInput, "invalid socket address"));
         #[cfg(feature = "net")]
         let r = resolve_socket_addr(self.try_into()?);
         r

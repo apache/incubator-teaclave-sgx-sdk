@@ -22,9 +22,40 @@
 
 #![allow(missing_docs)]
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
+#[cfg(feature = "unit_test")]
+mod benches;
+
 pub use core::num::Wrapping;
 pub use core::num::{FpCategory, ParseFloatError, ParseIntError, TryFromIntError};
 pub use core::num::{NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize};
 pub use core::num::{NonZeroU128, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize};
 
 pub use core::num::IntErrorKind;
+
+#[cfg(feature = "unit_test")]
+use crate::fmt;
+#[cfg(feature = "unit_test")]
+use crate::ops::{Add, Div, Mul, Rem, Sub};
+
+/// Helper function for testing numeric operations
+#[cfg(feature = "unit_test")]
+pub fn test_num<T>(ten: T, two: T)
+where
+    T: PartialEq
+        + Add<Output = T>
+        + Sub<Output = T>
+        + Mul<Output = T>
+        + Div<Output = T>
+        + Rem<Output = T>
+        + fmt::Debug
+        + Copy,
+{
+    assert_eq!(ten.add(two), ten + two);
+    assert_eq!(ten.sub(two), ten - two);
+    assert_eq!(ten.mul(two), ten * two);
+    assert_eq!(ten.div(two), ten / two);
+    assert_eq!(ten.rem(two), ten % two);
+}

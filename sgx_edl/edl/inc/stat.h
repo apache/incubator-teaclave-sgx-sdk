@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
-#ifndef	_EDL_STAT_H
-#define	_EDL_STAT_H
+#ifndef	_EDL_STAT_H_
+#define	_EDL_STAT_H_
 
 struct stat_t
 {
@@ -62,4 +62,4 @@ struct stat64_t
     int64_t __reserved[3];
 };
 
-#endif
+#endif /* _EDL_STAT_H_ */

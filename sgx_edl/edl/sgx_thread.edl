@@ -14,19 +14,18 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-enclave {
 
+enclave {
     include "time.h"
 
-    from "intel/sgx_pthread.edl" import *;
     from "sgx_sys.edl" import *;
 
-    trusted {
-        /* define ECALLs here. */
-    };
-
     untrusted {
-        int u_sched_yield_ocall([out]int *error);
-        int u_nanosleep_ocall([out]int *error, [in]const struct timespec *req, [out]struct timespec *rem);
+        int pthread_wait_timeout_ocall(unsigned long long waiter, unsigned long long timeout);
+        int pthread_create_ocall(unsigned long long self);
+        int pthread_wakeup_ocall(unsigned long long waiter);
+
+        int u_sched_yield_ocall([out] int *error);
+        int u_nanosleep_ocall([out] int *error, [in] const struct timespec *req, [out] struct timespec *rem);
     };
 };

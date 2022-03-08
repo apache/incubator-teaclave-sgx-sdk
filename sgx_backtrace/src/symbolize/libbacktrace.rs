@@ -41,10 +41,13 @@
 #![allow(bad_style)]
 #![allow(dead_code)]
 
+use crate::backtrace::uw;
 use crate::bt;
 use core::{marker, ptr, slice};
-use libc::{self, c_char, c_int, c_void, uintptr_t};
-use sgx_trts::c_str::CString;
+use libc::{c_char, c_int, c_void, uintptr_t};
+use sgx_ffi::c_str::CString;
+use sgx_trts::sync::SpinMutex;
+use sgx_trts::trts::MmLayout;
 
 use crate::symbolize::{ResolveWhat, SymbolName};
 use crate::types::BytesOrWideString;
@@ -197,6 +200,8 @@ struct SyminfoState<'a> {
     pc: usize,
 }
 
+static ENCLAVE_ENTRY_NAME: &str = "enclave_entry\0";
+
 extern "C" fn syminfo_cb(
     data: *mut c_void,
     pc: uintptr_t,
@@ -233,6 +238,15 @@ extern "C" fn syminfo_cb(
             &mut pcinfo_state as *mut _ as *mut _,
         );
         if !pcinfo_state.called {
+            let mut symname = symname;
+            if symname.is_null() {
+                let sym_address =
+                    uw::_Unwind_FindEnclosingFunction((pc as usize + 1) as *mut c_void) as usize;
+                if sym_address == MmLayout::entry_address() {
+                    symname = ENCLAVE_ENTRY_NAME as *const _ as *const c_char
+                }
+            }
+
             let inner = Symbol::Syminfo {
                 pc,
                 symname,
@@ -355,10 +369,30 @@ unsafe fn init_state() -> *mut bt::backtrace_state {
     // but we must on platforms that don't support /proc/self/exe at all.
 
     unsafe fn load_filename() -> *const c_char {
-        if let Some(ref s) = ENCLAVE_PATH {
-            s.as_c_str().as_ptr()
-        } else {
-            ptr::null()
+        let mut enclave_path = ENCLAVE_PATH.lock();
+
+        match enclave_path.as_ref() {
+            Some(p) => p.as_c_str().as_ptr(),
+            None => {
+                cfg_if! {
+                    if #[cfg(feature = "std")] {
+                        use std::enclave::Enclave;
+
+                        let path = Enclave::get_path();
+                        path.as_ref()
+                            .and_then(|p| p.to_str())
+                            .and_then(|p| CString::new(p).ok())
+                            .map(|p| {
+                                let ptr = p.as_c_str().as_ptr();
+                                *enclave_path = Some(p);
+                                ptr
+                            })
+                            .unwrap_or(ptr::null())
+                    } else {
+                        ptr::null()
+                    }
+                }
+            }
         }
     }
 }
@@ -390,25 +424,25 @@ pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol))
 
 pub unsafe fn clear_symbol_cache() {}
 
-static mut ENCLAVE_PATH: Option<CString> = None;
+static ENCLAVE_PATH: SpinMutex<Option<CString>> = SpinMutex::new(None);
 
 pub fn set_enclave_path(path: &str) -> bool {
-    #[cfg(feature = "std")]
-    {
-        use std::path::Path;
-        use std::untrusted::path::PathEx;
-        let p: &Path = path.as_ref();
-        if !PathEx::exists(p) {
-            return false;
-        }
-    }
-    unsafe {
-        if ENCLAVE_PATH.is_none() {
-            match CString::new(path) {
-                Ok(s) => ENCLAVE_PATH = Some(s),
-                Err(_) => return false,
+    let mut enclave_path = ENCLAVE_PATH.lock();
+    if enclave_path.is_none() {
+        #[cfg(feature = "std")]
+        {
+            use std::path::Path;
+            use std::untrusted::path::PathEx;
+            let p: &Path = path.as_ref();
+            if !PathEx::exists(p) {
+                return false;
             }
         }
-        true
+
+        match CString::new(path) {
+            Ok(s) => *enclave_path = Some(s),
+            Err(_) => return false,
+        }
     }
+    true
 }

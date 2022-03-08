@@ -16,12 +16,6 @@
 // under the License.
 
 enclave {
-
-    trusted {
-        /* define ECALLs here. */
-     
-    };
-
     untrusted {
         int u_getpid_ocall();
     };

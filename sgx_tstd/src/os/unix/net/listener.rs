@@ -16,12 +16,15 @@
 // under the License..
 
 use super::{sockaddr_un, SocketAddr, UnixStream};
+use crate::convert::TryInto;
 use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 use crate::path::Path;
-use crate::sys::cvt;
+use crate::sys::cvt_ocall;
 use crate::sys::net::Socket;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
-use crate::{fmt, io, mem};
+use crate::{fmt, io};
+
+use sgx_oc::ocall::SockAddr;
 
 /// A structure representing a Unix domain socket server.
 ///
@@ -87,9 +90,10 @@ impl UnixListener {
         unsafe {
             let inner = Socket::new_raw(libc::AF_UNIX, libc::SOCK_STREAM)?;
             let (addr, len) = sockaddr_un(path.as_ref())?;
+            let sock_addr = SockAddr::UN((addr, len));
 
-            cvt(libc::bind(inner.as_inner().as_raw_fd(), &addr as *const _ as *const _, len as _))?;
-            cvt(libc::listen(inner.as_inner().as_raw_fd(), 128))?;
+            cvt_ocall(libc::bind(inner.as_inner().as_raw_fd(), &sock_addr))?;
+            cvt_ocall(libc::listen(inner.as_inner().as_raw_fd(), 128))?;
 
             Ok(UnixListener(inner))
         }
@@ -122,12 +126,9 @@ impl UnixListener {
     pub fn bind_addr(socket_addr: &SocketAddr) -> io::Result<UnixListener> {
         unsafe {
             let inner = Socket::new_raw(libc::AF_UNIX, libc::SOCK_STREAM)?;
-            cvt(libc::bind(
-                inner.as_raw_fd(),
-                &socket_addr.addr as *const _ as *const _,
-                socket_addr.len as _,
-            ))?;
-            cvt(libc::listen(inner.as_raw_fd(), 128))?;
+            let sock_addr = socket_addr.into();
+            cvt_ocall(libc::bind(inner.as_raw_fd(), &sock_addr))?;
+            cvt_ocall(libc::listen(inner.as_raw_fd(), 128))?;
             Ok(UnixListener(inner))
         }
     }
@@ -156,11 +157,9 @@ impl UnixListener {
     /// }
     /// ```
     pub fn accept(&self) -> io::Result<(UnixStream, SocketAddr)> {
-        let mut storage: libc::sockaddr_un = unsafe { mem::zeroed() };
-        let mut len = mem::size_of_val(&storage) as libc::socklen_t;
-        let sock = self.0.accept(&mut storage as *mut _ as *mut _, &mut len)?;
-        let addr = SocketAddr::from_parts(storage, len)?;
-        Ok((UnixStream(sock), addr))
+        let (sock, addr) = self.0.accept()?;
+        let sa = addr.try_into()?;
+        Ok((UnixStream(sock), sa))
     }
 
     /// Creates a new independently owned handle to the underlying socket.
@@ -198,7 +197,7 @@ impl UnixListener {
     /// }
     /// ```
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        SocketAddr::new(|addr, len| unsafe { libc::getsockname(self.as_raw_fd(), addr, len) })
+        SocketAddr::new(|| unsafe { libc::getsockname(self.as_raw_fd()) })
     }
 
     /// Moves the socket into or out of nonblocking mode.
@@ -365,6 +364,7 @@ impl<'a> IntoIterator for &'a UnixListener {
 /// }
 /// ```
 #[derive(Debug)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct Incoming<'a> {
     listener: &'a UnixListener,
 }
@@ -382,6 +382,6 @@ impl<'a> Iterator for Incoming<'a> {
 }
 
 mod libc {
-    pub use sgx_libc::ocall::{bind, getsockname, listen};
-    pub use sgx_libc::*;
+    pub use sgx_oc::ocall::{bind, getsockname, listen};
+    pub use sgx_oc::*;
 }

@@ -57,7 +57,6 @@ extern int elf_w (get_proc_name_in_image) (unw_addr_space_t as,
 extern Elf_W (Shdr)* elf_w (find_section) (struct elf_image *ei, const char* secname);
 extern int elf_w (load_debuglink) (const char* file, struct elf_image *ei, int is_local);
 
-#ifndef HAVE_SGX
 static inline int
 elf_w (valid_object) (struct elf_image *ei)
 {
@@ -70,6 +69,7 @@ elf_w (valid_object) (struct elf_image *ei)
           && ((uint8_t *) ei->image)[EI_VERSION] <= EV_CURRENT);
 }
 
+#ifndef HAVE_SGX
 static inline int
 elf_map_image (struct elf_image *ei, const char *path)
 {

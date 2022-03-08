@@ -22,15 +22,17 @@ mod bufwriter;
 mod linewriter;
 mod linewritershim;
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use crate::error;
 use crate::fmt;
 use crate::io::Error;
 
-pub use bufreader::BufReader;
-pub use bufwriter::BufWriter;
-pub use bufwriter::WriterPanicked;
-pub use linewriter::LineWriter;
+pub use self::{bufreader::BufReader, bufwriter::BufWriter, linewriter::LineWriter};
 use linewritershim::LineWriterShim;
+
+pub use bufwriter::WriterPanicked;
 
 /// An error returned by [`BufWriter::into_inner`] which combines an error that
 /// happened while writing out the buffer, and the buffered writer object

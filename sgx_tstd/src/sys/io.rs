@@ -18,7 +18,7 @@
 use crate::marker::PhantomData;
 use crate::slice;
 
-use sgx_libc::{c_void, iovec};
+use sgx_oc::{c_void, iovec};
 
 #[derive(Copy, Clone)]
 #[repr(transparent)]

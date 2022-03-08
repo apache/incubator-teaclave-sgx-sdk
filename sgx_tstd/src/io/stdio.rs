@@ -15,16 +15,19 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use crate::io::prelude::*;
 
 use crate::cell::RefCell;
 use crate::fmt;
-use crate::io::{self, BufReader, Initializer, IoSlice, IoSliceMut, LineWriter, Lines, Split};
+use crate::io::{self, BufReader, IoSlice, IoSliceMut, LineWriter, Lines};
 use crate::lazy::SyncOnceCell;
 use crate::pin::Pin;
-use crate::sync::{SgxMutex as Mutex, SgxMutexGuard as MutexGuard};
+use crate::sync::{Mutex, MutexGuard};
 use crate::sys::stdio;
-use crate::sys_common::remutex::{SgxReentrantMutex as ReentrantMutex, SgxReentrantMutexGuard as ReentrantMutexGuard};
+use crate::sys_common::remutex::{ReentrantMutex, ReentrantMutexGuard};
 
 /// A handle to a raw instance of the standard input stream of this process.
 ///
@@ -91,11 +94,6 @@ impl Read for StdinRaw {
     #[inline]
     fn is_read_vectored(&self) -> bool {
         self.0.is_read_vectored()
-    }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        Initializer::nop()
     }
 
     fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
@@ -447,28 +445,6 @@ impl Stdin {
     pub fn lines(self) -> Lines<StdinLock<'static>> {
         self.into_locked().lines()
     }
-
-    /// Consumes this handle and returns an iterator over input bytes,
-    /// split at the specified byte value.
-    ///
-    /// For detailed semantics of this method, see the documentation on
-    /// [`BufRead::split`].
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// #![feature(stdin_forwarders)]
-    /// use std::io;
-    ///
-    /// let splits = io::stdin().split(b'-');
-    /// for split in splits {
-    ///     println!("got a chunk: {}", String::from_utf8_lossy(&split.unwrap()));
-    /// }
-    /// ```
-    #[must_use = "`self` will be dropped if the result is not used"]
-    pub fn split(self, byte: u8) -> Split<StdinLock<'static>> {
-        self.into_locked().split(byte)
-    }
 }
 
 impl fmt::Debug for Stdin {
@@ -487,10 +463,6 @@ impl Read for Stdin {
     #[inline]
     fn is_read_vectored(&self) -> bool {
         self.lock().is_read_vectored()
-    }
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        Initializer::nop()
     }
     fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
         self.lock().read_to_end(buf)
@@ -522,11 +494,6 @@ impl Read for StdinLock<'_> {
     #[inline]
     fn is_read_vectored(&self) -> bool {
         self.inner.is_read_vectored()
-    }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        Initializer::nop()
     }
 
     fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {

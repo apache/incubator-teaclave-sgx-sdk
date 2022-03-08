@@ -57,6 +57,9 @@
 //! report issues with platforms where a backtrace cannot be captured though!
 //!
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 // NB: A note on resolution of a backtrace:
 //
 // Backtraces primarily happen in two steps, one is where we actually capture
@@ -83,26 +86,21 @@
 // a backtrace or actually symbolizing it.
 
 pub use crate::sys_common::backtrace::__rust_begin_short_backtrace;
-pub use crate::sys_common::backtrace::PrintFormat;
 
 use crate::cell::UnsafeCell;
+use crate::enclave::Enclave;
 use crate::ffi::c_void;
 use crate::fmt;
-use crate::enclave;
 use crate::io;
-use crate::path::Path;
+use crate::panic::{BacktraceStyle, get_backtrace_style, set_backtrace_style};
 use crate::sync::Once;
 use crate::sys::backtrace::{self, BytesOrWideString};
 use crate::sys_common::backtrace::{
     lock,
     output_filename,
     resolve_frame_unsynchronized,
-    rust_backtrace_env,
-    RustBacktrace,
-    set_enabled,
     SymbolName,
 };
-use crate::untrusted::fs;
 use crate::vec::Vec;
 
 /// A captured OS thread stack backtrace.
@@ -158,6 +156,8 @@ pub struct BacktraceFrame {
 #[derive(Debug)]
 enum RawFrame {
     Actual(backtrace::Frame),
+    #[cfg(feature = "unit_test")]
+    Fake,
 }
 
 struct BacktraceSymbol {
@@ -249,7 +249,16 @@ impl fmt::Debug for BytesOrWide {
 impl Backtrace {
     /// Returns whether backtrace captures are enabled
     fn enabled() -> bool {
-        matches!(rust_backtrace_env(), RustBacktrace::Print(_))
+        match get_backtrace_style() {
+            Some(style) => {
+                match style {
+                    BacktraceStyle::Full => true,
+                    BacktraceStyle::Short => true,
+                    BacktraceStyle::Off => false,
+                }
+            }
+            None => false,
+        }
     }
 
     /// Capture a stack backtrace of the current thread.
@@ -424,6 +433,7 @@ impl LazilyResolvedCapture {
 unsafe impl Sync for LazilyResolvedCapture where Capture: Sync {}
 
 impl Capture {
+    #[allow(clippy::infallible_destructuring_match)]
     fn resolve(&mut self) {
         // If we're already resolved, nothing to do!
         if self.resolved {
@@ -438,7 +448,12 @@ impl Capture {
         let _lock = unsafe { lock() };
         for frame in self.frames.iter_mut() {
             let symbols = &mut frame.symbols;
-            let RawFrame::Actual(frame) = &frame.frame;
+            let frame = match &frame.frame {
+                RawFrame::Actual(frame) => frame,
+                #[cfg(feature = "unit_test")]
+                RawFrame::Fake => unimplemented!(),
+            };
+            // let RawFrame::Actual(frame) = &frame.frame;
             unsafe {
                 resolve_frame_unsynchronized(frame, |symbol| {
                     symbols.push(BacktraceSymbol {
@@ -460,23 +475,34 @@ impl RawFrame {
     fn ip(&self) -> *mut c_void {
         match self {
             RawFrame::Actual(frame) => frame.ip(),
-            #[cfg(test)]
+            #[cfg(feature = "unit_test")]
             RawFrame::Fake => 1 as *mut c_void,
         }
     }
+}
+
+/// Controls how the backtrace should be formatted.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum PrintFormat {
+    /// Show only relevant data from the backtrace.
+    Short,
+    /// Show all the frames with absolute path for files.
+    Full,
 }
 
 /// Enable backtrace for dumping call stack on crash.
 ///
 /// Enabling backtrace here makes the panic information along with call stack
 /// information. Very similar to normal `RUST_BACKTRACE=1` flag in Rust.
-///
-/// * `path` - The path of enclave's file image. This is essential for dumping
-/// symbol information on crash point.
-/// * Always return `Ok(())`
-pub fn enable_backtrace<P: AsRef<Path>>(path: P, format: PrintFormat) -> io::Result<()> {
-    let _ = fs::metadata(&path)?;
-    enclave::set_enclave_path(path)?;
-    set_enabled(format);
+pub fn enable_backtrace(format: PrintFormat) -> io::Result<()> {
+    Enclave::get_path().as_ref().ok_or_else(|| io::const_io_error!(
+        io::ErrorKind::NotFound,
+        "no enclave path found",
+    ))?;
+    let style = match format {
+        PrintFormat::Short => BacktraceStyle::Short,
+        PrintFormat::Full => BacktraceStyle::Full,
+    };
+    set_backtrace_style(style);
     Ok(())
 }

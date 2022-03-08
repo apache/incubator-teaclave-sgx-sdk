@@ -15,44 +15,36 @@
 // specific language governing permissions and limitations
 // under the License..
 
-#![crate_name = "switchlessenclave"]
-#![crate_type = "staticlib"]
+#![no_std]
+#![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 
-#![cfg_attr(not(target_env = "sgx"), no_std)]
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
-
+extern crate sgx_no_tstd;
 extern crate sgx_types;
-#[cfg(not(target_env = "sgx"))]
-extern crate sgx_tstd as std;
 
-use sgx_types::*;
+use sgx_types::error::SgxStatus;
 
-extern "C"{
-    // OCALLS
-    pub fn ocall_empty () -> sgx_status_t;
-    pub fn ocall_empty_switchless () -> sgx_status_t;
+extern "C" {
+    pub fn ocall_empty() -> SgxStatus;
+    pub fn ocall_empty_switchless() -> SgxStatus;
 }
 
 #[no_mangle]
-pub extern "C"
-fn ecall_repeat_ocalls(nrepeats : u64, use_switchless : i32) {
-
+pub extern "C" fn ecall_repeat_ocalls(nrepeats: u64, use_switchless: i32) {
     if use_switchless == 0 {
         for _ in 0..nrepeats {
-            unsafe {ocall_empty();}
+            unsafe {
+                ocall_empty();
+            }
         }
-    }
-    else {
+    } else {
         for _ in 0..nrepeats {
-            unsafe {ocall_empty_switchless();}
+            unsafe {
+                ocall_empty_switchless();
+            }
         }
     }
 }
 #[no_mangle]
-pub extern "C"
-fn ecall_empty(){
-}
+pub extern "C" fn ecall_empty() {}
 #[no_mangle]
-pub extern "C"
-fn ecall_empty_switchless() {
-}
+pub extern "C" fn ecall_empty_switchless() {}

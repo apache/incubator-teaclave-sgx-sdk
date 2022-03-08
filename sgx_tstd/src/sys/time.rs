@@ -23,7 +23,7 @@ use core::hash::{Hash, Hasher};
 pub use self::inner::{Instant, SystemTime, UNIX_EPOCH};
 use crate::convert::TryInto;
 
-use sgx_libc as libc;
+use sgx_oc as libc;
 
 const NSEC_PER_SEC: u64 = 1_000_000_000;
 
@@ -135,7 +135,7 @@ impl Hash for Timespec {
 
 mod inner {
     use crate::fmt;
-    use crate::sys::cvt;
+    use crate::sys::cvt_ocall;
     use crate::time::Duration;
 
     use super::Timespec;
@@ -155,15 +155,6 @@ mod inner {
     impl Instant {
         pub fn now() -> Instant {
             Instant { t: now(libc::CLOCK_MONOTONIC) }
-        }
-
-        pub const fn zero() -> Instant {
-            Instant { t: Timespec::zero() }
-        }
-
-        pub fn actually_monotonic() -> bool {
-            (cfg!(target_os = "linux") && cfg!(target_arch = "x86_64"))
-                || (cfg!(target_os = "linux") && cfg!(target_arch = "x86"))
         }
 
         pub fn checked_sub_instant(&self, other: &Instant) -> Option<Duration> {
@@ -231,12 +222,12 @@ mod inner {
 
     fn now(clock: libc::clockid_t) -> Timespec {
         let mut t = Timespec { t: libc::timespec { tv_sec: 0, tv_nsec: 0 } };
-        cvt(unsafe { libc::clock_gettime(clock, &mut t.t) }).unwrap();
+        cvt_ocall(unsafe { libc::clock_gettime(clock, &mut t.t) }).unwrap();
         t
     }
 
     mod libc {
-        pub use sgx_libc::ocall::clock_gettime;
-        pub use sgx_libc::*;
+        pub use sgx_oc::ocall::clock_gettime;
+        pub use sgx_oc::*;
     }
 }

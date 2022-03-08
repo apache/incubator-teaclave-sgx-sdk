@@ -144,4 +144,5 @@ impl fmt::Debug for Frame {
 
 mod libunwind;
 use self::libunwind::trace as trace_imp;
+pub(crate) use self::libunwind::uw;
 pub(crate) use self::libunwind::Frame as FrameImp;

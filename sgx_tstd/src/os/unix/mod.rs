@@ -21,8 +21,8 @@
 //! exposes Unix-specific functions that would otherwise be inappropriate as
 //! part of the core `std` library.
 //!
-//! It exposes more ways to deal with platform-specific strings (`OsStr`,
-//! `OsString`), allows to set permissions more granularly, extract low-level
+//! It exposes more ways to deal with platform-specific strings ([`OsStr`],
+//! [`OsString`]), allows to set permissions more granularly, extract low-level
 //! file descriptors from files and sockets, and has platform-specific helpers
 //! for spawning processes.
 //!
@@ -45,11 +45,15 @@
 //! [`OsStr`]: crate::ffi::OsStr
 //! [`OsString`]: crate::ffi::OsString
 
+use crate::os::linux as platform;
+
 pub mod ffi;
 pub mod fs;
 pub mod io;
 #[cfg(feature = "net")]
 pub mod net;
+#[cfg(feature = "unsupported_process")]
+pub mod process;
 pub mod raw;
 #[cfg(feature = "thread")]
 pub mod thread;
@@ -70,6 +74,7 @@ pub mod prelude {
     pub use super::fs::{FileTypeExt, MetadataExt, OpenOptionsExt, PermissionsExt};
     #[doc(no_inline)]
     pub use super::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
+    #[doc(no_inline)]
     #[doc(no_inline)]
     #[cfg(feature = "thread")]
     pub use super::thread::JoinHandleExt;

@@ -22,22 +22,20 @@ use crate::ffi::{CStr, CString, OsStr, OsString};
 use crate::fmt;
 use crate::io;
 use crate::iter;
-use crate::mem;
 use crate::path::{self, PathBuf};
-use crate::ptr;
 use crate::slice;
 use crate::str;
-use crate::sync::SgxThreadRwLock;
-use crate::sys::cvt;
+use crate::sys::cvt_ocall;
 use crate::sys::memchr;
 use crate::vec;
 
+use sgx_oc::{c_char, c_int, size_t};
 use sgx_trts::error as trts_error;
 use sgx_types::metadata::SE_PAGE_SIZE;
 
+
 const TMPBUF_SZ: usize = 128;
 const PATH_SEPARATOR: u8 = b':';
-static ENV_LOCK: SgxThreadRwLock = SgxThreadRwLock::new();
 
 #[inline]
 pub fn errno() -> i32 {
@@ -49,49 +47,31 @@ pub fn set_errno(e: i32) {
     trts_error::set_errno(e)
 }
 
-pub fn error_string(error: i32) -> String {
-    let mut buf = [0_i8; TMPBUF_SZ];
-    unsafe {
-        assert!(!(trts_error::error_string(error, &mut buf) < 0), "strerror_r failure");
+pub fn error_string(errno: i32) -> String {
+    extern "C" {
+        fn strerror_r(errnum: c_int, buf: *mut c_char, buflen: size_t) -> c_int;
+    }
 
-        let p = buf.as_ptr() as *const _;
+    let mut buf = [0_i8; TMPBUF_SZ];
+
+    let p = buf.as_mut_ptr();
+    unsafe {
+        assert!(strerror_r(errno as c_int, p, buf.len()) >= 0, "strerror_r failure");
+
+        let p = p as *const _;
         str::from_utf8(CStr::from_ptr(p).to_bytes()).unwrap().to_owned()
     }
 }
 
 pub fn getcwd() -> io::Result<PathBuf> {
-    let mut buf = Vec::with_capacity(512);
-    loop {
-        unsafe {
-            let ptr = buf.as_mut_ptr() as *mut libc::c_char;
-            if !libc::getcwd(ptr, buf.capacity()).is_null() {
-                let len = CStr::from_ptr(buf.as_ptr() as *const libc::c_char).to_bytes().len();
-                buf.set_len(len);
-                buf.shrink_to_fit();
-                return Ok(PathBuf::from(OsString::from_vec(buf)));
-            } else {
-                let error = io::Error::last_os_error();
-                if error.raw_os_error() != Some(libc::ERANGE) {
-                    return Err(error);
-                }
-            }
-
-            // Trigger the internal buffer resizing logic of `Vec` by requiring
-            // more space than the current capacity.
-            let cap = buf.capacity();
-            buf.set_len(cap);
-            buf.reserve(1);
-        }
-    }
+    let s = cvt_ocall(unsafe { libc::getcwd() })?;
+    Ok(PathBuf::from(OsString::from_vec(s.into_bytes())))
 }
 
 pub fn chdir(p: &path::Path) -> io::Result<()> {
     let p: &OsStr = p.as_ref();
     let p = CString::new(p.as_bytes())?;
-    if unsafe { libc::chdir(p.as_ptr()) } != 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(())
+    unsafe { cvt_ocall(libc::chdir(&p)) }
 }
 
 #[allow(clippy::type_complexity)]
@@ -162,9 +142,9 @@ impl StdError for JoinPathsError {
 
 pub fn current_exe() -> io::Result<PathBuf> {
     match crate::fs::read_link("/proc/self/exe") {
-        Err(ref e) if e.kind() == io::ErrorKind::NotFound => Err(io::Error::new_const(
+        Err(ref e) if e.kind() == io::ErrorKind::NotFound => Err(io::const_io_error!(
             io::ErrorKind::Uncategorized,
-            &"no /proc/self/exe available. Is /proc mounted?",
+            "no /proc/self/exe available. Is /proc mounted?",
         )),
         other => other,
     }
@@ -187,28 +167,23 @@ impl Iterator for Env {
     }
 }
 
-pub unsafe fn environ() -> *const *const libc::c_char {
-    libc::environ()
+pub unsafe fn environ() -> Vec<CString> {
+    libc::env().unwrap_or_default()
 }
 
 /// Returns a vector of (variable, value) byte-vector pairs for all the
 /// environment variables of the current process.
 pub fn env() -> Env {
     unsafe {
-        ENV_LOCK.read();
-        let mut environ = environ();
+        let environ = environ();
         let mut result = Vec::new();
-        if !environ.is_null() {
-            while !(*environ).is_null() {
-                if let Some(key_value) = parse(CStr::from_ptr(*environ).to_bytes()) {
-                    result.push(key_value);
-                }
-                environ = environ.add(1);
+
+        for var in environ {
+            if let Some(key_value) = parse(var.as_bytes()) {
+                result.push(key_value);
             }
         }
-        let ret = Env { iter: result.into_iter() };
-        ENV_LOCK.read_unlock();
-        return ret;
+        return Env { iter: result.into_iter() };
     }
 
     fn parse(input: &[u8]) -> Option<(OsString, OsString)> {
@@ -234,15 +209,8 @@ pub fn getenv(k: &OsStr) -> io::Result<Option<OsString>> {
     // always None as well
     let k = CString::new(k.as_bytes())?;
     unsafe {
-        ENV_LOCK.read();
-        let s = libc::getenv(k.as_ptr()) as *const libc::c_char;
-        let ret = if s.is_null() {
-            None
-        } else {
-            Some(OsStringExt::from_vec(CStr::from_ptr(s).to_bytes().to_vec()))
-        };
-        ENV_LOCK.read_unlock();
-        Ok(ret)
+        let result_opt = cvt_ocall(libc::getenv(&k));
+        result_opt.map(|opt| opt.map(|v| OsString::from_vec(v.into_bytes())))
     }
 }
 
@@ -251,10 +219,7 @@ pub fn setenv(k: &OsStr, v: &OsStr) -> io::Result<()> {
     let v = CString::new(v.as_bytes())?;
 
     unsafe {
-        ENV_LOCK.write();
-        let ret = cvt(libc::setenv(k.as_ptr(), v.as_ptr(), 1)).map(drop);
-        ENV_LOCK.write_unlock();
-        ret
+        cvt_ocall(libc::setenv(&k, &v, 1))
     }
 }
 
@@ -262,10 +227,7 @@ pub fn unsetenv(n: &OsStr) -> io::Result<()> {
     let nbuf = CString::new(n.as_bytes())?;
 
     unsafe {
-        ENV_LOCK.write();
-        let ret = cvt(libc::unsetenv(nbuf.as_ptr())).map(drop);
-        ENV_LOCK.write_unlock();
-        ret
+        cvt_ocall(libc::unsetenv(&nbuf))
     }
 }
 
@@ -280,34 +242,14 @@ pub fn temp_dir() -> PathBuf {
 }
 
 pub fn home_dir() -> Option<PathBuf> {
-    return crate::env::var_os("HOME").or_else(|| unsafe { fallback() }).map(PathBuf::from);
+    crate::env::var_os("HOME").map(PathBuf::from)
+}
 
-    unsafe fn fallback() -> Option<OsString> {
-        let amt = match libc::sysconf(libc::_SC_GETPW_R_SIZE_MAX) {
-            n if n < 0 => 512_usize,
-            n => n as usize,
-        };
-        let mut buf = Vec::with_capacity(amt);
-        let mut passwd: libc::passwd = mem::zeroed();
-        let mut result = ptr::null_mut();
-        match libc::getpwuid_r(
-            libc::getuid(),
-            &mut passwd,
-            buf.as_mut_ptr(),
-            buf.capacity(),
-            &mut result,
-        ) {
-            0 if !result.is_null() => {
-                let ptr = passwd.pw_dir as *const _;
-                let bytes = CStr::from_ptr(ptr).to_bytes().to_vec();
-                Some(OsStringExt::from_vec(bytes))
-            }
-            _ => None,
-        }
-    }
+pub fn getpid() -> io::Result<u32> {
+    unsafe { cvt_ocall(libc::getpid()).map(|pid| pid as u32) }
 }
 
 mod libc {
-    pub use sgx_libc::ocall::{environ, getenv, setenv, unsetenv, getcwd, chdir, sysconf, getuid, getpwuid_r};
-    pub use sgx_libc::*;
+    pub use sgx_oc::ocall::{env, getenv, getpid, setenv, unsetenv, getcwd, chdir};
+    pub use sgx_oc::*;
 }

@@ -16,11 +16,6 @@
 // under the License..
 
 //! # liballoc crate for Rust SGX SDK
-//!
-//! This crate equals to the `liballoc_system` crate in Rust.
-//! It connects Rust memory allocation to Intel SGX's sgx_tstd library.
-//! It is essential, because we depends on Intel SGX's SDK.
-//! 2018-06-22 Add liballoc components here
 
 use core::alloc::{AllocError, Allocator, GlobalAlloc, Layout};
 use core::intrinsics;
@@ -32,8 +27,6 @@ use core::ptr::{self, NonNull};
 #[cfg(target_arch = "x86")]
 const MIN_ALIGN: usize = 8;
 
-// The alignment of sgx tlibc is 16
-// https://github.com/intel/linux-sgx/blob/master/sdk/tlibc/stdlib/malloc.c#L541
 #[cfg(target_arch = "x86_64")]
 const MIN_ALIGN: usize = 16;
 
@@ -225,7 +218,6 @@ mod platform {
     use core::alloc::{GlobalAlloc, Layout};
     use core::ffi::c_void;
     use core::ptr;
-    use libc;
 
     unsafe impl GlobalAlloc for System {
         #[inline]

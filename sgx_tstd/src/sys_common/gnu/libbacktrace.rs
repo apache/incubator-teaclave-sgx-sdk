@@ -19,11 +19,16 @@ use crate::marker;
 use crate::mem;
 use crate::ptr;
 use crate::slice;
+use crate::sys;
 use crate::sys::backtrace::{self, Bomb, BytesOrWideString};
 use crate::sys_common::backtrace::{ResolveWhat, SymbolName};
 
+use sgx_trts::trts::MmLayout;
+use sgx_unwind as uw;
+
 use sgx_backtrace_sys as bt;
-use sgx_libc::{self, c_char, c_int, c_void, uintptr_t};
+use sgx_oc::{c_char, c_int, c_void, uintptr_t};
+
 
 pub enum Symbol<'a> {
     Syminfo {
@@ -46,7 +51,7 @@ impl Symbol<'_> {
             if ptr.is_null() {
                 None
             } else {
-                let len = sgx_libc::strlen(ptr);
+                let len = sys::strlen(ptr);
                 Some(SymbolName::new(slice::from_raw_parts(
                     ptr as *const u8,
                     len,
@@ -80,7 +85,7 @@ impl Symbol<'_> {
             if ptr.is_null() {
                 None
             } else {
-                let len = sgx_libc::strlen(ptr);
+                let len = sys::strlen(ptr);
                 Some(slice::from_raw_parts(ptr as *const u8, len))
             }
         };
@@ -127,7 +132,7 @@ impl Symbol<'_> {
                     return None;
                 }
                 unsafe {
-                    let len = sgx_libc::strlen(filename);
+                    let len = sys::strlen(filename);
                     Some(slice::from_raw_parts(ptr, len))
                 }
             }
@@ -159,6 +164,8 @@ struct SyminfoState<'a> {
     cb: &'a mut (dyn FnMut(&super::Symbol) + 'a),
     pc: usize,
 }
+
+static ENCLAVE_ENTRY_NAME: &str = "enclave_entry\0";
 
 extern "C" fn syminfo_cb(
     data: *mut c_void,
@@ -196,6 +203,15 @@ extern "C" fn syminfo_cb(
             &mut pcinfo_state as *mut _ as *mut _,
         );
         if !pcinfo_state.called {
+            let mut symname = symname;
+            if symname.is_null() {
+                let sym_address =
+                    uw::_Unwind_FindEnclosingFunction((pc as usize + 1) as *mut c_void) as usize;
+                if sym_address == MmLayout::entry_address() {
+                    symname = ENCLAVE_ENTRY_NAME as *const _ as *const c_char
+                }
+            }
+
             let inner = Symbol::Syminfo {
                 pc,
                 symname,

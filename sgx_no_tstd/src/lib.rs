@@ -16,20 +16,20 @@
 // under the License..
 
 #![no_std]
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
-
-#![feature(lang_items)]
+#![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 #![feature(alloc_error_handler)]
+#![feature(lang_items)]
 
 extern crate alloc as alloc_crate;
 
-#[cfg(target_env = "sgx")]
 extern crate sgx_alloc;
+extern crate sgx_trts;
 
 use core::alloc::Layout;
 use core::panic::PanicInfo;
 use core::sync::atomic::{AtomicPtr, Ordering};
 use core::{mem, ptr};
+use sgx_trts::error;
 
 pub use alloc_crate::alloc::*;
 pub use sgx_alloc::System;
@@ -39,7 +39,7 @@ static ALLOC: sgx_alloc::System = sgx_alloc::System;
 
 #[panic_handler]
 fn begin_panic_handler(_info: &PanicInfo<'_>) -> ! {
-    sgx_abort();
+    error::abort()
 }
 
 #[lang = "eh_personality"]
@@ -88,14 +88,20 @@ pub fn rust_oom(layout: Layout) -> ! {
         unsafe { mem::transmute(hook) }
     };
     hook(layout);
-    sgx_abort();
+    error::abort()
 }
 
-#[link(name = "sgx_trts")]
-extern "C" {
-    pub fn abort() -> !;
+#[no_mangle]
+unsafe extern "C" fn global_init_ecall(
+    _eid: u64,
+    _path: *const u8,
+    _path_len: usize,
+    _env: *const u8,
+    _env_len: usize,
+    _args: *const u8,
+    _args_len: usize,
+) {
 }
 
-fn sgx_abort() -> ! {
-    unsafe { abort() }
-}
+#[no_mangle]
+unsafe extern "C" fn global_exit_ecall() {}

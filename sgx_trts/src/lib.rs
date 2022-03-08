@@ -16,97 +16,64 @@
 // under the License..
 
 //! # Trusted Runtime System
-//!
-//! The Intel(R) SGX trusted runtime system (tRTS) is a key component of the Intel(R) Software Guard Extensions SDK.
-//! It provides the enclave entry point logic as well as other functions to be used by enclave developers.
-//!
-//! **Intel(R) Software Guard Extensions Helper Functions**
-//!
-//! **CustomExceptionHandling**
-//!
-//! # Intel(R) Software Guard Extensions Helper Functions
-//!
-//! The tRTS provides the helper functions for you to determine whether a given address is within or outside
-//! enclave memory.
-//!
-//! The tRTS provides a wrapper to the RDRAND instruction to generate a true random number from hardware.
-//! enclave developers should use the rsgx_read_rand function to get true random numbers.
-//!
-//! # CustomExceptionHandling
-//!
-//! The Intel(R) Software Guard Extensions SDK provides an API to allow you to register functions, or exception handlers,
-//! to handle a limited set of hardware exceptions. When one of the enclave supported hardware exceptions occurs within
-//! the enclave, the registered exception handlers will be called in a specific order until an exception handler reports
-//! that it has handled the exception. For example, issuing a CPUID instruction inside an Enclave will result in a #UD fault
-//! (Invalid Opcode Exception). ISV enclave code can call rsgx_register_exception_handler to register a function of type
-//! sgx_exception_handler_t to respond to this exception. To check a list of enclave supported exceptions, see Intel(R)
-//! Software Guard Extensions Programming Reference.
-//!
-//! **Note**
-//!
-//! Custom exception handling is only supported in HW mode. Although the exception handlers can be registered in simulation mode,
-//! the exceptions cannot be caught and handled within the enclave.
-//!
-//! **Note**
-//!
-//! OCALLs are not allowed in the exception handler.
-//!
-//! **Note**
-//!
-//! Custom exception handing only saves general purpose registers in sgx_ exception_info_t. You should be careful when touching
-//! other registers in the exception handlers.
-//!
-//! **Note**
-//!
-//! If the exception handlers can not handle the exceptions, abort() is called.
-//! abort() makes the enclave unusable and generates another exception.
-//!
 
 #![no_std]
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
-
-#![allow(incomplete_features)]
+#![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 #![feature(allocator_api)]
-#![feature(asm)]
-#![feature(const_raw_ptr_deref)]
+#![feature(atomic_from_mut)]
+#![feature(core_intrinsics)]
+#![feature(drain_filter)]
+#![feature(linkage)]
+#![feature(min_specialization)]
+#![feature(negative_impls)]
+#![feature(nonnull_slice_from_raw_parts)]
+#![feature(once_cell)]
+#![feature(ptr_internals)]
+#![feature(thread_local)]
+#![feature(untagged_unions)]
+#![cfg_attr(feature = "sim", feature(unchecked_math))]
+#![allow(clippy::enum_variant_names)]
+#![allow(clippy::missing_safety_doc)]
+#![allow(clippy::upper_case_acronyms)]
+#![allow(dead_code)]
 #![allow(non_camel_case_types)]
-#![allow(non_upper_case_globals)]
-#![allow(non_snake_case)]
-#![feature(specialization)]
-#![feature(vec_into_raw_parts)]
-#![feature(toowned_clone_into)]
-#![feature(rustc_attrs)]
+#![allow(unaligned_references)]
 
-#[cfg(target_env = "sgx")]
-extern crate sgx_types;
-
-#[cfg(target_env = "sgx")]
-extern crate sgx_libc;
+#[cfg(all(feature = "sim", feature = "hyper"))]
+compile_error!("feature \"sim\" and feature \"hyper\" cannot be enabled at the same time");
 
 extern crate alloc;
 
 #[macro_use]
-mod macros;
+extern crate sgx_types;
+extern crate sgx_crypto_sys;
+extern crate sgx_tlibc_sys;
 
-pub mod ascii;
-pub mod c_str;
-pub mod cpu_feature;
-pub mod cpuid;
-pub mod enclave;
-pub mod memchr;
-pub mod memeq;
-pub mod oom;
+#[macro_use]
+mod arch;
+mod asm;
+mod call;
+#[macro_use]
+mod elf;
+mod enclave;
+mod inst;
+mod stackchk;
+mod version;
+mod xsave;
+
+pub mod capi;
+pub mod edmm;
+
+pub mod error;
+#[macro_use]
+pub mod feature;
+pub mod fence;
+pub mod macros;
+pub mod rand;
+pub mod se;
+pub mod sync;
+pub mod tcs;
+#[cfg(feature = "thread")]
+pub mod thread;
 pub mod trts;
 pub mod veh;
-
-#[cfg(not(target_env = "sgx"))]
-pub use sgx_libc as libc;
-
-#[cfg(target_env = "sgx")]
-pub mod libc {
-    pub use sgx_libc::*;
-}
-
-pub mod error {
-    pub use sgx_libc::{errno, error_string, set_errno};
-}

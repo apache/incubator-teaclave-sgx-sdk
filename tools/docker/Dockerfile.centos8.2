@@ -1,0 +1,105 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+FROM centos:8
+
+RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Linux-* && \
+    sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Linux-*
+
+RUN yum upgrade -y
+
+LABEL authors="The Teaclave Authors"
+
+SHELL ["/bin/bash", "-c"]
+
+RUN yum install epel-release -y && \
+    dnf clean all && rm -r /var/cache/dnf && \
+    dnf group install -y 'Development Tools' && \
+    dnf -y install dnf-plugins-core && \
+    dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
+    dnf config-manager --set-enabled powertools && \
+    dnf install -y \
+    astyle \
+    bison \
+    boost-devel \
+    clang \
+    cmake \
+    createrepo \
+    curl-devel \
+    expect \
+    fuse-devel \
+    fuse-libs \
+    gawk \
+    gmp-devel \
+    jq \
+    libarchive \
+    libcurl-devel \
+    libmpc-devel \
+    libxml2-devel \
+    mod_ssl \
+    mpfr-devel \
+    nano \
+    ocaml \
+    ocaml-ocamlbuild \
+    openssl \
+    openssl-devel \
+    perl \
+    protobuf-devel \
+    python2 \
+    python3 \
+    sudo \
+    wget \
+    uuid-devel \
+    vim \
+    yum-utils \
+    rsync \
+    llvm \
+    http://downloads.sourceforge.net/ltp/lcov-1.14-1.noarch.rpm && \
+    alternatives --set python /usr/bin/python2
+
+ENV SGX_SDK_RELEASE_VERSION     2.15.1
+ENV SGX_DCAP_RELEASE_VERSION    1.12.1
+ENV SGX_SDK_CODE_VERSION        2.15.101.1
+ENV SGX_DCAP_CODE_VERSION       1.12.101.1
+ENV SGX_SDK_VERSION             ${SGX_SDK_CODE_VERSION}
+ENV SGX_DCAP_VERSION            ${SGX_DCAP_CODE_VERSION}
+ENV RUST_TOOLCHAIN              nightly-2022-02-23
+ENV BINUTILS_DIST               centos8.2
+ENV SGX_SDK_URL                 "https://download.01.org/intel-sgx/sgx-linux/${SGX_SDK_RELEASE_VERSION}/distro/${BINUTILS_DIST}-server/sgx_linux_x64_sdk_${SGX_SDK_CODE_VERSION}.bin"
+ENV PSW_REPO_URL                "https://download.01.org/intel-sgx/sgx-linux/${SGX_SDK_RELEASE_VERSION}/distro/${BINUTILS_DIST}-server/sgx_rpm_local_repo.tgz"
+
+ADD 02_binutils.sh /root
+RUN bash /root/02_binutils.sh
+
+ADD 03_sdk.sh /root
+RUN bash /root/03_sdk.sh
+
+ADD 04_psw_rpm.sh /root
+RUN bash /root/04_psw_rpm.sh
+
+ADD 05_optlibs.sh /root
+RUN bash /root/05_optlibs.sh
+
+ADD 06_rust.sh /root
+RUN bash /root/06_rust.sh
+
+RUN rm -rf /root/02_binutils.sh /root/03_sdk.sh /root/04_psw.sh /root/05_optlibs.sh /root/06_rust.sh
+
+ADD start_aesm.sh /opt/intel/sgx-aesm-service
+RUN echo '/opt/intel/sgx-aesm-service/start_aesm.sh' >> /root/.bashrc
+
+WORKDIR /root

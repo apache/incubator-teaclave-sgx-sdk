@@ -17,6 +17,9 @@
 
 //! Lazy values and one-time initialization of static data.
 
+#[cfg(feature = "unit_test")]
+mod tests;
+
 use crate::{
     cell::{Cell, UnsafeCell},
     fmt,

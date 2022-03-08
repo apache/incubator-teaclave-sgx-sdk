@@ -15,814 +15,303 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//!
-//! Intel(R) Software Guard Extensions Sealing and Unsealing Functions
-//!
-//! # Intel(R) Software Guard Extensions Sealing and Unsealing Functions
-//!
-//! The API of the model provides the following functions:
-//!
-//! * Exposes APIs to create sealed data which is both confidentiality andintegrity protected.
-//! * Exposes an API to unseal sealed data inside the enclave.
-//!
-//! The library also provides APIs to help calculate the sealed data size, encrypt text length, and Message Authentication Code (MAC) text length.
-//!
-use crate::internal::*;
+use crate::internal::InnerSealedData;
 use alloc::boxed::Box;
-use alloc::slice;
+use alloc::vec::Vec;
+use core::alloc::Allocator;
+use core::convert::From;
+use core::fmt;
 use core::marker::PhantomData;
 use core::mem;
+use core::slice;
+use sgx_trts::trts::{is_within_enclave, is_within_host, EnclaveRange};
+use sgx_types::error::{SgxResult, SgxStatus};
 use sgx_types::marker::ContiguousMemory;
-use sgx_types::*;
+use sgx_types::types::{Attributes, KeyPolicy, Mac};
 
-/// The structure about the unsealed data.
-pub struct SgxUnsealedData<'a, T: 'a + ?Sized> {
-    pub payload_size: u32,
-    pub decrypt: Box<T>,
-    pub additional: Box<[u8]>,
-    marker: PhantomData<&'a T>,
-}
-
-impl<'a, T: 'a + ?Sized> SgxUnsealedData<'a, T> {
-    ///
-    /// Get the payload size of the SgxUnsealedData.
-    ///
-    pub fn get_payload_size(&self) -> u32 {
-        self.payload_size
-    }
-    ///
-    /// Get the pointer of decrypt buffer in SgxUnsealedData.
-    ///
-    pub fn get_decrypt_txt(&self) -> &T {
-        &*self.decrypt
-    }
-    ///
-    /// Get the pointer of additional buffer in SgxUnsealedData.
-    ///
-    pub fn get_additional_txt(&self) -> &[u8] {
-        &*self.additional
-    }
-}
-
-impl<'a, T: 'a + Default> Default for SgxUnsealedData<'a, T> {
-    fn default() -> SgxUnsealedData<'a, T> {
-        SgxUnsealedData {
-            payload_size: 0_u32,
-            decrypt: Box::<T>::default(),
-            additional: Box::<[u8]>::default(),
-            marker: PhantomData,
-        }
-    }
-}
-
-impl<'a, T: 'a + Default> Default for SgxUnsealedData<'a, [T]> {
-    fn default() -> SgxUnsealedData<'a, [T]> {
-        SgxUnsealedData {
-            payload_size: 0_u32,
-            decrypt: Box::<[T]>::default(),
-            additional: Box::<[u8]>::default(),
-            marker: PhantomData,
-        }
-    }
-}
-
-impl<'a, T: 'a + Clone + ?Sized> Clone for SgxUnsealedData<'a, T> {
-    fn clone(&self) -> SgxUnsealedData<'a, T> {
-        SgxUnsealedData {
-            payload_size: self.payload_size,
-            decrypt: self.decrypt.clone(),
-            additional: self.additional.clone(),
-            marker: PhantomData,
-        }
-    }
-}
+#[cfg(feature = "serialize")]
+use sgx_serialize::{Deserialize, Serialize};
 
 /// The structure about the sealed data.
-pub struct SgxSealedData<'a, T: 'a + ?Sized> {
-    inner: SgxInternalSealedData,
-    marker: PhantomData<&'a T>,
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+pub struct SealedData<T: ?Sized> {
+    inner: InnerSealedData,
+    marker: PhantomData<T>,
 }
 
-impl<'a, T: 'a + ?Sized> Default for SgxSealedData<'a, T> {
-    fn default() -> SgxSealedData<'a, T> {
-        SgxSealedData {
-            inner: SgxInternalSealedData::new(),
-            marker: PhantomData,
-        }
-    }
-}
+impl<T: ContiguousMemory + ?Sized> SealedData<T> {
+    pub fn seal(data: &T, aad: Option<&[u8]>) -> SgxResult<SealedData<T>> {
+        let size = mem::size_of_val(data);
+        ensure!(size != 0, SgxStatus::InvalidParameter);
 
-impl<'a, T: 'a + Clone + ?Sized> Clone for SgxSealedData<'a, T> {
-    fn clone(&self) -> SgxSealedData<'a, T> {
-        SgxSealedData {
-            inner: self.inner.clone(),
-            marker: PhantomData,
-        }
-    }
-}
-
-/// The encrypt_text to seal is T, and T must have Copy and ContiguousMemory trait.
-impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, T> {
-    ///
-    /// This function is used to AES-GCM encrypt the input data. Two input data sets
-    /// are provided: one is the data to be encrypted; the second is optional additional data
-    /// that will not be encrypted but will be part of the GCM MAC calculation which also covers the data to be encrypted.
-    ///
-    /// # Description
-    ///
-    /// The seal_data function retrieves a key unique to the enclave and uses
-    /// that key to encrypt the input data buffer. This function can be utilized to preserve secret
-    /// data after the enclave is destroyed. The sealed data blob can be
-    /// unsealed on future instantiations of the enclave.
-    /// The additional data buffer will not be encrypted but will be part of the MAC
-    /// calculation that covers the encrypted data as well. This data may include
-    /// information about the application, version, data, etc which can be utilized to
-    /// identify the sealed data blob since it will remain plain text
-    /// Use `calc_raw_sealed_data_size` to calculate the number of bytes to
-    /// allocate for the `SgxSealedData` structure. The input sealed data buffer and
-    /// text2encrypt buffers must be allocated within the enclave.
-    ///
-    /// # Requirements
-    ///
-    /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
-    ///
-    /// # Parameters
-    ///
-    /// **additional_text**
-    ///
-    /// Pointer to the additional Message Authentication Code (MAC) data.
-    /// This additional data is optional and no data is necessary.
-    ///
-    /// **encrypt_text**
-    ///
-    /// Pointer to the data stream to be encrypted, which is &T. Must be within the enclave.
-    ///
-    /// # Return value
-    ///
-    /// The sealed data in SgxSealedData.
-    ///
-    /// # Errors
-    ///
-    /// **SGX_ERROR_INVALID_PARAMETER**
-    ///
-    /// Indicates an error if the parameters do not meet any of the following conditions:
-    ///
-    /// * additional_text buffer can be within or outside the enclave, but cannot cross the enclave boundary.
-    /// * encrypt_text must be non-zero.
-    /// * encrypt_text buffer must be within the enclave.
-    ///
-    /// **SGX_ERROR_OUT_OF_MEMORY**
-    ///
-    /// The enclave is out of memory.
-    ///
-    /// **SGX_ERROR_UNEXPECTED**
-    ///
-    /// Indicates a crypto library failure or the RDRAND instruction fails to generate a
-    /// random number.
-    ///
-    pub fn seal_data(additional_text: &[u8], encrypt_text: &'a T) -> SgxResult<Self> {
-        let size = mem::size_of::<T>();
-        if size == 0 {
-            return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
-        }
-        let encrypt_slice: &[u8] = unsafe {
-            slice::from_raw_parts(
-                encrypt_text as *const _ as *const u8,
-                mem::size_of_val(encrypt_text),
-            )
-        };
-        let result = SgxInternalSealedData::seal_data(additional_text, encrypt_slice);
-        result.map(|x| SgxSealedData {
-            inner: x,
+        let plaintext = unsafe { slice::from_raw_parts(data as *const _ as *const u8, size) };
+        InnerSealedData::seal(plaintext, aad).map(|inner| SealedData {
+            inner,
             marker: PhantomData,
         })
     }
 
-    ///
-    /// This function is used to AES-GCM encrypt the input data. Two input data sets
-    /// are provided: one is the data to be encrypted; the second is optional additional
-    /// data that will not be encrypted but will be part of the GCM MAC calculation
-    /// which also covers the data to be encrypted. This is the expert mode
-    /// version of function `seal_data`.
-    ///
-    /// # Descryption
-    ///
-    /// The `seal_data_ex` is an extended version of `seal_data`. It
-    /// provides parameters for you to identify how to derive the sealing key (key
-    /// policy and attributes_mask). Typical callers of the seal library should be
-    /// able to use `seal_data` and the default values provided for key_
-    /// policy (MR_SIGNER) and an attribute mask which includes the RESERVED,
-    /// INITED and DEBUG bits. Users of this function should have a clear understanding
-    /// of the impact on using a policy and/or attribute_mask that is different from that in seal_data.
-    ///
-    /// # Requirements
-    ///
-    /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
-    ///
-    /// # Parameters
-    ///
-    /// **key_policy**
-    ///
-    /// Specifies the policy to use in the key derivation. Function sgx_seal_data uses the MRSIGNER policy.
-    ///
-    /// Key policy name | Value | Description
-    /// ---|---|---
-    /// KEYPOLICY_MRENCLAVE | 0x0001 | -Derive key using the enclave??s ENCLAVE measurement register
-    /// KEYPOLICY_MRSIGNER |0x0002 | -Derive key using the enclave??s SIGNER measurement register
-    ///
-    /// **attribute_mask**
-    ///
-    /// Identifies which platform/enclave attributes to use in the key derivation. See
-    /// the definition of sgx_attributes_t to determine which attributes will be
-    /// checked.  Function sgx_seal_data uses flags=0xfffffffffffffff3,?xfrm=0.
-    ///
-    /// **misc_mask**
-    ///
-    /// The misc mask bits for the enclave. Reserved for future function extension.
-    ///
-    /// **additional_text**
-    ///
-    /// Pointer to the additional Message Authentication Code (MAC) data.
-    /// This additional data is optional and no data is necessary.
-    ///
-    /// **encrypt_text**
-    ///
-    /// Pointer to the data stream to be encrypted, which is &T. Must not be NULL. Must be within the enclave.
-    ///
-    /// # Return value
-    ///
-    /// The sealed data in SgxSealedData.
-    ///
-    /// # Errors
-    ///
-    /// **SGX_ERROR_INVALID_PARAMETER**
-    ///
-    /// Indicates an error if the parameters do not meet any of the following conditions:
-    ///
-    /// * additional_text buffer can be within or outside the enclave, but cannot cross the enclave boundary.
-    /// * encrypt_text must be non-zero.
-    /// * encrypt_text buffer must be within the enclave.
-    ///
-    /// **SGX_ERROR_OUT_OF_MEMORY**
-    ///
-    /// The enclave is out of memory.
-    ///
-    /// **SGX_ERROR_UNEXPECTED**
-    ///
-    /// Indicates a crypto library failure or the RDRAND instruction fails to generate a
-    /// random number.
-    ///
-    pub fn seal_data_ex(
-        key_policy: u16,
-        attribute_mask: sgx_attributes_t,
-        misc_mask: sgx_misc_select_t,
-        additional_text: &[u8],
-        encrypt_text: &'a T,
-    ) -> SgxResult<Self> {
-        let size = mem::size_of::<T>();
-        if size == 0 {
-            return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
-        }
-        let encrypt_slice: &[u8] = unsafe {
-            slice::from_raw_parts(
-                encrypt_text as *const _ as *const u8,
-                mem::size_of_val(encrypt_text),
-            )
-        };
-        let result = SgxInternalSealedData::seal_data_ex(
-            key_policy,
-            attribute_mask,
-            misc_mask,
-            additional_text,
-            encrypt_slice,
-        );
-        result.map(|x| SgxSealedData {
-            inner: x,
+    pub fn seal_with_key_policy(
+        key_policy: KeyPolicy,
+        attribute_mask: Attributes,
+        misc_mask: u32,
+        data: &T,
+        aad: Option<&[u8]>,
+    ) -> SgxResult<SealedData<T>> {
+        let size = mem::size_of_val(data);
+        ensure!(size != 0, SgxStatus::InvalidParameter);
+
+        let plaintext = unsafe { slice::from_raw_parts(data as *const _ as *const u8, size) };
+        InnerSealedData::seal_with_key_policy(key_policy, attribute_mask, misc_mask, plaintext, aad)
+            .map(|inner| SealedData {
+                inner,
+                marker: PhantomData,
+            })
+    }
+
+    #[inline]
+    pub fn into_bytes(self) -> SgxResult<Vec<u8>> {
+        self.inner.into_bytes()
+    }
+
+    #[inline]
+    pub fn to_bytes(&self) -> SgxResult<Vec<u8>> {
+        self.inner.to_bytes()
+    }
+
+    #[inline]
+    pub fn into_bytes_in<A: Allocator>(self, alloc: A) -> SgxResult<Vec<u8, A>> {
+        self.inner.into_bytes_in(alloc)
+    }
+    #[inline]
+    pub fn to_bytes_in<A: Allocator>(&self, alloc: A) -> SgxResult<Vec<u8, A>> {
+        self.inner.to_bytes_in(alloc)
+    }
+
+    #[inline]
+    pub fn from_bytes<A: Allocator>(data: Vec<u8, A>) -> SgxResult<SealedData<T>> {
+        InnerSealedData::from_bytes(data).map(|inner| SealedData {
+            inner,
             marker: PhantomData,
         })
     }
 
-    ///
-    /// This function is used to AES-GCM decrypt the input sealed data structure.
-    /// Two output data sets result: one is the decrypted data; the second is the
-    /// optional additional data that was part of the GCM MAC calculation but was not
-    /// encrypted. This function provides the converse of seal_data and
-    /// seal_data_ex.
-    ///
-    /// # Descryption
-    ///
-    /// The unseal_data function AES-GCM decrypts the sealed data so that
-    /// the enclave data can be restored. This function can be utilized to restore
-    /// secret data that was preserved after an earlier instantiation of this enclave
-    /// saved this data.
-    ///
-    /// # Requirements
-    ///
-    /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
-    ///
-    /// # Return value
-    ///
-    /// The unsealed data in SgxUnsealedData.
-    ///
-    /// # Errors
-    ///
-    /// **SGX_ERROR_INVALID_PARAMETER**
-    ///
-    /// The size of T may be zero.
-    ///
-    /// **SGX_ERROR_INVALID_CPUSVN**
-    ///
-    /// The CPUSVN in the sealed data blob is beyond the CPUSVN value of the platform.
-    /// SGX_ERROR_INVALID_ISVSVN The ISVSVN in the sealed data blob is greater than the ISVSVN value of the enclave.
-    ///
-    /// **SGX_ERROR_MAC_MISMATCH**
-    ///
-    /// The tag verification failed during unsealing. The error may be caused by a platform update,
-    /// software update, or sealed data blob corruption. This error is also reported if other corruption
-    /// of the sealed data structure is detected.
-    ///
-    /// **SGX_ERROR_OUT_OF_MEMORY**
-    ///
-    /// The enclave is out of memory.
-    ///
-    /// **SGX_ERROR_UNEXPECTED**
-    ///
-    /// Indicates a crypto library failure or the RDRAND instruction fails to generate a
-    /// random number.
-    ///
-    pub fn unseal_data(&self) -> SgxResult<SgxUnsealedData<'a, T>> {
-        let size = mem::size_of::<T>();
-        if size == 0 {
-            return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
-        }
-        let encrypt_len = self.get_encrypt_txt_len() as usize;
-        if size != encrypt_len {
-            return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
-        }
-        self.inner.unseal_data().map(|x| {
-            let ptr = Box::into_raw(x.decrypt);
-            SgxUnsealedData {
-                payload_size: x.payload_size,
-                decrypt: unsafe { Box::from_raw(ptr as *mut T) },
-                additional: x.additional,
+    #[inline]
+    pub fn from_slice(data: &[u8]) -> SgxResult<SealedData<T>> {
+        InnerSealedData::from_slice(data).map(|inner| SealedData {
+            inner,
+            marker: PhantomData,
+        })
+    }
+
+    #[inline]
+    pub fn tag(&self) -> Mac {
+        self.inner.payload.tag
+    }
+
+    #[inline]
+    pub fn payload_size(&self) -> u32 {
+        self.inner.payload.len
+    }
+}
+
+impl<T: ContiguousMemory> SealedData<T> {
+    pub fn unseal(self) -> SgxResult<UnsealedData<T>> {
+        self.inner.unseal().map(|inner| {
+            let ptr = Box::into_raw(inner.plaintext);
+            UnsealedData {
+                payload_size: inner.payload_len,
+                plaintext: unsafe { Box::from_raw(ptr as *mut T) },
+                aad: inner.aad,
                 marker: PhantomData,
             }
         })
     }
+}
 
-    ///
-    /// Convert a pointer of sgx_sealed_data_t buffer to SgxSealedData.
-    ///
-    /// # Requirements
-    ///
-    /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
-    ///
-    /// # Parameters
-    ///
-    /// **p**
-    ///
-    /// The mutable pointer of sgx_sealed_data_t buffer.
-    ///
-    /// **len**
-    ///
-    /// The size of the parameter `p`.
-    ///
-    /// # Return value
-    ///
-    /// **Some(SgxSealedData)**
-    ///
-    /// Indicates the conversion is successfully. The return value is SgxSealedData.
-    ///
-    /// **None**
-    ///
-    /// Maybe the size of T is zero.
-    ///
-    pub unsafe fn from_raw_sealed_data_t(p: *mut sgx_sealed_data_t, len: u32) -> Option<Self> {
-        let size = mem::size_of::<T>();
-        if size == 0 {
-            return None;
-        }
-        let opt = SgxInternalSealedData::from_raw_sealed_data_t(p, len);
-        opt.map(|x| SgxSealedData {
-            inner: x,
+impl<T: ContiguousMemory> SealedData<[T]> {
+    pub fn unseal(self) -> SgxResult<UnsealedData<[T]>> {
+        self.inner.unseal().map(|inner| UnsealedData {
+            payload_size: inner.payload_len,
+            plaintext: unsafe { mem::transmute(inner.plaintext) },
+            aad: inner.aad,
             marker: PhantomData,
         })
-    }
-
-    ///
-    /// Convert SgxSealedData to the pointer of sgx_sealed_data_t.
-    ///
-    /// # Parameters
-    ///
-    /// **p**
-    ///
-    /// The pointer of sgx_sealed_data_t to save the data in SgxSealedData.
-    ///
-    /// **len**
-    ///
-    /// The size of the pointer of sgx_sealed_data_t.
-    ///
-    /// # Error
-    ///
-    /// **Some(*mut sgx_sealed_data_t)**
-    ///
-    /// Indicates the conversion is successfully. The return value is the pointer of sgx_sealed_data_t.
-    ///
-    /// **None**
-    ///
-    /// May be the parameter p and len is not avaliable.
-    ///
-    pub unsafe fn to_raw_sealed_data_t(
-        &self,
-        p: *mut sgx_sealed_data_t,
-        len: u32,
-    ) -> Option<*mut sgx_sealed_data_t> {
-        self.inner.to_raw_sealed_data_t(p, len)
     }
 }
 
-/// The encrypt_text to seal is [T], and T must have Copy and ContiguousMemory trait.
-impl<'a, T: 'a + Copy + ContiguousMemory> SgxSealedData<'a, [T]> {
-    ///
-    /// This function is used to AES-GCM encrypt the input data. Two input data sets
-    /// are provided: one is the data to be encrypted; the second is optional additional data
-    /// that will not be encrypted but will be part of the GCM MAC calculation which also covers the data to be encrypted.
-    ///
-    /// # Descryption
-    ///
-    /// The seal_data function retrieves a key unique to the enclave and uses
-    /// that key to encrypt the input data buffer. This function can be utilized to preserve secret
-    /// data after the enclave is destroyed. The sealed data blob can be
-    /// unsealed on future instantiations of the enclave.
-    /// The additional data buffer will not be encrypted but will be part of the MAC
-    /// calculation that covers the encrypted data as well. This data may include
-    /// information about the application, version, data, etc which can be utilized to
-    /// identify the sealed data blob since it will remain plain text
-    /// Use `calc_raw_sealed_data_size` to calculate the number of bytes to
-    /// allocate for the `SgxSealedData` structure. The input sealed data buffer and
-    /// text2encrypt buffers must be allocated within the enclave.
-    ///
-    /// # Requirements
-    ///
-    /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
-    ///
-    /// # Parameters
-    ///
-    /// **additional_text**
-    ///
-    /// Pointer to the additional Message Authentication Code (MAC) data.
-    /// This additional data is optional and no data is necessary.
-    ///
-    /// **encrypt_text**
-    ///
-    /// Pointer to the data stream to be encrypted, which is &[T]. Must be within the enclave.
-    ///
-    /// # Return value
-    ///
-    /// The sealed data in SgxSealedData.
-    ///
-    /// # Errors
-    ///
-    /// **SGX_ERROR_INVALID_PARAMETER**
-    ///
-    /// Indicates an error if the parameters do not meet any of the following conditions:
-    ///
-    /// * additional_text buffer can be within or outside the enclave, but cannot cross the enclave boundary.
-    /// * encrypt_text must be non-zero.
-    /// * encrypt_text buffer must be within the enclave.
-    ///
-    /// **SGX_ERROR_OUT_OF_MEMORY**
-    ///
-    /// The enclave is out of memory.
-    ///
-    /// **SGX_ERROR_UNEXPECTED**
-    ///
-    /// Indicates a crypto library failure or the RDRAND instruction fails to generate a
-    /// random number.
-    ///
-    pub fn seal_data(additional_text: &[u8], encrypt_text: &'a [T]) -> SgxResult<Self> {
-        let size = mem::size_of::<T>();
-        let len = mem::size_of_val(encrypt_text);
-        if size == 0 || len == 0 {
-            return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
-        }
-        let encrypt_slice: &[u8] =
-            unsafe { slice::from_raw_parts(encrypt_text.as_ptr() as *const u8, len) };
+/// The structure about the unsealed data.
+pub struct UnsealedData<T: ?Sized> {
+    payload_size: u32,
+    plaintext: Box<T>,
+    aad: Box<[u8]>,
+    marker: PhantomData<T>,
+}
 
-        let result = SgxInternalSealedData::seal_data(additional_text, encrypt_slice);
-        result.map(|x| SgxSealedData {
-            inner: x,
-            marker: PhantomData,
-        })
+impl<T: ContiguousMemory + ?Sized> UnsealedData<T> {
+    #[inline]
+    pub fn payload_size(&self) -> u32 {
+        self.payload_size
     }
 
-    ///
-    /// This function is used to AES-GCM encrypt the input data. Two input data sets
-    /// are provided: one is the data to be encrypted; the second is optional additional
-    /// data that will not be encrypted but will be part of the GCM MAC calculation
-    /// which also covers the data to be encrypted. This is the expert mode
-    /// version of function `seal_data`.
-    ///
-    /// # Descryption
-    ///
-    /// The `seal_data_ex` is an extended version of `seal_data`. It
-    /// provides parameters for you to identify how to derive the sealing key (key
-    /// policy and attributes_mask). Typical callers of the seal library should be
-    /// able to use `seal_data` and the default values provided for key_
-    /// policy (MR_SIGNER) and an attribute mask which includes the RESERVED,
-    /// INITED and DEBUG bits. Users of this function should have a clear understanding
-    /// of the impact on using a policy and/or attribute_mask that is different from that in seal_data.
-    ///
-    /// # Requirements
-    ///
-    /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
-    ///
-    /// # Parameters
-    ///
-    /// **key_policy**
-    ///
-    /// Specifies the policy to use in the key derivation. Function sgx_seal_data uses the MRSIGNER policy.
-    ///
-    /// Key policy name | Value | Description
-    /// ---|---|---
-    /// KEYPOLICY_MRENCLAVE | 0x0001 | -Derive key using the enclave??s ENCLAVE measurement register
-    /// KEYPOLICY_MRSIGNER |0x0002 | -Derive key using the enclave??s SIGNER measurement register
-    ///
-    /// **attribute_mask**
-    ///
-    /// Identifies which platform/enclave attributes to use in the key derivation. See
-    /// the definition of sgx_attributes_t to determine which attributes will be
-    /// checked.  Function sgx_seal_data uses flags=0xfffffffffffffff3,?xfrm=0.
-    ///
-    /// **misc_mask**
-    ///
-    /// The misc mask bits for the enclave. Reserved for future function extension.
-    ///
-    /// **additional_text**
-    ///
-    /// Pointer to the additional Message Authentication Code (MAC) data.
-    /// This additional data is optional and no data is necessary.
-    ///
-    /// **encrypt_text**
-    ///
-    /// Pointer to the data stream to be encrypted, which is &[T]. Must not be NULL. Must be within the enclave.
-    ///
-    /// # Return value
-    ///
-    /// The sealed data in SgxSealedData.
-    ///
-    /// # Errors
-    ///
-    /// **SGX_ERROR_INVALID_PARAMETER**
-    ///
-    /// Indicates an error if the parameters do not meet any of the following conditions:
-    ///
-    /// * additional_text buffer can be within or outside the enclave, but cannot cross the enclave boundary.
-    /// * encrypt_text must be non-zero.
-    /// * encrypt_text buffer must be within the enclave.
-    ///
-    /// **SGX_ERROR_OUT_OF_MEMORY**
-    ///
-    /// The enclave is out of memory.
-    ///
-    /// **SGX_ERROR_UNEXPECTED**
-    ///
-    /// Indicates a crypto library failure or the RDRAND instruction fails to generate a
-    /// random number.
-    ///
-    pub fn seal_data_ex(
-        key_policy: u16,
-        attribute_mask: sgx_attributes_t,
-        misc_mask: sgx_misc_select_t,
-        additional_text: &[u8],
-        encrypt_text: &'a [T],
-    ) -> SgxResult<Self> {
-        let size = mem::size_of::<T>();
-        let len = mem::size_of_val(encrypt_text);
-        if size == 0 || len == 0 {
-            return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
-        }
-        let encrypt_slice: &[u8] =
-            unsafe { slice::from_raw_parts(encrypt_text.as_ptr() as *const u8, len) };
-
-        let result = SgxInternalSealedData::seal_data_ex(
-            key_policy,
-            attribute_mask,
-            misc_mask,
-            additional_text,
-            encrypt_slice,
-        );
-        result.map(|x| SgxSealedData {
-            inner: x,
-            marker: PhantomData,
-        })
+    #[inline]
+    pub fn into_plaintext(self) -> Box<T> {
+        self.plaintext
     }
 
-    ///
-    /// This function is used to AES-GCM decrypt the input sealed data structure.
-    /// Two output data sets result: one is the decrypted data; the second is the
-    /// optional additional data that was part of the GCM MAC calculation but was not
-    /// encrypted. This function provides the converse of seal_data and
-    /// seal_data_ex.
-    ///
-    /// # Descryption
-    ///
-    /// The unseal_data function AES-GCM decrypts the sealed data so that
-    /// the enclave data can be restored. This function can be utilized to restore
-    /// secret data that was preserved after an earlier instantiation of this enclave
-    /// saved this data.
-    ///
-    /// # Requirements
-    ///
-    /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
-    ///
-    /// # Return value
-    ///
-    /// The unsealed data in SgxUnsealedData.
-    ///
-    /// # Errors
-    ///
-    /// **SGX_ERROR_INVALID_PARAMETER**
-    ///
-    /// The size of T may be zero.
-    ///
-    /// **SGX_ERROR_INVALID_CPUSVN**
-    ///
-    /// The CPUSVN in the sealed data blob is beyond the CPUSVN value of the platform.
-    /// SGX_ERROR_INVALID_ISVSVN The ISVSVN in the sealed data blob is greater than the ISVSVN value of the enclave.
-    ///
-    /// **SGX_ERROR_MAC_MISMATCH**
-    ///
-    /// The tag verification failed during unsealing. The error may be caused by a platform update,
-    /// software update, or sealed data blob corruption. This error is also reported if other corruption
-    /// of the sealed data structure is detected.
-    ///
-    /// **SGX_ERROR_OUT_OF_MEMORY**
-    ///
-    /// The enclave is out of memory.
-    ///
-    /// **SGX_ERROR_UNEXPECTED**
-    ///
-    /// Indicates a crypto library failure or the RDRAND instruction fails to generate a
-    /// random number.
-    ///
-    pub fn unseal_data(&self) -> SgxResult<SgxUnsealedData<'a, [T]>> {
-        let size = mem::size_of::<T>();
-        if size == 0 {
-            return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
-        }
-        let encrypt_len = self.get_encrypt_txt_len() as usize;
-        if size > encrypt_len {
-            return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
-        }
-        if (encrypt_len % size) != 0 {
-            return Err(sgx_status_t::SGX_ERROR_MAC_MISMATCH);
-        }
-
-        self.inner.unseal_data().map(|x| {
-            let ptr = Box::into_raw(x.decrypt);
-            let slice = unsafe { slice::from_raw_parts_mut(ptr as *mut T, encrypt_len / size) };
-            SgxUnsealedData {
-                payload_size: x.payload_size,
-                decrypt: unsafe { Box::from_raw(slice as *mut [T]) },
-                additional: x.additional,
-                marker: PhantomData,
-            }
-        })
+    #[inline]
+    pub fn to_plaintext(&self) -> &T {
+        &self.plaintext
     }
 
-    ///
-    /// Convert a pointer of sgx_sealed_data_t buffer to SgxSealedData.
-    ///
-    /// # Requirements
-    ///
-    /// Library: libsgx_tservice.a or libsgx_tservice_sim.a (simulation)
-    ///
-    /// # Parameters
-    ///
-    /// **p**
-    ///
-    /// The mutable pointer of sgx_sealed_data_t buffer.
-    ///
-    /// **len**
-    ///
-    /// The size of the parameter `p`.
-    ///
-    /// # Return value
-    ///
-    /// **Some(SgxSealedData)**
-    ///
-    /// Indicates the conversion is successfully. The return value is SgxSealedData.
-    ///
-    /// **None**
-    ///
-    /// Maybe the size of T is zero.
-    ///
-    pub unsafe fn from_raw_sealed_data_t(p: *mut sgx_sealed_data_t, len: u32) -> Option<Self> {
-        let size = mem::size_of::<T>();
-        if size == 0 {
-            return None;
-        }
-        let opt = SgxInternalSealedData::from_raw_sealed_data_t(p, len);
-        opt.map(|x| SgxSealedData {
-            inner: x,
-            marker: PhantomData,
-        })
+    #[inline]
+    pub fn into_aad(self) -> Box<[u8]> {
+        self.aad
     }
 
-    ///
-    /// Convert SgxSealedData to the pointer of sgx_sealed_data_t.
-    ///
-    /// # Parameters
-    ///
-    /// **p**
-    ///
-    /// The pointer of sgx_sealed_data_t to save the data in SgxSealedData.
-    ///
-    /// **len**
-    ///
-    /// The size of the pointer of sgx_sealed_data_t.
-    ///
-    /// # Error
-    ///
-    /// **Some(*mut sgx_sealed_data_t)**
-    ///
-    /// Indicates the conversion is successfully. The return value is the pointer of sgx_sealed_data_t.
-    ///
-    /// **None**
-    ///
-    /// May be the parameter p and len is not avaliable.
-    ///
-    pub unsafe fn to_raw_sealed_data_t(
-        &self,
-        p: *mut sgx_sealed_data_t,
-        len: u32,
-    ) -> Option<*mut sgx_sealed_data_t> {
-        self.inner.to_raw_sealed_data_t(p, len)
+    #[inline]
+    pub fn to_aad(&self) -> &[u8] {
+        &self.aad
     }
 }
 
-impl<'a, T: 'a + ?Sized> SgxSealedData<'a, T> {
-    ///
-    /// Create a SgxSealedData with default values.
-    ///
-    pub fn new() -> Self {
-        SgxSealedData::default()
+impl<T: ContiguousMemory> UnsealedData<T> {
+    pub fn unseal_from_bytes<A: Allocator>(data: Vec<u8, A>) -> SgxResult<UnsealedData<T>> {
+        let sealed_data = SealedData::<T>::from_bytes(data)?;
+        sealed_data.unseal()
     }
 
-    ///
-    /// Get the size of payload in SgxSealedData.
-    ///
-    pub fn get_payload_size(&self) -> u32 {
-        self.inner.get_payload_size()
+    pub fn unseal_from_slice(data: &[u8]) -> SgxResult<UnsealedData<T>> {
+        let sealed_data = SealedData::<T>::from_slice(data)?;
+        sealed_data.unseal()
+    }
+}
+
+impl<T: ContiguousMemory> UnsealedData<[T]> {
+    pub fn unseal_from_bytes<A: Allocator>(data: Vec<u8, A>) -> SgxResult<UnsealedData<[T]>> {
+        let sealed_data = SealedData::<[T]>::from_bytes(data)?;
+        sealed_data.unseal()
     }
 
-    ///
-    /// Get a slice of payload in SgxSealedData.
-    ///
-    pub fn get_payload_tag(&self) -> &[u8; SGX_SEAL_TAG_SIZE] {
-        self.inner.get_payload_tag()
+    pub fn unseal_from_slice(data: &[u8]) -> SgxResult<UnsealedData<[T]>> {
+        let sealed_data = SealedData::<[T]>::from_slice(data)?;
+        sealed_data.unseal()
+    }
+}
+
+impl<T: ?Sized> From<UnsealedData<T>> for (Box<T>, Box<[u8]>) {
+    fn from(unsealed_data: UnsealedData<T>) -> (Box<T>, Box<[u8]>) {
+        (unsealed_data.plaintext, unsealed_data.aad)
+    }
+}
+
+impl<T: Clone + ?Sized> Clone for UnsealedData<T> {
+    fn clone(&self) -> UnsealedData<T> {
+        UnsealedData {
+            payload_size: self.payload_size,
+            plaintext: self.plaintext.clone(),
+            aad: self.aad.clone(),
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<T: fmt::Debug + ?Sized> fmt::Debug for UnsealedData<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.debug_struct("UnsealedData")
+            .field("payload_size", &self.payload_size)
+            .field("plaintext", &self.plaintext)
+            .field("aad", &self.aad)
+            .finish()
+    }
+}
+
+impl<T: ContiguousMemory + ?Sized> EnclaveRange for SealedData<T> {
+    fn is_enclave_range(&self) -> bool {
+        self.inner.is_enclave_range()
+    }
+    fn is_host_range(&self) -> bool {
+        self.inner.is_host_range()
+    }
+}
+
+impl<T: ContiguousMemory> EnclaveRange for UnsealedData<T> {
+    fn is_enclave_range(&self) -> bool {
+        if !is_within_enclave(self as *const _ as *const u8, mem::size_of_val(self)) {
+            return false;
+        }
+
+        if !is_within_enclave(
+            self.plaintext.as_ref() as *const _ as *const u8,
+            mem::size_of::<T>(),
+        ) {
+            return false;
+        }
+
+        if !self.aad.is_empty() && !is_within_enclave(self.aad.as_ptr(), self.aad.len()) {
+            return false;
+        }
+
+        true
     }
 
-    ///
-    /// Get the pointer of sgx_key_request_t in SgxSealedData.
-    ///
-    pub fn get_key_request(&self) -> &sgx_key_request_t {
-        self.inner.get_key_request()
+    fn is_host_range(&self) -> bool {
+        if !is_within_host(self as *const _ as *const u8, mem::size_of_val(self)) {
+            return false;
+        }
+
+        if !is_within_host(
+            self.plaintext.as_ref() as *const _ as *const u8,
+            mem::size_of::<T>(),
+        ) {
+            return false;
+        }
+
+        if !self.aad.is_empty() && !is_within_host(self.aad.as_ptr(), self.aad.len()) {
+            return false;
+        }
+
+        true
+    }
+}
+
+impl<T: ContiguousMemory> EnclaveRange for UnsealedData<[T]> {
+    fn is_enclave_range(&self) -> bool {
+        if !is_within_enclave(self as *const _ as *const u8, mem::size_of_val(self)) {
+            return false;
+        }
+
+        if !is_within_enclave(
+            self.plaintext.as_ptr() as *const _ as *const u8,
+            self.plaintext.len() * mem::size_of::<T>(),
+        ) {
+            return false;
+        }
+
+        if !self.aad.is_empty() && !is_within_enclave(self.aad.as_ptr(), self.aad.len()) {
+            return false;
+        }
+
+        true
     }
 
-    ///
-    /// Get a slice of encrypt text in SgxSealedData.
-    ///
-    pub fn get_encrypt_txt(&self) -> &[u8] {
-        self.inner.get_encrypt_txt()
-    }
+    fn is_host_range(&self) -> bool {
+        if !is_within_host(self as *const _ as *const u8, mem::size_of_val(self)) {
+            return false;
+        }
 
-    ///
-    /// Get a slice of additional text in SgxSealedData.
-    ///
-    pub fn get_additional_txt(&self) -> &[u8] {
-        self.inner.get_additional_txt()
-    }
+        if !is_within_host(
+            self.plaintext.as_ptr() as *const _ as *const u8,
+            self.plaintext.len() * mem::size_of::<T>(),
+        ) {
+            return false;
+        }
 
-    ///
-    /// Calculate the size of the sealed data in SgxSealedData.
-    ///
-    pub fn calc_raw_sealed_data_size(add_mac_txt_size: u32, encrypt_txt_size: u32) -> u32 {
-        SgxInternalSealedData::calc_raw_sealed_data_size(add_mac_txt_size, encrypt_txt_size)
-    }
+        if !self.aad.is_empty() && !is_within_host(self.aad.as_ptr(), self.aad.len()) {
+            return false;
+        }
 
-    ///
-    /// Get the size of the additional mactext in SgxSealedData.
-    ///
-    pub fn get_add_mac_txt_len(&self) -> u32 {
-        self.inner.get_add_mac_txt_len()
-    }
-
-    ///
-    /// Get the size of the encrypt text in SgxSealedData.
-    ///
-    pub fn get_encrypt_txt_len(&self) -> u32 {
-        self.inner.get_encrypt_txt_len()
+        true
     }
 }

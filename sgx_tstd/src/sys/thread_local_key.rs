@@ -15,35 +15,35 @@
 // specific language governing permissions and limitations
 // under the License..
 
-#![allow(dead_code)] // not used on all platforms
+use crate::ptr;
 
-use crate::mem;
-use sgx_libc as libc;
+use sgx_trts::thread::tls::{Key as NativeKey, Tls};
 
-pub type Key = libc::pthread_key_t;
+pub type Key = usize;
 
 #[inline]
 pub unsafe fn create(dtor: Option<unsafe extern "C" fn(*mut u8)>) -> Key {
-    let mut key = 0;
-    assert_eq!(libc::pthread_key_create(&mut key, mem::transmute(dtor)), 0);
-    key
+    let key = Tls::create(dtor).unwrap();
+    key.as_usize()
 }
 
 #[inline]
 pub unsafe fn set(key: Key, value: *mut u8) {
-    let r = libc::pthread_setspecific(key, value as *mut _);
-    debug_assert_eq!(r, 0);
+    let key = NativeKey::from_usize(key).unwrap();
+    let r = Tls::set(key, value);
+    assert!(r.is_ok());
 }
 
 #[inline]
 pub unsafe fn get(key: Key) -> *mut u8 {
-    libc::pthread_getspecific(key) as *mut u8
+    let key = NativeKey::from_usize(key).unwrap();
+    Tls::get(key).unwrap_or(None).unwrap_or(ptr::null_mut())
 }
 
 #[inline]
 pub unsafe fn destroy(key: Key) {
-    let r = libc::pthread_key_delete(key);
-    debug_assert_eq!(r, 0);
+    let key = NativeKey::from_usize(key).unwrap();
+    Tls::destroy(key)
 }
 
 #[inline]

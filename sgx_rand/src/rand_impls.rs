@@ -20,7 +20,7 @@
 use std::char;
 use std::mem;
 
-use crate::{Rand,Rng};
+use crate::{Rand, Rng};
 
 impl Rand for isize {
     #[inline]
@@ -114,11 +114,10 @@ impl Rand for u128 {
     }
 }
 
-
 macro_rules! float_impls {
     ($mod_name:ident, $ty:ty, $mantissa_bits:expr, $method_name:ident) => {
         mod $mod_name {
-            use crate::{Rand, Rng, Open01, Closed01};
+            use crate::{Closed01, Open01, Rand, Rng};
 
             const SCALE: $ty = (1u64 << $mantissa_bits) as $ty;
 
@@ -152,7 +151,7 @@ macro_rules! float_impls {
                 }
             }
         }
-    }
+    };
 }
 float_impls! { f64_rand_impls, f64, 53, next_f64 }
 float_impls! { f32_rand_impls, f32, 24, next_f32 }
@@ -166,9 +165,8 @@ impl Rand for char {
             // Rejection sampling. About 0.2% of numbers with at most
             // 21-bits are invalid codepoints (surrogates), so this
             // will succeed first go almost every time.
-            match char::from_u32(rng.next_u32() & CHAR_MASK) {
-                Some(c) => return c,
-                None => {}
+            if let Some(c) = char::from_u32(rng.next_u32() & CHAR_MASK) {
+                return c;
             }
         }
     }
@@ -206,20 +204,20 @@ macro_rules! tuple_impl {
 
 impl Rand for () {
     #[inline]
-    fn rand<R: Rng>(_: &mut R) -> () { () }
+    fn rand<R: Rng>(_: &mut R) {}
 }
-tuple_impl!{A}
-tuple_impl!{A, B}
-tuple_impl!{A, B, C}
-tuple_impl!{A, B, C, D}
-tuple_impl!{A, B, C, D, E}
-tuple_impl!{A, B, C, D, E, F}
-tuple_impl!{A, B, C, D, E, F, G}
-tuple_impl!{A, B, C, D, E, F, G, H}
-tuple_impl!{A, B, C, D, E, F, G, H, I}
-tuple_impl!{A, B, C, D, E, F, G, H, I, J}
-tuple_impl!{A, B, C, D, E, F, G, H, I, J, K}
-tuple_impl!{A, B, C, D, E, F, G, H, I, J, K, L}
+tuple_impl! {A}
+tuple_impl! {A, B}
+tuple_impl! {A, B, C}
+tuple_impl! {A, B, C, D}
+tuple_impl! {A, B, C, D, E}
+tuple_impl! {A, B, C, D, E, F}
+tuple_impl! {A, B, C, D, E, F, G}
+tuple_impl! {A, B, C, D, E, F, G, H}
+tuple_impl! {A, B, C, D, E, F, G, H, I}
+tuple_impl! {A, B, C, D, E, F, G, H, I, J}
+tuple_impl! {A, B, C, D, E, F, G, H, I, J, K}
+tuple_impl! {A, B, C, D, E, F, G, H, I, J, K, L}
 
 macro_rules! array_impl {
     {$n:expr, $t:ident, $($ts:ident,)*} => {
@@ -239,9 +237,9 @@ macro_rules! array_impl {
     };
 }
 
-array_impl!{32, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,}
+array_impl! {32, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T,}
 
-impl<T:Rand> Rand for Option<T> {
+impl<T: Rand> Rand for Option<T> {
     #[inline]
     fn rand<R: Rng>(rng: &mut R) -> Option<T> {
         if rng.gen() {

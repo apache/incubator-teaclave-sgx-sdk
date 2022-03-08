@@ -15,6 +15,18 @@
 // specific language governing permissions and limitations
 // under the License..
 
+//! Thread-local destructor
+//!
+//! Besides thread-local "keys" (pointer-sized non-addressable thread-local store
+//! with an associated destructor), many platforms also provide thread-local
+//! destructors that are not associated with any particular data. These are
+//! often more efficient.
+//!
+//! This module provides a fallback implementation for that interface, based
+//! on the less efficient thread-local "keys". Each platform provides
+//! a `thread_local_dtor` module which will either re-export the fallback,
+//! or implement something more efficient.
+
 #![allow(dead_code)] // sys isn't exported yet
 
 use crate::ptr;

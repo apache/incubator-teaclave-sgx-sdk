@@ -17,13 +17,15 @@
 
 //! Raw Unix-like file descriptors.
 
+#[cfg(feature = "stdio")]
 use crate::io;
 use crate::os::raw;
 use crate::os::unix::io::OwnedFd;
 use crate::sys_common::{AsInner, IntoInner};
 use crate::untrusted::fs;
 
-use sgx_libc as libc;
+#[cfg(feature = "stdio")]
+use sgx_oc as libc;
 
 /// Raw file descriptors.
 pub type RawFd = raw::c_int;

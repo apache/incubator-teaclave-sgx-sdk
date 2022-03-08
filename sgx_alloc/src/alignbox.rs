@@ -16,10 +16,8 @@
 // under the License..
 
 //! # align box crate for Rust SGX SDK
-//!
 
-use super::alignalloc::AlignAlloc;
-pub use super::alignalloc::AlignReq;
+use crate::alignalloc::AlignAlloc;
 use alloc::alloc::handle_alloc_error;
 use core::alloc::Layout;
 use core::borrow;
@@ -28,6 +26,8 @@ use core::mem;
 use core::ops::{Deref, DerefMut};
 use core::ptr;
 use core::ptr::{NonNull, Unique};
+
+pub use crate::alignalloc::AlignReq;
 
 pub struct AlignBox<T> {
     ptr: Unique<T>,
@@ -98,7 +98,6 @@ impl<T: fmt::Debug> fmt::Debug for AlignBox<T> {
 }
 
 impl<T: Clone> Clone for AlignBox<T> {
-    #[rustfmt::skip]
     #[inline]
     fn clone(&self) -> AlignBox<T> {
         let ptr = match unsafe {
@@ -174,19 +173,19 @@ impl<T> AlignBox<T> {
     }
 
     fn new_with_align_in(align: usize) -> Option<AlignBox<T>> {
-        let v: [AlignReq; 1] = [AlignReq {
+        let req: [AlignReq; 1] = [AlignReq {
             offset: 0,
             len: mem::size_of::<T>(),
         }];
-        AlignBox::allocate_in(true, align, &v)
+        AlignBox::allocate_in(true, align, &req)
     }
 
     fn new_in() -> Option<AlignBox<T>> {
-        let v: [AlignReq; 1] = [AlignReq {
+        let req: [AlignReq; 1] = [AlignReq {
             offset: 0,
             len: mem::size_of::<T>(),
         }];
-        AlignBox::allocate_in(true, mem::align_of::<T>(), &v)
+        AlignBox::allocate_in(true, mem::align_of::<T>(), &req)
     }
 
     fn allocate_in(zeroed: bool, align: usize, align_req: &[AlignReq]) -> Option<AlignBox<T>> {
@@ -194,30 +193,25 @@ impl<T> AlignBox<T> {
             return None;
         }
 
-        let layout = match Layout::from_size_align(mem::size_of::<T>(), align) {
-            Ok(n) => n,
-            Err(_) => return None,
-        };
-
-        let align_layout = match AlignAlloc.pad_align_to(layout, align_req) {
-            Ok(n) => n,
-            Err(_) => return None,
-        };
+        let layout = Layout::from_size_align(mem::size_of::<T>(), align).ok()?;
+        let align_layout = AlignAlloc.pad_align_to(layout, align_req).ok()?;
 
         // handles ZSTs and `cap = 0` alike
-        let result = if zeroed {
-            unsafe { AlignAlloc.alloc_with_req_zeroed(layout, align_req) }
-        } else {
-            unsafe { AlignAlloc.alloc_with_req(layout, align_req) }
+        let result = unsafe {
+            if zeroed {
+                AlignAlloc.alloc_with_req_zeroed(layout, align_req)
+            } else {
+                AlignAlloc.alloc_with_req(layout, align_req)
+            }
         };
         let ptr = match result {
             Ok(p) => p,
-            Err(_) => handle_alloc_error(align_layout),
+            Err(_) => handle_alloc_error(align_layout.layout),
         };
 
         Some(AlignBox {
             ptr: Unique::new(ptr.cast::<T>().as_ptr()).unwrap(),
-            align_layout,
+            align_layout: align_layout.layout,
             origin_layout: layout,
         })
     }

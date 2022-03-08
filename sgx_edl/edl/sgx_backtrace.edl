@@ -16,16 +16,6 @@
 // under the License.
 
 enclave {
-
     from "sgx_fd.edl" import *;
     from "sgx_file.edl" import *;
-    from "sgx_mem.edl" import *;
-
-	trusted {
-        /* define ECALLs here. */
-    };
-
-    untrusted {
-        /* define OCALLs here. */
-    };
 };
