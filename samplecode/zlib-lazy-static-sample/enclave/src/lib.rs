@@ -27,12 +27,11 @@ use libflate::zlib::Encoder;
 use std::io::Write;
 
 lazy_static! {
-    static ref HELLOSTR : String = String::from("This is a global rust String init by lazy_static!");
+    static ref HELLOSTR: String = String::from("This is a global rust String init by lazy_static!");
 }
 
 #[no_mangle]
-pub extern "C"
-fn zlib_sample() -> SgxStatus {
+pub extern "C" fn zlib_sample() -> SgxStatus {
     println!("Source string is : {:?}", *HELLOSTR);
     println!("Source data is : {:?}", HELLOSTR.as_bytes());
 
@@ -49,4 +48,3 @@ fn zlib_sample() -> SgxStatus {
 
     SgxStatus::Success
 }
-

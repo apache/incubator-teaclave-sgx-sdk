@@ -23,31 +23,28 @@ use sgx_urts::enclave::SgxEnclave;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
-extern {
+extern "C" {
     fn zlib_sample(eid: EnclaveId, retval: *mut SgxStatus) -> SgxStatus;
 }
 
 fn main() {
-
     let enclave = match SgxEnclave::create(ENCLAVE_FILE, true) {
         Ok(enclave) => {
             println!("[+] Init Enclave Successful {}!", enclave.eid());
             enclave
-        },
+        }
         Err(err) => {
             println!("[-] Init Enclave Failed {}!", err.as_str());
             return;
-        },
+        }
     };
 
     let mut retval = SgxStatus::Success;
 
-    let result = unsafe {
-        zlib_sample(enclave.eid(),&mut retval)
-    };
+    let result = unsafe { zlib_sample(enclave.eid(), &mut retval) };
 
     match result {
-        SgxStatus::Success=> {},
+        SgxStatus::Success => {}
         _ => {
             println!("[-] ECALL Enclave Failed {}!", result.as_str());
             return;
