@@ -16,15 +16,14 @@
 // under the License..
 
 extern crate sgx_types;
-#[macro_use]
-extern crate lazy_static;
 
 use sgx_types::error::SgxStatus;
 use std::str::from_utf8;
+use std::io::Write;
 
 use inflate::inflate_bytes_zlib;
+use lazy_static::lazy_static;
 use libflate::zlib::Encoder;
-use std::io::Write;
 
 lazy_static! {
     static ref HELLOSTR: String = String::from("This is a global rust String init by lazy_static!");
