@@ -15,17 +15,17 @@
 // specific language governing permissions and limitations
 // under the License..
 
-extern crate sgx_types;
-//extern crate sgx_crypto;
+extern crate sgx_crypto;
 extern crate sgx_crypto_sys;
+extern crate sgx_types;
 
 use std::{ptr, slice};
 
+use sgx_crypto::*;
+use sgx_crypto_sys::*;
 use sgx_types::error::*;
 use sgx_types::memeq::ConstTimeEq;
-use sgx_types::types::Sha256Hash;
-//use sgx_crypto::*;
-use sgx_crypto_sys::*;
+use sgx_types::types::{Key128bit, Mac128bit, Sha256Hash, MAC_128BIT_SIZE};
 
 /// A Ecall function takes a string and output its SHA256 digest.
 ///
@@ -149,59 +149,71 @@ pub extern "C" fn aes_gcm_128_encrypt(
     ciphertext: *mut u8,
     mac: &mut [u8; 16],
 ) -> SgxStatus {
-    SgxStatus::Success
-    //println!("aes_gcm_128_encrypt invoked!");
+    println!("aes_gcm_128_encrypt invoked!");
 
-    //// First, we need slices for input
-    //let plaintext_slice = unsafe { slice::from_raw_parts(plaintext, text_len) };
+    // First, we need slices for input
+    let plaintext_slice = unsafe { slice::from_raw_parts(plaintext, text_len) };
 
-    //// Here we need to initiate the ciphertext buffer, though nothing in it.
-    //// Thus show the length of ciphertext buffer is equal to plaintext buffer.
-    //// If not, the length of ciphertext_vec will be 0, which leads to argument
-    //// illegal.
-    //let mut ciphertext_vec: Vec<u8> = vec![0; text_len];
+    // Here we need to initiate the ciphertext buffer, though nothing in it.
+    // Thus show the length of ciphertext buffer is equal to plaintext buffer.
+    // If not, the length of ciphertext_vec will be 0, which leads to argument
+    // illegal.
+    let mut ciphertext_vec: Vec<u8> = vec![0; text_len];
 
-    //// Second, for data with known length, we use array with fixed length.
-    //// Here we cannot use slice::from_raw_parts because it provides &[u8]
-    //// instead of &[u8,16].
-    //let aad_array: [u8; 0] = [0; 0];
-    //let mut mac_array: [u8; MAC_256BIT_SIZE] = [0; MAC_256BIT_SIZE];
+    // Second, for data with known length, we use array with fixed length.
+    // Here we cannot use slice::from_raw_parts because it provides &[u8]
+    // instead of &[u8,16].
+    let aad_array: [u8; 0] = [0; 0];
+    let mut mac_array: [u8; MAC_128BIT_SIZE] = [0; MAC_128BIT_SIZE];
 
-    //// Always check the length after slice::from_raw_parts
-    //if plaintext_slice.len() != text_len {
-    //    return SgxStatus::SGX_ERROR_INVALID_PARAMETER;
-    //}
+    // Always check the length after slice::from_raw_parts
+    if plaintext_slice.len() != text_len {
+        return SgxStatus::InvalidParameter;
+    }
 
-    //let ciphertext_slice = &mut ciphertext_vec[..];
-    //println!("aes_gcm_128_encrypt parameter prepared! {}, {}",
-    //          plaintext_slice.len(),
-    //          ciphertext_slice.len());
+    let ciphertext_slice = &mut ciphertext_vec[..];
+    println!(
+        "aes_gcm_128_encrypt parameter prepared! {}, {}",
+        plaintext_slice.len(),
+        ciphertext_slice.len()
+    );
 
-    //// After everything has been set, call API
-    //let result = sgx_rijndael128GCM_encrypt(key,
+    // After everything has been set, call API
+    //let result = rsgx_rijndael128GCM_encrypt(key,
     //                                         &plaintext_slice,
     //                                         iv,
     //                                         &aad_array,
     //                                         ciphertext_slice,
     //                                         &mut mac_array);
     //println!("rsgx calling returned!");
+    let result = unsafe {
+        sgx_rijndael128GCM_encrypt(
+            key as *const _ as *const Key128bit,
+            plaintext_slice.as_ptr(),
+            plaintext_slice.len() as u32,
+            ciphertext_slice.as_mut_ptr(),
+            iv.as_ptr(),
+            iv.as_ref().len() as u32,
+            ptr::null(),
+            0,
+            &mut mac_array as *mut u8 as *mut Mac128bit,
+        )
+    };
 
-    //// Match the result and copy result back to normal world.
-    //match result {
-    //    Err(x) => {
-    //        return x;
-    //    }
-    //    Ok(()) => {
-    //        unsafe{
-    //            ptr::copy_nonoverlapping(ciphertext_slice.as_ptr(),
-    //                                     ciphertext,
-    //                                     text_len);
-    //        }
-    //        *mac = mac_array;
-    //    }
-    //}
+    // Match the result and copy result back to normal world.
+    match result {
+        SgxStatus::Success => {
+            unsafe {
+                ptr::copy_nonoverlapping(ciphertext_slice.as_ptr(), ciphertext, text_len);
+            }
+            *mac = mac_array;
+        }
+        e => {
+            return e;
+        }
+    }
 
-    //SgxStatus::Success
+    SgxStatus::Success
 }
 
 /// An AES-GCM-128 decrypt function sample.
@@ -255,50 +267,54 @@ pub extern "C" fn aes_gcm_128_decrypt(
     mac: &[u8; 16],
     plaintext: *mut u8,
 ) -> SgxStatus {
+    println!("aes_gcm_128_decrypt invoked!");
+
+    // First, for data with unknown length, we use vector as builder.
+    let ciphertext_slice = unsafe { slice::from_raw_parts(ciphertext, text_len) };
+    let mut plaintext_vec: Vec<u8> = vec![0; text_len];
+
+    // Second, for data with known length, we use array with fixed length.
+    let aad_array: [u8; 0] = [0; 0];
+
+    if ciphertext_slice.len() != text_len {
+        return SgxStatus::InvalidParameter;
+    }
+
+    let plaintext_slice = &mut plaintext_vec[..];
+    println!(
+        "aes_gcm_128_decrypt parameter prepared! {}, {}",
+        ciphertext_slice.len(),
+        plaintext_slice.len()
+    );
+
+    // After everything has been set, call API
+    let result = unsafe {
+        sgx_rijndael128GCM_decrypt(
+            key.as_ptr() as *const Key128bit,
+            ciphertext,
+            text_len as u32,
+            plaintext,
+            iv.as_ptr(),
+            iv.len() as u32,
+            aad_array.as_ptr(),
+            0,
+            mac.as_ptr() as *const Mac128bit,
+        )
+    };
+
+    println!("rsgx calling returned!");
+
+    // Match the result and copy result back to normal world.
+    match result {
+        SgxStatus::Success => unsafe {
+            ptr::copy_nonoverlapping(plaintext_slice.as_ptr(), plaintext, text_len);
+        },
+        x => {
+            return x;
+        }
+    }
+
     SgxStatus::Success
-    //println!("aes_gcm_128_decrypt invoked!");
-
-    //// First, for data with unknown length, we use vector as builder.
-    //let ciphertext_slice = unsafe { slice::from_raw_parts(ciphertext, text_len) };
-    //let mut plaintext_vec: Vec<u8> = vec![0; text_len];
-
-    //// Second, for data with known length, we use array with fixed length.
-    //let aad_array: [u8; 0] = [0; 0];
-
-    //if ciphertext_slice.len() != text_len {
-    //    return SgxStatus::SGX_ERROR_INVALID_PARAMETER;
-    //}
-
-    //let plaintext_slice = &mut plaintext_vec[..];
-    //println!("aes_gcm_128_decrypt parameter prepared! {}, {}",
-    //          ciphertext_slice.len(),
-    //          plaintext_slice.len());
-
-    //// After everything has been set, call API
-    //let result = sgx_rijndael128GCM_decrypt(key,
-    //                                         &ciphertext_slice,
-    //                                         iv,
-    //                                         &aad_array,
-    //                                         mac,
-    //                                         plaintext_slice);
-
-    //println!("rsgx calling returned!");
-
-    //// Match the result and copy result back to normal world.
-    //match result {
-    //    Err(x) => {
-    //        return x;
-    //    }
-    //    Ok(()) => {
-    //        unsafe {
-    //            ptr::copy_nonoverlapping(plaintext_slice.as_ptr(),
-    //                                     plaintext,
-    //                                     text_len);
-    //        }
-    //    }
-    //}
-
-    //SgxStatus::Success
 }
 
 /// A sample aes-cmac function.
@@ -339,18 +355,25 @@ pub extern "C" fn aes_cmac(
     key: &[u8; 16],
     cmac: &mut [u8; 16],
 ) -> SgxStatus {
-    //let text_slice = unsafe { slice::from_raw_parts(text, text_len) };
+    let text_slice = unsafe { slice::from_raw_parts(text, text_len) };
 
-    //if text_slice.len() != text_len {
-    //    return SgxStatus::SGX_ERROR_INVALID_PARAMETER;
-    //}
+    if text_slice.len() != text_len {
+        return SgxStatus::InvalidParameter;
+    }
 
-    //let result = rsgx_rijndael128_cmac_slice(key, &text_slice);
+    let result = unsafe {
+        sgx_rijndael128_cmac_msg(
+            key.as_ptr() as *const Key128bit,
+            text,
+            text_len as u32,
+            cmac.as_mut_ptr() as *mut Mac128bit,
+        )
+    };
 
-    //match result {
-    //    Err(x) => return x,
-    //    Ok(m) => *cmac = m
-    //}
+    match result {
+        SgxStatus::Success => {}
+        x => return x,
+    }
 
     SgxStatus::Success
 }

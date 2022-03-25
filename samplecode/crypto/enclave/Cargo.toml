@@ -28,6 +28,9 @@ crate-type = ["staticlib"]
 [features]
 default = []
 
+[dependencies]
+sgx_crypto = { path = "../../../sgx_crypto" }
+
 [target.'cfg(not(target_vendor = "teaclave"))'.dependencies]
 #sgx_crypto = { path = "../../../sgx_crypto" }
 sgx_crypto_sys = { path = "../../../sgx_crypto/sgx_crypto_sys" }
