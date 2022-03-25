@@ -19,11 +19,11 @@ extern crate sgx_types;
 //extern crate sgx_crypto;
 extern crate sgx_crypto_sys;
 
-use std::{slice, ptr};
+use std::{ptr, slice};
 
 use sgx_types::error::*;
-use sgx_types::types::Sha256Hash;
 use sgx_types::memeq::ConstTimeEq;
+use sgx_types::types::Sha256Hash;
 //use sgx_crypto::*;
 use sgx_crypto_sys::*;
 
@@ -57,10 +57,11 @@ use sgx_crypto_sys::*;
 ///
 /// Indicates the parameter is invalid
 #[no_mangle]
-pub extern "C" fn calc_sha256(input_str: *const u8,
-                              some_len: usize,
-                              hash: &mut [u8;32]) -> SgxStatus {
-
+pub extern "C" fn calc_sha256(
+    input_str: *const u8,
+    some_len: usize,
+    hash: &mut [u8; 32],
+) -> SgxStatus {
     println!("calc_sha256 invoked!");
 
     // First, build a slice for input_str
@@ -71,13 +72,17 @@ pub extern "C" fn calc_sha256(input_str: *const u8,
         return SgxStatus::InvalidParameter;
     }
 
-    println!("Input string len = {}, input len = {}", input_slice.len(), some_len);
+    println!(
+        "Input string len = {}, input len = {}",
+        input_slice.len(),
+        some_len
+    );
 
     // Second, convert the vector to a slice and calculate its SHA256
     let mut sha256hash = Sha256Hash::default();
     let result = unsafe {
         sgx_sha256_msg(
-            (input_slice.as_ptr() as * const u8).cast(),
+            (input_slice.as_ptr() as *const u8).cast(),
             some_len as u32,
             &mut sha256hash as *mut Sha256Hash,
         )
@@ -86,7 +91,7 @@ pub extern "C" fn calc_sha256(input_str: *const u8,
     // Third, copy back the result
     match result {
         SgxStatus::Success => *hash = sha256hash,
-        x => return x
+        x => return x,
     }
 
     SgxStatus::Success
@@ -136,13 +141,14 @@ pub extern "C" fn calc_sha256(input_str: *const u8,
 /// at least same length as plaintext buffer. The caller should allocate the
 /// mac buffer, at least 16 bytes.
 #[no_mangle]
-pub extern "C" fn aes_gcm_128_encrypt(key: &[u8;16],
-                                      plaintext: *const u8,
-                                      text_len: usize,
-                                      iv: &[u8;12],
-                                      ciphertext: *mut u8,
-                                      mac: &mut [u8;16]) -> SgxStatus {
-
+pub extern "C" fn aes_gcm_128_encrypt(
+    key: &[u8; 16],
+    plaintext: *const u8,
+    text_len: usize,
+    iv: &[u8; 12],
+    ciphertext: *mut u8,
+    mac: &mut [u8; 16],
+) -> SgxStatus {
     SgxStatus::Success
     //println!("aes_gcm_128_encrypt invoked!");
 
@@ -241,13 +247,14 @@ pub extern "C" fn aes_gcm_128_encrypt(key: &[u8;16],
 /// The caller should allocate the plaintext buffer. This buffer should be
 /// at least same length as ciphertext buffer.
 #[no_mangle]
-pub extern "C" fn aes_gcm_128_decrypt(key: &[u8;16],
-                                      ciphertext: *const u8,
-                                      text_len: usize,
-                                      iv: &[u8;12],
-                                      mac: &[u8;16],
-                                      plaintext: *mut u8) -> SgxStatus {
-
+pub extern "C" fn aes_gcm_128_decrypt(
+    key: &[u8; 16],
+    ciphertext: *const u8,
+    text_len: usize,
+    iv: &[u8; 12],
+    mac: &[u8; 16],
+    plaintext: *mut u8,
+) -> SgxStatus {
     SgxStatus::Success
     //println!("aes_gcm_128_decrypt invoked!");
 
@@ -326,11 +333,12 @@ pub extern "C" fn aes_gcm_128_decrypt(key: &[u8;16],
 ///
 /// The caller should allocate the output cmac buffer.
 #[no_mangle]
-pub extern "C" fn aes_cmac(text: *const u8,
-                           text_len: usize,
-                           key: &[u8;16],
-                           cmac: &mut [u8;16]) -> SgxStatus {
-
+pub extern "C" fn aes_cmac(
+    text: *const u8,
+    text_len: usize,
+    key: &[u8; 16],
+    cmac: &mut [u8; 16],
+) -> SgxStatus {
     //let text_slice = unsafe { slice::from_raw_parts(text, text_len) };
 
     //if text_slice.len() != text_len {
@@ -347,10 +355,8 @@ pub extern "C" fn aes_cmac(text: *const u8,
     SgxStatus::Success
 }
 
-
 #[no_mangle]
-pub extern "C" fn rsa_key(text: * const u8, text_len: usize) -> SgxStatus {
-
+pub extern "C" fn rsa_key(text: *const u8, text_len: usize) -> SgxStatus {
     //let text_slice = unsafe { slice::from_raw_parts(text, text_len) };
 
     //if text_slice.len() != text_len {
