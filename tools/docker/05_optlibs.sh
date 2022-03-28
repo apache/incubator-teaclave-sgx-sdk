@@ -27,4 +27,4 @@ grep $optlibs_name $checksum_file_name | sha256sum -c && \
 mkdir -p /opt/intel/optimized_libs && \
 tar -zxf $optlibs_name -C /opt/intel/optimized_libs && \
 rm -f $optlibs_name $checksum_file_name && \
-echo "export OPT_LIBS_PATH=opt/intel/optimized_libs" >> /root/.bashrc
+echo "export OPT_LIBS_PATH=/opt/intel/optimized_libs" >> /root/.bashrc
