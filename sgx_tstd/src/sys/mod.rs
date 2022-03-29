@@ -15,10 +15,13 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#[cfg(feature = "initenv")]
 use crate::ffi::CString;
 use crate::io::ErrorKind;
 
-use sgx_oc::ocall::{self, OCallResult};
+#[cfg(feature = "initenv")]
+use sgx_oc::ocall;
+use sgx_oc::ocall::OCallResult;
 use sgx_oc as libc;
 use sgx_trts::error::abort;
 
@@ -59,6 +62,7 @@ pub mod unsupported;
 
 // SAFETY: must be called only once during runtime initialization.
 // NOTE: this is not guaranteed to run, for example when Rust code is called externally.
+#[cfg(feature = "initenv")]
 pub unsafe fn init(env: Vec<CString>, args: Vec<CString>) {
     let _ = ocall::initenv(Some(env));
     let _ = ocall::initargs(Some(args));

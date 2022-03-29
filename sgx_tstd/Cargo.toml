@@ -30,11 +30,12 @@ name = "sgx_tstd"
 crate-type = ["rlib"]
 
 [features]
-default = ["stdio"]
+default = ["stdio", "initenv"]
 backtrace = ["stdio", "sgx_backtrace_sys", "sgx_demangle"]
 stdio = []
 net = []
 pipe = []
+initenv = []
 thread = ["sgx_trts/thread"]
 untrusted_fs = []
 untrusted_time = []
