@@ -20,6 +20,9 @@ use core::fmt;
 use core::hint::spin_loop;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
+/// Initialization value for static [`Once`] values.
+pub const ONCE_INIT: Once = Once::new();
+
 /// A synchronization primitive which can be used to run a one-time global
 /// initialization. Useful for one-time initialization for FFI or related
 /// functionality. This type can only be constructed with [`Once::new()`].

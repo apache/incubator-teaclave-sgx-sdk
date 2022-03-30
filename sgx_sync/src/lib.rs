@@ -50,7 +50,7 @@ pub use futex::Futex;
 pub use lazy::{SyncLazy, SyncOnceCell};
 pub use lock_api::{RawMutex, RawRwLock};
 pub use mutex::{MovableMutex, StaticMutex, StaticMutexGuard};
-pub use once::{Once, OnceState};
+pub use once::{Once, OnceState, ONCE_INIT};
 pub use remutex::{ReentrantMutex, ReentrantMutexGuard};
 pub use rwlock::{MovableRwLock, StaticRwLock, StaticRwLockReadGuard, StaticRwLockWriteGuard};
 pub use spin::{SpinMutex, SpinMutexGuard, SpinRwLock, SpinRwLockReadGuard, SpinRwLockWriteGuard};
