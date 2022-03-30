@@ -33,8 +33,11 @@ mod tests;
 use crate::error::Error;
 use crate::ffi::{OsStr, OsString};
 use crate::fmt;
+#[cfg(feature = "env")]
 use crate::io;
-use crate::path::{Path, PathBuf};
+#[cfg(feature = "env")]
+use crate::path::Path;
+use crate::path::PathBuf;
 use crate::sys;
 use crate::sys::os as os_imp;
 
@@ -64,6 +67,7 @@ use crate::sys::os as os_imp;
 ///     Ok(())
 /// }
 /// ```
+#[cfg(feature = "env")]
 pub fn current_dir() -> io::Result<PathBuf> {
     os_imp::getcwd()
 }
@@ -87,6 +91,7 @@ pub fn current_dir() -> io::Result<PathBuf> {
 /// assert!(env::set_current_dir(&root).is_ok());
 /// println!("Successfully changed working directory to {}!", root.display());
 /// ```
+#[cfg(feature = "env")]
 pub fn set_current_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
     os_imp::chdir(path.as_ref())
 }
@@ -670,6 +675,7 @@ pub fn temp_dir() -> PathBuf {
 ///     Err(e) => println!("failed to get current exe path: {}", e),
 /// };
 /// ```
+#[cfg(feature = "env")]
 pub fn current_exe() -> io::Result<PathBuf> {
     os_imp::current_exe()
 }

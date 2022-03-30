@@ -25,7 +25,6 @@ pub use crate::sys_common::at_exit;
 pub use core::panicking::{panic_display, panic_fmt};
 
 use crate::enclave::Enclave;
-#[cfg(feature = "initenv")]
 use crate::ffi::CString;
 use crate::slice;
 use crate::str;
@@ -145,8 +144,8 @@ macro_rules! global_dtors_object {
 static INIT: Once = Once::new();
 static EXIT: Once = Once::new();
 
+#[allow(unused_variables)]
 #[no_mangle]
-#[allow(unused)]
 unsafe extern "C" fn global_init_ecall(
     eid: u64,
     path: *const u8,
@@ -166,29 +165,33 @@ unsafe extern "C" fn global_init_ecall(
             }
         }
 
-        #[cfg(feature = "initenv")]
-        {
-            let parse_vec = |ptr: *const u8, len: usize| -> Vec<CString> {
-                if !ptr.is_null() && len > 0 {
-                    let buf = slice::from_raw_parts(ptr, len);
-                    buf.split(|&c| c == 0)
-                        .filter_map(|bytes| {
-                            if !bytes.is_empty() {
-                                CString::new(bytes).ok()
-                            } else {
-                                None
-                            }
-                        })
-                        .collect()
-                } else {
-                    Vec::new()
-                }
-            };
+        let parse_vec = |ptr: *const u8, len: usize| -> Vec<CString> {
+            if !ptr.is_null() && len > 0 {
+                let buf = slice::from_raw_parts(ptr, len);
+                buf.split(|&c| c == 0)
+                    .filter_map(|bytes| {
+                        if !bytes.is_empty() {
+                            CString::new(bytes).ok()
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            }
+        };
 
-            let env = parse_vec(env, env_len);
-            let args = parse_vec(args, args_len);
-            sys::init(env, args);
+        cfg_if! {
+            if #[cfg(feature = "env")] {
+                let env = parse_vec(env, env_len);
+                let args = parse_vec(args, args_len);
+            } else {
+                let env = parse_vec(crate::ptr::null(), 0);
+                let args = parse_vec(crate::ptr::null(), 0);
+            }
         }
+        sys::init(env, args);
     });
 }
 

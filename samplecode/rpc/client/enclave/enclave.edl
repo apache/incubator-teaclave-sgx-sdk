@@ -20,7 +20,7 @@ enclave {
     from "sgx_net.edl" import *;
     from "sgx_fs.edl" import *;
     from "sgx_thread.edl" import *;
-    from "sgx_cpuid.edl" import *;
+    from "sgx_process.edl" import *;
     from "sgx_tstd.edl" import *;
 
     trusted {

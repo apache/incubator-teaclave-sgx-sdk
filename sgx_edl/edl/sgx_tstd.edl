@@ -16,8 +16,6 @@
 // under the License.
 
 enclave {
-    from "sgx_env.edl" import *;
     from "sgx_sync.edl" import *;
     from "sgx_time.edl" import *;
-    from "sgx_process.edl" import *;
 };

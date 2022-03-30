@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use crate::fs;
 use crate::io;
 use crate::path::{Path, PathBuf};
-use crate::untrusted::fs;
 
 use sgx_sync::SpinMutex;
 use sgx_types::types::EnclaveId;

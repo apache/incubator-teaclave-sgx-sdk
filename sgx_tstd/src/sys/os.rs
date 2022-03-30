@@ -22,7 +22,9 @@ use crate::ffi::{CStr, CString, OsStr, OsString};
 use crate::fmt;
 use crate::io;
 use crate::iter;
-use crate::path::{self, PathBuf};
+#[cfg(feature = "env")]
+use crate::path;
+use crate::path::PathBuf;
 use crate::slice;
 use crate::str;
 use crate::sys::cvt_ocall;
@@ -63,11 +65,18 @@ pub fn error_string(errno: i32) -> String {
     }
 }
 
+#[cfg(feature = "env")]
+#[inline]
 pub fn getcwd() -> io::Result<PathBuf> {
+    _getcwd()
+}
+
+pub(crate) fn _getcwd() -> io::Result<PathBuf> {
     let s = cvt_ocall(unsafe { libc::getcwd() })?;
     Ok(PathBuf::from(OsString::from_vec(s.into_bytes())))
 }
 
+#[cfg(feature = "env")]
 pub fn chdir(p: &path::Path) -> io::Result<()> {
     let p: &OsStr = p.as_ref();
     let p = CString::new(p.as_bytes())?;
@@ -140,6 +149,7 @@ impl StdError for JoinPathsError {
     }
 }
 
+#[cfg(feature = "env")]
 pub fn current_exe() -> io::Result<PathBuf> {
     match crate::fs::read_link("/proc/self/exe") {
         Err(ref e) if e.kind() == io::ErrorKind::NotFound => Err(io::const_io_error!(
@@ -245,11 +255,16 @@ pub fn home_dir() -> Option<PathBuf> {
     crate::env::var_os("HOME").map(PathBuf::from)
 }
 
+#[cfg(feature = "unsupported_process")]
 pub fn getpid() -> io::Result<u32> {
     unsafe { cvt_ocall(libc::getpid()).map(|pid| pid as u32) }
 }
 
 mod libc {
-    pub use sgx_oc::ocall::{env, getenv, getpid, setenv, unsetenv, getcwd, chdir};
+    #[cfg(feature = "env")]
+    pub use sgx_oc::ocall::chdir;
+    #[cfg(feature = "unsupported_process")]
+    pub use sgx_oc::ocall::getpid;
+    pub use sgx_oc::ocall::{env, getenv, setenv, unsetenv, getcwd};
     pub use sgx_oc::*;
 }
