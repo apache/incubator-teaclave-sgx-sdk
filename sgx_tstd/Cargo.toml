@@ -33,20 +33,21 @@ crate-type = ["rlib"]
 default = ["stdio"]
 backtrace = ["stdio", "sgx_backtrace_sys", "sgx_demangle"]
 stdio = []
+env = ["sgx_oc/init_env"]
 net = []
 pipe = []
 thread = ["sgx_trts/thread"]
 untrusted_fs = []
 untrusted_time = []
 unsupported_process = []
-unit_test = ["sgx_test_utils", "backtrace", "thread", "net", "pipe", "untrusted_fs", "untrusted_time", "unsupported_process"]
+unit_test = ["sgx_test_utils", "backtrace", "env", "thread", "net", "pipe", "untrusted_fs", "untrusted_time", "unsupported_process"]
 
 [dependencies]
 sgx_alloc = { path = "../sgx_alloc" }
 sgx_backtrace_sys = { path = "../sgx_backtrace/sgx_backtrace_sys", optional = true }
 sgx_demangle = { path = "../sgx_demangle", optional = true }
 sgx_ffi = { path = "../sgx_ffi" }
-sgx_oc = { path = "../sgx_oc" }
+sgx_oc = { path = "../sgx_oc", default-features = false, features = ["align"] }
 sgx_sync = { path = "../sgx_sync" }
 sgx_trts = { path = "../sgx_trts" }
 sgx_types = { path = "../sgx_types" }

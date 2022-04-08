@@ -144,6 +144,7 @@ macro_rules! global_dtors_object {
 static INIT: Once = Once::new();
 static EXIT: Once = Once::new();
 
+#[allow(unused_variables)]
 #[no_mangle]
 unsafe extern "C" fn global_init_ecall(
     eid: u64,
@@ -181,8 +182,15 @@ unsafe extern "C" fn global_init_ecall(
             }
         };
 
-        let env = parse_vec(env, env_len);
-        let args = parse_vec(args, args_len);
+        cfg_if! {
+            if #[cfg(feature = "env")] {
+                let env = parse_vec(env, env_len);
+                let args = parse_vec(args, args_len);
+            } else {
+                let env = parse_vec(crate::ptr::null(), 0);
+                let args = parse_vec(crate::ptr::null(), 0);
+            }
+        }
         sys::init(env, args);
     });
 }

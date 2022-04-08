@@ -21,11 +21,11 @@
 
 use super::raw::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use crate::fmt;
+use crate::fs;
 use crate::marker::PhantomData;
 use crate::mem::forget;
 use crate::sys::cvt_ocall;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
-use crate::untrusted::fs;
 
 /// A borrowed file descriptor.
 ///

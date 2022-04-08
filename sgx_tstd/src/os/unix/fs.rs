@@ -20,12 +20,12 @@
 //! [`std::fs`]: crate::fs
 
 use super::platform::fs::MetadataExt as _;
+use crate::fs::{self, OpenOptions, Permissions};
 use crate::io;
 use crate::os::unix::io::{AsFd, AsRawFd};
 use crate::path::Path;
 use crate::sys;
 use crate::sys_common::{AsInner, AsInnerMut, FromInner};
-use crate::untrusted::fs::{self, OpenOptions, Permissions};
 // Used for `File::read` on intra-doc links
 use crate::ffi::OsStr;
 use crate::sealed::Sealed;

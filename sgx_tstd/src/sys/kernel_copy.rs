@@ -63,6 +63,7 @@
 
 use crate::cmp::min;
 use crate::convert::TryInto;
+use crate::fs::{File, Metadata};
 use crate::io::copy::generic_copy;
 use crate::io::{BufRead, BufReader, BufWriter, Error, Read, Result, Take, Write};
 #[cfg(feature = "stdio")]
@@ -76,7 +77,6 @@ use crate::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use crate::os::unix::net::UnixStream;
 use crate::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use crate::sys::cvt_ocall;
-use crate::untrusted::fs::{File, Metadata};
 use sgx_oc::{EBADF, EINVAL, ENOSYS, EOPNOTSUPP, EOVERFLOW, EPERM, EXDEV};
 
 #[cfg(feature = "unit_test")]

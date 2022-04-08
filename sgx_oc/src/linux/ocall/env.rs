@@ -175,7 +175,16 @@ pub unsafe fn initenv(env: Option<Vec<CString>>) -> OCallResult<()> {
 
     let env = match env {
         Some(env) => env,
-        None => env_ocall()?,
+        None => {
+            #[cfg(feature = "init_env")]
+            {
+                env_ocall()?
+            }
+            #[cfg(not(feature = "init_env"))]
+            {
+                bail!(eos!(EINVAL));
+            }
+        }
     };
 
     let _guard = ENV_LOCK.write();
@@ -187,6 +196,7 @@ pub unsafe fn initenv(env: Option<Vec<CString>>) -> OCallResult<()> {
 
     return Ok(());
 
+    #[allow(dead_code)]
     unsafe fn env_ocall() -> OCallResult<Vec<CString>> {
         let mut result: ssize_t = 0;
         let mut error: c_int = 0;
@@ -279,7 +289,16 @@ pub unsafe fn initargs(args: Option<Vec<CString>>) -> OCallResult<()> {
 
     let args = match args {
         Some(args) => args,
-        None => args_ocall()?,
+        None => {
+            #[cfg(feature = "init_env")]
+            {
+                args_ocall()?
+            }
+            #[cfg(not(feature = "init_env"))]
+            {
+                bail!(eos!(EINVAL));
+            }
+        }
     };
 
     let _guard = ARG_LOCK.write();
@@ -291,6 +310,7 @@ pub unsafe fn initargs(args: Option<Vec<CString>>) -> OCallResult<()> {
 
     return Ok(());
 
+    #[allow(dead_code)]
     unsafe fn args_ocall() -> OCallResult<Vec<CString>> {
         let mut result: ssize_t = 0;
         let mut error: c_int = 0;
@@ -352,10 +372,12 @@ struct OsEnviron<'a> {
 
 impl<'a> OsEnviron<'a> {
     fn new(env: Vec<CString>, c_environ: &'a mut *const *const c_char) -> OsResult<Self> {
-        ensure!(
-            is_within_enclave(env.as_ptr() as *const u8, env.capacity()),
-            EINVAL
-        );
+        if !env.is_empty() {
+            ensure!(
+                is_within_enclave(env.as_ptr() as *const u8, env.capacity()),
+                EINVAL
+            );
+        }
 
         let mut ptrs = Vec::with_capacity((env.len() + 1) * mem::size_of::<*const c_char>());
         for ptr in env.iter().filter_map(|var| {
@@ -465,10 +487,12 @@ struct OsArgs {
 
 impl OsArgs {
     fn new(args: Vec<CString>) -> OsResult<Self> {
-        ensure!(
-            is_within_enclave(args.as_ptr() as *const u8, args.capacity()),
-            EINVAL
-        );
+        if !args.is_empty() {
+            ensure!(
+                args.is_empty() || is_within_enclave(args.as_ptr() as *const u8, args.capacity()),
+                EINVAL
+            );
+        }
 
         let mut ptrs = Vec::with_capacity((args.len() + 1) * mem::size_of::<*const c_char>());
         for ptr in args.iter().filter_map(|arg| {

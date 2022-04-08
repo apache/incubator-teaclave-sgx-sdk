@@ -15,10 +15,10 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::env;
 use crate::ffi::OsStr;
 use crate::io;
 use crate::path::{Path, PathBuf, Prefix};
+use crate::sys::os;
 
 #[inline]
 pub fn is_sep_byte(b: u8) -> bool {
@@ -61,7 +61,7 @@ pub(crate) fn absolute(path: &Path) -> io::Result<PathBuf> {
             PathBuf::new()
         }
     } else {
-        env::current_dir()?
+        os::_getcwd()?
     };
     normalized.extend(components);
 

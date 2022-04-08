@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::untrusted::fs;
+use crate::fs;
 use crate::io::{self, Error, ErrorKind};
 use crate::path::Path;
 

@@ -17,12 +17,12 @@
 
 //! Raw Unix-like file descriptors.
 
+use crate::fs;
 #[cfg(feature = "stdio")]
 use crate::io;
 use crate::os::raw;
 use crate::os::unix::io::OwnedFd;
 use crate::sys_common::{AsInner, IntoInner};
-use crate::untrusted::fs;
 
 #[cfg(feature = "stdio")]
 use sgx_oc as libc;

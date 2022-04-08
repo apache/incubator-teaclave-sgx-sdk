@@ -30,9 +30,10 @@ name = "sgx_oc"
 crate-type = ["rlib"]
 
 [features]
-default = ["align"]
+default = ["align", "init_env"]
 align = []
 extra_traits = []
+init_env = []
 
 [dependencies]
 sgx_sync = { path = "../sgx_sync" }

@@ -19,8 +19,8 @@
 //!
 //! [`std::fs`]: crate::fs
 
+use crate::fs::Metadata;
 use crate::sys_common::AsInner;
-use crate::untrusted::fs::Metadata;
 
 #[allow(deprecated)]
 use crate::os::linux::raw;

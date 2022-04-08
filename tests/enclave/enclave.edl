@@ -25,6 +25,7 @@ enclave {
     from "sgx_cpuid.edl" import *;
     from "sgx_process.edl" import *;
     from "sgx_backtrace.edl" import *;
+    from "sgx_env.edl" import *;
     from "sgx_tstd.edl" import *;
     from "sgx_tprotected_fs.edl" import *;
 

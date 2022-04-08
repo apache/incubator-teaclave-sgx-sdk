@@ -30,7 +30,6 @@ use crate::sys::time::SystemTime;
 use crate::sys::{cvt_ocall, cvt_ocall_r};
 use crate::sys::unsupported::unsupported;
 use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
-use crate::untrusted::fs;
 
 use sgx_oc::ocall::DirPtr;
 use sgx_oc::{c_int, dirent64, mode_t, off64_t, stat64, time_t};
@@ -648,10 +647,11 @@ pub fn canonicalize(p: &Path) -> io::Result<PathBuf> {
     Ok(PathBuf::from(OsString::from_vec(v.into_bytes())))
 }
 
-fn open_from(from: &Path) -> io::Result<(fs::File, fs::Metadata)> {
+fn open_from(from: &Path) -> io::Result<(crate::fs::File, crate::fs::Metadata)> {
+    use crate::fs::File;
     use crate::sys_common::fs::NOT_FILE_ERROR;
 
-    let reader = fs::File::open(from)?;
+    let reader = File::open(from)?;
     let metadata = reader.metadata()?;
     if !metadata.is_file() {
         return Err(NOT_FILE_ERROR);
@@ -661,10 +661,12 @@ fn open_from(from: &Path) -> io::Result<(fs::File, fs::Metadata)> {
 
 fn open_to_and_set_permissions(
     to: &Path,
-    reader_metadata: fs::Metadata,
-) -> io::Result<(fs::File, fs::Metadata)> {
+    reader_metadata: crate::fs::Metadata,
+) -> io::Result<(crate::fs::File, crate::fs::Metadata)> {
+    use crate::fs::OpenOptions;
+
     let perm = reader_metadata.permissions();
-    let writer = fs::OpenOptions::new()
+    let writer = OpenOptions::new()
         // create the file with the correct mode right away
         .mode(perm.mode())
         .write(true)
@@ -821,7 +823,7 @@ mod remove_dir_impl {
         // into symlinks.
         let attr = lstat(p)?;
         if attr.file_type().is_symlink() {
-            crate::untrusted::fs::remove_file(p)
+            crate::fs::remove_file(p)
         } else {
             remove_dir_all_recursive(None, p)
         }
