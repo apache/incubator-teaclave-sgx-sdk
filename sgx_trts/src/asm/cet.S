@@ -15,6 +15,8 @@
    specific language governing permissions and limitations
    under the License.. */
 
+.file "cet.S"
+
 .ifdef __CET__
 .macro _CET_ENDBR
     endbr64

@@ -37,7 +37,7 @@
 #endif
 #include <link.h>
 
-extern uint8_t  __ImageBase;
+extern void *sgx_get_image_base(void);
 
 /**
  * This function is commonly provided by glibc for application to walk
@@ -53,7 +53,7 @@ int dl_iterate_phdr(
     ElfW(Ehdr)         *ehdr;
 
     memset(&info, 0, sizeof(info));
-    ehdr = (ElfW(Ehdr) *) &__ImageBase;
+    ehdr = (ElfW(Ehdr) *) sgx_get_image_base();
 
     info.dlpi_addr   = (ElfW(Addr)) ehdr;
     info.dlpi_name  = "";

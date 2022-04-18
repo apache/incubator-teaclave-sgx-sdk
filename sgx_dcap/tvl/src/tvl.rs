@@ -47,7 +47,7 @@ const QVE_MRSIGNER: Measurement = Measurement {
 };
 
 const QVE_PROD_ID: u16 = 2;
-const LEAST_QVE_ISVSVN: u16 = 3;
+const LEAST_QVE_ISVSVN: u16 = 5;
 
 #[derive(Debug)]
 pub struct QveReportInfo<'a, 'b> {
@@ -79,7 +79,7 @@ impl QveReportInfo<'_, '_> {
 
         // Defense in depth, threshold must be greater or equal to 3
         if qve_isvsvn_threshold < LEAST_QVE_ISVSVN {
-            bail!(Quote3Error::InvalidParameter)
+            bail!(Quote3Error::QveOutOfDate)
         }
 
         self.verify_report(quote)?;
@@ -95,7 +95,7 @@ impl QveReportInfo<'_, '_> {
             .calc_report_data(quote)
             .map_err(|_| Quote3Error::Unexpected)?;
         ensure!(
-            self.qve_report.body.report_data.d[..SHA256_HASH_SIZE].eq(&hash),
+            hash.eq(&self.qve_report.body.report_data.d[..SHA256_HASH_SIZE]),
             Quote3Error::ErrorReport
         );
 

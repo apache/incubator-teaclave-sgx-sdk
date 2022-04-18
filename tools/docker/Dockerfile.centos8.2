@@ -71,16 +71,17 @@ RUN yum install epel-release -y && \
     http://downloads.sourceforge.net/ltp/lcov-1.14-1.noarch.rpm && \
     alternatives --set python /usr/bin/python2
 
-ENV SGX_SDK_RELEASE_VERSION     2.15.1
-ENV SGX_DCAP_RELEASE_VERSION    1.12.1
-ENV SGX_SDK_CODE_VERSION        2.15.101.1
-ENV SGX_DCAP_CODE_VERSION       1.12.101.1
+ENV SGX_SDK_RELEASE_VERSION     2.16
+ENV SGX_DCAP_RELEASE_VERSION    1.13
+ENV SGX_SDK_CODE_VERSION        2.16.100.4
+ENV SGX_DCAP_CODE_VERSION       1.13.100.4
 ENV SGX_SDK_VERSION             ${SGX_SDK_CODE_VERSION}
 ENV SGX_DCAP_VERSION            ${SGX_DCAP_CODE_VERSION}
 ENV RUST_TOOLCHAIN              nightly-2022-02-23
+ENV OS_NAME                     centos
 ENV BINUTILS_DIST               centos8.2
-ENV SGX_SDK_URL                 "https://download.01.org/intel-sgx/sgx-linux/${SGX_SDK_RELEASE_VERSION}/distro/${BINUTILS_DIST}-server/sgx_linux_x64_sdk_${SGX_SDK_CODE_VERSION}.bin"
-ENV PSW_REPO_URL                "https://download.01.org/intel-sgx/sgx-linux/${SGX_SDK_RELEASE_VERSION}/distro/${BINUTILS_DIST}-server/sgx_rpm_local_repo.tgz"
+ENV SGX_SDK_URL                 "https://download.01.org/intel-sgx/sgx-linux/${SGX_SDK_RELEASE_VERSION}/distro/${OS_NAME}-stream/sgx_linux_x64_sdk_${SGX_SDK_CODE_VERSION}.bin"
+ENV PSW_REPO_URL                "https://download.01.org/intel-sgx/sgx-linux/${SGX_SDK_RELEASE_VERSION}/distro/${OS_NAME}-stream/sgx_rpm_local_repo.tgz"
 
 ADD 02_binutils.sh /root
 RUN bash /root/02_binutils.sh

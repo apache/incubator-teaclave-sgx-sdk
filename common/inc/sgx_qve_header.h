@@ -95,7 +95,9 @@ typedef struct _sgx_ql_qv_supplemental_t
     sgx_cpu_svn_t tcb_cpusvn;             ///< CPUSVN of the remote platform's PCK Cert
     sgx_isv_svn_t tcb_pce_isvsvn;         ///< PCE_ISVNSVN of the remote platform's PCK Cert
     uint16_t pce_id;                      ///< PCE_ID of the remote platform
-    uint8_t sgx_type;                     ///< Indicate the type of memory protection available on the platform, it should be one of Standard (0) and Scalable (1)
+    uint32_t tee_type;                    ///< 0x00000000: SGX or 0x00000081: TDX
+    uint8_t sgx_type;                     ///< Indicate the type of memory protection available on the platform, it should be one of
+                                          ///< Standard (0), Scalable (1) and Scalable with Integrity (2)
 
     // Multi-Package PCK cert related flags, they are only relevant to PCK Certificates issued by PCK Platform CA
     uint8_t platform_instance_id[PLATFORM_INSTANCE_ID_SIZE];           ///< Value of Platform Instance ID, 16 bytes

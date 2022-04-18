@@ -15,6 +15,8 @@
    specific language governing permissions and limitations
    under the License.. */
 
+.file "enclu.S"
+
 .macro ENCLU
 .byte 0x0f, 0x01, 0xd7 /* 0xf3 */
 .endm

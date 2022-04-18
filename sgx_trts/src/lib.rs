@@ -57,6 +57,8 @@ mod call;
 mod elf;
 mod enclave;
 mod inst;
+#[cfg(not(feature = "hyper"))]
+mod pkru;
 mod stackchk;
 mod version;
 mod xsave;

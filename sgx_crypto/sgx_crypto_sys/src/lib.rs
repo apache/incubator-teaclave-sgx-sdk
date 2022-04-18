@@ -40,6 +40,18 @@ mod bindings {
         //
         // sgx_tcrypto.h
         //
+        /* instel sgx sdk 2.16 */
+        pub fn sgx_sha384_msg(p_src: *const u8, src_len: u32, p_hash: *mut Sha384Hash)
+            -> SgxStatus;
+        pub fn sgx_sha384_init(p_sha_handle: *mut ShaHandle) -> SgxStatus;
+        pub fn sgx_sha384_update(
+            p_src: *const u8,
+            src_len: u32,
+            sha_handle: ShaHandle,
+        ) -> SgxStatus;
+        pub fn sgx_sha384_get_hash(sha_handle: ShaHandle, p_hash: *mut Sha384Hash) -> SgxStatus;
+        pub fn sgx_sha384_close(sha_handle: ShaHandle) -> SgxStatus;
+
         pub fn sgx_sha256_msg(p_src: *const u8, src_len: u32, p_hash: *mut Sha256Hash)
             -> SgxStatus;
         pub fn sgx_sha256_init(p_sha_handle: *mut ShaHandle) -> SgxStatus;

@@ -21,7 +21,7 @@ use core::mem;
 use core::slice;
 
 //
-// sgx_pce.hs
+// sgx_pce.h
 //
 /* PCE ID for the PCE in this library */
 pub const PCE_ID: u16 = 0;
@@ -37,14 +37,6 @@ impl_enum! {
     }
 }
 
-impl_enum! {
-    #[repr(u32)]
-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-    pub enum QlConfigVersion {
-        QlConfigVersion1 = 0,
-    }
-}
-
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[repr(C, packed)]
 pub struct PceInfo {
@@ -52,6 +44,9 @@ pub struct PceInfo {
     pub pce_id: u16,
 }
 
+//
+// sgx_ql_lib_common.h
+//
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[repr(C, packed)]
 pub struct QlQe3Id {
@@ -81,6 +76,14 @@ impl_unsafe_marker_for! {
     PceInfo QlQe3Id
 }
 
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub enum QlConfigVersion {
+        QlConfigVersion1 = 0,
+    }
+}
+
 #[repr(C, packed)]
 pub struct CQlPckCertId {
     pub p_qe3_id: *mut u8,
@@ -102,9 +105,34 @@ pub struct CQlConfig {
     pub p_cert_data: *mut u8,
 }
 
+/* intel DCAP 1.13 */
+pub const MAX_PARAM_STRING_SIZE: usize = 256;
+impl_copy_clone! {
+    #[repr(C)]
+    #[derive(Debug)]
+    pub struct QlQveCollateralParam {
+        key: [u8; MAX_PARAM_STRING_SIZE + 1],
+        value: [u8; MAX_PARAM_STRING_SIZE + 1]
+    }
+}
+
+impl_struct_default! {
+    QlQveCollateralParam; //514
+}
+
+impl_asref_array! {
+    QlQveCollateralParam;
+}
+
+impl_struct_ContiguousMemory! {
+    QlQveCollateralParam;
+}
+
 #[repr(C)]
 pub struct CQlQveCollateral {
     pub version: u32, // version = 1.  PCK Cert chain is in the Quote.
+    /* intel DCAP 1.13 */
+    pub tee_type: u32, // 0x00000000: SGX or 0x00000081: TDX
     pub pck_crl_issuer_chain: *mut c_char,
     pub pck_crl_issuer_chain_size: u32,
     pub root_ca_crl: *mut c_char, // Root CA CRL
@@ -121,7 +149,6 @@ pub struct CQlQveCollateral {
     pub qe_identity_size: u32,
 }
 
-/* intel DCAP 2.14 */
 impl_enum! {
     #[repr(u32)]
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -336,6 +363,8 @@ impl_enum! {
         Qe3Path = 0,
         PcePath = 1,
         QplPath = 2,
+        /* intel DCAP 1.13 */
+        IdePath = 3,
     }
 }
 
@@ -373,6 +402,8 @@ impl_copy_clone! {
         pub tcb_cpusvn: CpuSvn,
         pub tcb_pce_isvsvn: u16,
         pub pce_id: u16,
+        /* intel DCAP 1.13 */
+        pub tee_type: u32,
         /* intel DCAP 1.7 */
         pub sgx_type: u8,
 

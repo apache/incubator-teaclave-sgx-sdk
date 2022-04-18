@@ -291,3 +291,30 @@ pub unsafe extern "C" fn sgx_read_rand(p: *mut u8, len: usize) -> u32 {
         Err(e) => e.into(),
     }
 }
+
+#[cfg(not(feature = "hyper"))]
+#[inline]
+#[no_mangle]
+pub unsafe extern "C" fn sgx_rdpkru(val: *mut u32) -> i32 {
+    if val.is_null() {
+        return 0;
+    }
+
+    match crate::pkru::Pkru::read() {
+        Ok(pkru) => {
+            *val = pkru;
+            1
+        }
+        Err(_) => 0,
+    }
+}
+
+#[cfg(not(feature = "hyper"))]
+#[inline]
+#[no_mangle]
+pub unsafe extern "C" fn sgx_wrpkru(val: u32) -> i32 {
+    match crate::pkru::Pkru::write(val) {
+        Ok(_) => 1,
+        Err(_) => 0,
+    }
+}

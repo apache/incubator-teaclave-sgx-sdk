@@ -15,14 +15,17 @@
    specific language governing permissions and limitations
    under the License.. */
 
+.file "macro.S"
+
 .equ SE_WORDSIZE,   8
 
-.equ SE_EREPORT,    0
-.equ SE_EGETKEY,    1
-.equ SE_EENTER,     2
-.equ SE_EEXIT,      4
-.equ SE_EACCEPT,    5
-.equ SE_EMODPE,     6
+.equ SE_EREPORT,        0
+.equ SE_EGETKEY,        1
+.equ SE_EENTER,         2
+.equ SE_EEXIT,          4
+.equ SE_EACCEPT,        5
+.equ SE_EMODPE,         6
+.equ SE_EVERIFYREPORT2, 8
 
 .equ SE_ECREATE,    0
 .equ SE_EADD,       1

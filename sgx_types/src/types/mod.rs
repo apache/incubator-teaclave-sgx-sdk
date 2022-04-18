@@ -26,6 +26,7 @@ mod key_exchange;
 mod quote;
 mod ra;
 mod raw;
+mod report2;
 mod seal;
 mod switchless;
 mod urts;
@@ -37,6 +38,7 @@ pub use key_exchange::*;
 pub use quote::*;
 pub use ra::*;
 pub use raw::*;
+pub use report2::*;
 pub use seal::*;
 pub use switchless::*;
 pub use urts::*;
@@ -79,7 +81,8 @@ pub const XFRM_LEGACY: u64 = 0x0000_0000_0000_0003; // Legacy XFRM
 pub const XFRM_AVX: u64 = 0x0000_0000_0000_0006; // AVX
 pub const XFRM_AVX512: u64 = 0x0000_0000_0000_00E6; // AVX-512 - not supported
 pub const XFRM_MPX: u64 = 0x0000_0000_0000_0018; // MPX - not supported
-pub const XFRM_RESERVED: u64 = !(XFRM_LEGACY | XFRM_AVX);
+pub const XFRM_PKRU: u64 = 0x0000_0000_0000_0200; // PKRU state
+pub const XFRM_RESERVED: u64 = !(XFRM_LEGACY | XFRM_AVX | XFRM_AVX512 | XFRM_PKRU);
 
 impl_bitflags! {
     #[repr(C)]
@@ -352,6 +355,11 @@ impl_asmut_array! {
 }
 impl_from_array! {
     ReportData;
+}
+
+impl_unsafe_marker_for! {
+    BytewiseEquality,
+    ReportData
 }
 
 impl fmt::Debug for TargetInfo {

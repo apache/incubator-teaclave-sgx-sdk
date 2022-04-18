@@ -15,7 +15,9 @@
    specific language governing permissions and limitations
    under the License.. */
 
+.file "pic.S"
 .section absolute
+
 .global __ImageBase
 __ImageBase:
 
@@ -502,6 +504,7 @@ DECLARE_LOCAL_FUNC continue_execution
     xchg    %rax, %rsp
     ret     $(RED_ZONE_SIZE)           /* pop xip and red zone (if any) */
 
+/*
 DECLARE_GLOBAL_FUNC lfence
     pop %r11
     lfence
@@ -511,3 +514,4 @@ DECLARE_GLOBAL_FUNC mfence
     pop %r11
     mfence
     jmp *%r11
+*/

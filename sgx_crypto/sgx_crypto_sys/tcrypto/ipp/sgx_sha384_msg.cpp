@@ -29,34 +29,36 @@
  *
  */
 
-#ifndef _SE_ARCH_H_
-# error "never include inst.h directly; use arch.h instead."
+#include "sgx_tcrypto.h"
+#include "ippcp.h"
+#include "stdlib.h"
+
+#ifndef SAFE_FREE
+#define SAFE_FREE(ptr) {if (NULL != (ptr)) {free(ptr); (ptr)=NULL;}}
 #endif
 
 
-#ifndef _SE_INST_H_
-#define _SE_INST_H_
+/* SHA Hashing functions
+* Parameters:
+*   Return: sgx_status_t  - SGX_SUCCESS or failure as defined sgx_error.h
+*   Inputs: uint8_t *p_src - Pointer to input stream to be hashed
+*           uint32_t src_len - Length of input stream to be hashed
+*   Output: sgx_sha384_hash_t *p_hash - Resultant hash from operation */
+sgx_status_t sgx_sha384_msg(const uint8_t *p_src, uint32_t src_len, sgx_sha384_hash_t *p_hash)
+{
+    if ((p_src == NULL) || (p_hash == NULL))
+    {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
 
-#define ENCLU 0xd7010f
-
-typedef enum {
-    SE_EREPORT = 0x0,
-    SE_EGETKEY,
-    SE_EENTER,
-    SE_ERESUME,
-    SE_EEXIT,
-    SE_EACCEPT,
-    SE_EVERIFYREPORT2 = 0x8,
-    SE_LAST_RING3,
-
-    SE_ECREATE = 0x0,
-    SE_EADD,
-    SE_EINIT,
-    SE_EREMOVE,
-    SE_EDBGRD,
-    SE_EDBGWR,
-    SE_EEXTEND,
-    SE_LAST_RING0
-} se_opcode_t;
-
-#endif
+    IppStatus ipp_ret = ippStsNoErr;
+    ipp_ret = ippsHashMessage_rmf((const Ipp8u *) p_src, src_len, (Ipp8u *)p_hash, ippsHashMethod_SHA384());
+    switch (ipp_ret)
+    {
+    case ippStsNoErr: return SGX_SUCCESS;
+    case ippStsMemAllocErr: return SGX_ERROR_OUT_OF_MEMORY;
+    case ippStsNullPtrErr:
+    case ippStsLengthErr: return SGX_ERROR_INVALID_PARAMETER;
+    default: return SGX_ERROR_UNEXPECTED;
+    }
+}

@@ -23,7 +23,8 @@ use sgx_types::types::{
 };
 use sgx_types::types::{
     Attributes, AttributesFlags, CpuSvn, KeyId, KeyName, KeyPolicy, KeyRequest, Measurement,
-    MiscAttribute, MiscSelect, Report, ReportBody, ReportData, TargetInfo,
+    MiscAttribute, MiscSelect, Report, Report2, Report2Mac, ReportBody, ReportData, TargetInfo,
+    TeeCpuSvn, TeeMeasurement, TeeReportData, TeeReportType,
 };
 use sgx_types::types::{BaseName, PsSecPropDesc, QuoteNonce, Spid};
 use sgx_types::types::{Ec256PrivateKey, Ec256PublicKey, Ec256SharedKey, Ec256Signature};
@@ -31,6 +32,83 @@ use sgx_types::types::{
     Rsa2048Key, Rsa2048Param, Rsa2048PrivKey, Rsa2048PubKey, Rsa2048Signature, Rsa3072Key,
     Rsa3072Param, Rsa3072PrivKey, Rsa3072PubKey, Rsa3072Signature, RsaKeyType, RsaResult,
 };
+use sgx_types::types::{Sha1Hash, Sha256Hash, Sha384Hash, Sm3Hash};
+
+impl Encodable for Sha1Hash {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let Sha1Hash { hash: ref _h } = *self;
+        e.emit_struct("Sha1Hash", 1usize, |e| -> _ {
+            e.emit_struct_field("hash", 0usize, |e| -> _ { Encodable::encode(&*_h, e) })
+        })
+    }
+}
+
+impl Decodable for Sha1Hash {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Sha1Hash, D::Error> {
+        d.read_struct("Sha1Hash", 1usize, |d| -> _ {
+            Ok(Sha1Hash {
+                hash: d.read_struct_field("hash", 0usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
+impl Encodable for Sha256Hash {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let Sha256Hash { hash: ref _h } = *self;
+        e.emit_struct("Sha256Hash", 1usize, |e| -> _ {
+            e.emit_struct_field("hash", 0usize, |e| -> _ { Encodable::encode(&*_h, e) })
+        })
+    }
+}
+
+impl Decodable for Sha256Hash {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Sha256Hash, D::Error> {
+        d.read_struct("Sha256Hash", 1usize, |d| -> _ {
+            Ok(Sha256Hash {
+                hash: d.read_struct_field("hash", 0usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
+impl Encodable for Sha384Hash {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let Sha384Hash { hash: ref _h } = *self;
+        e.emit_struct("Sha384Hash", 1usize, |e| -> _ {
+            e.emit_struct_field("hash", 0usize, |e| -> _ { Encodable::encode(&*_h, e) })
+        })
+    }
+}
+
+impl Decodable for Sha384Hash {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Sha384Hash, D::Error> {
+        d.read_struct("Sha384Hash", 1usize, |d| -> _ {
+            Ok(Sha384Hash {
+                hash: d.read_struct_field("hash", 0usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
+impl Encodable for Sm3Hash {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let Sm3Hash { hash: ref _h } = *self;
+        e.emit_struct("Sm3Hash", 1usize, |e| -> _ {
+            e.emit_struct_field("hash", 0usize, |e| -> _ { Encodable::encode(&*_h, e) })
+        })
+    }
+}
+
+impl Decodable for Sm3Hash {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Sm3Hash, D::Error> {
+        d.read_struct("Sm3Hash", 1usize, |d| -> _ {
+            Ok(Sm3Hash {
+                hash: d.read_struct_field("hash", 0usize, Decodable::decode)?,
+            })
+        })
+    }
+}
 
 impl Encodable for Ec256SharedKey {
     fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
@@ -703,6 +781,25 @@ impl Decodable for CpuSvn {
     }
 }
 
+impl Encodable for TeeCpuSvn {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let TeeCpuSvn { svn: ref _svn } = *self;
+        e.emit_struct("TeeCpuSvn", 1usize, |e| -> _ {
+            e.emit_struct_field("svn", 0usize, |e| -> _ { Encodable::encode(&*_svn, e) })
+        })
+    }
+}
+
+impl Decodable for TeeCpuSvn {
+    fn decode<D: Decoder>(d: &mut D) -> Result<TeeCpuSvn, D::Error> {
+        d.read_struct("TeeCpuSvn", 1usize, |d| -> _ {
+            Ok(TeeCpuSvn {
+                svn: d.read_struct_field("svn", 0usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
 impl Encodable for Measurement {
     fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
         let Measurement { m: ref _m } = *self;
@@ -716,6 +813,25 @@ impl Decodable for Measurement {
     fn decode<D: Decoder>(d: &mut D) -> Result<Measurement, D::Error> {
         d.read_struct("Measurement", 1usize, |d| -> _ {
             Ok(Measurement {
+                m: d.read_struct_field("m", 0usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
+impl Encodable for TeeMeasurement {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let TeeMeasurement { m: ref _m } = *self;
+        e.emit_struct("TeeMeasurement", 1usize, |e| -> _ {
+            e.emit_struct_field("m", 0usize, |e| -> _ { Encodable::encode(&*_m, e) })
+        })
+    }
+}
+
+impl Decodable for TeeMeasurement {
+    fn decode<D: Decoder>(d: &mut D) -> Result<TeeMeasurement, D::Error> {
+        d.read_struct("TeeMeasurement", 1usize, |d| -> _ {
+            Ok(TeeMeasurement {
                 m: d.read_struct_field("m", 0usize, Decodable::decode)?,
             })
         })
@@ -823,6 +939,63 @@ impl Decodable for ReportData {
     }
 }
 
+impl Encodable for TeeReportData {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let TeeReportData { d: ref _d } = *self;
+        e.emit_struct("TeeReportData", 1usize, |e| -> _ {
+            e.emit_struct_field("d", 0usize, |e| -> _ { Encodable::encode(&*_d, e) })
+        })
+    }
+}
+
+impl Decodable for TeeReportData {
+    fn decode<D: Decoder>(d: &mut D) -> Result<TeeReportData, D::Error> {
+        d.read_struct("TeeReportData", 1usize, |d| -> _ {
+            Ok(TeeReportData {
+                d: d.read_struct_field("d", 0usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
+impl Encodable for TeeReportType {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let TeeReportType {
+            report_type: ref _report_type,
+            subtype: ref _subtype,
+            version: ref _version,
+            reserved: ref _reserved,
+        } = *self;
+        e.emit_struct("TeeReportType", 4usize, |e| -> _ {
+            e.emit_struct_field("report_type", 0usize, |e| -> _ {
+                Encodable::encode(&*_report_type, e)
+            })?;
+            e.emit_struct_field("subtype", 1usize, |e| -> _ {
+                Encodable::encode(&*_subtype, e)
+            })?;
+            e.emit_struct_field("version", 2usize, |e| -> _ {
+                Encodable::encode(&*_version, e)
+            })?;
+            e.emit_struct_field("reserved", 3usize, |e| -> _ {
+                Encodable::encode(&*_reserved, e)
+            })
+        })
+    }
+}
+
+impl Decodable for TeeReportType {
+    fn decode<D: Decoder>(d: &mut D) -> Result<TeeReportType, D::Error> {
+        d.read_struct("TeeReportType", 4usize, |d| -> _ {
+            Ok(TeeReportType {
+                report_type: d.read_struct_field("report_type", 0usize, Decodable::decode)?,
+                subtype: d.read_struct_field("subtype", 1usize, Decodable::decode)?,
+                version: d.read_struct_field("version", 2usize, Decodable::decode)?,
+                reserved: d.read_struct_field("reserved", 3usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
 impl Encodable for ReportBody {
     fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
         let ReportBody {
@@ -925,6 +1098,66 @@ impl Decodable for ReportBody {
     }
 }
 
+impl Encodable for Report2Mac {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let Report2Mac {
+            report_type: ref _report_type,
+            reserved1: ref _reserved1,
+            cpu_svn: ref _cpu_svn,
+            tee_tcb_info_hash: ref _tee_tcb_info_hash,
+            tee_info_hash: ref _tee_info_hash,
+            report_data: ref _report_data,
+            reserved2: ref _reserved2,
+            mac: ref _mac,
+        } = *self;
+        e.emit_struct("Report2Mac", 8usize, |e| -> _ {
+            e.emit_struct_field("report_type", 0usize, |e| -> _ {
+                Encodable::encode(&*_report_type, e)
+            })?;
+            e.emit_struct_field("reserved1", 1usize, |e| -> _ {
+                Encodable::encode(&*_reserved1, e)
+            })?;
+            e.emit_struct_field("cpu_svn", 2usize, |e| -> _ {
+                Encodable::encode(&*_cpu_svn, e)
+            })?;
+            e.emit_struct_field("tee_tcb_info_hash", 3usize, |e| -> _ {
+                Encodable::encode(&*_tee_tcb_info_hash, e)
+            })?;
+            e.emit_struct_field("tee_info_hash", 4usize, |e| -> _ {
+                Encodable::encode(&*_tee_info_hash, e)
+            })?;
+            e.emit_struct_field("report_data", 5usize, |e| -> _ {
+                Encodable::encode(&*_report_data, e)
+            })?;
+            e.emit_struct_field("reserved2", 6usize, |e| -> _ {
+                Encodable::encode(&*_reserved2, e)
+            })?;
+            e.emit_struct_field("mac", 7usize, |e| -> _ { Encodable::encode(&*_mac, e) })
+        })
+    }
+}
+
+impl Decodable for Report2Mac {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Report2Mac, D::Error> {
+        d.read_struct("Report2Mac", 16usize, |d| -> _ {
+            Ok(Report2Mac {
+                report_type: d.read_struct_field("report_type", 0usize, Decodable::decode)?,
+                reserved1: d.read_struct_field("reserved1", 1usize, Decodable::decode)?,
+                cpu_svn: d.read_struct_field("cpu_svn", 2usize, Decodable::decode)?,
+                tee_tcb_info_hash: d.read_struct_field(
+                    "tee_tcb_info_hash",
+                    3usize,
+                    Decodable::decode,
+                )?,
+                tee_info_hash: d.read_struct_field("tee_info_hash", 4usize, Decodable::decode)?,
+                report_data: d.read_struct_field("report_data", 5usize, Decodable::decode)?,
+                reserved2: d.read_struct_field("reserved2", 6usize, Decodable::decode)?,
+                mac: d.read_struct_field("mac", 7usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
 impl Encodable for Report {
     fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
         let Report {
@@ -949,6 +1182,44 @@ impl Decodable for Report {
                 body: d.read_struct_field("body", 0usize, Decodable::decode)?,
                 key_id: d.read_struct_field("key_id", 1usize, Decodable::decode)?,
                 mac: d.read_struct_field("mac", 2usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
+impl Encodable for Report2 {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let Report2 {
+            report_mac: ref _report_mac,
+            tee_tcb_info: ref _tee_tcb_info,
+            reserved: ref _reserved,
+            tee_info: ref _tee_info,
+        } = *self;
+        e.emit_struct("Report2", 4usize, |e| -> _ {
+            e.emit_struct_field("report_mac", 0usize, |e| -> _ {
+                Encodable::encode(&*_report_mac, e)
+            })?;
+            e.emit_struct_field("tee_tcb_info", 1usize, |e| -> _ {
+                Encodable::encode(&*_tee_tcb_info, e)
+            })?;
+            e.emit_struct_field("reserved", 2usize, |e| -> _ {
+                Encodable::encode(&*_reserved, e)
+            })?;
+            e.emit_struct_field("tee_info", 3usize, |e| -> _ {
+                Encodable::encode(&*_tee_info, e)
+            })
+        })
+    }
+}
+
+impl Decodable for Report2 {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Report2, D::Error> {
+        d.read_struct("Report2", 3usize, |d| -> _ {
+            Ok(Report2 {
+                report_mac: d.read_struct_field("report_mac", 0usize, Decodable::decode)?,
+                tee_tcb_info: d.read_struct_field("tee_tcb_info", 1usize, Decodable::decode)?,
+                reserved: d.read_struct_field("reserved", 2usize, Decodable::decode)?,
+                tee_info: d.read_struct_field("tee_info", 3usize, Decodable::decode)?,
             })
         })
     }

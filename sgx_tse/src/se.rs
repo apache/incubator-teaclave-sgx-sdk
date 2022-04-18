@@ -19,11 +19,15 @@ use core::mem;
 use core::ptr;
 use sgx_crypto::mac::AesCMac;
 use sgx_trts::fence::lfence;
-use sgx_trts::se::{AlignKeyRequest, AlignReport, AlignReportData, AlignTargetInfo};
+use sgx_trts::se::{
+    AlignKeyRequest, AlignReport, AlignReport2Mac, AlignReportData, AlignTargetInfo,
+};
 use sgx_trts::trts::EnclaveRange;
 use sgx_types::error::{SgxResult, SgxStatus};
 use sgx_types::memeq::ConstTimeEq;
-use sgx_types::types::{AlignKey128bit, Key128bit, KeyRequest, Report, ReportData, TargetInfo};
+use sgx_types::types::{
+    AlignKey128bit, Key128bit, KeyRequest, Report, Report2Mac, ReportData, TargetInfo,
+};
 
 pub trait EnclaveReport: Sized {
     type Error;
@@ -53,6 +57,12 @@ pub trait EnclaveTarget: Sized {
     type Error;
 
     fn for_self() -> Result<Self, Self::Error>;
+}
+
+pub trait TeeReport: Sized {
+    type Error;
+
+    fn verify(&self) -> Result<(), Self::Error>;
 }
 
 impl EnclaveReport for Report {
@@ -126,6 +136,18 @@ impl EnclaveTarget for TargetInfo {
     #[inline]
     fn for_self() -> SgxResult<TargetInfo> {
         Report::get_self().to_target()
+    }
+}
+
+impl TeeReport for Report2Mac {
+    type Error = SgxStatus;
+
+    #[inline]
+    fn verify(&self) -> Result<(), Self::Error> {
+        ensure!(self.is_enclave_range(), SgxStatus::InvalidParameter);
+
+        let report = AlignReport2Mac::from(self);
+        report.verify()
     }
 }
 

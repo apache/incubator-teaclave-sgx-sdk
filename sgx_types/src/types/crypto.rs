@@ -17,11 +17,14 @@
 
 use super::*;
 
+use core::ops::{Deref, DerefMut};
+
 //
 // sgx_tcrypto.h
 //
 pub const SHA1_HASH_SIZE: usize = 20;
 pub const SHA256_HASH_SIZE: usize = 32;
+pub const SHA384_HASH_SIZE: usize = 48;
 pub const SM3_HASH_SIZE: usize = 32;
 
 pub type ShaHandle = *mut c_void;
@@ -65,9 +68,128 @@ impl EcResult {
 }
 
 pub type Key128bit = [u8; KEY_128BIT_SIZE];
-pub type Sha1Hash = [u8; SHA1_HASH_SIZE];
-pub type Sha256Hash = [u8; SHA256_HASH_SIZE];
-pub type Sm3Hash = [u8; SM3_HASH_SIZE];
+
+impl_struct! {
+    #[repr(C)]
+    #[derive(Debug, Eq, PartialEq)]
+    pub struct Sha1Hash {
+        pub hash: [u8; SHA1_HASH_SIZE],
+    }
+
+    #[repr(C)]
+    #[derive(Debug, Eq, PartialEq)]
+    pub struct Sha256Hash {
+        pub hash: [u8; SHA256_HASH_SIZE],
+    }
+
+    #[repr(C)]
+    #[derive(Debug, Eq, PartialEq)]
+    pub struct Sm3Hash {
+        pub hash: [u8; SM3_HASH_SIZE],
+    }
+}
+
+impl_copy_clone! {
+    #[repr(C)]
+    #[derive(Debug, Eq, PartialEq)]
+    pub struct Sha384Hash {
+        pub hash: [u8; SHA384_HASH_SIZE],
+    }
+}
+
+macro_rules! impl_hash_eq {
+    ($($i:ident;)*) => {$(
+        impl PartialEq<[u8; core::mem::size_of::<$i>()]> for $i {
+            #[inline]
+            fn eq(&self, other: &[u8; core::mem::size_of::<$i>()]) -> bool {
+                self.hash.eq(other)
+            }
+        }
+
+        impl PartialEq<[u8]> for $i {
+            #[inline]
+            fn eq(&self, other: &[u8]) -> bool {
+                self.hash.eq(other)
+            }
+        }
+    )*}
+}
+
+impl_hash_eq! {
+    Sha1Hash;
+    Sha256Hash;
+    Sha384Hash;
+    Sm3Hash;
+}
+
+impl_struct_default! {
+    Sha384Hash; //48
+}
+
+impl_struct_ContiguousMemory! {
+    Sha384Hash;
+}
+
+impl_asref_array! {
+    Sha1Hash;
+    Sha256Hash;
+    Sha384Hash;
+    Sm3Hash;
+}
+impl_asmut_array! {
+    Sha1Hash;
+    Sha256Hash;
+    Sha384Hash;
+    Sm3Hash;
+}
+impl_from_array! {
+    Sha1Hash;
+    Sha256Hash;
+    Sha384Hash;
+    Sm3Hash;
+}
+
+impl_unsafe_marker_for! {
+    BytewiseEquality,
+    Sha1Hash Sha256Hash Sha384Hash Sm3Hash
+}
+
+macro_rules! impl_hash_deref {
+    ($($i:ident;)*) => {$(
+        impl Deref for $i {
+            type Target = [u8];
+
+            #[inline]
+            fn deref(&self) -> &Self::Target {
+                &self.hash[..]
+            }
+        }
+
+        impl DerefMut for $i {
+            #[inline]
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.hash[..]
+            }
+        }
+
+        impl $i {
+            pub fn as_slice(&self) -> &[u8] {
+                self
+            }
+
+            pub fn as_mut_slice(&mut self) -> &[u8] {
+                self
+            }
+        }
+    )*}
+}
+
+impl_hash_deref! {
+    Sha1Hash;
+    Sha256Hash;
+    Sha384Hash;
+    Sm3Hash;
+}
 
 pub const KEY_128BIT_SIZE: usize = 16;
 pub const KEY_256BIT_SIZE: usize = 32;

@@ -16,7 +16,6 @@
    under the License.. */
 
 .file "lowlib.S"
-
 .section .nipx,"ax",@progbits
 
 DECLARE_LOCAL_FUNC get_bp

@@ -429,6 +429,7 @@ impl_enum! {
         QveOutOfDate                            = 0x0000_E051,
         PswNotAvailable                         = 0x0000_E052,
         CollateralVersionNotSupported           = 0x0000_E053,
+        TdxModuleMismatch                       = 0x0000_E060,
         ErrorMax                                = 0x0000_E0FF,
     }
 }
@@ -547,6 +548,9 @@ impl Quote3Error {
             Quote3Error::CollateralVersionNotSupported => {
                 "SGX quote verification collateral version not supported by QVL/QvE."
             }
+            Quote3Error::TdxModuleMismatch => {
+                "TDX SEAM module identity is NOT match to Intel signed TDX SEAM module"
+            }
             Quote3Error::ErrorMax => "Indicate max error to allow better translation.",
         }
     }
@@ -632,6 +636,7 @@ impl Quote3Error {
             Quote3Error::QveOutOfDate => "QveOutOfDate",
             Quote3Error::PswNotAvailable => "PswNotAvailable",
             Quote3Error::CollateralVersionNotSupported => "CollateralVersionNotSupported",
+            Quote3Error::TdxModuleMismatch => "TdxModuleMismatch",
             Quote3Error::ErrorMax => "ErrorMax",
         }
     }

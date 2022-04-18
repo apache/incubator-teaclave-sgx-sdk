@@ -15,31 +15,15 @@
    specific language governing permissions and limitations
    under the License.. */
 
-.file "xsave_mask.S"
-.section .nipd,"aw"
+.file "everifyreport.S"
 
-XSAVE_MASK_LOW:
-    .int -1
-
-.section .nipd,"aw"
-XSAVE_MASK_HIGH:
-    .int -1
-
-.macro SET_XSAVE_MASK
-    lea_pic XSAVE_MASK_LOW, %rax
-    lea_pic XSAVE_MASK_HIGH, %rdx
-    movl    (%rax), %eax
-    movl    (%rdx), %edx
-.endm
-
-.section .text,"ax",@progbits
-
-DECLARE_LOCAL_FUNC set_xsave_mask_low
-    lea_pic XSAVE_MASK_LOW, %rax
-    movl    %edi, (%rax)
-    ret
-
-DECLARE_LOCAL_FUNC set_xsave_mask_high
-    lea_pic XSAVE_MASK_HIGH, %rax
-    movl    %edi, (%rax)
-    ret
+.global Leverifyreport2_inst
+DECLARE_LOCAL_FUNC everifyreport2
+    SE_PROLOG
+    mov  $SE_EVERIFYREPORT2, %rax  /* EVERIFYREPORT2 leaf */
+Leverifyreport2_inst:
+    ENCLU
+    jz   .Leverifyreport2_done     /* if EVERIFYREPORT2 error, ZF flag is set and error code is set to rax */
+    xor  %rax, %rax
+.Leverifyreport2_done:
+    SE_EPILOG

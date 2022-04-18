@@ -281,6 +281,16 @@ extern "C" {
         pck_ra: *const c_char,
         pp_quote_collateral: *mut *mut CQlQveCollateral,
     ) -> Quote3Error;
+
+    /* intel DCAP 1.13 */
+    pub fn sgx_ql_get_quote_verification_collateral_with_params(
+        fmspc: *const u8,
+        fmspc_size: u16,
+        pck_ra: *const c_char,
+        custom_param: *const c_void,
+        custom_param_length: u16,
+        pp_quote_collateral: *mut *mut CQlQveCollateral,
+    ) -> Quote3Error;
     pub fn sgx_ql_free_quote_verification_collateral(
         p_quote_collateral: *const CQlQveCollateral,
     ) -> Quote3Error;
@@ -318,6 +328,7 @@ extern "C" {
     pub fn sgx_qcnl_get_pck_crl_chain(
         ca: *const c_char,
         ca_size: u16,
+        custom_param_b64_string: *const c_char,
         p_crl_chain: *mut *mut u8,
         p_crl_chain_size: *mut u16,
     ) -> QcnlError;
@@ -325,17 +336,20 @@ extern "C" {
     pub fn sgx_qcnl_get_tcbinfo(
         fmspc: *const c_char,
         fmspc_size: u16,
+        custom_param_b64_string: *const c_char,
         p_tcbinfo: *mut *mut u8,
         p_tcbinfo_size: *mut u16,
     ) -> QcnlError;
     pub fn sgx_qcnl_free_tcbinfo(p_tcbinfo: *const u8);
     pub fn sgx_qcnl_get_qe_identity(
         qe_type: u8,
+        custom_param_b64_string: *const c_char,
         p_qe_identity: *mut *mut u8,
         p_qe_identity_size: *mut u16,
     ) -> QcnlError;
     pub fn sgx_qcnl_free_qe_identity(p_qe_identity: *const u8);
     pub fn sgx_qcnl_get_qve_identity(
+        custom_param_b64_string: *const c_char,
         pp_qve_identity: *mut *mut c_char,
         p_qve_identity_size: *mut u32,
         pp_qve_identity_issuer_chain: *mut *mut c_char,
@@ -347,18 +361,14 @@ extern "C" {
     );
     pub fn sgx_qcnl_get_root_ca_crl(
         root_ca_cdp_url: *const c_char,
+        custom_param_b64_string: *const c_char,
         p_root_ca_crl: *mut *mut u8,
         p_root_ca_crl_size: *mut u16,
     ) -> QcnlError;
     pub fn sgx_qcnl_free_root_ca_crl(p_root_ca_crl: *const u8);
-    pub fn sgx_qcnl_register_platform(
-        p_pck_cert_id: *const CQlPckCertId,
-        platform_manifest: *const u8,
-        platform_manifest_size: u16,
-        user_token: *const u8,
-        user_token_size: u16,
-    ) -> QcnlError;
-    pub fn sgx_qcnl_get_api_version() -> u32;
+    /* intel DCAP 1.13 */
+    pub fn sgx_qcnl_get_api_version(p_major_ver: *mut u16, p_minor_ver: *mut u16) -> bool;
+    pub fn sgx_qcnl_set_logging_callback(logger: QlLoggingCallbackFn) -> QcnlError;
 }
 
 //#[link(name = "dcap_quoteverify")]
@@ -398,4 +408,18 @@ extern "C" {
 
     /* intel DCAP 1.6 */
     pub fn sgx_qv_set_path(path_type: QvPathType, p_path: *const c_char) -> Quote3Error;
+
+    /* intel DCAP 1.13 */
+    pub fn tdx_qv_get_quote_supplemental_data_size(p_data_size: *mut u32) -> Quote3Error;
+    pub fn tdx_qv_verify_quote(
+        p_quote: *const u8,
+        quote_size: u32,
+        p_quote_collateral: *const CQlQveCollateral,
+        expiration_check_date: time_t,
+        p_collateral_expiration_status: *mut u32,
+        p_quote_verification_result: *mut QlQvResult,
+        p_qve_report_info: *mut QlQeReportInfo,
+        supplemental_data_size: u32,
+        p_supplemental_data: *mut u8,
+    ) -> Quote3Error;
 }

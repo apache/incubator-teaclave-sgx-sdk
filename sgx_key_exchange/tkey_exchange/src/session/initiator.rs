@@ -222,7 +222,7 @@ impl Initiator {
         sha.update(quote)?;
         let hash = sha.finalize()?;
         ensure!(
-            qe_report.body.report_data.d[..SHA256_HASH_SIZE].eq(&hash),
+            hash.eq(&qe_report.body.report_data.d[..SHA256_HASH_SIZE]),
             SgxStatus::Unexpected
         );
 

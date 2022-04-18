@@ -180,7 +180,7 @@ impl DhMsg2 {
         sha.update(pub_key_a)?;
         sha.update(&self.pub_key_b)?;
         let msg_hash = sha.finalize()?;
-        ensure!(msg_hash.eq(&hash), SgxStatus::MacMismatch);
+        ensure!(msg_hash.eq(hash), SgxStatus::MacMismatch);
 
         Ok(())
     }
@@ -342,7 +342,7 @@ impl DhMsg3 {
         sha.update(pub_key_b)?;
         sha.update(pub_key_a)?;
         let msg_hash = sha.finalize()?;
-        ensure!(msg_hash.eq(&hash), SgxStatus::MacMismatch);
+        ensure!(msg_hash.eq(hash), SgxStatus::MacMismatch);
 
         Ok(())
     }

@@ -175,7 +175,7 @@ impl Responder {
         sha.update(quote)?;
         let hash = sha.finalize()?;
         ensure!(
-            qe_report.body.report_data.d[..SHA256_HASH_SIZE].eq(&hash),
+            hash.eq(&qe_report.body.report_data.d[..SHA256_HASH_SIZE]),
             SgxStatus::Unexpected
         );
 
@@ -250,7 +250,7 @@ impl Responder {
 
         let quote3 = unsafe { &*(msg3.quote.as_ptr() as *const Quote3) };
         ensure!(
-            quote3.report_body.report_data.d[..SHA256_HASH_SIZE].eq(&hash),
+            hash.eq(&quote3.report_body.report_data.d[..SHA256_HASH_SIZE]),
             SgxStatus::Unexpected
         );
         let enclave_identity = quote3.report_body.into();

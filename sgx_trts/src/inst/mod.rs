@@ -15,7 +15,9 @@
 // specific language governing permissions and limitations
 // under the License..
 
+pub const INVALID_LEAF: u32 = 1 << 1;
 pub const INVALID_ATTRIBUTE: u32 = 1 << 1;
+pub const INVALID_REPORTMACSTRUCT: u32 = (1 << 4) | (1 << 3) | (1 << 2);
 pub const INVALID_CPUSVN: u32 = 1 << 5;
 pub const INVALID_ISVSVN: u32 = 1 << 6;
 pub const INVALID_KEYNAME: u32 = 1 << 8;

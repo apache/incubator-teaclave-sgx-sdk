@@ -78,13 +78,14 @@ RUN apt-get update && DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-i
     rm -rf /var/lib/apt/lists/*
 
 ENV CODENAME                    bionic
-ENV SGX_SDK_RELEASE_VERSION     2.15.1
-ENV SGX_DCAP_RELEASE_VERSION    1.12.1
-ENV SGX_SDK_CODE_VERSION        2.15.101.1
-ENV SGX_DCAP_CODE_VERSION       1.12.101.1
+ENV SGX_SDK_RELEASE_VERSION     2.16
+ENV SGX_DCAP_RELEASE_VERSION    1.13
+ENV SGX_SDK_CODE_VERSION        2.16.100.4
+ENV SGX_DCAP_CODE_VERSION       1.13.100.4
 ENV SGX_SDK_VERSION             ${SGX_SDK_CODE_VERSION}-bionic1
 ENV SGX_DCAP_VERSION            ${SGX_DCAP_CODE_VERSION}-bionic1
 ENV RUST_TOOLCHAIN              nightly-2022-02-23
+ENV OS_NAME                     ubuntu
 ENV BINUTILS_DIST               ubuntu18.04
 ENV SGX_SDK_URL                 "https://download.01.org/intel-sgx/sgx-linux/${SGX_SDK_RELEASE_VERSION}/distro/${BINUTILS_DIST}-server/sgx_linux_x64_sdk_${SGX_SDK_CODE_VERSION}.bin"
 

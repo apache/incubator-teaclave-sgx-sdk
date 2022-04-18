@@ -64,9 +64,10 @@ endif
 CXXFLAGS += -fno-exceptions -fno-rtti #-Werror
 
 OBJ = init_tcrypto_lib.o sgx_aes_ctr.o sgx_rsa_encryption.o sgx_aes_gcm.o sgx_cmac128.o sgx_hmac_sha256.o \
-	sgx_ecc256.o sgx_ecc256_ecdsa.o sgx_sha256.o sgx_sha1.o sgx_sha256_msg.o sgx_ecc256_internal.o  \
-	sgx_rsa2048.o sgx_rsa3072.o sgx_internal.o sgx_sm3_msg.o sgx_sm3.o sgx_sm4_ccm.o sgx_sm4_cbc.o \
-	sgx_sm4_ctr.o sgx_hmac_sm3.o sgx_sm2.o sgx_sm2_sign.o sgx_sm2_internal.o sgx_aes_cbc.o sgx_aes_ccm.o
+	sgx_ecc256.o sgx_ecc256_ecdsa.o sgx_sha384.o sgx_sha384_msg.o sgx_sha256.o sgx_sha1.o sgx_sha256_msg.o \
+	sgx_ecc256_internal.o sgx_rsa2048.o sgx_rsa3072.o sgx_internal.o sgx_sm3_msg.o sgx_sm3.o sgx_sm4_ccm.o \
+	sgx_sm4_cbc.o sgx_sm4_ctr.o sgx_hmac_sm3.o sgx_sm2.o sgx_sm2_sign.o sgx_sm2_internal.o sgx_aes_cbc.o \
+	sgx_aes_ccm.o
 SHARED_OBJ = sgx_common_init_ipp.o
 
 # Build IPP crypto based sgx_tcrypto library

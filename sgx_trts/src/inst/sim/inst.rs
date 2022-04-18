@@ -22,8 +22,10 @@ use crate::inst::sim::derive::{
     self, DerivLicenseKey, DerivProvisionKey, DerivReportKey, DerivSealKey, DeriveKey, SeOwnerEpoch,
 };
 use crate::inst::sim::{TcsSim, TcsState};
-use crate::inst::{INVALID_ATTRIBUTE, INVALID_CPUSVN, INVALID_ISVSVN};
-use crate::se::{AlignKey, AlignKeyRequest, AlignReport, AlignReportData, AlignTargetInfo};
+use crate::inst::{INVALID_ATTRIBUTE, INVALID_CPUSVN, INVALID_ISVSVN, INVALID_LEAF};
+use crate::se::{
+    AlignKey, AlignKeyRequest, AlignReport, AlignReport2Mac, AlignReportData, AlignTargetInfo,
+};
 use core::mem;
 use core::sync::atomic::Ordering;
 use sgx_types::types::KEY_REQUEST_RESERVED2_BYTES;
@@ -39,9 +41,9 @@ macro_rules! gp_on {
     };
 }
 
-macro_rules! is_aligned {
+macro_rules! is_unaligned {
     ($num:expr, $align:expr) => {
-        ($num) & ($align - 1) == 0
+        $num & ($align - 1) != 0
     };
 }
 
@@ -132,7 +134,7 @@ impl EncluInst {
     }
 
     pub fn egetkey(kr: &AlignKeyRequest) -> Result<AlignKey, u32> {
-        gp_on!(!is_aligned!(
+        gp_on!(is_unaligned!(
             kr as *const _ as usize,
             AlignKeyRequest::ALIGN_SIZE
         ));
@@ -266,11 +268,11 @@ impl EncluInst {
     }
 
     pub fn ereport(ti: &AlignTargetInfo, rd: &AlignReportData) -> Result<AlignReport, u32> {
-        gp_on!(!is_aligned!(
+        gp_on!(is_unaligned!(
             ti as *const _ as usize,
             AlignTargetInfo::ALIGN_SIZE
         ));
-        gp_on!(!is_aligned!(
+        gp_on!(is_unaligned!(
             rd as *const _ as usize,
             AlignReportData::ALIGN_SIZE
         ));
@@ -310,6 +312,11 @@ impl EncluInst {
         report.0.mac = derive::cmac(&key, report.0.body.as_ref());
 
         Ok(report)
+    }
+
+    #[inline]
+    pub fn everify_report2(_r: &AlignReport2Mac) -> Result<(), u32> {
+        Err(INVALID_LEAF)
     }
 
     #[inline]

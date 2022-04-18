@@ -15,7 +15,9 @@
    specific language governing permissions and limitations
    under the License.. */
 
+.file "xsave.S"
 .section .nipd,"aw"
+
 XSAVE_ENABLED:
     .int 0
 

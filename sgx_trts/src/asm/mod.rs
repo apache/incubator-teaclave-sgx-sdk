@@ -42,13 +42,19 @@ global_asm!(include_str!("thunk.S"), options(att_syntax));
 
 cfg_if! {
     if #[cfg(feature = "sim")] {
-        global_asm!(include_str!("../inst/sim/xsave_mask.S"), options(att_syntax));
+        global_asm!(include_str!("../inst/sim/xsave_mask.S"),options(att_syntax));
     } else if #[cfg(feature = "hyper")] {
         global_asm!(include_str!("../inst/hyper/xsave_mask.S"), options(att_syntax));
     } else {
         global_asm!(include_str!("../inst/hw/xsave_mask.S"), options(att_syntax));
     }
 }
+
+#[cfg(all(not(feature = "sim"), not(feature = "hyper")))]
+global_asm!(
+    include_str!("../inst/hw/everifyreport.S"),
+    options(att_syntax)
+);
 
 global_asm!(include_str!("xsave.S"), options(att_syntax));
 global_asm!(include_str!("pic.S"), options(att_syntax));

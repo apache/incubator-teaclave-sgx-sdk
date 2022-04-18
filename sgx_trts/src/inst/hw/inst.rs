@@ -16,7 +16,9 @@
 // under the License..
 
 use crate::arch::{Enclu, Secinfo};
-use crate::se::{AlignKey, AlignKeyRequest, AlignReport, AlignReportData, AlignTargetInfo};
+use crate::se::{
+    AlignKey, AlignKeyRequest, AlignReport, AlignReport2Mac, AlignReportData, AlignTargetInfo,
+};
 use core::arch::asm;
 use core::mem::MaybeUninit;
 
@@ -45,6 +47,18 @@ impl EncluInst {
                 in("eax") Enclu::EReport as u32,
             );
             Ok(report.assume_init())
+        }
+    }
+
+    pub fn everify_report2(r: &AlignReport2Mac) -> Result<(), u32> {
+        extern "C" {
+            fn everifyreport2(r: *const AlignReport2Mac) -> u32;
+        }
+        let error = unsafe { everifyreport2(r) };
+        if error == 0 {
+            Ok(())
+        } else {
+            Err(error)
         }
     }
 

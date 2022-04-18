@@ -132,7 +132,7 @@ macro_rules! impl_struct {
             fn clone(&self) -> $i { *self }
         }
         impl ::core::default::Default for $i {
-            fn default()->$i {
+            fn default() -> $i {
                 $i{$($name: Default::default(),)*}
             }
         }

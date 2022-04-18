@@ -16,7 +16,10 @@
 // under the License..
 
 use crate::arch::Secinfo;
-use crate::se::{AlignKey, AlignKeyRequest, AlignReport, AlignReportData, AlignTargetInfo};
+use crate::inst::INVALID_LEAF;
+use crate::se::{
+    AlignKey, AlignKeyRequest, AlignReport, AlignReport2Mac, AlignReportData, AlignTargetInfo,
+};
 use core::arch::asm;
 use core::mem::MaybeUninit;
 
@@ -74,6 +77,11 @@ impl EncluInst {
             );
             Ok(report.assume_init())
         }
+    }
+
+    #[inline]
+    pub fn everify_report2(_r: &AlignReport2Mac) -> Result<(), u32> {
+        Err(INVALID_LEAF)
     }
 
     pub fn egetkey(kr: &AlignKeyRequest) -> Result<AlignKey, u32> {

@@ -39,11 +39,12 @@
   * if the following alignment requirement changes, go to selib to
   * review the memory allocation of sgx_create_report and sgx_get_key.
   */
-#define TARGET_INFO_ALIGN_SIZE  512
-#define REPORT_DATA_ALIGN_SIZE  128
-#define REPORT_ALIGN_SIZE       512
-#define KEY_REQUEST_ALIGN_SIZE  512
-#define KEY_ALIGN_SIZE          16
+#define TARGET_INFO_ALIGN_SIZE            512
+#define REPORT_DATA_ALIGN_SIZE            128
+#define REPORT_ALIGN_SIZE                 512
+#define KEY_REQUEST_ALIGN_SIZE            512
+#define REPORT2_MAC_STRUCT_ALIGN_SIZE     256
+#define KEY_ALIGN_SIZE                    16
 
 #define BIT_ERROR(x)            (1 << (x))
 
@@ -55,6 +56,14 @@ typedef enum _egetkey_status_t
     EGETKEY_INVALID_ISVSVN    = BIT_ERROR(6),
     EGETKEY_INVALID_KEYNAME   = BIT_ERROR(8),
 }  egetkey_status_t;
+
+typedef enum _everifyreport2_status_t
+{
+    EVERIFYREPORT2_SUCCESS                  = 0,
+    EVERIFYREPORT2_INVALID_LEAF             = 1,
+    EVERIFYREPORT2_INVALID_REPORTMACSTRUCT  = BIT_ERROR(4)|BIT_ERROR(3)|BIT_ERROR(2),
+    EVERIFYREPORT2_INVALID_CPUSVN           = BIT_ERROR(5),
+}  everifyreport2_status_t;
 
 struct ms_tcs
 {

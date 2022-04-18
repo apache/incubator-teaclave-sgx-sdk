@@ -15,6 +15,8 @@
    specific language governing permissions and limitations
    under the License.. */
 
+.file "td.S"
+
 .macro READ_TD_DATA offset
     mov     %gs:\offset, %rax
 .endm

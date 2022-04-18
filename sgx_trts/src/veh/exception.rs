@@ -113,17 +113,35 @@ pub fn handle(tcs: &mut Tcs) -> SgxResult {
     }
 
     let ssa_gpr = tds.ssa_gpr();
-    // unsafe {
-    //     extern "C" {
-    //         static Lereport_inst: u8;
-    //     }
-    //     if (&Lereport_inst as *const _ as u64 == ssa_gpr.rip)  && (ssa_gpr.rax == Enclu::EReport as u64) {
-    //         // Handle the exception raised by EREPORT instruction
-    //         ssa_gpr.rip += 3; // Skip ENCLU, which is always a 3-byte instruction
-    //         ssa_gpr.rflags |= 1; // Set CF to indicate error condition, see implementation of do_report()
-    //         return Ok(());
-    //     }
-    // }
+
+    #[cfg(all(not(feature = "sim"), not(feature = "hyper")))]
+    unsafe {
+        use crate::arch::Enclu;
+        use crate::inst;
+        extern "C" {
+            // static Lereport_inst: u8;
+            static Leverifyreport2_inst: u8;
+        }
+        // if (&Lereport_inst as *const _ as u64 == ssa_gpr.rip)  && (ssa_gpr.rax == Enclu::EReport as u64) {
+        //     // Handle the exception raised by EREPORT instruction
+        //     // Skip ENCLU, which is always a 3-byte instruction
+        //     ssa_gpr.rip += 3;
+        //     // Set CF to indicate error condition, see implementation of ereport()
+        //     ssa_gpr.rflags |= 1;
+        //     return Ok(());
+        // }
+        if (&Leverifyreport2_inst as *const _ as u64 == ssa_gpr.rip)
+            && (ssa_gpr.rax == Enclu::EVerifyReport2 as u64)
+        {
+            // Handle the exception raised by everifyreport2 instruction
+            // Skip ENCLU, which is always a 3-byte instruction
+            ssa_gpr.rip += 3;
+            // Set ZF to indicate error condition, see implementation of everify_report2()
+            ssa_gpr.rflags |= 64;
+            ssa_gpr.rax = inst::INVALID_LEAF as u64;
+            return Ok(());
+        }
+    }
 
     // exception handlers are not allowed to call in a non-exception state
     try_error!(ssa_gpr.exit_info.valid() != 1);
@@ -155,10 +173,14 @@ pub fn handle(tcs: &mut Tcs) -> SgxResult {
     info.context.r15 = ssa_gpr.r15;
 
     let new_sp = sp as *mut u64;
-    ssa_gpr.rip = internal_handle as usize as u64; // prepare the ip for 2nd phrase handling
-    ssa_gpr.rsp = new_sp as u64; // new stack for internal_handle_exception
-    ssa_gpr.rax = info as *mut _ as u64; // 1st parameter (info) for LINUX32
-    ssa_gpr.rdi = info as *mut _ as u64; // 1st parameter (info) for LINUX64, LINUX32 also uses it while restoring the context
+    // prepare the ip for 2nd phrase handling
+    ssa_gpr.rip = internal_handle as usize as u64;
+    // new stack for internal_handle_exception
+    ssa_gpr.rsp = new_sp as u64;
+    // 1st parameter (info) for LINUX32
+    ssa_gpr.rax = info as *mut _ as u64;
+    // 1st parameter (info) for LINUX64, LINUX32 also uses it while restoring the context
+    ssa_gpr.rdi = info as *mut _ as u64;
     unsafe {
         // for debugger to get call trace
         *new_sp = info.context.rip;

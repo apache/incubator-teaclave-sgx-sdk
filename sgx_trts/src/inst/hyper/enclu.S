@@ -15,6 +15,8 @@
    specific language governing permissions and limitations
    under the License.. */
 
+.file "enclu.S"
+
 .equ HC_EENTER,     0x80000000
 .equ HC_EEXIT,      0x80000001
 .equ HC_ERESUME,    0x80000005

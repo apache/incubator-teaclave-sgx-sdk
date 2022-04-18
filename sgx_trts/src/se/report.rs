@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::arch::{Align128, Align512};
+use crate::arch::{Align128, Align256, Align512};
 use crate::enclave::EnclaveRange;
-use crate::inst::EncluInst;
+use crate::inst::{self, EncluInst};
 use crate::se::AlignKeyRequest;
 use crate::sync::Once;
 use core::convert::From;
@@ -27,7 +27,7 @@ use sgx_types::error::{SgxResult, SgxStatus};
 use sgx_types::marker::ContiguousMemory;
 use sgx_types::types::{
     Attributes, AttributesFlags, CpuSvn, Key128bit, KeyId, KeyName, KeyRequest, Mac, Measurement,
-    MiscSelect, Report, ReportBody, ReportData, TargetInfo,
+    MiscSelect, Report, Report2Mac, ReportBody, ReportData, TargetInfo,
 };
 use sgx_types::types::{
     CONFIGID_SIZE, CPUSVN_SIZE, HASH_SIZE, ISVEXT_PROD_ID_SIZE, ISV_FAMILY_ID_SIZE, KEYID_SIZE,
@@ -35,21 +35,26 @@ use sgx_types::types::{
     REPORT_BODY_RESERVED3_BYTES, REPORT_BODY_RESERVED4_BYTES, REPORT_DATA_SIZE,
 };
 
-#[repr(align(128))]
+#[repr(C, align(128))]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AlignReportData(pub ReportData);
 
-#[repr(align(512))]
+#[repr(C, align(512))]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AlignTargetInfo(pub TargetInfo);
 
-#[repr(align(512))]
+#[repr(C, align(512))]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AlignReport(pub Report);
+
+#[repr(C, align(256))]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct AlignReport2Mac(pub Report2Mac);
 
 unsafe impl ContiguousMemory for AlignReportData {}
 unsafe impl ContiguousMemory for AlignTargetInfo {}
 unsafe impl ContiguousMemory for AlignReport {}
+unsafe impl ContiguousMemory for AlignReport2Mac {}
 
 static SELF_REPORT: Once = Once::new();
 static mut REPORT: AlignReport = AlignReport(Report {
@@ -139,6 +144,19 @@ impl AlignReport {
     }
 }
 
+impl AlignReport2Mac {
+    pub fn verify(&self) -> SgxResult {
+        ensure!(self.is_enclave_range(), SgxStatus::InvalidParameter);
+
+        EncluInst::everify_report2(self).map_err(|e| match e {
+            inst::INVALID_REPORTMACSTRUCT => SgxStatus::MacMismatch,
+            inst::INVALID_CPUSVN => SgxStatus::InvalidCpusvn,
+            inst::INVALID_LEAF => SgxStatus::UnsupportedFeature,
+            _ => SgxStatus::Unexpected,
+        })
+    }
+}
+
 impl AlignTargetInfo {
     pub const UNPADDED_SIZE: usize = mem::size_of::<TargetInfo>();
     pub const ALIGN_SIZE: usize = mem::size_of::<AlignTargetInfo>();
@@ -203,6 +221,27 @@ impl AlignReport {
     }
 }
 
+impl AlignReport2Mac {
+    pub const UNPADDED_SIZE: usize = mem::size_of::<Report2Mac>();
+    pub const ALIGN_SIZE: usize = mem::size_of::<AlignReport2Mac>();
+
+    pub fn try_copy_from(src: &[u8]) -> Option<AlignReport2Mac> {
+        if src.len() == Self::UNPADDED_SIZE {
+            unsafe {
+                let mut ret: Self = mem::zeroed();
+                ptr::copy_nonoverlapping(
+                    src.as_ptr(),
+                    &mut ret as *mut _ as *mut _,
+                    Self::UNPADDED_SIZE,
+                );
+                Some(ret)
+            }
+        } else {
+            None
+        }
+    }
+}
+
 impl AsRef<Align512<[u8; AlignTargetInfo::UNPADDED_SIZE]>> for AlignTargetInfo {
     fn as_ref(&self) -> &Align512<[u8; AlignTargetInfo::UNPADDED_SIZE]> {
         unsafe { &*(self as *const _ as *const _) }
@@ -215,8 +254,14 @@ impl AsRef<Align128<[u8; AlignReportData::UNPADDED_SIZE]>> for AlignReportData {
     }
 }
 
-impl AsRef<Align512<[u8; AlignReportData::UNPADDED_SIZE]>> for AlignReport {
-    fn as_ref(&self) -> &Align512<[u8; AlignReportData::UNPADDED_SIZE]> {
+impl AsRef<Align512<[u8; AlignReport::UNPADDED_SIZE]>> for AlignReport {
+    fn as_ref(&self) -> &Align512<[u8; AlignReport::UNPADDED_SIZE]> {
+        unsafe { &*(self as *const _ as *const _) }
+    }
+}
+
+impl AsRef<Align256<[u8; AlignReport2Mac::UNPADDED_SIZE]>> for AlignReport2Mac {
+    fn as_ref(&self) -> &Align256<[u8; AlignReport2Mac::UNPADDED_SIZE]> {
         unsafe { &*(self as *const _ as *const _) }
     }
 }
@@ -298,5 +343,17 @@ impl From<&ReportData> for AlignReportData {
 impl From<AlignReportData> for ReportData {
     fn from(d: AlignReportData) -> ReportData {
         d.0
+    }
+}
+
+impl From<Report2Mac> for AlignReport2Mac {
+    fn from(r: Report2Mac) -> AlignReport2Mac {
+        AlignReport2Mac(r)
+    }
+}
+
+impl From<&Report2Mac> for AlignReport2Mac {
+    fn from(r: &Report2Mac) -> AlignReport2Mac {
+        AlignReport2Mac(*r)
     }
 }

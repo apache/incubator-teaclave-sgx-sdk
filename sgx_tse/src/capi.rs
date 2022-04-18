@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::se::{EnclaveKey, EnclaveReport, EnclaveTarget};
+use crate::se::{EnclaveKey, EnclaveReport, EnclaveTarget, TeeReport};
 use sgx_types::error::SgxStatus;
-use sgx_types::types::{Key128bit, KeyRequest, Report, ReportData, TargetInfo};
+use sgx_types::types::{Key128bit, KeyRequest, Report, Report2Mac, ReportData, TargetInfo};
 
 /// # Safety
 #[no_mangle]
@@ -89,6 +89,19 @@ pub unsafe extern "C" fn sgx_get_key(
             *key = k;
             SgxStatus::Success
         }
+        Err(e) => e,
+    }
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn sgx_verify_report2(report_mac: *const Report2Mac) -> SgxStatus {
+    if report_mac.is_null() {
+        return SgxStatus::InvalidParameter;
+    }
+
+    match (&*report_mac).verify() {
+        Ok(_) => SgxStatus::Success,
         Err(e) => e,
     }
 }

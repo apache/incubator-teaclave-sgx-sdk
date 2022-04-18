@@ -15,6 +15,8 @@
    specific language governing permissions and limitations
    under the License.. */
 
+.file "thunk.S"
+
 .macro DEFINE_THUNK indirect_register, thunk_name
     .globl \thunk_name
     .hidden \thunk_name

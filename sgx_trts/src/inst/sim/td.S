@@ -15,6 +15,8 @@
    specific language governing permissions and limitations
    under the License.. */
 
+.file "td.S"
+
 .equ dtv,   8
 .equ tls,   0
 

@@ -15,6 +15,8 @@
    specific language governing permissions and limitations
    under the License.. */
 
+.file "xsave_mask.S"
+
 .macro SET_XSAVE_MASK
     xor     %rax, %rax
     xor     %rdx, %rdx

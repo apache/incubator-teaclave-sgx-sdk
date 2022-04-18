@@ -126,9 +126,10 @@ typedef enum _quote3_error_t {
     SGX_QL_CERTS_UNAVAILABLE  = SGX_QL_MK_ERROR(0x0049),             /// Certificates are not available for this platform
 
     SGX_QL_QVEIDENTITY_MISMATCH = SGX_QL_MK_ERROR(0x0050),          ///< QvE Identity is NOT match to Intel signed QvE identity
-    SGX_QL_QVE_OUT_OF_DATE = SGX_QL_MK_ERROR(0x0051),               ///< QvE ISVSVN is smaller then the ISVSVN threshold
+    SGX_QL_QVE_OUT_OF_DATE = SGX_QL_MK_ERROR(0x0051),               ///< QvE ISVSVN is smaller than the ISVSVN threshold, or input QvE ISVSVN is too small
     SGX_QL_PSW_NOT_AVAILABLE = SGX_QL_MK_ERROR(0x0052),             ///< SGX PSW library cannot be loaded, could be due to file I/O error
     SGX_QL_COLLATERAL_VERSION_NOT_SUPPORTED = SGX_QL_MK_ERROR(0x0053),  ///< SGX quote verification collateral version not supported by QVL/QvE
+    SGX_QL_TDX_MODULE_MISMATCH = SGX_QL_MK_ERROR(0x0060),            ///< TDX SEAM module identity is NOT match to Intel signed TDX SEAM module
 
     SGX_QL_ERROR_MAX = SGX_QL_MK_ERROR(0x00FF),                      ///< Indicate max error to allow better translation.
 
@@ -172,13 +173,33 @@ typedef struct _sgx_ql_config_t
 }sgx_ql_config_t;
 #pragma pack(pop)
 
+#define MAX_PARAM_STRING_SIZE (256)
+typedef struct _sgx_ql_qve_collateral_param_t {
+    uint8_t key[MAX_PARAM_STRING_SIZE + 1];
+    uint8_t value[MAX_PARAM_STRING_SIZE + 1];
+} sgx_ql_qve_collateral_param_t;
+
+// Nameless struct generates C4201 warning in MS compiler, but it is allowed in c++ 11 standard
+// Should remove the pragma after Microsoft fixes this issue
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4201)
+#endif
+
 #ifndef __sgx_ql_qve_collateral_t          // The __sgx_ql_qve_collateral_t can also be defined in QvE _t/_u.h
 #define __sgx_ql_qve_collateral_t
 typedef struct _sgx_ql_qve_collateral_t
 {
-    uint32_t version;                      /// The version of PCCS/PCS API used to retrieve verification collateral.
-                                           /// For V1 and V2 APIs, the ‘version’ field with have a value of 1.
-                                           /// For V3 APIs, the ‘version’ field will have the value of 3
+    union {
+        uint32_t version;           ///< 'version' is the backward compatible legacy representation
+        struct {                    ///< For PCS V1 and V2 APIs, the major_version = 1 and minor_version = 0 and
+            uint16_t major_version; ///< the CRLs will be formatted in PEM. For PCS V3 APIs, the major_version = 3 and the
+            uint16_t minor_version; ///< minor_version can be either 0 or 1. minor_verion of 0 indicates the CRL’s are formatted
+                                    ///< in Base16 encoded DER.  A minor version of 1 indicates the CRL’s are formatted in raw binary DER.
+        };
+    };
+
+    uint32_t tee_type;                     ///<  0x00000000: SGX or 0x00000081: TDX
     char *pck_crl_issuer_chain;
     uint32_t pck_crl_issuer_chain_size;
     char *root_ca_crl;                     /// Root CA CRL
@@ -194,6 +215,11 @@ typedef struct _sgx_ql_qve_collateral_t
     char *qe_identity;                     /// QE Identity Structure
     uint32_t qe_identity_size;
 } sgx_ql_qve_collateral_t;
+#endif //__sgx_ql_qve_collateral_t
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 typedef enum _sgx_ql_log_level_t
 {
@@ -203,8 +229,9 @@ typedef enum _sgx_ql_log_level_t
 
 typedef void (*sgx_ql_logging_callback_t)(sgx_ql_log_level_t level, const char* message);
 
-#endif  //__sgx_ql_qve_collateral_t
-
+#ifndef tdx_ql_qve_collateral_t
+typedef sgx_ql_qve_collateral_t tdx_ql_qve_collateral_t;
+#endif
 
 #endif //_SGX_QL_LIB_COMMON_H_
 

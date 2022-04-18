@@ -15,6 +15,8 @@
    specific language governing permissions and limitations
    under the License.. */
 
+.file "enclu.S"
+
 .macro ENCLU
     cmp     $SE_EEXIT, %rax
     jne     1f

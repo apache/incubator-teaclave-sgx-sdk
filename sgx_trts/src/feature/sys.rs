@@ -28,6 +28,7 @@ use core::ptr::NonNull;
 use sgx_types::cpu_features::*;
 use sgx_types::error::{SgxResult, SgxStatus};
 use sgx_types::marker::ContiguousMemory;
+use sgx_types::types;
 
 impl_enum! {
     #[repr(u32)]
@@ -197,6 +198,7 @@ impl SystemFeatures {
 #[derive(Debug)]
 pub struct SysFeatures {
     version: Version,
+    xfrm: u64,
     cpu_features: u64,
     cpu_core_num: u32,
     cpuinfo_table: [[u32; 4]; 8],
@@ -208,6 +210,7 @@ unsafe impl ContiguousMemory for SysFeatures {}
 #[link_section = ".data.rel.ro"]
 static mut SYS_FEATURES: SysFeatures = SysFeatures {
     version: Version::Sdk1_5,
+    xfrm: types::XFRM_LEGACY,
     cpu_features: 0,
     cpu_core_num: 0,
     cpuinfo_table: [[0; 4]; 8],
@@ -227,10 +230,11 @@ impl SysFeatures {
         let feature = unsafe { SysFeatures::get_mut() };
 
         feature.version = version;
+        feature.xfrm = xsave::get_xfrm();
         feature.cpu_core_num = raw.cpu_core_num;
         feature.cpuinfo_table = raw.cpuinfo_table;
         feature.is_edmm = raw.is_edmm();
-        feature.cpu_features = raw.cpu_features_bit(xsave::get_xfrm())?;
+        feature.cpu_features = raw.cpu_features_bit(feature.xfrm)?;
 
         unsafe {
             g_cpu_feature_indicator = feature.cpu_features;
@@ -256,6 +260,11 @@ impl SysFeatures {
     #[inline]
     pub fn version(&self) -> Version {
         self.version
+    }
+
+    #[inline]
+    pub fn xfrm(&self) -> u64 {
+        self.xfrm
     }
 
     #[inline]

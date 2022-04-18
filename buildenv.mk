@@ -39,7 +39,7 @@ endif
 
 COMMON_DIR            := $(ROOT_DIR)/common
 
-CP    := /bin/cp -f
+CP    := cp -f
 MKDIR := mkdir -p
 STRIP := strip
 OBJCOPY := objcopy
@@ -58,6 +58,7 @@ CC_VERSION_MAJOR := $(shell echo $(CC_VERSION) | cut -f1 -d.)
 CC_VERSION_MINOR := $(shell echo $(CC_VERSION) | cut -f2 -d.)
 CC_BELOW_4_9 := $(shell [ $(CC_VERSION_MAJOR) -lt 4 -o \( $(CC_VERSION_MAJOR) -eq 4 -a $(CC_VERSION_MINOR) -le 9 \) ] && echo 1)
 CC_BELOW_5_2 := $(shell [ $(CC_VERSION_MAJOR) -lt 5 -o \( $(CC_VERSION_MAJOR) -eq 5 -a $(CC_VERSION_MINOR) -le 2 \) ] && echo 1)
+CC_NO_LESS_THAN_8 := $(shell expr $(CC_VERSION) \>\= "8")
 
 # turn on stack protector for SDK
 ifeq ($(CC_BELOW_4_9), 1)
@@ -129,6 +130,11 @@ else
 COMMON_FLAGS += -DITT_ARCH_IA64
 endif
 
+CET_FLAGS := 
+ifeq ($(CC_NO_LESS_THAN_8), 1)
+    CET_FLAGS += -fcf-protection
+endif
+
 CFLAGS   += $(COMMON_FLAGS)
 CXXFLAGS += $(COMMON_FLAGS)
 
@@ -161,7 +167,6 @@ ifeq ($(MITIGATION_INDIRECT), 1)
     MITIGATION_CFLAGS += -mindirect-branch-register
 endif
 ifeq ($(MITIGATION_RET), 1)
-CC_NO_LESS_THAN_8 := $(shell expr $(CC_VERSION) \>\= "8")
 ifeq ($(CC_NO_LESS_THAN_8), 1)
     MITIGATION_CFLAGS += -fcf-protection=none
 endif
@@ -182,6 +187,12 @@ endif
 endif
 
 MITIGATION_CFLAGS += $(MITIGATION_ASFLAGS)
+
+#fcf-protection is not compatible with MITIGATION
+ifneq ($(MITIGATION_RET), 1)
+    CFLAGS   += $(CET_FLAGS)
+    CXXFLAGS += $(CET_FLAGS)
+endif
 
 ifeq ($(MITIGATION_CVE_2020_0551), LOAD)
     MITIGATION_RUSTFLAGS = "-C target-feature=+rdrnd,+rdseed,+lvi-cfi,+lvi-load-hardening"

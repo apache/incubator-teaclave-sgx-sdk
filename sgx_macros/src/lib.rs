@@ -63,8 +63,9 @@ pub fn global_ctor(_attribute: TokenStream, function: TokenStream) -> TokenStrea
     //         #ctor_ident
     //     };
     // );
-    let ctor_func_ident = syn::parse_str::<syn::Ident>(format!("{}___rust_ctor___ctor__func", ident).as_ref())
-        .expect("Unable to create identifier");
+    let ctor_func_ident =
+        syn::parse_str::<syn::Ident>(format!("{}___rust_ctor___ctor__func", ident).as_ref())
+            .expect("Unable to create identifier");
     let output = quote!(
         #[cfg(not(target_os = "linux"))]
         compile_error!("#[global_ctor] is not supported on the current target");
@@ -137,7 +138,11 @@ fn validate_item(typ: &str, item: &syn::ItemFn) {
     }
 
     // No parameters allowed
-    assert!(sig.inputs.is_empty(), "#[{}] methods may not have parameters", typ);
+    assert!(
+        sig.inputs.is_empty(),
+        "#[{}] methods may not have parameters",
+        typ
+    );
 
     // No return type allowed
     match sig.output {

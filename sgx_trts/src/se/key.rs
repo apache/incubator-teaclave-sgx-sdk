@@ -27,7 +27,7 @@ use sgx_types::marker::ContiguousMemory;
 use sgx_types::types::KEY_REQUEST_RESERVED2_BYTES;
 use sgx_types::types::{AlignKey128bit, AttributesFlags, Key128bit, KeyPolicy, KeyRequest};
 
-#[repr(align(512))]
+#[repr(C, align(512))]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AlignKeyRequest(pub KeyRequest);
 

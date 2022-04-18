@@ -45,6 +45,8 @@ pub fn mktcs(mk_tcs: NonNull<MkTcs>) -> SgxResult {
         SgxStatus::Unexpected
     );
 
+    fence::lfence();
+
     let mktcs = unsafe { *mk_tcs.as_ptr() };
     let tcs = NonNull::new(mktcs.tcs).ok_or(SgxStatus::Unexpected)?;
 

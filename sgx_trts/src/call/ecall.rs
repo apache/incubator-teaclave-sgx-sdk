@@ -243,8 +243,10 @@ pub fn ecall<T>(idx: ECallIndex, tcs: &mut Tcs, ms: *mut T, tidx: usize) -> SgxR
     ensure!(state::get_state() == State::InitDone, SgxStatus::Unexpected);
 
     let mut tc = ThreadControl::from_tcs(tcs);
+    let is_root_ecall = is_root_ecall(&tc);
+
     if !tc.is_initialized()
-        || (is_root_ecall(&tc)
+        || (is_root_ecall
             && (tc.tcs_policy() == TcsPolicy::Unbind
                 || idx == ECallIndex::Thread
                 || thread_is_exit()))
@@ -252,8 +254,13 @@ pub fn ecall<T>(idx: ECallIndex, tcs: &mut Tcs, ms: *mut T, tidx: usize) -> SgxR
         tc.init(tidx, false)?;
     }
 
+    #[cfg(not(feature = "hyper"))]
+    if is_root_ecall {
+        let _ = crate::pkru::Pkru::write(0);
+    }
+
     if !FIRST_ECALL.is_completed() {
-        ensure!(is_root_ecall(&tc), SgxStatus::ECallNotAllowed);
+        ensure!(is_root_ecall, SgxStatus::ECallNotAllowed);
 
         FIRST_ECALL.call_once(|| {
             // EDMM:

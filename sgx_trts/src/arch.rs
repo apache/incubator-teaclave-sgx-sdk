@@ -101,6 +101,10 @@ pub struct Align64<T>(pub T);
 #[repr(align(128))]
 pub struct Align128<T>(pub T);
 
+/// Wrapper struct to force 256-byte alignment.
+#[repr(align(256))]
+pub struct Align256<T>(pub T);
+
 /// Wrapper struct to force 512-byte alignment.
 #[repr(align(512))]
 pub struct Align512<T>(pub T);
@@ -109,6 +113,8 @@ impl_align! {
     Align16<T>;
     Align32<T>;
     Align64<T>;
+    Align128<T>;
+    Align256<T>;
     Align512<T>;
 }
 
@@ -147,6 +153,7 @@ impl_enum! {
         EAccept     = 5,
         EModpe      = 6,
         EAcceptcopy = 7,
+        EVerifyReport2 = 8,
     }
 }
 
