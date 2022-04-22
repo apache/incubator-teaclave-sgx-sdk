@@ -1,0 +1,51 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+enclave {
+    from "sgx_tstd.edl" import *;
+    from "sgx_stdio.edl" import *;
+    from "sgx_net.edl" import *;
+    from "sgx_fs.edl" import *;
+    from "sgx_thread.edl" import *;
+    from "sgx_cpuid.edl" import *;
+
+    include "sgx_quote.h"
+
+    trusted {
+    	public sgx_status_t run_server(int fd,sgx_quote_sign_type_t quote_type);
+    	public sgx_status_t run_client(int fd,sgx_quote_sign_type_t quote_type);
+    };
+
+    untrusted {
+    	sgx_status_t ocall_sgx_init_quote([out] sgx_target_info_t *ret_ti,
+    	                  [out] sgx_epid_group_id_t *ret_gid);
+    	    sgx_status_t ocall_get_ias_socket([out] int *ret_fd);
+    	    sgx_status_t ocall_get_quote(  [in, size = sigrl_len] uint8_t * p_sigrl,
+    	                                   uint32_t sigrl_len,
+    	                                   [in] sgx_report_t *report,
+    	                                   sgx_quote_sign_type_t quote_type,
+    	                                   [in] sgx_spid_t *p_spid,
+    	                                   [in] sgx_quote_nonce_t *p_nonce,
+    	                                   [out] sgx_report_t *p_qe_report,
+    	                                   [out, size = maxlen] sgx_quote_t *p_quote,
+    	                                   uint32_t maxlen,
+    	                                   [out] uint32_t* p_quote_len);
+    	sgx_status_t ocall_get_update_info([in] sgx_platform_info_t * platformBlob,
+    	                   int32_t enclaveTrusted,
+    	                   [out] sgx_update_info_bit_t * update_info);
+    	};
+};

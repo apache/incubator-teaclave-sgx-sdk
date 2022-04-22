@@ -1,0 +1,50 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[package]
+name = "mutualra"
+version = "1.0.0"
+authors = ["The Teaclave Authors"]
+edition = "2021"
+
+[lib]
+name = "mutualra"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[dependencies]
+sgx_libc = { path = "../../../sgx_libc" }
+sgx_crypto = { path = "../../../sgx_crypto" }
+sgx_tse = { path = "../../../sgx_tse" }
+chrono = "0.4.11"
+webpki = "0.21.4"
+base64 = "*"
+yasna = { version = "0.3", features = ["bit-vec", "num-bigint", "chrono" ] }
+num-bigint = "0.2"
+bit-vec = "*"
+serde_json = "*"
+httparse = { version = "1", default-features = false }
+webpki-roots = "0.21"
+lazy_static = { version = "1", default-features = false }
+rustls = { version = "0.19", features = ["dangerous_configuration"] }
+itertools = { version = "*", default-features = false }
+
+[patch.crates-io]
+ring = { git = "https://github.com/sccommunity/ring.git", branch = "teaclave-sgx" }
+yasna = { git = "https://github.com/sccommunity/yasna.rs.git", branch = "teaclave-sgx" }
