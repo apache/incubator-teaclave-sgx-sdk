@@ -165,6 +165,108 @@ fn rsgx_sha256_close(sha_handle: sgx_sha_state_handle_t) -> sgx_status_t {
     unsafe { sgx_sha256_close(sha_handle) }
 }
 
+///
+/// The rsgx_sha384_msg function performs a standard SHA384 hash over the input data buffer.
+///
+pub fn rsgx_sha384_msg<T>(src: &T) -> SgxResult<sgx_sha384_hash_t>
+where
+    T: Copy + ContiguousMemory,
+{
+    let size = mem::size_of::<T>();
+    if size == 0 {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if size > u32::MAX as usize {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+
+    let mut hash: sgx_sha384_hash_t = [0_u8; SGX_SHA384_HASH_SIZE];
+    let ret = unsafe {
+        sgx_sha384_msg(
+            src as *const _ as *const u8,
+            size as u32,
+            &mut hash as *mut sgx_sha384_hash_t,
+        )
+    };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(hash),
+        _ => Err(ret),
+    }
+}
+
+///
+/// The rsgx_sha384_slice function performs a standard SHA384 hash over the input data buffer.
+///
+pub fn rsgx_sha384_slice<T>(src: &[T]) -> SgxResult<sgx_sha384_hash_t>
+where
+    T: Copy + ContiguousMemory,
+{
+    let size = mem::size_of_val(src);
+    if size == 0 {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+    if size > u32::MAX as usize {
+        return Err(sgx_status_t::SGX_ERROR_INVALID_PARAMETER);
+    }
+
+    let mut hash: sgx_sha384_hash_t = [0_u8; SGX_SHA384_HASH_SIZE];
+    let ret = unsafe {
+        sgx_sha384_msg(
+            src.as_ptr() as *const u8,
+            size as u32,
+            &mut hash as *mut sgx_sha384_hash_t,
+        )
+    };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(hash),
+        _ => Err(ret),
+    }
+}
+
+fn rsgx_sha384_init(sha_handle: &mut sgx_sha_state_handle_t) -> sgx_status_t {
+    unsafe { sgx_sha384_init(sha_handle as *mut sgx_sha_state_handle_t) }
+}
+
+fn rsgx_sha384_update_msg<T>(src: &T, sha_handle: sgx_sha_state_handle_t) -> sgx_status_t
+where
+    T: Copy + ContiguousMemory,
+{
+    let size = mem::size_of::<T>();
+    if size == 0 {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if size > u32::MAX as usize {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    unsafe { sgx_sha384_update(src as *const _ as *const u8, size as u32, sha_handle) }
+}
+
+fn rsgx_sha384_update_slice<T>(src: &[T], sha_handle: sgx_sha_state_handle_t) -> sgx_status_t
+where
+    T: Copy + ContiguousMemory,
+{
+    let size = mem::size_of_val(src);
+    if size == 0 {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    if size > u32::MAX as usize {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    unsafe { sgx_sha384_update(src.as_ptr() as *const u8, size as u32, sha_handle) }
+}
+
+fn rsgx_sha384_get_hash(
+    sha_handle: sgx_sha_state_handle_t,
+    hash: &mut sgx_sha384_hash_t,
+) -> sgx_status_t {
+    unsafe { sgx_sha384_get_hash(sha_handle, hash as *mut sgx_sha384_hash_t) }
+}
+
+fn rsgx_sha384_close(sha_handle: sgx_sha_state_handle_t) -> sgx_status_t {
+    unsafe { sgx_sha384_close(sha_handle) }
+}
+
 pub fn rsgx_sha1_msg<T>(src: &T) -> SgxResult<sgx_sha1_hash_t>
 where
     T: Copy + ContiguousMemory,
@@ -262,7 +364,7 @@ fn rsgx_sha1_close(sha_handle: sgx_sha_state_handle_t) -> sgx_status_t {
 }
 
 ///
-/// SHA algorithm context state.
+/// SHA256 algorithm context state.
 ///
 /// This is a handle to the context state used by the cryptography library to perform an iterative SHA256 hash.
 /// The algorithm stores the intermediate results of performing the hash calculation over data sets.
@@ -504,6 +606,141 @@ impl Drop for SgxShaHandle {
     }
 }
 
+///
+/// SHA384 algorithm context state.
+///
+/// This is a handle to the context state used by the cryptography library to perform an iterative SHA384 hash.
+/// The algorithm stores the intermediate results of performing the hash calculation over data sets.
+///
+pub struct SgxSha384Handle {
+    handle: RefCell<sgx_sha_state_handle_t>,
+    initflag: Cell<bool>,
+}
+
+impl SgxSha384Handle {
+    ///
+    /// Constructs a new, empty SgxShaHandle.
+    ///
+    pub fn new() -> SgxSha384Handle {
+        SgxSha384Handle {
+            handle: RefCell::new(ptr::null_mut() as sgx_sha_state_handle_t),
+            initflag: Cell::new(false),
+        }
+    }
+
+    ///
+    /// init returns an allocated and initialized SHA384 algorithm context state.
+    ///
+    pub fn init(&self) -> SgxError {
+        if self.initflag.get() {
+            return Ok(());
+        }
+
+        let ret = rsgx_sha384_init(self.handle.borrow_mut().deref_mut());
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                self.initflag.set(true);
+                Ok(())
+            }
+            _ => Err(ret),
+        }
+    }
+
+    ///
+    /// update_msg performs a SHA384 hash over the input dataset provided.
+    ///
+    pub fn update_msg<T>(&self, src: &T) -> SgxError
+    where
+        T: Copy + ContiguousMemory,
+    {
+        if !self.initflag.get() {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+
+        let ret = rsgx_sha384_update_msg(src, *self.handle.borrow());
+        match ret {
+            sgx_status_t::SGX_SUCCESS => Ok(()),
+            _ => Err(ret),
+        }
+    }
+
+    ///
+    /// update_slice performs a SHA384 hash over the input dataset provided.
+    ///
+    pub fn update_slice<T>(&self, src: &[T]) -> SgxError
+    where
+        T: Copy + ContiguousMemory,
+    {
+        if !self.initflag.get() {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+
+        let ret = rsgx_sha384_update_slice(src, *self.handle.borrow());
+        match ret {
+            sgx_status_t::SGX_SUCCESS => Ok(()),
+            _ => Err(ret),
+        }
+    }
+
+    ///
+    /// get_hash obtains the SHA384 hash after the final dataset has been processed.
+    ///
+    pub fn get_hash(&self) -> SgxResult<sgx_sha384_hash_t> {
+        if !self.initflag.get() {
+            return Err(sgx_status_t::SGX_ERROR_INVALID_STATE);
+        }
+
+        let mut hash: sgx_sha384_hash_t = [0_u8; SGX_SHA384_HASH_SIZE];
+        let ret = rsgx_sha384_get_hash(*self.handle.borrow(), &mut hash);
+        match ret {
+            sgx_status_t::SGX_SUCCESS => Ok(hash),
+            _ => Err(ret),
+        }
+    }
+
+    ///
+    /// close cleans up and deallocates the SHA384 state that was allocated in function init.
+    ///
+    pub fn close(&self) -> SgxError {
+        if !self.initflag.get() {
+            return Ok(());
+        }
+
+        let ret = {
+            let handle = *self.handle.borrow();
+            if handle.is_null() {
+                sgx_status_t::SGX_SUCCESS
+            } else {
+                rsgx_sha384_close(handle)
+            }
+        };
+
+        match ret {
+            sgx_status_t::SGX_SUCCESS => {
+                self.initflag.set(false);
+                *self.handle.borrow_mut() = ptr::null_mut();
+                Ok(())
+            }
+            _ => Err(ret),
+        }
+    }
+}
+
+impl Default for SgxSha384Handle {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for SgxSha384Handle {
+    ///
+    /// drop cleans up and deallocates the SHA384 state that was allocated in function init.
+    ///
+    fn drop(&mut self) {
+        let _ = self.close();
+    }
+}
+
 pub struct SgxSha1Handle {
     handle: RefCell<sgx_sha_state_handle_t>,
     initflag: Cell<bool>,
@@ -608,7 +845,7 @@ impl Default for SgxSha1Handle {
 
 impl Drop for SgxSha1Handle {
     ///
-    /// drop cleans up and deallocates the SHA256 state that was allocated in function init.
+    /// drop cleans up and deallocates the SHA1 state that was allocated in function init.
     ///
     fn drop(&mut self) {
         let _ = self.close();

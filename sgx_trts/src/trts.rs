@@ -210,3 +210,20 @@ pub fn rsgx_mfence() {
         asm! {"mfence"};
     }
 }
+
+#[inline]
+pub fn rsgx_rdpkru() -> Option<u32> {
+    let mut val = 0_u32;
+    let ret = unsafe { sgx_rdpkru(&mut val as *mut u32) };
+
+    if ret == 1 {
+        Some(val)
+    } else {
+        None
+    }
+}
+
+#[inline]
+pub fn rsgx_wrpkru(val: u32) -> bool {
+    unsafe { sgx_wrpkru(val) == 1 }
+}

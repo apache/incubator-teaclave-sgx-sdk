@@ -17,7 +17,6 @@
 
 #![no_std]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
-
 #![feature(lang_items)]
 #![feature(alloc_error_handler)]
 

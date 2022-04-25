@@ -15,11 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
+#![feature(available_parallelism)]
+
 extern crate sgx_build_helper as build_helper;
 
+use build_helper::{native_lib_boilerplate, run};
 use std::env;
 use std::process::Command;
-use build_helper::{run, native_lib_boilerplate};
+use std::thread;
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
@@ -39,13 +42,15 @@ fn build_libunwind(host: &str, target: &str) -> Result<(), ()> {
         "config.h.in~",
         "configure",
         "aclocal.m4",
-        "INSTALL"];
+        "INSTALL",
+    ];
     let native = native_lib_boilerplate(
-                    "sgx_unwind/libunwind",
-                    "libunwind",
-                    "unwind",
-                    "src/.libs",
-                    &filter)?;
+        "sgx_unwind/libunwind",
+        "libunwind",
+        "unwind",
+        "src/.libs",
+        &filter,
+    )?;
 
     let mut cflags = String::new();
     cflags += " -fstack-protector -ffreestanding -nostdinc -fvisibility=hidden -fpie -fno-strict-overflow -fno-delete-null-pointer-checks";
@@ -54,32 +59,38 @@ fn build_libunwind(host: &str, target: &str) -> Result<(), ()> {
     let mitigation_cflags = " -mindirect-branch-register -mfunction-return=thunk-extern";
     let mitigation_asflags = " -fno-plt";
     let mitigation_loadflags = " -Wa,-mlfence-after-load=yes -Wa,-mlfence-before-ret=not";
-    let mitigation_cfflags = " -Wa,-mlfence-before-indirect-branch=register -Wa,-mlfence-before-ret=not";
+    let mitigation_cfflags =
+        " -Wa,-mlfence-before-indirect-branch=register -Wa,-mlfence-before-ret=not";
     let mitigation = env::var("MITIGATION_CVE_2020_0551").unwrap_or_default();
     match mitigation.as_ref() {
         "LOAD" => {
             cflags += mitigation_cflags;
             cflags += mitigation_asflags;
             cflags += mitigation_loadflags;
-        },
+        }
         "CF" => {
             cflags += mitigation_cflags;
             cflags += mitigation_asflags;
             cflags += mitigation_cfflags;
-        },
-        _  => {},
+        }
+        _ => {}
     }
 
     run(Command::new("sh")
-                .current_dir(&native.out_dir)
-                .arg(native.src_dir.join("autogen.sh").to_str().unwrap())
-                .arg(format!("--host={}", build_helper::gnu_target(target)))
-                .arg(format!("--build={}", build_helper::gnu_target(host)))
-                .env("CFLAGS", cflags));
+        .current_dir(&native.out_dir)
+        .arg(native.src_dir.join("autogen.sh").to_str().unwrap())
+        .arg(format!("--host={}", build_helper::gnu_target(target)))
+        .arg(format!("--build={}", build_helper::gnu_target(host)))
+        .env("CFLAGS", cflags));
 
     run(Command::new(build_helper::make(host))
-                .current_dir(&native.out_dir)
-                .arg(format!("INCDIR={}", native.src_dir.display()))
-                .arg("-j5"));
+        .current_dir(&native.out_dir)
+        .arg(format!("INCDIR={}", native.src_dir.display()))
+        .arg(format!(
+            "-j{}",
+            thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(5)
+        )));
     Ok(())
 }
