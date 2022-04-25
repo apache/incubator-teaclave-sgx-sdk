@@ -76,6 +76,11 @@ pub struct enclave_css_t {
 /* based on 2.9.1 */
 pub const MAJOR_VERSION: u32 = 2;
 pub const MINOR_VERSION: u32 = 4;
+
+pub const SGX_2_ELRANGE_MAJOR_VERSION: u32 = 12;
+pub const SGX_1_ELRANGE_MAJOR_VERSION: u32 = 11;
+pub const SGX_MAJOR_VERSION_GAP: u32 = 10;
+
 pub const SGX_2_1_MAJOR_VERSION: u32 = 2; //MAJOR_VERSION should not larger than 0ffffffff
 pub const SGX_2_1_MINOR_VERSION: u32 = 2; //MINOR_VERSION should not larger than 0ffffffff
 pub const SGX_2_0_MAJOR_VERSION: u32 = 2; //MAJOR_VERSION should not larger than 0ffffffff
@@ -99,10 +104,10 @@ pub const SSA_FRAME_SIZE_MIN: u32 = 1;
 pub const SSA_FRAME_SIZE_MAX: u32 = 2;
 pub const STACK_SIZE_MIN: u32 = 0x0000_2000; /*   8 KB */
 pub const STACK_SIZE_MAX: u32 = 0x0004_0000; /* 256 KB */
-pub const HEAP_SIZE_MIN: u32 = 0x0000_1000;  /*   4 KB */
-pub const HEAP_SIZE_MAX: u32 = 0x0100_0000;  /*  16 MB */
-pub const RSRV_SIZE_MIN: u32 = 0x0000_0000;  /*   0 KB */
-pub const RSRV_SIZE_MAX: u32 = 0x0000_0000;  /*   0 KB */
+pub const HEAP_SIZE_MIN: u32 = 0x0000_1000; /*   4 KB */
+pub const HEAP_SIZE_MAX: u32 = 0x0100_0000; /*  16 MB */
+pub const RSRV_SIZE_MIN: u32 = 0x0000_0000; /*   0 KB */
+pub const RSRV_SIZE_MAX: u32 = 0x0000_0000; /*   0 KB */
 pub const DEFAULT_MISC_SELECT: u32 = 0;
 pub const DEFAULT_MISC_MASK: u32 = 0xFFFF_FFFF;
 pub const ISVFAMILYID_MAX: u64 = 0xFFFF_FFFF_FFFF_FFFF;
@@ -235,15 +240,15 @@ pub const PAGE_ATTR_MASK: u16 = !(PAGE_ATTR_EADD
 /* based on 2.9.1 */
 /* arch.h */
 pub const SI_FLAG_NONE: u64 = 0x0;
-pub const SI_FLAG_R: u64 = 0x1;                                 /* Read Access */
-pub const SI_FLAG_W: u64 = 0x2;                                 /* Write Access */
-pub const SI_FLAG_X: u64 = 0x4;                                 /* Execute Access */
-pub const SI_FLAG_PT_LOW_BIT: u64 = 0x8;                        /* PT low bit */
-pub const SI_FLAG_PT_MASK: u64 = 0xFF << SI_FLAG_PT_LOW_BIT;    /* Page Type Mask [15:8] */
-pub const SI_FLAG_SECS: u64 = 0x00 << SI_FLAG_PT_LOW_BIT;       /* SECS */
-pub const SI_FLAG_TCS: u64 = 0x01 << SI_FLAG_PT_LOW_BIT;        /* TCS */
-pub const SI_FLAG_REG: u64 = 0x02 << SI_FLAG_PT_LOW_BIT;        /* Regular Page */
-pub const SI_FLAG_TRIM: u64 = 0x04 << SI_FLAG_PT_LOW_BIT;       /* Trim Page */
+pub const SI_FLAG_R: u64 = 0x1; /* Read Access */
+pub const SI_FLAG_W: u64 = 0x2; /* Write Access */
+pub const SI_FLAG_X: u64 = 0x4; /* Execute Access */
+pub const SI_FLAG_PT_LOW_BIT: u64 = 0x8; /* PT low bit */
+pub const SI_FLAG_PT_MASK: u64 = 0xFF << SI_FLAG_PT_LOW_BIT; /* Page Type Mask [15:8] */
+pub const SI_FLAG_SECS: u64 = 0x00 << SI_FLAG_PT_LOW_BIT; /* SECS */
+pub const SI_FLAG_TCS: u64 = 0x01 << SI_FLAG_PT_LOW_BIT; /* TCS */
+pub const SI_FLAG_REG: u64 = 0x02 << SI_FLAG_PT_LOW_BIT; /* Regular Page */
+pub const SI_FLAG_TRIM: u64 = 0x04 << SI_FLAG_PT_LOW_BIT; /* Trim Page */
 pub const SI_FLAG_PENDING: u64 = 0x8;
 pub const SI_FLAG_MODIFIED: u64 = 0x10;
 pub const SI_FLAG_PR: u64 = 0x20;

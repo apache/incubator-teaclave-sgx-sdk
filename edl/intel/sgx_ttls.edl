@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2020 Intel Corporation. All rights reserved.
+ * Copyright (C) 2011-2021 Intel Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,40 +28,35 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifdef HAVE_SGX
 
-#include <string.h>
+enclave{
+    include "sgx_report.h"
+    include "sgx_qve_header.h"
+    include "sgx_ql_lib_common.h"
+    include "sgx_ql_quote.h"
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#include <link.h>
+    untrusted {
+        quote3_error_t sgx_tls_get_qe_target_info_ocall([size = target_info_size, out] sgx_target_info_t *p_target_info, 
+                                size_t target_info_size);
+        
+        quote3_error_t sgx_tls_get_quote_size_ocall([out] uint32_t *p_quote_size); 
 
-extern void *get_enclave_base(void);
+        quote3_error_t sgx_tls_get_quote_ocall([size = report_size, in] sgx_report_t* p_report,
+                                size_t report_size,
+                                [size = quote_size, out] uint8_t *p_quote,
+                                uint32_t quote_size);
 
-/**
- * This function is commonly provided by glibc for application to walk
- * through list of shared objects.  It is needed inside Enclave so that
- * the libunwind code can work correctly.
- */
-int dl_iterate_phdr(
-        int (*callback) (struct dl_phdr_info *info,
-                         size_t size, void *data),
-        void *data)
-{
-    struct dl_phdr_info info;
-    ElfW(Ehdr)         *ehdr;
+        quote3_error_t sgx_tls_get_supplemental_data_size_ocall([out] uint32_t *p_supplemental_data_size);
 
-    memset(&info, 0, sizeof(info));
-    ehdr = (ElfW(Ehdr) *)get_enclave_base();
-
-    info.dlpi_addr   = (ElfW(Addr)) ehdr;
-    info.dlpi_name  = "";
-    info.dlpi_phdr  = (ElfW(Phdr) *) ((char *)ehdr + ehdr->e_phoff);
-    info.dlpi_phnum = ehdr->e_phnum;
-
-    /* No iteration here - the Enclave is merely one shared object. */
-    return callback(&info, sizeof(info), data);
-}
-
-#endif
+        quote3_error_t sgx_tls_verify_quote_ocall(
+            [size = quote_size, in] const uint8_t *p_quote,
+            uint32_t quote_size,
+            time_t expiration_check_date,
+            [out] sgx_ql_qv_result_t *p_quote_verification_result,
+            [size = qve_report_info_size, in, out] sgx_ql_qe_report_info_t *p_qve_report_info,
+            size_t qve_report_info_size,
+            [size = supplemental_data_size, out] uint8_t *p_supplemental_data,
+            uint32_t supplemental_data_size);    
+        
+   };
+};

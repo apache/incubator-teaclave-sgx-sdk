@@ -21,13 +21,7 @@
 /// `haystack`, or `None` if one is not found.
 ///
 pub fn memchr(needle: u8, haystack: &[u8]) -> Option<usize> {
-    let p = unsafe {
-        sgx_libc::memchr(
-            haystack.as_ptr(),
-            needle,
-            haystack.len(),
-        )
-    };
+    let p = unsafe { sgx_libc::memchr(haystack.as_ptr(), needle, haystack.len()) };
     if p.is_null() {
         None
     } else {
@@ -41,13 +35,7 @@ pub fn memrchr(needle: u8, haystack: &[u8]) -> Option<usize> {
         if haystack.is_empty() {
             return None;
         }
-        let p = unsafe {
-            sgx_libc::memrchr(
-                haystack.as_ptr(),
-                needle,
-                haystack.len(),
-            )
-        };
+        let p = unsafe { sgx_libc::memrchr(haystack.as_ptr(), needle, haystack.len()) };
         if p.is_null() {
             None
         } else {

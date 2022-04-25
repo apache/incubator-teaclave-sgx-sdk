@@ -7,18 +7,18 @@ RUN dnf group install -y 'Development Tools' && \
 #ADD 01_gcc_8.sh /root
 #RUN bash /root/01_gcc_8.sh
 
-ENV BINUTILS_DIST="centos8.2"
+ENV BINUTILS_DIST="centos8"
 
 ADD 02_binutils.sh /root
 RUN bash /root/02_binutils.sh
 
 ENV SDK_DIST="INTEL_BUILT"
-ENV SDK_URL="https://download.01.org/intel-sgx/sgx-linux/2.15.1/distro/centos8.2-server/sgx_linux_x64_sdk_2.15.101.1.bin"
+ENV SDK_URL="https://download.01.org/intel-sgx/sgx-linux/2.16/distro/centos-stream/sgx_linux_x64_sdk_2.16.100.4.bin"
 #ENV SDK_DIST="SELF_BUILT"
 ADD 03_sdk.sh /root
 RUN bash /root/03_sdk.sh
 
-ENV PSW_REPO="https://download.01.org/intel-sgx/sgx-linux/2.15.1/distro/centos8.2-server/sgx_rpm_local_repo.tgz"
+ENV PSW_REPO="https://download.01.org/intel-sgx/sgx-linux/2.16/distro/centos-stream/sgx_rpm_local_repo.tgz"
 ADD 04_psw_rpm.sh /root
 RUN bash /root/04_psw_rpm.sh
 

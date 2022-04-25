@@ -135,6 +135,14 @@ pub fn rsgx_verify_report(report: &sgx_report_t) -> SgxError {
     }
 }
 
+pub fn rsgx_verify_report2(report_mac_struct: &sgx_report2_mac_struct_t) -> SgxError {
+    let ret = unsafe { sgx_verify_report2(report_mac_struct as *const sgx_report2_mac_struct_t) };
+    match ret {
+        sgx_status_t::SGX_SUCCESS => Ok(()),
+        _ => Err(ret),
+    }
+}
+
 ///
 /// The rsgx_get_key function generates a 128-bit secret key using the input information.
 ///
