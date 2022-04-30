@@ -43,10 +43,11 @@ mod remutex;
 mod rwlock;
 mod spin;
 pub mod sys;
+pub use sys::ocall::Timespec;
 
 pub use barrier::{Barrier, BarrierWaitResult};
 pub use condvar::Condvar;
-pub use futex::Futex;
+pub use futex::{Futex, FutexClockId, FutexFlags, FutexOp};
 pub use lazy::{SyncLazy, SyncOnceCell};
 pub use lock_api::{RawMutex, RawRwLock};
 pub use mutex::{MovableMutex, StaticMutex, StaticMutexGuard};

@@ -35,16 +35,25 @@ impl_struct! {
     pub struct TeeCpuSvn {
         pub svn: [u8; TEE_CPU_SVN_SIZE],
     }
+
+    #[repr(C)]
+    #[derive(Debug, Eq, PartialEq)]
+    pub struct TeeAttributes {
+        pub a: [u32; 2],
+    }
 }
 
 impl_asref_array! {
     TeeCpuSvn;
+    TeeAttributes;
 }
 impl_asmut_array! {
     TeeCpuSvn;
+    TeeAttributes;
 }
 impl_from_array! {
     TeeCpuSvn;
+    TeeAttributes;
 }
 
 impl_copy_clone! {
@@ -91,18 +100,6 @@ impl_asmut_array! {
 impl_from_array! {
     TeeMeasurement;
     TeeReportData;
-}
-
-impl_struct! {
-    #[repr(C)]
-    #[derive(Debug, Eq, PartialEq)]
-    pub struct TeeAttributes {
-        pub a: [u32; 2],
-    }
-}
-
-impl_asref_array! {
-    TeeAttributes;
 }
 
 pub const LEGACY_REPORT_TYPE: u8 = 0x0; // SGX Legacy Report Type

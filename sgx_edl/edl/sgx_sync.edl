@@ -34,8 +34,14 @@ enclave {
 
     untrusted {
         int u_thread_set_event_ocall([out] int *error, size_t tcs);
-        int u_thread_wait_event_ocall([out] int *error, size_t tcs, [in] const struct timespec *timeout);
+        int u_thread_wait_event_ocall([out] int *error, size_t tcs, [in] const struct timespec *timeout, int clockid, int absolute_time);
         int u_thread_set_multiple_events_ocall([out] int *error, [in, count=total] size_t *tcss, size_t total);
-        int u_thread_setwait_events_ocall([out] int *error, size_t waiter_tcs, size_t self_tcs, [in] const struct timespec *timeout);
+        int u_thread_setwait_events_ocall(
+            [out] int *error,
+            size_t waiter_tcs,
+            size_t self_tcs,
+            [in] const struct timespec *timeout,
+            int clockid,
+            int absolute_time);
     };
 };

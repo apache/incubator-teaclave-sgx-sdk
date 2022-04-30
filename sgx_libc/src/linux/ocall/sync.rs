@@ -16,12 +16,11 @@
 // under the License..
 
 use crate::linux::*;
-use core::cmp;
-use core::convert::{From, TryFrom};
+use core::convert::TryFrom;
 use core::mem;
 use core::sync::atomic::AtomicI32;
 use core::time::Duration;
-use sgx_sync::Futex;
+use sgx_sync::{Futex, FutexFlags, FutexOp, Timespec};
 use sgx_trts::trts::is_within_enclave;
 use sgx_types::error::OsResult;
 
@@ -34,14 +33,7 @@ pub unsafe extern "C" fn futex(
     uaddr2: *const c_uint,
     val3: c_uint,
 ) -> c_long {
-    match futex_inernal(
-        uaddr,
-        futex_op,
-        val,
-        timeout as *const TimeSpec,
-        uaddr2,
-        val3,
-    ) {
+    match futex_inernal(uaddr, futex_op, val, timeout, uaddr2, val3) {
         Ok(ret) => ret as c_long,
         Err(e) => {
             set_errno(e);
@@ -54,12 +46,10 @@ unsafe fn futex_inernal(
     uaddr: *const u32,
     futex_op: i32,
     val: u32,
-    timeout: *const TimeSpec,
+    timeout: *const timespec,
     uaddr2: *const u32,
     val3: u32,
 ) -> OsResult<isize> {
-    const FUTEX_OP_MASK: c_int = 0x0000_000F;
-
     let get_addr = |addr: *const u32| -> OsResult<&AtomicI32> {
         if addr.is_null() || !is_within_enclave(addr as *const u8, mem::size_of::<c_int>()) {
             Err(EINVAL)
@@ -76,33 +66,38 @@ unsafe fn futex_inernal(
         }
     };
 
-    let get_timeout = |timeout: *const TimeSpec| -> OsResult<Option<Duration>> {
+    let get_timeout = |timeout: *const timespec| -> OsResult<Option<Timespec>> {
         if timeout.is_null() {
             Ok(None)
         } else {
-            Duration::try_from(*timeout).map(Some)
+            Timespec::try_from(*timeout).map(Some)
         }
     };
 
     let futex = Futex::new(get_addr(uaddr)?);
-    match futex_op & FUTEX_OP_MASK {
-        FUTEX_WAIT => {
-            let timeout = get_timeout(timeout)?;
+    let (op, flags) = futex_op_and_flags_from_bits(futex_op as u32)?;
+
+    match op {
+        FutexOp::Wait => {
+            let timeout = get_timeout(timeout).and_then(|ts| match ts {
+                Some(t) => Duration::try_from(t).map(Some),
+                None => Ok(None),
+            })?;
             futex.wait(val as i32, timeout).map(|_| 0)
         }
-        FUTEX_WAIT_BITSET => {
-            let timeout = get_timeout(timeout)?;
+        FutexOp::WaitBitset => {
+            let timeout = get_timeout(timeout)?.map(|ts| (ts, flags.into()));
             futex.wait_bitset(val as i32, timeout, val3).map(|_| 0)
         }
-        FUTEX_WAKE => {
+        FutexOp::Wake => {
             let count = get_val(val)?;
             futex.wake(count).map(|count| count as isize)
         }
-        FUTEX_WAKE_BITSET => {
+        FutexOp::WakeBitset => {
             let count = get_val(val)?;
             futex.wake_bitset(count, val3).map(|count| count as isize)
         }
-        FUTEX_REQUEUE => {
+        FutexOp::Requeue => {
             let new_futex = Futex::new(get_addr(uaddr2)?);
             let nwakes = get_val(val)?;
             let nrequeues = get_val(timeout as u32)?;
@@ -110,7 +105,7 @@ unsafe fn futex_inernal(
                 .requeue(nwakes, &new_futex, nrequeues)
                 .map(|nwakes| nwakes as isize)
         }
-        FUTEX_CMP_REQUEUE => {
+        FutexOp::CmpRequeue => {
             let new_futex = Futex::new(get_addr(uaddr2)?);
             let nwakes = get_val(val)?;
             let nrequeues = get_val(timeout as u32)?;
@@ -127,36 +122,17 @@ unsafe fn futex_inernal(
     }
 }
 
-#[repr(C)]
-#[derive(Clone, Copy, Default, Debug, Eq, PartialEq)]
-struct TimeSpec {
-    pub sec: i64,
-    pub nsec: i64,
-}
+fn futex_op_and_flags_from_bits(bits: u32) -> OsResult<(FutexOp, FutexFlags)> {
+    const FUTEX_OP_MASK: u32 = 0x0000_000F;
+    const FUTEX_FLAGS_MASK: u32 = 0xFFFF_FFF0;
 
-impl TimeSpec {
-    fn validate(&self) -> bool {
-        self.sec >= 0 && self.nsec >= 0 && self.nsec < 1_000_000_000
-    }
-}
-
-impl From<Duration> for TimeSpec {
-    fn from(dur: Duration) -> TimeSpec {
-        TimeSpec {
-            sec: cmp::min(dur.as_secs(), i64::MAX as u64) as i64,
-            nsec: dur.subsec_nanos() as i64,
-        }
-    }
-}
-
-impl TryFrom<TimeSpec> for Duration {
-    type Error = i32;
-
-    fn try_from(ts: TimeSpec) -> OsResult<Duration> {
-        if ts.validate() {
-            Ok(Duration::new(ts.sec as u64, ts.nsec as u32))
-        } else {
-            Err(EINVAL)
-        }
-    }
+    let op = {
+        let op_bits = bits & FUTEX_OP_MASK;
+        FutexOp::try_from(op_bits).map_err(|_| EINVAL)?
+    };
+    let flags = {
+        let flags_bits = bits & FUTEX_FLAGS_MASK;
+        FutexFlags::from_bits(flags_bits).ok_or(EINVAL)?
+    };
+    Ok((op, flags))
 }

@@ -34,13 +34,19 @@ impl SeEvent {
         SeEvent(AtomicI32::new(0))
     }
 
-    pub fn wait_timeout(&self, timeout: &timespec) -> i32 {
+    pub fn wait_timeout(&self, timeout: &timespec, clockid: c_int, absolute_time: c_int) -> i32 {
+        let (wait_op, clockid) = if absolute_time == 1 {
+            (libc::FUTEX_WAIT_BITSET, clockid)
+        } else {
+            (libc::FUTEX_WAIT, 0)
+        };
+
         if self.0.fetch_add(-1, Ordering::SeqCst) == 0 {
             let ret = unsafe {
                 libc::syscall(
                     libc::SYS_futex,
                     self,
-                    libc::FUTEX_WAIT | libc::FUTEX_PRIVATE_FLAG,
+                    wait_op | clockid | libc::FUTEX_PRIVATE_FLAG,
                     -1,
                     timeout as *const timespec,
                     0,
@@ -180,6 +186,8 @@ pub unsafe extern "C" fn u_thread_wait_event_ocall(
     error: *mut c_int,
     tcs: size_t,
     timeout: *const timespec,
+    clockid: c_int,
+    absolute_time: c_int,
 ) -> c_int {
     if tcs == 0 {
         set_error(error, libc::EINVAL);
@@ -190,7 +198,7 @@ pub unsafe extern "C" fn u_thread_wait_event_ocall(
     let result = if timeout.is_null() {
         get_tcs_event(tcs).wait()
     } else {
-        get_tcs_event(tcs).wait_timeout(&*timeout)
+        get_tcs_event(tcs).wait_timeout(&*timeout, clockid, absolute_time)
     };
     if result != 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
@@ -238,11 +246,13 @@ pub unsafe extern "C" fn u_thread_setwait_events_ocall(
     waite_tcs: size_t,
     self_tcs: size_t,
     timeout: *const timespec,
+    clockid: c_int,
+    absolute_time: c_int,
 ) -> c_int {
     let result = u_thread_set_event_ocall(error, waite_tcs);
     if result < 0 {
         result
     } else {
-        u_thread_wait_event_ocall(error, self_tcs, timeout)
+        u_thread_wait_event_ocall(error, self_tcs, timeout, clockid, absolute_time)
     }
 }

@@ -20,6 +20,7 @@ extern crate sgx_build_helper as build_helper;
 use build_helper::{native_lib_boilerplate, run};
 use std::env;
 use std::process::Command;
+use std::thread;
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
@@ -83,6 +84,11 @@ fn build_libunwind(host: &str, target: &str) -> Result<(), ()> {
     run(Command::new(build_helper::make(host))
         .current_dir(&native.out_dir)
         .arg(format!("INCDIR={}", native.src_dir.display()))
-        .arg("-j5"));
+        .arg(format!(
+            "-j{}",
+            thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(5)
+        )));
     Ok(())
 }

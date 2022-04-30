@@ -19,7 +19,7 @@ pub use sgx_types::error::errno::*;
 pub use sgx_types::types::time_t;
 pub use sgx_types::types::{
     c_char, c_double, c_float, c_int, c_long, c_longlong, c_schar, c_short, c_uchar, c_uint,
-    c_ulong, c_ulonglong, c_ushort, c_void, intmax_t, uintmax_t,
+    c_ulong, c_ulonglong, c_ushort, c_void, intmax_t, timespec, uintmax_t,
 };
 pub use sgx_types::types::{
     int16_t, int32_t, int64_t, int8_t, uint16_t, uint32_t, uint64_t, uint8_t,
@@ -113,10 +113,10 @@ s! {
         pub tv_usec: suseconds_t,
     }
 
-    pub struct timespec {
-        pub tv_sec: time_t,
-        pub tv_nsec: c_long,
-    }
+    // pub struct timespec {
+    //     pub tv_sec: time_t,
+    //     pub tv_nsec: c_long,
+    // }
 
     pub struct sockaddr {
         pub sa_family: sa_family_t,

@@ -54,3 +54,10 @@ pub type intptr_t = isize;
 pub type uintptr_t = usize;
 pub type ssize_t = isize;
 pub type time_t = i64;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct timespec {
+    pub tv_sec: time_t,
+    pub tv_nsec: c_long,
+}

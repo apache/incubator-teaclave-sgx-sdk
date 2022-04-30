@@ -17,8 +17,9 @@
 
 #![allow(deprecated)]
 
+use crate::futex::FutexClockId;
 use crate::lazy::SyncLazy;
-use crate::sys::ocall;
+use crate::sys::ocall::{self, Timeout, Timespec};
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -45,10 +46,30 @@ impl Futex {
 
     #[inline]
     pub fn wait(&self, expected: i32, timeout: Option<Duration>) -> OsResult {
-        self.wait_bitset(expected, timeout, Self::FUTEX_BITSET_MATCH_ANY)
+        let timeout = timeout.map(|dur| 
+            Timeout::new(dur.into(), FutexClockId::Monotonic as u32, false)
+        );
+        self.wait_with_timeout(expected, timeout, Self::FUTEX_BITSET_MATCH_ANY)
     }
 
-    pub fn wait_bitset(&self, expected: i32, timeout: Option<Duration>, bitset: u32) -> OsResult {
+    pub fn wait_bitset(
+        &self,
+        expected: i32,
+        timeout: Option<(Timespec, FutexClockId)>,
+        bitset: u32,
+    ) -> OsResult {
+        let timeout = timeout.map(|(ts, clockid)| 
+            Timeout::new(ts, clockid.into(), true)
+        );
+        self.wait_with_timeout(expected, timeout, bitset)
+    }
+
+    fn wait_with_timeout(
+        &self,
+        expected: i32,
+        timeout: Option<Timeout>,
+        bitset: u32,
+    ) -> OsResult {
         let (_, bucket) = FUTEX_BUCKETS.get_bucket(self);
         let mut futex_bucket = bucket.lock();
 
@@ -309,7 +330,7 @@ impl Item {
         }
     }
 
-    fn wait(&self, timeout: Option<Duration>) -> OsResult {
+    fn wait(&self, timeout: Option<Timeout>) -> OsResult {
         self.waiter.wait(timeout).map_err(|e| {
             let (_, bucket) = FUTEX_BUCKETS.get_bucket(&self.futex);
             let mut futex_bucket = bucket.lock();
@@ -345,18 +366,19 @@ impl Waiter {
         }
     }
 
-    fn wait(&self, timeout: Option<Duration>) -> OsResult {
+    fn wait(&self, timeout: Option<Timeout>) -> OsResult {
         let current = tcs::current().id();
         if current != self.tcs {
             return Ok(());
         }
         while !self.is_woken() {
-            ocall::thread_wait_event(current, timeout).map_err(|e| {
-                if (timeout.is_some() && e == ETIMEDOUT) || e == EINTR || e == EAGAIN {
-                    self.set_woken();
-                }
-                e
-            })?;
+            ocall::thread_wait_event_ex(current, timeout)
+                .map_err(|e| {
+                    if (timeout.is_some() && e == ETIMEDOUT) || e == EINTR || e == EAGAIN {
+                        self.set_woken();
+                    }
+                    e
+                })?;
         }
         Ok(())
     }

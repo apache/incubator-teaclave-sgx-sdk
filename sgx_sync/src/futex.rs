@@ -16,10 +16,59 @@
 // under the License..
 
 use crate::sys::futex as imp;
+use crate::Timespec;
 use core::marker::PhantomData;
 use core::sync::atomic::AtomicI32;
 use core::time::Duration;
 use sgx_types::error::OsResult;
+
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub enum FutexOp {
+        Wait = 0,
+        Wake = 1,
+        Fd = 2,
+        Requeue = 3,
+        CmpRequeue = 4,
+        WakeOp = 5,
+        LockPI = 6,
+        UnlockPI = 7,
+        TryLockPI = 8,
+        WaitBitset = 9,
+        WakeBitset = 10,
+        WaitRequeuePI = 11,
+        CmpRequeuePI = 12,
+    }
+}
+
+impl_bitflags! {
+    #[repr(C)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub struct FutexFlags: u32 {
+        const PRIVATE = 0x80;
+        const CLOCK_REALTIME = 0x100;
+    }
+}
+
+impl From<FutexFlags> for FutexClockId {
+    fn from(flags: FutexFlags) -> FutexClockId {
+        if flags.contains(FutexFlags::CLOCK_REALTIME) {
+            FutexClockId::RealTime
+        } else {
+            FutexClockId::Monotonic
+        }
+    }
+}
+
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub enum FutexClockId {
+        Monotonic = 0,
+        RealTime = 0x100,
+    }
+}
 
 pub struct Futex<'a> {
     futex: imp::Futex,
@@ -40,7 +89,12 @@ impl<'a> Futex<'a> {
     }
 
     #[inline]
-    pub fn wait_bitset(&self, expected: i32, timeout: Option<Duration>, bitset: u32) -> OsResult {
+    pub fn wait_bitset(
+        &self,
+        expected: i32,
+        timeout: Option<(Timespec, FutexClockId)>,
+        bitset: u32,
+    ) -> OsResult {
         self.futex.wait_bitset(expected, timeout, bitset)
     }
 
