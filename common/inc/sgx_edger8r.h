@@ -83,9 +83,16 @@ void SGXAPI sgx_ocfree(void);
 */
 size_t SGXAPI sgx_ocremain_size(void);
 
+/*
+ * [DEPRECATED] Use sgx_ecall_ms_buffer_alloc_ex function instead of this one
+ * Function used to alloc ms_buffer
+ */
+SGX_DEPRECATED
 void* SGXAPI sgx_ecall_ms_buffer_alloc(const sgx_enclave_id_t eid, size_t size);
 
-void* SGXAPI sgx_ecall_ms_buffer_alloc_aligned(const sgx_enclave_id_t eid, size_t alignment, size_t size);
+void* SGXAPI sgx_ecall_ms_buffer_alloc_ex(const sgx_enclave_id_t eid, size_t size, sgx_status_t* error);
+
+void* SGXAPI sgx_ecall_ms_buffer_alloc_aligned(const sgx_enclave_id_t eid, size_t alignment, size_t size, sgx_status_t* error);
 
 sgx_status_t SGXAPI sgx_ecall_ms_buffer_free(const sgx_enclave_id_t eid);
 

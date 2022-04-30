@@ -20,7 +20,7 @@ use sgx_types::function::{
 };
 use sgx_types::types::EnclaveId;
 use std::alloc::{AllocError, Allocator, Layout};
-use std::ptr::NonNull;
+use std::ptr::{self, NonNull};
 
 pub struct MsBufAlloc {
     eid: EnclaveId,
@@ -39,8 +39,14 @@ impl MsBufAlloc {
 
 unsafe impl Allocator for MsBufAlloc {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        let ptr =
-            unsafe { sgx_ecall_ms_buffer_alloc_aligned(self.eid, layout.align(), layout.size()) };
+        let ptr = unsafe {
+            sgx_ecall_ms_buffer_alloc_aligned(
+                self.eid,
+                layout.align(),
+                layout.size(),
+                ptr::null_mut(),
+            )
+        };
         NonNull::new(ptr.cast())
             .map(|ptr| NonNull::slice_from_raw_parts(ptr, layout.size()))
             .ok_or(AllocError)

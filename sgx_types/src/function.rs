@@ -82,10 +82,16 @@ extern "C" {
     // sgx_edger8r.h
     //
     pub fn sgx_ecall_ms_buffer_alloc(enclave_id: EnclaveId, size: usize) -> *mut c_void;
+    pub fn sgx_ecall_ms_buffer_alloc_ex(
+        enclave_id: EnclaveId,
+        size: usize,
+        error: *mut SgxStatus,
+    ) -> *mut c_void;
     pub fn sgx_ecall_ms_buffer_alloc_aligned(
         enclave_id: EnclaveId,
         align: usize,
         size: usize,
+        error: *mut SgxStatus,
     ) -> *mut c_void;
     pub fn sgx_ecall_ms_buffer_free(enclave_id: EnclaveId) -> SgxStatus;
     pub fn sgx_ecall_ms_buffer_remain_size(enclave_id: EnclaveId) -> usize;
