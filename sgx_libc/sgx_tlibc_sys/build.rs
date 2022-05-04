@@ -29,9 +29,9 @@ fn main() -> Result<(), &'static str> {
     let target = env::var("TARGET").expect("TARGET was not set");
     let host = env::var("HOST").expect("HOST was not set");
 
-    build_libtlibc(&host, &target).map_err(|_| "Faile to build tlibc library.")?;
+    build_libtlibc(&host, &target).map_err(|_| "Failed to build tlibc library.")?;
 
-    build_libtsafecrt(&host, &target).map_err(|_| "Faile to build tsafecrt library.")
+    build_libtsafecrt(&host, &target).map_err(|_| "Failed to build tsafecrt library.")
 }
 
 fn build_libtlibc(host: &str, _target: &str) -> Result<(), ()> {

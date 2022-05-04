@@ -29,7 +29,7 @@ fn main() -> Result<(), &'static str> {
     let target = env::var("TARGET").expect("TARGET was not set");
     let host = env::var("HOST").expect("HOST was not set");
 
-    build_libtcrypto(&host, &target).map_err(|_| "Faile to build crypto library.")
+    build_libtcrypto(&host, &target).map_err(|_| "Failed to build crypto library.")
 }
 
 fn build_libtcrypto(host: &str, _target: &str) -> Result<(), ()> {
