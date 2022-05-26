@@ -56,3 +56,34 @@ pub unsafe extern "C" fn nanosleep(rqtp: *const timespec, rmtp: *mut timespec) -
         0
     }
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn sleep(seconds: c_uint) -> c_uint {
+    let mut req = timespec {
+        tv_sec: seconds as time_t,
+        tv_nsec: 0,
+    };
+
+    if ocall::nanosleep(&mut req).is_ok() {
+        0
+    } else {
+        req.tv_sec as c_uint
+    }
+}
+
+const MICROS_PER_SEC: c_uint = 1_000_000;
+const NANOS_PER_MICRO: c_uint = 1_000;
+
+#[no_mangle]
+pub unsafe extern "C" fn usleep(useconds: c_uint) -> c_int {
+    let mut req = timespec {
+        tv_sec: (useconds / MICROS_PER_SEC) as time_t,
+        tv_nsec: ((useconds % MICROS_PER_SEC) * NANOS_PER_MICRO) as c_long,
+    };
+
+    if ocall::nanosleep(&mut req).is_ok() {
+        0
+    } else {
+        -1
+    }
+}

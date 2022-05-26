@@ -18,6 +18,16 @@
 use crate::linux::ocall::*;
 use crate::linux::*;
 
+macro_rules! syscall_ret {
+    ($e:expr) => {
+        let ret = $e;
+        if ret == -1 {
+            return (-errno()) as c_long;
+        }
+        return ret as c_long;
+    };
+}
+
 #[allow(unused_variables, non_upper_case_globals)]
 #[no_mangle]
 pub unsafe extern "C" fn syscall(
@@ -31,21 +41,20 @@ pub unsafe extern "C" fn syscall(
     arg6: c_long,
 ) -> c_long {
     match sysno {
-        SYS_getrandom => getrandom(arg0 as *mut c_void, arg1 as size_t, arg2 as c_uint) as c_long,
-        SYS_futex => futex(
-            arg0 as *const c_uint,
-            arg1 as c_int,
-            arg2 as c_uint,
-            arg3 as *const timespec,
-            arg4 as *const c_uint,
-            arg5 as c_uint,
-        ),
+        SYS_getrandom => {
+            syscall_ret!(getrandom(arg0 as _, arg1 as _, arg2 as _));
+        }
+        SYS_futex => {
+            syscall_ret!(futex(
+                arg0 as _, arg1 as _, arg2 as _, arg3 as _, arg4 as _, arg5 as _
+            ));
+        }
         _ => {
             set_errno(ENOSYS);
             #[cfg(feature = "panic_on_unsupported_syscall")]
-            panic!("unsupported system call!");
+            panic!("unsupported system call: {} !", sysno);
             #[cfg(not(feature = "panic_on_unsupported_syscall"))]
-            return -1;
+            return (-ENOSYS) as c_long;
         }
     }
 }

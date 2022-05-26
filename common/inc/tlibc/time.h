@@ -44,6 +44,7 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 #include <sys/struct_timespec.h>
+#include <sys/struct_timeval.h>
 
 #ifndef NULL
 #ifdef __cplusplus
@@ -64,6 +65,12 @@ typedef __clock_t   clock_t;
 #define _TIME_T_DEFINED_
 #define _TIME_T_DEFINED
 typedef __time_t    time_t;
+#endif
+
+#if !defined (_SUSECONDS_T_DEFINED_) && !defined (_SUSECONDS_T_DEFINED_)
+#define _SUSECONDS_T_DEFINED_
+#define _SUSECONDS_T_DEFINED_
+typedef __suseconds_t    suseconds_t;
 #endif
 
 #if !defined (_SIZE_T_DEFINED_) && !defined (_SIZE_T_DEFINED)

@@ -114,6 +114,7 @@ typedef float               __float_t;
 typedef long                __clock_t;
 
 typedef long                __time_t;
+typedef long                __suseconds_t;
 typedef __builtin_va_list   __va_list;
 typedef unsigned int        __wint_t;
 /* wctype_t and wctrans_t are defined in wchar.h */
