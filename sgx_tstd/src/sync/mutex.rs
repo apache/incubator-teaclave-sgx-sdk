@@ -213,6 +213,9 @@ unsafe impl<T: ?Sized + Send> Sync for SgxMutex<T> {}
 /// [`lock`]: Mutex::lock
 /// [`try_lock`]: Mutex::try_lock
 #[must_use = "if unused the Mutex will immediately unlock"]
+#[must_not_suspend = "holding a MutexGuard across suspend \
+                      points can cause deadlocks, delays, \
+                      and cause Futures to not implement `Send`"]
 pub struct SgxMutexGuard<'a, T: ?Sized + 'a> {
     lock: &'a SgxMutex<T>,
     poison: poison::Guard,

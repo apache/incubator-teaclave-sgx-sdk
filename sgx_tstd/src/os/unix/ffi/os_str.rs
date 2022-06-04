@@ -41,9 +41,11 @@ pub trait OsStringExt: Sealed {
 }
 
 impl OsStringExt for OsString {
+    #[inline]
     fn from_vec(vec: Vec<u8>) -> OsString {
         FromInner::from_inner(Buf { inner: vec })
     }
+    #[inline]
     fn into_vec(self) -> Vec<u8> {
         self.into_inner().inner
     }

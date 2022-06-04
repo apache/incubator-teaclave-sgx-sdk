@@ -47,6 +47,15 @@ int u_open64_ocall(int *error, const char *path, int oflag, int mode)
     return ret;
 }
 
+int u_openat_ocall(int *error, int dirfd, const char *pathname, int flags)
+{
+    int ret = openat(dirfd, pathname, flags);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
 int u_fstat_ocall(int *error, int fd, struct stat *buf)
 {
     int ret = fstat(fd, buf);
@@ -200,6 +209,15 @@ int u_link_ocall(int *error, const char *oldpath, const char *newpath)
     return ret;
 }
 
+int u_unlinkat_ocall(int *error, int dirfd, const char *pathname, int flags)
+{
+    int ret = unlinkat(dirfd, pathname, flags);
+    if (error) {
+        *error = ret == -1 ? errno : 0;
+    }
+    return ret;
+}
+
 int u_linkat_ocall(int *error, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags)
 {
     int ret = linkat(olddirfd, oldpath, newdirfd, newpath, flags);
@@ -272,7 +290,16 @@ int u_rmdir_ocall(int *error, const char *pathname)
     return ret;
 }
 
-void *u_opendir_ocall(int *error, const char *pathname)
+DIR *u_fdopendir_ocall(int *error, int fd)
+{
+    DIR *ret = fdopendir(fd);
+    if (error) {
+        *error = ret == NULL ? errno : 0;
+    }
+    return ret;
+}
+
+DIR *u_opendir_ocall(int *error, const char *pathname)
 {
     DIR *ret = opendir(pathname);
     if (error) {

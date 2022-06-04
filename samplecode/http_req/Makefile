@@ -1,5 +1,4 @@
 ######## SGX SDK Settings ########
-SGX_SDK_RUST ?= $(HOME)/sgx
 SGX_SDK ?= /opt/sgxsdk
 SGX_MODE ?= HW
 SGX_ARCH ?= x64
@@ -46,8 +45,8 @@ SGX_COMMON_CFLAGS += -fstack-protector
 
 CUSTOM_LIBRARY_PATH := ./lib
 CUSTOM_BIN_PATH := ./bin
-CUSTOM_EDL_PATH := $(SGX_SDK_RUST)/edl
-CUSTOM_COMMON_PATH := $(SGX_SDK_RUST)/common
+CUSTOM_EDL_PATH := ../../edl
+CUSTOM_COMMON_PATH := ../../common
 
 ######## EDL Settings ########
 

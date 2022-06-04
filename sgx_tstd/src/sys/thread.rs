@@ -138,9 +138,9 @@ impl Drop for Thread {
 
 pub fn available_parallelism() -> io::Result<NonZeroUsize> {
     let cpus = enclave::rsgx_get_cpu_core_num();
-    NonZeroUsize::new(cpus as usize).ok_or_else(|| io::Error::new_const(
+    NonZeroUsize::new(cpus as usize).ok_or_else(|| io::const_io_error!(
         io::ErrorKind::NotFound,
-        &"The number of hardware threads is not known for the target platform",
+        "The number of hardware threads is not known for the target platform",
     ))
 }
 

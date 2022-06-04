@@ -21,7 +21,8 @@
         allocator_api,
         slice_ptr_get,
         nonnull_slice_from_raw_parts,
-        maybe_uninit_array_assume_init
+        maybe_uninit_array_assume_init,
+        build_hasher_simple_hash_one
     )
 )]
 #![allow(
@@ -126,20 +127,6 @@ pub enum TryReserveError {
         /// The layout of the allocation request that failed.
         layout: alloc::alloc::Layout,
     },
-}
-
-/// The error type for [`RawTable::get_each_mut`](crate::raw::RawTable::get_each_mut),
-/// [`HashMap::get_each_mut`], and [`HashMap::get_each_key_value_mut`].
-#[cfg(feature = "nightly")]
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum UnavailableMutError {
-    /// The requested entry is not present in the table.
-    Absent,
-    /// The requested entry is present, but a mutable reference to it was already created and
-    /// returned from this call to `get_each_mut` or `get_each_key_value_mut`.
-    ///
-    /// Includes the index of the existing mutable reference in the returned array.
-    Duplicate(usize),
 }
 
 /// Wrapper around `Bump` which allows it to be used as an allocator for

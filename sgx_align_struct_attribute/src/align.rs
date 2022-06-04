@@ -60,10 +60,7 @@ impl Parse for AlignArgs {
 
 impl AlignArgs {
     pub fn get_layout(&self) -> Result<Layout> {
-        let align_iter = self
-            .vars
-            .iter()
-            .find(|v| v.ident.to_string() == "align");
+        let align_iter = self.vars.iter().find(|v| v.ident == "align");
         let align: usize = if let Some(align_value) = align_iter {
             self.parse_align(&align_value.value)?
         } else {
@@ -73,10 +70,7 @@ impl AlignArgs {
             ));
         };
 
-        let size_iter = self
-            .vars
-            .iter()
-            .find(|v| v.ident.to_string() == "size");
+        let size_iter = self.vars.iter().find(|v| v.ident == "size");
         let size: usize = if let Some(size_value) = size_iter {
             self.parse_size(&size_value.value)?
         } else {
@@ -180,21 +174,22 @@ impl AlignStruct {
         quote! {
             #attrs
             #align_attr
-            #vis struct #name#generics {
+            #vis struct #name #generics {
             #pad_item,
             #fields
             }
         }
     }
 
+    #[allow(clippy::filter_next, clippy::collapsible_match)]
     fn is_contains_specified_attr(&self, atrr: &str) -> bool {
         let mut erxcept_attr = false;
         for attr in &self.input.attrs {
             let ident = attr.path.get_ident();
             let meta = attr.parse_meta();
-            if ident.map_or(false, |v| v.to_string() == "repr") && meta.is_ok() {
+            if ident.map_or(false, |v| *v == "repr") && meta.is_ok() {
                 if let Ok(Meta::List(ref m)) = meta {
-                    if m.nested.len() > 0 {
+                    if !m.nested.is_empty() {
                         erxcept_attr = m
                             .nested
                             .iter()
@@ -202,8 +197,7 @@ impl AlignStruct {
                                 let mut find = false;
                                 if let syn::NestedMeta::Meta(ref s) = x {
                                     if let syn::Meta::Path(p) = s {
-                                        find =
-                                            p.get_ident().map_or(false, |v| v.to_string() == atrr);
+                                        find = p.get_ident().map_or(false, |v| *v == atrr);
                                     }
                                 }
                                 find
@@ -226,7 +220,7 @@ impl AlignStruct {
 
     fn generate_align_attr(&self) -> proc_macro2::TokenStream {
         let align = self.align_layout.align();
-        let litint = LitInt::new(&format!("{}", align).to_string(), Span::call_site());
+        let litint = LitInt::new(&format!("{}", align), Span::call_site());
         quote! {
            #[repr(align(#litint))]
         }

@@ -17,7 +17,7 @@
 
 //! OS-specific functionality.
 
-pub mod fs;
+pub mod linux;
 pub mod raw;
 pub mod unix;
 

@@ -27,6 +27,7 @@ enclave {
     untrusted {
         int u_open_ocall([out] int *error, [in, string] const char *pathname, int flags);
         int u_open64_ocall([out] int *error, [in, string] const char *path, int oflag, int mode);
+        int u_openat_ocall([out] int *error, int dirfd, [in, string] const char *pathname, int flags);
 
         int u_fstat_ocall([out] int *error, int fd, [out] struct stat_t *buf);
         int u_fstat64_ocall([out] int *error, int fd, [out] struct stat64_t *buf);
@@ -46,6 +47,7 @@ enclave {
         int u_fchmod_ocall([out] int *error, int fd, uint32_t mode);
         int u_unlink_ocall([out] int *error, [in, string] const char *pathname);
         int u_link_ocall([out] int *error, [in, string] const char *oldpath, [in, string] const char *newpath);
+        int u_unlinkat_ocall([out] int *error, int dirfd, [in, string] const char *pathname, int flags);
         int u_linkat_ocall([out] int *error, int olddirfd, [in, string] const char *oldpath, int newdirfd, [in, string] const char *newpath, int flags);
         int u_rename_ocall([out] int *error, [in, string] const char *oldpath, [in, string] const char *newpath);
         int u_chmod_ocall([out] int *error, [in, string] const char *path, uint32_t mode);
@@ -54,6 +56,7 @@ enclave {
         char *u_realpath_ocall([out] int *error, [in, string] const char *pathname);
         int u_mkdir_ocall([out] int *error, [in, string] const char *pathname, uint32_t mode);
         int u_rmdir_ocall([out] int *error, [in, string] const char *pathname);
+        void *u_fdopendir_ocall([out] int *error, int fd);
         void *u_opendir_ocall([out] int *error, [in, string] const char *pathname);
         int u_readdir64_r_ocall([user_check] void *dirp, [in, out] struct dirent64_t *entry, [out] struct dirent64_t **result);
         int u_closedir_ocall([out] int *error, [user_check] void *dirp);

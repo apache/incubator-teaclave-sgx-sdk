@@ -64,17 +64,17 @@
 
 #![no_std]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
-#![allow(incomplete_features)]
 #![feature(allocator_api)]
-#![feature(asm)]
-#![feature(const_raw_ptr_deref)]
-#![allow(non_camel_case_types)]
-#![allow(non_upper_case_globals)]
-#![allow(non_snake_case)]
 #![feature(specialization)]
 #![feature(vec_into_raw_parts)]
 #![feature(toowned_clone_into)]
 #![feature(rustc_attrs)]
+#![allow(incomplete_features)]
+#![allow(non_camel_case_types)]
+#![allow(non_upper_case_globals)]
+#![allow(non_snake_case)]
+#![allow(clippy::missing_safety_doc)]
+#![allow(clippy::derive_hash_xor_eq)]
 
 #[cfg(target_env = "sgx")]
 extern crate sgx_types;

@@ -32,6 +32,7 @@
 #![feature(core_intrinsics)]
 #![feature(nonnull_slice_from_raw_parts)]
 #![feature(slice_ptr_get)]
+#![allow(clippy::missing_safety_doc)]
 
 extern crate alloc;
 

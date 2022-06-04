@@ -20,7 +20,7 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 use crate::ffi::OsString;
 use crate::fmt;
-use crate::io::{self, Initializer, IoSlice, IoSliceMut, Read, Seek, SeekFrom, Write};
+use crate::io::{self, IoSlice, IoSliceMut, Read, ReadBuf, Seek, SeekFrom, Write};
 use crate::path::{Path, PathBuf};
 use crate::sys::fs as fs_imp;
 use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
@@ -96,6 +96,7 @@ use crate::untrusted::path::PathEx;
 ///
 /// [`BufReader<R>`]: io::BufReader
 /// [`sync_all`]: File::sync_all
+#[cfg_attr(not(test), rustc_diagnostic_item = "File")]
 pub struct File {
     inner: fs_imp::File,
 }
@@ -351,9 +352,10 @@ impl File {
     /// open or create a file with specific options if `open()` or `create()`
     /// are not appropriate.
     ///
-    /// It is equivalent to `OpenOptions::new()` but allows you to write more
-    /// readable code. Instead of `OpenOptions::new().read(true).open("foo.txt")`
-    /// you can write `File::with_options().read(true).open("foo.txt")`. This
+    /// It is equivalent to `OpenOptions::new()`, but allows you to write more
+    /// readable code. Instead of
+    /// `OpenOptions::new().append(true).open("example.log")`,
+    /// you can write `File::options().append(true).open("example.log")`. This
     /// also avoids the need to import `OpenOptions`.
     ///
     /// See the [`OpenOptions::new`] function for more details.
@@ -361,16 +363,15 @@ impl File {
     /// # Examples
     ///
     /// ```no_run
-    /// #![feature(with_options)]
     /// use std::fs::File;
     ///
     /// fn main() -> std::io::Result<()> {
-    ///     let mut f = File::with_options().read(true).open("foo.txt")?;
+    ///     let mut f = File::options().append(true).open("example.log")?;
     ///     Ok(())
     /// }
     /// ```
     #[must_use]
-    pub fn with_options() -> OpenOptions {
+    pub fn options() -> OpenOptions {
         OpenOptions::new()
     }
 
@@ -610,15 +611,13 @@ impl Read for File {
         self.inner.read_vectored(bufs)
     }
 
-    #[inline]
-    fn is_read_vectored(&self) -> bool {
-        self.inner.is_read_vectored()
+    fn read_buf(&mut self, buf: &mut ReadBuf<'_>) -> io::Result<()> {
+        self.inner.read_buf(buf)
     }
 
     #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        // SAFETY: Read is guaranteed to work on uninitialized memory
-        unsafe { Initializer::nop() }
+    fn is_read_vectored(&self) -> bool {
+        self.inner.is_read_vectored()
     }
 
     // Reserves space in the buffer based on the file size when available.
@@ -663,6 +662,10 @@ impl Read for &File {
         self.inner.read(buf)
     }
 
+    fn read_buf(&mut self, buf: &mut ReadBuf<'_>) -> io::Result<()> {
+        self.inner.read_buf(buf)
+    }
+
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         self.inner.read_vectored(bufs)
     }
@@ -670,12 +673,6 @@ impl Read for &File {
     #[inline]
     fn is_read_vectored(&self) -> bool {
         self.inner.is_read_vectored()
-    }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        // SAFETY: Read is guaranteed to work on uninitialized memory
-        unsafe { Initializer::nop() }
     }
 
     // Reserves space in the buffer based on the file size when available.
@@ -1021,14 +1018,13 @@ impl Metadata {
     ///
     #[cfg_attr(unix, doc = "```no_run")]
     #[cfg_attr(not(unix), doc = "```ignore")]
-    /// #![feature(is_symlink)]
     /// use std::fs;
     /// use std::path::Path;
     /// use std::os::unix::fs::symlink;
     ///
     /// fn main() -> std::io::Result<()> {
     ///     let link_path = Path::new("link");
-    ///     symlink("/origin_does_not_exists/", link_path)?;
+    ///     symlink("/origin_does_not_exist/", link_path)?;
     ///
     ///     let metadata = fs::symlink_metadata(link_path)?;
     ///
@@ -1985,12 +1981,16 @@ pub fn remove_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
 ///
 /// # Platform-specific behavior
 ///
-/// This function currently corresponds to `opendir`, `lstat`, `rm` and `rmdir` functions on Unix
-/// and the `FindFirstFile`, `GetFileAttributesEx`, `DeleteFile`, and `RemoveDirectory` functions
-/// on Windows.
-/// Note that, this [may change in the future][changes].
+/// This function currently corresponds to `openat`, `fdopendir`, `unlinkat` and `lstat` functions
+/// on Unix (except for macOS before version 10.10 and REDOX) and the `CreateFileW`,
+/// `GetFileInformationByHandleEx`, `SetFileInformationByHandle`, and `NtCreateFile` functions on
+/// Windows. Note that, this [may change in the future][changes].
 ///
 /// [changes]: io#platform-specific-behavior
+///
+/// On macOS before version 10.10 and REDOX this function is not protected against time-of-check to
+/// time-of-use (TOCTOU) race conditions, and should not be used in security-sensitive code on
+/// those platforms. All other platforms are protected.
 ///
 /// # Errors
 ///
@@ -2009,7 +2009,6 @@ pub fn remove_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
 ///     Ok(())
 /// }
 /// ```
-#[doc(alias = "delete")]
 pub fn remove_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
     fs_imp::remove_dir_all(path.as_ref())
 }
@@ -2197,9 +2196,9 @@ impl DirBuilder {
         match path.parent() {
             Some(p) => self.create_dir_all(p)?,
             None => {
-                return Err(io::Error::new_const(
+                return Err(io::const_io_error!(
                     io::ErrorKind::Uncategorized,
-                    &"failed to create whole tree",
+                    "failed to create whole tree",
                 ));
             }
         }
@@ -2222,7 +2221,7 @@ impl AsInnerMut<fs_imp::DirBuilder> for DirBuilder {
 /// This function will traverse symbolic links to query information about the
 /// destination file. In case of broken symbolic links this will return `Ok(false)`.
 ///
-/// As opposed to the `exists()` method, this one doesn't silently ignore errors
+/// As opposed to the [`Path::exists`] method, this one doesn't silently ignore errors
 /// unrelated to the path not existing. (E.g. it will return `Err(_)` in case of permission
 /// denied on some of the parent directories.)
 ///
@@ -2235,6 +2234,8 @@ impl AsInnerMut<fs_imp::DirBuilder> for DirBuilder {
 /// assert!(!fs::try_exists("does_not_exist.txt").expect("Can't check existence of file does_not_exist.txt"));
 /// assert!(fs::try_exists("/root/secret_file.txt").is_err());
 /// ```
+///
+/// [`Path::exists`]: crate::path::Path::exists
 // FIXME: stabilization should modify documentation of `exists()` to recommend this method
 // instead.
 #[inline]

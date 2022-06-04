@@ -15,16 +15,15 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//! Linux-specific extensions to primitives in the `std::fs` module.
+//! Linux-specific extensions to primitives in the [`std::fs`] module.
+//!
+//! [`std::fs`]: crate::fs
 
-#[cfg(feature = "untrusted_fs")]
 use crate::fs::Metadata;
 use crate::sys_common::AsInner;
-#[cfg(not(feature = "untrusted_fs"))]
-use crate::untrusted::fs::Metadata;
 
 #[allow(deprecated)]
-use crate::os::raw;
+use crate::os::linux::raw;
 
 use sgx_libc as libc;
 

@@ -18,7 +18,7 @@
 use crate::io::prelude::*;
 
 use crate::fmt;
-use crate::io::{self, Initializer, IoSlice, IoSliceMut};
+use crate::io::{self, IoSlice, IoSliceMut};
 use crate::net::{Shutdown, SocketAddr, ToSocketAddrs};
 use crate::sys_common::net as net_imp;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
@@ -448,7 +448,7 @@ impl TcpStream {
     /// use std::net::TcpStream;
     ///
     /// let stream = TcpStream::connect("127.0.0.1:8000")
-    ///                        .expect("couldn't bind to address");
+    ///                        .expect("Couldn't connect to the server...");
     /// let mut buf = [0; 10];
     /// let len = stream.peek(&mut buf).expect("peek failed");
     /// ```
@@ -659,12 +659,6 @@ impl Read for TcpStream {
     fn is_read_vectored(&self) -> bool {
         self.0.is_read_vectored()
     }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        // SAFETY: Read is guaranteed to work on uninitialized memory
-        Initializer::nop()
-    }
 }
 
 impl Write for TcpStream {
@@ -698,12 +692,6 @@ impl Read for &TcpStream {
     #[inline]
     fn is_read_vectored(&self) -> bool {
         self.0.is_read_vectored()
-    }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        // SAFETY: Read is guaranteed to work on uninitialized memory
-        Initializer::nop()
     }
 }
 

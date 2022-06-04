@@ -52,7 +52,7 @@ pub fn set_errno(e: i32) {
 pub fn error_string(error: i32) -> String {
     let mut buf = [0_i8; TMPBUF_SZ];
     unsafe {
-        assert!(!(trts_error::error_string(error, &mut buf) < 0), "strerror_r failure");
+        assert!(trts_error::error_string(error, &mut buf) >= 0, "strerror_r failure");
 
         let p = buf.as_ptr() as *const _;
         str::from_utf8(CStr::from_ptr(p).to_bytes()).unwrap().to_owned()
@@ -162,9 +162,9 @@ impl StdError for JoinPathsError {
 
 pub fn current_exe() -> io::Result<PathBuf> {
     match crate::fs::read_link("/proc/self/exe") {
-        Err(ref e) if e.kind() == io::ErrorKind::NotFound => Err(io::Error::new_const(
+        Err(ref e) if e.kind() == io::ErrorKind::NotFound => Err(io::const_io_error!(
             io::ErrorKind::Uncategorized,
-            &"no /proc/self/exe available. Is /proc mounted?",
+            "no /proc/self/exe available. Is /proc mounted?",
         )),
         other => other,
     }

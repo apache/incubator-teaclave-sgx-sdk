@@ -33,6 +33,7 @@ int MessageHandler::init() {
     this->nm->connectCallbackHandler([this](string v, int type) {
         return this->incomingHandler(v, type);
     });
+    return 1;
 }
 
 
@@ -396,7 +397,7 @@ string MessageHandler::handleVerification() {
 
 
 string MessageHandler::createInitMsg(int type, string msg) {
-    Messages::SecretMessage init_msg;
+    Messages::InitialMessage init_msg;
     init_msg.set_type(type);
     init_msg.set_size(msg.size());
 

@@ -116,6 +116,7 @@ impl<T: 'static> fmt::Debug for LocalKey<T> {
 ///
 /// [`std::thread::LocalKey`]: crate::thread::LocalKey
 #[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "thread_local_macro")]
 #[allow_internal_unstable(thread_local_internals)]
 macro_rules! thread_local {
     // empty (base case for the recursion)
@@ -151,11 +152,11 @@ macro_rules! __thread_local_inner {
         #[cfg(not(feature = "thread"))]
         #[inline] // see comments below
         unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
-            const _REQUIRE_UNSTABLE: () = $crate::thread::require_unstable_const_init_thread_local();
+            const INIT_EXPR: $t = $init;
 
             if !$crate::mem::needs_drop::<$t>() || $crate::thread::thread_policy() == $crate::thread::SgxThreadPolicy::Bound {
                 #[thread_local]
-                static mut VAL: $t = $init;
+                static mut VAL: $t = INIT_EXPR;
                 Ok(&VAL)
             } else {
                 Err($crate::thread::AccessError::new(
@@ -166,7 +167,10 @@ macro_rules! __thread_local_inner {
 
         #[cfg(feature = "thread")]
         unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
-            const _REQUIRE_UNSTABLE: () = $crate::thread::require_unstable_const_init_thread_local();
+            const INIT_EXPR: $t = $init;
+
+            #[thread_local]
+            static mut VAL: $t = INIT_EXPR;
 
             // If a dtor isn't needed we can do something "very raw" and
             // just get going.
@@ -182,8 +186,6 @@ macro_rules! __thread_local_inner {
                 ));
             }
 
-            #[thread_local]
-            static mut VAL: $t = $init;
             // 0 == dtor not registered
             // 1 == dtor registered, dtor not run
             // 2 == dtor registered and is running or has run
@@ -242,7 +244,11 @@ macro_rules! __thread_local_inner {
                 static __KEY: $crate::thread::__FastLocalKeyInner<$t> =
                     $crate::thread::__FastLocalKeyInner::new();
 
-                __KEY.get(__init)
+                // FIXME: remove the #[allow(...)] marker when macros don't
+                // raise warning for missing/extraneous unsafe blocks anymore.
+                // See https://github.com/rust-lang/rust/issues/74838.
+                #[allow(unused_unsafe)]
+                unsafe { __KEY.get(__init) }
             }
 
             unsafe {
@@ -421,7 +427,7 @@ pub mod statik {
 
         pub unsafe fn get(&self, init: fn() -> T) -> Result<&'static T, AccessError> {
             if !mem::needs_drop::<T>() || thread::thread_policy() == SgxThreadPolicy::Bound {
-	        // SAFETY: The caller must ensure no reference is ever handed out to
+                // SAFETY: The caller must ensure no reference is ever handed out to
                 // the inner cell nor mutable reference to the Option<T> inside said
                 // cell. This make it safe to hand a reference, though the lifetime
                 // of 'static is itself unsafe, making the get method unsafe.
@@ -509,7 +515,7 @@ pub mod fast {
             Key { inner: LazyKeyInner::new(), dtor_state: Cell::new(DtorState::Unregistered) }
         }
 
-        // note that this is just a publically-callable function only for the
+        // note that this is just a publicly-callable function only for the
         // const-initialized form of thread locals, basically a way to call the
         // free `register_dtor` function defined elsewhere in libstd.
         pub unsafe fn register_dtor(a: *mut u8, dtor: unsafe extern "C" fn(*mut u8)) {
@@ -518,7 +524,7 @@ pub mod fast {
 
         pub unsafe fn get<F: FnOnce() -> T>(&self, init: F) -> Result<&'static T, AccessError> {
             // SAFETY: See the definitions of `LazyKeyInner::get` and
-            // `try_initialize` for more informations.
+            // `try_initialize` for more information.
             //
             // The caller must ensure no mutable references are ever active to
             // the inner cell or the inner T when this is called.
@@ -547,13 +553,13 @@ pub mod fast {
 
             if !super::pthread_info_tls.m_pthread.is_null() {
                 // Note:
-                // If the current thread was created by pthread_create, we should call
+                // If the current thread was created by `pthread_create`, we should call
                 // the try_register_dtor function. You can know whether the current thread has
                 // been created by pthread_create() through the m_thread member of pthread_info
                 // (thread local storage) of pthread library in intel sgx sdk.
                 //
-                // Destructor will only be called when a thread created by pthread_create exits,
-                // because sys_common::thread_local::StaticKey does not call pthread_key_delete
+                // Destructor will only be called when a thread created by `pthread_create` exits,
+                // because `sys_common::thread_local::StaticKey` does not call `pthread_key_delete`
                 // to trigger the destructor.
                 if !mem::needs_drop::<T>() || self.try_register_dtor() {
                     // SAFETY: See comment above (his function doc).

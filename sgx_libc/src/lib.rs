@@ -22,7 +22,10 @@
 #![allow(overflowing_literals)]
 #![allow(non_snake_case)]
 #![allow(unused_macros)]
+#![allow(clippy::cmp_null)]
 #![allow(unused_assignments)]
+#![allow(clippy::missing_safety_doc)]
+#![allow(clippy::absurd_extreme_comparisons)]
 
 #[macro_use]
 extern crate alloc;

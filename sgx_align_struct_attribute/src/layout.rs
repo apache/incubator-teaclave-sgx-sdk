@@ -72,24 +72,20 @@ fn align_needed_for(layout: Layout, offset: usize) -> Result<usize, AlignLayoutE
     Ok(calc_algn(layout.align(), layout.size() + offset))
 }
 
+#[allow(clippy::overflow_check_conditional)]
 #[inline]
 fn check_overflow(buf: usize, len: usize) -> bool {
     (buf + len < len) || (buf + len < buf)
 }
 
 fn check_layout(layout: &Layout) -> bool {
-    if layout.size() == 0
+    !(layout.size() == 0
         || !layout.align().is_power_of_two()
-        || layout.size() > usize::MAX - (layout.align() - 1)
-    {
-        false
-    } else {
-        true
-    }
+        || layout.size() > usize::MAX - (layout.align() - 1))
 }
 
 fn check_align_req(size: usize, align_req: &[AlignReq]) -> bool {
-    if align_req.len() == 0 {
+    if align_req.is_empty() {
         return false;
     }
     let len: usize = (size + 7) / 8;
@@ -148,6 +144,7 @@ fn ror(v: i64, c: usize) -> i64 {
     rol(v, (0 - c as isize) as usize)
 }
 
+#[allow(clippy::comparison_chain)]
 fn count_lzb(bmp: i64) -> i32 {
     if bmp == 0 {
         -1
@@ -195,7 +192,7 @@ fn make_bitmap(align_req: &[AlignReq]) -> i64 {
         if req.len > 63 {
             return -1;
         } else {
-            bmp |= rol(((1 as i64) << req.len) - 1, req.offset);
+            bmp |= rol(((1_i64) << req.len) - 1, req.offset);
         }
     }
     bmp

@@ -18,7 +18,7 @@
 use super::{recv_vectored_with_ancillary_from, send_vectored_with_ancillary_to, SocketAncillary};
 use super::{sockaddr_un, SocketAddr};
 use crate::fmt;
-use crate::io::{self, Initializer, IoSlice, IoSliceMut};
+use crate::io::{self, IoSlice, IoSliceMut};
 use crate::net::Shutdown;
 use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 use crate::os::unix::ucred;
@@ -556,11 +556,6 @@ impl io::Read for UnixStream {
     fn is_read_vectored(&self) -> bool {
         io::Read::is_read_vectored(&&*self)
     }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        Initializer::nop()
-    }
 }
 
 impl<'a> io::Read for &'a UnixStream {
@@ -575,11 +570,6 @@ impl<'a> io::Read for &'a UnixStream {
     #[inline]
     fn is_read_vectored(&self) -> bool {
         self.0.is_read_vectored()
-    }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        Initializer::nop()
     }
 }
 

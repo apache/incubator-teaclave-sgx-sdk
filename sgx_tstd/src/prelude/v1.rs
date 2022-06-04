@@ -46,25 +46,23 @@ pub use crate::result::Result::{self, Err, Ok};
 #[doc(no_inline)]
 pub use core::prelude::v1::{
     assert, cfg, column, compile_error, concat, concat_idents, env, file, format_args,
-    format_args_nl, include, include_bytes, include_str, line, llvm_asm, log_syntax, module_path,
-    option_env, stringify, trace_macros, Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq,
-    PartialOrd,
+    format_args_nl, include, include_bytes, include_str, line, log_syntax, module_path, option_env,
+    stringify, trace_macros, Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd,
 };
 
-// FIXME: Attribute and internal derive macros are not documented because for them rustdoc generates
-// dead links which fail link checker testing.
-#[allow(deprecated, deprecated_in_future)]
-#[doc(hidden)]
-pub use core::prelude::v1::{
-    global_allocator, test, test_case, RustcDecodable, RustcEncodable,
-};
+#[doc(no_inline)]
+pub use core::prelude::v1::concat_bytes;
 
-#[doc(hidden)]
-pub use core::prelude::v1::derive;
-#[doc(hidden)]
+#[allow(deprecated)]
+pub use core::prelude::v1::{RustcDecodable, RustcEncodable};
+
+// Do not `doc(no_inline)` so that they become doc items on their own
+// (no public module for them to be re-exported from).
+pub use core::prelude::v1::{derive, global_allocator, test, test_case};
+
+// Do not `doc(no_inline)` either.
 pub use core::prelude::v1::cfg_accessible;
 
-#[doc(hidden)]
 pub use core::prelude::v1::cfg_eval;
 
 // The file so far is equivalent to src/libcore/prelude/v1.rs,

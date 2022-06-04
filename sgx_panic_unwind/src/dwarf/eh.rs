@@ -138,7 +138,11 @@ fn interpret_cs_action(cs_action: u64, lpad: usize) -> EHAction {
 
 #[inline]
 fn round_up(unrounded: usize, align: usize) -> Result<usize, ()> {
-    if align.is_power_of_two() { Ok((unrounded + align - 1) & !(align - 1)) } else { Err(()) }
+    if align.is_power_of_two() {
+        Ok((unrounded + align - 1) & !(align - 1))
+    } else {
+        Err(())
+    }
 }
 
 unsafe fn read_encoded_pointer(

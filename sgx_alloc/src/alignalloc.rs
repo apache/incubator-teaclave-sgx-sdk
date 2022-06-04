@@ -373,7 +373,7 @@ mod platform {
             if req.len > 63 {
                 return -1;
             } else {
-                bmp |= rol(((1 as i64) << req.len) - 1, req.offset);
+                bmp |= rol(((1_i64) << req.len) - 1, req.offset);
             }
         }
         bmp

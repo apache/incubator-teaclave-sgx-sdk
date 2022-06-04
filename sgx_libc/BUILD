@@ -4,7 +4,7 @@ rust_library(
     name = "sgx_libc",
     srcs = glob(["src/*.rs"]),
     crate_features = ["align"],
-    edition = "2018",
+    edition = "2021",
     visibility = ["//visibility:public"],
     deps = ["//sgx_types"],
 )

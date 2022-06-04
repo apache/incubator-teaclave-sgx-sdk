@@ -111,6 +111,13 @@ extern "C" {
         oflag: c_int,
         mode: c_int,
     ) -> sgx_status_t;
+    pub fn u_openat_ocall(
+        result: *mut c_int,
+        error: *mut c_int,
+        dirfd: c_int,
+        pathname: *const c_char,
+        flags: c_int,
+    ) -> sgx_status_t;
     pub fn u_fstat_ocall(
         result: *mut c_int,
         error: *mut c_int,
@@ -204,6 +211,13 @@ extern "C" {
         oldpath: *const c_char,
         newpath: *const c_char,
     ) -> sgx_status_t;
+    pub fn u_unlinkat_ocall(
+        result: *mut c_int,
+        error: *mut c_int,
+        dirfd: c_int,
+        pathname: *const c_char,
+        flags: c_int,
+    ) -> sgx_status_t;
     pub fn u_linkat_ocall(
         result: *mut c_int,
         error: *mut c_int,
@@ -254,6 +268,7 @@ extern "C" {
         error: *mut c_int,
         pathname: *const c_char,
     ) -> sgx_status_t;
+    pub fn u_fdopendir_ocall(result: *mut *mut DIR, error: *mut c_int, fd: c_int) -> sgx_status_t;
     pub fn u_opendir_ocall(
         result: *mut *mut DIR,
         error: *mut c_int,
@@ -684,14 +699,14 @@ pub unsafe fn mmap(
         if result as isize != -1 {
             if sgx_is_outside_enclave(result, length) == 0 {
                 set_errno(ESGX);
-                result = -1 as isize as *mut c_void;
+                result = -1_isize as *mut c_void;
             }
         } else {
             set_errno(error);
         }
     } else {
         set_errno(ESGX);
-        result = -1 as isize as *mut c_void;
+        result = -1_isize as *mut c_void;
     }
     result
 }
@@ -995,6 +1010,29 @@ pub unsafe fn open64(path: *const c_char, oflag: c_int, mode: c_int) -> c_int {
         path,
         oflag,
         mode,
+    );
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn openat(dirfd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+
+    let status = u_openat_ocall(
+        &mut result as *mut c_int,
+        &mut error as *mut c_int,
+        dirfd,
+        pathname,
+        flags,
     );
 
     if status == sgx_status_t::SGX_SUCCESS {
@@ -1346,6 +1384,29 @@ pub unsafe fn link(oldpath: *const c_char, newpath: *const c_char) -> c_int {
     result
 }
 
+pub unsafe fn unlinkat(dirfd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+
+    let status = u_unlinkat_ocall(
+        &mut result as *mut c_int,
+        &mut error as *mut c_int,
+        dirfd,
+        pathname,
+        flags,
+    );
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
 pub unsafe fn linkat(
     olddirfd: c_int,
     oldpath: *const c_char,
@@ -1524,6 +1585,23 @@ pub unsafe fn rmdir(pathname: *const c_char) -> c_int {
     } else {
         set_errno(ESGX);
         result = -1;
+    }
+    result
+}
+
+pub unsafe fn fdopendir(fd: c_int) -> *mut DIR {
+    let mut result: *mut DIR = ptr::null_mut();
+    let mut error: c_int = 0;
+
+    let status = u_fdopendir_ocall(&mut result as *mut *mut DIR, &mut error as *mut c_int, fd);
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result.is_null() {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = ptr::null_mut();
     }
     result
 }
@@ -2425,7 +2503,7 @@ pub unsafe fn accept(sockfd: c_int, addr: *mut sockaddr, addrlen: *mut socklen_t
     let mut result: c_int = 0;
     let mut error: c_int = 0;
     let len_in: socklen_t = if !addrlen.is_null() { *addrlen } else { 0 };
-    let mut len_out: socklen_t = 0 as socklen_t;
+    let mut len_out: socklen_t = 0;
     let status = u_accept_ocall(
         &mut result as *mut c_int,
         &mut error as *mut c_int,
@@ -2459,7 +2537,7 @@ pub unsafe fn accept4(
     let mut result: c_int = 0;
     let mut error: c_int = 0;
     let len_in: socklen_t = if !addrlen.is_null() { *addrlen } else { 0 };
-    let mut len_out: socklen_t = 0 as socklen_t;
+    let mut len_out: socklen_t = 0;
     let status = u_accept4_ocall(
         &mut result as *mut c_int,
         &mut error as *mut c_int,
@@ -2781,7 +2859,7 @@ pub unsafe fn recvfrom(
     let mut result: ssize_t = 0;
     let mut error: c_int = 0;
     let len_in: socklen_t = if !addrlen.is_null() { *addrlen } else { 0 };
-    let mut len_out: socklen_t = 0 as socklen_t;
+    let mut len_out: socklen_t = 0;
 
     if buf.is_null() || sgx_is_within_enclave(buf, len) == 0 {
         set_errno(EINVAL);
@@ -3012,7 +3090,7 @@ pub unsafe fn getsockopt(
     let mut result: c_int = 0;
     let mut error: c_int = 0;
     let len_in: socklen_t = if !optlen.is_null() { *optlen } else { 0 };
-    let mut len_out: socklen_t = 0 as socklen_t;
+    let mut len_out: socklen_t = 0;
 
     let status = u_getsockopt_ocall(
         &mut result as *mut c_int,
@@ -3044,7 +3122,7 @@ pub unsafe fn getpeername(sockfd: c_int, address: *mut sockaddr, addrlen: *mut s
     let mut result: c_int = 0;
     let mut error: c_int = 0;
     let len_in: socklen_t = if !addrlen.is_null() { *addrlen } else { 0 };
-    let mut len_out: socklen_t = 0 as socklen_t;
+    let mut len_out: socklen_t = 0;
     let status = u_getpeername_ocall(
         &mut result as *mut c_int,
         &mut error as *mut c_int,
@@ -3073,7 +3151,7 @@ pub unsafe fn getsockname(sockfd: c_int, address: *mut sockaddr, addrlen: *mut s
     let mut result: c_int = 0;
     let mut error: c_int = 0;
     let len_in: socklen_t = if !addrlen.is_null() { *addrlen } else { 0 };
-    let mut len_out: socklen_t = 0 as socklen_t;
+    let mut len_out: socklen_t = 0;
     let status = u_getsockname_ocall(
         &mut result as *mut c_int,
         &mut error as *mut c_int,
@@ -3219,7 +3297,7 @@ pub unsafe fn getaddrinfo(
                 cur_ptr = cur.ai_next;
             }
 
-            if addrinfo_vec.len() > 0 {
+            if !addrinfo_vec.is_empty() {
                 if result == 0 {
                     for i in 0..addrinfo_vec.len() - 1 {
                         addrinfo_vec[i].ai_next = addrinfo_vec[i + 1].as_mut() as *mut addrinfo;

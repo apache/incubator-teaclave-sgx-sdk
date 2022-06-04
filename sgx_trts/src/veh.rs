@@ -107,6 +107,7 @@ pub fn rsgx_register_exception_handler(
 ///
 /// The exception handler was not unregistered (not a valid pointer, handler not found).
 ///
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub fn rsgx_unregister_exception_handler(handle: exception_handle) -> bool {
     let ret = unsafe { sgx_unregister_exception_handler(handle) };
     ret != 0

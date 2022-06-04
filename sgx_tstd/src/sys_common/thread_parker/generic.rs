@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//! Parker implementaiton based on a Mutex and Condvar.
+//! Parker implementation based on a Mutex and Condvar.
 
 use crate::sync::atomic::AtomicUsize;
 use crate::sync::atomic::Ordering::SeqCst;
@@ -37,7 +37,7 @@ impl Parker {
         Parker { state: AtomicUsize::new(EMPTY), lock: Mutex::new(()), cvar: Condvar::new() }
     }
 
-    // This implementaiton doesn't require `unsafe`, but other implementations
+    // This implementation doesn't require `unsafe`, but other implementations
     // may assume this is only called by the thread that owns the Parker.
     #[allow(clippy::single_match)]
     pub unsafe fn park(&self) {
@@ -73,7 +73,7 @@ impl Parker {
         }
     }
 
-    // This implementaiton doesn't require `unsafe`, but other implementations
+    // This implementation doesn't require `unsafe`, but other implementations
     // may assume this is only called by the thread that owns the Parker.
     pub unsafe fn park_timeout(&self, dur: Duration) {
         // Like `park` above we have a fast path for an already-notified thread, and

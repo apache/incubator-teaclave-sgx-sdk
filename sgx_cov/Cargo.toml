@@ -6,7 +6,7 @@ repository = "https://github.com/apache/teaclave-sgx-sdk"
 license-file = "LICENSE"
 documentation = "https://teaclave.apache.org/sgx-sdk-docs/"
 description = "Enabling gcov for SGX crates."
-edition = "2018"
+edition = "2021"
 
 [lib]
 name = "sgx_cov"

@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License..
 
-
 //! Owned and borrowed file descriptors.
 
 pub use crate::os::fd::owned::*;

@@ -19,7 +19,7 @@ use crate::os::unix::prelude::*;
 
 use crate::ffi::{CStr, CString, OsStr, OsString};
 use crate::fmt;
-use crate::io::{self, Error, IoSlice, IoSliceMut, SeekFrom};
+use crate::io::{self, Error, IoSlice, IoSliceMut, ReadBuf, SeekFrom};
 use crate::mem;
 use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd};
 use crate::path::{Path, PathBuf};
@@ -29,11 +29,10 @@ use crate::sys::fd::FileDesc;
 use crate::sys::time::SystemTime;
 use crate::sys::{cvt, cvt_r};
 use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
-use crate::untrusted::fs;
 
-use sgx_libc::{c_int, dirent64, mode_t, off64_t, stat64};
+use sgx_libc::{c_int, dirent64, mode_t, off64_t, stat64, time_t};
 
-pub use crate::sys_common::fs::{remove_dir_all, try_exists};
+pub use crate::sys_common::fs::try_exists;
 
 pub struct File(FileDesc);
 
@@ -115,22 +114,22 @@ impl FileAttr {
 impl FileAttr {
     pub fn modified(&self) -> io::Result<SystemTime> {
         Ok(SystemTime::from(libc::timespec {
-            tv_sec: self.stat.st_mtime as libc::time_t,
+            tv_sec: self.stat.st_mtime as time_t,
             tv_nsec: self.stat.st_mtime_nsec as _,
         }))
     }
 
     pub fn accessed(&self) -> io::Result<SystemTime> {
         Ok(SystemTime::from(libc::timespec {
-            tv_sec: self.stat.st_atime as libc::time_t,
+            tv_sec: self.stat.st_atime as time_t,
             tv_nsec: self.stat.st_atime_nsec as _,
         }))
     }
 
     pub fn created(&self) -> io::Result<SystemTime> {
-        Err(io::Error::new_const(
+        Err(io::const_io_error!(
             io::ErrorKind::Unsupported,
-            &"creation time is not available on this platform \
+            "creation time is not available on this platform \
                             currently",
         ))
     }
@@ -235,16 +234,16 @@ impl Drop for Dir {
 
 impl DirEntry {
     pub fn path(&self) -> PathBuf {
-        self.dir.root.join(OsStr::from_bytes(self.name_bytes()))
+        self.dir.root.join(self.file_name_os_str())
     }
 
     pub fn file_name(&self) -> OsString {
-        OsStr::from_bytes(self.name_bytes()).to_os_string()
+        self.file_name_os_str().to_os_string()
     }
 
     pub fn metadata(&self) -> io::Result<FileAttr> {
         let fd = cvt(unsafe { libc::dirfd(self.dir.dirp.0) })?;
-        let name = self.entry.d_name.as_ptr();
+        let name = self.name_cstr().as_ptr();
         let mut stat: stat64 = unsafe { mem::zeroed() };
         cvt(unsafe { libc::fstatat64(fd, name, &mut stat, libc::AT_SYMLINK_NOFOLLOW) })?;
         Ok(FileAttr::from_stat64(stat))
@@ -259,7 +258,7 @@ impl DirEntry {
             libc::DT_SOCK => Ok(FileType { mode: libc::S_IFSOCK }),
             libc::DT_DIR => Ok(FileType { mode: libc::S_IFDIR }),
             libc::DT_BLK => Ok(FileType { mode: libc::S_IFBLK }),
-            _ => lstat(&self.path()).map(|m| m.file_type()),
+            _ => self.metadata().map(|m| m.file_type()),
         }
     }
 
@@ -269,6 +268,10 @@ impl DirEntry {
 
     fn name_bytes(&self) -> &[u8] {
         unsafe { CStr::from_ptr(self.entry.d_name.as_ptr()).to_bytes() }
+    }
+
+    fn name_cstr(&self) -> &CStr {
+        unsafe { CStr::from_ptr(self.entry.d_name.as_ptr()) }
     }
 
     pub fn file_name_os_str(&self) -> &OsStr {
@@ -401,7 +404,7 @@ impl File {
     pub fn truncate(&self, size: u64) -> io::Result<()> {
         use crate::convert::TryInto;
         let size: off64_t =
-                size.try_into().map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
+            size.try_into().map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
         cvt_r(|| unsafe { libc::ftruncate64(self.as_raw_fd(), size) }).map(drop)
     }
 
@@ -420,6 +423,10 @@ impl File {
 
     pub fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize> {
         self.0.read_at(buf, offset)
+    }
+
+    pub fn read_buf(&self, buf: &mut ReadBuf<'_>) -> io::Result<()> {
+        self.0.read_buf(buf)
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
@@ -577,7 +584,10 @@ pub fn readdir(p: &Path) -> io::Result<ReadDir> {
             Err(Error::last_os_error())
         } else {
             let inner = InnerReadDir { dirp: Dir(ptr), root };
-            Ok(ReadDir { inner: Arc::new(inner), end_of_stream: false })
+            Ok(ReadDir {
+                inner: Arc::new(inner),
+                end_of_stream: false,
+            })
         }
     }
 }
@@ -676,7 +686,7 @@ pub fn canonicalize(p: &Path) -> io::Result<PathBuf> {
     Ok(PathBuf::from(OsString::from_vec(buf)))
 }
 
-fn open_from(from: &Path) -> io::Result<(fs::File, fs::Metadata)> {
+fn open_from(from: &Path) -> io::Result<(crate::fs::File, crate::fs::Metadata)> {
     use crate::untrusted::fs::File;
     use crate::sys_common::fs::NOT_FILE_ERROR;
 
@@ -690,10 +700,12 @@ fn open_from(from: &Path) -> io::Result<(fs::File, fs::Metadata)> {
 
 fn open_to_and_set_permissions(
     to: &Path,
-    reader_metadata: fs::Metadata,
-) -> io::Result<(fs::File, fs::Metadata)> {
+    reader_metadata: crate::fs::Metadata,
+) -> io::Result<(crate::fs::File, crate::fs::Metadata)> {
+    use crate::fs::OpenOptions;
+
     let perm = reader_metadata.permissions();
-    let writer = fs::OpenOptions::new()
+    let writer = OpenOptions::new()
         // create the file with the correct mode right away
         .mode(perm.mode())
         .write(true)
@@ -717,6 +729,18 @@ pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
     io::copy::copy(&mut reader, &mut writer)
 }
 
+pub fn chown(_path: &Path, _uid: u32, _gid: u32) -> io::Result<()> {
+    super::unsupported::unsupported()
+}
+
+pub fn fchown(_fd: c_int, _uid: u32, _gid: u32) -> io::Result<()> {
+    super::unsupported::unsupported()
+}
+
+pub fn lchown(_path: &Path, _uid: u32, _gid: u32) -> io::Result<()> {
+    super::unsupported::unsupported()
+}
+
 pub fn chroot(_dir: &Path) -> io::Result<()> {
     super::unsupported::unsupported()
 }
@@ -728,4 +752,114 @@ mod libc {
         realpath, rename, rmdir, stat64, symlink, unlink,
     };
     pub use sgx_libc::*;
+}
+
+pub use remove_dir_impl::remove_dir_all;
+
+mod remove_dir_impl {
+    use super::{cstr, lstat, Dir, DirEntry, InnerReadDir, ReadDir};
+    use crate::ffi::CStr;
+    use crate::io;
+    use crate::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd};
+    use crate::os::unix::prelude::{OwnedFd, RawFd};
+    use crate::path::{Path, PathBuf};
+    use crate::sync::Arc;
+    use crate::sys::{cvt, cvt_r};
+    use libc::{fdopendir, openat, unlinkat};
+
+    pub fn openat_nofollow_dironly(parent_fd: Option<RawFd>, p: &CStr) -> io::Result<OwnedFd> {
+        let fd = cvt_r(|| unsafe {
+            openat(
+                parent_fd.unwrap_or(libc::AT_FDCWD),
+                p.as_ptr(),
+                libc::O_CLOEXEC | libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_DIRECTORY,
+            )
+        })?;
+        Ok(unsafe { OwnedFd::from_raw_fd(fd) })
+    }
+
+    fn fdreaddir(dir_fd: OwnedFd) -> io::Result<(ReadDir, RawFd)> {
+        let ptr = unsafe { fdopendir(dir_fd.as_raw_fd()) };
+        if ptr.is_null() {
+            return Err(io::Error::last_os_error());
+        }
+        let dirp = Dir(ptr);
+        // file descriptor is automatically closed by libc::closedir() now, so give up ownership
+        let new_parent_fd = dir_fd.into_raw_fd();
+        // a valid root is not needed because we do not call any functions involving the full path
+        // of the DirEntrys.
+        let dummy_root = PathBuf::new();
+        Ok((
+            ReadDir {
+                inner: Arc::new(InnerReadDir { dirp, root: dummy_root }),
+                end_of_stream: false,
+            },
+            new_parent_fd,
+        ))
+    }
+
+    fn is_dir(ent: &DirEntry) -> Option<bool> {
+        match ent.entry.d_type {
+            libc::DT_UNKNOWN => None,
+            libc::DT_DIR => Some(true),
+            _ => Some(false),
+        }
+    }
+
+    fn remove_dir_all_recursive(parent_fd: Option<RawFd>, p: &Path) -> io::Result<()> {
+        let pcstr = cstr(p)?;
+
+        // entry is expected to be a directory, open as such
+        let fd = openat_nofollow_dironly(parent_fd, &pcstr)?;
+
+        // open the directory passing ownership of the fd
+        let (dir, fd) = fdreaddir(fd)?;
+        for child in dir {
+            let child = child?;
+            match is_dir(&child) {
+                Some(true) => {
+                    remove_dir_all_recursive(Some(fd), Path::new(&child.file_name()))?;
+                }
+                Some(false) => {
+                    cvt(unsafe { unlinkat(fd, child.name_cstr().as_ptr(), 0) })?;
+                }
+                None => match cvt(unsafe { unlinkat(fd, child.name_cstr().as_ptr(), 0) }) {
+                    // type unknown - try to unlink
+                    Err(err)
+                        if err.raw_os_error() == Some(libc::EISDIR)
+                            || err.raw_os_error() == Some(libc::EPERM) =>
+                    {
+                        // if the file is a directory unlink fails with EISDIR on Linux and EPERM everyhwere else
+                        remove_dir_all_recursive(Some(fd), Path::new(&child.file_name()))?;
+                    }
+                    result => {
+                        result?;
+                    }
+                },
+            }
+        }
+
+        // unlink the directory after removing its contents
+        cvt(unsafe {
+            unlinkat(parent_fd.unwrap_or(libc::AT_FDCWD), pcstr.as_ptr(), libc::AT_REMOVEDIR)
+        })?;
+        Ok(())
+    }
+
+    pub fn remove_dir_all(p: &Path) -> io::Result<()> {
+        // We cannot just call remove_dir_all_recursive() here because that would not delete a passed
+        // symlink. No need to worry about races, because remove_dir_all_recursive() does not recurse
+        // into symlinks.
+        let attr = lstat(p)?;
+        if attr.file_type().is_symlink() {
+            crate::fs::remove_file(p)
+        } else {
+            remove_dir_all_recursive(None, p)
+        }
+    }
+
+    mod libc {
+        pub use sgx_libc::ocall::{fdopendir, openat, unlinkat};
+        pub use sgx_libc::*;
+    }
 }

@@ -17,7 +17,7 @@
 
 //! Filesystem manipulation operations.
 
-use crate::io::{self, SeekFrom, Seek, Read, Initializer, Write};
+use crate::io::{self, SeekFrom, Seek, Read, Write};
 use crate::path::Path;
 use crate::sys::sgxfs as fs_imp;
 use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
@@ -157,11 +157,6 @@ impl Read for SgxFile {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
     }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        Initializer::nop()
-    }
 }
 
 impl Write for SgxFile {
@@ -180,11 +175,6 @@ impl Seek for SgxFile {
 impl<'a> Read for &'a SgxFile {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
-    }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        Initializer::nop()
     }
 }
 
