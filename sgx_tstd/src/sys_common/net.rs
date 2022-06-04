@@ -21,7 +21,7 @@ use crate::cmp;
 use crate::convert::{TryFrom, TryInto};
 use crate::ffi::CString;
 use crate::fmt;
-use crate::io::{self, Error, ErrorKind, IoSlice, IoSliceMut};
+use crate::io::{self, ErrorKind, IoSlice, IoSliceMut};
 use crate::mem;
 use crate::net::{Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr};
 use crate::ptr;
@@ -82,7 +82,7 @@ pub fn sockaddr_to_addr(storage: &c::sockaddr_storage, len: usize) -> io::Result
                 *(storage as *const _ as *const c::sockaddr_in6)
             })))
         }
-        _ => Err(Error::new_const(ErrorKind::InvalidInput, &"invalid argument")),
+        _ => Err(io::const_io_error!(ErrorKind::InvalidInput, "invalid argument")),
     }
 }
 
@@ -106,6 +106,7 @@ impl LookupHost {
     }
 }
 
+#[allow(clippy::transmute_ptr_to_ref)]
 impl Iterator for LookupHost {
     type Item = SocketAddr;
     fn next(&mut self) -> Option<SocketAddr> {
@@ -113,7 +114,7 @@ impl Iterator for LookupHost {
             unsafe {
                 let cur = self.cur.as_ref()?;
                 self.cur = cur.ai_next;
-                match sockaddr_to_addr(&*(cur.ai_addr as *const c::sockaddr_storage), cur.ai_addrlen as usize) {
+                match sockaddr_to_addr(mem::transmute(cur.ai_addr), cur.ai_addrlen as usize) {
                     Ok(addr) => return Some(addr),
                     Err(_) => continue,
                 }
@@ -139,7 +140,7 @@ impl TryFrom<&str> for LookupHost {
             ($e:expr, $msg:expr) => {
                 match $e {
                     Some(r) => r,
-                    None => return Err(io::Error::new_const(io::ErrorKind::InvalidInput, &$msg)),
+                    None => return Err(io::const_io_error!(io::ErrorKind::InvalidInput, $msg)),
                 }
             };
         }

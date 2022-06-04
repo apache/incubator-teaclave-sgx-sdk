@@ -138,7 +138,7 @@ pub mod gnu {
     pub fn get_enclave_filename() -> io::Result<Vec<u8>> {
         let p = enclave::get_enclave_path();
         let result = match p {
-            None => Err(Error::new(ErrorKind::Other, "Not implemented")),
+            None => Err(Error::new(ErrorKind::Other, "no enclave path found")),
             Some(path) => {
                 let cstr = CString::new(path.as_os_str().as_bytes())?;
                 let v = unsafe { mem::transmute(cstr.into_bytes_with_nul()) };

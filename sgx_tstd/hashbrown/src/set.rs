@@ -378,7 +378,7 @@ impl<T, S, A: Allocator + Clone> HashSet<T, S, A> {
     /// ```
     #[cfg_attr(feature = "inline-more", inline)]
     pub fn clear(&mut self) {
-        self.map.clear()
+        self.map.clear();
     }
 }
 
@@ -454,6 +454,12 @@ impl<T, S, A> HashSet<T, S, A>
 where
     A: Allocator + Clone,
 {
+    /// Returns a reference to the underlying allocator.
+    #[inline]
+    pub fn allocator(&self) -> &A {
+        self.map.allocator()
+    }
+
     /// Creates a new empty hash set which will use the given hasher to hash
     /// keys.
     ///
@@ -553,7 +559,7 @@ where
     /// ```
     #[cfg_attr(feature = "inline-more", inline)]
     pub fn reserve(&mut self, additional: usize) {
-        self.map.reserve(additional)
+        self.map.reserve(additional);
     }
 
     /// Tries to reserve capacity for at least `additional` more elements to be inserted
@@ -595,7 +601,7 @@ where
     /// ```
     #[cfg_attr(feature = "inline-more", inline)]
     pub fn shrink_to_fit(&mut self) {
-        self.map.shrink_to_fit()
+        self.map.shrink_to_fit();
     }
 
     /// Shrinks the capacity of the set with a lower limit. It will drop
@@ -621,7 +627,7 @@ where
     /// ```
     #[cfg_attr(feature = "inline-more", inline)]
     pub fn shrink_to(&mut self, min_capacity: usize) {
-        self.map.shrink_to(min_capacity)
+        self.map.shrink_to(min_capacity);
     }
 
     /// Visits the values representing the difference,
@@ -985,6 +991,30 @@ where
         self.map.insert(value, ()).is_none()
     }
 
+    /// Insert a value the set without checking if the value already exists in the set.
+    ///
+    /// Returns a reference to the value just inserted.
+    ///
+    /// This operation is safe if a value does not exist in the set.
+    ///
+    /// However, if a value exists in the set already, the behavior is unspecified:
+    /// this operation may panic, loop forever, or any following operation with the set
+    /// may panic, loop forever or return arbitrary result.
+    ///
+    /// That said, this operation (and following operations) are guaranteed to
+    /// not violate memory safety.
+    ///
+    /// This operation is faster than regular insert, because it does not perform
+    /// lookup before insertion.
+    ///
+    /// This operation is useful during initial population of the set.
+    /// For example, when constructing a set from another set, we know
+    /// that values are unique.
+    #[cfg_attr(feature = "inline-more", inline)]
+    pub fn insert_unique_unchecked(&mut self, value: T) -> &T {
+        self.map.insert_unique_unchecked(value, ()).0
+    }
+
     /// Adds a value to the set, replacing the existing value, if any, that is equal to the given
     /// one. Returns the replaced value.
     ///
@@ -1098,8 +1128,7 @@ where
 
 impl<T, S, A> fmt::Debug for HashSet<T, S, A>
 where
-    T: Eq + Hash + fmt::Debug,
-    S: BuildHasher,
+    T: fmt::Debug,
     A: Allocator + Clone,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1127,6 +1156,27 @@ where
         let mut set = Self::with_hasher_in(Default::default(), Default::default());
         set.extend(iter);
         set
+    }
+}
+
+// The default hasher is used to match the std implementation signature
+#[cfg(feature = "ahash")]
+impl<T, A, const N: usize> From<[T; N]> for HashSet<T, DefaultHashBuilder, A>
+where
+    T: Eq + Hash,
+    A: Default + Allocator + Clone,
+{
+    /// # Examples
+    ///
+    /// ```
+    /// use hashbrown::HashSet;
+    ///
+    /// let set1 = HashSet::from([1, 2, 3, 4]);
+    /// let set2: HashSet<_> = [1, 2, 3, 4].into();
+    /// assert_eq!(set1, set2);
+    /// ```
+    fn from(arr: [T; N]) -> Self {
+        arr.into_iter().collect()
     }
 }
 
@@ -1162,7 +1212,7 @@ where
 {
     #[cfg_attr(feature = "inline-more", inline)]
     fn extend<I: IntoIterator<Item = &'a T>>(&mut self, iter: I) {
-        self.extend(iter.into_iter().cloned());
+        self.extend(iter.into_iter().copied());
     }
 
     #[inline]
@@ -1963,7 +2013,7 @@ mod test_set {
         let expected = [3, 5, 11, 77];
         for x in a.intersection(&b) {
             assert!(expected.contains(x));
-            i += 1
+            i += 1;
         }
         assert_eq!(i, expected.len());
     }
@@ -1986,7 +2036,7 @@ mod test_set {
         let expected = [1, 5, 11];
         for x in a.difference(&b) {
             assert!(expected.contains(x));
-            i += 1
+            i += 1;
         }
         assert_eq!(i, expected.len());
     }
@@ -2012,7 +2062,7 @@ mod test_set {
         let expected = [-2, 1, 5, 11, 14, 22];
         for x in a.symmetric_difference(&b) {
             assert!(expected.contains(x));
-            i += 1
+            i += 1;
         }
         assert_eq!(i, expected.len());
     }
@@ -2042,7 +2092,7 @@ mod test_set {
         let expected = [-2, 1, 3, 5, 9, 11, 13, 16, 19, 24];
         for x in a.union(&b) {
             assert!(expected.contains(x));
-            i += 1
+            i += 1;
         }
         assert_eq!(i, expected.len());
     }
@@ -2068,7 +2118,7 @@ mod test_set {
     fn test_from_iter() {
         let xs = [1, 2, 2, 3, 4, 5, 6, 7, 8, 9];
 
-        let set: HashSet<_> = xs.iter().cloned().collect();
+        let set: HashSet<_> = xs.iter().copied().collect();
 
         for x in &xs {
             assert!(set.contains(x));
@@ -2230,7 +2280,7 @@ mod test_set {
     #[test]
     fn test_retain() {
         let xs = [1, 2, 3, 4, 5, 6];
-        let mut set: HashSet<i32> = xs.iter().cloned().collect();
+        let mut set: HashSet<i32> = xs.iter().copied().collect();
         set.retain(|&k| k % 2 == 0);
         assert_eq!(set.len(), 3);
         assert!(set.contains(&2));
@@ -2272,7 +2322,7 @@ mod test_set {
 
         const EMPTY_SET: HashSet<u32, MyHasher> = HashSet::with_hasher(MyHasher);
 
-        let mut set = EMPTY_SET.clone();
+        let mut set = EMPTY_SET;
         set.insert(19);
         assert!(set.contains(&19));
     }

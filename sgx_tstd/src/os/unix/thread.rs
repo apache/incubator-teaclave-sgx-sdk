@@ -15,7 +15,9 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//! Unix-specific extensions to primitives in the `std::thread` module.
+//! Unix-specific extensions to primitives in the [`std::thread`] module.
+//!
+//! [`std::thread`]: crate::thread
 
 #[allow(deprecated)]
 use crate::os::unix::raw::pthread_t;

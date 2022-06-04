@@ -225,7 +225,6 @@ mod platform {
     use core::alloc::{GlobalAlloc, Layout};
     use core::ffi::c_void;
     use core::ptr;
-    use libc;
 
     unsafe impl GlobalAlloc for System {
         #[inline]

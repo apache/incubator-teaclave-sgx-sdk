@@ -37,11 +37,19 @@ pub use core::panicking::{panic_display, panic_fmt};
 // - the standard error output
 // - some dedicated platform specific output
 // - nothing (so this macro is a no-op)
+#[cfg(feature = "stdio")]
 macro_rules! rtprintpanic {
     ($($t:tt)*) => {
         if let Some(mut out) = crate::sys::stdio::panic_output() {
             let _ = crate::io::Write::write_fmt(&mut out, format_args!($($t)*));
         }
+    }
+}
+
+#[cfg(not(feature = "stdio"))]
+macro_rules! rtprintpanic {
+    ($($t:tt)*) => {
+        format_args!($($t)*);
     }
 }
 
@@ -118,7 +126,7 @@ global_dtors_object! {
 
 // One-time runtime cleanup.
 // NOTE: this is not guaranteed to run, for example when the program aborts.
-fn cleanup() {
+pub (crate) fn cleanup() {
     static CLEANUP: Once = Once::new();
     CLEANUP.call_once(|| {
         // Flush stdout and disable buffering.

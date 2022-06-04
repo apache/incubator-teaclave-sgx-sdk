@@ -919,8 +919,7 @@ impl ToSocketAddrs for (Ipv6Addr, u16) {
 }
 
 #[cfg(feature = "net")]
-#[allow(clippy::unnecessary_wraps)]
-#[allow(clippy::needless_collect)]
+#[allow(clippy::unnecessary_wraps, clippy::needless_collect)]
 fn resolve_socket_addr(lh: LookupHost) -> io::Result<vec::IntoIter<SocketAddr>> {
     let p = lh.port();
     let v: Vec<_> = lh
@@ -948,7 +947,7 @@ impl ToSocketAddrs for (&str, u16) {
         }
 
         #[cfg(not(feature = "net"))]
-        let r = Err(io::Error::new_const(io::ErrorKind::InvalidInput, &"invalid socket address"));
+        let r = Err(io::const_io_error!(io::ErrorKind::InvalidInput, "invalid socket address"));
         #[cfg(feature = "net")]
         let r = resolve_socket_addr((host, port).try_into()?);
         r
@@ -972,7 +971,7 @@ impl ToSocketAddrs for str {
         }
 
         #[cfg(not(feature = "net"))]
-        let r = Err(io::Error::new_const(io::ErrorKind::InvalidInput, &"invalid socket address"));
+        let r = Err(io::const_io_error!(io::ErrorKind::InvalidInput, "invalid socket address"));
         #[cfg(feature = "net")]
         let r = resolve_socket_addr(self.try_into()?);
         r

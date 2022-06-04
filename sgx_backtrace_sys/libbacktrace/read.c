@@ -94,6 +94,7 @@ backtrace_get_view(struct backtrace_state* state, int descriptor,
     if (got < 0) {
         error_callback(data, "read", error);
         free(view->base);
+        sgx_ocfree();
         return 0;
     }
 

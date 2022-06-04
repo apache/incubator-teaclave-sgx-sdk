@@ -55,6 +55,7 @@ int VerificationManager::init() {
     this->nm->connectCallbackHandler([this](string v, int type) {
         return this->incomingHandler(v, type);
     });
+    return 1;
 }
 
 
@@ -178,10 +179,10 @@ vector<string> VerificationManager::incomingHandler(string v, int type) {
         }
         break;
         case RA_APP_ATT_OK: {
-            Messages::SecretMessage sec_msg;
-            ret = sec_msg.ParseFromString(v);
+            Messages::InitialMessage msg;
+            ret = msg.ParseFromString(v);
             if (ret) {
-                if (sec_msg.type() == RA_APP_ATT_OK) {
+                if (msg.type() == RA_APP_ATT_OK) {
                     this->handleAppAttOk();
                 }
             }

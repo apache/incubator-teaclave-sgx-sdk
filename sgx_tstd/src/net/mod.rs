@@ -32,11 +32,13 @@
 //!   with networking objects like [`TcpListener`], [`TcpStream`] or [`UdpSocket`]
 //! * Other types are return or parameter types for various methods in this module
 
-use crate::io::{self, Error, ErrorKind};
+use crate::io::{self, ErrorKind};
 
 pub use self::addr::{SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 pub use self::ip::{IpAddr, Ipv4Addr, Ipv6Addr, Ipv6MulticastScope};
 pub use self::parser::AddrParseError;
+#[cfg(feature = "net")]
+pub use self::tcp::IntoIncoming;
 #[cfg(feature = "net")]
 pub use self::tcp::{Incoming, TcpListener, TcpStream};
 #[cfg(feature = "net")]
@@ -96,6 +98,6 @@ where
         }
     }
     Err(last_err.unwrap_or_else(|| {
-        Error::new_const(ErrorKind::InvalidInput, &"could not resolve to any addresses")
+        io::const_io_error!(ErrorKind::InvalidInput, "could not resolve to any addresses")
     }))
 }

@@ -17,34 +17,17 @@
 
 //! Linux-specific raw type definitions.
 
-pub type c_char = i8;
-pub type c_schar = i8;
-pub type c_uchar = u8;
-pub type c_short = i16;
-pub type c_ushort = u16;
-pub type c_int = i32;
-pub type c_uint = u32;
-#[cfg(target_pointer_width = "32")]
-pub type c_long = i32;
-#[cfg(target_pointer_width = "32")]
-pub type c_ulong = u32;
-#[cfg(target_pointer_width = "64")]
-pub type c_long = i64;
-#[cfg(target_pointer_width = "64")]
-pub type c_ulong = u64;
-pub type c_longlong = i64;
-pub type c_ulonglong = u64;
-pub type c_float = f32;
-pub type c_double = f64;
+#![allow(deprecated)]
 
-#[doc(no_inline)]
-pub use core::ffi::c_void;
+use crate::os::raw::c_void;
 
 pub type dev_t = u64;
 pub type mode_t = u32;
 pub type pthread_t = *mut c_void;
 
-pub use self::arch::{off_t, ino_t, nlink_t, blksize_t, blkcnt_t, stat, time_t};
+#[doc(inline)]
+pub use self::arch::{blkcnt_t, blksize_t, ino_t, nlink_t, off_t, stat, time_t};
+
 
 mod arch {
     use crate::os::raw::{c_long, c_int};

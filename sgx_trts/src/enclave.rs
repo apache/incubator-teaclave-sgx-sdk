@@ -562,6 +562,7 @@ pub fn rsgx_get_tcs_max_num() -> u32 {
     unsafe { g_global_data.tcs_max_num as u32 }
 }
 
+#[allow(clippy::collapsible_if, clippy::nonminimal_bool)]
 pub fn rsgx_get_tcs_num() -> (u32, u32, u32) {
     let gd = unsafe {
         let p = rsgx_get_global_data();

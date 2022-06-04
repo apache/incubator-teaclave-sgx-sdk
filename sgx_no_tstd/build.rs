@@ -15,8 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#![feature(available_parallelism)]
-
 extern crate sgx_build_helper as build_helper;
 
 use build_helper::{native_lib_boilerplate, run};

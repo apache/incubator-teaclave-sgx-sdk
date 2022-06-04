@@ -157,15 +157,6 @@ mod inner {
             Instant { t: now(libc::CLOCK_MONOTONIC) }
         }
 
-        pub const fn zero() -> Instant {
-            Instant { t: Timespec::zero() }
-        }
-
-        pub fn actually_monotonic() -> bool {
-            (cfg!(target_os = "linux") && cfg!(target_arch = "x86_64"))
-                || (cfg!(target_os = "linux") && cfg!(target_arch = "x86"))
-        }
-
         pub fn checked_sub_instant(&self, other: &Instant) -> Option<Duration> {
             self.t.sub_timespec(&other.t).ok()
         }

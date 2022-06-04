@@ -46,39 +46,36 @@
 
 #![allow(clippy::declare_interior_mutable_const)]
 #![allow(clippy::len_without_is_empty)]
-#![allow(clippy::mem_replace_with_default)]
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::new_without_default)]
 #![allow(clippy::transmute_ptr_to_ptr)]
 #![allow(clippy::wrong_self_convention)]
 
 #![feature(rustc_allow_const_fn_unstable)]
-
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]
 #![feature(allocator_internals)]
 #![feature(allow_internal_unsafe)]
 #![feature(allow_internal_unstable)]
 #![feature(array_error_internals)]
-#![feature(asm)]
 #![feature(assert_matches)]
-#![feature(async_stream)]
+#![feature(async_iterator)]
 #![feature(bench_black_box)]
 #![feature(bool_to_option)]
 #![feature(box_syntax)]
-#![feature(c_variadic)]
 #![feature(c_unwind)]
+#![feature(c_variadic)]
 #![feature(cfg_accessible)]
 #![feature(cfg_eval)]
 #![feature(cfg_target_has_atomic)]
 #![feature(char_error_internals)]
 #![feature(char_internals)]
+#![feature(concat_bytes)]
 #![feature(concat_idents)]
-#![feature(const_caller_location)]
 #![feature(const_fn_fn_ptr_basics)]
 #![feature(const_fn_trait_bound)]
 #![feature(const_format_args)]
-#![feature(const_raw_ptr_deref)]
+#![feature(const_mut_refs)]
 #![feature(const_trait_impl)]
 #![feature(core_intrinsics)]
 #![feature(core_panic)]
@@ -88,23 +85,22 @@
 #![feature(duration_checked_float)]
 #![feature(duration_constants)]
 #![feature(edition_panic)]
+#![feature(exact_size_is_empty)]
 #![feature(extend_one)]
 #![feature(fn_traits)]
+#![feature(float_minimum_maximum)]
 #![feature(format_args_nl)]
 #![feature(gen_future)]
 #![feature(get_mut_unchecked)]
-#![feature(global_asm)]
 #![feature(hashmap_internals)]
-#![feature(into_future)]
 #![feature(int_error_internals)]
-#![feature(iter_zip)]
+#![feature(into_future)]
 #![feature(lang_items)]
 #![feature(linked_list_remove)]
-#![feature(llvm_asm)]
 #![feature(log_syntax)]
 #![feature(map_try_insert)]
-#![feature(maybe_uninit_extra)]
 #![feature(maybe_uninit_slice)]
+#![feature(maybe_uninit_write_slice)]
 #![feature(mixed_integer_ops)]
 #![feature(must_not_suspend)]
 #![feature(needs_panic_runtime)]
@@ -114,11 +110,13 @@
 #![feature(once_cell)]
 #![feature(panic_info_message)]
 #![feature(panic_internals)]
+#![feature(panic_can_unwind)]
 #![feature(panic_unwind)]
-#![feature(pin_static_ref)]
 #![feature(prelude_import)]
+#![feature(ptr_as_uninit)]
 #![feature(ptr_internals)]
 #![feature(rustc_attrs)]
+#![feature(slice_internals)]
 #![feature(specialization)]
 #![feature(std_internals)]
 #![feature(str_internals)]
@@ -130,7 +128,6 @@
 #![feature(try_blocks)]
 #![feature(try_reserve_kind)]
 #![feature(unboxed_closures)]
-#![feature(vec_spare_capacity)]
 #![default_lib_allocator]
 
 // Explicitly import the prelude. The compiler uses this same unstable attribute
@@ -189,6 +186,7 @@ pub use alloc_crate::string;
 pub use alloc_crate::vec;
 pub use core::any;
 pub use core::array;
+pub use core::async_iter;
 pub use core::cell;
 pub use core::char;
 pub use core::clone;
@@ -213,13 +211,17 @@ pub use core::option;
 pub use core::pin;
 pub use core::ptr;
 pub use core::result;
-pub use core::stream;
 pub use core::u128;
 pub use core::u16;
 pub use core::u32;
 pub use core::u64;
 pub use core::u8;
 pub use core::usize;
+
+// The runtime entry point and a few unstable public functions used by the
+// compiler
+#[macro_use]
+pub mod rt;
 
 pub mod f32;
 pub mod f64;
@@ -257,10 +259,14 @@ pub mod task {
     pub use alloc_crate::task::*;
 }
 
-// The runtime entry point and a few unstable public functions used by the
-// compiler
-#[macro_use]
-pub mod rt;
+pub mod arch {
+    // The `no_inline`-attribute is required to make the documentation of all
+    // targets available.
+    // See https://github.com/rust-lang/rust/pull/57808#issuecomment-457390549 for
+    // more information.
+    #[doc(no_inline)] // Note (#82861): required for correct documentation
+    pub use core::arch::*;
+}
 
 // Platform-abstraction modules
 mod sys;
@@ -295,9 +301,11 @@ pub use core::{
 #[allow(deprecated)]
 pub use core::{
     assert, assert_matches, cfg, column, compile_error, concat, concat_idents, const_format_args,
-    env, file, format_args, format_args_nl, include, include_bytes, include_str, line, llvm_asm,
-    log_syntax, module_path, option_env, stringify, trace_macros,
+    env, file, format_args, format_args_nl, include, include_bytes, include_str, line, log_syntax,
+    module_path, option_env, stringify, trace_macros,
 };
+
+pub use core::concat_bytes;
 
 pub use core::primitive;
 

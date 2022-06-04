@@ -36,7 +36,7 @@ pub fn test_std_time() {
 
     {
         let a = Instant::now();
-        should_panic!((a - Duration::new(1, 0)).duration_since(a));
+        assert!((a - Duration::new(1, 0)).duration_since(a) == Duration::new(0, 0));
     }
 
     {

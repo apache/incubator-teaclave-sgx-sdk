@@ -64,7 +64,7 @@
 #![allow(non_camel_case_types)]
 #![allow(dead_code)] // sys isn't exported yet
 
-use core::sync::atomic::{self, AtomicUsize, Ordering};
+use crate::sync::atomic::{self, AtomicUsize, Ordering};
 use crate::sys::thread_local_key as imp;
 use crate::sync::SgxThreadMutex;
 

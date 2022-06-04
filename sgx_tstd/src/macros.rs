@@ -70,7 +70,9 @@ macro_rules! panic {
 ///
 /// io::stdout().flush().unwrap();
 /// ```
+#[cfg(feature = "stdio")]
 #[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "print_macro")]
 #[allow_internal_unstable(print_internals)]
 macro_rules! print {
     ($($arg:tt)*) => ($crate::io::_print($crate::format_args!($($arg)*)));
@@ -102,7 +104,9 @@ macro_rules! print {
 /// println!("hello there!");
 /// println!("format {} arguments", "some");
 /// ```
+#[cfg(feature = "stdio")]
 #[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "println_macro")]
 #[allow_internal_unstable(print_internals, format_args_nl)]
 macro_rules! println {
     () => ($crate::print!("\n"));
@@ -113,10 +117,12 @@ macro_rules! println {
 
 #[cfg(not(feature = "stdio"))]
 #[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "print_macro")]
 macro_rules! print { ($($arg:tt)*) => ({}) }
 
 #[cfg(not(feature = "stdio"))]
 #[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "println_macro")]
 macro_rules! println { ($($arg:tt)*) => ({}) }
 
 /// Prints to the standard error.
@@ -140,7 +146,9 @@ macro_rules! println { ($($arg:tt)*) => ({}) }
 /// ```
 /// eprint!("Error: Could not complete task");
 /// ```
+#[cfg(feature = "stdio")]
 #[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "eprint_macro")]
 #[allow_internal_unstable(print_internals)]
 macro_rules! eprint {
     ($($arg:tt)*) => ($crate::io::_eprint($crate::format_args!($($arg)*)));
@@ -167,7 +175,9 @@ macro_rules! eprint {
 /// ```
 /// eprintln!("Error: Could not complete task");
 /// ```
+#[cfg(feature = "stdio")]
 #[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "eprintln_macro")]
 #[allow_internal_unstable(print_internals, format_args_nl)]
 macro_rules! eprintln {
     () => ($crate::eprint!("\n"));
@@ -178,10 +188,12 @@ macro_rules! eprintln {
 
 #[cfg(not(feature = "stdio"))]
 #[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "eprint_macro")]
 macro_rules! eprint { ($($arg:tt)*) => ({}) }
 
 #[cfg(not(feature = "stdio"))]
 #[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "eprintln_macro")]
 macro_rules! eprintln { ($($arg:tt)*) => ({}) }
 
 /// Prints and returns the value of a given expression for quick and dirty
@@ -309,6 +321,7 @@ macro_rules! eprintln { ($($arg:tt)*) => ({}) }
 /// [`debug!`]: https://docs.rs/log/*/log/macro.debug.html
 /// [`log`]: https://crates.io/crates/log
 #[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "dbg_macro")]
 macro_rules! dbg {
     // NOTE: We cannot use `concat!` to make a static string as a format argument
     // of `eprintln!` because `file!` could contain a `{` or

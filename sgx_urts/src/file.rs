@@ -57,6 +57,26 @@ pub extern "C" fn u_open64_ocall(
 }
 
 #[no_mangle]
+pub extern "C" fn u_openat_ocall(
+    error: *mut c_int,
+    dirfd: c_int,
+    pathname: *const c_char,
+    flags: c_int,
+) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::openat(dirfd, pathname, flags) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe {
+            *error = errno;
+        }
+    }
+    ret
+}
+
+#[no_mangle]
 pub extern "C" fn u_fstat_ocall(error: *mut c_int, fd: c_int, buf: *mut stat) -> c_int {
     let mut errno = 0;
     let ret = unsafe { libc::fstat(fd, buf) };
@@ -338,6 +358,26 @@ pub extern "C" fn u_link_ocall(
 }
 
 #[no_mangle]
+pub extern "C" fn u_unlinkat_ocall(
+    error: *mut c_int,
+    dirfd: c_int,
+    pathname: *const c_char,
+    flags: c_int,
+) -> c_int {
+    let mut errno = 0;
+    let ret = unsafe { libc::unlinkat(dirfd, pathname, flags) };
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe {
+            *error = errno;
+        }
+    }
+    ret
+}
+
+#[no_mangle]
 pub extern "C" fn u_linkat_ocall(
     error: *mut c_int,
     olddirfd: c_int,
@@ -467,6 +507,21 @@ pub extern "C" fn u_rmdir_ocall(error: *mut c_int, pathname: *const c_char) -> c
     let mut errno = 0;
     let ret = unsafe { libc::rmdir(pathname) };
     if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    if !error.is_null() {
+        unsafe {
+            *error = errno;
+        }
+    }
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn u_fdopendir_ocall(error: *mut c_int, fd: c_int) -> *mut DIR {
+    let mut errno = 0;
+    let ret = unsafe { libc::fdopendir(fd) };
+    if ret.is_null() {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
     if !error.is_null() {

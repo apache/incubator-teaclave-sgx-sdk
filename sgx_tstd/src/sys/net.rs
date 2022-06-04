@@ -44,9 +44,6 @@ pub fn cvt_gai(err: c_int) -> io::Result<()> {
         return Ok(());
     }
 
-    // We may need to trigger a glibc workaround. See on_resolver_failure() for details.
-    // on_resolver_failure();
-
     if err == libc::EAI_SYSTEM {
         return Err(io::Error::last_os_error());
     }
@@ -117,9 +114,9 @@ impl Socket {
         let mut pollfd = libc::pollfd { fd: self.as_raw_fd(), events: libc::POLLOUT, revents: 0 };
 
         if timeout.as_secs() == 0 && timeout.subsec_nanos() == 0 {
-            return Err(io::Error::new_const(
+            return Err(io::const_io_error!(
                 io::ErrorKind::InvalidInput,
-                &"cannot set a 0 duration timeout",
+                "cannot set a 0 duration timeout",
             ));
         }
 
@@ -128,7 +125,7 @@ impl Socket {
         loop {
             let elapsed = start.elapsed();
             if elapsed >= timeout {
-                return Err(io::Error::new_const(io::ErrorKind::TimedOut, &"connection timed out"));
+                return Err(io::const_io_error!(io::ErrorKind::TimedOut, "connection timed out"));
             }
 
             let timeout = timeout - elapsed;
@@ -155,9 +152,9 @@ impl Socket {
                     // for POLLHUP rather than read readiness
                     if pollfd.revents & libc::POLLHUP != 0 {
                         let e = self.take_error()?.unwrap_or_else(|| {
-                            io::Error::new_const(
+                            io::const_io_error!(
                                 io::ErrorKind::Uncategorized,
-                                &"no error set after POLLHUP",
+                                "no error set after POLLHUP",
                             )
                         });
                         return Err(e);
@@ -169,16 +166,6 @@ impl Socket {
         }
     }
 
-    // Attention:
-    // this function is a blocking function, which make an OCALL
-    // and block itself **in the untrusted OS**. This is very much
-    // dangerous and is misleading.
-    // In SGX programming, execution is by default in enclave and
-    // cannot leak information by design. Howeverm, this function
-    // is not. It leaks events.
-    // This function is guarded by feature `net` and should only
-    // be used on demand.
-    // We don't support linux kernel < 2.6.28. So we only use accept4.
     pub fn accept(&self, storage: *mut sockaddr, len: *mut socklen_t) -> io::Result<Socket> {
         // Unfortunately the only known way right now to accept a socket and
         // atomically set the CLOEXEC flag is to use the `accept4` syscall on
@@ -274,9 +261,9 @@ impl Socket {
         let timeout = match dur {
             Some(dur) => {
                 if dur.as_secs() == 0 && dur.subsec_nanos() == 0 {
-                    return Err(io::Error::new_const(
+                    return Err(io::const_io_error!(
                         io::ErrorKind::InvalidInput,
-                        &"cannot set a 0 duration timeout",
+                        "cannot set a 0 duration timeout",
                     ));
                 }
 

@@ -1418,9 +1418,9 @@ pub const SA_ONSTACK: c_int = 0x08000000;
 pub const SA_SIGINFO: c_int = 0x00000004;
 pub const SA_NOCLDWAIT: c_int = 0x00000002;
 
-pub const SIG_DFL: sighandler_t = 0 as sighandler_t;
-pub const SIG_IGN: sighandler_t = 1 as sighandler_t;
-pub const SIG_ERR: sighandler_t = !0 as sighandler_t;
+pub const SIG_DFL: sighandler_t = 0_usize;
+pub const SIG_IGN: sighandler_t = 1_usize;
+pub const SIG_ERR: sighandler_t = !0 as usize;
 
 pub const SIGTRAP: c_int = 5;
 pub const SIGCHLD: c_int = 17;
@@ -1536,7 +1536,7 @@ pub unsafe fn CPU_EQUAL(set1: &cpu_set_t, set2: &cpu_set_t) -> bool {
 
 #[inline]
 unsafe fn __sigmask(sig: c_int) -> u64 {
-    (1 as u64) << (((sig) - 1) % (8 * mem::size_of::<u64>()) as i32)
+    (1_u64) << (((sig) - 1) % (8 * mem::size_of::<u64>()) as i32)
 }
 
 #[inline]
@@ -1612,7 +1612,7 @@ pub unsafe fn sigismember(set: *const sigset_t, signum: c_int) -> c_int {
 
 #[inline]
 pub const fn CMSG_ALIGN(len: usize) -> usize {
-    len + mem::size_of::<usize>() - 1 & !(mem::size_of::<usize>() - 1)
+    (len + mem::size_of::<usize>() - 1) & !(mem::size_of::<usize>() - 1)
 }
 
 #[inline]
@@ -1620,7 +1620,7 @@ pub unsafe fn CMSG_FIRSTHDR(mhdr: *const msghdr) -> *mut cmsghdr {
     if (*mhdr).msg_controllen as usize >= mem::size_of::<cmsghdr>() {
         (*mhdr).msg_control as *mut cmsghdr
     } else {
-        0 as *mut cmsghdr
+        ptr::null_mut::<cmsghdr>()
     }
 }
 
@@ -1642,14 +1642,14 @@ pub unsafe fn CMSG_LEN(length: c_uint) -> c_uint {
 #[inline]
 pub unsafe fn CMSG_NXTHDR(mhdr: *const msghdr, cmsg: *const cmsghdr) -> *mut cmsghdr {
     if ((*cmsg).cmsg_len as usize) < mem::size_of::<cmsghdr>() {
-        return 0 as *mut cmsghdr;
+        return ptr::null_mut::<cmsghdr>();
     };
     let next = (cmsg as usize + CMSG_ALIGN((*cmsg).cmsg_len as usize)) as *mut cmsghdr;
     let max = (*mhdr).msg_control as usize + (*mhdr).msg_controllen as usize;
     if (next.offset(1)) as usize > max
         || next as usize + CMSG_ALIGN((*next).cmsg_len as usize) > max
     {
-        0 as *mut cmsghdr
+        ptr::null_mut::<cmsghdr>()
     } else {
         next as *mut cmsghdr
     }
@@ -1666,7 +1666,7 @@ pub unsafe fn major(dev: dev_t) -> c_uint {
 #[inline]
 pub unsafe fn minor(dev: dev_t) -> c_uint {
     let mut minor = 0;
-    minor |= (dev & 0x00000000000000ff) >> 0;
+    minor |= dev & 0x00000000000000ff;
     minor |= (dev & 0x00000ffffff00000) >> 12;
     minor as c_uint
 }
@@ -1678,7 +1678,7 @@ pub unsafe fn makedev(major: c_uint, minor: c_uint) -> dev_t {
     let mut dev = 0;
     dev |= (major & 0x00000fff) << 8;
     dev |= (major & 0xfffff000) << 32;
-    dev |= (minor & 0x000000ff) << 0;
+    dev |= minor & 0x000000ff;
     dev |= (minor & 0xffffff00) << 12;
     dev
 }

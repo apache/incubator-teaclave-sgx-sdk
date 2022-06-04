@@ -32,11 +32,16 @@ webpki-roots    = { git = "https://github.com/mesalock-linux/webpki-roots", bran
 ue_send_recv    = { path = "ue_send_recv" }
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']
+sgx_align_struct_attribute = { path = "../../../../sgx_align_struct_attribute" }
 sgx_alloc = { path = "../../../../sgx_alloc" }
+sgx_backtrace = { path = "../../../../sgx_backtrace" }
+sgx_backtrace_sys = { path = "../../../../sgx_backtrace_sys" }
 sgx_build_helper = { path = "../../../../sgx_build_helper" }
 sgx_cov = { path = "../../../../sgx_cov" }
 sgx_crypto_helper = { path = "../../../../sgx_crypto_helper" }
+sgx_demangle = { path = "../../../../sgx_demangle" }
 sgx_libc = { path = "../../../../sgx_libc" }
+sgx_no_tstd = { path = "../../../../sgx_no_tstd" }
 sgx_rand = { path = "../../../../sgx_rand" }
 sgx_rand_derive = { path = "../../../../sgx_rand_derive" }
 sgx_serialize = { path = "../../../../sgx_serialize" }
@@ -53,6 +58,6 @@ sgx_tseal = { path = "../../../../sgx_tseal" }
 sgx_tstd = { path = "../../../../sgx_tstd" }
 sgx_tunittest = { path = "../../../../sgx_tunittest" }
 sgx_types = { path = "../../../../sgx_types" }
-sgx_ucrypto = { path = "../../../../sgx_ucrypto" }
+#sgx_ucrypto = { path = "../../../../sgx_ucrypto" }
 sgx_unwind = { path = "../../../../sgx_unwind" }
-sgx_urts = { path = "../../../../sgx_urts" }
+#sgx_urts = { path = "../../../../sgx_urts" }

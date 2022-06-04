@@ -46,7 +46,7 @@ impl From<ContinueType> for i32 {
 }
 
 #[allow(unknown_lints, bare_trait_objects)]
-type ExceptionHandler = Fn(&mut sgx_exception_info_t) -> ContinueType + Send + Sync;
+type ExceptionHandler = dyn Fn(&mut sgx_exception_info_t) -> ContinueType + Send + Sync;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct HandlerId(NonZeroU64);

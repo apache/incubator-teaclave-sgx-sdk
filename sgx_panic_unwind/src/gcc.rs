@@ -87,7 +87,7 @@ pub unsafe fn cleanup(ptr: *mut u8) -> Box<dyn Any + Send> {
 // determine whether the exception was thrown by their own runtime.
 fn rust_exception_class() -> uw::_Unwind_Exception_Class {
     // M O Z \0  R U S T -- vendor, language
-    0x4d4f5a_00_52555354
+    0x4d4f_5a00_5255_5354
 }
 
 // Register ids were lifted from LLVM's TargetLowering::getExceptionPointerRegister()
@@ -122,16 +122,14 @@ unsafe extern "C" fn rust_eh_personality_impl(
     };
     if actions as i32 & uw::_UA_SEARCH_PHASE as i32 != 0 {
         match eh_action {
-            EHAction::None |
-            EHAction::Cleanup(_) => uw::_URC_CONTINUE_UNWIND,
+            EHAction::None | EHAction::Cleanup(_) => uw::_URC_CONTINUE_UNWIND,
             EHAction::Catch(_) => uw::_URC_HANDLER_FOUND,
             EHAction::Terminate => uw::_URC_FATAL_PHASE1_ERROR,
         }
     } else {
         match eh_action {
             EHAction::None => uw::_URC_CONTINUE_UNWIND,
-            EHAction::Cleanup(lpad) |
-            EHAction::Catch(lpad) => {
+            EHAction::Cleanup(lpad) | EHAction::Catch(lpad) => {
                 uw::_Unwind_SetGR(context, UNWIND_DATA_REG.0, exception_object as uintptr_t);
                 uw::_Unwind_SetGR(context, UNWIND_DATA_REG.1, 0);
                 uw::_Unwind_SetIP(context, lpad);
@@ -167,4 +165,3 @@ unsafe fn find_eh_action(context: *mut uw::_Unwind_Context) -> Result<EHAction, 
     };
     eh::find_eh_action(lsda, &eh_context)
 }
-

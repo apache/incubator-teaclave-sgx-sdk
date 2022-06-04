@@ -6,7 +6,7 @@ repository = "https://github.com/apache/teaclave-sgx-sdk"
 license-file = "LICENSE"
 documentation = "https://teaclave.apache.org/sgx-sdk-docs/"
 description = "Rust SGX SDK provides the ability to write Intel SGX applications in Rust Programming Language."
-edition = "2018"
+edition = "2021"
 
 [lib]
 name = "sgx_rand_derive"

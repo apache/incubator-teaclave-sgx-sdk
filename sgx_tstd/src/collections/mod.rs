@@ -249,7 +249,7 @@
 //! ```
 //! use std::collections::VecDeque;
 //!
-//! let vec = vec![1, 2, 3, 4];
+//! let vec = [1, 2, 3, 4];
 //! let buf: VecDeque<_> = vec.into_iter().collect();
 //! ```
 //!
@@ -285,7 +285,7 @@
 //! not. Normally, this would require a `find` followed by an `insert`,
 //! effectively duplicating the search effort on each insertion.
 //!
-//! When a user calls `map.entry(&key)`, the map will search for the key and
+//! When a user calls `map.entry(key)`, the map will search for the key and
 //! then yield a variant of the `Entry` enum.
 //!
 //! If a `Vacant(entry)` is yielded, then the key *was not* found. In this case
