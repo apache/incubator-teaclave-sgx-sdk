@@ -29,7 +29,7 @@ use std::slice;
 use std::string::String;
 use std::vec::Vec;
 
-///# Safety
+/// # Safety
 #[no_mangle]
 pub unsafe extern "C" fn say_something(some_string: *const u8, some_len: usize) -> SgxStatus {
     let str_slice = slice::from_raw_parts(some_string, some_len);

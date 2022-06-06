@@ -48,7 +48,7 @@ impl SealData {
     }
 }
 
-///# Safety
+/// # Safety
 #[no_mangle]
 pub unsafe extern "C" fn seal_data() -> SgxStatus {
     let aad = "aad mac text".to_string();

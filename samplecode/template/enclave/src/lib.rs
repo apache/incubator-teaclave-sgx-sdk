@@ -19,8 +19,9 @@ extern crate sgx_types;
 
 use sgx_types::error::SgxStatus;
 
+/// # Safety
 #[no_mangle]
-pub extern "C" fn sample() -> SgxStatus {
+pub unsafe extern "C" fn sample() -> SgxStatus {
     println!("Hello world!");
 
     SgxStatus::Success

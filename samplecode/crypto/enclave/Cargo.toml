@@ -32,6 +32,4 @@ default = []
 sgx_crypto = { path = "../../../sgx_crypto" }
 
 [target.'cfg(not(target_vendor = "teaclave"))'.dependencies]
-#sgx_crypto = { path = "../../../sgx_crypto" }
-sgx_crypto_sys = { path = "../../../sgx_crypto/sgx_crypto_sys" }
-
+sgx_types = { path = "../../../sgx_types" }

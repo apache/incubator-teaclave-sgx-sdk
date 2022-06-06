@@ -27,7 +27,7 @@ use sgx_types::error::SgxStatus;
 use std::backtrace::PrintFormat;
 use std::panic;
 
-///# Safety
+/// # Safety
 #[no_mangle]
 pub unsafe extern "C" fn backtrace() -> SgxStatus {
     let _ = std::backtrace::enable_backtrace(PrintFormat::Short);

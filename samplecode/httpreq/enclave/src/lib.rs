@@ -30,9 +30,9 @@ use sgx_types::types::c_char;
 use std::ffi::CStr;
 use std::net::TcpStream;
 
-///# Safety
+/// # Safety
 #[no_mangle]
-pub extern "C" fn send_http_request(hostname: *const c_char) -> SgxStatus {
+pub unsafe extern "C" fn send_http_request(hostname: *const c_char) -> SgxStatus {
     if hostname.is_null() {
         return SgxStatus::Unexpected;
     }
@@ -42,7 +42,7 @@ pub extern "C" fn send_http_request(hostname: *const c_char) -> SgxStatus {
         Err(e) => return e,
     };
 
-    let hostname = unsafe { CStr::from_ptr(hostname).to_str() };
+    let hostname = CStr::from_ptr(hostname).to_str();
     let hostname = hostname.expect("Failed to recover hostname");
 
     // Parse uri and assign it to variable `addr`

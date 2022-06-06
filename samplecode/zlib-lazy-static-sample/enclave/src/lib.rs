@@ -29,8 +29,9 @@ lazy_static! {
     static ref HELLOSTR: String = String::from("This is a global rust String init by lazy_static!");
 }
 
+/// # Safety
 #[no_mangle]
-pub extern "C" fn zlib_sample() -> SgxStatus {
+pub unsafe extern "C" fn zlib_sample() -> SgxStatus {
     println!("Source string is : {:?}", *HELLOSTR);
     println!("Source data is : {:?}", HELLOSTR.as_bytes());
 

@@ -22,31 +22,34 @@ enclave {
     trusted {
         /* define ECALLs here. */
 
-        public sgx_status_t calc_sha256([in, size=len] const uint8_t* input_str,
-                                        size_t len,
-                                        [out] uint8_t hash[32]);
+        public sgx_status_t sha256(
+            [in, size=len] const uint8_t* input_str,
+            size_t len,
+            [out] uint8_t hash[32]);
 
-        public sgx_status_t aes_gcm_128_encrypt([in] uint8_t key[16],
-                                                [in, size=len] const uint8_t* plaintext,
-                                                size_t len,
-                                                [in] uint8_t iv[12],
-                                                [out, size=len] uint8_t* ciphertext,
-                                                [out] uint8_t mac[16]);
+        public sgx_status_t aes_gcm_128_encrypt(
+            [in] uint8_t key[16],
+            [in, size=len] const uint8_t* plaintext,
+            size_t len,
+            [in] uint8_t iv[12],
+            [out, size=len] uint8_t* ciphertext,
+            [out] uint8_t mac[16]);
 
-        public sgx_status_t aes_gcm_128_decrypt([in] uint8_t key[16],
-                                                [in, size=len] const uint8_t* ciphertext,
-                                                size_t len,
-                                                [in] uint8_t iv[12],
-                                                [in] uint8_t mac[16],
-                                                [out, size=len] uint8_t* plaintext);
+        public sgx_status_t aes_gcm_128_decrypt(
+            [in] uint8_t key[16],
+            [in, size=len] const uint8_t* ciphertext,
+            size_t len,
+            [in] uint8_t iv[12],
+            [in] uint8_t mac[16],
+            [out, size=len] uint8_t* plaintext);
 
-        public sgx_status_t aes_cmac([in, size=len] const uint8_t* text,
-                                     size_t len,
-                                     [in] uint8_t key[16],
-                                     [out] uint8_t cmac[16]);
+        public sgx_status_t aes_cmac(
+            [in, size=len] const uint8_t* text,
+            size_t len,
+            [in] uint8_t key[16],
+            [out] uint8_t cmac[16]);
 
-        public sgx_status_t rsa_key([in, size=len] const uint8_t* text, size_t len);
-
+        public sgx_status_t rsa2048([in, size=len] const uint8_t* text, size_t len);
     };
 
     untrusted {

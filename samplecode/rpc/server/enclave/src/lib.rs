@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-///# Safety
+/// # Safety
 #[no_mangle]
 pub extern "C" fn run_server() -> SgxStatus {
     let result = tokio::runtime::Builder::new_multi_thread()

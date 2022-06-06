@@ -28,8 +28,9 @@ extern "C" {
     pub fn ocall_empty_switchless() -> SgxStatus;
 }
 
+/// # Safety
 #[no_mangle]
-pub extern "C" fn ecall_repeat_ocalls(nrepeats: u64, use_switchless: i32) {
+pub unsafe extern "C" fn ecall_repeat_ocalls(nrepeats: u64, use_switchless: i32) {
     if use_switchless == 0 {
         for _ in 0..nrepeats {
             unsafe {
@@ -44,7 +45,11 @@ pub extern "C" fn ecall_repeat_ocalls(nrepeats: u64, use_switchless: i32) {
         }
     }
 }
+
+/// # Safety
 #[no_mangle]
-pub extern "C" fn ecall_empty() {}
+pub unsafe extern "C" fn ecall_empty() {}
+
+/// # Safety
 #[no_mangle]
-pub extern "C" fn ecall_empty_switchless() {}
+pub unsafe extern "C" fn ecall_empty_switchless() {}

@@ -36,16 +36,26 @@ use std::{env, fs, io, sync};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_rustls::rustls::ServerConfig;
 
-//fn main() {
-//    // Serve an echo service over HTTPS, with proper error handling.
-//    if let Err(e) = run_server() {
-//        eprintln!("FAILED: {}", e);
-//        std::process::exit(1);
-//    }
-//}
+/// # Safety
+#[no_mangle]
+pub extern "C" fn run_server() -> SgxStatus {
+    let result = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(32) // TCS = 32 + 1 = 33. 1 reserved for initializer
+        .enable_all()
+        .build()
+        .map(|rt| rt.block_on(run_sample_server()));
 
-fn error(err: String) -> io::Error {
-    io::Error::new(io::ErrorKind::Other, err)
+    match result {
+        Ok(Ok(_)) => SgxStatus::Success,
+        Ok(Err(e)) => {
+            println!("Failed to run server: {}", e);
+            SgxStatus::Unexpected
+        },
+        Err(e) => {
+            println!("Failed to create tokio runtime in enclave: {}", e);
+            SgxStatus::Unexpected
+        }
+    }
 }
 
 //#[tokio::main]
@@ -83,6 +93,10 @@ async fn run_sample_server() -> Result<(), Box<dyn std::error::Error + Send + Sy
     println!("Starting to serve on https://{}.", addr);
     server.await?;
     Ok(())
+}
+
+fn error(err: String) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, err)
 }
 
 enum State {
@@ -244,24 +258,3 @@ fn load_private_key(filename: &str) -> io::Result<rustls::PrivateKey> {
     Ok(rustls::PrivateKey(keys[0].clone()))
 }
 
-///# Safety
-#[no_mangle]
-pub extern "C" fn run_server() -> SgxStatus {
-    let result = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(32) // TCS = 32 + 1 = 33. 1 reserved for initializer
-        .enable_all()
-        .build()
-        .map(|rt| rt.block_on(run_sample_server()));
-
-    match result {
-        Ok(Ok(_)) => SgxStatus::Success,
-        Ok(Err(e)) => {
-            println!("Failed to run server: {}", e);
-            SgxStatus::Unexpected
-        },
-        Err(e) => {
-            println!("Failed to create tokio runtime in enclave: {}", e);
-            SgxStatus::Unexpected
-        }
-    }
-}
