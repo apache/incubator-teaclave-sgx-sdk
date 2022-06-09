@@ -46,9 +46,8 @@ impl Futex {
 
     #[inline]
     pub fn wait(&self, expected: i32, timeout: Option<Duration>) -> OsResult {
-        let timeout = timeout.map(|dur| 
-            Timeout::new(dur.into(), FutexClockId::Monotonic as u32, false)
-        );
+        let timeout =
+            timeout.map(|dur| Timeout::new(dur.into(), FutexClockId::Monotonic as u32, false));
         self.wait_with_timeout(expected, timeout, Self::FUTEX_BITSET_MATCH_ANY)
     }
 
@@ -58,18 +57,11 @@ impl Futex {
         timeout: Option<(Timespec, FutexClockId)>,
         bitset: u32,
     ) -> OsResult {
-        let timeout = timeout.map(|(ts, clockid)| 
-            Timeout::new(ts, clockid.into(), true)
-        );
+        let timeout = timeout.map(|(ts, clockid)| Timeout::new(ts, clockid.into(), true));
         self.wait_with_timeout(expected, timeout, bitset)
     }
 
-    fn wait_with_timeout(
-        &self,
-        expected: i32,
-        timeout: Option<Timeout>,
-        bitset: u32,
-    ) -> OsResult {
+    fn wait_with_timeout(&self, expected: i32, timeout: Option<Timeout>, bitset: u32) -> OsResult {
         let (_, bucket) = FUTEX_BUCKETS.get_bucket(self);
         let mut futex_bucket = bucket.lock();
 
@@ -372,13 +364,12 @@ impl Waiter {
             return Ok(());
         }
         while !self.is_woken() {
-            ocall::thread_wait_event_ex(current, timeout)
-                .map_err(|e| {
-                    if (timeout.is_some() && e == ETIMEDOUT) || e == EINTR || e == EAGAIN {
-                        self.set_woken();
-                    }
-                    e
-                })?;
+            ocall::thread_wait_event_ex(current, timeout).map_err(|e| {
+                if (timeout.is_some() && e == ETIMEDOUT) || e == EINTR || e == EAGAIN {
+                    self.set_woken();
+                }
+                e
+            })?;
         }
         Ok(())
     }

@@ -25,7 +25,7 @@ use sgx_types::error::errno::{EBUSY, EPERM};
 use sgx_types::error::OsResult;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum MutexControl {
+pub enum MutexControl {
     NonRecursive,
     Recursive,
 }
@@ -175,6 +175,12 @@ impl Mutex {
     pub const fn new() -> Mutex {
         Mutex {
             inner: UnsafeCell::new(MutexInner::new(MutexControl::NonRecursive)),
+        }
+    }
+
+    pub fn new_with_control(control: MutexControl) -> Mutex {
+        Mutex {
+            inner: UnsafeCell::new(MutexInner::new(control)),
         }
     }
 

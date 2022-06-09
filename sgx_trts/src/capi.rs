@@ -20,7 +20,7 @@ use crate::edmm::mem::{apply_epc_pages, trim_epc_pages};
 use crate::enclave::{self, MmLayout};
 use crate::error;
 use crate::rand::rand;
-use crate::tcs::{stack_size, tcs_max_num, tcs_policy};
+use crate::tcs::{current, stack_size, tcs_max_num, tcs_policy};
 use crate::trts::{cpu_core_num, enclave_mode, is_supported_edmm};
 use crate::veh::{register_exception, unregister, ExceptionHandler, Handle};
 use core::convert::TryFrom;
@@ -289,6 +289,25 @@ pub unsafe extern "C" fn sgx_read_rand(p: *mut u8, len: usize) -> u32 {
     match rand(buf) {
         Ok(_) => SgxStatus::Success.into(),
         Err(e) => e.into(),
+    }
+}
+
+pub type sgx_thread_t = *const c_void;
+pub const SGX_THREAD_T_NULL: *const c_void = ptr::null();
+
+#[inline]
+#[no_mangle]
+pub unsafe extern "C" fn sgx_thread_self() -> sgx_thread_t {
+    current().tds() as *const _ as *const c_void
+}
+
+#[inline]
+#[no_mangle]
+pub unsafe extern "C" fn sgx_thread_equal(a: sgx_thread_t, b: sgx_thread_t) -> i32 {
+    if a == b {
+        1
+    } else {
+        0
     }
 }
 

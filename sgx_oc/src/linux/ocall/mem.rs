@@ -131,7 +131,7 @@ unsafe impl Allocator for HostAlloc {
 
     #[inline]
     unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
-        if layout.size() != 0 {
+        if layout.size() != 0 && is_within_host(ptr.as_ptr(), layout.size()) {
             let _ = self.host_free(ptr);
         }
     }
@@ -180,6 +180,8 @@ impl HostAlloc {
     }
 
     pub unsafe fn host_free(&self, p: NonNull<u8>) {
-        u_free_ocall(p.as_ptr() as _);
+        if is_within_host(p.as_ptr(), mem::size_of::<usize>()) {
+            u_free_ocall(p.as_ptr() as _);
+        }
     }
 }

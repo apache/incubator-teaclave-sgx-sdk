@@ -24,6 +24,7 @@
 #define _PTHREAD_H_
 
 #include <sys/cdefs.h>
+#include <sgx_thread.h>
 #include <sys/types.h>
 #include <sys/struct_timespec.h>
 
@@ -58,30 +59,15 @@ typedef struct _pthread_attr
     char    reserved;
 } pthread_attr;
 
-typedef struct _pthread_mutex_attr
-{
-    unsigned char   m_dummy;  /* for C syntax check */
-} pthread_mutex_attr;
-
-typedef struct _pthread_cond_attr
-{
-    unsigned char   m_dummy;  /* for C syntax check */
-} pthread_cond_attr;
-
-typedef struct _pthread_rwlock_attr
-{
-    unsigned char   m_dummy;  /* for C syntax check */
-} pthread_rwlockattr;
-
-typedef void                        *pthread_t;
-typedef void                        *pthread_mutex_t;
-typedef void                        *pthread_cond_t;
-typedef void                        *pthread_rwlock_t;
-typedef struct _pthread_attr        *pthread_attr_t;
-typedef struct _pthread_mutex_attr  *pthread_mutexattr_t;
-typedef struct _pthread_cond_attr   *pthread_condattr_t;
-typedef struct _pthread_rwlockattr  *pthread_rwlockattr_t;
-typedef size_t                      pthread_key_t;
+typedef void                                *pthread_t;
+typedef struct  _sgx_thread_mutex_t         pthread_mutex_t;
+typedef struct  _sgx_thread_mutex_attr_t    pthread_mutexattr_t;
+typedef struct  _sgx_thread_cond_t          pthread_cond_t;
+typedef struct  _sgx_thread_cond_attr_t     pthread_condattr_t;
+typedef struct  _sgx_thread_rwlock_t        pthread_rwlock_t;
+typedef struct  _sgx_thread_rwlockattr_t    pthread_rwlockattr_t;
+typedef struct _pthread_attr                *pthread_attr_t;
+typedef size_t                              pthread_key_t;
 
 /*
  * Once definitions.

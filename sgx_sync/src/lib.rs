@@ -18,13 +18,14 @@
 #![no_std]
 #![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 #![deny(unused_features)]
-#![allow(clippy::missing_safety_doc)]
 #![feature(core_intrinsics)]
 #![feature(dropck_eyepatch)]
 #![feature(hashmap_internals)]
 #![feature(linked_list_remove)]
 #![feature(negative_impls)]
 #![feature(never_type)]
+#![allow(clippy::missing_safety_doc)]
+#![allow(non_camel_case_types)]
 
 extern crate alloc;
 
@@ -42,7 +43,9 @@ mod once;
 mod remutex;
 mod rwlock;
 mod spin;
-pub mod sys;
+mod sys;
+
+pub mod capi;
 pub use sys::ocall::Timespec;
 
 pub use barrier::{Barrier, BarrierWaitResult};

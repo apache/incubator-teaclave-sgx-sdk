@@ -384,16 +384,13 @@ pub fn thread_wait_event_ex(tcs: TcsId, timeout: Option<Timeout>) -> OsResult {
     let mut result: i32 = 0;
     let mut error: i32 = 0;
 
-    let (ts_ptr, clockid, absolute_time) = timeout.as_ref().map_or((ptr::null(), 0, 0), |timeout| {
-        let ts_ptr = &timeout.ts.t as *const timespec;
-        let clockid = timeout.clockid as i32;
-        let absolute_time = if timeout.absolute_time {
-            1
-        } else {
-            0
-        };
-        (ts_ptr, clockid, absolute_time)
-    });
+    let (ts_ptr, clockid, absolute_time) =
+        timeout.as_ref().map_or((ptr::null(), 0, 0), |timeout| {
+            let ts_ptr = &timeout.ts.t as *const timespec;
+            let clockid = timeout.clockid as i32;
+            let absolute_time = if timeout.absolute_time { 1 } else { 0 };
+            (ts_ptr, clockid, absolute_time)
+        });
 
     let status = unsafe {
         u_thread_wait_event_ocall(

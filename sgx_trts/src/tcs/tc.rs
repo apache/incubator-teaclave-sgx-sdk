@@ -164,7 +164,7 @@ impl<'a> ThreadControl<'a> {
         {
             self.tds.index = tidx;
         }
-        init_static_stack_guard(self.tcs as *const Tcs);
+        init_static_stack_guard(self.tcs);
 
         let is_edmm = SysFeatures::get().is_edmm();
         if enclave_init {
@@ -280,6 +280,13 @@ pub fn check_static_stack_guard(tcs: &Tcs) -> bool {
     unsafe { *canary == get_stack_guard().get() }
 }
 
+fn init_static_stack_guard(tcs: &Tcs) {
+    let canary = (tcs as *const _ as usize - CANARY_OFFSET) as *mut usize;
+    unsafe {
+        *canary = get_stack_guard().get();
+    }
+}
+
 pub fn get_stack_guard() -> NonZeroUsize {
     let guard = unsafe {
         STACK_CHK_GUARD.get_or_init(|| loop {
@@ -290,13 +297,6 @@ pub fn get_stack_guard() -> NonZeroUsize {
         })
     };
     *guard
-}
-
-fn init_static_stack_guard(tcs: *const Tcs) {
-    let canary = (tcs as usize - CANARY_OFFSET) as *mut usize;
-    unsafe {
-        *canary = get_stack_guard().get();
-    }
 }
 
 #[cfg(not(any(feature = "sim", feature = "hyper")))]

@@ -148,8 +148,8 @@ mod stack {
         }
 
         #[inline]
-        unsafe fn deallocate(&self, _ptr: NonNull<u8>, layout: Layout) {
-            if layout.size() != 0 {
+        unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+            if layout.size() != 0 && enclave::is_within_host(ptr.as_ptr(), layout.size()) {
                 let _ = self.oc_free();
             }
         }
@@ -276,8 +276,8 @@ mod msbuf {
         }
 
         #[inline]
-        unsafe fn deallocate(&self, _ptr: NonNull<u8>, layout: Layout) {
-            if layout.size() != 0 {
+        unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+            if layout.size() != 0 && enclave::is_within_host(ptr.as_ptr(), layout.size()) {
                 let _ = self.oc_free();
             }
         }

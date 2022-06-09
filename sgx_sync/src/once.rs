@@ -21,6 +21,7 @@ use core::hint::spin_loop;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 /// Initialization value for static [`Once`] values.
+#[allow(clippy::declare_interior_mutable_const)]
 pub const ONCE_INIT: Once = Once::new();
 
 /// A synchronization primitive which can be used to run a one-time global
