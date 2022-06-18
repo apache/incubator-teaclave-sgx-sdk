@@ -19,15 +19,15 @@ RUN bash /root/02_binutils.sh
 
 #ENV SDK_DIST="SELF_BUILT"
 ENV SDK_DIST="INTEL_BUILT"
-ENV SDK_URL="https://download.01.org/intel-sgx/sgx-linux/2.16/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.16.100.4.bin"
+ENV SDK_URL="https://download.01.org/intel-sgx/sgx-linux/2.17/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.17.100.3.bin"
 ADD 03_sdk.sh /root
 RUN bash /root/03_sdk.sh
 
 # Sixth, PSW
 
 ENV CODENAME        focal
-ENV VERSION         2.16.100.4-focal1
-ENV DCAP_VERSION    1.13.100.4-focal1
+ENV VERSION         2.17.100.3-focal1
+ENV DCAP_VERSION    1.14.100.3-focal1
 
 ADD 04_psw.sh /root
 RUN bash /root/04_psw.sh

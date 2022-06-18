@@ -52,6 +52,7 @@ pub struct global_data_t {
     pub rsrv_executable: usize,
     pub thread_policy: usize,
     pub tcs_max_num: usize,
+    pub tcs_num: usize,
     pub td_template: thread_data_t,
     pub tcs_template: [u8; TCS_TEMPLATE_SIZE],
     pub layout_entry_num: u32,
@@ -559,7 +560,13 @@ pub fn rsgx_get_global_data() -> *const global_data_t {
 ///
 #[inline]
 pub fn rsgx_get_tcs_max_num() -> u32 {
-    unsafe { g_global_data.tcs_max_num as u32 }
+    unsafe {
+        if EDMM_supported != 0 {
+            g_global_data.tcs_max_num as u32
+        } else {
+            g_global_data.tcs_num as u32
+        }
+    }
 }
 
 #[allow(clippy::collapsible_if, clippy::nonminimal_bool)]

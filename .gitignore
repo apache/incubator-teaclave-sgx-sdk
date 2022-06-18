@@ -4,6 +4,9 @@ Cargo.lock
 #object file
 *.o
 
+#app
+app
+
 #library
 *.a
 
@@ -33,6 +36,7 @@ bazel-testlogs
 
 #libunwind
 sgx_unwind/libunwind/INSTALL
+sgx_unwind/libunwind/m4/*
 sgx_unwind/libunwind/config/*
 sgx_unwind/libunwind/include/config.h.*
 sgx_unwind/libunwind/Makefile.in
@@ -40,4 +44,3 @@ sgx_unwind/libunwind/aclocal.m4
 sgx_unwind/libunwind/autom4te.cache/*
 sgx_unwind/libunwind/configure
 sgx_unwind/libunwind/src/Makefile.in
-sgx_unwind/libunwind/m4/*

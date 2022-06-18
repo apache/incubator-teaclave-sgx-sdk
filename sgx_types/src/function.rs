@@ -1022,6 +1022,16 @@ extern "C" {
     pub fn sgx_ql_free_quote_verification_collateral(
         p_quote_collateral: *const sgx_ql_qve_collateral_t,
     ) -> sgx_quote3_error_t;
+    /* intel DCAP 1.14 */
+    pub fn tdx_ql_get_quote_verification_collateral(
+        fmspc: *const uint8_t,
+        fmspc_size: u16,
+        pck_ra: *const c_char,
+        pp_quote_collateral: *mut *mut tdx_ql_qve_collateral_t,
+    ) -> sgx_quote3_error_t;
+    pub fn tdx_ql_free_quote_verification_collateral(
+        p_quote_collateral: *const sgx_ql_qve_collateral_t,
+    ) -> sgx_quote3_error_t;
     pub fn sgx_ql_get_qve_identity(
         pp_qve_identity: *mut *mut c_char,
         p_qve_identity_size: *mut uint32_t,
@@ -1069,6 +1079,15 @@ extern "C" {
         p_tcbinfo_size: *mut uint16_t,
     ) -> sgx_qcnl_error_t;
     pub fn sgx_qcnl_free_tcbinfo(p_tcbinfo: *const uint8_t);
+    /* intel DCAP 1.14 */
+    pub fn tdx_qcnl_get_tcbinfo(
+        fmspc: *const c_char,
+        fmspc_size: uint16_t,
+        custom_param_b64_string: *const c_char,
+        p_tcbinfo: *mut *mut uint8_t,
+        p_tcbinfo_size: *mut uint16_t,
+    ) -> sgx_qcnl_error_t;
+    pub fn tdx_qcnl_free_tcbinfo(p_tcbinfo: *const uint8_t);
     pub fn sgx_qcnl_get_qe_identity(
         qe_type: uint8_t,
         custom_param_b64_string: *const c_char,
