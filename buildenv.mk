@@ -72,6 +72,8 @@ else
     COMMON_FLAGS += -O2 -D_FORTIFY_SOURCE=2 -UDEBUG -DNDEBUG
 endif
 
+COMMON_FLAGS += -ffunction-sections -fdata-sections
+
 # turn on compiler warnings as much as possible
 COMMON_FLAGS += -Wall -Wextra -Winit-self -Wpointer-arith -Wreturn-type \
 		-Waddress -Wsequence-point -Wformat-security \

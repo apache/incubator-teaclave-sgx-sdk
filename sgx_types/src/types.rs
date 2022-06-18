@@ -1373,7 +1373,16 @@ pub struct sgx_ql_qve_collateral_t {
 
 pub type tdx_ql_qve_collateral_t = sgx_ql_qve_collateral_t;
 
-/* intel DCAP 2.14 */
+impl_enum! {
+    #[repr(u8)]
+    #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+    pub enum sgx_prod_type_t {
+        SGX_PROD_TYPE_SGX   = 0,
+        SGX_PROD_TYPE_TDX   = 1,
+    }
+}
+
+/* intel DCAP 1.11 */
 impl_enum! {
     #[repr(u32)]
     #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -1450,8 +1459,8 @@ impl_packed_copy_clone! {
     pub struct sgx_ql_ecdsa_sig_data_t {
         pub sig: [uint8_t; 64],
         pub attest_pub_key: [uint8_t; 64],
-        pub qe3_report: sgx_report_body_t,
-        pub qe3_report_sig: [uint8_t; 64],
+        pub qe_report: sgx_report_body_t,
+        pub qe_report_sig: [uint8_t; 64],
         pub auth_certification_data: [uint8_t; 0],
     }
 }
@@ -1491,6 +1500,104 @@ impl_struct_default! {
 
 impl_struct_ContiguousMemory! {
     sgx_quote3_t;
+}
+
+/* intel DCAP 1.14 */
+//
+// sgx_quote_4.h
+//
+pub const TEE_TCB_SVN_SIZE: usize = 16;
+
+impl_struct! {
+    pub struct tee_tcb_svn_t {
+        pub tcb_svn: [uint8_t; TEE_TCB_SVN_SIZE],
+    }
+}
+
+pub const TD_INFO_RESERVED_BYTES: usize = 112;
+pub const TD_TEE_TCB_INFO_RESERVED_BYTES: usize = 111;
+
+impl_packed_copy_clone! {
+    pub struct tee_info_t {
+        pub attributes: tee_attributes_t,
+        pub xfam: tee_attributes_t,
+        pub mr_td: tee_measurement_t,
+        pub mr_config_id: tee_measurement_t,
+        pub mr_owner: tee_measurement_t,
+        pub mr_owner_config: tee_measurement_t,
+        pub rt_mr: [tee_measurement_t; 4],
+        pub reserved: [uint8_t; TD_INFO_RESERVED_BYTES],
+    }
+
+    pub struct tee_tcb_info_t {
+        pub valid: [uint8_t; 8],
+        pub tee_tcb_svn: tee_tcb_svn_t,
+        pub mr_seam: tee_measurement_t,
+        pub mr_seam_signer: tee_measurement_t,
+        pub attributes: tee_attributes_t,
+        pub reserved: [uint8_t; TD_TEE_TCB_INFO_RESERVED_BYTES],
+    }
+
+    pub struct sgx_qe_report_certification_data_t {
+        pub qe_report: sgx_report_body_t,
+        pub qe_report_sig: [uint8_t; 64],
+        pub auth_certification_data: [uint8_t; 0],
+    }
+
+    pub struct sgx_ecdsa_sig_data_v4_t {
+        pub sig: [uint8_t; 64],
+        pub attest_pub_key: [uint8_t; 64],
+        pub certification_data: [uint8_t; 0],
+    }
+
+    pub struct sgx_quote4_t {
+        pub header: sgx_quote4_header_t,
+        pub report_body: sgx_report2_body_t,
+        pub signature_data_len: uint32_t,
+        pub signature_data: [uint8_t; 0],
+    }
+}
+
+impl_struct_default! {
+    tee_info_t; //512
+    tee_tcb_info_t; //239
+    sgx_qe_report_certification_data_t; //448
+    sgx_ecdsa_sig_data_v4_t; //128
+    sgx_quote4_t; //636
+}
+
+impl_struct_ContiguousMemory! {
+    tee_info_t;
+    tee_tcb_info_t;
+    sgx_qe_report_certification_data_t;
+    sgx_ecdsa_sig_data_v4_t;
+    sgx_quote4_t;
+}
+
+impl_packed_struct! {
+    pub struct sgx_quote4_header_t {
+        pub version: uint16_t,
+        pub att_key_type: uint16_t,
+        pub tee_type: uint32_t,
+        pub reserved: uint32_t,
+        pub vendor_id: [uint8_t; 16],
+        pub user_data: [uint8_t; 20],
+    }
+
+    pub struct sgx_report2_body_t {
+        pub tee_tcb_svn: tee_tcb_svn_t,
+        pub mr_seam: tee_measurement_t,
+        pub mrsigner_seam: tee_measurement_t,
+        pub seam_attributes: tee_attributes_t,
+        pub td_attributes: tee_attributes_t,
+        pub xfam: tee_attributes_t,
+        pub mr_td: tee_measurement_t,
+        pub mr_config_id: tee_measurement_t,
+        pub mr_owner: tee_measurement_t,
+        pub mr_owner_config: tee_measurement_t,
+        pub rt_mr: [tee_measurement_t; 4],
+        pub report_data: tee_report_data_t,
+    }
 }
 
 //
@@ -1591,6 +1698,19 @@ impl_enum! {
     pub enum sgx_qv_path_type_t {
         SGX_QV_QVE_PATH  = 0,
         SGX_QV_QPL_PATH  = 1,
+    }
+}
+
+/* intel DCAP 1.14 */
+//
+// sgx_default_qcnl_wrapper.h
+//
+impl_enum! {
+    #[repr(u8)]
+    #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+    pub enum sgx_qe_type_t {
+        SGX_QE_TYPE_ECDSA   = 0,
+        SGX_QE_TYPE_TD      = 1,
     }
 }
 

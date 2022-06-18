@@ -1,7 +1,7 @@
 if [ $BINUTILS_DIST != "SELF_BUILT" ]
 then
     cd /root && \
-    wget https://download.01.org/intel-sgx/sgx-linux/2.16/as.ld.objdump.r4.tar.gz && \
+    wget https://download.01.org/intel-sgx/sgx-linux/2.17/as.ld.objdump.r4.tar.gz && \
     tar xzf as.ld.objdump.r4.tar.gz && \
     cp -r external/toolset/$BINUTILS_DIST/* /usr/bin/ && \
     rm -rf ./external ./as.ld.objdump.r4.tar.gz
