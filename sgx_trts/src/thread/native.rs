@@ -18,7 +18,8 @@
 use crate::enclave::{is_within_enclave, EnclaveRange, UNINIT_FLAG};
 use crate::error;
 use crate::sync::SpinMutex;
-use crate::tcs::{self, TcsId, TdFlags};
+use crate::tcs;
+use crate::tcs::tc::{TcsId, TdFlags};
 use crate::thread::{info, task, tls};
 use alloc::boxed::Box;
 use alloc::sync::Arc;

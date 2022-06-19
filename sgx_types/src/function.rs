@@ -300,6 +300,18 @@ extern "C" {
     pub fn sgx_ql_free_quote_verification_collateral(
         p_quote_collateral: *const CQlQveCollateral,
     ) -> Quote3Error;
+
+    /* intel DCAP 1.14 */
+    pub fn tdx_ql_get_quote_verification_collateral(
+        fmspc: *const u8,
+        fmspc_size: u16,
+        pck_ra: *const c_char,
+        pp_quote_collateral: *mut *mut CQlQveCollateral,
+    ) -> Quote3Error;
+    pub fn tdx_ql_free_quote_verification_collateral(
+        p_quote_collateral: *const CQlQveCollateral,
+    ) -> Quote3Error;
+
     pub fn sgx_ql_get_qve_identity(
         pp_qve_identity: *mut *mut c_char,
         p_qve_identity_size: *mut u32,
@@ -347,8 +359,19 @@ extern "C" {
         p_tcbinfo_size: *mut u16,
     ) -> QcnlError;
     pub fn sgx_qcnl_free_tcbinfo(p_tcbinfo: *const u8);
+
+    /* intel DCAP 1.14 */
+    pub fn tdx_qcnl_get_tcbinfo(
+        fmspc: *const c_char,
+        fmspc_size: u16,
+        custom_param_b64_string: *const c_char,
+        p_tcbinfo: *mut *mut u8,
+        p_tcbinfo_size: *mut u16,
+    ) -> QcnlError;
+    pub fn tdx_qcnl_free_tcbinfo(p_tcbinfo: *const u8);
+
     pub fn sgx_qcnl_get_qe_identity(
-        qe_type: u8,
+        qe_type: QeType,
         custom_param_b64_string: *const c_char,
         p_qe_identity: *mut *mut u8,
         p_qe_identity_size: *mut u16,

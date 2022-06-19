@@ -47,7 +47,7 @@ const QVE_MRSIGNER: Measurement = Measurement {
 };
 
 const QVE_PROD_ID: u16 = 2;
-const LEAST_QVE_ISVSVN: u16 = 5;
+const LEAST_QVE_ISVSVN: u16 = 6;
 
 #[derive(Debug)]
 pub struct QveReportInfo<'a, 'b> {

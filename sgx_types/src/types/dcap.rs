@@ -149,6 +149,16 @@ pub struct CQlQveCollateral {
     pub qe_identity_size: u32,
 }
 
+/* intel DCAP 1.14 */
+impl_enum! {
+    #[repr(u8)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub enum ProdType {
+        SGX = 0,
+        TDX = 1,
+    }
+}
+
 impl_enum! {
     #[repr(u32)]
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -230,8 +240,8 @@ pub struct QlCertificationData {
 pub struct QlEcdsaSigData {
     pub sig: [u8; 64],
     pub attest_pub_key: [u8; 64],
-    pub qe3_report: ReportBody,
-    pub qe3_report_sig: [u8; 64],
+    pub qe_report: ReportBody,
+    pub qe_report_sig: [u8; 64],
     pub auth_certification_data: [u8; 0],
 }
 
@@ -499,5 +509,18 @@ impl_enum! {
     pub enum QvPathType {
         QvePath = 0,
         QplPath = 1,
+    }
+}
+
+/* intel DCAP 1.14 */
+//
+// sgx_default_qcnl_wrapper.h
+//
+impl_enum! {
+    #[repr(u8)]
+    #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+    pub enum QeType {
+        Ecdsa = 0,
+        Td = 1,
     }
 }

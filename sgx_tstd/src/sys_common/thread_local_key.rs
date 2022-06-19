@@ -248,4 +248,3 @@ impl Drop for Key {
         unsafe { imp::destroy(self.key) }
     }
 }
-

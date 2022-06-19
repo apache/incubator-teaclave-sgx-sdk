@@ -21,4 +21,4 @@ pub(crate) mod tls;
 
 pub use crate::arch::TcsPolicy;
 
-pub use tc::{current, stack_size, tcs_max_num, tcs_policy, TcsId, TdFlags, ThreadControl};
+pub use tc::{current, stack_size, tcs_max_num, tcs_policy, TcsId, ThreadControl};

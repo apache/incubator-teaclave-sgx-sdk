@@ -300,7 +300,28 @@ pub fn ecall<T>(idx: ECallIndex, tcs: &mut Tcs, ms: *mut T, tidx: usize) -> SgxR
     };
 
     fence::lfence();
-    let status = ecall_fn(ms.cast());
+
+    cfg_if! {
+        if #[cfg(feature = "thread")] {
+            use crate::thread::tls::Tls;
+
+            let status =
+                if is_root_ecall && idx != ECallIndex::Thread && tcs::tcs_policy() == TcsPolicy::Unbind
+            {
+                Tls::init();
+                let status = ecall_fn(ms.cast());
+
+                let active_tls = Tls::activate();
+                drop(active_tls);
+                status
+            } else {
+                ecall_fn(ms.cast())
+            };
+        } else {
+            let status = ecall_fn(ms.cast());
+        }
+    }
+
     if status.is_success() {
         Ok(())
     } else {

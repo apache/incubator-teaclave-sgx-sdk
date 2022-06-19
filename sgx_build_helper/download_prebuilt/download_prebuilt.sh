@@ -20,9 +20,9 @@
 set -e
 
 # change this on every release
-optlibs_name=optimized_libs_2.16.tar.gz
-checksum_file_name=SHA256SUM_prebuilt_2.16.cfg
-server_url_path=https://download.01.org/intel-sgx/sgx-linux/2.16
+optlibs_name=optimized_libs_2.17.tar.gz
+checksum_file_name=SHA256SUM_prebuilt_2.17.cfg
+server_url_path=https://download.01.org/intel-sgx/sgx-linux/2.17
 
 # unlikely to change unless opt lib structure changes
 top_dir=$(dirname "$(realpath "$0")")

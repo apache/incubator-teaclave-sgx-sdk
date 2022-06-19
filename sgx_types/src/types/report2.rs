@@ -15,7 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::marker::BytewiseEquality;
+use super::*;
+
 use core::fmt;
 
 //
@@ -74,7 +75,7 @@ impl_copy_clone! {
 
 impl_struct_default! {
     TeeMeasurement; //48
-    TeeReportData; //64
+    TeeReportData;  //64
 }
 
 impl_struct_ContiguousMemory! {
@@ -84,7 +85,7 @@ impl_struct_ContiguousMemory! {
 
 impl_unsafe_marker_for! {
     BytewiseEquality,
-    TeeMeasurement TeeReportData
+    TeeCpuSvn TeeMeasurement TeeReportData
 }
 
 impl_asref_array! {
@@ -153,7 +154,7 @@ impl_copy_clone! {
 
 impl_struct_default! {
     Report2Mac; //256
-    Report2;   //1024
+    Report2;    //1024
 }
 
 impl_struct_ContiguousMemory! {

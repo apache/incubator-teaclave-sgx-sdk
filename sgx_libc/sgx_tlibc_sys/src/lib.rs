@@ -54,21 +54,37 @@ mod bindings {
         pub fn memchr(cx: *const c_void, c: c_int, n: size_t) -> *mut c_void;
         pub fn memcmp(cx: *const c_void, ct: *const c_void, n: size_t) -> c_int;
         pub fn memcpy(dest: *mut c_void, src: *const c_void, n: size_t) -> *mut c_void;
+        pub fn memcpy_verw(dest: *mut c_void, src: *const c_void, n: size_t) -> *mut c_void;
         pub fn memcpy_s(
             dest: *mut c_void,
             sizeinbytes: size_t,
             src: *const c_void,
             count: size_t,
         ) -> c_int;
+        pub fn memcpy_verw_s(
+            dest: *mut c_void,
+            sizeinbytes: size_t,
+            src: *const c_void,
+            count: size_t,
+        ) -> c_int;
         pub fn memmove(dest: *mut c_void, src: *const c_void, count: size_t) -> *mut c_void;
+        pub fn memmove_verw(dest: *mut c_void, src: *const c_void, count: size_t) -> *mut c_void;
         pub fn memmove_s(
             dest: *mut c_void,
             sizeinbytes: size_t,
             src: *const c_void,
             count: size_t,
         ) -> c_int;
+        pub fn memmove_verw_s(
+            dest: *mut c_void,
+            sizeinbytes: size_t,
+            src: *const c_void,
+            count: size_t,
+        ) -> c_int;
         pub fn memset(dest: *mut c_void, c: c_int, n: size_t) -> *mut c_void;
+        pub fn memset_verw(dest: *mut c_void, c: c_int, n: size_t) -> *mut c_void;
         pub fn memset_s(s: *mut c_void, smax: size_t, c: c_int, n: size_t) -> c_int;
+        pub fn memset_verw_s(s: *mut c_void, smax: size_t, c: c_int, n: size_t) -> c_int;
         pub fn consttime_memequal(b1: *const c_void, b2: *const c_void, len: size_t) -> c_int;
 
         pub fn strchr(cs: *const c_char, c: c_int) -> *mut c_char;

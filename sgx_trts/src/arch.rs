@@ -378,6 +378,7 @@ pub struct Global {
     pub rsrv_executable: usize,
     pub tcs_policy: usize,
     pub tcs_max_num: usize,
+    pub tcs_num: usize,
     pub td_template: Tds,
     pub tcs_template: [u8; TCS_TEMPLATE_SIZE],
     pub layout_num: u32,

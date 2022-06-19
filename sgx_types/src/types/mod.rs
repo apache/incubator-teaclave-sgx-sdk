@@ -29,6 +29,7 @@ mod raw;
 mod report2;
 mod seal;
 mod switchless;
+mod tdx;
 mod urts;
 
 pub use crypto::*;
@@ -41,6 +42,7 @@ pub use raw::*;
 pub use report2::*;
 pub use seal::*;
 pub use switchless::*;
+pub use tdx::*;
 pub use urts::*;
 
 //
@@ -138,6 +140,10 @@ impl_asmut_array! {
 impl_from_array! {
     CpuSvn;
 }
+impl_unsafe_marker_for! {
+    BytewiseEquality,
+    CpuSvn
+}
 
 impl_enum! {
     #[repr(u16)]
@@ -168,6 +174,10 @@ impl_asmut_array! {
 }
 impl_from_array! {
     KeyId;
+}
+impl_unsafe_marker_for! {
+    BytewiseEquality,
+    KeyId
 }
 
 impl_bitflags! {
@@ -262,6 +272,10 @@ impl_asmut_array! {
 }
 impl_from_array! {
     Measurement;
+}
+impl_unsafe_marker_for! {
+    BytewiseEquality,
+    Measurement
 }
 
 pub type Mac = [u8; MAC_SIZE];

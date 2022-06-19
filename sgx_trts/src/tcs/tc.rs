@@ -83,7 +83,7 @@ impl<'a> ThreadControl<'a> {
     }
 
     #[inline]
-    pub fn td_flags(&self) -> TdFlags {
+    pub(crate) fn td_flags(&self) -> TdFlags {
         TdFlags::from_bits(self.tds.flags).unwrap()
     }
 
@@ -260,7 +260,11 @@ pub fn current<'a>() -> ThreadControl<'a> {
 }
 
 pub fn tcs_max_num() -> usize {
-    Global::get().tcs_max_num
+    if SysFeatures::get().is_edmm() {
+        Global::get().tcs_max_num
+    } else {
+        Global::get().tcs_num
+    }
 }
 
 pub fn tcs_policy() -> TcsPolicy {

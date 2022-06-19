@@ -149,13 +149,13 @@ macro_rules! thread_local {
     );
 }
 
+#[cfg(not(feature = "thread"))]
 #[macro_export]
 #[allow_internal_unstable(thread_local_internals, cfg_target_thread_local, thread_local)]
 #[allow_internal_unsafe]
 macro_rules! __thread_local_inner {
     // used to generate the `LocalKey` value for const-initialized thread locals
     (@key $t:ty, const $init:expr) => {{
-        #[cfg(not(feature = "thread"))]
         #[inline] // see comments below
         unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
             const INIT_EXPR: $t = $init;
@@ -171,7 +171,49 @@ macro_rules! __thread_local_inner {
             }
         }
 
-        #[cfg(feature = "thread")]
+        unsafe {
+            $crate::thread::LocalKey::new(__getit)
+        }
+    }};
+
+    // used to generate the `LocalKey` value for `thread_local!`
+    (@key $t:ty, $init:expr) => {
+        {
+            #[inline]
+            fn __init() -> $t { $init }
+
+            #[inline]
+            unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
+                #[thread_local]
+                static __KEY: $crate::thread::__StaticLocalKeyInner<$t> =
+                    $crate::thread::__StaticLocalKeyInner::new();
+
+                // FIXME: remove the #[allow(...)] marker when macros don't
+                // raise warning for missing/extraneous unsafe blocks anymore.
+                // See https://github.com/rust-lang/rust/issues/74838.
+                #[allow(unused_unsafe)]
+                unsafe { __KEY.get(__init) }
+            }
+
+            unsafe {
+                $crate::thread::LocalKey::new(__getit)
+            }
+        }
+    };
+    ($(#[$attr:meta])* $vis:vis $name:ident, $t:ty, $($init:tt)*) => {
+        $(#[$attr])* $vis const $name: $crate::thread::LocalKey<$t> =
+            $crate::__thread_local_inner!(@key $t, $($init)*);
+    }
+}
+
+#[cfg(feature = "thread")]
+#[macro_export]
+#[allow_internal_unstable(thread_local_internals, cfg_target_thread_local, thread_local)]
+#[allow_internal_unsafe]
+macro_rules! __thread_local_inner {
+    // used to generate the `LocalKey` value for const-initialized thread locals
+    (@key $t:ty, const $init:expr) => {{
+        #[inline]
         unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
             const INIT_EXPR: $t = $init;
 
@@ -182,12 +224,6 @@ macro_rules! __thread_local_inner {
             // just get going.
             if !$crate::mem::needs_drop::<$t>() {
                 return Ok(&VAL)
-            }
-
-            if $crate::thread::tcs_policy() == $crate::thread::TcsPolicy::Unbind  {
-                return Err($crate::thread::AccessError::new(
-                    "If TLS data needs to be destructed, TCS policy must be bound."
-                ));
             }
 
             // 0 == dtor not registered
@@ -237,13 +273,8 @@ macro_rules! __thread_local_inner {
             #[inline]
             fn __init() -> $t { $init }
 
+            #[inline]
             unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
-                #[cfg(not(feature = "thread"))]
-                #[thread_local]
-                static __KEY: $crate::thread::__StaticLocalKeyInner<$t> =
-                    $crate::thread::__StaticLocalKeyInner::new();
-
-                #[cfg(feature = "thread")]
                 #[thread_local]
                 static __KEY: $crate::thread::__FastLocalKeyInner<$t> =
                     $crate::thread::__FastLocalKeyInner::new();
@@ -459,8 +490,6 @@ pub mod fast {
     use crate::mem;
     use crate::sys::thread_local_dtor::register_dtor;
 
-    use sgx_trts::tcs::{self, TcsPolicy, TdFlags};
-
     #[derive(Copy, Clone)]
     enum DtorState {
         Unregistered,
@@ -530,29 +559,12 @@ pub mod fast {
         // LLVM issue: https://bugs.llvm.org/show_bug.cgi?id=41722
         #[inline(never)]
         unsafe fn try_initialize<F: FnOnce() -> T>(&self, init: F) -> Result<&'static T, AccessError> {
-            if mem::needs_drop::<T>() && tcs::tcs_policy() == TcsPolicy::Unbind {
-                return Err(AccessError::new(
-                    "If TLS data needs to be destructed, TCS policy must be bound."
-                ));
-            }
-
-            if tcs::current().td_flags().contains(TdFlags::PTHREAD_CREATE) {
-                // Note:
-                // If the current thread was created by `pthread_create`, we should call
-                // the try_register_dtor function. Through the `TdFlags` flag, you can know whether 
-                // the current thread is created by `pthread_create`.
-                //
-                // Destructor will only be called when a thread created by `pthread_create` exits,
-                // because `sys_common::thread_local::StaticKey` does not call `pthread_key_delete`
-                // to trigger the destructor.
-                if !mem::needs_drop::<T>() || self.try_register_dtor() {
-                    // SAFETY: See comment above (his function doc).
-                    Ok(self.inner.initialize(init))
-                } else {
-                    Err(AccessError::new("Failed to register destructor."))
-                }
-            } else {
+            // SAFETY: See comment above (this function doc).
+            if !mem::needs_drop::<T>() || self.try_register_dtor() {
+                // SAFETY: See comment above (his function doc).
                 Ok(self.inner.initialize(init))
+            } else {
+                Err(AccessError::new("Failed to register destructor."))
             }
         }
 
