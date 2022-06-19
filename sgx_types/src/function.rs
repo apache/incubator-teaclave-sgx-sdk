@@ -1089,7 +1089,7 @@ extern "C" {
     ) -> sgx_qcnl_error_t;
     pub fn tdx_qcnl_free_tcbinfo(p_tcbinfo: *const uint8_t);
     pub fn sgx_qcnl_get_qe_identity(
-        qe_type: uint8_t,
+        qe_type: sgx_qe_type_t,
         custom_param_b64_string: *const c_char,
         p_qe_identity: *mut *mut uint8_t,
         p_qe_identity_size: *mut uint16_t,
