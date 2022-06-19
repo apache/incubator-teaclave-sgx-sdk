@@ -1,6 +1,6 @@
 [package]
 name = "sgx_urts"
-version = "1.1.4"
+version = "1.1.5"
 authors = ["The Teaclave Authors"]
 repository = "https://github.com/apache/teaclave-sgx-sdk"
 license-file = "LICENSE"
@@ -19,4 +19,5 @@ global_exit = ["global_init"]
 
 [dependencies]
 sgx_types = { path = "../sgx_types" }
+sgx_uspfs = { path = "../sgx_fs/uspfs" }
 libc = "0.2"
