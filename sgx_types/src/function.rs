@@ -1013,7 +1013,7 @@ extern "C" {
     /* intel DCAP 1.13 */
     pub fn sgx_ql_get_quote_verification_collateral_with_params(
         fmspc: *const uint8_t,
-        fmspc_size: u16,
+        fmspc_size: uint16_t,
         pck_ra: *const c_char,
         custom_param: *const c_void,
         custom_param_length: uint16_t,
@@ -1025,7 +1025,7 @@ extern "C" {
     /* intel DCAP 1.14 */
     pub fn tdx_ql_get_quote_verification_collateral(
         fmspc: *const uint8_t,
-        fmspc_size: u16,
+        fmspc_size: uint16_t,
         pck_ra: *const c_char,
         pp_quote_collateral: *mut *mut tdx_ql_qve_collateral_t,
     ) -> sgx_quote3_error_t;
