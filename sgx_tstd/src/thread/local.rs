@@ -143,13 +143,13 @@ macro_rules! thread_local {
     );
 }
 
+#[cfg(not(feature = "thread"))]
 #[macro_export]
 #[allow_internal_unstable(thread_local_internals, cfg_target_thread_local, thread_local)]
 #[allow_internal_unsafe]
 macro_rules! __thread_local_inner {
     // used to generate the `LocalKey` value for const-initialized thread locals
     (@key $t:ty, const $init:expr) => {{
-        #[cfg(not(feature = "thread"))]
         #[inline] // see comments below
         unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
             const INIT_EXPR: $t = $init;
@@ -165,7 +165,49 @@ macro_rules! __thread_local_inner {
             }
         }
 
-        #[cfg(feature = "thread")]
+        unsafe {
+            $crate::thread::LocalKey::new(__getit)
+        }
+    }};
+
+    // used to generate the `LocalKey` value for `thread_local!`
+    (@key $t:ty, $init:expr) => {
+        {
+            #[inline]
+            fn __init() -> $t { $init }
+
+            #[inline]
+            unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
+                #[thread_local]
+                static __KEY: $crate::thread::__StaticLocalKeyInner<$t> =
+                    $crate::thread::__StaticLocalKeyInner::new();
+
+                // FIXME: remove the #[allow(...)] marker when macros don't
+                // raise warning for missing/extraneous unsafe blocks anymore.
+                // See https://github.com/rust-lang/rust/issues/74838.
+                #[allow(unused_unsafe)]
+                unsafe { __KEY.get(__init) }
+            }
+
+            unsafe {
+                $crate::thread::LocalKey::new(__getit)
+            }
+        }
+    };
+    ($(#[$attr:meta])* $vis:vis $name:ident, $t:ty, $($init:tt)*) => {
+        $(#[$attr])* $vis const $name: $crate::thread::LocalKey<$t> =
+            $crate::__thread_local_inner!(@key $t, $($init)*);
+    }
+}
+
+#[cfg(feature = "thread")]
+#[macro_export]
+#[allow_internal_unstable(thread_local_internals, cfg_target_thread_local, thread_local)]
+#[allow_internal_unsafe]
+macro_rules! __thread_local_inner {
+    // used to generate the `LocalKey` value for const-initialized thread locals
+    (@key $t:ty, const $init:expr) => {{
+        #[inline]
         unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
             const INIT_EXPR: $t = $init;
 
@@ -233,13 +275,8 @@ macro_rules! __thread_local_inner {
             #[inline]
             fn __init() -> $t { $init }
 
+            #[inline]
             unsafe fn __getit() -> $crate::result::Result<&'static $t, $crate::thread::AccessError> {
-                #[cfg(not(feature = "thread"))]
-                #[thread_local]
-                static __KEY: $crate::thread::__StaticLocalKeyInner<$t> =
-                    $crate::thread::__StaticLocalKeyInner::new();
-
-                #[cfg(feature = "thread")]
                 #[thread_local]
                 static __KEY: $crate::thread::__FastLocalKeyInner<$t> =
                     $crate::thread::__FastLocalKeyInner::new();
