@@ -44,8 +44,8 @@ wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key |
         libsgx-urts=$SGX_SDK_VERSION \
         libsgx-urts-dbgsym=$SGX_SDK_VERSION \
         sgx-aesm-service=$SGX_SDK_VERSION \
-        libsgx-ae-id-enclave-=$SGX_DCAP_VERSION \
-	    libsgx-ae-qe3=$SGX_DCAP_VERSION \
+        libsgx-ae-id-enclave=$SGX_DCAP_VERSION \
+        libsgx-ae-qe3=$SGX_DCAP_VERSION \
         libsgx-ae-qve=$SGX_DCAP_VERSION \
         libsgx-pce-logic=$SGX_DCAP_VERSION \
         libsgx-qe3-logic=$SGX_DCAP_VERSION \
