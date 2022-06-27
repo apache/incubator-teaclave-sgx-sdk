@@ -255,45 +255,42 @@ impl_struct_ContiguousMemory! {
     QlEcdsaSigData;
 }
 
-impl AsRef<[u8]> for QlAuthData {
-    fn as_ref(&self) -> &[u8] {
-        unsafe {
-            slice::from_raw_parts(
-                self as *const _ as *const u8,
-                mem::size_of::<QlAuthData>() + self.size as usize,
-            )
-        }
+impl QlAuthData {
+    /// # Safety
+    pub unsafe fn as_slice_unchecked(&self) -> &[u8] {
+        slice::from_raw_parts(
+            self as *const _ as *const u8,
+            mem::size_of::<QlAuthData>() + self.size as usize,
+        )
     }
 }
 
-impl AsRef<[u8]> for QlCertificationData {
-    fn as_ref(&self) -> &[u8] {
-        unsafe {
-            slice::from_raw_parts(
-                self as *const _ as *const u8,
-                mem::size_of::<QlCertificationData>() + self.size as usize,
-            )
-        }
+impl QlCertificationData {
+    /// # Safety
+    pub unsafe fn as_slice_unchecked(&self) -> &[u8] {
+        slice::from_raw_parts(
+            self as *const _ as *const u8,
+            mem::size_of::<QlCertificationData>() + self.size as usize,
+        )
     }
 }
 
-impl AsRef<[u8]> for QlEcdsaSigData {
-    fn as_ref(&self) -> &[u8] {
-        unsafe {
-            let p_sig_data = self as *const QlEcdsaSigData;
-            let p_auth_data = p_sig_data.add(1) as *const QlAuthData;
-            let p_cert_data = (p_auth_data.add(1) as *const u8).add((*p_auth_data).size as usize)
-                as *const QlCertificationData;
+impl QlEcdsaSigData {
+    /// # Safety
+    pub unsafe fn as_slice_unchecked(&self) -> &[u8] {
+        let p_sig_data = self as *const QlEcdsaSigData;
+        let p_auth_data = p_sig_data.add(1) as *const QlAuthData;
+        let p_cert_data = (p_auth_data.add(1) as *const u8).add((*p_auth_data).size as usize)
+            as *const QlCertificationData;
 
-            slice::from_raw_parts(
-                self as *const _ as *const u8,
-                mem::size_of::<QlEcdsaSigData>()
-                    + mem::size_of::<QlAuthData>()
-                    + mem::size_of::<QlCertificationData>()
-                    + (*p_auth_data).size as usize
-                    + (*p_cert_data).size as usize,
-            )
-        }
+        slice::from_raw_parts(
+            self as *const _ as *const u8,
+            mem::size_of::<QlEcdsaSigData>()
+                + mem::size_of::<QlAuthData>()
+                + mem::size_of::<QlCertificationData>()
+                + (*p_auth_data).size as usize
+                + (*p_cert_data).size as usize,
+        )
     }
 }
 
@@ -331,14 +328,13 @@ impl_struct_ContiguousMemory! {
     Quote3;
 }
 
-impl AsRef<[u8]> for Quote3 {
-    fn as_ref(&self) -> &[u8] {
-        unsafe {
-            slice::from_raw_parts(
-                self as *const _ as *const u8,
-                mem::size_of::<Quote3>() + self.signature_len as usize,
-            )
-        }
+impl Quote3 {
+    /// # Safety
+    pub unsafe fn as_slice_unchecked(&self) -> &[u8] {
+        slice::from_raw_parts(
+            self as *const _ as *const u8,
+            mem::size_of::<Quote3>() + self.signature_len as usize,
+        )
     }
 }
 

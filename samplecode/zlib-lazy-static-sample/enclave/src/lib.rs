@@ -17,17 +17,15 @@
 
 extern crate sgx_types;
 
-use sgx_types::error::SgxStatus;
-use std::str::from_utf8;
-use std::io::Write;
-
 use inflate::inflate_bytes_zlib;
-use lazy_static::lazy_static;
 use libflate::zlib::Encoder;
+use sgx_types::error::SgxStatus;
+use std::io::Write;
+use std::lazy::SyncLazy;
+use std::str::from_utf8;
 
-lazy_static! {
-    static ref HELLOSTR: String = String::from("This is a global rust String init by lazy_static!");
-}
+static HELLOSTR: SyncLazy<String> =
+    SyncLazy::new(|| String::from("This is a global rust String init by SyncLazy!"));
 
 /// # Safety
 #[no_mangle]

@@ -109,7 +109,7 @@ RustEnclave_Link_Flags := -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfi
 	$(ENCLAVE_LDFLAGS)
 
 RustEnclave_Out_Path := ./enclave/target/$(Rust_Build_Target)/release
-RustEnclave_Lib_Name := $(RustEnclave_Out_Path)/libzlibsample.a
+RustEnclave_Lib_Name := $(RustEnclave_Out_Path)/libzlib.a
 RustEnclave_Name := $(CUSTOM_BIN_PATH)/enclave.so
 RustEnclave_Signed_Name := $(CUSTOM_BIN_PATH)/enclave.signed.so
 

@@ -44,12 +44,7 @@ fn main() {
     let result = unsafe { zlib_sample(enclave.eid(), &mut retval) };
 
     match result {
-        SgxStatus::Success => {}
-        _ => {
-            println!("[-] ECALL Enclave Failed {}!", result.as_str());
-            return;
-        }
+        SgxStatus::Success => println!("[+] zlib sample case ended!"),
+        _ => println!("[-] ECALL Enclave Failed {}!", result.as_str()),
     }
-
-    println!("[+] zlib sample case ended!");
 }

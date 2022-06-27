@@ -23,8 +23,9 @@ use sgx_types::types::{
 };
 use sgx_types::types::{
     Attributes, AttributesFlags, CpuSvn, KeyId, KeyName, KeyPolicy, KeyRequest, Measurement,
-    MiscAttribute, MiscSelect, Report, Report2, Report2Mac, ReportBody, ReportData, TargetInfo,
-    TeeCpuSvn, TeeMeasurement, TeeReportData, TeeReportType,
+    MiscAttribute, MiscSelect, Report, Report2, Report2Body, Report2Mac, ReportBody, ReportData,
+    TargetInfo, TeeAttributes, TeeCpuSvn, TeeInfo, TeeMeasurement, TeeReportData, TeeReportType,
+    TeeTcbInfo, TeeTcbSvn,
 };
 use sgx_types::types::{BaseName, PsSecPropDesc, QuoteNonce, Spid};
 use sgx_types::types::{Ec256PrivateKey, Ec256PublicKey, Ec256SharedKey, Ec256Signature};
@@ -781,6 +782,25 @@ impl Decodable for CpuSvn {
     }
 }
 
+impl Encodable for TeeAttributes {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let TeeAttributes { a: ref _a } = *self;
+        e.emit_struct("TeeAttributes", 1usize, |e| -> _ {
+            e.emit_struct_field("a", 0usize, |e| -> _ { Encodable::encode(&*_a, e) })
+        })
+    }
+}
+
+impl Decodable for TeeAttributes {
+    fn decode<D: Decoder>(d: &mut D) -> Result<TeeAttributes, D::Error> {
+        d.read_struct("TeeAttributes", 1usize, |d| -> _ {
+            Ok(TeeAttributes {
+                a: d.read_struct_field("a", 0usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
 impl Encodable for TeeCpuSvn {
     fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
         let TeeCpuSvn { svn: ref _svn } = *self;
@@ -1441,7 +1461,7 @@ impl Encodable for EnclaveIdentity {
             cpu_svn: ref _cpu_svn,
             attributes: ref _attributes,
             mr_enclave: ref _mr_enclave,
-            mr_signer: ref __mr_signer,
+            mr_signer: ref _mr_signer,
             misc_select: ref _misc_select,
             isv_prod_id: ref _isv_prod_id,
             isv_svn: ref _isv_svn,
@@ -1457,7 +1477,7 @@ impl Encodable for EnclaveIdentity {
                 Encodable::encode(&*_mr_enclave, e)
             })?;
             e.emit_struct_field("mr_signer", 3usize, |e| -> _ {
-                Encodable::encode(&*__mr_signer, e)
+                Encodable::encode(&*_mr_signer, e)
             })?;
             e.emit_struct_field("misc_select", 4usize, |e| -> _ {
                 Encodable::encode(&*_misc_select, e)
@@ -1483,6 +1503,216 @@ impl Decodable for EnclaveIdentity {
                 misc_select: d.read_struct_field("misc_select", 4usize, Decodable::decode)?,
                 isv_prod_id: d.read_struct_field("isv_prod_id", 5usize, Decodable::decode)?,
                 isv_svn: d.read_struct_field("isv_svn", 6usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
+impl Encodable for TeeTcbSvn {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let TeeTcbSvn {
+            tcb_svn: ref _tcb_svn,
+        } = *self;
+        e.emit_struct("TeeTcbSvn", 1usize, |e| -> _ {
+            e.emit_struct_field("tcb_svn", 0usize, |e| -> _ {
+                Encodable::encode(&*_tcb_svn, e)
+            })
+        })
+    }
+}
+
+impl Decodable for TeeTcbSvn {
+    fn decode<D: Decoder>(d: &mut D) -> Result<TeeTcbSvn, D::Error> {
+        d.read_struct("TeeTcbSvn", 1usize, |d| -> _ {
+            Ok(TeeTcbSvn {
+                tcb_svn: d.read_struct_field("tcb_svn", 0usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
+impl Encodable for TeeInfo {
+    #[allow(unaligned_references)]
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let TeeInfo {
+            attributes: ref _attributes,
+            xfam: ref _xfam,
+            mr_td: ref _mr_td,
+            mr_config_id: ref _mr_config_id,
+            mr_owner: ref _mr_owner,
+            mr_owner_config: ref _mr_owner_config,
+            rt_mr: ref _rt_mr,
+            reserved: ref _reserved,
+        } = *self;
+        e.emit_struct("TeeInfo", 8usize, |e| -> _ {
+            e.emit_struct_field("attributes", 0usize, |e| -> _ {
+                Encodable::encode(&*_attributes, e)
+            })?;
+            e.emit_struct_field("xfam", 1usize, |e| -> _ { Encodable::encode(&*_xfam, e) })?;
+            e.emit_struct_field("mr_td", 2usize, |e| -> _ { Encodable::encode(&*_mr_td, e) })?;
+            e.emit_struct_field("mr_config_id", 3usize, |e| -> _ {
+                Encodable::encode(&*_mr_config_id, e)
+            })?;
+            e.emit_struct_field("mr_owner", 4usize, |e| -> _ {
+                Encodable::encode(&*_mr_owner, e)
+            })?;
+            e.emit_struct_field("mr_owner_config", 5usize, |e| -> _ {
+                Encodable::encode(&*_mr_owner_config, e)
+            })?;
+            e.emit_struct_field("rt_mr", 6usize, |e| -> _ { Encodable::encode(&*_rt_mr, e) })?;
+            e.emit_struct_field("reserved", 7usize, |e| -> _ {
+                Encodable::encode(&*_reserved, e)
+            })
+        })
+    }
+}
+
+impl Decodable for TeeInfo {
+    fn decode<D: Decoder>(d: &mut D) -> Result<TeeInfo, D::Error> {
+        d.read_struct("TeeInfo", 8usize, |d| -> _ {
+            Ok(TeeInfo {
+                attributes: d.read_struct_field("attributes", 0usize, Decodable::decode)?,
+                xfam: d.read_struct_field("xfam", 1usize, Decodable::decode)?,
+                mr_td: d.read_struct_field("mr_td", 2usize, Decodable::decode)?,
+                mr_config_id: d.read_struct_field("mr_config_id", 3usize, Decodable::decode)?,
+                mr_owner: d.read_struct_field("mr_owner", 4usize, Decodable::decode)?,
+                mr_owner_config: d.read_struct_field(
+                    "mr_owner_config",
+                    5usize,
+                    Decodable::decode,
+                )?,
+                rt_mr: d.read_struct_field("rt_mr", 6usize, Decodable::decode)?,
+                reserved: d.read_struct_field("reserved", 7usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
+impl Encodable for TeeTcbInfo {
+    #[allow(unaligned_references)]
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let TeeTcbInfo {
+            valid: ref _valid,
+            tee_tcb_svn: ref _tee_tcb_svn,
+            mr_seam: ref _mr_seam,
+            mr_seam_signer: ref _mr_seam_signer,
+            attributes: ref _attributes,
+            reserved: ref _reserved,
+        } = *self;
+        e.emit_struct("TeeTcbInfo", 6usize, |e| -> _ {
+            e.emit_struct_field("valid", 0usize, |e| -> _ { Encodable::encode(&*_valid, e) })?;
+            e.emit_struct_field("tee_tcb_svn", 1usize, |e| -> _ {
+                Encodable::encode(&*_tee_tcb_svn, e)
+            })?;
+            e.emit_struct_field("mr_seam", 2usize, |e| -> _ {
+                Encodable::encode(&*_mr_seam, e)
+            })?;
+            e.emit_struct_field("mr_seam_signer", 3usize, |e| -> _ {
+                Encodable::encode(&*_mr_seam_signer, e)
+            })?;
+            e.emit_struct_field("attributes", 4usize, |e| -> _ {
+                Encodable::encode(&*_attributes, e)
+            })?;
+            e.emit_struct_field("reserved", 5usize, |e| -> _ {
+                Encodable::encode(&*_reserved, e)
+            })
+        })
+    }
+}
+
+impl Decodable for TeeTcbInfo {
+    fn decode<D: Decoder>(d: &mut D) -> Result<TeeTcbInfo, D::Error> {
+        d.read_struct("TeeTcbInfo", 8usize, |d| -> _ {
+            Ok(TeeTcbInfo {
+                valid: d.read_struct_field("valid", 0usize, Decodable::decode)?,
+                tee_tcb_svn: d.read_struct_field("tee_tcb_svn", 1usize, Decodable::decode)?,
+                mr_seam: d.read_struct_field("mr_seam", 2usize, Decodable::decode)?,
+                mr_seam_signer: d.read_struct_field("mr_seam_signer", 3usize, Decodable::decode)?,
+                attributes: d.read_struct_field("attributes", 4usize, Decodable::decode)?,
+                reserved: d.read_struct_field("reserved", 5usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
+impl Encodable for Report2Body {
+    #[allow(unaligned_references)]
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let Report2Body {
+            tee_tcb_svn: ref _tee_tcb_svn,
+            mr_seam: ref _mr_seam,
+            mrsigner_seam: ref _mrsigner_seam,
+            seam_attributes: ref _seam_attributes,
+            td_attributes: ref _td_attributes,
+            xfam: ref _xfam,
+            mr_td: ref _mr_td,
+            mr_config_id: ref _mr_config_id,
+            mr_owner: ref _mr_owner,
+            mr_owner_config: ref _mr_owner_config,
+            rt_mr: ref _rt_mr,
+            report_data: ref _report_data,
+        } = *self;
+        e.emit_struct("Report2Body", 12usize, |e| -> _ {
+            e.emit_struct_field("tee_tcb_svn", 0usize, |e| -> _ {
+                Encodable::encode(&*_tee_tcb_svn, e)
+            })?;
+            e.emit_struct_field("mr_seam", 1usize, |e| -> _ {
+                Encodable::encode(&*_mr_seam, e)
+            })?;
+            e.emit_struct_field("mrsigner_seam", 2usize, |e| -> _ {
+                Encodable::encode(&*_mrsigner_seam, e)
+            })?;
+            e.emit_struct_field("seam_attributes", 3usize, |e| -> _ {
+                Encodable::encode(&*_seam_attributes, e)
+            })?;
+            e.emit_struct_field("td_attributes", 4usize, |e| -> _ {
+                Encodable::encode(&*_td_attributes, e)
+            })?;
+            e.emit_struct_field("xfam", 5usize, |e| -> _ { Encodable::encode(&*_xfam, e) })?;
+            e.emit_struct_field("mr_td", 6usize, |e| -> _ { Encodable::encode(&*_mr_td, e) })?;
+            e.emit_struct_field("mr_config_id", 7usize, |e| -> _ {
+                Encodable::encode(&*_mr_config_id, e)
+            })?;
+            e.emit_struct_field("mr_owner", 8usize, |e| -> _ {
+                Encodable::encode(&*_mr_owner, e)
+            })?;
+            e.emit_struct_field("mr_owner_config", 9usize, |e| -> _ {
+                Encodable::encode(&*_mr_owner_config, e)
+            })?;
+            e.emit_struct_field("rt_mr", 10usize, |e| -> _ {
+                Encodable::encode(&*_rt_mr, e)
+            })?;
+            e.emit_struct_field("report_data", 11usize, |e| -> _ {
+                Encodable::encode(&*_report_data, e)
+            })
+        })
+    }
+}
+
+impl Decodable for Report2Body {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Report2Body, D::Error> {
+        d.read_struct("Report2Body", 8usize, |d| -> _ {
+            Ok(Report2Body {
+                tee_tcb_svn: d.read_struct_field("tee_tcb_svn", 0usize, Decodable::decode)?,
+                mr_seam: d.read_struct_field("mr_seam", 1usize, Decodable::decode)?,
+                mrsigner_seam: d.read_struct_field("mrsigner_seam", 2usize, Decodable::decode)?,
+                seam_attributes: d.read_struct_field(
+                    "seam_attributes",
+                    3usize,
+                    Decodable::decode,
+                )?,
+                td_attributes: d.read_struct_field("td_attributes", 4usize, Decodable::decode)?,
+                xfam: d.read_struct_field("xfam", 5usize, Decodable::decode)?,
+                mr_td: d.read_struct_field("mr_td", 6usize, Decodable::decode)?,
+                mr_config_id: d.read_struct_field("mr_config_id", 7usize, Decodable::decode)?,
+                mr_owner: d.read_struct_field("mr_owner", 8usize, Decodable::decode)?,
+                mr_owner_config: d.read_struct_field(
+                    "mr_owner_config",
+                    9usize,
+                    Decodable::decode,
+                )?,
+                rt_mr: d.read_struct_field("rt_mr", 10usize, Decodable::decode)?,
+                report_data: d.read_struct_field("report_data", 11usize, Decodable::decode)?,
             })
         })
     }

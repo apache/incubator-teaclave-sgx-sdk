@@ -76,25 +76,17 @@ App_Name := $(CUSTOM_BIN_PATH)/app
 # BUILD_STD=no       use no_std
 # BUILD_STD=cargo    use cargo-std-aware
 # BUILD_STD=xargo    use xargo
-BUILD_STD ?= cargo
+BUILD_STD ?= no
 
 Rust_Build_Target := x86_64-unknown-linux-sgx
 Rust_Target_Path := $(ROOT_DIR)/rustlib
 
-ifneq ($(BUILD_STD), cargo)
-ifneq ($(BUILD_STD), xargo)
-$(error Only supports building with build_std strategy!!)
-endif
-endif
-
 ifeq ($(BUILD_STD), cargo)
 	Rust_Build_Std := --release -Z build-std=core,alloc
-	Rust_Std_Features := --features ""
+	Rust_Std_Features :=
 	Rust_Target_Flags := --target $(Rust_Target_Path)/$(Rust_Build_Target).json
 	Rust_Sysroot_Path := $(CURDIR)/sysroot
 	Rust_Sysroot_Flags := RUSTFLAGS="--sysroot $(Rust_Sysroot_Path)"
-else
-	Rust_Unstable_Flags := RUSTFLAGS="-Z force-unstable-if-unmarked"
 endif
 
 RustEnclave_Build_Flags := --release
@@ -108,8 +100,15 @@ RustEnclave_Link_Flags := -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfi
 	-Wl,--version-script=enclave/enclave.lds \
 	$(ENCLAVE_LDFLAGS)
 
-RustEnclave_Out_Path := ./enclave/target/$(Rust_Build_Target)/release
-RustEnclave_Lib_Name := $(RustEnclave_Out_Path)/libcryptosample.a
+ifeq ($(BUILD_STD), cargo)
+	RustEnclave_Out_Path := ./enclave/target/$(Rust_Build_Target)/release
+else ifeq ($(BUILD_STD), xargo)
+	RustEnclave_Out_Path := ./enclave/target/$(Rust_Build_Target)/release
+else
+	RustEnclave_Out_Path := ./enclave/target/release
+endif
+
+RustEnclave_Lib_Name := $(RustEnclave_Out_Path)/libcrypto.a
 RustEnclave_Name := $(CUSTOM_BIN_PATH)/enclave.so
 RustEnclave_Signed_Name := $(CUSTOM_BIN_PATH)/enclave.signed.so
 
@@ -171,8 +170,11 @@ ifeq ($(BUILD_STD), cargo)
 	@cp -r $(Rust_Target_Path)/std/target/$(Rust_Build_Target)/release/deps/* $(Rust_Sysroot_Path)/lib/rustlib/$(Rust_Build_Target)/lib
 
 	@cd enclave && $(Rust_Sysroot_Flags) cargo build $(Rust_Target_Flags) $(RustEnclave_Build_Flags)
+
+else ifeq ($(BUILD_STD), xargo)
+	@cd enclave && RUST_TARGET_PATH=$(Rust_Target_Path) xargo build --target $(Rust_Build_Target) $(RustEnclave_Build_Flags)
 else
-	@cd enclave && $(Rust_Unstable_Flags) RUST_TARGET_PATH=$(Rust_Target_Path) xargo build --target $(Rust_Build_Target) $(RustEnclave_Build_Flags)
+	@cd enclave && cargo build $(RustEnclave_Build_Flags)
 endif
 
 ######## Run Enclave ########

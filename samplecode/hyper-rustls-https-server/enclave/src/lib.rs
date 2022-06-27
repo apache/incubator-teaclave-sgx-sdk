@@ -15,12 +15,10 @@
 // specific language governing permissions and limitations
 // under the License..
 
-extern crate sgx_types;
 extern crate sgx_libc;
+extern crate sgx_types;
 
 use sgx_types::error::SgxStatus;
-use std::str::from_utf8;
-use std::io::Write;
 
 use core::task::{Context, Poll};
 use futures_util::ready;
@@ -50,7 +48,7 @@ pub extern "C" fn run_server() -> SgxStatus {
         Ok(Err(e)) => {
             println!("Failed to run server: {}", e);
             SgxStatus::Unexpected
-        },
+        }
         Err(e) => {
             println!("Failed to create tokio runtime in enclave: {}", e);
             SgxStatus::Unexpected
@@ -235,10 +233,7 @@ fn load_certs(filename: &str) -> io::Result<Vec<rustls::Certificate>> {
     // Load and return certificate.
     let certs = rustls_pemfile::certs(&mut reader)
         .map_err(|_| error("failed to load certificate".into()))?;
-    Ok(certs
-        .into_iter()
-        .map(rustls::Certificate)
-        .collect())
+    Ok(certs.into_iter().map(rustls::Certificate).collect())
 }
 
 // Load private key from file.
@@ -257,4 +252,3 @@ fn load_private_key(filename: &str) -> io::Result<rustls::PrivateKey> {
 
     Ok(rustls::PrivateKey(keys[0].clone()))
 }
-

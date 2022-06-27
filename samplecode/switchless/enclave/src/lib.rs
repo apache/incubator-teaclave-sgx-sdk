@@ -33,15 +33,11 @@ extern "C" {
 pub unsafe extern "C" fn ecall_repeat_ocalls(nrepeats: u64, use_switchless: i32) {
     if use_switchless == 0 {
         for _ in 0..nrepeats {
-            unsafe {
-                ocall_empty();
-            }
+            ocall_empty();
         }
     } else {
         for _ in 0..nrepeats {
-            unsafe {
-                ocall_empty_switchless();
-            }
+            ocall_empty_switchless();
         }
     }
 }

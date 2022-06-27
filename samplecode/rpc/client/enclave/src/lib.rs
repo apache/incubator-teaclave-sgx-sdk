@@ -58,7 +58,7 @@ pub extern "C" fn run_client() -> SgxStatus {
         Ok(Err(e)) => {
             println!("Failed to run client: {}", e);
             SgxStatus::Unexpected
-        },
+        }
         Err(e) => {
             println!("Failed to create tokio runtime in enclave: {}", e);
             SgxStatus::Unexpected

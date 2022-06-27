@@ -60,25 +60,23 @@ impl_asref_array! {
     CDcapURaMsg2;
 }
 
-impl AsRef<[u8]> for CDcapMRaMsg2 {
-    fn as_ref(&self) -> &[u8] {
-        unsafe {
-            slice::from_raw_parts(
-                self as *const _ as *const u8,
-                mem::size_of::<CDcapMRaMsg2>() + self.quote_size as usize,
-            )
-        }
+impl CDcapMRaMsg2 {
+    /// # Safety
+    pub unsafe fn as_slice_unchecked(&self) -> &[u8] {
+        slice::from_raw_parts(
+            self as *const _ as *const u8,
+            mem::size_of::<CDcapMRaMsg2>() + self.quote_size as usize,
+        )
     }
 }
 
-impl AsRef<[u8]> for CDcapRaMsg3 {
-    fn as_ref(&self) -> &[u8] {
-        unsafe {
-            slice::from_raw_parts(
-                self as *const _ as *const u8,
-                mem::size_of::<CDcapRaMsg3>() + self.quote_size as usize,
-            )
-        }
+impl CDcapRaMsg3 {
+    /// # Safety
+    pub unsafe fn as_slice_unchecked(&self) -> &[u8] {
+        slice::from_raw_parts(
+            self as *const _ as *const u8,
+            mem::size_of::<CDcapRaMsg3>() + self.quote_size as usize,
+        )
     }
 }
 

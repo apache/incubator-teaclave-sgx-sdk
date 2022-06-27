@@ -40,16 +40,9 @@ fn main() {
     };
 
     let mut retval = SgxStatus::Success;
-
     let result = unsafe { run_server(enclave.eid(), &mut retval) };
-
     match result {
-        SgxStatus::Success => {}
-        _ => {
-            println!("[-] ECALL Enclave Failed {}!", result.as_str());
-            return;
-        }
+        SgxStatus::Success => println!("[+] https server sample case ended!"),
+        _ => println!("[-] ECALL Enclave Failed {}!", result.as_str()),
     }
-
-    println!("[+] https server sample case ended!");
 }

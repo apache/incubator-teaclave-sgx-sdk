@@ -15,9 +15,13 @@
 // specific language governing permissions and limitations
 // under the License..
 
-extern crate sgx_types;
+#![cfg_attr(not(target_vendor = "teaclave"), no_std)]
+#![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 
-use std::{ptr, slice};
+#[cfg(not(target_vendor = "teaclave"))]
+#[macro_use]
+extern crate sgx_tstd as std;
+extern crate sgx_types;
 
 use sgx_crypto::aes::gcm::{Aad, AesGcm, Nonce};
 use sgx_crypto::mac::AesCMac;
@@ -26,6 +30,8 @@ use sgx_crypto::sha::Sha256;
 use sgx_types::error::SgxStatus;
 use sgx_types::memeq::ConstTimeEq;
 use sgx_types::types::{AESGCM_IV_SIZE, KEY_128BIT_SIZE, MAC_128BIT_SIZE, SHA256_HASH_SIZE};
+use std::vec::Vec;
+use std::{ptr, slice};
 
 /// A Ecall function takes a string and output its SHA256 digest.
 ///

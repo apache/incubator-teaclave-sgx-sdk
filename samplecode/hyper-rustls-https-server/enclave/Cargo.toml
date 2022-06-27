@@ -16,13 +16,13 @@
 # under the License.
 
 [package]
-name = "httpssample"
+name = "https"
 version = "1.0.0"
 authors = ["The Teaclave Authors"]
 edition = "2021"
 
 [lib]
-name = "httpssample"
+name = "https"
 crate-type = ["staticlib"]
 
 [features]

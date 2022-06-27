@@ -16,13 +16,13 @@
 # under the License.
 
 [package]
-name = "cryptosample"
+name = "crypto"
 version = "1.0.0"
 authors = ["The Teaclave Authors"]
 edition = "2021"
 
 [lib]
-name = "cryptosample"
+name = "crypto"
 crate-type = ["staticlib"]
 
 [features]
@@ -33,3 +33,4 @@ sgx_crypto = { path = "../../../sgx_crypto" }
 
 [target.'cfg(not(target_vendor = "teaclave"))'.dependencies]
 sgx_types = { path = "../../../sgx_types" }
+sgx_tstd = { path = "../../../sgx_tstd" }
