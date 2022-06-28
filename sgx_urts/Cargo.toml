@@ -19,5 +19,4 @@ global_exit = ["global_init"]
 
 [dependencies]
 sgx_types = { path = "../sgx_types" }
-sgx_uspfs = { path = "../sgx_fs/uspfs" }
 libc = "0.2"
