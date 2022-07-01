@@ -77,11 +77,6 @@ impl QveReportInfo<'_, '_> {
         }
         ensure!(self.is_enclave_range(), Quote3Error::InvalidParameter);
 
-        // Defense in depth, threshold must be greater or equal to 3
-        if qve_isvsvn_threshold < LEAST_QVE_ISVSVN {
-            bail!(Quote3Error::QveOutOfDate)
-        }
-
         self.verify_report(quote)?;
         self.verify_identity(qve_isvsvn_threshold)
     }
@@ -122,6 +117,10 @@ impl QveReportInfo<'_, '_> {
         ensure!(
             self.qve_report.body.isv_prod_id == QVE_PROD_ID,
             Quote3Error::QveIdentityMismatch
+        );
+        ensure!(
+            self.qve_report.body.isv_svn >= LEAST_QVE_ISVSVN,
+            Quote3Error::QveOutOfDate
         );
         ensure!(
             self.qve_report.body.isv_svn >= qve_isvsvn_threshold,
