@@ -89,6 +89,7 @@ pub fn handle(tcs: &mut Tcs) -> SgxResult {
     sp -= size;
     try_error!(!tds.is_stack_addr(sp, size));
 
+    // sp is within limit_addr and commit_addr, currently only SGX 2.0 under hardware mode will enter this branch.
     if sp < tds.stack_commit {
         // EDMM:
         // stack expand

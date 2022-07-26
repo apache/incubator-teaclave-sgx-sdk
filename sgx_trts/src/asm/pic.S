@@ -150,6 +150,7 @@ _start:
     call    get_synthetic_state_ptr     /* lea_pic SYNTHETIC_STATE, %rdi */
     mov     %rax, %rdi
     call    restore_xregs
+    lfence
     add     $(4*SE_WORDSIZE), %rsp
 
     /* switch to C code */
@@ -165,6 +166,7 @@ _start:
     call    get_synthetic_state_ptr     /* lea_pic SYNTHETIC_STATE, %rdi */
     mov     %rax, %rdi
     call    restore_xregs
+    lfence
 
 /* set xdi and xsi */
     mov     $OCMD_ERET, %rdi
@@ -308,6 +310,7 @@ DECLARE_LOCAL_FUNC __do_ocall
     mov     %rax, %rdi
     mov     %rdi, (%rsp)
     call    restore_xregs
+    lfence
 
     /* set rdi and rsi using the input parameters */
     mov     SE_WORDSIZE*12(%rsp), %rdi
