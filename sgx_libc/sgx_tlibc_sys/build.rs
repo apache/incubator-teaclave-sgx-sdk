@@ -39,28 +39,29 @@ fn build_libtlibc(host: &str, _target: &str) -> Result<(), ()> {
 
     let use_optlibs = is_use_optlibs();
 
-    let native = native_lib_boilerplate("sgx_tlibc_sys/tlibc", "libtlibc", "tlibc", "", &[])?;
+    native_lib_boilerplate("sgx_tlibc_sys/tlibc", "libtlibc", "tlibc", "", &[])
+        .map(|native| {
+            let mut command = Command::new(build_helper::make(host));
+            command
+                .current_dir(&native.src_dir)
+                .arg(format!("OUT_DIR={}", native.out_dir.display()));
 
-    let mut command = Command::new(build_helper::make(host));
-    command
-        .current_dir(&native.src_dir)
-        .arg(format!("OUT_DIR={}", native.out_dir.display()));
-
-    if use_optlibs {
-        command.arg(format!("USE_OPTLIBS={}", 1));
-    }
-    run(&mut command);
-    Ok(())
+            if use_optlibs {
+                command.arg(format!("USE_OPTLIBS={}", 1));
+            }
+            run(&mut command);
+        })
+        .or(Ok(()))
 }
 
 fn build_libtsafecrt(host: &str, _target: &str) -> Result<(), ()> {
-    let native =
-        native_lib_boilerplate("sgx_tlibc_sys/tsafecrt", "libtsafecrt", "tsafecrt", "", &[])?;
-
-    run(Command::new(build_helper::make(host))
-        .current_dir(&native.src_dir)
-        .arg(format!("OUT_DIR={}", native.out_dir.display())));
-    Ok(())
+    native_lib_boilerplate("sgx_tlibc_sys/tsafecrt", "libtsafecrt", "tsafecrt", "", &[])
+        .map(|native| {
+            run(Command::new(build_helper::make(host))
+                .current_dir(&native.src_dir)
+                .arg(format!("OUT_DIR={}", native.out_dir.display())));
+        })
+        .or(Ok(()))
 }
 
 fn is_use_optlibs() -> bool {

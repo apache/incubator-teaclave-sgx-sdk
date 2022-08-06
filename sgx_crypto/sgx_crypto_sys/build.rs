@@ -33,23 +33,24 @@ fn main() -> Result<(), &'static str> {
 }
 
 fn build_libtcrypto(host: &str, _target: &str) -> Result<(), ()> {
-    let native = native_lib_boilerplate(
+    native_lib_boilerplate(
         "sgx_crypto_sys/tcrypto",
         "libsgx_tcrypto",
         "sgx_tcrypto",
         "",
         &[],
-    )?;
+    )
+    .map(|native| {
+        let build_arg = if cfg!(feature = "ucrypto") {
+            "BUILD_ARG=ucrypto"
+        } else {
+            "BUILD_ARG=tcrypto"
+        };
 
-    let build_arg = if cfg!(feature = "ucrypto") {
-        "BUILD_ARG=ucrypto"
-    } else {
-        "BUILD_ARG=tcrypto"
-    };
-
-    run(Command::new(build_helper::make(host))
-        .current_dir(&native.src_dir)
-        .arg(build_arg)
-        .arg(format!("OUT_DIR={}", native.out_dir.display())));
-    Ok(())
+        run(Command::new(build_helper::make(host))
+            .current_dir(&native.src_dir)
+            .arg(build_arg)
+            .arg(format!("OUT_DIR={}", native.out_dir.display())));
+    })
+    .or(Ok(()))
 }
