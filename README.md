@@ -25,8 +25,13 @@ We are still working on porting all v1.1 samples to v2.0. Current available samp
 
 - backtrace
 - cov
+- crypto
 - hellworld
 - httpreq
+- hyper-rustls-https-server
+- logger
+- regex
 - rpc (Tonic + Tokio)
 - seal
 - switchless
+- zlib-lazy-static-sample
