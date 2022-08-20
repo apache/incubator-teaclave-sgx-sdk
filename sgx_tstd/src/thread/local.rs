@@ -217,15 +217,7 @@ macro_rules! __thread_local_inner {
             // If a dtor isn't needed we can do something "very raw" and
             // just get going.
             if !$crate::mem::needs_drop::<$t>() {
-                #[thread_local]
-                static mut VAL: $t = $init;
                 return Ok(&VAL)
-            }
-
-            if $crate::thread::thread_policy() == $crate::thread::SgxThreadPolicy::Unbound  {
-                return Err($crate::thread::AccessError::new(
-                    "If TLS data needs to be destructed, TCS policy must be bound."
-                ));
             }
 
             // 0 == dtor not registered
@@ -482,27 +474,6 @@ pub mod statik {
     }
 }
 
-cfg_if! {
-if #[cfg(feature = "thread")] {
-    use sgx_libc::{c_void, c_long};
-    use sgx_types::sgx_status_t;
-
-    #[repr(C)]
-    struct pthread_info {
-        m_pthread: *mut c_void,       // struct _pthread
-        m_local_storage: *mut c_void, // struct sgx_pthread_storage
-        m_mark: [c_long; 8],          // jmpbuf
-        m_state: sgx_status_t,
-    }
-
-    #[link(name = "sgx_pthread")]
-    extern "C" {
-        #[thread_local]
-        static pthread_info_tls: pthread_info;
-    }
-}
-} // cfg_if!
-
 #[cfg(feature = "thread")]
 pub mod fast {
     use super::lazy::LazyKeyInner;
@@ -511,7 +482,6 @@ pub mod fast {
     use crate::fmt;
     use crate::mem;
     use crate::sys::thread_local_dtor::register_dtor;
-    use crate::thread::{self, SgxThreadPolicy};
 
     #[derive(Copy, Clone)]
     enum DtorState {
@@ -582,30 +552,12 @@ pub mod fast {
         // LLVM issue: https://bugs.llvm.org/show_bug.cgi?id=41722
         #[inline(never)]
         unsafe fn try_initialize<F: FnOnce() -> T>(&self, init: F) -> Result<&'static T, AccessError> {
-            if mem::needs_drop::<T>() && thread::thread_policy() == SgxThreadPolicy::Unbound {
-                return Err(AccessError::new(
-                    "If TLS data needs to be destructed, TCS policy must be bound."
-                ));
-            }
-
-            if !super::pthread_info_tls.m_pthread.is_null() {
-                // Note:
-                // If the current thread was created by `pthread_create`, we should call
-                // the try_register_dtor function. You can know whether the current thread has
-                // been created by pthread_create() through the m_thread member of pthread_info
-                // (thread local storage) of pthread library in intel sgx sdk.
-                //
-                // Destructor will only be called when a thread created by `pthread_create` exits,
-                // because `sys_common::thread_local::StaticKey` does not call `pthread_key_delete`
-                // to trigger the destructor.
-                if !mem::needs_drop::<T>() || self.try_register_dtor() {
-                    // SAFETY: See comment above (his function doc).
-                    Ok(self.inner.initialize(init))
-                } else {
-                    Err(AccessError::new("Failed to register destructor."))
-                }
-            } else {
+            // SAFETY: See comment above (this function doc).
+            if !mem::needs_drop::<T>() || self.try_register_dtor() {
+                // SAFETY: See comment above (his function doc).
                 Ok(self.inner.initialize(init))
+            } else {
+                Err(AccessError::new("Failed to register destructor."))
             }
         }
 

@@ -15,7 +15,7 @@ ADD 02_binutils.sh /root
 RUN bash /root/02_binutils.sh
 
 ENV SDK_DIST="INTEL_BUILT"
-ENV SDK_URL="https://download.01.org/intel-sgx/sgx-linux/2.17/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.17.100.3.bin"
+ENV SDK_URL="https://download.01.org/intel-sgx/sgx-linux/2.17.1/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.17.101.1.bin"
 #ENV SDK_DIST="SELF_BUILT"
 ADD 03_sdk.sh /root
 RUN bash /root/03_sdk.sh
