@@ -17,5 +17,5 @@
 
 pub const MAJOR_VERSION: usize = 2;
 pub const MINOR_VERSION: usize = 17;
-pub const REVISION_VERSION: usize = 100;
+pub const REVISION_VERSION: usize = 101;
 pub const VERSION_UINT: usize = (MAJOR_VERSION << 32) | (MINOR_VERSION << 16) | REVISION_VERSION;
