@@ -41,6 +41,9 @@ cfg_if! {
 #[derive(Clone, Debug)]
 pub struct OpenOptions(fs_imp::OpenOptions);
 
+#[derive(Clone, Debug)]
+pub struct EncryptMode(fs_imp::EncryptMode);
+
 /// A reference to an open Sgxfile on the filesystem.
 ///
 /// An instance of a `SgxFile` can be read and/or written depending on what options
@@ -76,14 +79,14 @@ pub fn write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, contents: C) -> io::Result
     SgxFile::create(path)?.write_all(contents.as_ref())
 }
 
-pub fn read_with_key<P: AsRef<Path>>(path: P, key: &Key128bit) -> io::Result<Vec<u8>> {
+pub fn read_with_key<P: AsRef<Path>>(path: P, key: Key128bit) -> io::Result<Vec<u8>> {
     let mut file = SgxFile::open_with_key(path, key)?;
     let mut bytes = Vec::with_capacity(buffer_capacity_required(&file));
     file.read_to_end(&mut bytes)?;
     Ok(bytes)
 }
 
-pub fn read_to_string_with_key<P: AsRef<Path>>(path: P, key: &Key128bit) -> io::Result<String> {
+pub fn read_to_string_with_key<P: AsRef<Path>>(path: P, key: Key128bit) -> io::Result<String> {
     let mut file = SgxFile::open_with_key(path, key)?;
     let mut string = String::with_capacity(buffer_capacity_required(&file));
     file.read_to_string(&mut string)?;
@@ -92,7 +95,7 @@ pub fn read_to_string_with_key<P: AsRef<Path>>(path: P, key: &Key128bit) -> io::
 
 pub fn write_with_key<P: AsRef<Path>, C: AsRef<[u8]>>(
     path: P,
-    key: &Key128bit,
+    key: Key128bit,
     contents: C,
 ) -> io::Result<()> {
     SgxFile::create_with_key(path, key)?.write_all(contents.as_ref())
@@ -135,19 +138,19 @@ impl SgxFile {
         OpenOptions::new().append(true).open(path.as_ref())
     }
 
-    pub fn open_with_key<P: AsRef<Path>>(path: P, key: &Key128bit) -> io::Result<SgxFile> {
+    pub fn open_with_key<P: AsRef<Path>>(path: P, key: Key128bit) -> io::Result<SgxFile> {
         OpenOptions::new()
             .read(true)
             .open_with_key(path.as_ref(), key)
     }
 
-    pub fn create_with_key<P: AsRef<Path>>(path: P, key: &Key128bit) -> io::Result<SgxFile> {
+    pub fn create_with_key<P: AsRef<Path>>(path: P, key: Key128bit) -> io::Result<SgxFile> {
         OpenOptions::new()
             .write(true)
             .open_with_key(path.as_ref(), key)
     }
 
-    pub fn append_with_key<P: AsRef<Path>>(path: P, key: &Key128bit) -> io::Result<SgxFile> {
+    pub fn append_with_key<P: AsRef<Path>>(path: P, key: Key128bit) -> io::Result<SgxFile> {
         OpenOptions::new()
             .append(true)
             .open_with_key(path.as_ref(), key)
@@ -171,7 +174,37 @@ impl SgxFile {
             .open_integrity_only(path.as_ref())
     }
 
-    pub fn with_options() -> OpenOptions {
+    pub fn open_with<P: AsRef<Path>>(
+        path: P,
+        encrypt_mode: EncryptMode,
+        cache_size: Option<usize>,
+    ) -> io::Result<SgxFile> {
+        OpenOptions::new()
+            .read(true)
+            .open_with(path.as_ref(), encrypt_mode, cache_size)
+    }
+
+    pub fn create_with<P: AsRef<Path>>(
+        path: P,
+        encrypt_mode: EncryptMode,
+        cache_size: Option<usize>,
+    ) -> io::Result<SgxFile> {
+        OpenOptions::new()
+            .write(true)
+            .open_with(path.as_ref(), encrypt_mode, cache_size)
+    }
+
+    pub fn append_with<P: AsRef<Path>>(
+        path: P,
+        encrypt_mode: EncryptMode,
+        cache_size: Option<usize>,
+    ) -> io::Result<SgxFile> {
+        OpenOptions::new()
+            .append(true)
+            .open_with(path.as_ref(), encrypt_mode, cache_size)
+    }
+
+    pub fn options() -> OpenOptions {
         OpenOptions::new()
     }
 
@@ -299,8 +332,8 @@ pub fn export_key<P: AsRef<Path>>(path: P) -> io::Result<Key128bit> {
 }
 
 #[cfg(feature = "tfs")]
-pub fn import_key<P: AsRef<Path>>(path: P, key: &Key128bit) -> io::Result<()> {
-    fs_imp::import_key(path.as_ref(), *key)
+pub fn import_key<P: AsRef<Path>>(path: P, key: Key128bit) -> io::Result<()> {
+    fs_imp::import_key(path.as_ref(), key)
 }
 
 impl OpenOptions {
@@ -342,21 +375,24 @@ impl OpenOptions {
     /// Opens a file at `path` with the options specified by `self`.
     #[cfg(feature = "tfs")]
     pub fn open<P: AsRef<Path>>(&self, path: P) -> io::Result<SgxFile> {
-        let inner = fs_imp::SgxFile::open(path, &self.0, &fs_imp::EncryptMode::EncryptAutoKey)?;
-        Ok(SgxFile { inner })
+        self.open_with(path, EncryptMode::with_auto_key(), None)
     }
 
-    pub fn open_with_key<P: AsRef<Path>>(&self, path: P, key: &Key128bit) -> io::Result<SgxFile> {
-        let inner = fs_imp::SgxFile::open(
-            path,
-            &self.0,
-            &fs_imp::EncryptMode::EncryptWithIntegrity(*key),
-        )?;
-        Ok(SgxFile { inner })
+    pub fn open_with_key<P: AsRef<Path>>(&self, path: P, key: Key128bit) -> io::Result<SgxFile> {
+        self.open_with(path, EncryptMode::with_user_key(key), None)
     }
 
     pub fn open_integrity_only<P: AsRef<Path>>(&self, path: P) -> io::Result<SgxFile> {
-        let inner = fs_imp::SgxFile::open(path, &self.0, &fs_imp::EncryptMode::IntegrityOnly)?;
+        self.open_with(path, EncryptMode::integrity_only(), None)
+    }
+
+    pub fn open_with<P: AsRef<Path>>(
+        &self,
+        path: P,
+        encrypt_mode: EncryptMode,
+        cache_size: Option<usize>,
+    ) -> io::Result<SgxFile> {
+        let inner = fs_imp::SgxFile::open(path, &self.0, &encrypt_mode.0, cache_size)?;
         Ok(SgxFile { inner })
     }
 }
@@ -364,5 +400,23 @@ impl OpenOptions {
 impl Default for OpenOptions {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl EncryptMode {
+    #[cfg(feature = "tfs")]
+    #[inline]
+    pub fn with_auto_key() -> EncryptMode {
+        EncryptMode(fs_imp::EncryptMode::EncryptAutoKey)
+    }
+
+    #[inline]
+    pub fn with_user_key(key: Key128bit) -> EncryptMode {
+        EncryptMode(fs_imp::EncryptMode::EncryptWithIntegrity(key))
+    }
+
+    #[inline]
+    pub fn integrity_only() -> EncryptMode {
+        EncryptMode(fs_imp::EncryptMode::IntegrityOnly)
     }
 }

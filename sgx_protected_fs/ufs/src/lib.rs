@@ -110,7 +110,12 @@ impl HostFile {
     }
 
     pub fn flush(&mut self) -> OsResult {
-        self.stream.flush()
+        self.stream.flush()?;
+        if unsafe { libc::fsync(self.fd) } == 0 {
+            Ok(())
+        } else {
+            Err(errno())
+        }
     }
 
     pub fn size(&self) -> OsResult<usize> {
@@ -144,6 +149,7 @@ impl Drop for HostFile {
     fn drop(&mut self) {
         unsafe {
             libc::flock(self.fd, libc::LOCK_UN);
+            libc::fsync(self.fd);
         }
     }
 }

@@ -30,6 +30,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+pub use open::DEFAULT_CACHE_SIZE;
+
 mod close;
 mod flush;
 mod node;
@@ -43,8 +45,6 @@ pub struct ProtectedFile {
     file: Mutex<FileInner>,
 }
 
-const MAX_PAGES_IN_CACHE: usize = 48;
-
 #[derive(Debug)]
 struct FileInner {
     host_file: HostFile,
@@ -54,6 +54,7 @@ struct FileInner {
     opts: OpenOptions,
     need_writing: bool,
     end_of_file: bool,
+    max_cache_page: usize,
     offset: usize,
     last_error: FsError,
     status: FileStatus,
@@ -62,8 +63,13 @@ struct FileInner {
 }
 
 impl ProtectedFile {
-    pub fn open<P: AsRef<Path>>(path: P, opts: &OpenOptions, mode: &OpenMode) -> FsResult<Self> {
-        let file = FileInner::open(path.as_ref(), opts, mode)?;
+    pub fn open<P: AsRef<Path>>(
+        path: P,
+        opts: &OpenOptions,
+        mode: &OpenMode,
+        cache_size: Option<usize>,
+    ) -> FsResult<Self> {
+        let file = FileInner::open(path.as_ref(), opts, mode, cache_size)?;
         Ok(Self {
             file: Mutex::new(file),
         })
@@ -270,6 +276,7 @@ impl ProtectedFile {
             path.as_ref(),
             &OpenOptions::new().read(true),
             &OpenMode::AutoKey,
+            None,
         )?;
         file.close(CloseMode::Export).map(|key| key.unwrap())
     }
@@ -280,6 +287,7 @@ impl ProtectedFile {
             path.as_ref(),
             &OpenOptions::new().read(true).update(true),
             &OpenMode::ImportKey(key),
+            None,
         )?;
         file.close(CloseMode::Import).map(|_| ())
     }
@@ -418,6 +426,7 @@ impl OpenMode {
 impl From<EncryptMode> for OpenMode {
     fn from(encrypt_mode: EncryptMode) -> OpenMode {
         match encrypt_mode {
+            #[cfg(feature = "tfs")]
             EncryptMode::EncryptAutoKey => Self::AutoKey,
             EncryptMode::EncryptWithIntegrity(key) => Self::UserKey(key),
             EncryptMode::IntegrityOnly => Self::IntegrityOnly,
@@ -428,6 +437,7 @@ impl From<EncryptMode> for OpenMode {
 impl From<&EncryptMode> for OpenMode {
     fn from(encrypt_mode: &EncryptMode) -> OpenMode {
         match encrypt_mode {
+            #[cfg(feature = "tfs")]
             EncryptMode::EncryptAutoKey => Self::AutoKey,
             EncryptMode::EncryptWithIntegrity(key) => Self::UserKey(*key),
             EncryptMode::IntegrityOnly => Self::IntegrityOnly,

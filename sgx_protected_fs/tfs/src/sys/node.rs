@@ -221,14 +221,14 @@ impl FileNode {
             node_type,
             logic_number,
             need_writing: false,
-            encrypt_flags,
             new_node: true,
+            encrypt_flags,
             ciphertext: EncryptedNode {
                 physical_number,
                 node_data: EncryptedData::default(),
             },
-            parent: None,
             plaintext: Node::new(node_type),
+            parent: None,
         }
     }
 

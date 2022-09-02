@@ -20,7 +20,6 @@ use crate::sys::file::OpenMode;
 use crate::sys::host::HostFs;
 use crate::sys::keys::{DeriveKey, KeyType, RestoreKey};
 use crate::sys::node::{META_DATA_PHY_NUM, NODE_SIZE};
-use crate::sys::EncryptMode;
 use sgx_crypto::aes::gcm::{Aad, AesGcm, Nonce};
 use sgx_types::error::SgxStatus;
 use sgx_types::types::{Attributes, CpuSvn, Key128bit, KeyId, Mac128bit};
@@ -70,16 +69,6 @@ impl From<&OpenMode> for EncryptFlags {
             OpenMode::AutoKey | OpenMode::ImportKey(_) => Self::AutoKey,
             OpenMode::UserKey(_) => Self::UserKey,
             OpenMode::IntegrityOnly => Self::IntegrityOnly,
-        }
-    }
-}
-
-impl From<&EncryptMode> for EncryptFlags {
-    fn from(mode: &EncryptMode) -> Self {
-        match mode {
-            EncryptMode::EncryptAutoKey => Self::AutoKey,
-            EncryptMode::EncryptWithIntegrity(_) => Self::UserKey,
-            EncryptMode::IntegrityOnly => Self::IntegrityOnly,
         }
     }
 }

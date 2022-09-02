@@ -187,7 +187,7 @@ impl FileInner {
     }
 
     fn shrink_cache(&mut self) -> FsResult {
-        while self.cache.len() > super::MAX_PAGES_IN_CACHE {
+        while self.cache.len() > self.max_cache_page {
             let node = self.cache.back().ok_or(SgxStatus::Unexpected)?;
             if !node.borrow().need_writing {
                 let _node = self.cache.pop_back();

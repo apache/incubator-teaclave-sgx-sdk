@@ -23,6 +23,8 @@ use std::io::{Result, SeekFrom};
 use std::mem::ManuallyDrop;
 use std::path::Path;
 
+pub use file::DEFAULT_CACHE_SIZE;
+
 #[macro_use]
 pub(crate) mod error;
 #[macro_use]
@@ -39,6 +41,7 @@ pub struct OpenOptions(file_imp::OpenOptions);
 
 #[derive(Clone, Debug)]
 pub enum EncryptMode {
+    #[cfg(feature = "tfs")]
     EncryptAutoKey,
     EncryptWithIntegrity(Key128bit),
     IntegrityOnly,
@@ -89,9 +92,10 @@ impl SgxFile {
         path: P,
         opts: &OpenOptions,
         encrypt_mode: &EncryptMode,
+        cache_size: Option<usize>,
     ) -> Result<SgxFile> {
         opts.check_access_mode()?;
-        ProtectedFile::open(path, &opts.0, &From::from(encrypt_mode))
+        ProtectedFile::open(path, &opts.0, &encrypt_mode.into(), cache_size)
             .map_err(|e| {
                 e.set_errno();
                 e.to_io_error()

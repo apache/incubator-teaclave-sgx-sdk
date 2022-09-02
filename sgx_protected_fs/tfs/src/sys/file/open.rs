@@ -28,12 +28,27 @@ use crate::sys::node::{FileNode, FileNodeRef};
 use sgx_types::error::errno::*;
 use sgx_types::error::SgxStatus;
 use sgx_types::memeq::ConstTimeEq;
+use sgx_types::metadata::SE_PAGE_SIZE;
 use sgx_types::types::Key128bit;
 use std::borrow::ToOwned;
 use std::path::Path;
 
+macro_rules! is_page_aligned {
+    ($num:expr) => {
+        $num & (SE_PAGE_SIZE - 1) == 0
+    };
+}
+
+pub const DEFAULT_CACHE_SIZE: usize = 48 * SE_PAGE_SIZE;
+
 impl FileInner {
-    pub fn open(path: &Path, opts: &OpenOptions, mode: &OpenMode) -> FsResult<Self> {
+    pub fn open(
+        path: &Path,
+        opts: &OpenOptions,
+        mode: &OpenMode,
+        cache_size: Option<usize>,
+    ) -> FsResult<Self> {
+        let cache_size = Self::check_cache_size(cache_size)?;
         let file_name = path.file_name().ok_or(EINVAL)?.to_str().ok_or(EINVAL)?;
         Self::check_open_param(path, file_name, opts, mode)?;
 
@@ -86,11 +101,12 @@ impl FileInner {
             opts: *opts,
             need_writing,
             end_of_file: false,
+            max_cache_page: cache_size,
             offset,
             last_error: esgx!(SgxStatus::Success),
             status: FileStatus::NotInitialized,
             recovery_path,
-            cache: LruCache::new(super::MAX_PAGES_IN_CACHE),
+            cache: LruCache::new(cache_size),
         };
 
         protected_file.status = FileStatus::Ok;
@@ -202,5 +218,19 @@ impl FileInner {
             ensure!(key.ct_ne(&Key128bit::default()), eos!(EINVAL));
         }
         Ok(())
+    }
+
+    #[inline]
+    fn check_cache_size(cache_size: Option<usize>) -> FsResult<usize> {
+        cache_size
+            .or(Some(DEFAULT_CACHE_SIZE))
+            .and_then(|cache_size| {
+                if is_page_aligned!(cache_size) && cache_size >= DEFAULT_CACHE_SIZE {
+                    Some(cache_size / SE_PAGE_SIZE)
+                } else {
+                    None
+                }
+            })
+            .ok_or_else(|| eos!(EINVAL))
     }
 }

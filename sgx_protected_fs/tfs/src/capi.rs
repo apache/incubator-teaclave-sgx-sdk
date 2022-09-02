@@ -37,9 +37,17 @@ pub unsafe extern "C" fn sgx_fopen(
     mode: *const c_char,
     key: *const Key128bit,
 ) -> RawProtectedFile {
-    if filename.is_null() || mode.is_null() || key.is_null() {
+    if filename.is_null() || mode.is_null() {
         eos!(EINVAL).set_errno();
         return ptr::null_mut();
+    }
+
+    #[cfg(not(feature = "tfs"))]
+    {
+        if key.is_null() {
+            eos!(EINVAL).set_errno();
+            return ptr::null_mut();
+        }
     }
 
     let name = match CStr::from_ptr(filename).to_str() {
@@ -58,8 +66,12 @@ pub unsafe extern "C" fn sgx_fopen(
         }
     };
 
-    let encrypt_mode = EncryptMode::EncryptWithIntegrity(*key);
-    match SgxFile::open(name, &opts, &encrypt_mode) {
+    let encrypt_mode = if key.is_null() {
+        EncryptMode::EncryptAutoKey
+    } else {
+        EncryptMode::EncryptWithIntegrity(*key)
+    };
+    match SgxFile::open(name, &opts, &encrypt_mode, None) {
         Ok(file) => file.into_raw(),
         Err(_) => ptr::null_mut(),
     }
@@ -94,7 +106,7 @@ pub unsafe extern "C" fn sgx_fopen_auto_key(
     };
 
     let encrypt_mode = EncryptMode::EncryptAutoKey;
-    match SgxFile::open(name, &opts, &encrypt_mode) {
+    match SgxFile::open(name, &opts, &encrypt_mode, None) {
         Ok(file) => file.into_raw(),
         Err(_) => ptr::null_mut(),
     }
@@ -128,7 +140,55 @@ pub unsafe extern "C" fn sgx_fopen_integrity_only(
     };
 
     let encrypt_mode = EncryptMode::IntegrityOnly;
-    match SgxFile::open(name, &opts, &encrypt_mode) {
+    match SgxFile::open(name, &opts, &encrypt_mode, None) {
+        Ok(file) => file.into_raw(),
+        Err(_) => ptr::null_mut(),
+    }
+}
+
+/// # Safety
+#[no_mangle]
+pub unsafe extern "C" fn sgx_fopen_ex(
+    filename: *const c_char,
+    mode: *const c_char,
+    key: *const Key128bit,
+    cache_size: u64,
+) -> RawProtectedFile {
+    if filename.is_null() || mode.is_null() || cache_size < fs_imp::DEFAULT_CACHE_SIZE as u64 {
+        eos!(EINVAL).set_errno();
+        return ptr::null_mut();
+    }
+
+    #[cfg(not(feature = "tfs"))]
+    {
+        if key.is_null() {
+            eos!(EINVAL).set_errno();
+            return ptr::null_mut();
+        }
+    }
+
+    let name = match CStr::from_ptr(filename).to_str() {
+        Ok(name) => name,
+        Err(_) => {
+            eos!(EINVAL).set_errno();
+            return ptr::null_mut();
+        }
+    };
+
+    let opts = match parse_mode(CStr::from_ptr(mode)) {
+        Ok(mode) => mode,
+        Err(error) => {
+            error.set_errno();
+            return ptr::null_mut();
+        }
+    };
+
+    let encrypt_mode = if key.is_null() {
+        EncryptMode::EncryptAutoKey
+    } else {
+        EncryptMode::EncryptWithIntegrity(*key)
+    };
+    match SgxFile::open(name, &opts, &encrypt_mode, Some(cache_size as usize)) {
         Ok(file) => file.into_raw(),
         Err(_) => ptr::null_mut(),
     }
