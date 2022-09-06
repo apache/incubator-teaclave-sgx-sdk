@@ -17,15 +17,15 @@
 
 use crate::linux::*;
 use core::mem;
-use core::mem::ManuallyDrop;
 use core::ptr;
 use sgx_sync::capi::*;
+use sgx_trts::capi::*;
 use sgx_trts::thread::tls::{Key, Tls};
 use sgx_trts::thread::{self, Native, Thread};
 use sgx_trts::trts::is_within_enclave;
 use sgx_types::error::SgxStatus;
 
-pub type pthread_t = *mut c_void;
+pub type pthread_t = *const c_void;
 pub type pthread_key_t = size_t;
 
 pub type pthread_mutex_t = sgx_thread_mutex_t;
@@ -83,7 +83,7 @@ pub unsafe extern "C" fn pthread_create(
     let f = move |arg| start_routine(arg);
     match Thread::new(f, arg) {
         Ok(t) => {
-            *thread = Thread::into_raw(t) as *mut c_void;
+            *thread = Thread::into_raw(t) as pthread_t;
             0
         }
         Err(e) => match e {
@@ -115,20 +115,14 @@ pub unsafe extern "C" fn pthread_join(thread: pthread_t, retval: *mut *mut c_voi
 #[no_mangle]
 pub unsafe extern "C" fn pthread_self() -> pthread_t {
     if let Some(t) = thread::current() {
-        Thread::into_raw(t) as *mut c_void
+        Thread::into_raw(t) as pthread_t
     } else {
-        ptr::null_mut()
+        sgx_thread_self()
     }
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn pthread_equal(t1: pthread_t, t2: pthread_t) -> c_int {
-    if t1.is_null() || t2.is_null() {
-        return 0;
-    }
-
-    let t1 = ManuallyDrop::new(Thread::from_raw(t1 as *mut Native));
-    let t2 = ManuallyDrop::new(Thread::from_raw(t2 as *mut Native));
     if t1 == t2 {
         1
     } else {

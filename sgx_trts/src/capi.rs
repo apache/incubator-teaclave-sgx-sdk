@@ -298,7 +298,7 @@ pub const SGX_THREAD_T_NULL: *const c_void = ptr::null();
 #[inline]
 #[no_mangle]
 pub unsafe extern "C" fn sgx_thread_self() -> sgx_thread_t {
-    current().tds() as *const _ as *const c_void
+    current().tds() as *const _ as sgx_thread_t
 }
 
 #[inline]
