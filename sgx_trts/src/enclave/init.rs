@@ -42,7 +42,7 @@ pub fn rtinit(tcs: &mut Tcs, ms: *mut SystemFeatures, tidx: usize) -> SgxResult 
     // TODO: pcl_entry
     parse::relocate()?;
 
-    mem::Image::get_or_init();
+    mem::Image::init();
     let features = SysFeatures::init(NonNull::new(ms).ok_or(SgxStatus::Unexpected)?)?;
 
     let heap = mem::Heap::get_or_init();

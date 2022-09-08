@@ -19,7 +19,7 @@ use crate::arch;
 use crate::enclave::parse;
 use crate::error;
 use crate::feature::SysFeatures;
-use core::mem;
+use core::mem::{self, MaybeUninit};
 use core::ptr;
 use sgx_types::marker::ContiguousMemory;
 use sgx_types::types::ProtectPerm;
@@ -42,18 +42,18 @@ impl MmLayout {
     }
 
     #[inline]
-    pub fn entry_address() -> usize {
-        Image::get_or_init().entry_addr
-    }
-
-    #[inline]
     pub fn elrange_base() -> usize {
-        Image::get_or_init().elrange_base
+        Image::get().elrange_base
     }
 
     #[inline]
     pub fn elrange_size() -> usize {
-        Image::get_or_init().elrange_size
+        Image::get().elrange_size
+    }
+
+    #[inline]
+    pub fn entry_address() -> usize {
+        Image::get().entry_address
     }
 
     #[inline]
@@ -96,30 +96,27 @@ impl MmLayout {
 pub struct Image {
     pub image_base: usize,
     pub image_size: usize,
-    pub entry_addr: usize,
     pub elrange_base: usize,
     pub elrange_size: usize,
+    pub entry_address: usize,
 }
 
 #[link_section = ".data.rel.ro"]
-static mut IMAGE: Option<Image> = None;
+static mut IMAGE: MaybeUninit<Image> = MaybeUninit::uninit();
 
 impl Image {
-    pub fn get_or_init() -> &'static Image {
-        unsafe {
-            if let Some(ref enclave) = IMAGE {
-                enclave
-            } else {
-                IMAGE = Some(Image {
-                    image_base: Self::image_base(),
-                    image_size: Self::image_size(),
-                    entry_addr: Self::entry_address(),
-                    elrange_base: Self::elrange_base(),
-                    elrange_size: Self::elrange_size(),
-                });
-                IMAGE.as_ref().unwrap()
-            }
-        }
+    pub fn init() {
+        let mut image = unsafe { IMAGE.assume_init_mut() };
+        image.image_base = Self::image_base();
+        image.image_size = Self::image_size();
+        image.elrange_base = Self::elrange_base();
+        image.elrange_size = Self::elrange_size();
+        image.entry_address = Self::entry_address();
+    }
+
+    #[inline]
+    pub fn get() -> &'static Image {
+        unsafe { IMAGE.assume_init_ref() }
     }
 
     #[inline]
