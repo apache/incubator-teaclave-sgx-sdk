@@ -106,12 +106,12 @@ impl EncluInst {
     }
 
     #[inline]
-    pub fn eaccept(_addr: usize, _info: &Secinfo) -> Result<(), u32> {
+    pub fn eaccept(_info: &Secinfo, _addr: usize) -> Result<(), u32> {
         Ok(())
     }
 
     #[inline]
-    pub fn emodpe(_addr: usize, _info: &Secinfo) -> Result<(), u32> {
+    pub fn emodpe(_info: &Secinfo, _addr: usize) -> Result<(), u32> {
         Ok(())
     }
 }

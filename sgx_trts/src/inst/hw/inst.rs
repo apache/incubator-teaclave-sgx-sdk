@@ -28,23 +28,15 @@ impl EncluInst {
     pub fn ereport(ti: &AlignTargetInfo, rd: &AlignReportData) -> Result<AlignReport, u32> {
         unsafe {
             let mut report = MaybeUninit::uninit();
-            asm!("
-                push rbx
-                push rcx
-                push rdx
-
-                mov rbx, {ti}
-                mov rcx, {rd}
-                mov rdx, {report_ptr}
-                enclu
-
-                pop rdx
-                pop rcx
-                pop rbx",
-                ti = in(reg) ti,
-                rd = in(reg) rd,
-                report_ptr = in(reg) report.as_mut_ptr(),
+            asm!(
+                "xchg rbx, {0}",
+                "enclu",
+                "mov rbx, {0}",
+                inout(reg) ti => _,
                 in("eax") Enclu::EReport as u32,
+                in("rcx") rd,
+                in("rdx") report.as_mut_ptr(),
+                options(preserves_flags, nostack),
             );
             Ok(report.assume_init())
         }
@@ -66,19 +58,14 @@ impl EncluInst {
         unsafe {
             let mut key = MaybeUninit::uninit();
             let error;
-            asm!("
-                push rbx
-                push rcx
-
-                mov rbx, {kr}
-                mov rcx, {key_ptr}
-                enclu
-
-                pop rcx
-                pop rbx",
-                kr = in(reg) kr,
-                key_ptr = in(reg) key.as_mut_ptr(),
+            asm!(
+                "xchg rbx, {0}",
+                "enclu",
+                "mov rbx, {0}",
+                inout(reg) kr => _,
                 inlateout("eax") Enclu::EGetkey as u32 => error,
+                in("rcx") key.as_mut_ptr(),
+                options(nostack),
             );
             if error == 0 {
                 Ok(key.assume_init())
@@ -88,22 +75,17 @@ impl EncluInst {
         }
     }
 
-    pub fn eaccept(addr: usize, info: &Secinfo) -> Result<(), u32> {
+    pub fn eaccept(info: &Secinfo, addr: usize) -> Result<(), u32> {
         unsafe {
             let error;
-            asm!("
-                push rbx
-                push rcx
-
-                mov rbx, {info}
-                mov rcx, {addr}
-                enclu
-
-                pop rcx
-                pop rbx",
-                info = in(reg) info,
-                addr = in(reg) addr,
+            asm!(
+                "xchg rbx, {0}",
+                "enclu",
+                "mov rbx, {0}",
+                inout(reg) info => _,
                 inlateout("eax") Enclu::EAccept as u32 => error,
+                in("rcx") addr,
+                options(nostack),
             );
             match error {
                 0 => Ok(()),
@@ -112,21 +94,16 @@ impl EncluInst {
         }
     }
 
-    pub fn emodpe(addr: usize, info: &Secinfo) -> Result<(), u32> {
+    pub fn emodpe(info: &Secinfo, addr: usize) -> Result<(), u32> {
         unsafe {
-            asm!("
-                push rbx
-                push rcx
-
-                mov rbx, {info}
-                mov rcx, {addr}
-                enclu
-
-                pop rcx
-                pop rbx",
-                info = in(reg) info,
-                addr = in(reg) addr,
+            asm!(
+                "xchg rbx, {0}",
+                "enclu",
+                "mov rbx, {0}",
+                inout(reg) info => _,
                 in("eax") Enclu::EModpe as u32,
+                in("rcx") addr,
+                options(preserves_flags, nostack),
             );
             Ok(())
         }

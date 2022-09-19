@@ -205,11 +205,11 @@ impl Page {
 
     pub fn accept(&self) -> SgxResult {
         let secinfo: Secinfo = self.info.into();
-        EncluInst::eaccept(self.addr, &secinfo).map_err(|_| SgxStatus::Unexpected)
+        EncluInst::eaccept(&secinfo, self.addr).map_err(|_| SgxStatus::Unexpected)
     }
 
     pub fn modpe(&self) -> SgxResult {
         let secinfo: Secinfo = self.info.into();
-        EncluInst::emodpe(self.addr, &secinfo).map_err(|_| SgxStatus::Unexpected)
+        EncluInst::emodpe(&secinfo, self.addr).map_err(|_| SgxStatus::Unexpected)
     }
 }

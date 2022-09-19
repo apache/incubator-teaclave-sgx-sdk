@@ -191,7 +191,7 @@ impl InnerSealedData {
             .flags
             .intersects(AttributesFlags::KSS)
         {
-            key_policy = KeyPolicy::MRSIGNER | KeyPolicy::KSS;
+            key_policy |= KeyPolicy::KSS;
         }
 
         Self::seal_with_key_policy(
