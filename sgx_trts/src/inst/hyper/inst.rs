@@ -57,23 +57,14 @@ impl EncluInst {
     pub fn ereport(ti: &AlignTargetInfo, rd: &AlignReportData) -> Result<AlignReport, u32> {
         unsafe {
             let mut report = MaybeUninit::uninit();
-            asm!("
-                push rbx
-                push rcx
-                push rdx
-
-                mov rbx, {ti}
-                mov rcx, {rd}
-                mov rdx, {report_ptr}
-                vmmcall
-
-                pop rdx
-                pop rcx
-                pop rbx",
-                ti = in(reg) ti,
-                rd = in(reg) rd,
-                report_ptr = in(reg) report.as_mut_ptr(),
+            asm!(
+                "xchg rbx, {0}",
+                "vmmcall",
+                "mov rbx, {0}",
+                inout(reg) ti => _,
                 in("rax") HyperCall::EReport as u64,
+                in("rcx") rd,
+                in("rdx") report.as_mut_ptr(),
             );
             Ok(report.assume_init())
         }
@@ -87,19 +78,13 @@ impl EncluInst {
     pub fn egetkey(kr: &AlignKeyRequest) -> Result<AlignKey, u32> {
         unsafe {
             let mut key = MaybeUninit::uninit();
-            asm!("
-                push rbx
-                push rcx
-
-                mov rbx, {kr}
-                mov rcx, {key_ptr}
-                vmmcall
-
-                pop rcx
-                pop rbx",
-                kr = in(reg) kr,
-                key_ptr = in(reg) key.as_mut_ptr(),
+            asm!(
+                "xchg rbx, {0}",
+                "enclu",
+                "mov rbx, {0}",
+                inout(reg) kr => _,
                 in("rax") HyperCall::EGetkey as u64,
+                in("rcx") key.as_mut_ptr(),
             );
             Ok(key.assume_init())
         }

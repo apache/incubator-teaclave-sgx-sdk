@@ -63,11 +63,11 @@ pub unsafe extern "C" fn se3(
             }
             Err(e) => e as usize,
         },
-        Enclu::EAccept => match EncluInst::eaccept(rbx, &*(rcx as *const Secinfo)) {
+        Enclu::EAccept => match EncluInst::eaccept(&*(rbx as *const Secinfo), rcx) {
             Ok(_) => 0,
             Err(e) => e as usize,
         },
-        Enclu::EModpe => match EncluInst::emodpe(rbx, &*(rcx as *const Secinfo)) {
+        Enclu::EModpe => match EncluInst::emodpe(&*(rbx as *const Secinfo), rcx) {
             Ok(_) => 0,
             Err(e) => e as usize,
         },
