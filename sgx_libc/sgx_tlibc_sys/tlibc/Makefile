@@ -34,10 +34,11 @@ include ../../../buildenv.mk
 USE_OPTLIBS ?= $(USE_OPT_LIBS)
 OUT_DIR 	?= ./out
 
-CFLAGS   += $(ENCLAVE_CFLAGS) -D_TLIBC_GNU_
+SGX_COMMON_FLAGS := -O2 -D_FORTIFY_SOURCE=2 -UDEBUG -DNDEBUG
+CFLAGS   += $(SGX_COMMON_FLAGS) $(ENCLAVE_CFLAGS) -D_TLIBC_GNU_
 ASFLAGS  := $(CFLAGS)
 CFLAGS   += -std=c99
-CXXFLAGS += $(ENCLAVE_CXXFLAGS) -fno-exceptions -fno-rtti
+CXXFLAGS += $(SGX_COMMON_FLAGS) $(ENCLAVE_CXXFLAGS) -fno-exceptions -fno-rtti
 
 CPPFLAGS += -I.                          \
             -I$(COMMON_DIR)/inc          \

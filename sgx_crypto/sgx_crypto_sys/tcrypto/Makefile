@@ -48,6 +48,7 @@ LD_IPP          := -lippcp
 
 BUILD_ARG ?= tcrypto
 OUT_DIR ?= ./out
+SGX_COMMON_FLAGS := -O2 -D_FORTIFY_SOURCE=2 -UDEBUG -DNDEBUG
 CPPFLAGS := -I$(COMMON_DIR)/inc/internal \
             -I$(COMMON_DIR)/inc          \
             -I$(IPP_INC)                 \
@@ -62,6 +63,7 @@ else
 endif
 
 CXXFLAGS += -fno-exceptions -fno-rtti #-Werror
+CXXFLAGS += $(SGX_COMMON_FLAGS)
 
 OBJ = init_tcrypto_lib.o sgx_aes_ctr.o sgx_rsa_encryption.o sgx_aes_gcm.o sgx_cmac128.o sgx_hmac_sha256.o \
 	sgx_ecc256.o sgx_ecc256_ecdsa.o sgx_sha384.o sgx_sha384_msg.o sgx_sha256.o sgx_sha1.o sgx_sha256_msg.o \
@@ -71,7 +73,7 @@ OBJ = init_tcrypto_lib.o sgx_aes_ctr.o sgx_rsa_encryption.o sgx_aes_gcm.o sgx_cm
 SHARED_OBJ = sgx_common_init_ipp.o
 
 # Build IPP crypto based sgx_tcrypto library
-CFLAGS += $(CPPFLAGS) $(ENCLAVE_CFLAGS) $(SGX_COMMON_CFLAGS) -Werror -fno-exceptions -fPIC
+CFLAGS += $(CPPFLAGS) $(ENCLAVE_CFLAGS) $(SGX_COMMON_FLAGS) -Werror -fno-exceptions -fPIC
 
 OBJ += sgx_tcrypto_common.o sgx_rsa_internal.o
 SRCDIR := ipp

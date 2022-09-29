@@ -67,12 +67,6 @@ else
     COMMON_FLAGS += -fstack-protector-strong
 endif
 
-ifdef DEBUG
-    COMMON_FLAGS += -O0 -g -DDEBUG -UNDEBUG
-else
-    COMMON_FLAGS += -O2 -D_FORTIFY_SOURCE=2 -UDEBUG -DNDEBUG
-endif
-
 COMMON_FLAGS += -ffunction-sections -fdata-sections
 
 # turn on compiler warnings as much as possible

@@ -121,7 +121,7 @@ sgx_status_t SGXAPI rsgx_get_metadata(const char* enclave_file, metadata_t *meta
  *      2 - SIM mode
  *      3 - HYPER mode
 */
-int SGXAPI rsgx_get_enclave_mode();
+int SGXAPI rsgx_get_enclave_mode(void);
 
 #ifdef __cplusplus
 }

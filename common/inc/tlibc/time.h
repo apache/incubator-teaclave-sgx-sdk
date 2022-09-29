@@ -114,7 +114,7 @@ struct tm * _TLIBC_CDECL_ gmtime_r (const time_t *__restrict, struct tm *__restr
 // ocall
 int nanosleep(const struct timespec *, struct timespec *);
 int clock_gettime(clockid_t, struct timespec *);
-clock_t clock();
+clock_t clock(void);
 time_t time(time_t *);
 
 __END_DECLS

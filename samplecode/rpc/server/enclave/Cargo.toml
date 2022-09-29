@@ -29,10 +29,10 @@ crate-type = ["staticlib"]
 default = []
 
 [dependencies]
-prost = "0.9"
+prost = "0.11.0"
 tokio = { version = "1.0", features = ["rt-multi-thread", "time", "fs", "macros", "net"] }
-tonic = { version = "0.6.2", features = ["tls", "compression"]  }
+tonic = { version = "0.8.1", features = ["tls", "gzip"]  }
 sgx_libc = { path = "../../../../sgx_libc" }
 
 [build-dependencies]
-tonic-build = { version = "0.6.2", features = ["prost", "compression"] }
+tonic-build = { version = "0.8.0", features = ["prost"] }

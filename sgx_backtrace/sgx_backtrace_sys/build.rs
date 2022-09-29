@@ -55,6 +55,8 @@ fn build_libbacktrace(_target: &str, is_use_read: bool) -> Result<(), ()> {
             .flag("-fno-strict-overflow")
             .flag("-fno-delete-null-pointer-checks")
             .flag("-fvisibility=hidden")
+            .flag("-ffunction-sections")
+            .flag("-fdata-sections")
             .include("./libbacktrace")
             .include("../../common/inc")
             .include(&native.out_dir)

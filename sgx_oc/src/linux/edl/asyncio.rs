@@ -44,7 +44,7 @@ extern "C" {
         error: *mut c_int,
         epfd: c_int,
         events: *mut epoll_event,
-        maxevents: c_int,
+        maxevents: c_uint,
         timeout: c_int,
     ) -> sgx_status_t;
 }

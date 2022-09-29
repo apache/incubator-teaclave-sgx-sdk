@@ -103,7 +103,7 @@ pub unsafe fn epoll_wait(
         &mut error as *mut c_int,
         epfd,
         events.as_mut_ptr(),
-        maxevents as c_int,
+        maxevents as c_uint,
         timeout,
     );
 

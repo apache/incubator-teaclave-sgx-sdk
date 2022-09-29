@@ -16,7 +16,7 @@
 // under the License..
 
 use crate::ocall::util::*;
-use libc::{self, c_int, epoll_event, nfds_t, pollfd};
+use libc::{self, c_int, c_uint, epoll_event, nfds_t, pollfd};
 use std::io::Error;
 
 #[no_mangle]
@@ -68,11 +68,11 @@ pub unsafe extern "C" fn u_epoll_wait_ocall(
     error: *mut c_int,
     epfd: c_int,
     events: *mut epoll_event,
-    maxevents: c_int,
+    maxevents: c_uint,
     timeout: c_int,
 ) -> c_int {
     let mut errno = 0;
-    let ret = libc::epoll_wait(epfd, events, maxevents, timeout);
+    let ret = libc::epoll_wait(epfd, events, maxevents as c_int, timeout);
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }

@@ -48,7 +48,7 @@ extern "C" {
  *      2 - SIM mode
  *      3 - HYPER mode
 */
-int SGXAPI sgx_get_enclave_mode();
+int SGXAPI sgx_get_enclave_mode(void);
 
 /* sgx_is_within_enclave()
  * Parameters:

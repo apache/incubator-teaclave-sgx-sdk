@@ -40,6 +40,16 @@ else
 	SGX_BIN_PATH := $(SGX_SDK)/bin/x64
 endif
 
+ifeq ($(SGX_DEBUG), 1)
+	SGX_COMMON_CFLAGS += -O0 -g
+	Rust_Build_Flags :=
+	Rust_Build_Out := debug
+else
+	SGX_COMMON_CFLAGS += -O2
+	Rust_Build_Flags := --release
+	Rust_Build_Out := release
+endif
+
 SGX_EDGER8R := $(SGX_BIN_PATH)/sgx_edger8r
 ifneq ($(SGX_MODE), HYPER)
 	SGX_ENCLAVE_SIGNER := $(SGX_BIN_PATH)/sgx_sign
@@ -62,12 +72,12 @@ Enclave_EDL_Files := enclave/enclave_t.c enclave/enclave_t.h app/enclave_u.c app
 
 ######## APP Settings ########
 
-App_Rust_Flags := --release
+App_Rust_Flags := $(Rust_Build_Flags)
 App_Src_Files := $(shell find app/ -type f -name '*.rs') $(shell find app/ -type f -name 'Cargo.toml')
 App_Include_Paths := -I ./app -I$(SGX_SDK)/include -I$(CUSTOM_COMMON_PATH)/inc -I$(CUSTOM_EDL_PATH)
-App_C_Flags := $(CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
+App_C_Flags := $(CFLAGS) $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
-App_Rust_Path := ./app/target/release
+App_Rust_Path := ./app/target/$(Rust_Build_Out)
 App_Enclave_u_Object := $(CUSTOM_LIBRARY_PATH)/libenclave_u.a
 App_Name := $(CUSTOM_BIN_PATH)/server
 
@@ -88,7 +98,7 @@ endif
 endif
 
 ifeq ($(BUILD_STD), cargo)
-	Rust_Build_Std := --release -Z build-std=core,alloc
+	Rust_Build_Std := $(Rust_Build_Flags) -Z build-std=core,alloc
 	Rust_Std_Features := --features net,thread,untrusted_time,untrusted_fs,unsupported_process
 	Rust_Target_Flags := --target $(Rust_Target_Path)/$(Rust_Build_Target).json
 	Rust_Sysroot_Path := $(CURDIR)/sysroot
@@ -97,18 +107,18 @@ else
 	Rust_Unstable_Flags := RUSTFLAGS="-Z force-unstable-if-unmarked"
 endif
 
-RustEnclave_Build_Flags := --release
+RustEnclave_Build_Flags := $(Rust_Build_Flags)
 RustEnclave_Src_Files := $(shell find enclave/ -type f -name '*.rs') $(shell find enclave/ -type f -name 'Cargo.toml')
 RustEnclave_Include_Paths := -I$(CUSTOM_COMMON_PATH)/inc -I$(CUSTOM_COMMON_PATH)/inc/tlibc -I$(CUSTOM_EDL_PATH)
 
 RustEnclave_Link_Libs := -L$(CUSTOM_LIBRARY_PATH) -lenclave
-RustEnclave_Compile_Flags := $(ENCLAVE_CFLAGS) $(RustEnclave_Include_Paths)
+RustEnclave_C_Flags := $(CFLAGS) $(ENCLAVE_CFLAGS) $(SGX_COMMON_CFLAGS) $(RustEnclave_Include_Paths)
 RustEnclave_Link_Flags := -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles \
 	-Wl,--start-group $(RustEnclave_Link_Libs) -Wl,--end-group \
 	-Wl,--version-script=enclave/enclave.lds \
 	$(ENCLAVE_LDFLAGS)
 
-RustEnclave_Out_Path := ./enclave/target/$(Rust_Build_Target)/release
+RustEnclave_Out_Path := ./enclave/target/$(Rust_Build_Target)/$(Rust_Build_Out)
 RustEnclave_Lib_Name := $(RustEnclave_Out_Path)/libserver.a
 RustEnclave_Name := $(CUSTOM_BIN_PATH)/enclave.so
 RustEnclave_Signed_Name := $(CUSTOM_BIN_PATH)/enclave.signed.so
@@ -140,7 +150,7 @@ $(App_Name): $(App_Enclave_u_Object) app
 ######## Enclave Objects ########
 
 enclave/enclave_t.o: $(Enclave_EDL_Files)
-	@$(CC) $(RustEnclave_Compile_Flags) -c enclave/enclave_t.c -o $@
+	@$(CC) $(RustEnclave_C_Flags) -c enclave/enclave_t.c -o $@
 
 $(RustEnclave_Name): enclave/enclave_t.o enclave
 	@mkdir -p $(CUSTOM_LIBRARY_PATH)
@@ -168,7 +178,7 @@ ifeq ($(BUILD_STD), cargo)
 
 	@rm -rf $(Rust_Sysroot_Path)
 	@mkdir -p $(Rust_Sysroot_Path)/lib/rustlib/$(Rust_Build_Target)/lib
-	@cp -r $(Rust_Target_Path)/std/target/$(Rust_Build_Target)/release/deps/* $(Rust_Sysroot_Path)/lib/rustlib/$(Rust_Build_Target)/lib
+	@cp -r $(Rust_Target_Path)/std/target/$(Rust_Build_Target)/$(Rust_Build_Out)/deps/* $(Rust_Sysroot_Path)/lib/rustlib/$(Rust_Build_Target)/lib
 
 	@cd enclave && $(Rust_Sysroot_Flags) cargo build $(Rust_Target_Flags) $(RustEnclave_Build_Flags)
 else

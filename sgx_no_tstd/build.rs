@@ -51,7 +51,7 @@ fn build_libunwind(host: &str, target: &str) -> Result<(), ()> {
     )
     .map(|native| {
         let mut cflags =
-            " -fstack-protector -ffreestanding -nostdinc -fvisibility=hidden -fpie -fno-strict-overflow -fno-delete-null-pointer-checks"
+            " -fstack-protector -ffreestanding -nostdinc -fvisibility=hidden -fpie -fno-strict-overflow -fno-delete-null-pointer-checks -ffunction-sections -fdata-sections"
             .to_string();
         cflags += " -O2";
 

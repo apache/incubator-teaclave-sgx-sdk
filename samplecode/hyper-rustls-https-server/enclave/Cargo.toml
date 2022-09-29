@@ -32,7 +32,7 @@ default = []
 futures-util = { version = "0.3.1", default-features = false }
 hyper = { version = "0.14", features = ["server", "http2", "runtime"] }
 rustls = { version = "0.20.1", default-features = false, features = ["tls12"] }
-rustls-pemfile = "0.2.1"
+rustls-pemfile = "1.0"
 tokio = { version = "1.0", features = ["macros", "net", "rt-multi-thread"] }
 tokio-rustls = { version = "0.23", default-features = false }
 sgx_libc = { path = "../../../sgx_libc" }

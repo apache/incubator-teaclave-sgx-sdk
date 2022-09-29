@@ -40,6 +40,12 @@ else
 	SGX_BIN_PATH := $(SGX_SDK)/bin/x64
 endif
 
+ifeq ($(SGX_DEBUG), 1)
+	SGX_COMMON_CFLAGS += -O0 -g
+else
+	SGX_COMMON_CFLAGS += -O2
+endif
+
 SGX_EDGER8R := $(SGX_BIN_PATH)/sgx_edger8r
 ifneq ($(SGX_MODE), HYPER)
 	SGX_ENCLAVE_SIGNER := $(SGX_BIN_PATH)/sgx_sign
@@ -64,7 +70,7 @@ Enclave_EDL_Files := enclave/enclave_t.c enclave/enclave_t.h app/enclave_u.c app
 App_Rust_Flags := --release
 App_SRC_Files := $(shell find app/ -type f -name '*.rs') $(shell find app/ -type f -name 'Cargo.toml')
 App_Include_Paths := -I ./app -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH)
-App_C_Flags := $(CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
+App_C_Flags := $(CFLAGS) $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
 App_Rust_Path := ./app/target/release
 App_Enclave_u_Object := $(CUSTOM_LIBRARY_PATH)/libenclave_u.a
@@ -77,7 +83,7 @@ RustEnclave_SRC_Files := $(shell find enclave/ -type f -name '*.rs') $(shell fin
 RustEnclave_Include_Paths := -I$(CUSTOM_COMMON_PATH)/inc -I$(CUSTOM_COMMON_PATH)/inc/tlibc -I$(CUSTOM_EDL_PATH)
 
 RustEnclave_Link_Libs := -L$(CUSTOM_LIBRARY_PATH) -lenclave
-RustEnclave_Compile_Flags := $(ENCLAVE_CFLAGS) $(RustEnclave_Include_Paths)
+RustEnclave_C_Flags := $(CFLAGS) $(ENCLAVE_CFLAGS) $(SGX_COMMON_CFLAGS) $(RustEnclave_Include_Paths)
 RustEnclave_Link_Flags := -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles \
 	-Wl,--whole-archive $(RustEnclave_Link_Libs) -Wl,--no-whole-archive \
 	-Wl,--version-script=enclave/enclave.lds \
@@ -115,7 +121,7 @@ $(App_Name): $(App_Enclave_u_Object) app
 ######## Enclave Objects ########
 
 enclave/enclave_t.o: $(Enclave_EDL_Files)
-	@$(CC) $(RustEnclave_Compile_Flags) -c enclave/enclave_t.c -o $@
+	@$(CC) $(RustEnclave_C_Flags) -c enclave/enclave_t.c -o $@
 
 $(RustEnclave_Name): enclave/enclave_t.o enclave
 	@mkdir -p $(CUSTOM_LIBRARY_PATH)
