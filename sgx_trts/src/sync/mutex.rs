@@ -27,7 +27,7 @@ use sgx_types::marker::ContiguousMemory;
 
 pub struct SpinMutex<T: ?Sized> {
     lock: AtomicBool,
-    value: UnsafeCell<T>,
+    data: UnsafeCell<T>,
 }
 
 unsafe impl<T: ContiguousMemory> ContiguousMemory for SpinMutex<T> {}
@@ -36,50 +36,73 @@ unsafe impl<T: ?Sized + Send> Sync for SpinMutex<T> {}
 unsafe impl<T: ?Sized + Send> Send for SpinMutex<T> {}
 
 pub struct SpinMutexGuard<'a, T: ?Sized + 'a> {
-    lock: &'a SpinMutex<T>,
+    lock: &'a AtomicBool,
+    data: &'a mut T,
 }
 
 impl<T: ?Sized> !Send for SpinMutexGuard<'_, T> {}
 unsafe impl<T: ?Sized + Sync> Sync for SpinMutexGuard<'_, T> {}
 
 impl<T> SpinMutex<T> {
-    pub const fn new(value: T) -> Self {
+    pub const fn new(data: T) -> Self {
         SpinMutex {
-            value: UnsafeCell::new(value),
             lock: AtomicBool::new(false),
+            data: UnsafeCell::new(data),
         }
     }
 
     #[inline]
     pub fn into_inner(self) -> T {
-        let SpinMutex { value, .. } = self;
-        value.into_inner()
+        let SpinMutex { data, .. } = self;
+        data.into_inner()
     }
 }
 
 impl<T: ?Sized> SpinMutex<T> {
     #[inline]
     pub fn lock(&self) -> SpinMutexGuard<'_, T> {
-        loop {
-            match self.try_lock() {
-                None => {
-                    while self.lock.load(Ordering::Relaxed) {
-                        spin_loop()
-                    }
-                }
-                Some(guard) => return guard,
+        while self
+            .lock
+            .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_err()
+        {
+            while self.is_locked() {
+                spin_loop();
             }
+        }
+
+        SpinMutexGuard {
+            lock: &self.lock,
+            data: unsafe { &mut *self.data.get() },
         }
     }
 
     #[inline]
-    pub fn try_lock(&self) -> Option<SpinMutexGuard<'_, T>> {
+    pub fn is_locked(&self) -> bool {
+        self.lock.load(Ordering::Relaxed)
+    }
+
+    #[inline]
+    pub fn unlock(guard: SpinMutexGuard<'_, T>) {
+        drop(guard);
+    }
+
+    #[inline]
+    pub unsafe fn force_unlock(&self) {
+        self.lock.store(false, Ordering::Release);
+    }
+
+    #[inline]
+    pub fn try_lock(&self) -> Option<SpinMutexGuard<T>> {
         if self
             .lock
-            .compare_exchange(false, true, Ordering::Acquire, Ordering::Acquire)
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
             .is_ok()
         {
-            Some(SpinMutexGuard { lock: self })
+            Some(SpinMutexGuard {
+                lock: &self.lock,
+                data: unsafe { &mut *self.data.get() },
+            })
         } else {
             None
         }
@@ -87,7 +110,7 @@ impl<T: ?Sized> SpinMutex<T> {
 
     #[inline]
     pub fn get_mut(&mut self) -> &mut T {
-        unsafe { &mut *self.value.get() }
+        unsafe { &mut *self.data.get() }
     }
 }
 
@@ -118,19 +141,19 @@ impl<T: ?Sized> Deref for SpinMutexGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        unsafe { &*self.lock.value.get() }
+        self.data
     }
 }
 
 impl<T: ?Sized> DerefMut for SpinMutexGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { &mut *self.lock.value.get() }
+        self.data
     }
 }
 
 impl<'a, T: ?Sized> Drop for SpinMutexGuard<'a, T> {
     fn drop(&mut self) {
-        self.lock.lock.store(false, Ordering::Release)
+        self.lock.store(false, Ordering::Release)
     }
 }
 
@@ -153,6 +176,6 @@ impl RawMutex for SpinMutex<()> {
 
     #[inline]
     unsafe fn unlock(&self) {
-        drop(SpinMutexGuard { lock: self });
+        self.force_unlock();
     }
 }
