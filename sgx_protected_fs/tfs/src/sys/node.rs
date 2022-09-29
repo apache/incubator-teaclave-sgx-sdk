@@ -318,12 +318,8 @@ impl FileNode {
     }
 
     pub fn derive_key(&mut self, derive: &mut dyn DeriveKey) -> FsResult<Key128bit> {
-        if !self.encrypt_flags.is_integrity_only() {
-            let (key, _) = derive.derive_key(KeyType::Random, self.ciphertext.physical_number)?;
-            Ok(key)
-        } else {
-            Ok(Key128bit::default())
-        }
+        let (key, _) = derive.derive_key(KeyType::Random, self.ciphertext.physical_number)?;
+        Ok(key)
     }
 
     #[inline]

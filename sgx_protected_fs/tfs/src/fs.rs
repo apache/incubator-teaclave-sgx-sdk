@@ -28,6 +28,7 @@ cfg_if! {
         use sgx_rsrvmm::map::Map;
         use sgx_types::error::errno::ESGX;
         use sgx_types::error::OsResult;
+        use sgx_types::types::KeyPolicy;
     }
 }
 
@@ -332,8 +333,12 @@ pub fn export_key<P: AsRef<Path>>(path: P) -> io::Result<Key128bit> {
 }
 
 #[cfg(feature = "tfs")]
-pub fn import_key<P: AsRef<Path>>(path: P, key: Key128bit) -> io::Result<()> {
-    fs_imp::import_key(path.as_ref(), key)
+pub fn import_key<P: AsRef<Path>>(
+    path: P,
+    key: Key128bit,
+    key_policy: Option<KeyPolicy>,
+) -> io::Result<()> {
+    fs_imp::import_key(path.as_ref(), key, key_policy)
 }
 
 impl OpenOptions {
@@ -375,11 +380,11 @@ impl OpenOptions {
     /// Opens a file at `path` with the options specified by `self`.
     #[cfg(feature = "tfs")]
     pub fn open<P: AsRef<Path>>(&self, path: P) -> io::Result<SgxFile> {
-        self.open_with(path, EncryptMode::with_auto_key(), None)
+        self.open_with(path, EncryptMode::auto_key(None), None)
     }
 
     pub fn open_with_key<P: AsRef<Path>>(&self, path: P, key: Key128bit) -> io::Result<SgxFile> {
-        self.open_with(path, EncryptMode::with_user_key(key), None)
+        self.open_with(path, EncryptMode::user_key(key), None)
     }
 
     pub fn open_integrity_only<P: AsRef<Path>>(&self, path: P) -> io::Result<SgxFile> {
@@ -406,13 +411,15 @@ impl Default for OpenOptions {
 impl EncryptMode {
     #[cfg(feature = "tfs")]
     #[inline]
-    pub fn with_auto_key() -> EncryptMode {
-        EncryptMode(fs_imp::EncryptMode::EncryptAutoKey)
+    pub fn auto_key(key_policy: Option<KeyPolicy>) -> EncryptMode {
+        EncryptMode(fs_imp::EncryptMode::EncryptAutoKey(
+            key_policy.unwrap_or(KeyPolicy::MRSIGNER),
+        ))
     }
 
     #[inline]
-    pub fn with_user_key(key: Key128bit) -> EncryptMode {
-        EncryptMode(fs_imp::EncryptMode::EncryptWithIntegrity(key))
+    pub fn user_key(key: Key128bit) -> EncryptMode {
+        EncryptMode(fs_imp::EncryptMode::EncryptUserKey(key))
     }
 
     #[inline]

@@ -19,6 +19,8 @@ use crate::sys::error::FsResult;
 use crate::sys::{self as fs_imp, EncryptMode, OpenOptions, RawProtectedFile, SgxFile};
 use sgx_types::error::errno::*;
 use sgx_types::types::c_char;
+#[cfg(feature = "tfs")]
+use sgx_types::types::KeyPolicy;
 use sgx_types::types::{Key128bit, Mac128bit};
 use std::ffi::CStr;
 use std::io::SeekFrom;
@@ -42,14 +44,6 @@ pub unsafe extern "C" fn sgx_fopen(
         return ptr::null_mut();
     }
 
-    #[cfg(not(feature = "tfs"))]
-    {
-        if key.is_null() {
-            eos!(EINVAL).set_errno();
-            return ptr::null_mut();
-        }
-    }
-
     let name = match CStr::from_ptr(filename).to_str() {
         Ok(name) => name,
         Err(_) => {
@@ -67,9 +61,16 @@ pub unsafe extern "C" fn sgx_fopen(
     };
 
     let encrypt_mode = if key.is_null() {
-        EncryptMode::EncryptAutoKey
+        cfg_if! {
+            if #[cfg(feature = "tfs")] {
+                EncryptMode::EncryptAutoKey(KeyPolicy::MRSIGNER)
+            } else {
+                eos!(EINVAL).set_errno();
+                return ptr::null_mut();
+            }
+        }
     } else {
-        EncryptMode::EncryptWithIntegrity(*key)
+        EncryptMode::EncryptUserKey(*key)
     };
     match SgxFile::open(name, &opts, &encrypt_mode, None) {
         Ok(file) => file.into_raw(),
@@ -105,7 +106,7 @@ pub unsafe extern "C" fn sgx_fopen_auto_key(
         }
     };
 
-    let encrypt_mode = EncryptMode::EncryptAutoKey;
+    let encrypt_mode = EncryptMode::EncryptAutoKey(KeyPolicy::MRSIGNER);
     match SgxFile::open(name, &opts, &encrypt_mode, None) {
         Ok(file) => file.into_raw(),
         Err(_) => ptr::null_mut(),
@@ -147,24 +148,18 @@ pub unsafe extern "C" fn sgx_fopen_integrity_only(
 }
 
 /// # Safety
+#[allow(unused_variables)]
 #[no_mangle]
 pub unsafe extern "C" fn sgx_fopen_ex(
     filename: *const c_char,
     mode: *const c_char,
     key: *const Key128bit,
+    key_policy: u16,
     cache_size: u64,
 ) -> RawProtectedFile {
     if filename.is_null() || mode.is_null() || cache_size < fs_imp::DEFAULT_CACHE_SIZE as u64 {
         eos!(EINVAL).set_errno();
         return ptr::null_mut();
-    }
-
-    #[cfg(not(feature = "tfs"))]
-    {
-        if key.is_null() {
-            eos!(EINVAL).set_errno();
-            return ptr::null_mut();
-        }
     }
 
     let name = match CStr::from_ptr(filename).to_str() {
@@ -184,9 +179,27 @@ pub unsafe extern "C" fn sgx_fopen_ex(
     };
 
     let encrypt_mode = if key.is_null() {
-        EncryptMode::EncryptAutoKey
+        cfg_if! {
+            if #[cfg(feature = "tfs")] {
+                let key_policy = if key_policy != 0 {
+                    match KeyPolicy::from_bits(key_policy) {
+                        Some(key_policy) => key_policy,
+                        None => {
+                            eos!(EINVAL).set_errno();
+                            return ptr::null_mut();
+                        }
+                    }
+                } else {
+                    KeyPolicy::MRSIGNER
+                };
+                EncryptMode::EncryptAutoKey(key_policy)
+            } else {
+                eos!(EINVAL).set_errno();
+                return ptr::null_mut();
+            }
+        }
     } else {
-        EncryptMode::EncryptWithIntegrity(*key)
+        EncryptMode::EncryptUserKey(*key)
     };
     match SgxFile::open(name, &opts, &encrypt_mode, Some(cache_size as usize)) {
         Ok(file) => file.into_raw(),
@@ -493,6 +506,7 @@ pub unsafe extern "C" fn sgx_fexport_auto_key(
 pub unsafe extern "C" fn sgx_fimport_auto_key(
     filename: *const c_char,
     import_key: *const Key128bit,
+    key_policy: u16,
 ) -> i32 {
     if filename.is_null() || import_key.is_null() {
         eos!(EINVAL).set_errno();
@@ -507,7 +521,19 @@ pub unsafe extern "C" fn sgx_fimport_auto_key(
         }
     };
 
-    match fs_imp::import_key(name, *import_key) {
+    let key_policy = if key_policy != 0 {
+        match KeyPolicy::from_bits(key_policy) {
+            Some(key_policy) => key_policy,
+            None => {
+                eos!(EINVAL).set_errno();
+                return -1;
+            }
+        }
+    } else {
+        KeyPolicy::MRSIGNER
+    };
+
+    match fs_imp::import_key(name, *import_key, key_policy) {
         Ok(_) => 0,
         Err(_) => -1,
     }

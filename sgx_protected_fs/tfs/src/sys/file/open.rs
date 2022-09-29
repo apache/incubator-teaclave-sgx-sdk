@@ -52,7 +52,7 @@ impl FileInner {
         let file_name = path.file_name().ok_or(EINVAL)?.to_str().ok_or(EINVAL)?;
         Self::check_open_param(path, file_name, opts, mode)?;
 
-        let key_gen = FsKeyGen::new(mode.user_key().cloned())?;
+        let key_gen = FsKeyGen::new(mode)?;
 
         Self::check_file_exist(opts, mode, path)?;
 
@@ -135,10 +135,18 @@ impl FileInner {
         let encrypt_flags = mode.into();
         ensure!(encrypt_flags == metadata.encrypt_flags(), eos!(EINVAL));
 
-        let key = mode
-            .import_key()
-            .cloned()
-            .unwrap_or(metadata.restore_key(key_gen)?);
+        let key_policy = mode.key_policy();
+        if mode.is_auto_key() {
+            ensure!(key_policy.unwrap() == metadata.key_policy(), eos!(EINVAL));
+        }
+
+        let key = match mode.import_key() {
+            Some(key) => {
+                metadata.set_key_policy(key_policy.unwrap());
+                *key
+            }
+            None => metadata.restore_key(key_gen)?,
+        };
         metadata.decrypt(&key)?;
 
         let meta_file_name = metadata.file_name()?;
@@ -161,6 +169,9 @@ impl FileInner {
         let mut metadata = MetadataInfo::new();
 
         metadata.set_encrypt_flags(mode.into());
+        if let Some(key_policy) = mode.key_policy() {
+            metadata.set_key_policy(key_policy);
+        }
         metadata.encrypted_plain.file_name[0..file_name.len()]
             .copy_from_slice(file_name.as_bytes());
 
@@ -212,7 +223,8 @@ impl FileInner {
         ensure!(name_len > 0, eos!(EINVAL));
         ensure!(name_len < FILENAME_MAX_LEN - 1, eos!(ENAMETOOLONG));
 
-        opts.check_access_mode()?;
+        opts.check()?;
+        mode.check()?;
 
         if let Some(key) = mode.import_key() {
             ensure!(key.ct_ne(&Key128bit::default()), eos!(EINVAL));

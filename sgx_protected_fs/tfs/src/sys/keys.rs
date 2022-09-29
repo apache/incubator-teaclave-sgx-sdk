@@ -16,6 +16,7 @@
 // under the License..
 
 use crate::sys::error::FsResult;
+use crate::sys::file::OpenMode;
 use sgx_crypto::mac::AesCMac;
 use sgx_rand::{RdRand, Rng};
 #[cfg(feature = "tfs")]
@@ -23,12 +24,10 @@ use sgx_tse::{EnclaveKey, EnclaveReport};
 use sgx_types::error::errno::*;
 use sgx_types::marker::ContiguousMemory;
 #[cfg(feature = "tfs")]
-use sgx_types::types::Report;
-#[cfg(feature = "tfs")]
 use sgx_types::types::{
-    Attributes, AttributesFlags, KeyName, KeyPolicy, KeyRequest, TSEAL_DEFAULT_MISCMASK,
+    Attributes, AttributesFlags, KeyName, KeyRequest, Report, TSEAL_DEFAULT_MISCMASK,
 };
-use sgx_types::types::{CpuSvn, Key128bit, KeyId};
+use sgx_types::types::{CpuSvn, Key128bit, KeyId, KeyPolicy};
 #[cfg(feature = "tfs")]
 use std::boxed::Box;
 
@@ -41,6 +40,7 @@ pub trait RestoreKey {
         &self,
         key_type: KeyType,
         key_id: KeyId,
+        key_policy: Option<KeyPolicy>,
         cpu_svn: Option<CpuSvn>,
         isv_svn: Option<u16>,
     ) -> FsResult<Key128bit>;
@@ -54,7 +54,7 @@ pub enum KeyType {
 }
 
 #[derive(Clone, Debug, Default)]
-struct MasterKey {
+pub struct MasterKey {
     key: Key128bit,
     key_id: KeyId,
     count: u32,
@@ -100,6 +100,7 @@ impl RestoreKey for MasterKey {
         &self,
         _key_type: KeyType,
         _key_id: KeyId,
+        _key_policy: Option<KeyPolicy>,
         _cpu_svn: Option<CpuSvn>,
         _isv_svn: Option<u16>,
     ) -> FsResult<Key128bit> {
@@ -115,20 +116,27 @@ impl Drop for MasterKey {
 }
 
 #[derive(Clone, Debug)]
-enum MetadataKey {
+pub enum MetadataKey {
     UserKey(Key128bit),
     #[cfg(feature = "tfs")]
-    CpuKey(Box<Report>),
+    AutoKey {
+        report: Box<Report>,
+        key_policy: Option<KeyPolicy>,
+    },
 }
 
 impl MetadataKey {
-    fn new(user_key: Option<Key128bit>) -> FsResult<MetadataKey> {
+    #[allow(unused_variables)]
+    fn new(user_key: Option<Key128bit>, key_policy: Option<KeyPolicy>) -> FsResult<MetadataKey> {
         if let Some(user_key) = user_key {
             Ok(Self::UserKey(user_key))
         } else {
             cfg_if! {
                 if #[cfg(feature = "tfs")] {
-                    Ok(Self::CpuKey(Box::new(*Report::get_self())))
+                    Ok(Self::AutoKey {
+                        report: Box::new(*Report::get_self()),
+                        key_policy,
+                    })
                 } else {
                     Err(eos!(ENOTSUP))
                 }
@@ -144,14 +152,17 @@ impl DeriveKey for MetadataKey {
         match self {
             Self::UserKey(ref user_key) => KdfInput::derive_key(user_key, KeyType::Metadata, 0),
             #[cfg(feature = "tfs")]
-            Self::CpuKey(ref report) => {
+            Self::AutoKey {
+                ref report,
+                ref key_policy,
+            } => {
                 let mut rng = RdRand::new().map_err(|_| ENOTSUP)?;
                 let mut key_id = KeyId::default();
                 rng.fill_bytes(key_id.as_mut());
 
                 let key_request = KeyRequest {
                     key_name: KeyName::Seal,
-                    key_policy: KeyPolicy::MRSIGNER,
+                    key_policy: key_policy.unwrap_or(KeyPolicy::MRSIGNER),
                     isv_svn: report.body.isv_svn,
                     cpu_svn: report.body.cpu_svn,
                     attribute_mask: Attributes {
@@ -175,6 +186,7 @@ impl RestoreKey for MetadataKey {
         &self,
         key_type: KeyType,
         key_id: KeyId,
+        key_policy: Option<KeyPolicy>,
         cpu_svn: Option<CpuSvn>,
         isv_svn: Option<u16>,
     ) -> FsResult<Key128bit> {
@@ -185,13 +197,13 @@ impl RestoreKey for MetadataKey {
                 KdfInput::restore_key(user_key, KeyType::Metadata, 0, key_id)
             }
             #[cfg(feature = "tfs")]
-            Self::CpuKey(_) => {
+            Self::AutoKey { .. } => {
                 let cpu_svn = cpu_svn.ok_or(EINVAL)?;
                 let isv_svn = isv_svn.ok_or(EINVAL)?;
 
                 let key_request = KeyRequest {
                     key_name: KeyName::Seal,
-                    key_policy: KeyPolicy::MRSIGNER,
+                    key_policy: key_policy.unwrap_or(KeyPolicy::MRSIGNER),
                     isv_svn,
                     cpu_svn,
                     attribute_mask: Attributes {
@@ -214,7 +226,7 @@ impl Drop for MetadataKey {
         match self {
             Self::UserKey(ref mut key) => key.fill(0),
             #[cfg(feature = "tfs")]
-            Self::CpuKey(_) => {}
+            Self::AutoKey { .. } => {}
         }
     }
 }
@@ -294,26 +306,47 @@ impl KdfInput {
 }
 
 #[derive(Clone, Debug)]
-pub struct FsKeyGen {
-    master_key: MasterKey,
-    metadata_key: MetadataKey,
+pub enum FsKeyGen {
+    EncryptWithIntegrity(MetadataKey, MasterKey),
+    IntegrityOnly,
+    Import(MetadataKey),
+    Export(MetadataKey),
 }
 
 impl FsKeyGen {
-    pub fn new(user_key: Option<Key128bit>) -> FsResult<FsKeyGen> {
-        Ok(Self {
-            master_key: MasterKey::new()?,
-            metadata_key: MetadataKey::new(user_key)?,
-        })
+    pub fn new(mode: &OpenMode) -> FsResult<FsKeyGen> {
+        match mode {
+            OpenMode::AutoKey(key_policy) => Ok(Self::EncryptWithIntegrity(
+                MetadataKey::new(None, Some(*key_policy))?,
+                MasterKey::new()?,
+            )),
+            OpenMode::UserKey(user_key) => Ok(Self::EncryptWithIntegrity(
+                MetadataKey::new(Some(*user_key), None)?,
+                MasterKey::new()?,
+            )),
+            OpenMode::IntegrityOnly => Ok(Self::IntegrityOnly),
+            OpenMode::ImportKey((_, key_policy)) => {
+                Ok(Self::Import(MetadataKey::new(None, Some(*key_policy))?))
+            }
+            OpenMode::ExportKey => Ok(Self::Export(MetadataKey::new(None, None)?)),
+        }
     }
 }
 
 impl DeriveKey for FsKeyGen {
     fn derive_key(&mut self, key_type: KeyType, node_number: u64) -> FsResult<(Key128bit, KeyId)> {
-        match key_type {
-            KeyType::Metadata => self.metadata_key.derive_key(KeyType::Metadata, 0),
-            KeyType::Master => self.master_key.derive_key(KeyType::Master, 0),
-            KeyType::Random => self.master_key.derive_key(KeyType::Random, node_number),
+        match self {
+            Self::EncryptWithIntegrity(metadata_key, master_key) => match key_type {
+                KeyType::Metadata => metadata_key.derive_key(KeyType::Metadata, 0),
+                KeyType::Master => master_key.derive_key(KeyType::Master, 0),
+                KeyType::Random => master_key.derive_key(KeyType::Random, node_number),
+            },
+            Self::IntegrityOnly => Ok((Key128bit::default(), KeyId::default())),
+            Self::Import(metadata_key) => {
+                ensure!(key_type == KeyType::Metadata, eos!(EINVAL));
+                metadata_key.derive_key(KeyType::Metadata, 0)
+            }
+            Self::Export(_) => Err(eos!(EINVAL)),
         }
     }
 }
@@ -323,12 +356,25 @@ impl RestoreKey for FsKeyGen {
         &self,
         key_type: KeyType,
         key_id: KeyId,
+        key_policy: Option<KeyPolicy>,
         cpu_svn: Option<CpuSvn>,
         isv_svn: Option<u16>,
     ) -> FsResult<Key128bit> {
-        ensure!(key_type == KeyType::Metadata, eos!(EINVAL));
-
-        self.metadata_key
-            .restore_key(key_type, key_id, cpu_svn, isv_svn)
+        match self {
+            Self::EncryptWithIntegrity(metadata_key, _) => match key_type {
+                KeyType::Metadata => {
+                    metadata_key.restore_key(key_type, key_id, key_policy, cpu_svn, isv_svn)
+                }
+                KeyType::Master | KeyType::Random => Err(eos!(EINVAL)),
+            },
+            Self::IntegrityOnly => Ok(Key128bit::default()),
+            Self::Import(_) => Err(eos!(EINVAL)),
+            Self::Export(metadata_key) => match key_type {
+                KeyType::Metadata => {
+                    metadata_key.restore_key(key_type, key_id, key_policy, cpu_svn, isv_svn)
+                }
+                KeyType::Master | KeyType::Random => Err(eos!(EINVAL)),
+            },
+        }
     }
 }

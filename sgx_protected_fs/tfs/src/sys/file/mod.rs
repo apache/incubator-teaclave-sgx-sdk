@@ -24,7 +24,7 @@ use crate::sys::node::{FileNode, FileNodeRef};
 use crate::sys::EncryptMode;
 use sgx_types::error::errno::*;
 use sgx_types::error::SgxStatus;
-use sgx_types::types::{Key128bit, Mac128bit};
+use sgx_types::types::{Key128bit, KeyPolicy, Mac128bit};
 use std::io::SeekFrom;
 use std::path::Path;
 use std::path::PathBuf;
@@ -275,18 +275,22 @@ impl ProtectedFile {
         let mut file = FileInner::open(
             path.as_ref(),
             &OpenOptions::new().read(true),
-            &OpenMode::AutoKey,
+            &OpenMode::ExportKey,
             None,
         )?;
         file.close(CloseMode::Export).map(|key| key.unwrap())
     }
 
     #[cfg(feature = "tfs")]
-    pub fn import_key<P: AsRef<Path>>(path: P, key: Key128bit) -> FsResult {
+    pub fn import_key<P: AsRef<Path>>(
+        path: P,
+        key: Key128bit,
+        key_policy: Option<KeyPolicy>,
+    ) -> FsResult {
         let mut file = FileInner::open(
             path.as_ref(),
             &OpenOptions::new().read(true).update(true),
-            &OpenMode::ImportKey(key),
+            &OpenMode::ImportKey((key, key_policy.unwrap_or(KeyPolicy::MRSIGNER))),
             None,
         )?;
         file.close(CloseMode::Import).map(|_| ())
@@ -371,7 +375,7 @@ impl OpenOptions {
         self.read && !self.update
     }
 
-    pub fn check_access_mode(&self) -> FsResult {
+    pub fn check(&self) -> FsResult {
         match (self.read, self.write, self.append) {
             (true, false, false) => Ok(()),
             (false, true, false) => Ok(()),
@@ -389,21 +393,32 @@ impl Default for OpenOptions {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OpenMode {
-    AutoKey,
+    AutoKey(KeyPolicy),
     UserKey(Key128bit),
     IntegrityOnly,
-    ImportKey(Key128bit),
+    ImportKey((Key128bit, KeyPolicy)),
+    ExportKey,
 }
 
 impl OpenMode {
     #[inline]
     pub fn is_auto_key(&self) -> bool {
-        matches!(*self, Self::AutoKey)
+        matches!(*self, Self::AutoKey(_))
     }
 
     #[inline]
     pub fn is_integrity_only(&self) -> bool {
         matches!(*self, Self::IntegrityOnly)
+    }
+
+    #[inline]
+    pub fn is_import_key(&self) -> bool {
+        matches!(*self, Self::ImportKey(_))
+    }
+
+    #[inline]
+    pub fn is_export_key(&self) -> bool {
+        matches!(*self, Self::ExportKey)
     }
 
     #[inline]
@@ -417,8 +432,30 @@ impl OpenMode {
     #[inline]
     pub fn import_key(&self) -> Option<&Key128bit> {
         match self {
-            Self::ImportKey(key) => Some(key),
+            Self::ImportKey((key, _)) => Some(key),
             _ => None,
+        }
+    }
+
+    #[inline]
+    pub fn key_policy(&self) -> Option<KeyPolicy> {
+        match self {
+            Self::AutoKey(key_policy) | Self::ImportKey((_, key_policy)) => Some(*key_policy),
+            _ => None,
+        }
+    }
+
+    pub fn check(&self) -> FsResult {
+        match self {
+            Self::AutoKey(key_policy) | Self::ImportKey((_, key_policy)) => {
+                ensure!(key_policy.is_valid(), eos!(EINVAL));
+                ensure!(
+                    key_policy.intersects(KeyPolicy::MRENCLAVE | KeyPolicy::MRSIGNER),
+                    eos!(EINVAL)
+                );
+                Ok(())
+            }
+            _ => Ok(()),
         }
     }
 }
@@ -427,8 +464,8 @@ impl From<EncryptMode> for OpenMode {
     fn from(encrypt_mode: EncryptMode) -> OpenMode {
         match encrypt_mode {
             #[cfg(feature = "tfs")]
-            EncryptMode::EncryptAutoKey => Self::AutoKey,
-            EncryptMode::EncryptWithIntegrity(key) => Self::UserKey(key),
+            EncryptMode::EncryptAutoKey(key_policy) => Self::AutoKey(key_policy),
+            EncryptMode::EncryptUserKey(key) => Self::UserKey(key),
             EncryptMode::IntegrityOnly => Self::IntegrityOnly,
         }
     }
@@ -438,8 +475,8 @@ impl From<&EncryptMode> for OpenMode {
     fn from(encrypt_mode: &EncryptMode) -> OpenMode {
         match encrypt_mode {
             #[cfg(feature = "tfs")]
-            EncryptMode::EncryptAutoKey => Self::AutoKey,
-            EncryptMode::EncryptWithIntegrity(key) => Self::UserKey(*key),
+            EncryptMode::EncryptAutoKey(key_policy) => Self::AutoKey(*key_policy),
+            EncryptMode::EncryptUserKey(key) => Self::UserKey(*key),
             EncryptMode::IntegrityOnly => Self::IntegrityOnly,
         }
     }

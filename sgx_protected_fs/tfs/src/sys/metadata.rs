@@ -22,7 +22,7 @@ use crate::sys::keys::{DeriveKey, KeyType, RestoreKey};
 use crate::sys::node::{META_DATA_PHY_NUM, NODE_SIZE};
 use sgx_crypto::aes::gcm::{Aad, AesGcm, Nonce};
 use sgx_types::error::SgxStatus;
-use sgx_types::types::{Attributes, CpuSvn, Key128bit, KeyId, Mac128bit};
+use sgx_types::types::{Attributes, CpuSvn, Key128bit, KeyId, KeyPolicy, Mac128bit};
 use std::ffi::CStr;
 use std::mem;
 
@@ -66,7 +66,7 @@ impl EncryptFlags {
 impl From<&OpenMode> for EncryptFlags {
     fn from(mode: &OpenMode) -> Self {
         match mode {
-            OpenMode::AutoKey | OpenMode::ImportKey(_) => Self::AutoKey,
+            OpenMode::AutoKey(_) | OpenMode::ExportKey | OpenMode::ImportKey(_) => Self::AutoKey,
             OpenMode::UserKey(_) => Self::UserKey,
             OpenMode::IntegrityOnly => Self::IntegrityOnly,
         }
@@ -74,18 +74,19 @@ impl From<&OpenMode> for EncryptFlags {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-#[repr(C, packed)]
+#[repr(C)]
 pub struct MetadataPlain {
     pub file_id: u64,
     pub major_version: u8,
     pub minor_version: u8,
+    pub encrypt_flags: EncryptFlags,
+    pub update_flag: u8,
+    pub key_policy: KeyPolicy,
+    pub isv_svn: u16,
     pub key_id: KeyId,
     pub cpu_svn: CpuSvn,
-    pub isv_svn: u16,
-    pub encrypt_flags: EncryptFlags,
     pub attribute_mask: Attributes,
     pub gmac: Mac128bit,
-    pub update_flag: u8,
 }
 
 impl MetadataPlain {
@@ -121,7 +122,7 @@ const METADATA_PADDING: usize =
 const METADATA_ENCRYPTED: usize = mem::size_of::<MetadataEncrypted>();
 
 #[derive(Clone, Copy, Debug)]
-#[repr(C, packed)]
+#[repr(C)]
 pub struct Metadata {
     pub plaintext: MetadataPlain,
     pub ciphertext: [u8; METADATA_ENCRYPTED],
@@ -139,7 +140,7 @@ impl Metadata {
 }
 
 #[derive(Copy, Clone, Debug, Default)]
-#[repr(C, packed)]
+#[repr(C)]
 pub struct MetadataNode {
     pub node_number: u64,
     pub metadata: Metadata,
@@ -207,6 +208,16 @@ impl MetadataInfo {
     #[inline]
     pub fn set_encrypt_flags(&mut self, encrypt_flags: EncryptFlags) {
         self.node.metadata.plaintext.encrypt_flags = encrypt_flags;
+    }
+
+    #[inline]
+    pub fn key_policy(&self) -> KeyPolicy {
+        self.node.metadata.plaintext.key_policy
+    }
+
+    #[inline]
+    pub fn set_key_policy(&mut self, key_policy: KeyPolicy) {
+        self.node.metadata.plaintext.key_policy = key_policy;
     }
 
     #[inline]
@@ -283,6 +294,7 @@ impl MetadataInfo {
     }
 
     pub fn derive_key(&mut self, derive: &mut dyn DeriveKey) -> FsResult<Key128bit> {
+        let (key, key_id) = derive.derive_key(KeyType::Metadata, 0)?;
         match self.encrypt_flags() {
             EncryptFlags::AutoKey => {
                 cfg_if! {
@@ -290,27 +302,23 @@ impl MetadataInfo {
                         use sgx_tse::EnclaveReport;
                         use sgx_types::types::Report;
 
-                        let (key, key_id) = derive.derive_key(KeyType::Metadata, 0)?;
                         self.node.metadata.plaintext.key_id = key_id;
 
                         let report = Report::get_self();
                         self.node.metadata.plaintext.cpu_svn = report.body.cpu_svn;
                         self.node.metadata.plaintext.isv_svn = report.body.isv_svn;
-
-                        Ok(key)
                     } else {
                         use sgx_types::error::errno::ENOTSUP;
-                        Err(eos!(ENOTSUP))
+                        bail!(eos!(ENOTSUP));
                     }
                 }
             }
             EncryptFlags::UserKey => {
-                let (key, key_id) = derive.derive_key(KeyType::Metadata, 0)?;
                 self.node.metadata.plaintext.key_id = key_id;
-                Ok(key)
             }
-            EncryptFlags::IntegrityOnly => Ok(Key128bit::default()),
+            EncryptFlags::IntegrityOnly => {}
         }
+        Ok(key)
     }
 
     pub fn restore_key(&self, restore: &dyn RestoreKey) -> FsResult<Key128bit> {
@@ -321,22 +329,23 @@ impl MetadataInfo {
                         restore.restore_key(
                             KeyType::Metadata,
                             self.node.metadata.plaintext.key_id,
+                            Some(self.node.metadata.plaintext.key_policy),
                             Some(self.node.metadata.plaintext.cpu_svn),
                             Some(self.node.metadata.plaintext.isv_svn),
                         )
                     } else {
                         use sgx_types::error::errno::ENOTSUP;
-                        Err(eos!(ENOTSUP))
+                        bail!(eos!(ENOTSUP));
                     }
                 }
             }
-            EncryptFlags::UserKey => restore.restore_key(
+            EncryptFlags::UserKey | EncryptFlags::IntegrityOnly => restore.restore_key(
                 KeyType::Metadata,
                 self.node.metadata.plaintext.key_id,
                 None,
                 None,
+                None,
             ),
-            EncryptFlags::IntegrityOnly => Ok(Key128bit::default()),
         }
     }
 
