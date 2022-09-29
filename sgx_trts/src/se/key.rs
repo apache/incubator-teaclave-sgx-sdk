@@ -47,17 +47,17 @@ impl AlignKeyRequest {
 
         // check if KSS flag is disabled but KSS related policy or config_svn is set
         let report = AlignReport::get_self();
-        if (!(report
+        if !report
             .0
             .body
             .attributes
             .flags
-            .intersects(AttributesFlags::KSS)))
-            && ((self
+            .intersects(AttributesFlags::KSS)
+            && (self
                 .0
                 .key_policy
-                .intersects(KeyPolicy::KSS | KeyPolicy::NOISVPRODID))
-                || (self.0.config_svn > 0))
+                .intersects(KeyPolicy::KSS | KeyPolicy::NOISVPRODID)
+                || self.0.config_svn > 0)
         {
             bail!(SgxStatus::InvalidParameter);
         }

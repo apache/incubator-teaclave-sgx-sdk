@@ -23,7 +23,7 @@ use core::ptr;
 use core::sync::atomic::AtomicUsize;
 use inst::EncluInst;
 use sgx_types::marker::ContiguousMemory;
-use sgx_types::types::CpuSvn;
+use sgx_types::types::{CpuSvn, IsvExtProdId, IsvFamilyId};
 
 pub mod derive;
 pub mod inst;
@@ -118,6 +118,21 @@ impl GlobalSim {
 
 #[repr(C)]
 #[derive(Debug, Default)]
+pub struct IsvExtId {
+    pub isv_family_id: IsvFamilyId,
+    pub isv_ext_prod_id: IsvExtProdId,
+}
+
+impl IsvExtId {
+    pub fn get(secs: &Secs) -> &IsvExtId {
+        unsafe { &*(&secs.reserved4 as *const _ as *const IsvExtId) }
+    }
+}
+
+unsafe impl ContiguousMemory for IsvExtId {}
+
+#[repr(C)]
+#[derive(Debug, Default)]
 pub struct TcsSim {
     pub saved_aep: usize,
     pub tcs_state: AtomicUsize,
@@ -128,7 +143,7 @@ pub struct TcsSim {
 
 impl TcsSim {
     #[link_section = ".nipx"]
-    pub fn get(tcs: &mut Tcs) -> &mut TcsSim {
+    pub fn get_mut(tcs: &mut Tcs) -> &mut TcsSim {
         unsafe { &mut *(&mut tcs.reserved as *mut _ as *mut TcsSim) }
     }
 }

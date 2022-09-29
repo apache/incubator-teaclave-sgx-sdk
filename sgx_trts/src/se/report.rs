@@ -26,8 +26,8 @@ use core::ptr;
 use sgx_types::error::{SgxResult, SgxStatus};
 use sgx_types::marker::ContiguousMemory;
 use sgx_types::types::{
-    Attributes, AttributesFlags, CpuSvn, Key128bit, KeyId, KeyName, KeyRequest, Mac, Measurement,
-    MiscSelect, Report, Report2Mac, ReportBody, ReportData, TargetInfo,
+    Attributes, AttributesFlags, ConfigId, CpuSvn, Key128bit, KeyId, KeyName, KeyRequest, Mac,
+    Measurement, MiscSelect, Report, Report2Mac, ReportBody, ReportData, TargetInfo,
 };
 use sgx_types::types::{
     CONFIGID_SIZE, CPUSVN_SIZE, HASH_SIZE, ISVEXT_PROD_ID_SIZE, ISV_FAMILY_ID_SIZE, KEYID_SIZE,
@@ -73,7 +73,9 @@ static mut REPORT: AlignReport = AlignReport(Report {
         reserved2: [0; REPORT_BODY_RESERVED2_BYTES],
         mr_signer: Measurement { m: [0; HASH_SIZE] },
         reserved3: [0; REPORT_BODY_RESERVED3_BYTES],
-        config_id: [0; CONFIGID_SIZE],
+        config_id: ConfigId {
+            id: [0; CONFIGID_SIZE],
+        },
         isv_prod_id: 0,
         isv_svn: 0,
         config_svn: 0,

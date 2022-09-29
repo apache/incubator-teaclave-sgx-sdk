@@ -19,7 +19,10 @@ use crate::arch::Align16;
 use crate::error::abort;
 use crate::se::AlignKey;
 use sgx_crypto_sys::sgx_rijndael128_cmac_msg;
-use sgx_types::types::{Attributes, CpuSvn, Key128bit, KeyId, KeyName, Mac, Measurement};
+use sgx_types::types::{
+    Attributes, ConfigId, CpuSvn, IsvExtProdId, IsvFamilyId, Key128bit, KeyId, KeyName, KeyPolicy,
+    Mac, Measurement, MiscSelect,
+};
 
 pub const OWNEREPOCH_SIZE: usize = 16;
 
@@ -27,68 +30,59 @@ pub type SeOwnerEpoch = [u8; OWNEREPOCH_SIZE];
 
 impl_struct! {
     #[repr(C)]
-    #[derive(Debug, Eq, PartialEq)]
-    pub struct DerivSealKey {
+    #[derive(Debug)]
+    pub struct DeriveData {
         pub key_name: KeyName,
-        pub _pad1: [u8; 6],
+        pub isv_svn: u16,
+        pub isv_prod_id: u16,
+        pub config_svn: u16,
         pub attributes: Attributes,
         pub attribute_mask: Attributes,
+        pub misc_select: MiscSelect,
+        pub misc_mask: u32,
         pub csr_owner_epoch: SeOwnerEpoch,
         pub cpu_svn: CpuSvn,
-        pub isv_svn: u16,
-        pub isv_prod_id: u16,
         pub mr_enclave: Measurement,
         pub mr_signer: Measurement,
+        pub isv_family_id: IsvFamilyId,
+        pub isv_ext_prod_id: IsvExtProdId,
+        pub config_id: ConfigId,
         pub key_id: KeyId,
-        pub _pad2: [u8; 4],
-    }
-
-    #[repr(C)]
-    #[derive(Debug, Eq, PartialEq)]
-    pub struct DerivReportKey {
-        pub key_name: KeyName,
-        pub _pad1: [u8; 6],
-        pub attributes: Attributes,
-        pub csr_owner_epoch: SeOwnerEpoch,
-        pub mr_enclave: Measurement,
-        pub cpu_svn: CpuSvn,
-        pub key_id: KeyId,
-    }
-
-    #[repr(C)]
-    #[derive(Debug, Eq, PartialEq)]
-    pub struct DerivLicenseKey {
-        pub key_name: KeyName,
-        pub _pad1: [u8; 6],
-        pub attributes: Attributes,
-        pub csr_owner_epoch: SeOwnerEpoch,
-        pub cpu_svn: CpuSvn,
-        pub isv_svn: u16,
-        pub isv_prod_id: u16,
-        pub key_id: KeyId,
-        pub _pad2: [u8; 4],
-    }
-
-    #[repr(C)]
-    #[derive(Debug, Eq, PartialEq)]
-    pub struct DerivProvisionKey {
-        pub key_name: KeyName,
-        pub _pad1: [u8; 6],
-        pub attributes: Attributes,
-        pub attribute_mask: Attributes,
-        pub cpu_svn: CpuSvn,
-        pub isv_svn: u16,
-        pub isv_prod_id: u16,
-        pub mr_signer: Measurement,
-        pub _pad2: [u8; 4],
+        pub key_policy: KeyPolicy,
+        pub _pad: [u8; 6],
     }
 }
 
 impl_asref_array! {
-    DerivSealKey;
-    DerivReportKey;
-    DerivLicenseKey;
-    DerivProvisionKey;
+    DeriveData;
+}
+
+impl DeriveData {
+    pub fn derive_key(&self) -> AlignKey {
+        let mut key = AlignKey::default();
+        let status = unsafe {
+            sgx_rijndael128_cmac_msg(
+                &self.base_key().0 as *const Key128bit,
+                self.as_ref().as_ptr(),
+                self.as_ref().len() as u32,
+                &mut key.0 as *mut _,
+            )
+        };
+        if !status.is_success() {
+            abort();
+        }
+        key
+    }
+
+    pub fn base_key(&self) -> AlignKey {
+        match self.key_name {
+            KeyName::EInitToken => BASE_EINITTOKEN_KEY,
+            KeyName::Provision => BASE_PROVISION_KEY,
+            KeyName::ProvisionSeal => BASE_PROV_SEAL_KEY,
+            KeyName::Report => BASE_REPORT_KEY,
+            KeyName::Seal => BASE_SEAL_KEY,
+        }
+    }
 }
 
 // The built-in seal key in simulation mode
@@ -115,50 +109,6 @@ const BASE_PROVISION_KEY: AlignKey = Align16([
 const BASE_PROV_SEAL_KEY: AlignKey = Align16([
     0x50, 0x52, 0x4f, 0x56, 0x49, 0x53, 0x49, 0x4f, 0x4e, 0x53, 0x45, 0x41, 0x4c, 0x4b, 0x45, 0x59,
 ]);
-
-pub trait DeriveKey {
-    fn derive_key(&self) -> AlignKey;
-    fn base_key(&self) -> AlignKey;
-}
-
-macro_rules! impl_derive_key {
-    ($($t:ty;)*) => {$(
-        impl DeriveKey for $t {
-            fn derive_key(&self) -> AlignKey {
-                let mut key = AlignKey::default();
-                let status = unsafe {
-                    sgx_rijndael128_cmac_msg(
-                        &self.base_key().0 as *const Key128bit,
-                        self.as_ref().as_ptr(),
-                        self.as_ref().len() as u32,
-                        &mut key.0 as *mut _,
-                    )
-                };
-                if !status.is_success() {
-                    abort();
-                }
-                key
-            }
-
-            fn base_key(&self) -> AlignKey {
-                match self.key_name {
-                    KeyName::EInitToken => BASE_EINITTOKEN_KEY,
-                    KeyName::Provision => BASE_PROVISION_KEY,
-                    KeyName::ProvisionSeal => BASE_PROV_SEAL_KEY,
-                    KeyName::Report => BASE_REPORT_KEY,
-                    KeyName::Seal => BASE_SEAL_KEY,
-                }
-            }
-        }
-    )*}
-}
-
-impl_derive_key! {
-    DerivSealKey;
-    DerivReportKey;
-    DerivLicenseKey;
-    DerivProvisionKey;
-}
 
 pub fn cmac(key: &AlignKey, buf: &[u8]) -> Mac {
     let mut mac = Mac::default();

@@ -121,7 +121,34 @@ impl_asref_array! {
 pub const CPUSVN_SIZE: usize = 16;
 pub const CONFIGID_SIZE: usize = 64;
 
-pub type ConfigId = [u8; CONFIGID_SIZE];
+impl_copy_clone! {
+    #[repr(C)]
+    #[derive(Debug)]
+    pub struct ConfigId {
+        pub id: [u8; CONFIGID_SIZE],
+    }
+}
+
+impl_struct_default! {
+    ConfigId; //64
+}
+impl_struct_ContiguousMemory! {
+    ConfigId;
+}
+
+impl_asref_array! {
+    ConfigId;
+}
+impl_asmut_array! {
+    ConfigId;
+}
+impl_from_array! {
+    ConfigId;
+}
+impl_unsafe_marker_for! {
+    BytewiseEquality,
+    ConfigId
+}
 
 impl_struct! {
     #[repr(C)]

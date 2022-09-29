@@ -18,10 +18,8 @@
 use crate::arch::{Secinfo, Tcs};
 use crate::enclave::EnclaveRange;
 use crate::error::abort as gp;
-use crate::inst::sim::derive::{
-    self, DerivLicenseKey, DerivProvisionKey, DerivReportKey, DerivSealKey, DeriveKey, SeOwnerEpoch,
-};
-use crate::inst::sim::{TcsSim, TcsState};
+use crate::inst::sim::derive::{self, DeriveData, SeOwnerEpoch};
+use crate::inst::sim::{GlobalSim, IsvExtId, TcsSim, TcsState};
 use crate::inst::{INVALID_ATTRIBUTE, INVALID_CPUSVN, INVALID_ISVSVN, INVALID_LEAF};
 use crate::se::{
     AlignKey, AlignKeyRequest, AlignReport, AlignReport2Mac, AlignReportData, AlignTargetInfo,
@@ -30,7 +28,8 @@ use core::mem;
 use core::sync::atomic::Ordering;
 use sgx_types::types::KEY_REQUEST_RESERVED2_BYTES;
 use sgx_types::types::{
-    Attributes, AttributesFlags, CpuSvn, KeyName, KeyPolicy, KeyRequest, Report, ReportBody,
+    Attributes, AttributesFlags, CpuSvn, KeyName, KeyPolicy, KeyRequest, MiscSelect, Report,
+    ReportBody,
 };
 
 macro_rules! gp_on {
@@ -104,7 +103,7 @@ impl EncluInst {
         gp_on!(tcs.is_null());
 
         let tcs = unsafe { &mut *tcs };
-        let tcs_sim = TcsSim::get(tcs);
+        let tcs_sim = TcsSim::get_mut(tcs);
 
         // restore the used _tls_array
         tcs_sim.restore_td();
@@ -140,15 +139,22 @@ impl EncluInst {
         ));
         gp_on!(!kr.is_enclave_range());
         gp_on!(!kr.0.key_policy.is_valid());
-        gp_on!(kr
-            .0
-            .key_policy
-            .intersects(!(KeyPolicy::MRENCLAVE | KeyPolicy::MRSIGNER)));
         gp_on!(kr.0.reserved1 != 0);
         gp_on!(kr.0.reserved2 != [0; KEY_REQUEST_RESERVED2_BYTES]);
 
-        let secs = unsafe { &*(super::GlobalSim::get().secs) };
-        let cpu_svn_sim = super::GlobalSim::get().cpu_svn;
+        let secs = unsafe { &*(GlobalSim::get().secs) };
+        let isv_ext_id = IsvExtId::get(secs);
+        let cpu_svn_sim = GlobalSim::get().cpu_svn;
+
+        gp_on!(
+            !secs.attributes.flags.intersects(AttributesFlags::KSS)
+                && (kr
+                    .0
+                    .key_policy
+                    .intersects(KeyPolicy::KSS | KeyPolicy::NOISVPRODID)
+                    || kr.0.config_svn > 0)
+        );
+
         // Determine which enclave attributes that must be included in the key.
         // Attributes that must always be included INIT & DEBUG.
         let attributes = Attributes {
@@ -156,6 +162,7 @@ impl EncluInst {
                 & secs.attributes.flags,
             xfrm: kr.0.attribute_mask.xfrm & secs.attributes.xfrm,
         };
+        let misc_select = MiscSelect::from_bits_truncate(secs.misc_select.bits() & kr.0.misc_mask);
 
         // HW supports CPUSVN to be set as 0.
         // To be consistent with HW behaviour, we replace the cpusvn as DEFAULT_CPUSVN if the input cpusvn is 0.
@@ -165,23 +172,33 @@ impl EncluInst {
             kr.0.cpu_svn
         };
 
-        let key = match kr.0.key_name {
+        let derive_data = match kr.0.key_name {
             KeyName::Seal => {
-                if kr.0.isv_svn > secs.isv_svn {
-                    return Err(INVALID_ISVSVN);
-                }
-                if !Self::check_cpusvn(&kr.0, cpu_svn_sim) {
-                    return Err(INVALID_CPUSVN);
-                }
+                ensure!(
+                    secs.isv_svn >= kr.0.isv_svn && secs.config_svn >= kr.0.config_svn,
+                    INVALID_ISVSVN
+                );
+                ensure!(Self::check_cpusvn(&kr.0, cpu_svn_sim), INVALID_CPUSVN);
 
-                let derive = DerivSealKey {
+                DeriveData {
                     key_name: kr.0.key_name,
+                    config_svn: if kr.0.key_policy.contains(KeyPolicy::CONFIGID) {
+                        kr.0.config_svn
+                    } else {
+                        Default::default()
+                    },
+                    isv_svn: kr.0.isv_svn,
+                    isv_prod_id: if kr.0.key_policy.contains(KeyPolicy::NOISVPRODID) {
+                        Default::default()
+                    } else {
+                        secs.isv_prod_id
+                    },
                     attributes,
                     attribute_mask: kr.0.attribute_mask,
+                    misc_select,
+                    misc_mask: !kr.0.misc_mask,
                     csr_owner_epoch: SIMU_OWNER_EPOCH_MSR,
                     cpu_svn,
-                    isv_svn: kr.0.isv_svn,
-                    isv_prod_id: secs.isv_prod_id,
                     mr_enclave: if kr.0.key_policy.contains(KeyPolicy::MRENCLAVE) {
                         secs.mr_enclave
                     } else {
@@ -192,79 +209,137 @@ impl EncluInst {
                     } else {
                         Default::default()
                     },
+                    isv_family_id: if kr.0.key_policy.contains(KeyPolicy::ISVFAMILYID) {
+                        isv_ext_id.isv_family_id
+                    } else {
+                        Default::default()
+                    },
+                    isv_ext_prod_id: if kr.0.key_policy.contains(KeyPolicy::ISVEXTPRODID) {
+                        isv_ext_id.isv_ext_prod_id
+                    } else {
+                        Default::default()
+                    },
+                    config_id: if kr.0.key_policy.contains(KeyPolicy::CONFIGID) {
+                        secs.config_id
+                    } else {
+                        Default::default()
+                    },
                     key_id: kr.0.key_id,
+                    key_policy: kr.0.key_policy,
                     ..Default::default()
-                };
-                derive.derive_key()
+                }
             }
-            KeyName::Report => {
-                let derive = DerivReportKey {
-                    key_name: kr.0.key_name,
-                    attributes: secs.attributes,
-                    csr_owner_epoch: SIMU_OWNER_EPOCH_MSR,
-                    mr_enclave: secs.mr_enclave,
-                    cpu_svn: cpu_svn_sim,
-                    key_id: kr.0.key_id,
-                    ..Default::default()
-                };
-                derive.derive_key()
-            }
+            KeyName::Report => DeriveData {
+                key_name: kr.0.key_name,
+                config_svn: secs.config_svn,
+                attributes: secs.attributes,
+                misc_select: secs.misc_select,
+                csr_owner_epoch: SIMU_OWNER_EPOCH_MSR,
+                mr_enclave: secs.mr_enclave,
+                cpu_svn: cpu_svn_sim,
+                config_id: secs.config_id,
+                key_id: kr.0.key_id,
+                ..Default::default()
+            },
             KeyName::EInitToken => {
-                if !secs
-                    .attributes
-                    .flags
-                    .contains(AttributesFlags::EINITTOKENKEY)
-                {
-                    return Err(INVALID_ATTRIBUTE);
-                }
-                if kr.0.isv_svn > secs.isv_svn {
-                    return Err(INVALID_ISVSVN);
-                }
-                if !Self::check_cpusvn(&kr.0, cpu_svn_sim) {
-                    return Err(INVALID_CPUSVN);
-                }
+                ensure!(
+                    secs.attributes
+                        .flags
+                        .contains(AttributesFlags::EINITTOKENKEY),
+                    INVALID_ATTRIBUTE
+                );
+                ensure!(secs.isv_svn >= kr.0.isv_svn, INVALID_ISVSVN);
+                ensure!(Self::check_cpusvn(&kr.0, cpu_svn_sim), INVALID_CPUSVN);
 
-                let derive = DerivLicenseKey {
+                DeriveData {
                     key_name: kr.0.key_name,
-                    attributes: secs.attributes,
-                    csr_owner_epoch: SIMU_OWNER_EPOCH_MSR,
-                    cpu_svn,
                     isv_svn: kr.0.isv_svn,
                     isv_prod_id: secs.isv_prod_id,
+                    attributes,
+                    misc_select,
+                    csr_owner_epoch: SIMU_OWNER_EPOCH_MSR,
+                    cpu_svn,
+                    mr_signer: secs.mr_signer,
                     key_id: kr.0.key_id,
                     ..Default::default()
-                };
-                derive.derive_key()
+                }
             }
-            KeyName::Provision | KeyName::ProvisionSeal => {
-                if !secs
-                    .attributes
-                    .flags
-                    .contains(AttributesFlags::PROVISIONKEY)
-                {
-                    return Err(INVALID_ATTRIBUTE);
-                }
-                if kr.0.isv_svn > secs.isv_svn {
-                    return Err(INVALID_ISVSVN);
-                }
-                if !Self::check_cpusvn(&kr.0, cpu_svn_sim) {
-                    return Err(INVALID_CPUSVN);
-                }
+            KeyName::Provision => {
+                ensure!(
+                    secs.attributes
+                        .flags
+                        .contains(AttributesFlags::PROVISIONKEY),
+                    INVALID_ATTRIBUTE
+                );
+                ensure!(secs.isv_svn >= kr.0.isv_svn, INVALID_ISVSVN);
+                ensure!(Self::check_cpusvn(&kr.0, cpu_svn_sim), INVALID_CPUSVN);
 
-                let derive = DerivProvisionKey {
+                DeriveData {
                     key_name: kr.0.key_name,
+                    isv_svn: kr.0.isv_svn,
+                    isv_prod_id: secs.isv_prod_id,
                     attributes,
                     attribute_mask: kr.0.attribute_mask,
+                    misc_select,
+                    misc_mask: !kr.0.misc_mask,
                     cpu_svn,
-                    isv_svn: kr.0.isv_svn,
-                    isv_prod_id: secs.isv_prod_id,
                     mr_signer: secs.mr_signer,
                     ..Default::default()
-                };
-                derive.derive_key()
+                }
+            }
+            KeyName::ProvisionSeal => {
+                ensure!(
+                    secs.attributes
+                        .flags
+                        .contains(AttributesFlags::PROVISIONKEY),
+                    INVALID_ATTRIBUTE
+                );
+                ensure!(
+                    secs.isv_svn >= kr.0.isv_svn && secs.config_svn >= kr.0.config_svn,
+                    INVALID_ISVSVN
+                );
+                ensure!(Self::check_cpusvn(&kr.0, cpu_svn_sim), INVALID_CPUSVN);
+
+                DeriveData {
+                    key_name: kr.0.key_name,
+                    config_svn: if kr.0.key_policy.contains(KeyPolicy::CONFIGID) {
+                        kr.0.config_svn
+                    } else {
+                        Default::default()
+                    },
+                    isv_svn: kr.0.isv_svn,
+                    isv_prod_id: if kr.0.key_policy.contains(KeyPolicy::NOISVPRODID) {
+                        Default::default()
+                    } else {
+                        secs.isv_prod_id
+                    },
+                    attributes,
+                    attribute_mask: kr.0.attribute_mask,
+                    misc_select,
+                    misc_mask: !kr.0.misc_mask,
+                    cpu_svn,
+                    mr_signer: secs.mr_signer,
+                    isv_family_id: if kr.0.key_policy.contains(KeyPolicy::ISVFAMILYID) {
+                        isv_ext_id.isv_family_id
+                    } else {
+                        Default::default()
+                    },
+                    isv_ext_prod_id: if kr.0.key_policy.contains(KeyPolicy::ISVEXTPRODID) {
+                        isv_ext_id.isv_ext_prod_id
+                    } else {
+                        Default::default()
+                    },
+                    config_id: if kr.0.key_policy.contains(KeyPolicy::CONFIGID) {
+                        secs.config_id
+                    } else {
+                        Default::default()
+                    },
+                    key_policy: kr.0.key_policy,
+                    ..Default::default()
+                }
             }
         };
-        Ok(key)
+        Ok(derive_data.derive_key())
     }
 
     pub fn ereport(ti: &AlignTargetInfo, rd: &AlignReportData) -> Result<AlignReport, u32> {
@@ -279,15 +354,19 @@ impl EncluInst {
         gp_on!(!ti.is_enclave_range());
         gp_on!(!rd.is_enclave_range());
 
-        let secs = unsafe { &*(super::GlobalSim::get().secs) };
-        let cpu_svn_sim = super::GlobalSim::get().cpu_svn;
+        let secs = unsafe { &*(GlobalSim::get().secs) };
+        let isv_ext_id = IsvExtId::get(secs);
+        let cpu_svn_sim = GlobalSim::get().cpu_svn;
 
-        let mut derive = DerivReportKey {
+        let mut derive = DeriveData {
             key_name: KeyName::Report,
+            config_svn: ti.0.config_svn,
             attributes: ti.0.attributes,
+            misc_select: ti.0.misc_select,
             csr_owner_epoch: SIMU_OWNER_EPOCH_MSR,
             mr_enclave: secs.mr_enclave,
             cpu_svn: cpu_svn_sim,
+            config_id: ti.0.config_id,
             ..Default::default()
         };
         let base_key = derive.base_key();
@@ -297,11 +376,16 @@ impl EncluInst {
         let mut report = AlignReport(Report {
             body: ReportBody {
                 cpu_svn: cpu_svn_sim,
+                misc_select: secs.misc_select,
+                isv_ext_prod_id: isv_ext_id.isv_ext_prod_id,
                 attributes: secs.attributes,
                 mr_enclave: secs.mr_enclave,
                 mr_signer: secs.mr_signer,
+                config_id: secs.config_id,
                 isv_prod_id: secs.isv_prod_id,
                 isv_svn: secs.isv_svn,
+                config_svn: secs.config_svn,
+                isv_family_id: isv_ext_id.isv_family_id,
                 report_data: rd.0,
                 ..Default::default()
             },

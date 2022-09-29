@@ -22,10 +22,10 @@ use sgx_types::types::{
     AlignMac256bit, Key128bit, Key256bit, Mac128bit, Mac256bit,
 };
 use sgx_types::types::{
-    Attributes, AttributesFlags, CpuSvn, KeyId, KeyName, KeyPolicy, KeyRequest, Measurement,
-    MiscAttribute, MiscSelect, Report, Report2, Report2Body, Report2Mac, ReportBody, ReportData,
-    TargetInfo, TeeAttributes, TeeCpuSvn, TeeInfo, TeeMeasurement, TeeReportData, TeeReportType,
-    TeeTcbInfo, TeeTcbSvn,
+    Attributes, AttributesFlags, ConfigId, CpuSvn, KeyId, KeyName, KeyPolicy, KeyRequest,
+    Measurement, MiscAttribute, MiscSelect, Report, Report2, Report2Body, Report2Mac, ReportBody,
+    ReportData, TargetInfo, TeeAttributes, TeeCpuSvn, TeeInfo, TeeMeasurement, TeeReportData,
+    TeeReportType, TeeTcbInfo, TeeTcbSvn,
 };
 use sgx_types::types::{BaseName, PsSecPropDesc, QuoteNonce, Spid};
 use sgx_types::types::{Ec256PrivateKey, Ec256PublicKey, Ec256SharedKey, Ec256Signature};
@@ -777,6 +777,25 @@ impl Decodable for CpuSvn {
         d.read_struct("CpuSvn", 1usize, |d| -> _ {
             Ok(CpuSvn {
                 svn: d.read_struct_field("svn", 0usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
+impl Encodable for ConfigId {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let ConfigId { id: ref _id } = *self;
+        e.emit_struct("ConfigId", 1usize, |e| -> _ {
+            e.emit_struct_field("id", 0usize, |e| -> _ { Encodable::encode(&*_id, e) })
+        })
+    }
+}
+
+impl Decodable for ConfigId {
+    fn decode<D: Decoder>(d: &mut D) -> Result<ConfigId, D::Error> {
+        d.read_struct("ConfigId", 1usize, |d| -> _ {
+            Ok(ConfigId {
+                id: d.read_struct_field("id", 0usize, Decodable::decode)?,
             })
         })
     }
