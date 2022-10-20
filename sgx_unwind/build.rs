@@ -54,7 +54,7 @@ fn build_libunwind(host: &str, target: &str) -> Result<(), ()> {
     cflags += " -fstack-protector -ffreestanding -nostdinc -fvisibility=hidden -fpie -fno-strict-overflow -fno-delete-null-pointer-checks";
     cflags += " -O2";
 
-    let mitigation_cflags = " -mindirect-branch-register -mfunction-return=thunk-extern";
+    let mitigation_cflags = " -mindirect-branch-register";
     let mitigation_asflags = " -fno-plt";
     let mitigation_loadflags =
         " -Wa,-mlfence-after-load=yes -Wa,-mlfence-before-indirect-branch=memory";
