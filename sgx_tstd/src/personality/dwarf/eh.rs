@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License..
+
 //! Parsing of GCC-style Language-Specific Data Area (LSDA)
 //! For details see:
 //!  * <https://refspecs.linuxfoundation.org/LSB_3.0.0/LSB-PDA/LSB-PDA/ehframechpt.html>
@@ -11,7 +28,7 @@
 #![allow(non_upper_case_globals)]
 #![allow(unused)]
 
-use crate::dwarf::DwarfReader;
+use super::DwarfReader;
 use core::mem;
 
 pub const DW_EH_PE_omit: u8 = 0xFF;
@@ -75,7 +92,7 @@ pub unsafe fn find_eh_action(lsda: *const u8, context: &EHContext<'_>) -> Result
 
     let call_site_encoding = reader.read::<u8>();
     let call_site_table_length = reader.read_uleb128();
-    let action_table = reader.ptr.offset(call_site_table_length as isize);
+    let action_table = reader.ptr.add(call_site_table_length as usize);
     let ip = context.ip;
 
     if !USING_SJLJ_EXCEPTIONS {
@@ -98,9 +115,8 @@ pub unsafe fn find_eh_action(lsda: *const u8, context: &EHContext<'_>) -> Result
                 }
             }
         }
-        // Ip is not present in the table.  This should not happen... but it does: issue #35011.
-        // So rather than returning EHAction::Terminate, we do this.
-        Ok(EHAction::None)
+        // Ip is not present in the table. This indicates a nounwind call.
+        Ok(EHAction::Terminate)
     } else {
         // SjLj version:
         // The "IP" is an index into the call-site table, with two exceptions:
@@ -138,11 +154,7 @@ fn interpret_cs_action(cs_action: u64, lpad: usize) -> EHAction {
 
 #[inline]
 fn round_up(unrounded: usize, align: usize) -> Result<usize, ()> {
-    if align.is_power_of_two() {
-        Ok((unrounded + align - 1) & !(align - 1))
-    } else {
-        Err(())
-    }
+    if align.is_power_of_two() { Ok((unrounded + align - 1) & !(align - 1)) } else { Err(()) }
 }
 
 unsafe fn read_encoded_pointer(

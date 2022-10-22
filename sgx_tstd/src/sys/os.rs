@@ -18,7 +18,7 @@
 use crate::os::unix::prelude::*;
 
 use crate::error::Error as StdError;
-use crate::ffi::{CStr, CString, OsStr, OsString};
+use crate::ffi::{CStr, OsStr, OsString};
 use crate::fmt;
 use crate::io;
 use crate::iter;
@@ -27,7 +27,8 @@ use crate::path::{self, PathBuf};
 use crate::ptr;
 use crate::slice;
 use crate::str;
-use crate::sync::SgxThreadRwLock;
+use crate::sync::{PoisonError, SgxRwLock as RwLock};
+use crate::sys::common::small_c_string::{run_path_with_cstr, run_with_cstr};
 use crate::sys::cvt;
 use crate::sys::memchr;
 use crate::vec;
@@ -37,7 +38,6 @@ use sgx_types::metadata::SE_PAGE_SIZE;
 
 const TMPBUF_SZ: usize = 128;
 const PATH_SEPARATOR: u8 = b':';
-static ENV_LOCK: SgxThreadRwLock = SgxThreadRwLock::new();
 
 #[inline]
 pub fn errno() -> i32 {
@@ -86,12 +86,8 @@ pub fn getcwd() -> io::Result<PathBuf> {
 }
 
 pub fn chdir(p: &path::Path) -> io::Result<()> {
-    let p: &OsStr = p.as_ref();
-    let p = CString::new(p.as_bytes())?;
-    if unsafe { libc::chdir(p.as_ptr()) } != 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(())
+    let result = run_path_with_cstr(p, |p| unsafe { Ok(libc::chdir(p.as_ptr())) })?;
+    if result == 0 { Ok(()) } else { Err(io::Error::last_os_error()) }
 }
 
 #[allow(clippy::type_complexity)]
@@ -191,11 +187,17 @@ pub unsafe fn environ() -> *const *const libc::c_char {
     libc::environ()
 }
 
+static ENV_LOCK: RwLock<()> = RwLock::new(());
+
+pub fn env_read_lock() -> impl Drop {
+    ENV_LOCK.read().unwrap_or_else(PoisonError::into_inner)
+}
+
 /// Returns a vector of (variable, value) byte-vector pairs for all the
 /// environment variables of the current process.
 pub fn env() -> Env {
     unsafe {
-        ENV_LOCK.read();
+        let _guard = env_read_lock();
         let mut environ = environ();
         let mut result = Vec::new();
         if !environ.is_null() {
@@ -206,9 +208,7 @@ pub fn env() -> Env {
                 environ = environ.add(1);
             }
         }
-        let ret = Env { iter: result.into_iter() };
-        ENV_LOCK.read_unlock();
-        return ret;
+        return Env { iter: result.into_iter() };
     }
 
     fn parse(input: &[u8]) -> Option<(OsString, OsString)> {
@@ -232,41 +232,31 @@ pub fn env() -> Env {
 pub fn getenv(k: &OsStr) -> io::Result<Option<OsString>> {
     // environment variables with a nul byte can't be set, so their value is
     // always None as well
-    let k = CString::new(k.as_bytes())?;
-    unsafe {
-        ENV_LOCK.read();
-        let s = libc::getenv(k.as_ptr()) as *const libc::c_char;
-        let ret = if s.is_null() {
-            None
-        } else {
-            Some(OsStringExt::from_vec(CStr::from_ptr(s).to_bytes().to_vec()))
-        };
-        ENV_LOCK.read_unlock();
-        Ok(ret)
+    let s = run_with_cstr(k.as_bytes(), |k| {
+        let _guard = env_read_lock();
+        Ok(unsafe { libc::getenv(k.as_ptr()) } as *const libc::c_char)
+    })?;
+    if s.is_null() {
+        Ok(None)
+    } else {
+        Ok(Some(OsStringExt::from_vec(unsafe { CStr::from_ptr(s) }.to_bytes().to_vec())))
     }
 }
 
 pub fn setenv(k: &OsStr, v: &OsStr) -> io::Result<()> {
-    let k = CString::new(k.as_bytes())?;
-    let v = CString::new(v.as_bytes())?;
-
-    unsafe {
-        ENV_LOCK.write();
-        let ret = cvt(libc::setenv(k.as_ptr(), v.as_ptr(), 1)).map(drop);
-        ENV_LOCK.write_unlock();
-        ret
-    }
+    run_with_cstr(k.as_bytes(), |k| {
+        run_with_cstr(v.as_bytes(), |v| {
+            let _guard = ENV_LOCK.write();
+            cvt(unsafe { libc::setenv(k.as_ptr(), v.as_ptr(), 1) }).map(drop)
+        })
+    })
 }
 
 pub fn unsetenv(n: &OsStr) -> io::Result<()> {
-    let nbuf = CString::new(n.as_bytes())?;
-
-    unsafe {
-        ENV_LOCK.write();
-        let ret = cvt(libc::unsetenv(nbuf.as_ptr())).map(drop);
-        ENV_LOCK.write_unlock();
-        ret
-    }
+    run_with_cstr(n.as_bytes(), |nbuf| {
+        let _guard = ENV_LOCK.write();
+        cvt(unsafe { libc::unsetenv(nbuf.as_ptr()) }).map(drop)
+    })
 }
 
 pub fn page_size() -> usize {
@@ -284,7 +274,7 @@ pub fn home_dir() -> Option<PathBuf> {
 
     unsafe fn fallback() -> Option<OsString> {
         let amt = match libc::sysconf(libc::_SC_GETPW_R_SIZE_MAX) {
-            n if n < 0 => 512_usize,
+            n if n < 0 => 512,
             n => n as usize,
         };
         let mut buf = Vec::with_capacity(amt);

@@ -67,7 +67,6 @@
 #![feature(allocator_api)]
 #![feature(specialization)]
 #![feature(vec_into_raw_parts)]
-#![feature(toowned_clone_into)]
 #![feature(rustc_attrs)]
 #![allow(incomplete_features)]
 #![allow(non_camel_case_types)]

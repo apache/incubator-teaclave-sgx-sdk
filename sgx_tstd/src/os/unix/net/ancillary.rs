@@ -47,7 +47,7 @@ pub(super) fn recv_vectored_with_ancillary_from(
 
         let count = socket.recv_msg(&mut msg)?;
 
-        ancillary.length = msg.msg_controllen as usize;
+        ancillary.length = msg.msg_controllen;
         ancillary.truncated = msg.msg_flags & libc::MSG_CTRUNC == libc::MSG_CTRUNC;
 
         let truncated = msg.msg_flags & libc::MSG_TRUNC == libc::MSG_TRUNC;
@@ -287,7 +287,7 @@ impl<'a> AncillaryData<'a> {
     /// # Safety
     ///
     /// `data` must contain a valid control message and the control message must be type of
-    /// `SOL_SOCKET` and level of `SCM_CREDENTIALS` or `SCM_CREDENTIALS`.
+    /// `SOL_SOCKET` and level of `SCM_CREDENTIALS` or `SCM_CREDS`.
     unsafe fn as_credentials(data: &'a [u8]) -> Self {
         let ancillary_data_iter = AncillaryDataIter::new(data);
         let scm_credentials = ScmCredentials(ancillary_data_iter);
@@ -297,7 +297,7 @@ impl<'a> AncillaryData<'a> {
     fn try_from_cmsghdr(cmsg: &'a libc::cmsghdr) -> Result<Self, AncillaryError> {
         unsafe {
             let cmsg_len_zero = libc::CMSG_LEN(0) as usize;
-            let data_len = (*cmsg).cmsg_len as usize - cmsg_len_zero;
+            let data_len = (*cmsg).cmsg_len - cmsg_len_zero;
             let data = libc::CMSG_DATA(cmsg).cast();
             let data = from_raw_parts(data, data_len);
 
@@ -379,7 +379,7 @@ impl<'a> Iterator for Messages<'a> {
 ///     for ancillary_result in ancillary.messages() {
 ///         if let AncillaryData::ScmRights(scm_rights) = ancillary_result.unwrap() {
 ///             for fd in scm_rights {
-///                 println!("receive file descriptor: {}", fd);
+///                 println!("receive file descriptor: {fd}");
 ///             }
 ///         }
 ///     }
@@ -482,8 +482,8 @@ impl<'a> SocketAncillary<'a> {
     ///     let mut ancillary = SocketAncillary::new(&mut ancillary_buffer[..]);
     ///     ancillary.add_fds(&[sock.as_raw_fd()][..]);
     ///
-    ///     let mut buf = [1; 8];
-    ///     let mut bufs = &mut [IoSlice::new(&mut buf[..])][..];
+    ///     let buf = [1; 8];
+    ///     let mut bufs = &mut [IoSlice::new(&buf[..])][..];
     ///     sock.send_vectored_with_ancillary(bufs, &mut ancillary)?;
     ///     Ok(())
     /// }
@@ -541,7 +541,7 @@ impl<'a> SocketAncillary<'a> {
     ///     for ancillary_result in ancillary.messages() {
     ///         if let AncillaryData::ScmRights(scm_rights) = ancillary_result.unwrap() {
     ///             for fd in scm_rights {
-    ///                 println!("receive file descriptor: {}", fd);
+    ///                 println!("receive file descriptor: {fd}");
     ///             }
     ///         }
     ///     }
@@ -552,7 +552,7 @@ impl<'a> SocketAncillary<'a> {
     ///     for ancillary_result in ancillary.messages() {
     ///         if let AncillaryData::ScmRights(scm_rights) = ancillary_result.unwrap() {
     ///             for fd in scm_rights {
-    ///                 println!("receive file descriptor: {}", fd);
+    ///                 println!("receive file descriptor: {fd}");
     ///             }
     ///         }
     ///     }

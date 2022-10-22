@@ -31,20 +31,27 @@ pub use alloc_crate::sync::{Arc, Weak};
 pub use core::sync::atomic;
 
 pub use self::barrier::{Barrier, BarrierWaitResult};
-pub use self::condvar::{SgxCondvar, SgxThreadCondvar, WaitTimeoutResult};
-pub use self::mutex::{SgxMutex, SgxMutexGuard, SgxThreadMutex};
+pub use self::condvar::{SgxCondvar, WaitTimeoutResult};
+pub use self::mutex::{SgxMutex, SgxMutexGuard};
 pub use self::once::{Once, OnceState, ONCE_INIT};
 pub use self::poison::{LockResult, PoisonError, TryLockError, TryLockResult};
-pub use self::rwlock::{SgxRwLock, SgxRwLockReadGuard, SgxRwLockWriteGuard, SgxThreadRwLock};
-pub use self::spinlock::{SgxSpinlock, SgxSpinlockGuard, SgxThreadSpinlock};
+pub use self::rwlock::{SgxRwLock, SgxRwLockReadGuard, SgxRwLockWriteGuard};
+pub use self::spinlock::{SgxSpinlock, SgxSpinlockGuard};
+
+pub use self::lazy_lock::LazyLock;
+pub use self::once_lock::OnceLock;
+
+pub(crate) use self::spinlock::SgxThreadSpinlock;
 
 #[cfg(feature = "thread")]
 pub mod mpsc;
 
 mod barrier;
 mod condvar;
+mod lazy_lock;
 mod mutex;
 mod once;
+mod once_lock;
 mod poison;
 mod rwlock;
 mod spinlock;

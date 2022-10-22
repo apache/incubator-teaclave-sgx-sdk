@@ -19,6 +19,7 @@ use crate::io::prelude::*;
 
 use crate::fmt;
 use crate::io::{self, IoSlice, IoSliceMut};
+use crate::iter::FusedIterator;
 use crate::net::{Shutdown, SocketAddr, ToSocketAddrs};
 use crate::sys_common::net as net_imp;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
@@ -630,10 +631,10 @@ impl TcpStream {
     ///             // via platform-specific APIs such as epoll or IOCP
     ///             wait_for_fd();
     ///         }
-    ///         Err(e) => panic!("encountered IO error: {}", e),
+    ///         Err(e) => panic!("encountered IO error: {e}"),
     ///     };
     /// };
-    /// println!("bytes: {:?}", buf);
+    /// println!("bytes: {buf:?}");
     /// ```
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<()> {
         self.0.set_nonblocking(nonblocking)
@@ -860,8 +861,8 @@ impl TcpListener {
     ///
     /// let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
     /// match listener.accept() {
-    ///     Ok((_socket, addr)) => println!("new client: {:?}", addr),
-    ///     Err(e) => println!("couldn't get client: {:?}", e),
+    ///     Ok((_socket, addr)) => println!("new client: {addr:?}"),
+    ///     Err(e) => println!("couldn't get client: {e:?}"),
     /// }
     /// ```
     pub fn accept(&self) -> io::Result<(TcpStream, SocketAddr)> {
@@ -1033,7 +1034,7 @@ impl TcpListener {
     ///             wait_for_fd();
     ///             continue;
     ///         }
-    ///         Err(e) => panic!("encountered IO error: {}", e),
+    ///         Err(e) => panic!("encountered IO error: {e}"),
     ///     }
     /// }
     /// ```
@@ -1055,12 +1056,16 @@ impl<'a> Iterator for Incoming<'a> {
     }
 }
 
+impl FusedIterator for Incoming<'_> {}
+
 impl Iterator for IntoIncoming {
     type Item = io::Result<TcpStream>;
     fn next(&mut self) -> Option<io::Result<TcpStream>> {
         Some(self.listener.accept().map(|p| p.0))
     }
 }
+
+impl FusedIterator for IntoIncoming {}
 
 impl AsInner<net_imp::TcpListener> for TcpListener {
     fn as_inner(&self) -> &net_imp::TcpListener {

@@ -22,7 +22,6 @@
 )]
 #![unstable(feature = "panic_unwind", issue = "32837")]
 #![feature(c_unwind)]
-#![feature(nll)]
 #![feature(staged_api)]
 #![allow(clippy::upper_case_acronyms)]
 

@@ -18,4 +18,6 @@
 //! Linux-specific definitions.
 
 pub mod fs;
+#[cfg(feature = "net")]
+pub mod net;
 pub mod raw;

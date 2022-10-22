@@ -351,6 +351,34 @@ extern "C" {
         iovcnt: c_int,
         offset: off64_t,
     ) -> sgx_status_t;
+    pub fn u_sendfile_ocall(
+        result: *mut ssize_t,
+        errno: *mut c_int,
+        out_fd: c_int,
+        in_fd: c_int,
+        offset: *mut off_t,
+        count: size_t,
+    ) -> sgx_status_t;
+    pub fn u_copy_file_range_ocall(
+        result: *mut ssize_t,
+        errno: *mut c_int,
+        fd_in: c_int,
+        off_in: *mut loff_t,
+        fd_out: c_int,
+        off_out: *mut loff_t,
+        len: size_t,
+        flags: c_uint,
+    ) -> sgx_status_t;
+    pub fn u_splice_ocall(
+        result: *mut ssize_t,
+        errno: *mut c_int,
+        fd_in: c_int,
+        off_in: *mut loff_t,
+        fd_out: c_int,
+        off_out: *mut loff_t,
+        len: size_t,
+        flags: c_uint,
+    ) -> sgx_status_t;
     pub fn u_fcntl_arg0_ocall(
         result: *mut c_int,
         errno: *mut c_int,
@@ -378,6 +406,20 @@ extern "C" {
         arg: *mut c_int,
     ) -> sgx_status_t;
     pub fn u_close_ocall(result: *mut c_int, errno: *mut c_int, fd: c_int) -> sgx_status_t;
+    pub fn u_isatty_ocall(result: *mut c_int, errno: *mut c_int, fd: c_int) -> sgx_status_t;
+    pub fn u_dup_ocall(result: *mut c_int, errno: *mut c_int, oldfd: c_int) -> sgx_status_t;
+    pub fn u_eventfd_ocall(
+        result: *mut c_int,
+        errno: *mut c_int,
+        initval: c_uint,
+        flags: c_int,
+    ) -> sgx_status_t;
+    pub fn u_futimens_ocall(
+        result: *mut c_int,
+        errno: *mut c_int,
+        fd: c_int,
+        times: *const timespec,
+    ) -> sgx_status_t;
     // time
     pub fn u_clock_gettime_ocall(
         result: *mut c_int,
@@ -2173,7 +2215,7 @@ pub unsafe fn writev(fd: c_int, iov: *const iovec, iovcnt: c_int) -> ssize_t {
         ptr::copy_nonoverlapping(
             io.iov_base as *const u8,
             tmpiov.iov_base as *mut u8,
-            io.iov_len as usize,
+            io.iov_len,
         );
         tmpiovec.push(tmpiov);
         ptr = ptr.add(io.iov_len);
@@ -2260,7 +2302,7 @@ pub unsafe fn pwritev64(fd: c_int, iov: *const iovec, iovcnt: c_int, offset: off
         ptr::copy_nonoverlapping(
             io.iov_base as *const u8,
             tmpiov.iov_base as *mut u8,
-            io.iov_len as usize,
+            io.iov_len,
         );
         tmpiovec.push(tmpiov);
         ptr = ptr.add(io.iov_len);
@@ -2288,6 +2330,95 @@ pub unsafe fn pwritev64(fd: c_int, iov: *const iovec, iovcnt: c_int, offset: off
         sgx_ocfree();
     } else {
         free(iobase as *mut c_void);
+    }
+    result
+}
+
+pub unsafe fn sendfile(out_fd: c_int, in_fd: c_int, offset: *mut off_t, count: size_t) -> ssize_t {
+    let mut result: ssize_t = 0;
+    let mut error: c_int = 0;
+    let status = u_sendfile_ocall(
+        &mut result as *mut ssize_t,
+        &mut error as *mut c_int,
+        out_fd,
+        in_fd,
+        offset,
+        count,
+    );
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn copy_file_range(
+    fd_in: c_int,
+    off_in: *mut loff_t,
+    fd_out: c_int,
+    off_out: *mut loff_t,
+    len: size_t,
+    flags: c_uint,
+) -> ssize_t {
+    let mut result: ssize_t = 0;
+    let mut error: c_int = 0;
+
+    let status = u_copy_file_range_ocall(
+        &mut result as *mut ssize_t,
+        &mut error as *mut c_int,
+        fd_in,
+        off_in,
+        fd_out,
+        off_out,
+        len,
+        flags,
+    );
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn splice(
+    fd_in: c_int,
+    off_in: *mut loff_t,
+    fd_out: c_int,
+    off_out: *mut loff_t,
+    len: size_t,
+    flags: c_uint,
+) -> ssize_t {
+    let mut result: ssize_t = 0;
+    let mut error: c_int = 0;
+
+    let status = u_splice_ocall(
+        &mut result as *mut ssize_t,
+        &mut error as *mut c_int,
+        fd_in,
+        off_in,
+        fd_out,
+        off_out,
+        len,
+        flags,
+    );
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
     }
     result
 }
@@ -2380,6 +2511,78 @@ pub unsafe fn close(fd: c_int) -> c_int {
 
     if status == sgx_status_t::SGX_SUCCESS {
         if result == -1 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn isatty(fd: c_int) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_isatty_ocall(&mut result as *mut c_int, &mut error as *mut c_int, fd);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result == 0 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = 0;
+    }
+    result
+}
+
+pub unsafe fn dup(oldfd: c_int) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_dup_ocall(&mut result as *mut c_int, &mut error as *mut c_int, oldfd);
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result < 0 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn eventfd(initval: c_uint, flags: c_int) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+    let status = u_eventfd_ocall(
+        &mut result as *mut c_int,
+        &mut error as *mut c_int,
+        initval,
+        flags,
+    );
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result < 0 {
+            set_errno(error);
+        }
+    } else {
+        set_errno(ESGX);
+        result = -1;
+    }
+    result
+}
+
+pub unsafe fn futimens(fd: c_int, times: *const timespec) -> c_int {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+
+    let status = u_futimens_ocall(
+        &mut result as *mut c_int,
+        &mut error as *mut c_int,
+        fd,
+        times,
+    );
+
+    if status == sgx_status_t::SGX_SUCCESS {
+        if result < 0 {
             set_errno(error);
         }
     } else {
@@ -3041,7 +3244,7 @@ pub unsafe fn recvmsg(sockfd: c_int, msg: *mut msghdr, flags: c_int) -> ssize_t 
             }
         }
 
-        mhdr.msg_namelen = msg_namelen_out as u32;
+        mhdr.msg_namelen = msg_namelen_out;
         mhdr.msg_controllen = msg_controllen_out;
         mhdr.msg_flags = msg_flags;
     }

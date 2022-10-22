@@ -34,13 +34,14 @@ use crate::ptr;
 use crate::thread;
 use crate::time::Instant;
 
-use crate::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
+use crate::sync::atomic::{AtomicBool, AtomicIsize, AtomicPtr, Ordering};
 use crate::sync::mpsc::blocking::{self, SignalToken};
 use crate::sync::mpsc::spsc_queue as spsc;
 use crate::sync::mpsc::Receiver;
 
 const DISCONNECTED: isize = isize::MIN;
 const MAX_STEALS: isize = 1 << 20;
+const EMPTY: *mut u8 = ptr::null_mut(); // initial state: no data, no blocked receiver
 
 pub struct Packet<T> {
     // internal queue for all messages
@@ -48,8 +49,8 @@ pub struct Packet<T> {
 }
 
 struct ProducerAddition {
-    cnt: AtomicIsize,     // How many items are on this channel
-    to_wake: AtomicUsize, // SignalToken for the blocked thread to wake up
+    cnt: AtomicIsize,       // How many items are on this channel
+    to_wake: AtomicPtr<u8>, // SignalToken for the blocked thread to wake up
 
     port_dropped: AtomicBool, // flag if the channel has been destroyed.
 }
@@ -86,7 +87,7 @@ impl<T> Packet<T> {
                     128,
                     ProducerAddition {
                         cnt: AtomicIsize::new(0),
-                        to_wake: AtomicUsize::new(0),
+                        to_wake: AtomicPtr::new(EMPTY),
 
                         port_dropped: AtomicBool::new(false),
                     },
@@ -162,17 +163,17 @@ impl<T> Packet<T> {
     // Consumes ownership of the 'to_wake' field.
     fn take_to_wake(&self) -> SignalToken {
         let ptr = self.queue.producer_addition().to_wake.load(Ordering::SeqCst);
-        self.queue.producer_addition().to_wake.store(0, Ordering::SeqCst);
-        assert!(ptr != 0);
-        unsafe { SignalToken::cast_from_usize(ptr) }
+        self.queue.producer_addition().to_wake.store(EMPTY, Ordering::SeqCst);
+        assert!(ptr != EMPTY);
+        unsafe { SignalToken::from_raw(ptr) }
     }
 
     // Decrements the count on the channel for a sleeper, returning the sleeper
     // back if it shouldn't sleep. Note that this is the location where we take
     // steals into account.
     fn decrement(&self, token: SignalToken) -> Result<(), SignalToken> {
-        assert_eq!(self.queue.producer_addition().to_wake.load(Ordering::SeqCst), 0);
-        let ptr = unsafe { token.cast_to_usize() };
+        assert_eq!(self.queue.producer_addition().to_wake.load(Ordering::SeqCst), EMPTY);
+        let ptr = unsafe { token.to_raw() };
         self.queue.producer_addition().to_wake.store(ptr, Ordering::SeqCst);
 
         let steals = unsafe { ptr::replace(self.queue.consumer_addition().steals.get(), 0) };
@@ -191,8 +192,8 @@ impl<T> Packet<T> {
             }
         }
 
-        self.queue.producer_addition().to_wake.store(0, Ordering::SeqCst);
-        Err(unsafe { SignalToken::cast_from_usize(ptr) })
+        self.queue.producer_addition().to_wake.store(EMPTY, Ordering::SeqCst);
+        Err(unsafe { SignalToken::from_raw(ptr) })
     }
 
     pub fn recv(&self, deadline: Option<Instant>) -> Result<T, Failure<T>> {
@@ -389,7 +390,7 @@ impl<T> Packet<T> {
         // of time until the data is actually sent.
         if was_upgrade {
             assert_eq!(unsafe { *self.queue.consumer_addition().steals.get() }, 0);
-            assert_eq!(self.queue.producer_addition().to_wake.load(Ordering::SeqCst), 0);
+            assert_eq!(self.queue.producer_addition().to_wake.load(Ordering::SeqCst), EMPTY);
             return Ok(true);
         }
 
@@ -402,7 +403,7 @@ impl<T> Packet<T> {
         // If we were previously disconnected, then we know for sure that there
         // is no thread in to_wake, so just keep going
         let has_data = if prev == DISCONNECTED {
-            assert_eq!(self.queue.producer_addition().to_wake.load(Ordering::SeqCst), 0);
+            assert_eq!(self.queue.producer_addition().to_wake.load(Ordering::SeqCst), EMPTY);
             true // there is data, that data is that we're disconnected
         } else {
             let cur = prev + steals + 1;
@@ -425,7 +426,7 @@ impl<T> Packet<T> {
             if prev < 0 {
                 drop(self.take_to_wake());
             } else {
-                while self.queue.producer_addition().to_wake.load(Ordering::SeqCst) != 0 {
+                while self.queue.producer_addition().to_wake.load(Ordering::SeqCst) != EMPTY {
                     thread::yield_now();
                 }
             }
@@ -464,6 +465,6 @@ impl<T> Drop for Packet<T> {
         // `to_wake`, so this assert cannot be removed with also removing
         // the `to_wake` assert.
         assert_eq!(self.queue.producer_addition().cnt.load(Ordering::SeqCst), DISCONNECTED);
-        assert_eq!(self.queue.producer_addition().to_wake.load(Ordering::SeqCst), 0);
+        assert_eq!(self.queue.producer_addition().to_wake.load(Ordering::SeqCst), EMPTY);
     }
 }

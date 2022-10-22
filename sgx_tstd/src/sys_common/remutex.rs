@@ -15,29 +15,26 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::marker::PhantomPinned;
+use crate::fmt;
 use crate::ops::Deref;
 use crate::panic::{RefUnwindSafe, UnwindSafe};
-use crate::pin::Pin;
-use crate::sys::mutex as sys;
+use crate::sys::locks as sys;
 
 /// A re-entrant mutual exclusion
 ///
 /// This mutex will block *other* threads waiting for the lock to become
 /// available. The thread which has already locked the mutex can lock it
 /// multiple times without blocking, preventing a common source of deadlocks.
-pub struct SgxReentrantMutex<T> {
-    inner: sys::SgxReentrantThreadMutex,
+pub struct ReentrantMutex<T> {
+    inner: sys::MovableReentrantMutex,
     data: T,
-    _pinned: PhantomPinned,
 }
 
+unsafe impl<T: Send> Send for ReentrantMutex<T> {}
+unsafe impl<T: Send> Sync for ReentrantMutex<T> {}
 
-unsafe impl<T: Send> Send for SgxReentrantMutex<T> {}
-unsafe impl<T: Send> Sync for SgxReentrantMutex<T> {}
-
-impl<T> UnwindSafe for SgxReentrantMutex<T> {}
-impl<T> RefUnwindSafe for SgxReentrantMutex<T> {}
+impl<T> UnwindSafe for ReentrantMutex<T> {}
+impl<T> RefUnwindSafe for ReentrantMutex<T> {}
 
 /// An RAII implementation of a "scoped lock" of a mutex. When this structure is
 /// dropped (falls out of scope), the lock will be unlocked.
@@ -51,20 +48,20 @@ impl<T> RefUnwindSafe for SgxReentrantMutex<T> {}
 /// because implementation of the trait would violate Rust’s reference aliasing
 /// rules. Use interior mutability (usually `RefCell`) in order to mutate the
 /// guarded data.
-pub struct SgxReentrantMutexGuard<'a, T: 'a> {
-    lock: Pin<&'a SgxReentrantMutex<T>>,
+#[must_use = "if unused the ReentrantMutex will immediately unlock"]
+pub struct ReentrantMutexGuard<'a, T: 'a> {
+    lock: &'a ReentrantMutex<T>,
 }
 
-impl<T> !Send for SgxReentrantMutexGuard<'_, T> {}
+impl<T> !Send for ReentrantMutexGuard<'_, T> {}
 
-impl<T> SgxReentrantMutex<T> {
+impl<T> ReentrantMutex<T> {
     /// Creates a new reentrant mutex in an unlocked state.
     ///
-    pub const fn new(t: T) -> SgxReentrantMutex<T> {
-        SgxReentrantMutex {
-            inner: sys::SgxReentrantThreadMutex::new(),
+    pub const fn new(t: T) -> ReentrantMutex<T> {
+        ReentrantMutex {
+            inner: sys::MovableReentrantMutex::new(),
             data: t,
-            _pinned: PhantomPinned,
         }
     }
 
@@ -80,9 +77,11 @@ impl<T> SgxReentrantMutex<T> {
     /// If another user of this mutex panicked while holding the mutex, then
     /// this call will return failure if the mutex would otherwise be
     /// acquired.
-    pub fn lock(self: Pin<&Self>) -> SgxReentrantMutexGuard<'_, T> {
-        unsafe { self.inner.lock(); }
-        SgxReentrantMutexGuard { lock: self }
+    pub fn lock(&self) -> ReentrantMutexGuard<'_, T> {
+        unsafe {
+            let _ = self.inner.lock();
+        }
+        ReentrantMutexGuard { lock: self }
     }
 
     /// Attempts to acquire this lock.
@@ -97,25 +96,39 @@ impl<T> SgxReentrantMutex<T> {
     /// If another user of this mutex panicked while holding the mutex, then
     /// this call will return failure if the mutex would otherwise be
     /// acquired.
-    pub fn try_lock(self: Pin<&Self>) -> Option<SgxReentrantMutexGuard<'_, T>> {
+    pub fn try_lock(&self) -> Option<ReentrantMutexGuard<'_, T>> {
         if unsafe { self.inner.try_lock().is_ok() } {
-            Some(SgxReentrantMutexGuard { lock: self })
+            Some(ReentrantMutexGuard { lock: self })
         } else {
             None
         }
     }
 }
 
-impl<T> Drop for SgxReentrantMutex<T> {
-    fn drop(&mut self) {
-        // This is actually safe b/c we know that there is no further usage of
-        // this mutex (it's up to the user to arrange for a mutex to get
-        // dropped, that's not our job)
-        unsafe { self.inner.destroy(); }
+impl<T: fmt::Debug + 'static> fmt::Debug for ReentrantMutex<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.try_lock() {
+            Some(guard) => f
+                .debug_struct("ReentrantMutex")
+                .field("data", &*guard)
+                .finish(),
+            None => {
+                struct LockedPlaceholder;
+                impl fmt::Debug for LockedPlaceholder {
+                    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                        f.write_str("<locked>")
+                    }
+                }
+
+                f.debug_struct("ReentrantMutex")
+                    .field("data", &LockedPlaceholder)
+                    .finish()
+            }
+        }
     }
 }
 
-impl<T> Deref for SgxReentrantMutexGuard<'_, T> {
+impl<T> Deref for ReentrantMutexGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -123,11 +136,11 @@ impl<T> Deref for SgxReentrantMutexGuard<'_, T> {
     }
 }
 
-impl<T> Drop for SgxReentrantMutexGuard<'_, T> {
+impl<T> Drop for ReentrantMutexGuard<'_, T> {
     #[inline]
     fn drop(&mut self) {
         unsafe {
-            self.lock.inner.unlock();
+            let _ = self.lock.inner.unlock();
         }
     }
 }

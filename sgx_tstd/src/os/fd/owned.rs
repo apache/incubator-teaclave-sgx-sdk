@@ -36,6 +36,10 @@ use crate::sys_common::{AsInner, FromInner, IntoInner};
 /// descriptor, so it can be used in FFI in places where a file descriptor is
 /// passed as an argument, it is not captured or consumed, and it never has the
 /// value `-1`.
+///
+/// This type's `.to_owned()` implementation returns another `BorrowedFd`
+/// rather than an `OwnedFd`. It just makes a trivial copy of the raw file
+/// descriptor, which is then borrowed under the same lifetime.
 #[derive(Copy, Clone)]
 #[repr(transparent)]
 #[rustc_layout_scalar_valid_range_start(0)]
@@ -74,26 +78,34 @@ impl BorrowedFd<'_> {
     /// The resource pointed to by `fd` must remain open for the duration of
     /// the returned `BorrowedFd`, and it must not have the value `-1`.
     #[inline]
-    pub unsafe fn borrow_raw_fd(fd: RawFd) -> Self {
-        assert_ne!(fd, u32::MAX as RawFd);
+    pub const unsafe fn borrow_raw(fd: RawFd) -> Self {
+        assert!(fd != u32::MAX as RawFd);
         // SAFETY: we just asserted that the value is in the valid range and isn't `-1` (the only value bigger than `0xFF_FF_FF_FE` unsigned)
         unsafe { Self { fd, _phantom: PhantomData } }
     }
 }
 
 impl OwnedFd {
-    /// Creates a new `OwnedFd` instance that shares the same underlying file handle
-    /// as the existing `OwnedFd` instance.
+    /// Creates a new `OwnedFd` instance that shares the same underlying file
+    /// description as the existing `OwnedFd` instance.
     pub fn try_clone(&self) -> crate::io::Result<Self> {
+        self.as_fd().try_clone_to_owned()
+    }
+}
+
+impl BorrowedFd<'_> {
+    /// Creates a new `OwnedFd` instance that shares the same underlying file
+    /// description as the existing `BorrowedFd` instance.
+    pub fn try_clone_to_owned(&self) -> crate::io::Result<OwnedFd> {
         // We want to atomically duplicate this file descriptor and set the
         // CLOEXEC flag, and currently that's done via F_DUPFD_CLOEXEC. This
         // is a POSIX flag that was added to Linux in 2.6.24.
         let cmd = libc::F_DUPFD_CLOEXEC;
 
-        let fd = cvt(unsafe { libc::fcntl_arg1(self.as_raw_fd(), cmd, 0) })?;
-        Ok(unsafe { Self::from_raw_fd(fd) })
+        // Avoid using file descriptors below 3 as they are used for stdio
+        let fd = cvt(unsafe { libc::fcntl_arg1(self.as_raw_fd(), cmd, 3) })?;
+        Ok(unsafe { OwnedFd::from_raw_fd(fd) })
     }
-
 }
 
 impl AsRawFd for BorrowedFd<'_> {
@@ -160,6 +172,21 @@ impl fmt::Debug for OwnedFd {
     }
 }
 
+macro_rules! impl_is_terminal {
+    ($($t:ty),*$(,)?) => {$(
+        impl crate::sealed::Sealed for $t {}
+
+        impl crate::io::IsTerminal for $t {
+            #[inline]
+            fn is_terminal(&self) -> bool {
+                crate::sys::io::is_terminal(self)
+            }
+        }
+    )*}
+}
+
+impl_is_terminal!(BorrowedFd<'_>, OwnedFd);
+
 /// A trait to borrow the file descriptor from an underlying object.
 ///
 /// This is only available on unix platforms and must be imported in order to
@@ -171,13 +198,10 @@ pub trait AsFd {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # #![feature(io_safety)]
     /// use std::fs::File;
     /// # use std::io;
-    /// # #[cfg(target_os = "wasi")]
-    /// # use std::os::wasi::io::{AsFd, BorrowedFd};
-    /// # #[cfg(unix)]
-    /// # use std::os::unix::io::{AsFd, BorrowedFd};
+    /// # #[cfg(any(unix, target_os = "wasi"))]
+    /// # use std::os::fd::{AsFd, BorrowedFd};
     ///
     /// let mut f = File::open("foo.txt")?;
     /// # #[cfg(any(unix, target_os = "wasi"))]
@@ -214,7 +238,7 @@ impl AsFd for OwnedFd {
         // Safety: `OwnedFd` and `BorrowedFd` have the same validity
         // invariants, and the `BorrowdFd` is bounded by the lifetime
         // of `&self`.
-        unsafe { BorrowedFd::borrow_raw_fd(self.as_raw_fd()) }
+        unsafe { BorrowedFd::borrow_raw(self.as_raw_fd()) }
     }
 }
 
@@ -317,6 +341,86 @@ impl From<OwnedFd> for crate::net::UdpSocket {
         Self::from_inner(FromInner::from_inner(FromInner::from_inner(FromInner::from_inner(
             owned_fd,
         ))))
+    }
+}
+
+/// This impl allows implementing traits that require `AsFd` on Arc.
+/// ```
+/// # #[cfg(any(unix, target_os = "wasi"))] mod group_cfg {
+/// # #[cfg(target_os = "wasi")]
+/// # use std::os::wasi::io::AsFd;
+/// # #[cfg(unix)]
+/// # use std::os::unix::io::AsFd;
+/// use std::net::UdpSocket;
+/// use std::sync::Arc;
+///
+/// trait MyTrait: AsFd {}
+/// impl MyTrait for Arc<UdpSocket> {}
+/// impl MyTrait for Box<UdpSocket> {}
+/// # }
+/// ```
+impl<T: AsFd> AsFd for crate::sync::Arc<T> {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        (**self).as_fd()
+    }
+}
+
+impl<T: AsFd> AsFd for Box<T> {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        (**self).as_fd()
+    }
+}
+
+#[cfg(feature = "stdio")]
+impl AsFd for crate::io::Stdin {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        unsafe { BorrowedFd::borrow_raw(0) }
+    }
+}
+
+#[cfg(feature = "stdio")]
+impl<'a> AsFd for crate::io::StdinLock<'a> {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        // SAFETY: user code should not close stdin out from under the standard library
+        unsafe { BorrowedFd::borrow_raw(0) }
+    }
+}
+
+#[cfg(feature = "stdio")]
+impl AsFd for crate::io::Stdout {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        unsafe { BorrowedFd::borrow_raw(1) }
+    }
+}
+
+#[cfg(feature = "stdio")]
+impl<'a> AsFd for crate::io::StdoutLock<'a> {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        // SAFETY: user code should not close stdout out from under the standard library
+        unsafe { BorrowedFd::borrow_raw(1) }
+    }
+}
+
+#[cfg(feature = "stdio")]
+impl AsFd for crate::io::Stderr {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        unsafe { BorrowedFd::borrow_raw(2) }
+    }
+}
+
+#[cfg(feature = "stdio")]
+impl<'a> AsFd for crate::io::StderrLock<'a> {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        // SAFETY: user code should not close stderr out from under the standard library
+        unsafe { BorrowedFd::borrow_raw(2) }
     }
 }
 

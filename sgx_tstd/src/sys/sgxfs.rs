@@ -180,7 +180,7 @@ impl SgxFile {
         })?;
 
         let offset = self.tell()?;
-        Ok(offset as u64)
+        Ok(offset)
     }
 
     pub fn flush(&self) -> io::Result<()> {
@@ -324,7 +324,7 @@ pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
     let mut writer = SgxFile::create(to)?;
     let perm = metadata.permissions();
 
-    let ret = io::copy::copy(&mut reader, &mut writer)?;
+    let ret = io::copy::generic_copy(&mut reader, &mut writer)?;
     fs::set_permissions(to, perm)?;
     Ok(ret)
 }

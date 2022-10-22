@@ -59,8 +59,6 @@
 //! [`GlobalAlloc`] trait. This type can be provided by an external library:
 //!
 //! ```rust,ignore (demonstrates crates.io usage)
-//! extern crate jemallocator;
-//!
 //! use jemallocator::Jemalloc;
 //!
 //! #[global_allocator]
@@ -93,6 +91,20 @@ static HOOK: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());
 /// about the allocation that failed.
 ///
 /// The allocation error hook is a global resource.
+///
+/// # Examples
+///
+/// ```
+/// #![feature(alloc_error_hook)]
+///
+/// use std::alloc::{Layout, set_alloc_error_hook};
+///
+/// fn custom_alloc_error_hook(layout: Layout) {
+///    panic!("memory allocation of {} bytes failed", layout.size());
+/// }
+///
+/// set_alloc_error_hook(custom_alloc_error_hook);
+/// ```
 pub fn set_alloc_error_hook(hook: fn(Layout)) {
     HOOK.store(hook as *mut (), Ordering::SeqCst);
 }
@@ -108,7 +120,18 @@ pub fn take_alloc_error_hook() -> fn(Layout) {
 }
 
 fn default_alloc_error_hook(layout: Layout) {
-    rtprintpanic!("memory allocation of {} bytes failed\n", layout.size());
+    extern "Rust" {
+        // This symbol is emitted by rustc next to __rust_alloc_error_handler.
+        // Its value depends on the -Zoom={panic,abort} compiler option.
+        static __rust_alloc_error_handler_should_panic: u8;
+    }
+
+    #[allow(unused_unsafe)]
+    if unsafe { __rust_alloc_error_handler_should_panic != 0 } {
+        panic!("memory allocation of {} bytes failed\n", layout.size());
+    } else {
+        rtprintpanic!("memory allocation of {} bytes failed\n", layout.size());
+    }
 }
 
 #[doc(hidden)]

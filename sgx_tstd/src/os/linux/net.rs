@@ -15,6 +15,6 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//! Owned and borrowed file descriptors.
+//! Linux and Android-specific definitions for socket options.
 
-pub use crate::os::fd::owned::*;
+pub use crate::os::net::tcp::TcpStreamExt;

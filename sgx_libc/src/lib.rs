@@ -22,6 +22,7 @@
 #![allow(overflowing_literals)]
 #![allow(non_snake_case)]
 #![allow(unused_macros)]
+#![allow(unused_imports)]
 #![allow(clippy::cmp_null)]
 #![allow(unused_assignments)]
 #![allow(clippy::missing_safety_doc)]

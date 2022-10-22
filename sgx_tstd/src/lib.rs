@@ -44,97 +44,119 @@
 #![allow(incomplete_features)]
 #![allow(unused_assignments)]
 
+#![allow(clippy::assertions_on_constants)]
+#![allow(clippy::err_expect)]
+#![allow(clippy::explicit_auto_deref)]
 #![allow(clippy::declare_interior_mutable_const)]
 #![allow(clippy::len_without_is_empty)]
+#![allow(clippy::manual_str_repeat)]
 #![allow(clippy::missing_safety_doc)]
+#![allow(clippy::needless_borrow)]
 #![allow(clippy::new_without_default)]
 #![allow(clippy::transmute_ptr_to_ptr)]
 #![allow(clippy::wrong_self_convention)]
+#![allow(clippy::unused_io_amount)]
 
-#![feature(rustc_allow_const_fn_unstable)]
+//
+// Language features:
 #![feature(alloc_error_handler)]
-#![feature(allocator_api)]
 #![feature(allocator_internals)]
 #![feature(allow_internal_unsafe)]
 #![feature(allow_internal_unstable)]
-#![feature(array_error_internals)]
-#![feature(assert_matches)]
-#![feature(async_iterator)]
-#![feature(bench_black_box)]
-#![feature(bool_to_option)]
 #![feature(box_syntax)]
 #![feature(c_unwind)]
-#![feature(c_variadic)]
-#![feature(cfg_accessible)]
-#![feature(cfg_eval)]
-#![feature(cfg_target_has_atomic)]
-#![feature(char_error_internals)]
-#![feature(char_internals)]
-#![feature(concat_bytes)]
 #![feature(concat_idents)]
-#![feature(const_fn_fn_ptr_basics)]
-#![feature(const_fn_trait_bound)]
-#![feature(const_format_args)]
 #![feature(const_mut_refs)]
 #![feature(const_trait_impl)]
-#![feature(core_intrinsics)]
-#![feature(core_panic)]
-#![feature(custom_test_frameworks)]
 #![feature(decl_macro)]
 #![feature(dropck_eyepatch)]
-#![feature(duration_checked_float)]
-#![feature(duration_constants)]
-#![feature(edition_panic)]
-#![feature(exact_size_is_empty)]
-#![feature(extend_one)]
-#![feature(fn_traits)]
-#![feature(float_minimum_maximum)]
-#![feature(format_args_nl)]
-#![feature(gen_future)]
-#![feature(get_mut_unchecked)]
-#![feature(hashmap_internals)]
-#![feature(int_error_internals)]
-#![feature(into_future)]
+#![feature(if_let_guard)]
 #![feature(lang_items)]
-#![feature(linked_list_remove)]
-#![feature(log_syntax)]
-#![feature(map_try_insert)]
-#![feature(maybe_uninit_slice)]
-#![feature(maybe_uninit_write_slice)]
-#![feature(mixed_integer_ops)]
+#![feature(let_chains)]
+#![feature(min_specialization)]
 #![feature(must_not_suspend)]
 #![feature(needs_panic_runtime)]
 #![feature(negative_impls)]
 #![feature(never_type)]
-#![feature(new_uninit)]
-#![feature(once_cell)]
+#![feature(prelude_import)]
+#![feature(rustc_attrs)]
+#![feature(thread_local)]
+#![feature(try_blocks)]
+#![feature(utf8_chunks)]
+//
+// Library features (core):
+#![feature(array_error_internals)]
+#![feature(char_error_internals)]
+#![feature(char_internals)]
+#![feature(core_intrinsics)]
+#![feature(duration_checked_float)]
+#![feature(duration_constants)]
+#![feature(error_generic_member_access)]
+#![feature(error_in_core)]
+#![feature(error_iter)]
+#![feature(exact_size_is_empty)]
+#![feature(extend_one)]
+#![feature(float_minimum_maximum)]
+#![feature(hasher_prefixfree_extras)]
+#![feature(hashmap_internals)]
+#![feature(int_error_internals)]
+#![feature(linked_list_remove)]
+#![feature(maybe_uninit_slice)]
+#![feature(maybe_uninit_write_slice)]
+#![feature(panic_can_unwind)]
 #![feature(panic_info_message)]
 #![feature(panic_internals)]
-#![feature(panic_can_unwind)]
-#![feature(panic_unwind)]
-#![feature(prelude_import)]
+#![feature(prelude_2024)]
+#![feature(provide_any)]
 #![feature(ptr_as_uninit)]
-#![feature(ptr_internals)]
-#![feature(rustc_attrs)]
+#![feature(raw_os_nonzero)]
 #![feature(slice_internals)]
-#![feature(specialization)]
 #![feature(std_internals)]
 #![feature(str_internals)]
-#![feature(test)]
-#![feature(thread_local)]
-#![feature(toowned_clone_into)]
-#![feature(total_cmp)]
-#![feature(trace_macros)]
-#![feature(try_blocks)]
+#![feature(strict_provenance)]
+#![feature(maybe_uninit_uninit_array)]
+#![feature(const_maybe_uninit_uninit_array)]
+//
+// Library features (alloc):
+#![feature(allocator_api)]
+#![feature(exclusive_wrapper)]
+#![feature(get_mut_unchecked)]
+#![feature(map_try_insert)]
+#![feature(new_uninit)]
 #![feature(try_reserve_kind)]
-#![feature(unboxed_closures)]
+#![feature(slice_concat_trait)]
+//
+// Library features (unwind):
+#![feature(panic_unwind)]
+//
+// Only for re-exporting:
+#![feature(assert_matches)]
+#![feature(async_iterator)]
+#![feature(c_variadic)]
+#![feature(cfg_accessible)]
+#![feature(cfg_eval)]
+#![feature(concat_bytes)]
+#![feature(const_format_args)]
+#![feature(core_panic)]
+#![feature(custom_test_frameworks)]
+#![feature(edition_panic)]
+#![feature(format_args_nl)]
+#![feature(log_syntax)]
+#![feature(once_cell)]
+#![feature(test)]
+#![feature(trace_macros)]
+//
+// Only used in tests/benchmarks:
+//
+// Only for const-ness:
+//
 #![default_lib_allocator]
 
 // Explicitly import the prelude. The compiler uses this same unstable attribute
 // to import the prelude implicitly when building crates that depend on std.
 #[prelude_import]
 #[allow(unused)]
-use prelude::v1::*;
+use prelude::rust_2021::*;
 
 extern crate hashbrown;
 
@@ -143,7 +165,6 @@ extern crate hashbrown;
 extern crate alloc as alloc_crate;
 
 // We always need an unwinder currently for backtraces
-#[allow(unused_extern_crates)]
 extern crate sgx_unwind;
 #[cfg(feature = "backtrace")]
 extern crate sgx_backtrace_sys;
@@ -170,6 +191,11 @@ extern crate sgx_libc;
 // The standard macros that are not built-in to the compiler.
 #[macro_use]
 mod macros;
+
+// The runtime entry point and a few unstable public functions used by the
+// compiler
+#[macro_use]
+pub mod rt;
 
 // The Rust prelude
 pub mod prelude;
@@ -218,17 +244,14 @@ pub use core::u64;
 pub use core::u8;
 pub use core::usize;
 
-// The runtime entry point and a few unstable public functions used by the
-// compiler
-#[macro_use]
-pub mod rt;
-
 pub mod f32;
 pub mod f64;
 
 #[macro_use]
 pub mod thread;
 pub mod ascii;
+#[cfg(feature = "backtrace")]
+pub mod backtrace;
 pub mod collections;
 pub mod env;
 pub mod error;
@@ -247,7 +270,6 @@ pub mod time;
 pub mod enclave;
 pub mod untrusted;
 
-pub mod lazy;
 
 pub mod task {
     //! Types and Traits for working with asynchronous tasks.
@@ -277,12 +299,10 @@ pub mod alloc;
 // Private support modules
 mod cpuid;
 mod panicking;
+mod personality;
 
 #[cfg(not(feature = "untrusted_fs"))]
 mod fs;
-
-#[cfg(feature = "backtrace")]
-pub mod backtrace;
 
 pub use cpuid::*;
 pub use self::thread::{
@@ -293,7 +313,7 @@ pub use self::thread::{
 // Re-export macros defined in libcore.
 #[allow(deprecated, deprecated_in_future)]
 pub use core::{
-    assert_eq, assert_ne, debug_assert, debug_assert_eq, debug_assert_ne, matches, r#try, todo,
+    assert_eq, assert_ne, debug_assert, debug_assert_eq, debug_assert_ne, matches, todo, r#try,
     unimplemented, unreachable, write, writeln,
 };
 

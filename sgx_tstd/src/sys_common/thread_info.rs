@@ -48,7 +48,7 @@ pub fn current_thread() -> Option<SgxThread> {
 pub fn set(thread: SgxThread) {
     THREAD_INFO.with(move |thread_info| {
         let mut thread_info = thread_info.borrow_mut();
-        // rtassert!(thread_info.is_none());
+        //rtassert!(thread_info.is_none());
         *thread_info = Some(SgxThreadInfo { thread });
     });
 }

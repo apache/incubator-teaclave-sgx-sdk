@@ -179,6 +179,7 @@ fn wakeup<T>(token: SignalToken, guard: MutexGuard<'_, State<T>>) {
 }
 
 impl<T> Packet<T> {
+    #[allow(clippy::bool_to_int_with_if)]
     pub fn new(capacity: usize) -> Packet<T> {
         Packet {
             channels: AtomicUsize::new(1),

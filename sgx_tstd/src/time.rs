@@ -52,7 +52,7 @@ use crate::error::Error;
 use crate::fmt;
 use crate::ops::{Add, AddAssign, Sub, SubAssign};
 use crate::sys::time;
-use crate::sys_common::FromInner;
+use crate::sys_common::{FromInner, IntoInner};
 
 pub use core::time::Duration;
 
@@ -107,13 +107,15 @@ pub use core::time::FromFloatSecsError;
 /// use std::time::{Instant, Duration};
 ///
 /// let now = Instant::now();
-/// let max_nanoseconds = u64::MAX / 1_000_000_000;
-/// let duration = Duration::new(max_nanoseconds, 0);
+/// let max_seconds = u64::MAX / 1_000_000_000;
+/// let duration = Duration::new(max_seconds, 0);
 /// println!("{:?}", now + duration);
 /// ```
 ///
 /// # Underlying System calls
-/// Currently, the following system calls are being used to get the current time using `now()`:
+///
+/// The following system calls are [currently] being used by `now()` to find out
+/// the current time:
 ///
 /// |  Platform |               System call                                            |
 /// |-----------|----------------------------------------------------------------------|
@@ -125,6 +127,7 @@ pub use core::time::FromFloatSecsError;
 /// | WASI      | [__wasi_clock_time_get (Monotonic Clock)]                            |
 /// | Windows   | [QueryPerformanceCounter]                                            |
 ///
+/// [currently]: crate::io#platform-specific-behavior
 /// [QueryPerformanceCounter]: https://docs.microsoft.com/en-us/windows/win32/api/profileapi/nf-profileapi-queryperformancecounter
 /// [`insecure_time` usercall]: https://edp.fortanix.com/docs/api/fortanix_sgx_abi/struct.Usercalls.html#method.insecure_time
 /// [timekeeping in SGX]: https://edp.fortanix.com/docs/concepts/rust-std/#codestdtimecode
@@ -203,7 +206,7 @@ pub struct Instant(time::Instant);
 ///        }
 ///        Err(e) => {
 ///            // an error occurred!
-///            println!("Error: {:?}", e);
+///            println!("Error: {e:?}");
 ///        }
 ///    }
 /// }
@@ -215,7 +218,8 @@ pub struct Instant(time::Instant);
 /// For example, on Windows the time is represented in 100 nanosecond intervals whereas Linux
 /// can represent nanosecond intervals.
 ///
-/// Currently, the following system calls are being used to get the current time using `now()`:
+/// The following system calls are [currently] being used by `now()` to find out
+/// the current time:
 ///
 /// |  Platform |               System call                                            |
 /// |-----------|----------------------------------------------------------------------|
@@ -227,6 +231,7 @@ pub struct Instant(time::Instant);
 /// | WASI      | [__wasi_clock_time_get (Realtime Clock)]                             |
 /// | Windows   | [GetSystemTimePreciseAsFileTime] / [GetSystemTimeAsFileTime]         |
 ///
+/// [currently]: crate::io#platform-specific-behavior
 /// [`insecure_time` usercall]: https://edp.fortanix.com/docs/api/fortanix_sgx_abi/struct.Usercalls.html#method.insecure_time
 /// [timekeeping in SGX]: https://edp.fortanix.com/docs/concepts/rust-std/#codestdtimecode
 /// [gettimeofday]: https://man7.org/linux/man-pages/man2/gettimeofday.2.html
@@ -367,7 +372,7 @@ impl Instant {
     ///
     /// # Panics
     ///
-    /// Previous rust versions panicked when self was earlier than the current time. Currently this
+    /// Previous rust versions panicked when the current time was earlier than self. Currently this
     /// method returns a Duration of zero in that case. Future versions may reintroduce the panic.
     /// See [Monotonicity].
     ///
@@ -534,7 +539,7 @@ impl SystemTime {
     /// let new_sys_time = SystemTime::now();
     /// let difference = new_sys_time.duration_since(sys_time)
     ///     .expect("Clock may have gone backwards");
-    /// println!("{:?}", difference);
+    /// println!("{difference:?}");
     /// ```
     pub fn duration_since(&self, earlier: SystemTime) -> Result<Duration, SystemTimeError> {
         self.0.sub_time(&earlier.0).map_err(SystemTimeError)
@@ -697,5 +702,11 @@ impl fmt::Display for SystemTimeError {
 impl FromInner<time::SystemTime> for SystemTime {
     fn from_inner(time: time::SystemTime) -> SystemTime {
         SystemTime(time)
+    }
+}
+
+impl IntoInner<time::SystemTime> for SystemTime {
+    fn into_inner(self) -> time::SystemTime {
+        self.0
     }
 }

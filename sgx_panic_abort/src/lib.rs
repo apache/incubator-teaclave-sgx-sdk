@@ -8,7 +8,6 @@
 #![panic_runtime]
 #![allow(unused_features)]
 #![feature(core_intrinsics)]
-#![feature(nll)]
 #![feature(panic_runtime)]
 #![feature(std_internals)]
 #![feature(staged_api)]
@@ -18,12 +17,14 @@
 use core::any::Any;
 use core::panic::BoxMeUp;
 
+/// # Safety
 #[rustc_std_internal_symbol]
 #[allow(improper_ctypes_definitions)]
 pub unsafe extern "C" fn __rust_panic_cleanup(_: *mut u8) -> *mut (dyn Any + Send + 'static) {
     unreachable!()
 }
 
+/// # Safety
 // "Leak" the payload and shim to the relevant abort on the platform in question.
 #[rustc_std_internal_symbol]
 pub unsafe extern "C-unwind" fn __rust_start_panic(_payload: *mut &mut dyn BoxMeUp) -> u32 {
@@ -66,6 +67,14 @@ pub unsafe extern "C-unwind" fn __rust_start_panic(_payload: *mut &mut dyn BoxMe
 // binaries, but it should never be called as we don't link in an unwinding
 // runtime at all.
 pub mod personalities {
-    #[rustc_std_internal_symbol]
-    pub extern "C" fn rust_eh_personality() {}
+    // In the past this module used to contain stubs for the personality
+    // functions of various platforms, but these where removed when personality
+    // functions were moved to std.
+
+    // This corresponds to the `eh_catch_typeinfo` lang item
+    // that's only used on Emscripten currently.
+    //
+    // Since panics don't generate exceptions and foreign exceptions are
+    // currently UB with -C panic=abort (although this may be subject to
+    // change), any catch_unwind calls will never use this typeinfo.
 }

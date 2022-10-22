@@ -26,19 +26,13 @@
 //! implementing `std::error::Error`) to get a causal chain of where an error
 //! was generated.
 //!
-//! > **Note**: this module is unstable and is designed in [RFC 2504], and you
-//! > can learn more about its status in the [tracking issue].
-//!
-//! [RFC 2504]: https://github.com/rust-lang/rfcs/blob/master/text/2504-fix-error.md
-//! [tracking issue]: https://github.com/rust-lang/rust/issues/53487
-//!
 //! ## Accuracy
 //!
 //! Backtraces are attempted to be as accurate as possible, but no guarantees
 //! are provided about the exact accuracy of a backtrace. Instruction pointers,
 //! symbol names, filenames, line numbers, etc, may all be incorrect when
-//! reported. Accuracy is attempted on a best-effort basis, however, and bugs
-//! are always welcome to indicate areas of improvement!
+//! reported. Accuracy is attempted on a best-effort basis, however, any bug
+//! reports are always welcome to indicate areas of improvement!
 //!
 //! For most platforms a backtrace with a filename/line number requires that
 //! programs be compiled with debug information. Without debug information
@@ -300,7 +294,7 @@ impl Backtrace {
     // `ip`
     fn create(ip: usize) -> Backtrace {
         // SAFETY: We don't attempt to lock this reentrantly.
-        let _lock = unsafe { lock() };
+        let _lock = lock();
         let mut frames = Vec::new();
         let mut actual_start = None;
         unsafe {
@@ -441,8 +435,7 @@ impl Capture {
         // Use the global backtrace lock to synchronize this as it's a
         // requirement of the `backtrace` crate, and then actually resolve
         // everything.
-        // SAFETY: We don't attempt to lock this reentrantly.
-        let _lock = unsafe { lock() };
+        let _lock = lock();
         for frame in self.frames.iter_mut() {
             let symbols = &mut frame.symbols;
             let RawFrame::Actual(frame) = &frame.frame;

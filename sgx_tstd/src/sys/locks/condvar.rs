@@ -20,7 +20,8 @@ use crate::cell::UnsafeCell;
 use crate::collections::LinkedList;
 use crate::io::{self, Error};
 use crate::sync::SgxThreadSpinlock;
-use crate::sys::mutex::{self, SgxThreadMutex};
+use crate::sys_common::lazy_box::{LazyBox, LazyInit};
+use crate::sys::locks::mutex::{self, Mutex};
 use crate::thread::rsgx_thread_self;
 use crate::time::Duration;
 use crate::u64;
@@ -29,20 +30,81 @@ use sgx_libc as libc;
 use sgx_trts::enclave::SgxThreadData;
 use sgx_types::{sgx_thread_t, SysError, SGX_THREAD_T_NULL};
 
-struct SgxThreadCondvarInner {
+pub struct Condvar {
+    inner: UnsafeCell<CondvarInner>,
+}
+
+pub type MovableCondvar = LazyBox<Condvar>;
+
+unsafe impl Send for Condvar {}
+unsafe impl Sync for Condvar {}
+
+impl LazyInit for Condvar {
+    fn init() -> Box<Self> {
+        Box::new(Self::new())
+    }
+}
+
+impl Condvar {
+    pub const fn new() -> Self {
+        Condvar {
+            inner: UnsafeCell::new(CondvarInner::new()),
+        }
+    }
+
+    #[inline]
+    pub unsafe fn wait(&self, mutex: &Mutex) -> SysError {
+        let condvar = &mut *self.inner.get();
+        condvar.wait(mutex)
+    }
+
+    #[inline]
+    pub unsafe fn wait_timeout(&self, mutex: &Mutex, dur: Duration) -> SysError {
+        let condvar = &mut *self.inner.get();
+        condvar.wait_timeout(mutex, dur)
+    }
+
+    #[inline]
+    pub unsafe fn notify_one(&self) -> SysError {
+        let condvar = &mut *self.inner.get();
+        condvar.notify_one()
+    }
+
+    #[inline]
+    pub unsafe fn notify_all(&self) -> SysError {
+        let condvar = &mut *self.inner.get();
+        condvar.notify_all()
+    }
+
+    #[inline]
+    pub unsafe fn destroy(&self) -> SysError {
+        let condvar = &mut *self.inner.get();
+        condvar.destroy()
+    }
+}
+
+impl Drop for Condvar {
+    #[inline]
+    fn drop(&mut self) {
+        let r = unsafe { self.destroy() };
+        debug_assert_eq!(r, Ok(()));
+    }
+}
+
+struct CondvarInner {
     lock: SgxThreadSpinlock,
     queue: LinkedList<sgx_thread_t>,
 }
 
-impl SgxThreadCondvarInner {
+impl CondvarInner {
     pub const fn new() -> Self {
-        SgxThreadCondvarInner {
+        CondvarInner {
             lock: SgxThreadSpinlock::new(),
             queue: LinkedList::new(),
         }
     }
 
-    pub unsafe fn wait(&mut self, mutex: &SgxThreadMutex) -> SysError {
+    pub unsafe fn wait(&mut self, mutex: &Mutex) -> SysError {
         self.lock.lock();
         self.queue.push_back(rsgx_thread_self());
         let mut waiter: sgx_thread_t = SGX_THREAD_T_NULL;
@@ -79,7 +141,7 @@ impl SgxThreadCondvarInner {
         Ok(())
     }
 
-    pub unsafe fn wait_timeout(&mut self, mutex: &SgxThreadMutex, dur: Duration) -> SysError {
+    pub unsafe fn wait_timeout(&mut self, mutex: &Mutex, dur: Duration) -> SysError {
         self.lock.lock();
         self.queue.push_back(rsgx_thread_self());
         let mut waiter: sgx_thread_t = SGX_THREAD_T_NULL;
@@ -125,7 +187,7 @@ impl SgxThreadCondvarInner {
         ret
     }
 
-    pub unsafe fn signal(&mut self) -> SysError {
+    pub unsafe fn notify_one(&mut self) -> SysError {
         self.lock.lock();
         if self.queue.is_empty() {
             self.lock.unlock();
@@ -139,7 +201,7 @@ impl SgxThreadCondvarInner {
         Ok(())
     }
 
-    pub unsafe fn broadcast(&mut self) -> SysError {
+    pub unsafe fn notify_all(&mut self) -> SysError {
         self.lock.lock();
         if self.queue.is_empty() {
             self.lock.unlock();
@@ -155,14 +217,6 @@ impl SgxThreadCondvarInner {
         Ok(())
     }
 
-    pub unsafe fn notify_one(&mut self) -> SysError {
-        self.signal()
-    }
-
-    pub unsafe fn notify_all(&mut self) -> SysError {
-        self.broadcast()
-    }
-
     pub unsafe fn destroy(&mut self) -> SysError {
         self.lock.lock();
         let ret = if self.queue.is_empty() {
@@ -172,62 +226,5 @@ impl SgxThreadCondvarInner {
         };
         self.lock.unlock();
         ret
-    }
-}
-
-pub type SgxMovableThreadCondvar = Box<SgxThreadCondvar>;
-
-unsafe impl Send for SgxThreadCondvar {}
-unsafe impl Sync for SgxThreadCondvar {}
-
-pub struct SgxThreadCondvar {
-    inner: UnsafeCell<SgxThreadCondvarInner>,
-}
-
-impl SgxThreadCondvar {
-    pub const fn new() -> Self {
-        SgxThreadCondvar {
-            inner: UnsafeCell::new(SgxThreadCondvarInner::new()),
-        }
-    }
-
-    #[inline]
-    pub unsafe fn wait(&self, mutex: &SgxThreadMutex) -> SysError {
-        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
-        condvar.wait(mutex)
-    }
-
-    #[inline]
-    pub unsafe fn wait_timeout(&self, mutex: &SgxThreadMutex, dur: Duration) -> SysError {
-        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
-        condvar.wait_timeout(mutex, dur)
-    }
-
-    #[inline]
-    pub unsafe fn signal(&self) -> SysError {
-        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
-        condvar.signal()
-    }
-
-    #[inline]
-    pub unsafe fn broadcast(&self) -> SysError {
-        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
-        condvar.broadcast()
-    }
-
-    #[inline]
-    pub unsafe fn notify_one(&self) -> SysError {
-        self.signal()
-    }
-
-    #[inline]
-    pub unsafe fn notify_all(&self) -> SysError {
-        self.broadcast()
-    }
-
-    #[inline]
-    pub unsafe fn destroy(&self) -> SysError {
-        let condvar: &mut SgxThreadCondvarInner = &mut *self.inner.get();
-        condvar.destroy()
     }
 }
