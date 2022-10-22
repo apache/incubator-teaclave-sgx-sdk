@@ -15,44 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
+pub mod small_c_string;
+
 #[cfg(feature = "unit_test")]
 mod tests;
-
-pub use sgx_ffi::c_str::*;
-
-use crate::error::Error;
-use crate::io;
-
-impl Error for NulError {
-    #[allow(deprecated)]
-    fn description(&self) -> &str {
-        "nul byte found in data"
-    }
-}
-
-impl From<NulError> for io::Error {
-    /// Converts a [`NulError`] into a [`io::Error`].
-    fn from(_: NulError) -> io::Error {
-        io::const_io_error!(io::ErrorKind::InvalidInput, "data provided contains a nul byte")
-    }
-}
-
-impl Error for FromBytesWithNulError {
-    #[allow(deprecated)]
-    fn description(&self) -> &str {
-        self.__description()
-    }
-}
-
-impl Error for FromVecWithNulError {}
-
-impl Error for IntoStringError {
-    #[allow(deprecated)]
-    fn description(&self) -> &str {
-        self.__description()
-    }
-
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(self.__source())
-    }
-}

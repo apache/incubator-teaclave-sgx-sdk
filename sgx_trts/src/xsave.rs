@@ -34,11 +34,7 @@ pub fn get_xfrm() -> u64 {
         }
     }
 
-    let enbaled = if xfrm == types::XFRM_LEGACY {
-        0_i32
-    } else {
-        1_i32
-    };
+    let enbaled = i32::from(xfrm != types::XFRM_LEGACY);
     unsafe {
         set_xsave_enabled(enbaled);
     }

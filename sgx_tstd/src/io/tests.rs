@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use super::{repeat, Cursor, ReadBuf, SeekFrom};
+use super::{repeat, BorrowedBuf, Cursor, SeekFrom};
 use crate::cmp::{self, min};
 use crate::io::{self, IoSlice, IoSliceMut};
 use crate::io::{BufRead, BufReader, Read, Seek, Write};
@@ -178,24 +178,24 @@ fn read_exact_slice() {
 
 #[test_case]
 fn read_buf_exact() {
-    let mut buf = [0; 4];
-    let mut buf = ReadBuf::new(&mut buf);
+    let buf: &mut [_] = &mut [0; 4];
+    let mut buf: BorrowedBuf<'_> = buf.into();
 
     let mut c = Cursor::new(&b""[..]);
-    assert_eq!(c.read_buf_exact(&mut buf).unwrap_err().kind(), io::ErrorKind::UnexpectedEof);
+    assert_eq!(c.read_buf_exact(buf.unfilled()).unwrap_err().kind(), io::ErrorKind::UnexpectedEof);
 
     let mut c = Cursor::new(&b"123456789"[..]);
-    c.read_buf_exact(&mut buf).unwrap();
+    c.read_buf_exact(buf.unfilled()).unwrap();
     assert_eq!(buf.filled(), b"1234");
 
     buf.clear();
 
-    c.read_buf_exact(&mut buf).unwrap();
+    c.read_buf_exact(buf.unfilled()).unwrap();
     assert_eq!(buf.filled(), b"5678");
 
     buf.clear();
 
-    assert_eq!(c.read_buf_exact(&mut buf).unwrap_err().kind(), io::ErrorKind::UnexpectedEof);
+    assert_eq!(c.read_buf_exact(buf.unfilled()).unwrap_err().kind(), io::ErrorKind::UnexpectedEof);
 }
 
 #[test_case]
@@ -438,8 +438,7 @@ fn io_slice_mut_advance_slices() {
 #[test_case]
 fn io_slice_mut_advance_slices_empty_slice() {
     let mut empty_bufs = &mut [][..];
-    // Shouldn't panic.
-    IoSliceMut::advance_slices(&mut empty_bufs, 1);
+    should_panic!(IoSliceMut::advance_slices(&mut empty_bufs, 1));
 }
 
 #[test_case]
@@ -447,8 +446,7 @@ fn io_slice_mut_advance_slices_beyond_total_length() {
     let mut buf1 = [1; 8];
     let mut bufs = &mut [IoSliceMut::new(&mut buf1)][..];
 
-    // Going beyond the total length should be ok.
-    IoSliceMut::advance_slices(&mut bufs, 9);
+    should_panic!(IoSliceMut::advance_slices(&mut bufs, 9));
     assert!(bufs.is_empty());
 }
 
@@ -478,8 +476,7 @@ fn io_slice_advance_slices() {
 #[test_case]
 fn io_slice_advance_slices_empty_slice() {
     let mut empty_bufs = &mut [][..];
-    // Shouldn't panic.
-    IoSlice::advance_slices(&mut empty_bufs, 1);
+    should_panic!(IoSlice::advance_slices(&mut empty_bufs, 1));
 }
 
 #[test_case]
@@ -487,8 +484,7 @@ fn io_slice_advance_slices_beyond_total_length() {
     let buf1 = [1; 8];
     let mut bufs = &mut [IoSlice::new(&buf1)][..];
 
-    // Going beyond the total length should be ok.
-    IoSlice::advance_slices(&mut bufs, 9);
+    should_panic!(IoSlice::advance_slices(&mut bufs, 9));
     assert!(bufs.is_empty());
 }
 
@@ -591,9 +587,27 @@ fn test_write_all_vectored() {
         for (mut input, wanted) in tests.clone().into_iter() {
             let mut writer = test_writer(n_bufs, per_call);
             assert!(writer.write_all_vectored(&mut *input).is_ok());
-            assert_eq!(&*writer.written, &*wanted);
+            assert_eq!(&*writer.written, wanted);
         }
     }
+}
+
+// Issue 94981
+#[test_case]
+fn test_take_wrong_length() {
+    struct LieAboutSize(bool);
+
+    impl Read for LieAboutSize {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            // Lie about the read size at first time of read.
+            if core::mem::take(&mut self.0) { Ok(buf.len() + 1) } else { Ok(buf.len()) }
+        }
+    }
+
+    let mut buffer = vec![0; 4];
+    let mut reader = LieAboutSize(true).take(4);
+    // Primed the `Limit` by lying about the read size.
+    should_panic!(reader.read(&mut buffer[..]));
 }
 
 #[bench_case]
@@ -608,10 +622,10 @@ fn bench_take_read(b: &mut Bencher) {
 #[bench_case]
 fn bench_take_read_buf(b: &mut Bencher) {
     b.iter(|| {
-        let mut buf = [MaybeUninit::uninit(); 64];
+        let buf: &mut [_] = &mut [MaybeUninit::uninit(); 64];
 
-        let mut rbuf = ReadBuf::uninit(&mut buf);
+        let mut buf: BorrowedBuf<'_> = buf.into();
 
-        [255; 128].take(64).read_buf(&mut rbuf).unwrap();
+        [255; 128].take(64).read_buf(buf.unfilled()).unwrap();
     });
 }

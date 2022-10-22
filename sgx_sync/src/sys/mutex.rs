@@ -15,14 +15,189 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use crate::lazy_box::{LazyBox, LazyInit};
 use crate::sys::ocall;
 use alloc::boxed::Box;
 use alloc::collections::LinkedList;
 use core::cell::UnsafeCell;
+use core::mem;
 use sgx_trts::sync::SpinMutex;
 use sgx_trts::tcs::{self, TcsId};
 use sgx_types::error::errno::{EBUSY, EPERM};
 use sgx_types::error::OsResult;
+
+pub struct Mutex {
+    inner: UnsafeCell<MutexInner>,
+}
+
+pub type MovableMutex = LazyBox<Mutex>;
+
+unsafe impl Send for Mutex {}
+unsafe impl Sync for Mutex {}
+
+impl LazyInit for Mutex {
+    fn init() -> Box<Self> {
+        Box::new(Self::new())
+    }
+
+    fn destroy(mutex: Box<Self>) {
+        // We're not allowed to pthread_mutex_destroy a locked mutex,
+        // so check first if it's unlocked.
+        if unsafe { !mutex.is_locked() } {
+            drop(mutex);
+        } else {
+            // The mutex is locked. This happens if a MutexGuard is leaked.
+            // In this case, we just leak the Mutex too.
+            mem::forget(mutex);
+        }
+    }
+
+    fn cancel_init(_: Box<Self>) {
+        // In this case, we can just drop it without any checks,
+        // since it cannot have been locked yet.
+    }
+}
+
+impl Mutex {
+    pub const fn new() -> Mutex {
+        Mutex {
+            inner: UnsafeCell::new(MutexInner::new(MutexControl::NonRecursive)),
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn new_with_control(control: MutexControl) -> Mutex {
+        Mutex {
+            inner: UnsafeCell::new(MutexInner::new(control)),
+        }
+    }
+
+    #[inline]
+    pub unsafe fn lock(&self) -> OsResult {
+        let mutex = &mut *self.inner.get();
+        mutex.lock()
+    }
+
+    #[inline]
+    pub unsafe fn try_lock(&self) -> OsResult {
+        let mutex = &mut *self.inner.get();
+        mutex.try_lock()
+    }
+
+    #[inline]
+    pub unsafe fn unlock(&self) -> OsResult {
+        let mutex = &mut *self.inner.get();
+        mutex.unlock()
+    }
+
+    #[inline]
+    pub unsafe fn unlock_lazy(&self) -> OsResult<Option<TcsId>> {
+        let mutex = &mut *self.inner.get();
+        mutex.unlock_lazy()
+    }
+
+    #[inline]
+    pub unsafe fn destroy(&self) -> OsResult {
+        let mutex = &mut *self.inner.get();
+        mutex.destroy()
+    }
+
+    #[inline]
+    unsafe fn is_locked(&self) -> bool {
+        let mutex = &*self.inner.get();
+        mutex.is_locked()
+    }
+}
+
+impl Drop for Mutex {
+    #[inline]
+    fn drop(&mut self) {
+        let r = unsafe { self.destroy() };
+        debug_assert_eq!(r, Ok(()));
+    }
+}
+
+pub struct ReentrantMutex {
+    inner: UnsafeCell<MutexInner>,
+}
+
+pub type MovableReentrantMutex = LazyBox<ReentrantMutex>;
+
+unsafe impl Send for ReentrantMutex {}
+unsafe impl Sync for ReentrantMutex {}
+
+impl LazyInit for ReentrantMutex {
+    fn init() -> Box<Self> {
+        Box::new(Self::new())
+    }
+
+    fn destroy(mutex: Box<Self>) {
+        // We're not allowed to pthread_mutex_destroy a locked mutex,
+        // so check first if it's unlocked.
+        if unsafe { !mutex.is_locked() } {
+            drop(mutex);
+        } else {
+            // The mutex is locked. This happens if a MutexGuard is leaked.
+            // In this case, we just leak the Mutex too.
+            mem::forget(mutex);
+        }
+    }
+
+    fn cancel_init(_: Box<Self>) {
+        // In this case, we can just drop it without any checks,
+        // since it cannot have been locked yet.
+    }
+}
+
+impl ReentrantMutex {
+    pub const fn new() -> ReentrantMutex {
+        ReentrantMutex {
+            inner: UnsafeCell::new(MutexInner::new(MutexControl::Recursive)),
+        }
+    }
+
+    #[inline]
+    pub unsafe fn lock(&self) -> OsResult {
+        let mutex = &mut *self.inner.get();
+        mutex.lock()
+    }
+
+    #[inline]
+    pub unsafe fn try_lock(&self) -> OsResult {
+        let mutex = &mut *self.inner.get();
+        mutex.try_lock()
+    }
+
+    #[inline]
+    pub unsafe fn unlock(&self) -> OsResult {
+        let mutex = &mut *self.inner.get();
+        mutex.unlock()
+    }
+
+    #[inline]
+    pub unsafe fn destroy(&self) -> OsResult {
+        let mutex = &mut *self.inner.get();
+        mutex.destroy()
+    }
+
+    #[inline]
+    unsafe fn is_locked(&self) -> bool {
+        let mutex = &*self.inner.get();
+        mutex.is_locked()
+    }
+}
+
+impl Drop for ReentrantMutex {
+    #[inline]
+    fn drop(&mut self) {
+        let r = unsafe { self.destroy() };
+        debug_assert_eq!(r, Ok(()));
+    }
+}
+
+struct MutexInner {
+    inner: SpinMutex<Inner>,
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MutexControl {
@@ -46,10 +221,6 @@ impl Inner {
             queue: LinkedList::new(),
         }
     }
-}
-
-struct MutexInner {
-    inner: SpinMutex<Inner>,
 }
 
 impl MutexInner {
@@ -160,93 +331,9 @@ impl MutexInner {
             Err(EBUSY)
         }
     }
-}
 
-pub type MovableMutex = Box<Mutex>;
-
-unsafe impl Send for Mutex {}
-unsafe impl Sync for Mutex {}
-
-pub struct Mutex {
-    inner: UnsafeCell<MutexInner>,
-}
-
-impl Mutex {
-    pub const fn new() -> Mutex {
-        Mutex {
-            inner: UnsafeCell::new(MutexInner::new(MutexControl::NonRecursive)),
-        }
-    }
-
-    pub fn new_with_control(control: MutexControl) -> Mutex {
-        Mutex {
-            inner: UnsafeCell::new(MutexInner::new(control)),
-        }
-    }
-
-    #[inline]
-    pub unsafe fn lock(&self) -> OsResult {
-        let mutex = &mut *self.inner.get();
-        mutex.lock()
-    }
-
-    #[inline]
-    pub unsafe fn try_lock(&self) -> OsResult {
-        let mutex = &mut *self.inner.get();
-        mutex.try_lock()
-    }
-
-    #[inline]
-    pub unsafe fn unlock(&self) -> OsResult {
-        let mutex = &mut *self.inner.get();
-        mutex.unlock()
-    }
-
-    #[inline]
-    pub unsafe fn unlock_lazy(&self) -> OsResult<Option<TcsId>> {
-        let mutex = &mut *self.inner.get();
-        mutex.unlock_lazy()
-    }
-
-    #[inline]
-    pub unsafe fn destroy(&self) -> OsResult {
-        let mutex = &mut *self.inner.get();
-        mutex.destroy()
-    }
-}
-
-pub struct ReentrantMutex {
-    inner: UnsafeCell<MutexInner>,
-}
-
-impl ReentrantMutex {
-    pub const fn new() -> ReentrantMutex {
-        ReentrantMutex {
-            inner: UnsafeCell::new(MutexInner::new(MutexControl::Recursive)),
-        }
-    }
-
-    #[inline]
-    pub unsafe fn lock(&self) -> OsResult {
-        let mutex = &mut *self.inner.get();
-        mutex.lock()
-    }
-
-    #[inline]
-    pub unsafe fn try_lock(&self) -> OsResult {
-        let mutex = &mut *self.inner.get();
-        mutex.try_lock()
-    }
-
-    #[inline]
-    pub unsafe fn unlock(&self) -> OsResult {
-        let mutex = &mut *self.inner.get();
-        mutex.unlock()
-    }
-
-    #[inline]
-    pub unsafe fn destroy(&self) -> OsResult {
-        let mutex = &mut *self.inner.get();
-        mutex.destroy()
+    unsafe fn is_locked(&self) -> bool {
+        let inner_guard = self.inner.lock();
+        inner_guard.owner.is_some() || !inner_guard.queue.is_empty()
     }
 }

@@ -73,7 +73,8 @@ impl SystemFeatures {
         #[cfg(feature = "hyper")]
         {
             use crate::inst::GlobalHyper;
-            GlobalHyper::get_mut().set_msbuf_info(&features.msbuf_info)?;
+            let msbuf_info = ptr::addr_of!(features.msbuf_info);
+            GlobalHyper::get_mut().set_msbuf_info(&ptr::read_unaligned(msbuf_info))?;
         }
 
         Ok(features)
@@ -85,7 +86,7 @@ impl SystemFeatures {
                 cmp::min(self.size, mem::size_of::<Self>())
             } else {
                 let b = self as *const _ as usize;
-                let p = &self.size as *const _ as usize;
+                let p = ptr::addr_of!(self.size) as usize;
                 p - b
             };
 

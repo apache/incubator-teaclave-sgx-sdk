@@ -121,7 +121,7 @@
 //! On Unix, [`OsStr`] implements the
 //! <code>std::os::unix::ffi::[OsStrExt][unix.OsStrExt]</code> trait, which
 //! augments it with two methods, [`from_bytes`] and [`as_bytes`].
-//! These do inexpensive conversions from and to UTF-8 byte slices.
+//! These do inexpensive conversions from and to byte slices.
 //!
 //! Additionally, on Unix [`OsString`] implements the
 //! <code>std::os::unix::ffi::[OsStringExt][unix.OsStringExt]</code> trait,
@@ -161,13 +161,18 @@
 //! [windows.OsStringExt]: crate::os::windows::ffi::OsStringExt "os::windows::ffi::OsStringExt"
 //! [`from_wide`]: crate::os::windows::ffi::OsStringExt::from_wide "os::windows::ffi::OsStringExt::from_wide"
 
-pub use self::c_str::FromBytesWithNulError;
-pub use self::c_str::FromVecWithNulError;
-pub use self::c_str::{CStr, CString, IntoStringError, NulError};
+pub use alloc_crate::ffi::{CString, FromVecWithNulError, IntoStringError, NulError};
+pub use core::ffi::{CStr, FromBytesWithNulError};
+
 pub use self::os_str::{OsStr, OsString};
 
+pub use core::ffi::{
+    c_char, c_double, c_float, c_int, c_long, c_longlong, c_schar, c_short, c_uchar, c_uint,
+    c_ulong, c_ulonglong, c_ushort,
+};
+
 pub use core::ffi::c_void;
+
 pub use core::ffi::{VaList, VaListImpl};
 
-mod c_str;
 mod os_str;

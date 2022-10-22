@@ -160,7 +160,9 @@ impl<'a> !Send for ActiveTls<'a> {}
 
 impl<'a> Drop for ActiveTls<'a> {
     fn drop(&mut self) {
-        let value_with_destructor = |storage: &'a StorageNode| {
+        fn value_with_destructor(
+            storage: &StorageNode,
+        ) -> Option<(&Cell<*mut u8>, unsafe extern "C" fn(*mut u8))> {
             let index = storage.key.to_index();
             if TLS_KEY_IN_USE.get(index) {
                 let ptr = TLS_DESTRUCTOR[index].load(Ordering::Relaxed);
@@ -169,13 +171,13 @@ impl<'a> Drop for ActiveTls<'a> {
             } else {
                 None
             }
-        };
+        }
         let tls_storage = self.tls.data.borrow();
 
         let mut any_non_null_dtor = true;
         while any_non_null_dtor {
             any_non_null_dtor = false;
-            for (value, dtor) in tls_storage.iter().filter_map(&value_with_destructor) {
+            for (value, dtor) in tls_storage.iter().filter_map(value_with_destructor) {
                 let value = value.replace(ptr::null_mut());
                 if !value.is_null() {
                     any_non_null_dtor = true;

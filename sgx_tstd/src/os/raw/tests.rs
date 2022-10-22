@@ -15,10 +15,20 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//! Owned and borrowed file descriptors.
+use crate::any::TypeId;
 
-// Tests for this module
-#[cfg(feature = "unit_test")]
-mod tests;
+use sgx_test_utils::test_case;
 
-pub use crate::os::fd::owned::*;
+macro_rules! ok {
+    ($($t:ident)*) => {$(
+        assert!(TypeId::of::<sgx_oc::$t>() == TypeId::of::<raw::$t>(),
+                "{} is wrong", stringify!($t));
+    )*}
+}
+
+#[test_case]
+fn same() {
+    use crate::os::raw;
+    ok!(c_char c_schar c_uchar c_short c_ushort c_int c_uint c_long c_ulong
+        c_longlong c_ulonglong c_float c_double);
+}

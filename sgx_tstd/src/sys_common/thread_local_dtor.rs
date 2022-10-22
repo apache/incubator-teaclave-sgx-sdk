@@ -27,7 +27,7 @@
 //! a `thread_local_dtor` module which will either re-export the fallback,
 //! or implement something more efficient.
 
-#![allow(dead_code)] // sys isn't exported yet
+#![allow(dead_code)]
 
 use crate::ptr;
 use crate::sys_common::thread_local_key::StaticKey;

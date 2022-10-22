@@ -18,6 +18,7 @@
 #![no_std]
 #![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 #![feature(allocator_api)]
+#![feature(error_in_core)]
 #![feature(const_extern_fn)]
 #![feature(negative_impls)]
 #![feature(nonnull_slice_from_raw_parts)]

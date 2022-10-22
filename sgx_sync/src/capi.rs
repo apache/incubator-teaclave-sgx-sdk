@@ -17,7 +17,7 @@
 
 use crate::spin::SpinMutex;
 use crate::sys::condvar::{Condvar, MovableCondvar};
-use crate::sys::mutex::{MovableMutex, Mutex, MutexControl};
+use crate::sys::mutex::{MovableMutex, MovableReentrantMutex, Mutex, MutexControl};
 use crate::sys::rwlock::{MovableRwLock, RwLock};
 use alloc::boxed::Box;
 use core::mem;
@@ -126,8 +126,18 @@ pub unsafe extern "C" fn sgx_thread_mutex_init(
         return EINVAL;
     };
 
-    let m = ManuallyDrop::new(MovableMutex::from(Mutex::new_with_control(control)));
-    mutex.mutex = m.as_ref() as *const _ as *mut c_void;
+    let mutex_ptr = match control {
+        MutexControl::NonRecursive => {
+            let m = ManuallyDrop::new(MovableMutex::new());
+            &**m as *const _ as *mut c_void
+        }
+        MutexControl::Recursive => {
+            let m = ManuallyDrop::new(MovableReentrantMutex::new());
+            &**m as *const _ as *mut c_void
+        }
+    };
+
+    mutex.mutex = mutex_ptr;
     0
 }
 
@@ -207,8 +217,8 @@ pub unsafe extern "C" fn sgx_thread_cond_init(
 ) -> c_int {
     check_param!(cond, sgx_thread_cond_t);
 
-    let c = ManuallyDrop::new(MovableCondvar::from(Condvar::new()));
-    (*cond).cond = c.as_ref() as *const _ as *mut c_void;
+    let c = ManuallyDrop::new(MovableCondvar::new());
+    (*cond).cond = &**c as *const _ as *mut c_void;
     0
 }
 
@@ -333,8 +343,8 @@ pub unsafe extern "C" fn sgx_thread_rwlock_init(
 ) -> c_int {
     check_param!(rwlock, sgx_thread_rwlock_t);
 
-    let rw = ManuallyDrop::new(MovableRwLock::from(RwLock::new()));
-    (*rwlock).rwlock = rw.as_ref() as *const _ as *mut c_void;
+    let rw = ManuallyDrop::new(MovableRwLock::new());
+    (*rwlock).rwlock = &**rw as *const _ as *mut c_void;
     0
 }
 

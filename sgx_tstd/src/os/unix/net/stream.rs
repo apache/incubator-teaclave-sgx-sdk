@@ -45,7 +45,7 @@ pub use ucred::UCred;
 ///     stream.write_all(b"hello world")?;
 ///     let mut response = String::new();
 ///     stream.read_to_string(&mut response)?;
-///     println!("{}", response);
+///     println!("{response}");
 ///     Ok(())
 /// }
 /// ```
@@ -76,7 +76,7 @@ impl UnixStream {
     /// let socket = match UnixStream::connect("/tmp/sock") {
     ///     Ok(sock) => sock,
     ///     Err(e) => {
-    ///         println!("Couldn't connect: {:?}", e);
+    ///         println!("Couldn't connect: {e:?}");
     ///         return
     ///     }
     /// };
@@ -109,7 +109,7 @@ impl UnixStream {
     ///     let sock = match UnixStream::connect_addr(&addr) {
     ///         Ok(sock) => sock,
     ///         Err(e) => {
-    ///             println!("Couldn't connect: {:?}", e);
+    ///             println!("Couldn't connect: {e:?}");
     ///             return Err(e)
     ///         }
     ///     };
@@ -138,7 +138,7 @@ impl UnixStream {
     /// let (sock1, sock2) = match UnixStream::pair() {
     ///     Ok((sock1, sock2)) => (sock1, sock2),
     ///     Err(e) => {
-    ///         println!("Couldn't create a pair of sockets: {:?}", e);
+    ///         println!("Couldn't create a pair of sockets: {e:?}");
     ///         return
     ///     }
     /// };
@@ -390,6 +390,22 @@ impl UnixStream {
         self.0.passcred()
     }
 
+    /// Set the id of the socket for network filtering purpose
+    ///
+    /// ```no_run
+    /// #![feature(unix_set_mark)]
+    /// use std::os::unix::net::UnixStream;
+    ///
+    /// fn main() -> std::io::Result<()> {
+    ///     let sock = UnixStream::connect("/tmp/sock")?;
+    ///     sock.set_mark(32)?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn set_mark(&self, mark: u32) -> io::Result<()> {
+        self.0.set_mark(mark)
+    }
+
     /// Returns the value of the `SO_ERROR` option.
     ///
     /// # Examples
@@ -400,7 +416,7 @@ impl UnixStream {
     /// fn main() -> std::io::Result<()> {
     ///     let socket = UnixStream::connect("/tmp/sock")?;
     ///     if let Ok(Some(err)) = socket.take_error() {
-    ///         println!("Got error: {:?}", err);
+    ///         println!("Got error: {err:?}");
     ///     }
     ///     Ok(())
     /// }
@@ -484,11 +500,11 @@ impl UnixStream {
     ///     let mut ancillary_buffer = [0; 128];
     ///     let mut ancillary = SocketAncillary::new(&mut ancillary_buffer[..]);
     ///     let size = socket.recv_vectored_with_ancillary(bufs, &mut ancillary)?;
-    ///     println!("received {}", size);
+    ///     println!("received {size}");
     ///     for ancillary_result in ancillary.messages() {
     ///         if let AncillaryData::ScmRights(scm_rights) = ancillary_result.unwrap() {
     ///             for fd in scm_rights {
-    ///                 println!("receive file descriptor: {}", fd);
+    ///                 println!("receive file descriptor: {fd}");
     ///             }
     ///         }
     ///     }
@@ -555,7 +571,7 @@ impl io::Read for UnixStream {
 
     #[inline]
     fn is_read_vectored(&self) -> bool {
-        io::Read::is_read_vectored(&&*self)
+        io::Read::is_read_vectored(&self)
     }
 }
 
@@ -585,7 +601,7 @@ impl io::Write for UnixStream {
 
     #[inline]
     fn is_write_vectored(&self) -> bool {
-        io::Write::is_write_vectored(&&*self)
+        io::Write::is_write_vectored(&self)
     }
 
     fn flush(&mut self) -> io::Result<()> {

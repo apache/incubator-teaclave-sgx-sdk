@@ -70,15 +70,12 @@ fn benchmark_empty_ocall(eid: EnclaveId, is_switchless: u32) {
         _ => "switchless",
     };
 
-    println!(
-        "Repeating an **{}** OCall that does nothing for {} times...",
-        info, REPEATS
-    );
+    println!("Repeating an **{info}** OCall that does nothing for {REPEATS} times...");
 
     let start = Instant::now();
     let _ = unsafe { ecall_repeat_ocalls(eid, REPEATS, is_switchless) };
     let elapsed = start.elapsed();
-    println!("Time elapsed {:?}", elapsed);
+    println!("Time elapsed {elapsed:?}");
 }
 
 fn benchmark_empty_ecall(eid: EnclaveId, is_switchless: u32) {
@@ -92,15 +89,12 @@ fn benchmark_empty_ecall(eid: EnclaveId, is_switchless: u32) {
         _ => ecall_empty_switchless,
     };
 
-    println!(
-        "Repeating an **{}** ECall that does nothing for {} times...",
-        info, REPEATS
-    );
+    println!("Repeating an **{info}** ECall that does nothing for {REPEATS} times...");
 
     let start = Instant::now();
     for _ in 0..REPEATS {
         let _ = unsafe { ecall_fn(eid) };
     }
     let elapsed = start.elapsed();
-    println!("Time elapsed {:?}", elapsed);
+    println!("Time elapsed {elapsed:?}");
 }

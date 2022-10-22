@@ -19,11 +19,11 @@
 
 #![allow(deprecated)]
 
-use crate::os::raw::c_void;
+use crate::os::raw::c_ulong;
 
 pub type dev_t = u64;
 pub type mode_t = u32;
-pub type pthread_t = *mut c_void;
+pub type pthread_t = c_ulong;
 
 #[doc(inline)]
 pub use self::arch::{blkcnt_t, blksize_t, ino_t, nlink_t, off_t, stat, time_t};

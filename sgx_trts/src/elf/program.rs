@@ -236,7 +236,7 @@ macro_rules! ph_impl {
 
             pub fn raw_data<'a>(&self, elf_file: &ElfFile<'a>) -> &'a [u8] {
                 assert!(match self.get_type() {
-                    Ok(typ) => typ != Type::Null,
+                    Ok(_) => self.type_.0 != 0,
                     Err(_) => false,
                 });
                 unsafe {

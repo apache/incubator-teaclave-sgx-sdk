@@ -26,6 +26,7 @@ use crate::veh::MAX_REGISTER_COUNT;
 use crate::veh::{ExceptionHandler, ExceptionInfo, ExceptionType, ExceptionVector, HandleResult};
 use core::convert::TryFrom;
 use core::mem;
+use core::mem::MaybeUninit;
 use sgx_types::error::{SgxResult, SgxStatus};
 
 macro_rules! try_error {
@@ -232,10 +233,13 @@ extern "C" fn internal_handle(info: &mut ExceptionInfo) {
             error::abort();
         }
 
-        let mut handlers: [ExceptionHandler; MAX_REGISTER_COUNT] = unsafe { mem::zeroed() };
+        let mut handlers: [MaybeUninit<ExceptionHandler>; MAX_REGISTER_COUNT] =
+            MaybeUninit::uninit_array();
+
+        // let mut handlers: [ExceptionHandler; MAX_REGISTER_COUNT] = unsafe { mem::zeroed() };
         let mut len = 0_usize;
         for (i, f) in list_guard.iter().enumerate().take(MAX_REGISTER_COUNT) {
-            handlers[i] = f;
+            handlers[i].write(f);
             len += 1;
         }
         (handlers, len)
@@ -245,7 +249,7 @@ extern "C" fn internal_handle(info: &mut ExceptionInfo) {
 
     let mut result = HandleResult::Search;
     for f in &handlers[..len] {
-        result = (*f)(info);
+        result = (unsafe { f.assume_init_ref() })(info);
         if result == HandleResult::Execution {
             break;
         }

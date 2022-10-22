@@ -45,8 +45,3 @@ pub unsafe fn destroy(key: Key) {
     let key = NativeKey::from_usize(key).unwrap();
     Tls::destroy(key)
 }
-
-#[inline]
-pub fn requires_synchronized_create() -> bool {
-    false
-}

@@ -46,6 +46,7 @@ pub trait AsSlice<T> {
 }
 
 impl<T> AsSlice<T> for [T] {
+    #[inline(always)]
     fn as_slice(&self) -> Slice<T> {
         Slice { rust: self }
     }

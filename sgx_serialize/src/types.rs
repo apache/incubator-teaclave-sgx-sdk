@@ -1551,7 +1551,6 @@ impl Decodable for TeeTcbSvn {
 }
 
 impl Encodable for TeeInfo {
-    #[allow(unaligned_references)]
     fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
         let TeeInfo {
             attributes: ref _attributes,
@@ -1608,16 +1607,22 @@ impl Decodable for TeeInfo {
 }
 
 impl Encodable for TeeTcbInfo {
-    #[allow(unaligned_references)]
     fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
-        let TeeTcbInfo {
-            valid: ref _valid,
-            tee_tcb_svn: ref _tee_tcb_svn,
-            mr_seam: ref _mr_seam,
-            mr_seam_signer: ref _mr_seam_signer,
-            attributes: ref _attributes,
-            reserved: ref _reserved,
-        } = *self;
+        // let TeeTcbInfo {
+        //     valid: ref _valid,
+        //     tee_tcb_svn: ref _tee_tcb_svn,
+        //     mr_seam: ref _mr_seam,
+        //     mr_seam_signer: ref _mr_seam_signer,
+        //     attributes: ref _attributes,
+        //     reserved: ref _reserved,
+        // } = *self;
+        let _valid = unsafe { &*core::ptr::addr_of!(self.valid) };
+        let _tee_tcb_svn = unsafe { &*core::ptr::addr_of!(self.tee_tcb_svn) };
+        let _mr_seam = unsafe { &*core::ptr::addr_of!(self.mr_seam) };
+        let _mr_seam_signer = unsafe { &*core::ptr::addr_of!(self.mr_seam_signer) };
+        let _attributes = unsafe { &*core::ptr::addr_of!(self.attributes) };
+        let _reserved = unsafe { &*core::ptr::addr_of!(self.reserved) };
+
         e.emit_struct("TeeTcbInfo", 6usize, |e| -> _ {
             e.emit_struct_field("valid", 0usize, |e| -> _ { Encodable::encode(&*_valid, e) })?;
             e.emit_struct_field("tee_tcb_svn", 1usize, |e| -> _ {
@@ -1655,22 +1660,34 @@ impl Decodable for TeeTcbInfo {
 }
 
 impl Encodable for Report2Body {
-    #[allow(unaligned_references)]
     fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
-        let Report2Body {
-            tee_tcb_svn: ref _tee_tcb_svn,
-            mr_seam: ref _mr_seam,
-            mrsigner_seam: ref _mrsigner_seam,
-            seam_attributes: ref _seam_attributes,
-            td_attributes: ref _td_attributes,
-            xfam: ref _xfam,
-            mr_td: ref _mr_td,
-            mr_config_id: ref _mr_config_id,
-            mr_owner: ref _mr_owner,
-            mr_owner_config: ref _mr_owner_config,
-            rt_mr: ref _rt_mr,
-            report_data: ref _report_data,
-        } = *self;
+        // let Report2Body {
+        //     tee_tcb_svn: ref _tee_tcb_svn,
+        //     mr_seam: ref _mr_seam,
+        //     mrsigner_seam: ref _mrsigner_seam,
+        //     seam_attributes: ref _seam_attributes,
+        //     td_attributes: ref _td_attributes,
+        //     xfam: ref _xfam,
+        //     mr_td: ref _mr_td,
+        //     mr_config_id: ref _mr_config_id,
+        //     mr_owner: ref _mr_owner,
+        //     mr_owner_config: ref _mr_owner_config,
+        //     rt_mr: ref _rt_mr,
+        //     report_data: ref _report_data,
+        // } = *self;
+        let _tee_tcb_svn = unsafe { &*core::ptr::addr_of!(self.tee_tcb_svn) };
+        let _mr_seam = unsafe { &*core::ptr::addr_of!(self.mr_seam) };
+        let _mrsigner_seam = unsafe { &*core::ptr::addr_of!(self.mrsigner_seam) };
+        let _seam_attributes = unsafe { &*core::ptr::addr_of!(self.seam_attributes) };
+        let _td_attributes = unsafe { &*core::ptr::addr_of!(self.td_attributes) };
+        let _xfam = unsafe { &*core::ptr::addr_of!(self.xfam) };
+        let _mr_td = unsafe { &*core::ptr::addr_of!(self.mr_td) };
+        let _mr_config_id = unsafe { &*core::ptr::addr_of!(self.mr_config_id) };
+        let _mr_owner = unsafe { &*core::ptr::addr_of!(self.mr_owner) };
+        let _mr_owner_config = unsafe { &*core::ptr::addr_of!(self.mr_owner_config) };
+        let _rt_mr = unsafe { &*core::ptr::addr_of!(self.rt_mr) };
+        let _report_data = unsafe { &*core::ptr::addr_of!(self.report_data) };
+
         e.emit_struct("Report2Body", 12usize, |e| -> _ {
             e.emit_struct_field("tee_tcb_svn", 0usize, |e| -> _ {
                 Encodable::encode(&*_tee_tcb_svn, e)

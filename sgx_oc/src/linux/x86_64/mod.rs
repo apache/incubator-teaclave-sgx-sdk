@@ -464,6 +464,9 @@ pub const AT_SYMLINK_NOFOLLOW: c_int = 0x100;
 pub const AT_REMOVEDIR: c_int = 0x200;
 pub const AT_SYMLINK_FOLLOW: c_int = 0x400;
 
+pub const UTIME_OMIT: c_long = 1073741822;
+pub const UTIME_NOW: c_long = 1073741823;
+
 pub const CLOCK_REALTIME: clockid_t = 0;
 pub const CLOCK_MONOTONIC: clockid_t = 1;
 pub const CLOCK_PROCESS_CPUTIME_ID: clockid_t = 2;
@@ -1279,7 +1282,7 @@ pub const SA_NOCLDWAIT: c_int = 0x0000_0002;
 
 pub const SIG_DFL: sighandler_t = 0_usize;
 pub const SIG_IGN: sighandler_t = 1_usize;
-pub const SIG_ERR: sighandler_t = !0 as usize;
+pub const SIG_ERR: sighandler_t = !0;
 
 pub const SIGHUP: c_int = 1;
 pub const SIGINT: c_int = 2;

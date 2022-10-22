@@ -46,7 +46,7 @@ pub unsafe fn getgid() -> OCallResult<gid_t> {
 pub unsafe fn getcwd() -> OCallResult<CString> {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
-    let mut buf = Vec::with_capacity(1024);
+    let mut buf = Vec::with_capacity(512);
 
     loop {
         let bufsz = buf.capacity();

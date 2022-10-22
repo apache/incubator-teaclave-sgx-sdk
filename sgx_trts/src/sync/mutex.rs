@@ -118,7 +118,7 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for SpinMutex<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.try_lock() {
             Some(guard) => write!(f, "SpinMutex {{ value: ")
-                .and_then(|()| (&*guard).fmt(f))
+                .and_then(|()| (*guard).fmt(f))
                 .and_then(|()| write!(f, "}}")),
             None => write!(f, "SpinMutex {{ <locked> }}"),
         }

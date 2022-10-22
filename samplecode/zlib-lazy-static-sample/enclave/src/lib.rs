@@ -21,11 +21,11 @@ use inflate::inflate_bytes_zlib;
 use libflate::zlib::Encoder;
 use sgx_types::error::SgxStatus;
 use std::io::Write;
-use std::lazy::SyncLazy;
 use std::str::from_utf8;
+use std::sync::LazyLock;
 
-static HELLOSTR: SyncLazy<String> =
-    SyncLazy::new(|| String::from("This is a global rust String init by SyncLazy!"));
+static HELLOSTR: LazyLock<String> =
+    LazyLock::new(|| String::from("This is a global rust String init by LazyLock!"));
 
 /// # Safety
 #[no_mangle]
@@ -37,7 +37,7 @@ pub unsafe extern "C" fn zlib_sample() -> SgxStatus {
     encoder.write_all(HELLOSTR.as_bytes()).unwrap();
     let encoded_data = encoder.finish().into_result().unwrap();
 
-    println!("After zlib compress : {:?}", encoded_data);
+    println!("After zlib compress : {encoded_data:?}");
 
     let decoded = inflate_bytes_zlib(&encoded_data[..]).unwrap();
 

@@ -19,11 +19,11 @@
 mod tests;
 
 use crate::convert::{TryFrom, TryInto};
-use crate::ffi::CString;
 use crate::fmt;
 use crate::io::{self, ErrorKind, IoSlice, IoSliceMut};
 use crate::mem;
 use crate::net::{Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr};
+use crate::sys::common::small_c_string::run_with_cstr;
 use crate::sys::net::{init, Socket};
 use crate::sys::{cvt_ocall, cvt_ocall_r};
 use crate::sys_common::{AsInner, FromInner, IntoInner};
@@ -31,7 +31,7 @@ use crate::time::Duration;
 use crate::vec;
 
 use sgx_oc::ocall::{AddrInfo, AddrInfoHints, OCallResult, SockAddr};
-use sgx_oc::{c_int, c_uint, c_void};
+use sgx_oc::{c_int, c_uint};
 
 type IpV4MultiCastType = c_int;
 
@@ -39,21 +39,36 @@ type IpV4MultiCastType = c_int;
 // sockaddr and misc bindings
 ////////////////////////////////////////////////////////////////////////////////
 
-pub fn setsockopt<T>(sock: &Socket, opt: c_int, val: c_int, payload: T) -> io::Result<()> {
+pub fn setsockopt<T>(
+    sock: &Socket,
+    level: c_int,
+    option_name: c_int,
+    option_value: T,
+) -> io::Result<()> {
     unsafe {
-        let payload = &payload as *const T as *const c_void;
-        cvt_ocall(c::setsockopt(sock.as_raw(), opt, val, payload, mem::size_of::<T>() as c::socklen_t))?;
+        cvt_ocall(c::setsockopt(
+            sock.as_raw(),
+            level,
+            option_name,
+            &option_value as *const T as *const _,
+            mem::size_of::<T>() as c::socklen_t,
+        ))?;
         Ok(())
     }
 }
 
-pub fn getsockopt<T: Copy>(sock: &Socket, opt: c_int, val: c_int) -> io::Result<T> {
+pub fn getsockopt<T: Copy>(sock: &Socket, level: c_int, option_name: c_int) -> io::Result<T> {
     unsafe {
-        let mut slot: T = mem::zeroed();
-        let mut len = mem::size_of::<T>() as c::socklen_t;
-        cvt_ocall(c::getsockopt(sock.as_raw(), opt, val, &mut slot as *mut _ as *mut _, &mut len))?;
-        assert_eq!(len as usize, mem::size_of::<T>());
-        Ok(slot)
+        let mut option_value: T = mem::zeroed();
+        let mut option_len = mem::size_of::<T>() as c::socklen_t;
+        cvt_ocall(c::getsockopt(
+            sock.as_raw(),
+            level,
+            option_name,
+            &mut option_value as *mut T as *mut _,
+            &mut option_len,
+        ))?;
+        Ok(option_value)
     }
 }
 
@@ -68,13 +83,13 @@ where
 pub fn sockaddr_to_addr(storage: &c::sockaddr_storage, len: usize) -> io::Result<SocketAddr> {
     match storage.ss_family as c_int {
         c::AF_INET => {
-            assert!(len as usize >= mem::size_of::<c::sockaddr_in>());
+            assert!(len >= mem::size_of::<c::sockaddr_in>());
             Ok(SocketAddr::V4(FromInner::from_inner(unsafe {
                 *(storage as *const _ as *const c::sockaddr_in)
             })))
         }
         c::AF_INET6 => {
-            assert!(len as usize >= mem::size_of::<c::sockaddr_in6>());
+            assert!(len >= mem::size_of::<c::sockaddr_in6>());
             Ok(SocketAddr::V6(FromInner::from_inner(unsafe {
                 *(storage as *const _ as *const c::sockaddr_in6)
             })))
@@ -142,13 +157,13 @@ impl<'a> TryFrom<(&'a str, u16)> for LookupHost {
     fn try_from((host, port): (&'a str, u16)) -> io::Result<LookupHost> {
         init();
 
-        let c_host = CString::new(host)?;
-        let hints = AddrInfoHints { socktype: c::SOCK_STREAM, ..Default::default() };
-
-        unsafe {
-            cvt_ocall(c::getaddrinfo(Some(&c_host), None, Some(hints)))
-                .map(|addr| LookupHost { iter: addr.into_iter(), port })
-        }
+        run_with_cstr(host.as_bytes(), |c_host| {
+            let hints = AddrInfoHints { socktype: c::SOCK_STREAM, ..Default::default() };
+            unsafe {
+                cvt_ocall(c::getaddrinfo(Some(&c_host), None, Some(hints)))
+                    .map(|addr| LookupHost { iter: addr.into_iter(), port })
+            }
+        })
     }
 }
 
@@ -225,7 +240,7 @@ impl TcpStream {
         let ret = cvt_ocall(unsafe {
             c::send(self.inner.as_raw(), buf, c::MSG_NOSIGNAL)
         })?;
-        Ok(ret as usize)
+        Ok(ret)
     }
 
     pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
@@ -284,6 +299,12 @@ impl TcpStream {
 
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<()> {
         self.inner.set_nonblocking(nonblocking)
+    }
+}
+
+impl AsInner<Socket> for TcpStream {
+    fn as_inner(&self) -> &Socket {
+        &self.inner
     }
 }
 
@@ -457,7 +478,7 @@ impl UdpSocket {
         let ret = cvt_ocall(unsafe {
             c::sendto(self.inner.as_raw(), buf, c::MSG_NOSIGNAL, &dst)
         })?;
-        Ok(ret as usize)
+        Ok(ret)
     }
 
     pub fn duplicate(&self) -> io::Result<UdpSocket> {
@@ -536,7 +557,7 @@ impl UdpSocket {
 
     pub fn join_multicast_v6(&self, multiaddr: &Ipv6Addr, interface: u32) -> io::Result<()> {
         let mreq = c::ipv6_mreq {
-            ipv6mr_multiaddr: *multiaddr.as_inner(),
+            ipv6mr_multiaddr: multiaddr.into_inner(),
             ipv6mr_interface: to_ipv6mr_interface(interface),
         };
         setsockopt(&self.inner, c::IPPROTO_IPV6, c::IPV6_ADD_MEMBERSHIP, mreq)
@@ -552,7 +573,7 @@ impl UdpSocket {
 
     pub fn leave_multicast_v6(&self, multiaddr: &Ipv6Addr, interface: u32) -> io::Result<()> {
         let mreq = c::ipv6_mreq {
-            ipv6mr_multiaddr: *multiaddr.as_inner(),
+            ipv6mr_multiaddr: multiaddr.into_inner(),
             ipv6mr_interface: to_ipv6mr_interface(interface),
         };
         setsockopt(&self.inner, c::IPPROTO_IPV6, c::IPV6_DROP_MEMBERSHIP, mreq)
@@ -587,7 +608,7 @@ impl UdpSocket {
         let ret = cvt_ocall(unsafe {
             c::send(self.inner.as_raw(), buf, c::MSG_NOSIGNAL)
         })?;
-        Ok(ret as usize)
+        Ok(ret)
     }
 
     pub fn connect(&self, addr: io::Result<&SocketAddr>) -> io::Result<()> {
@@ -614,6 +635,42 @@ impl fmt::Debug for UdpSocket {
         res.field(name, &self.inner.as_raw()).finish()
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Converting SocketAddr to libc representation
+////////////////////////////////////////////////////////////////////////////////
+
+/// A type with the same memory layout as `c::sockaddr`. Used in converting Rust level
+/// SocketAddr* types into their system representation. The benefit of this specific
+/// type over using `c::sockaddr_storage` is that this type is exactly as large as it
+/// needs to be and not a lot larger. And it can be initialized more cleanly from Rust.
+#[repr(C)]
+pub(crate) union SocketAddrCRepr {
+    v4: c::sockaddr_in,
+    v6: c::sockaddr_in6,
+}
+
+impl SocketAddrCRepr {
+    pub fn as_ptr(&self) -> *const c::sockaddr {
+        self as *const _ as *const c::sockaddr
+    }
+}
+
+impl<'a> IntoInner<(SocketAddrCRepr, c::socklen_t)> for &'a SocketAddr {
+    fn into_inner(self) -> (SocketAddrCRepr, c::socklen_t) {
+        match *self {
+            SocketAddr::V4(ref a) => {
+                let sockaddr = SocketAddrCRepr { v4: a.into_inner() };
+                (sockaddr, mem::size_of::<c::sockaddr_in>() as c::socklen_t)
+            }
+            SocketAddr::V6(ref a) => {
+                let sockaddr = SocketAddrCRepr { v6: a.into_inner() };
+                (sockaddr, mem::size_of::<c::sockaddr_in6>() as c::socklen_t)
+            }
+        }
+    }
+}
+
 
 mod c {
     pub use sgx_oc::ocall::{

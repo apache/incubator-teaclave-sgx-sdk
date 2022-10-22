@@ -15,17 +15,18 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::sync::atomic::AtomicI32;
+use crate::pin::Pin;
+use crate::sync::atomic::AtomicU32;
 use crate::sync::atomic::Ordering::{Acquire, Release};
 use crate::sys::futex::{futex_wait, futex_wake};
 use crate::time::Duration;
 
-const PARKED: i32 = -1;
-const EMPTY: i32 = 0;
-const NOTIFIED: i32 = 1;
+const PARKED: u32 = u32::MAX;
+const EMPTY: u32 = 0;
+const NOTIFIED: u32 = 1;
 
 pub struct Parker {
-    state: AtomicI32,
+    state: AtomicU32,
 }
 
 // Notes about memory ordering:
@@ -49,14 +50,16 @@ pub struct Parker {
 // Ordering::Release when writing NOTIFIED (the 'token') in unpark(), and using
 // Ordering::Acquire when checking for this state in park().
 impl Parker {
-    #[inline]
-    pub const fn new() -> Self {
-        Parker { state: AtomicI32::new(EMPTY) }
+    /// Construct the futex parker. The UNIX parker implementation
+    /// requires this to happen in-place.
+    #[allow(clippy::new_ret_no_self)]
+    pub unsafe fn new(parker: *mut Parker) {
+        parker.write(Self { state: AtomicU32::new(EMPTY) });
     }
 
     // Assumes this is only called by the thread that owns the Parker,
     // which means that `self.state != PARKED`.
-    pub unsafe fn park(&self) {
+    pub unsafe fn park(self: Pin<&Self>) {
         // Change NOTIFIED=>EMPTY or EMPTY=>PARKED, and directly return in the
         // first case.
         if self.state.fetch_sub(1, Acquire) == NOTIFIED {
@@ -75,9 +78,10 @@ impl Parker {
     }
 
     // Assumes this is only called by the thread that owns the Parker,
-    // which means that `self.state != PARKED`.
+    // which means that `self.state != PARKED`. This implementation doesn't
+    // require `Pin`, but other implementations do.
     #[allow(clippy::if_same_then_else)]
-    pub unsafe fn park_timeout(&self, timeout: Duration) {
+    pub unsafe fn park_timeout(self: Pin<&Self>, timeout: Duration) {
         // Change NOTIFIED=>EMPTY or EMPTY=>PARKED, and directly return in the
         // first case.
         if self.state.fetch_sub(1, Acquire) == NOTIFIED {
@@ -96,8 +100,9 @@ impl Parker {
         }
     }
 
+    // This implementation doesn't require `Pin`, but other implementations do.
     #[inline]
-    pub fn unpark(&self) {
+    pub fn unpark(self: Pin<&Self>) {
         // Change PARKED=>NOTIFIED, EMPTY=>NOTIFIED, or NOTIFIED=>NOTIFIED, and
         // wake the thread in the first case.
         //

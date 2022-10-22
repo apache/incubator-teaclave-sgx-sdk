@@ -18,6 +18,7 @@
 #![no_std]
 #![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 #![deny(unused_features)]
+#![feature(const_trait_impl)]
 #![feature(core_intrinsics)]
 #![feature(dropck_eyepatch)]
 #![feature(hashmap_internals)]
@@ -36,25 +37,30 @@ extern crate sgx_types;
 mod barrier;
 mod condvar;
 mod futex;
-mod lazy;
+mod lazy_box;
+mod lazy_lock;
 mod lock_api;
 mod mutex;
 mod once;
+mod once_lock;
 mod remutex;
 mod rwlock;
 mod spin;
 mod sys;
 
+#[cfg(feature = "capi")]
 pub mod capi;
+
 pub use sys::ocall::Timespec;
 
 pub use barrier::{Barrier, BarrierWaitResult};
 pub use condvar::Condvar;
 pub use futex::{Futex, FutexClockId, FutexFlags, FutexOp};
-pub use lazy::{SyncLazy, SyncOnceCell};
+pub use lazy_lock::LazyLock;
 pub use lock_api::{RawMutex, RawRwLock};
 pub use mutex::{MovableMutex, StaticMutex, StaticMutexGuard};
 pub use once::{Once, OnceState, ONCE_INIT};
+pub use once_lock::OnceLock;
 pub use remutex::{ReentrantMutex, ReentrantMutexGuard};
 pub use rwlock::{MovableRwLock, StaticRwLock, StaticRwLockReadGuard, StaticRwLockWriteGuard};
 pub use spin::{SpinMutex, SpinMutexGuard, SpinRwLock, SpinRwLockReadGuard, SpinRwLockWriteGuard};

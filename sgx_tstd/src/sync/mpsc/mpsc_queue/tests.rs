@@ -25,8 +25,8 @@ use sgx_test_utils::test_case;
 #[test_case]
 fn test_full() {
     let q: Queue<Box<_>> = Queue::new();
-    q.push(box 1);
-    q.push(box 2);
+    q.push(Box::new(1));
+    q.push(Box::new(2));
 }
 
 #[test_case]

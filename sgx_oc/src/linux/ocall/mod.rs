@@ -21,6 +21,7 @@ use alloc::str;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::From;
+use core::error::Error;
 use core::fmt;
 use core::num::NonZeroUsize;
 use core::ptr;
@@ -77,7 +78,7 @@ impl OCallError {
 }
 
 impl OCallError {
-    pub fn description(&self) -> String {
+    pub fn error_description(&self) -> String {
         match self {
             Self::SgxError(status) => sgx_error_string(*status),
             Self::OsError(errno) => os_error_string(*errno),
@@ -107,6 +108,28 @@ impl From<SgxStatus> for OCallError {
 impl From<&'static str> for OCallError {
     fn from(err: &'static str) -> OCallError {
         OCallError::from_custom_error(err)
+    }
+}
+
+impl Error for OCallError {
+    #[allow(deprecated)]
+    fn description(&self) -> &str {
+        match self {
+            OCallError::SgxError(s) => s.description(),
+            OCallError::OsError(code) => os_error_str(*code),
+            OCallError::GaiError(code) => gai_error_str(*code),
+            OCallError::CustomError(s) => s,
+        }
+    }
+
+    #[allow(deprecated)]
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            OCallError::SgxError(ref s) => Some(s),
+            OCallError::OsError(..) => None,
+            OCallError::GaiError(..) => None,
+            OCallError::CustomError(..) => None,
+        }
     }
 }
 
@@ -158,6 +181,18 @@ pub fn gai_error_str(errno: i32) -> &'static str {
         EAI_INTR => "Interrupted by a signal",
         EAI_IDN_ENCODE => "Parameter string not correctly encoded",
         _ => "Unknown gai_error_code",
+    }
+}
+
+pub fn os_error_str(errno: i32) -> &'static str {
+    extern "C" {
+        pub fn strerror(errnum: c_int) -> *const c_char;
+    }
+
+    unsafe {
+        let p = strerror(errno);
+        assert!(!p.is_null(), "strerror failure");
+        str::from_utf8(CStr::from_ptr(p).to_bytes()).unwrap()
     }
 }
 

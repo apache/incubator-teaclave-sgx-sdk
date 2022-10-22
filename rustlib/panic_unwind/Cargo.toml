@@ -31,5 +31,4 @@ bench = false
 doc = false
 
 [dependencies]
-sgx_types = { path = "../../sgx_types" }
 sgx_unwind = { path = "../../sgx_unwind" }

@@ -17,10 +17,8 @@
 
 use crate::sys::mutex as sys;
 use core::fmt;
-use core::marker::PhantomPinned;
 use core::ops::Deref;
 use core::panic::{RefUnwindSafe, UnwindSafe};
-use core::pin::Pin;
 
 /// A re-entrant mutual exclusion
 ///
@@ -28,9 +26,8 @@ use core::pin::Pin;
 /// available. The thread which has already locked the mutex can lock it
 /// multiple times without blocking, preventing a common source of deadlocks.
 pub struct ReentrantMutex<T> {
-    inner: sys::ReentrantMutex,
+    inner: sys::MovableReentrantMutex,
     data: T,
-    _pinned: PhantomPinned,
 }
 
 unsafe impl<T: Send> Send for ReentrantMutex<T> {}
@@ -53,7 +50,7 @@ impl<T> RefUnwindSafe for ReentrantMutex<T> {}
 /// guarded data.
 #[must_use = "if unused the ReentrantMutex will immediately unlock"]
 pub struct ReentrantMutexGuard<'a, T: 'a> {
-    lock: Pin<&'a ReentrantMutex<T>>,
+    lock: &'a ReentrantMutex<T>,
 }
 
 impl<T> !Send for ReentrantMutexGuard<'_, T> {}
@@ -63,9 +60,8 @@ impl<T> ReentrantMutex<T> {
     ///
     pub const fn new(t: T) -> ReentrantMutex<T> {
         ReentrantMutex {
-            inner: sys::ReentrantMutex::new(),
+            inner: sys::MovableReentrantMutex::new(),
             data: t,
-            _pinned: PhantomPinned,
         }
     }
 
@@ -81,11 +77,11 @@ impl<T> ReentrantMutex<T> {
     /// If another user of this mutex panicked while holding the mutex, then
     /// this call will return failure if the mutex would otherwise be
     /// acquired.
-    pub fn lock(self: Pin<&Self>) -> ReentrantMutexGuard<'_, T> {
+    pub fn lock(&self) -> ReentrantMutexGuard<'_, T> {
         unsafe {
             let _ = self.inner.lock();
         }
-        ReentrantMutexGuard::new(self)
+        ReentrantMutexGuard { lock: self }
     }
 
     /// Attempts to acquire this lock.
@@ -100,30 +96,18 @@ impl<T> ReentrantMutex<T> {
     /// If another user of this mutex panicked while holding the mutex, then
     /// this call will return failure if the mutex would otherwise be
     /// acquired.
-    pub fn try_lock(self: Pin<&Self>) -> Option<ReentrantMutexGuard<'_, T>> {
+    pub fn try_lock(&self) -> Option<ReentrantMutexGuard<'_, T>> {
         if unsafe { self.inner.try_lock().is_ok() } {
-            Some(ReentrantMutexGuard::new(self))
+            Some(ReentrantMutexGuard { lock: self })
         } else {
             None
         }
     }
 }
 
-impl<T> Drop for ReentrantMutex<T> {
-    fn drop(&mut self) {
-        // This is actually safe b/c we know that there is no further usage of
-        // this mutex (it's up to the user to arrange for a mutex to get
-        // dropped, that's not our job)
-        unsafe {
-            let _ = self.inner.destroy();
-        }
-    }
-}
-
 impl<T: fmt::Debug + 'static> fmt::Debug for ReentrantMutex<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let pin_lock = unsafe { Pin::new_unchecked(self) };
-        match pin_lock.try_lock() {
+        match self.try_lock() {
             Some(guard) => f
                 .debug_struct("ReentrantMutex")
                 .field("data", &*guard)
@@ -141,12 +125,6 @@ impl<T: fmt::Debug + 'static> fmt::Debug for ReentrantMutex<T> {
                     .finish()
             }
         }
-    }
-}
-
-impl<'mutex, T> ReentrantMutexGuard<'mutex, T> {
-    fn new(lock: Pin<&'mutex ReentrantMutex<T>>) -> ReentrantMutexGuard<'mutex, T> {
-        ReentrantMutexGuard { lock }
     }
 }
 

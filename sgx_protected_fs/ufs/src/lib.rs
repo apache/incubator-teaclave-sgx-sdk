@@ -257,8 +257,8 @@ impl FileStream {
     fn seek(&self, pos: SeekFrom) -> OsResult {
         let (offset, whence) = match pos {
             SeekFrom::Start(off) => (off as i64, libc::SEEK_SET),
-            SeekFrom::End(off) => (off as i64, libc::SEEK_END),
-            SeekFrom::Current(off) => (off as i64, libc::SEEK_CUR),
+            SeekFrom::End(off) => (off, libc::SEEK_END),
+            SeekFrom::Current(off) => (off, libc::SEEK_CUR),
         };
         if unsafe { libc::fseeko(self.stream, offset, whence) } != 0 {
             bail!(errno())

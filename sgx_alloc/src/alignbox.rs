@@ -60,25 +60,25 @@ impl<T> DerefMut for AlignBox<T> {
 
 impl<T> AsRef<T> for AlignBox<T> {
     fn as_ref(&self) -> &T {
-        &**self
+        self
     }
 }
 
 impl<T> AsMut<T> for AlignBox<T> {
     fn as_mut(&mut self) -> &mut T {
-        &mut **self
+        self
     }
 }
 
 impl<T> borrow::Borrow<T> for AlignBox<T> {
     fn borrow(&self) -> &T {
-        &**self
+        self
     }
 }
 
 impl<T> borrow::BorrowMut<T> for AlignBox<T> {
     fn borrow_mut(&mut self) -> &mut T {
-        &mut **self
+        self
     }
 }
 

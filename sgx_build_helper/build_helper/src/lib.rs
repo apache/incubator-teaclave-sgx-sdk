@@ -176,7 +176,7 @@ pub fn rerun_if_changed_anything_in_dir(dir: &Path, filter: &[&str]) {
         .read_dir()
         .unwrap()
         .map(|e| e.unwrap())
-        .filter(|e| !is_in_filter_list(&*e.file_name(), filter))
+        .filter(|e| !is_in_filter_list(&e.file_name(), filter))
         .collect::<Vec<_>>();
     while let Some(entry) = stack.pop() {
         let path = entry.path();
@@ -185,7 +185,7 @@ pub fn rerun_if_changed_anything_in_dir(dir: &Path, filter: &[&str]) {
                 path.read_dir()
                     .unwrap()
                     .map(|e| e.unwrap())
-                    .filter(|e| !is_in_filter_list(&*e.file_name(), filter)),
+                    .filter(|e| !is_in_filter_list(&e.file_name(), filter)),
             );
         } else {
             println!("cargo:rerun-if-changed={}", path.display());

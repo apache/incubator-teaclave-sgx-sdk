@@ -53,11 +53,7 @@ pub unsafe extern "C" fn sgx_register_exception_handler(
 pub unsafe extern "C" fn sgx_unregister_exception_handler(handle: *const c_void) -> i32 {
     let handle = Handle::from_raw(handle as u64);
     let result = unregister(handle);
-    if result {
-        1
-    } else {
-        0
-    }
+    i32::from(result)
 }
 
 #[inline]
@@ -129,11 +125,7 @@ pub extern "C" fn sgx_get_rsrvmm_default_perm() -> u32 {
 #[link_section = ".nipx"]
 #[no_mangle]
 pub extern "C" fn sgx_is_enclave_crashed() -> i32 {
-    if enclave::state::is_crashed() {
-        1
-    } else {
-        0
-    }
+    i32::from(enclave::state::is_crashed())
 }
 
 #[inline]
@@ -169,21 +161,13 @@ pub extern "C" fn sgx_is_supported_edmm() -> bool {
 #[inline]
 #[no_mangle]
 pub unsafe extern "C" fn sgx_is_within_enclave(p: *const u8, len: usize) -> i32 {
-    if enclave::is_within_enclave(p, len) {
-        1
-    } else {
-        0
-    }
+    i32::from(enclave::is_within_enclave(p, len))
 }
 
 #[inline]
 #[no_mangle]
 pub unsafe extern "C" fn sgx_is_outside_enclave(p: *const u8, len: usize) -> i32 {
-    if enclave::is_within_host(p, len) {
-        1
-    } else {
-        0
-    }
+    i32::from(enclave::is_within_host(p, len))
 }
 
 #[inline]
@@ -304,11 +288,7 @@ pub unsafe extern "C" fn sgx_thread_self() -> sgx_thread_t {
 #[inline]
 #[no_mangle]
 pub unsafe extern "C" fn sgx_thread_equal(a: sgx_thread_t, b: sgx_thread_t) -> i32 {
-    if a == b {
-        1
-    } else {
-        0
-    }
+    i32::from(a == b)
 }
 
 #[cfg(not(feature = "hyper"))]

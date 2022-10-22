@@ -25,6 +25,7 @@ pub union Dtv {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy, Debug)]
 struct Pointer {
     value: usize,
     is_static: i32,

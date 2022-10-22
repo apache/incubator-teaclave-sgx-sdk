@@ -22,7 +22,7 @@ use core::ops::Deref;
 use core::ptr;
 use core::sync::atomic::{AtomicU32, Ordering};
 use sgx_crypto::ecc::{EcPrivateKey, EcPublicKey, EcShareKey};
-use sgx_sync::{SpinMutex, SpinRwLock, SyncLazy};
+use sgx_sync::{LazyLock, SpinMutex, SpinRwLock};
 use sgx_types::types::{AlignKey128bit, EnclaveIdentity, QlQvResult, QuoteNonce, TargetInfo};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -168,11 +168,11 @@ impl Session {
     }
 }
 
-pub static INITIATOR_SESSION_MAGAGER: SyncLazy<SpinRwLock<SessionManager>> =
-    SyncLazy::new(|| SpinRwLock::new(SessionManager::new()));
+pub static INITIATOR_SESSION_MAGAGER: LazyLock<SpinRwLock<SessionManager>> =
+    LazyLock::new(|| SpinRwLock::new(SessionManager::new()));
 
-pub static RESPONDER_SESSION_MAGAGER: SyncLazy<SpinRwLock<SessionManager>> =
-    SyncLazy::new(|| SpinRwLock::new(SessionManager::new()));
+pub static RESPONDER_SESSION_MAGAGER: LazyLock<SpinRwLock<SessionManager>> =
+    LazyLock::new(|| SpinRwLock::new(SessionManager::new()));
 
 struct Node {
     sid: u32,

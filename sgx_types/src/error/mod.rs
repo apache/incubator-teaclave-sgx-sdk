@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use core::error::Error;
 use core::fmt;
 use core::result;
 
@@ -293,6 +294,13 @@ impl SgxStatus {
 impl fmt::Display for SgxStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+impl Error for SgxStatus {
+    #[allow(deprecated)]
+    fn description(&self) -> &str {
+        self.__description()
     }
 }
 

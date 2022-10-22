@@ -33,10 +33,10 @@ pub struct Condvar {
 
 impl Condvar {
     /// Creates a new condition variable for use.
-    pub fn new() -> Condvar {
-        let c = imp::MovableCondvar::from(imp::Condvar::new());
-        Condvar {
-            inner: c,
+    #[inline]
+    pub const fn new() -> Condvar {
+        Self {
+            inner: imp::MovableCondvar::new(),
             check: CondvarCheck::new(),
         }
     }
@@ -63,7 +63,7 @@ impl Condvar {
     #[inline]
     pub unsafe fn wait(&self, mutex: &MovableMutex) {
         self.check.verify(mutex);
-        let r = self.inner.wait(mutex.as_ref());
+        let r = self.inner.wait(mutex.raw());
         debug_assert_eq!(r, Ok(()));
     }
 
@@ -76,16 +76,9 @@ impl Condvar {
     #[inline]
     pub unsafe fn wait_timeout(&self, mutex: &MovableMutex, dur: Duration) -> bool {
         self.check.verify(mutex);
-        let r = self.inner.wait_timeout(mutex.as_ref(), dur);
+        let r = self.inner.wait_timeout(mutex.raw(), dur);
         debug_assert!(r == Err(ETIMEDOUT) || r == Ok(()));
         r == Ok(())
-    }
-}
-
-impl Drop for Condvar {
-    fn drop(&mut self) {
-        let r = unsafe { self.inner.destroy() };
-        debug_assert_eq!(r, Ok(()));
     }
 }
 

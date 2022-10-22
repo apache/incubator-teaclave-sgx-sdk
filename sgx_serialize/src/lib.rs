@@ -25,12 +25,13 @@ Core encoding and decoding interfaces.
 #![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 #![feature(box_syntax)]
 #![feature(never_type)]
-#![feature(nll)]
 #![feature(associated_type_bounds)]
 #![feature(min_specialization)]
 #![feature(core_intrinsics)]
 #![feature(maybe_uninit_slice)]
 #![feature(new_uninit)]
+#![allow(clippy::borrow_deref_ref)]
+#![allow(clippy::explicit_auto_deref)]
 
 #[cfg(all(feature = "tserialize", feature = "userialize"))]
 compile_error!(

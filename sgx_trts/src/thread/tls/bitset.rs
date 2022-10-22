@@ -50,7 +50,8 @@ impl Bitset {
         self.0[hi].fetch_and(!lo, Ordering::Relaxed);
     }
 
-    // Sets any unset bit. Not atomic. Returns `None` if all bits were observed to be set.
+    /// Sets any unset bit. Not atomic. Returns `None` if all bits were
+    /// observed to be set.
     pub fn set(&self) -> Option<usize> {
         'elems: for (idx, elem) in self.0.iter().enumerate() {
             let mut current = elem.load(Ordering::Relaxed);

@@ -388,7 +388,7 @@ pub fn thread_wait_event_ex(tcs: TcsId, timeout: Option<Timeout>) -> OsResult {
         timeout.as_ref().map_or((ptr::null(), 0, 0), |timeout| {
             let ts_ptr = &timeout.ts.t as *const timespec;
             let clockid = timeout.clockid as i32;
-            let absolute_time = if timeout.absolute_time { 1 } else { 0 };
+            let absolute_time = i32::from(timeout.absolute_time);
             (ts_ptr, clockid, absolute_time)
         });
 

@@ -18,7 +18,7 @@
 use crate::linux::*;
 use core::convert::TryFrom;
 use core::mem;
-use core::sync::atomic::AtomicI32;
+use core::sync::atomic::AtomicU32;
 use core::time::Duration;
 use sgx_sync::{Futex, FutexFlags, FutexOp, Timespec};
 use sgx_trts::trts::is_within_enclave;
@@ -50,11 +50,11 @@ unsafe fn futex_inernal(
     uaddr2: *const u32,
     val3: u32,
 ) -> OsResult<isize> {
-    let get_addr = |addr: *const u32| -> OsResult<&AtomicI32> {
+    let get_addr = |addr: *const u32| -> OsResult<&AtomicU32> {
         if addr.is_null() || !is_within_enclave(addr as *const u8, mem::size_of::<c_int>()) {
             Err(EINVAL)
         } else {
-            Ok(&*(addr as *const AtomicI32))
+            Ok(&*(addr as *const AtomicU32))
         }
     };
 
@@ -83,11 +83,11 @@ unsafe fn futex_inernal(
                 Some(t) => Duration::try_from(t).map(Some),
                 None => Ok(None),
             })?;
-            futex.wait(val as i32, timeout).map(|_| 0)
+            futex.wait(val, timeout).map(|_| 0)
         }
         FutexOp::WaitBitset => {
             let timeout = get_timeout(timeout)?.map(|ts| (ts, flags.into()));
-            futex.wait_bitset(val as i32, timeout, val3).map(|_| 0)
+            futex.wait_bitset(val, timeout, val3).map(|_| 0)
         }
         FutexOp::Wake => {
             let count = get_val(val)?;
@@ -110,7 +110,7 @@ unsafe fn futex_inernal(
             let nwakes = get_val(val)?;
             let nrequeues = get_val(timeout as u32)?;
             futex
-                .cmp_requeue(nwakes, &new_futex, nrequeues, val3 as i32)
+                .cmp_requeue(nwakes, &new_futex, nrequeues, val3)
                 .map(|total| total as isize)
         }
         _ => {

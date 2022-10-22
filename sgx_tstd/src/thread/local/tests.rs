@@ -235,8 +235,8 @@ fn dtors_in_dtors_in_dtors_const_init() {
 // join is not guaranteed to be after the TLS destructors. However, false
 // negatives should be exceedingly rare due to judicious use of
 // thread::yield_now and running the test several times.
-#[allow(clippy::needless_return)]
 #[test_case]
+#[allow(clippy::needless_return)]
 fn join_orders_after_tls_destructors() {
     // We emulate a synchronous MPSC rendezvous channel using only atomics and
     // thread::yield_now. We can't use std::mpsc as the implementation itself

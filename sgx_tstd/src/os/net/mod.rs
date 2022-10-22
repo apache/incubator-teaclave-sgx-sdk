@@ -15,32 +15,9 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use super::*;
-use crate::collections::hash_map::DefaultHasher;
-use crate::hash::{Hash, Hasher};
-use sgx_types::types::c_char;
 
-use sgx_test_utils::test_case;
+//! Linux and Android-specific definitions for socket options.
 
-#[test_case]
-fn equal_hash() {
-    let data = b"123\xE2\xFA\xA6\0";
-    let ptr = data.as_ptr() as *const c_char;
-    let cstr: &'static CStr = unsafe { CStr::from_ptr(ptr) };
-
-    let mut s = DefaultHasher::new();
-    cstr.hash(&mut s);
-    let cstr_hash = s.finish();
-    let mut s = DefaultHasher::new();
-    CString::new(&data[..data.len() - 1]).unwrap().hash(&mut s);
-    let cstring_hash = s.finish();
-
-    assert_eq!(cstr_hash, cstring_hash);
-}
-
-#[test_case]
-fn cstr_index_from_empty() {
-    let original = b"Hello, world!\0";
-    let cstr = CStr::from_bytes_with_nul(original).unwrap();
-    should_panic!(&cstr[original.len()..]);
-}
+pub mod tcp;
+#[cfg(feature = "unit_test")]
+mod tests;

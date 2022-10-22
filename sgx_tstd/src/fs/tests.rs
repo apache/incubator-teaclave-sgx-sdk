@@ -38,7 +38,7 @@ macro_rules! check {
     ($e:expr) => {
         match $e {
             Ok(t) => t,
-            Err(e) => panic!("{} failed with: {}", stringify!($e), e),
+            Err(e) => panic!("{} failed with: {e}", stringify!($e)),
         }
     };
 }
@@ -382,7 +382,7 @@ fn file_test_directoryinfo_readdir() {
     check!(fs::create_dir(dir));
     let prefix = "foo";
     for n in 0..3 {
-        let f = dir.join(&format!("{}.txt", n));
+        let f = dir.join(&format!("{n}.txt"));
         let mut w = check!(File::create(&f));
         let msg_str = format!("{}{}", prefix, n.to_string());
         let msg = msg_str.as_bytes();
@@ -1136,7 +1136,7 @@ fn dir_entry_methods() {
                 assert!(file.file_type().unwrap().is_file());
                 assert!(file.metadata().unwrap().is_file());
             }
-            f => panic!("unknown file name: {:?}", f),
+            f => panic!("unknown file name: {f:?}"),
         }
     }
 }
@@ -1147,7 +1147,7 @@ fn dir_entry_debug() {
     File::create(&tmpdir.join("b")).unwrap();
     let mut read_dir = tmpdir.path().read_dir().unwrap();
     let dir_entry = read_dir.next().unwrap().unwrap();
-    let actual = format!("{:?}", dir_entry);
+    let actual = format!("{dir_entry:?}");
     let expected = format!("DirEntry({:?})", dir_entry.0.path());
     assert_eq!(actual, expected);
 }
@@ -1155,6 +1155,12 @@ fn dir_entry_debug() {
 #[test_case]
 fn read_dir_not_found() {
     let res = fs::read_dir("/path/that/does/not/exist");
+    assert_eq!(res.err().unwrap().kind(), ErrorKind::NotFound);
+}
+
+#[test_case]
+fn file_open_not_found() {
+    let res = File::open("/path/that/does/not/exist");
     assert_eq!(res.err().unwrap().kind(), ErrorKind::NotFound);
 }
 
@@ -1210,7 +1216,7 @@ fn metadata_access_times() {
                 || e1.kind() == ErrorKind::Unsupported
                     && e2.kind() == ErrorKind::Unsupported => {}
         (a, b) => {
-            panic!("creation time must be always supported or not supported: {:?} {:?}", a, b,)
+            panic!("creation time must be always supported or not supported: {a:?} {b:?}")
         }
     }
 }

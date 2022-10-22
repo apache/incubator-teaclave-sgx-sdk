@@ -347,11 +347,7 @@ pub unsafe extern "C" fn close(fd: c_int) -> c_int {
 
 #[no_mangle]
 pub unsafe extern "C" fn isatty(fd: c_int) -> c_int {
-    if ocall::isatty(fd).is_ok() {
-        1
-    } else {
-        0
-    }
+    i32::from(ocall::isatty(fd).is_ok())
 }
 
 #[no_mangle]
@@ -367,6 +363,20 @@ pub unsafe extern "C" fn dup(oldfd: c_int) -> c_int {
 pub unsafe extern "C" fn eventfd(initval: c_uint, flags: c_int) -> c_int {
     if let Ok(fd) = ocall::eventfd(initval, flags) {
         fd
+    } else {
+        -1
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn futimens(fd: c_int, times: *const [timespec; 2]) -> c_int {
+    if times.is_null() {
+        set_errno(EINVAL);
+        return -1;
+    }
+
+    if ocall::futimens(fd, &*times).is_ok() {
+        0
     } else {
         -1
     }

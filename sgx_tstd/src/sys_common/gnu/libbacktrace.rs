@@ -206,7 +206,7 @@ extern "C" fn syminfo_cb(
             let mut symname = symname;
             if symname.is_null() {
                 let sym_address =
-                    uw::_Unwind_FindEnclosingFunction((pc as usize + 1) as *mut c_void) as usize;
+                    uw::_Unwind_FindEnclosingFunction((pc + 1) as *mut c_void) as usize;
                 if sym_address == MmLayout::entry_address() {
                     symname = ENCLAVE_ENTRY_NAME as *const _ as *const c_char
                 }

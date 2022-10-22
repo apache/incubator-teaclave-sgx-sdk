@@ -18,7 +18,7 @@
 #![allow(deprecated)]
 
 use crate::futex::FutexClockId;
-use crate::lazy::SyncLazy;
+use crate::lazy_lock::LazyLock;
 use crate::sys::ocall::{self, Timeout, Timespec};
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
@@ -45,7 +45,7 @@ impl Futex {
     }
 
     #[inline]
-    pub fn wait(&self, expected: i32, timeout: Option<Duration>) -> OsResult {
+    pub fn wait(&self, expected: u32, timeout: Option<Duration>) -> OsResult {
         let timeout =
             timeout.map(|dur| Timeout::new(dur.into(), FutexClockId::Monotonic as u32, false));
         self.wait_with_timeout(expected, timeout, Self::FUTEX_BITSET_MATCH_ANY)
@@ -53,7 +53,7 @@ impl Futex {
 
     pub fn wait_bitset(
         &self,
-        expected: i32,
+        expected: u32,
         timeout: Option<(Timespec, FutexClockId)>,
         bitset: u32,
     ) -> OsResult {
@@ -61,7 +61,7 @@ impl Futex {
         self.wait_with_timeout(expected, timeout, bitset)
     }
 
-    fn wait_with_timeout(&self, expected: i32, timeout: Option<Timeout>, bitset: u32) -> OsResult {
+    fn wait_with_timeout(&self, expected: u32, timeout: Option<Timeout>, bitset: u32) -> OsResult {
         let (_, bucket) = FUTEX_BUCKETS.get_bucket(self);
         let mut futex_bucket = bucket.lock();
 
@@ -102,7 +102,7 @@ impl Futex {
         max_nwakes: usize,
         new_futex: &Futex,
         max_nrequeues: usize,
-        expected: i32,
+        expected: u32,
     ) -> OsResult<usize> {
         self.requeue_internal(max_nwakes, new_futex, max_nrequeues, Some(expected))
             .map(|(nwakes, nrequeues)| nwakes + nrequeues)
@@ -124,7 +124,7 @@ impl Futex {
         max_nwakes: usize,
         new_futex: &Futex,
         max_nrequeues: usize,
-        expected: Option<i32>,
+        expected: Option<u32>,
     ) -> OsResult<(usize, usize)> {
         if max_nwakes > i32::MAX as usize || max_nrequeues > i32::MAX as usize {
             bail!(EINVAL);
@@ -178,8 +178,8 @@ impl Futex {
         Ok(total_number)
     }
 
-    fn load_val(&self) -> i32 {
-        unsafe { intrinsics::atomic_load(self.0 as *const i32) }
+    fn load_val(&self) -> u32 {
+        unsafe { intrinsics::atomic_load_seqcst(self.0 as *const u32) }
     }
 
     fn addr(&self) -> usize {
@@ -272,10 +272,10 @@ impl Bucket {
     }
 }
 
-static BUCKET_COUNT: SyncLazy<usize> =
-    SyncLazy::new(|| ((1 << 8) * (trts::cpu_core_num())).next_power_of_two() as usize);
-static BUCKET_MASK: SyncLazy<usize> = SyncLazy::new(|| *BUCKET_COUNT - 1);
-static FUTEX_BUCKETS: SyncLazy<FutexBuckets> = SyncLazy::new(|| FutexBuckets::new(*BUCKET_COUNT));
+static BUCKET_COUNT: LazyLock<usize> =
+    LazyLock::new(|| ((1 << 8) * (trts::cpu_core_num())).next_power_of_two() as usize);
+static BUCKET_MASK: LazyLock<usize> = LazyLock::new(|| *BUCKET_COUNT - 1);
+static FUTEX_BUCKETS: LazyLock<FutexBuckets> = LazyLock::new(|| FutexBuckets::new(*BUCKET_COUNT));
 
 #[derive(Debug)]
 struct FutexBuckets {

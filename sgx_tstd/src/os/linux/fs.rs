@@ -329,46 +329,46 @@ impl MetadataExt for Metadata {
         unsafe { &*(self.as_inner().as_inner() as *const libc::stat64 as *const raw::stat) }
     }
     fn st_dev(&self) -> u64 {
-        self.as_inner().as_inner().st_dev as u64
+        self.as_inner().as_inner().st_dev
     }
     fn st_ino(&self) -> u64 {
-        self.as_inner().as_inner().st_ino as u64
+        self.as_inner().as_inner().st_ino
     }
     fn st_mode(&self) -> u32 {
-        self.as_inner().as_inner().st_mode as u32
+        self.as_inner().as_inner().st_mode
     }
     fn st_nlink(&self) -> u64 {
-        self.as_inner().as_inner().st_nlink as u64
+        self.as_inner().as_inner().st_nlink
     }
     fn st_uid(&self) -> u32 {
-        self.as_inner().as_inner().st_uid as u32
+        self.as_inner().as_inner().st_uid
     }
     fn st_gid(&self) -> u32 {
-        self.as_inner().as_inner().st_gid as u32
+        self.as_inner().as_inner().st_gid
     }
     fn st_rdev(&self) -> u64 {
-        self.as_inner().as_inner().st_rdev as u64
+        self.as_inner().as_inner().st_rdev
     }
     fn st_size(&self) -> u64 {
         self.as_inner().as_inner().st_size as u64
     }
     fn st_atime(&self) -> i64 {
-        self.as_inner().as_inner().st_atime as i64
+        self.as_inner().as_inner().st_atime
     }
     fn st_atime_nsec(&self) -> i64 {
-        self.as_inner().as_inner().st_atime_nsec as i64
+        self.as_inner().as_inner().st_atime_nsec
     }
     fn st_mtime(&self) -> i64 {
-        self.as_inner().as_inner().st_mtime as i64
+        self.as_inner().as_inner().st_mtime
     }
     fn st_mtime_nsec(&self) -> i64 {
-        self.as_inner().as_inner().st_mtime_nsec as i64
+        self.as_inner().as_inner().st_mtime_nsec
     }
     fn st_ctime(&self) -> i64 {
-        self.as_inner().as_inner().st_ctime as i64
+        self.as_inner().as_inner().st_ctime
     }
     fn st_ctime_nsec(&self) -> i64 {
-        self.as_inner().as_inner().st_ctime_nsec as i64
+        self.as_inner().as_inner().st_ctime_nsec
     }
     fn st_blksize(&self) -> u64 {
         self.as_inner().as_inner().st_blksize as u64

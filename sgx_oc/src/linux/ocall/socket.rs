@@ -468,7 +468,7 @@ impl SockAddr {
                     len as usize >= core::mem::size_of::<sockaddr_in>(),
                     ecust!("Malformed addr_len")
                 );
-                let sockaddr: *const sockaddr_in = core::mem::transmute(addr);
+                let sockaddr: *const sockaddr_in = addr as *const _ as *const sockaddr_in;
                 Ok(SockAddr::from(*sockaddr))
             }
             AF_INET6 => {
@@ -476,11 +476,11 @@ impl SockAddr {
                     len as usize >= core::mem::size_of::<sockaddr_in6>(),
                     ecust!("Malformed addr_len")
                 );
-                let sockaddr: *const sockaddr_in6 = core::mem::transmute(addr);
+                let sockaddr: *const sockaddr_in6 = addr as *const _ as *const sockaddr_in6;
                 Ok(SockAddr::from(*sockaddr))
             }
             AF_UNIX => {
-                let sockaddr: *const sockaddr_un = core::mem::transmute(addr);
+                let sockaddr: *const sockaddr_un = addr as *const _ as *const sockaddr_un;
                 SockAddr::try_from_un(*sockaddr, len)
             }
             _ => {
@@ -499,7 +499,7 @@ impl SockAddr {
                     len as usize == core::mem::size_of::<sockaddr_in>(),
                     ecust!("Malformed addr_len")
                 );
-                let sockaddr: *const sockaddr_in = core::mem::transmute(&storage);
+                let sockaddr: *const sockaddr_in = &storage as *const _ as *const sockaddr_in;
                 Ok(SockAddr::from(*sockaddr))
             }
             AF_INET6 => {
@@ -507,15 +507,15 @@ impl SockAddr {
                     len as usize == core::mem::size_of::<sockaddr_in6>(),
                     ecust!("Malformed addr_len")
                 );
-                let sockaddr: *const sockaddr_in6 = core::mem::transmute(&storage);
+                let sockaddr: *const sockaddr_in6 = &storage as *const _ as *const sockaddr_in6;
                 Ok(SockAddr::from(*sockaddr))
             }
             AF_UNIX => {
-                let sockaddr: *const sockaddr_un = core::mem::transmute(&storage);
+                let sockaddr: *const sockaddr_un = &storage as *const _ as *const sockaddr_un;
                 SockAddr::try_from_un(*sockaddr, len)
             }
             0 if len == 0 => {
-                let sockaddr: *const sockaddr_un = core::mem::transmute(&storage);
+                let sockaddr: *const sockaddr_un = &storage as *const _ as *const sockaddr_un;
                 Ok(SockAddr::UN((*sockaddr, len)))
             }
             _ => {

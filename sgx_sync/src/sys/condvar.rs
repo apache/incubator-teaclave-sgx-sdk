@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use crate::lazy_box::{LazyBox, LazyInit};
 use crate::sys::mutex::Mutex;
 use crate::sys::ocall;
 use alloc::boxed::Box;
@@ -28,6 +29,70 @@ use sgx_trts::tcs::{self, TcsId};
 use sgx_types::error::errno::{EBUSY, ETIMEDOUT};
 use sgx_types::error::OsResult;
 
+pub struct Condvar {
+    inner: UnsafeCell<CondvarInner>,
+}
+
+pub type MovableCondvar = LazyBox<Condvar>;
+
+unsafe impl Send for Condvar {}
+unsafe impl Sync for Condvar {}
+
+impl LazyInit for Condvar {
+    fn init() -> Box<Self> {
+        Box::new(Self::new())
+    }
+}
+
+impl Condvar {
+    pub const fn new() -> Self {
+        Condvar {
+            inner: UnsafeCell::new(CondvarInner::new()),
+        }
+    }
+
+    #[inline]
+    pub unsafe fn wait(&self, mutex: &Mutex) -> OsResult {
+        let condvar = &mut *self.inner.get();
+        condvar.wait(mutex)
+    }
+
+    #[inline]
+    pub unsafe fn wait_timeout(&self, mutex: &Mutex, dur: Duration) -> OsResult {
+        let condvar = &mut *self.inner.get();
+        condvar.wait_timeout(mutex, dur)
+    }
+
+    #[inline]
+    pub unsafe fn notify_one(&self) -> OsResult {
+        let condvar = &mut *self.inner.get();
+        condvar.notify_one()
+    }
+
+    #[inline]
+    pub unsafe fn notify_all(&self) -> OsResult {
+        let condvar = &mut *self.inner.get();
+        condvar.notify_all()
+    }
+
+    #[inline]
+    pub unsafe fn destroy(&self) -> OsResult {
+        let condvar = &mut *self.inner.get();
+        condvar.destroy()
+    }
+}
+
+impl Drop for Condvar {
+    #[inline]
+    fn drop(&mut self) {
+        let r = unsafe { self.destroy() };
+        debug_assert_eq!(r, Ok(()));
+    }
+}
+
+struct CondvarInner {
+    inner: SpinMutex<Inner>,
+}
 struct Inner {
     queue: LinkedList<TcsId>,
 }
@@ -38,10 +103,6 @@ impl Inner {
             queue: LinkedList::new(),
         }
     }
-}
-
-struct CondvarInner {
-    inner: SpinMutex<Inner>,
 }
 
 impl CondvarInner {
@@ -154,52 +215,5 @@ impl CondvarInner {
         } else {
             Err(EBUSY)
         }
-    }
-}
-
-pub type MovableCondvar = Box<Condvar>;
-
-unsafe impl Send for Condvar {}
-unsafe impl Sync for Condvar {}
-
-pub struct Condvar {
-    inner: UnsafeCell<CondvarInner>,
-}
-
-impl Condvar {
-    pub const fn new() -> Self {
-        Condvar {
-            inner: UnsafeCell::new(CondvarInner::new()),
-        }
-    }
-
-    #[inline]
-    pub unsafe fn wait(&self, mutex: &Mutex) -> OsResult {
-        let condvar = &mut *self.inner.get();
-        condvar.wait(mutex)
-    }
-
-    #[inline]
-    pub unsafe fn wait_timeout(&self, mutex: &Mutex, dur: Duration) -> OsResult {
-        let condvar = &mut *self.inner.get();
-        condvar.wait_timeout(mutex, dur)
-    }
-
-    #[inline]
-    pub unsafe fn notify_one(&self) -> OsResult {
-        let condvar = &mut *self.inner.get();
-        condvar.notify_one()
-    }
-
-    #[inline]
-    pub unsafe fn notify_all(&self) -> OsResult {
-        let condvar = &mut *self.inner.get();
-        condvar.notify_all()
-    }
-
-    #[inline]
-    pub unsafe fn destroy(&self) -> OsResult {
-        let condvar = &mut *self.inner.get();
-        condvar.destroy()
     }
 }

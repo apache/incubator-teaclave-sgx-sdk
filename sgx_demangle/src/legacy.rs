@@ -92,7 +92,7 @@ pub fn demangle(s: &str) -> Result<(Demangle, &str), ()> {
     let mut c = chars.next().ok_or(())?;
     while c != 'E' {
         // Decode an identifier element's length.
-        if !c.is_digit(10) {
+        if !c.is_ascii_digit() {
             return Err(());
         }
         let mut len = 0usize;
@@ -118,7 +118,7 @@ pub fn demangle(s: &str) -> Result<(Demangle, &str), ()> {
 
 // Rust hashes are hex digits with an `h` prepended.
 fn is_rust_hash(s: &str) -> bool {
-    s.starts_with('h') && s[1..].chars().all(|c| c.is_digit(16))
+    s.starts_with('h') && s[1..].chars().all(|c| c.is_ascii_hexdigit())
 }
 
 impl<'a> fmt::Display for Demangle<'a> {
@@ -127,7 +127,7 @@ impl<'a> fmt::Display for Demangle<'a> {
         let mut inner = self.inner;
         for element in 0..self.elements {
             let mut rest = inner;
-            while rest.chars().next().unwrap().is_digit(10) {
+            while rest.chars().next().unwrap().is_ascii_digit() {
                 rest = &rest[1..];
             }
             let i: usize = inner[..(inner.len() - rest.len())].parse().unwrap();

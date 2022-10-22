@@ -84,13 +84,13 @@ impl Drop for HeapBuffer {
 
 impl AsRef<[u8]> for HeapBuffer {
     fn as_ref(&self) -> &[u8] {
-        &**self
+        self
     }
 }
 
 impl AsMut<[u8]> for HeapBuffer {
     fn as_mut(&mut self) -> &mut [u8] {
-        &mut **self
+        self
     }
 }
 
@@ -132,7 +132,7 @@ unsafe impl Allocator for HostAlloc {
     #[inline]
     unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
         if layout.size() != 0 && is_within_host(ptr.as_ptr(), layout.size()) {
-            let _ = self.host_free(ptr);
+            self.host_free(ptr);
         }
     }
 }
@@ -153,7 +153,7 @@ impl HostAlloc {
                 &mut error as *mut c_int,
                 size,
                 layout.align(),
-                if zeroed { 1 } else { 0 },
+                i32::from(zeroed),
             )
         } else {
             u_malloc_ocall(

@@ -55,11 +55,8 @@ pub struct MsgHdrMut<'a> {
 impl<'a> MsgHdr<'a> {
     pub unsafe fn from_raw(c_msg: &msghdr) -> Self {
         let name = new_optional_slice(c_msg.msg_name as *const u8, c_msg.msg_namelen as usize);
-        let iovs = new_optional_slice(c_msg.msg_iov as *const iovec, c_msg.msg_iovlen as usize);
-        let control = new_optional_slice(
-            c_msg.msg_control as *const u8,
-            c_msg.msg_controllen as usize,
-        );
+        let iovs = new_optional_slice(c_msg.msg_iov as *const iovec, c_msg.msg_iovlen);
+        let control = new_optional_slice(c_msg.msg_control as *const u8, c_msg.msg_controllen);
         let flags = MsgHdrFlags::from_bits_truncate(c_msg.msg_flags);
         let iovs = iovs
             .map(|iovs_slice| {
@@ -82,9 +79,8 @@ impl<'a> MsgHdr<'a> {
 impl<'a> MsgHdrMut<'a> {
     pub unsafe fn from_raw(c_msg: &mut msghdr) -> Self {
         let name = new_optional_slice_mut(c_msg.msg_name as *mut u8, c_msg.msg_namelen as usize);
-        let iovs = new_optional_slice_mut(c_msg.msg_iov as *mut iovec, c_msg.msg_iovlen as usize);
-        let control =
-            new_optional_slice_mut(c_msg.msg_control as *mut u8, c_msg.msg_controllen as usize);
+        let iovs = new_optional_slice_mut(c_msg.msg_iov as *mut iovec, c_msg.msg_iovlen);
+        let control = new_optional_slice_mut(c_msg.msg_control as *mut u8, c_msg.msg_controllen);
         let flags = MsgHdrFlags::from_bits_truncate(c_msg.msg_flags);
         let iovs = iovs
             .map(|iovs_slice| {
@@ -238,7 +234,7 @@ pub unsafe fn recvmsg(sockfd: c_int, msg: &mut MsgHdrMut, flags: c_int) -> OCall
 
     let mut total_size: usize = 0;
     for s in msg.iovs.iter() {
-        check_trusted_enclave_buffer(*s)?;
+        check_trusted_enclave_buffer(s)?;
         total_size = total_size
             .checked_add(s.len())
             .ok_or_else(|| OCallError::from_custom_error("Overflow"))?;
@@ -333,7 +329,7 @@ pub unsafe fn recvmsg(sockfd: c_int, msg: &mut MsgHdrMut, flags: c_int) -> OCall
         }
     }
 
-    msg.name_len = msg_namelen_out as u32;
+    msg.name_len = msg_namelen_out;
     msg.control_len = msg_controllen_out;
     msg.flags = msg_flags;
 

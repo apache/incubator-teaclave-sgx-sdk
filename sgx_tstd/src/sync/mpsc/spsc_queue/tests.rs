@@ -66,8 +66,8 @@ fn peek() {
 fn drop_full() {
     unsafe {
         let q: Queue<Box<_>> = Queue::with_additions(0, (), ());
-        q.push(box 1);
-        q.push(box 2);
+        q.push(Box::new(1));
+        q.push(Box::new(2));
     }
 }
 
@@ -96,12 +96,13 @@ fn stress() {
     }
 
     unsafe fn stress_bound(bound: usize) {
+        let count = 100000;
         let q = Arc::new(Queue::with_additions(bound, (), ()));
 
         let (tx, rx) = channel();
         let q2 = q.clone();
         let _t = thread::spawn(move || {
-            for _ in 0..100000 {
+            for _ in 0..count {
                 loop {
                     match q2.pop() {
                         Some(1) => break,
@@ -112,7 +113,7 @@ fn stress() {
             }
             tx.send(()).unwrap();
         });
-        for _ in 0..100000 {
+        for _ in 0..count {
             q.push(1);
         }
         rx.recv().unwrap();

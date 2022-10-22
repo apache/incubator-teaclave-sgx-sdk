@@ -15,15 +15,121 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use crate::lazy_box::{LazyBox, LazyInit};
 use crate::sys::ocall;
 use alloc::boxed::Box;
 use alloc::collections::LinkedList;
 use alloc::vec::Vec;
 use core::cell::UnsafeCell;
+use core::mem;
 use sgx_trts::sync::SpinMutex;
 use sgx_trts::tcs::{self, TcsId};
 use sgx_types::error::errno::{EBUSY, EDEADLK, EPERM};
 use sgx_types::error::OsResult;
+
+pub struct RwLock {
+    inner: UnsafeCell<RwLockInner>,
+}
+
+pub type MovableRwLock = LazyBox<RwLock>;
+
+unsafe impl Send for RwLock {}
+unsafe impl Sync for RwLock {}
+
+impl LazyInit for RwLock {
+    fn init() -> Box<Self> {
+        Box::new(Self::new())
+    }
+
+    fn destroy(rwlock: Box<Self>) {
+        // We're not allowed to pthread_rwlock_destroy a locked rwlock,
+        // so check first if it's unlocked.
+        if unsafe { rwlock.is_locked() } {
+            // The rwlock is locked. This happens if a RwLock{Read,Write}Guard is leaked.
+            // In this case, we just leak the RwLock too.
+            mem::forget(rwlock);
+        }
+    }
+
+    fn cancel_init(_: Box<Self>) {
+        // In this case, we can just drop it without any checks,
+        // since it cannot have been locked yet.
+    }
+}
+
+impl RwLock {
+    pub const fn new() -> RwLock {
+        RwLock {
+            inner: UnsafeCell::new(RwLockInner::new()),
+        }
+    }
+
+    #[inline]
+    pub unsafe fn read(&self) -> OsResult {
+        let rwlock = &mut *self.inner.get();
+        rwlock.read()
+    }
+
+    #[inline]
+    pub unsafe fn try_read(&self) -> OsResult {
+        let rwlock = &mut *self.inner.get();
+        rwlock.try_read()
+    }
+
+    #[inline]
+    pub unsafe fn write(&self) -> OsResult {
+        let rwlock = &mut *self.inner.get();
+        rwlock.write()
+    }
+
+    #[inline]
+    pub unsafe fn try_write(&self) -> OsResult {
+        let rwlock = &mut *self.inner.get();
+        rwlock.try_write()
+    }
+
+    #[inline]
+    pub unsafe fn read_unlock(&self) -> OsResult {
+        let rwlock = &mut *self.inner.get();
+        rwlock.read_unlock()
+    }
+
+    #[inline]
+    pub unsafe fn write_unlock(&self) -> OsResult {
+        let rwlock = &mut *self.inner.get();
+        rwlock.write_unlock()
+    }
+
+    #[allow(dead_code)]
+    #[inline]
+    pub unsafe fn unlock(&self) -> OsResult {
+        let rwlock = &mut *self.inner.get();
+        rwlock.unlock()
+    }
+
+    #[inline]
+    pub unsafe fn destroy(&self) -> OsResult {
+        let rwlock = &mut *self.inner.get();
+        rwlock.destroy()
+    }
+
+    #[inline]
+    unsafe fn is_locked(&self) -> bool {
+        let rwlock = &*self.inner.get();
+        rwlock.is_locked()
+    }
+}
+
+impl Drop for RwLock {
+    fn drop(&mut self) {
+        let r = unsafe { self.destroy() };
+        debug_assert_eq!(r, Ok(()));
+    }
+}
+
+struct RwLockInner {
+    inner: SpinMutex<Inner>,
+}
 
 struct Inner {
     reader_count: u32,
@@ -43,10 +149,6 @@ impl Inner {
             writer_queue: LinkedList::new(),
         }
     }
-}
-
-struct RwLockInner {
-    inner: SpinMutex<Inner>,
 }
 
 impl RwLockInner {
@@ -199,81 +301,19 @@ impl RwLockInner {
     }
 
     unsafe fn destroy(&mut self) -> OsResult {
-        let inner_guard = self.inner.lock();
-        if inner_guard.owner.is_some()
-            || inner_guard.reader_count != 0
-            || inner_guard.writer_waiting != 0
-            || !inner_guard.reader_queue.is_empty()
-            || !inner_guard.writer_queue.is_empty()
-        {
+        if self.is_locked() {
             Err(EBUSY)
         } else {
             Ok(())
         }
     }
-}
 
-pub type MovableRwLock = Box<RwLock>;
-
-unsafe impl Send for RwLock {}
-unsafe impl Sync for RwLock {}
-
-pub struct RwLock {
-    inner: UnsafeCell<RwLockInner>,
-}
-
-impl RwLock {
-    pub const fn new() -> RwLock {
-        RwLock {
-            inner: UnsafeCell::new(RwLockInner::new()),
-        }
-    }
-
-    #[inline]
-    pub unsafe fn read(&self) -> OsResult {
-        let rwlock = &mut *self.inner.get();
-        rwlock.read()
-    }
-
-    #[inline]
-    pub unsafe fn try_read(&self) -> OsResult {
-        let rwlock = &mut *self.inner.get();
-        rwlock.try_read()
-    }
-
-    #[inline]
-    pub unsafe fn write(&self) -> OsResult {
-        let rwlock = &mut *self.inner.get();
-        rwlock.write()
-    }
-
-    #[inline]
-    pub unsafe fn try_write(&self) -> OsResult {
-        let rwlock = &mut *self.inner.get();
-        rwlock.try_write()
-    }
-
-    #[inline]
-    pub unsafe fn read_unlock(&self) -> OsResult {
-        let rwlock = &mut *self.inner.get();
-        rwlock.read_unlock()
-    }
-
-    #[inline]
-    pub unsafe fn write_unlock(&self) -> OsResult {
-        let rwlock = &mut *self.inner.get();
-        rwlock.write_unlock()
-    }
-
-    #[inline]
-    pub unsafe fn unlock(&self) -> OsResult {
-        let rwlock = &mut *self.inner.get();
-        rwlock.unlock()
-    }
-
-    #[inline]
-    pub unsafe fn destroy(&self) -> OsResult {
-        let rwlock = &mut *self.inner.get();
-        rwlock.destroy()
+    unsafe fn is_locked(&self) -> bool {
+        let inner_guard = self.inner.lock();
+        inner_guard.owner.is_some()
+            || inner_guard.reader_count != 0
+            || inner_guard.writer_waiting != 0
+            || !inner_guard.reader_queue.is_empty()
+            || !inner_guard.writer_queue.is_empty()
     }
 }

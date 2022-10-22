@@ -31,9 +31,9 @@ use sgx_types::types::c_char;
 use std::ffi::CStr;
 use std::io::Write;
 use std::io::{Error, ErrorKind};
-use std::lazy::SyncLazy;
 use std::slice;
 use std::string::String;
+use std::sync::LazyLock;
 use std::sync::{Mutex, Once};
 use std::untrusted::fs::{copy, File, OpenOptions};
 use std::vec::Vec;
@@ -45,10 +45,10 @@ const GCOV_TAG_COUNTER_ARCS: u32 = 0x01a1_0000;
 const GCOV_TAG_OBJECT_SUMMARY: u32 = 0xa100_0000;
 const GCOV_TAG_PROGRAM_SUMMARY: u32 = 0xa300_0000;
 
-static GCDA_FILE: SyncLazy<Mutex<(Option<File>, u32)>> =
-    SyncLazy::new(|| Mutex::new((None, u32::MAX)));
-static WROUT_FNS: SyncLazy<Mutex<Vec<extern "C" fn()>>> = SyncLazy::new(|| Mutex::new(Vec::new()));
-static RND: SyncLazy<Mutex<u32>> = SyncLazy::new(|| Mutex::new(0));
+static GCDA_FILE: LazyLock<Mutex<(Option<File>, u32)>> =
+    LazyLock::new(|| Mutex::new((None, u32::MAX)));
+static WROUT_FNS: LazyLock<Mutex<Vec<extern "C" fn()>>> = LazyLock::new(|| Mutex::new(Vec::new()));
+static RND: LazyLock<Mutex<u32>> = LazyLock::new(|| Mutex::new(0));
 
 pub fn cov_writeout() {
     for f in WROUT_FNS.lock().unwrap().iter() {

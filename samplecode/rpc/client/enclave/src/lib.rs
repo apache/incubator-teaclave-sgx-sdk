@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let response = client.say_hello(request).await?;
 
-    println!("RESPONSE={:?}", response);
+    println!("RESPONSE={response:?}");
 
     Ok(())
 }
@@ -56,11 +56,11 @@ pub extern "C" fn run_client() -> SgxStatus {
     match result {
         Ok(Ok(_)) => SgxStatus::Success,
         Ok(Err(e)) => {
-            println!("Failed to run client: {}", e);
+            println!("Failed to run client: {e}");
             SgxStatus::Unexpected
         }
         Err(e) => {
-            println!("Failed to create tokio runtime in enclave: {}", e);
+            println!("Failed to create tokio runtime in enclave: {e}");
             SgxStatus::Unexpected
         }
     }
@@ -73,7 +73,7 @@ pub extern "C" fn run_client() -> SgxStatus {
     //match main() {
     //    Ok(_) => SgxStatus::Success,
     //    Err(e) => {
-    //        println!("Failed to run client: {}", e);
+    //        println!("Failed to run client: {e}");
     //        SgxStatus::Unexpected
     //    }
     //}

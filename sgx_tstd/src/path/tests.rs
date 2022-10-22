@@ -825,17 +825,17 @@ fn test_components_debug() {
     let mut components = path.components();
 
     let expected = "Components([RootDir, Normal(\"tmp\")])";
-    let actual = format!("{:?}", components);
+    let actual = format!("{components:?}");
     assert_eq!(expected, actual);
 
     let _ = components.next().unwrap();
     let expected = "Components([Normal(\"tmp\")])";
-    let actual = format!("{:?}", components);
+    let actual = format!("{components:?}");
     assert_eq!(expected, actual);
 
     let _ = components.next().unwrap();
     let expected = "Components([])";
-    let actual = format!("{:?}", components);
+    let actual = format!("{components:?}");
     assert_eq!(expected, actual);
 }
 
@@ -846,17 +846,17 @@ fn test_iter_debug() {
     let mut iter = path.iter();
 
     let expected = "Iter([\"/\", \"tmp\"])";
-    let actual = format!("{:?}", iter);
+    let actual = format!("{iter:?}");
     assert_eq!(expected, actual);
 
     let _ = iter.next().unwrap();
     let expected = "Iter([\"tmp\"])";
-    let actual = format!("{:?}", iter);
+    let actual = format!("{iter:?}");
     assert_eq!(expected, actual);
 
     let _ = iter.next().unwrap();
     let expected = "Iter([])";
-    let actual = format!("{:?}", iter);
+    let actual = format!("{iter:?}");
     assert_eq!(expected, actual);
 }
 
@@ -947,22 +947,30 @@ fn test_unix_absolute() {
     let relative = "a/b";
     let mut expected = crate::env::current_dir().unwrap();
     expected.push(relative);
-    assert_eq!(absolute(relative).unwrap(), expected);
+    assert_eq!(absolute(relative).unwrap().as_os_str(), expected.as_os_str());
 
     // Test how components are collected.
-    assert_eq!(absolute("/a/b/c").unwrap(), Path::new("/a/b/c"));
-    assert_eq!(absolute("/a//b/c").unwrap(), Path::new("/a/b/c"));
-    assert_eq!(absolute("//a/b/c").unwrap(), Path::new("//a/b/c"));
-    assert_eq!(absolute("///a/b/c").unwrap(), Path::new("/a/b/c"));
-    assert_eq!(absolute("/a/b/c/").unwrap(), Path::new("/a/b/c/"));
-    assert_eq!(absolute("/a/./b/../c/.././..").unwrap(), Path::new("/a/b/../c/../.."));
+    assert_eq!(absolute("/a/b/c").unwrap().as_os_str(), Path::new("/a/b/c").as_os_str());
+    assert_eq!(absolute("/a//b/c").unwrap().as_os_str(), Path::new("/a/b/c").as_os_str());
+    assert_eq!(absolute("//a/b/c").unwrap().as_os_str(), Path::new("//a/b/c").as_os_str());
+    assert_eq!(absolute("///a/b/c").unwrap().as_os_str(), Path::new("/a/b/c").as_os_str());
+    assert_eq!(absolute("/a/b/c/").unwrap().as_os_str(), Path::new("/a/b/c/").as_os_str());
+    assert_eq!(
+        absolute("/a/./b/../c/.././..").unwrap().as_os_str(),
+        Path::new("/a/b/../c/../..").as_os_str()
+    );
+
+    // Test leading `.` and `..` components
+    let curdir = crate::env::current_dir().unwrap();
+    assert_eq!(absolute("./a").unwrap().as_os_str(), curdir.join("a").as_os_str());
+    assert_eq!(absolute("../a").unwrap().as_os_str(), curdir.join("../a").as_os_str()); // return /pwd/../a
 }
 
 #[bench_case]
 fn bench_path_cmp_fast_path_buf_sort(b: &mut Bencher) {
     let prefix = "my/home";
     let mut paths: Vec<_> =
-        (0..1000).map(|num| PathBuf::from(prefix).join(format!("file {}.rs", num))).collect();
+        (0..1000).map(|num| PathBuf::from(prefix).join(format!("file {num}.rs"))).collect();
 
     paths.sort();
 
@@ -975,7 +983,7 @@ fn bench_path_cmp_fast_path_buf_sort(b: &mut Bencher) {
 fn bench_path_cmp_fast_path_long(b: &mut Bencher) {
     let prefix = "/my/home/is/my/castle/and/my/castle/has/a/rusty/workbench/";
     let paths: Vec<_> =
-        (0..1000).map(|num| PathBuf::from(prefix).join(format!("file {}.rs", num))).collect();
+        (0..1000).map(|num| PathBuf::from(prefix).join(format!("file {num}.rs"))).collect();
 
     let mut set = BTreeSet::new();
 
@@ -993,7 +1001,7 @@ fn bench_path_cmp_fast_path_long(b: &mut Bencher) {
 fn bench_path_cmp_fast_path_short(b: &mut Bencher) {
     let prefix = "my/home";
     let paths: Vec<_> =
-        (0..1000).map(|num| PathBuf::from(prefix).join(format!("file {}.rs", num))).collect();
+        (0..1000).map(|num| PathBuf::from(prefix).join(format!("file {num}.rs"))).collect();
 
     let mut set = BTreeSet::new();
 
@@ -1011,7 +1019,7 @@ fn bench_path_cmp_fast_path_short(b: &mut Bencher) {
 fn bench_path_hashset(b: &mut Bencher) {
     let prefix = "/my/home/is/my/castle/and/my/castle/has/a/rusty/workbench/";
     let paths: Vec<_> =
-        (0..1000).map(|num| PathBuf::from(prefix).join(format!("file {}.rs", num))).collect();
+        (0..1000).map(|num| PathBuf::from(prefix).join(format!("file {num}.rs"))).collect();
 
     let mut set = HashSet::new();
 
@@ -1029,7 +1037,7 @@ fn bench_path_hashset(b: &mut Bencher) {
 fn bench_path_hashset_miss(b: &mut Bencher) {
     let prefix = "/my/home/is/my/castle/and/my/castle/has/a/rusty/workbench/";
     let paths: Vec<_> =
-        (0..1000).map(|num| PathBuf::from(prefix).join(format!("file {}.rs", num))).collect();
+        (0..1000).map(|num| PathBuf::from(prefix).join(format!("file {num}.rs"))).collect();
 
     let mut set = HashSet::new();
 

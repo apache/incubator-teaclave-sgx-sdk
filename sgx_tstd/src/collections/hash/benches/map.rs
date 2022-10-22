@@ -60,12 +60,10 @@ fn find_existing(b: &mut Bencher) {
         m.insert(i, i);
     }
 
-    let mut k = 1;
     b.iter(|| {
         for i in 1..1001 {
             m.contains_key(&i);
         }
-        k += 1;
     });
 }
 

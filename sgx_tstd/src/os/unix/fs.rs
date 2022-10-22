@@ -65,7 +65,7 @@ pub trait FileExt {
     ///
     ///     // We now read 8 bytes from the offset 10.
     ///     let num_bytes_read = file.read_at(&mut buf, 10)?;
-    ///     println!("read {} bytes: {:?}", num_bytes_read, buf);
+    ///     println!("read {num_bytes_read} bytes: {buf:?}");
     ///     Ok(())
     /// }
     /// ```
@@ -830,7 +830,7 @@ pub trait DirEntryExt2: Sealed {
     ///     entries.sort_unstable_by(|a, b| a.file_name_ref().cmp(b.file_name_ref()));
     ///
     ///     for p in entries {
-    ///         println!("{:?}", p);
+    ///         println!("{p:?}");
     ///     }
     ///
     ///     Ok(())

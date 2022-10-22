@@ -43,7 +43,7 @@ fn smoke() {
 #[test_case]
 fn drop_full() {
     let (tx, _rx) = channel::<Box<isize>>();
-    tx.send(box 1).unwrap();
+    tx.send(Box::new(1)).unwrap();
 }
 
 #[test_case]
@@ -51,7 +51,7 @@ fn drop_full_shared() {
     let (tx, _rx) = channel::<Box<isize>>();
     drop(tx.clone());
     drop(tx.clone());
-    tx.send(box 1).unwrap();
+    tx.send(Box::new(1)).unwrap();
 }
 
 #[test_case]
@@ -143,13 +143,14 @@ fn chan_gone_concurrent() {
 
 #[test_case]
 fn stress() {
+    let count = 10000;
     let (tx, rx) = channel::<i32>();
     let t = thread::spawn(move || {
-        for _ in 0..10000 {
+        for _ in 0..count {
             tx.send(1).unwrap();
         }
     });
-    for _ in 0..10000 {
+    for _ in 0..count {
         assert_eq!(rx.recv().unwrap(), 1);
     }
     t.join().ok().expect("thread panicked");
@@ -253,7 +254,7 @@ fn oneshot_single_thread_send_port_close() {
     // Testing that the sender cleans up the payload if receiver is closed
     let (tx, rx) = channel::<Box<i32>>();
     drop(rx);
-    assert!(tx.send(box 0).is_err());
+    assert!(tx.send(Box::new(0)).is_err());
 }
 
 #[test_case]
@@ -272,7 +273,7 @@ fn oneshot_single_thread_recv_chan_close() {
 #[test_case]
 fn oneshot_single_thread_send_then_recv() {
     let (tx, rx) = channel::<Box<i32>>();
-    tx.send(box 10).unwrap();
+    tx.send(Box::new(10)).unwrap();
     assert!(*rx.recv().unwrap() == 10);
 }
 
@@ -333,7 +334,7 @@ fn oneshot_multi_task_recv_then_send() {
         assert!(*rx.recv().unwrap() == 10);
     });
 
-    tx.send(box 10).unwrap();
+    tx.send(Box::new(10)).unwrap();
 }
 
 #[test_case]
@@ -398,7 +399,7 @@ fn oneshot_multi_thread_send_recv_stress() {
     for _ in 0..stress_factor() {
         let (tx, rx) = channel::<Box<isize>>();
         let _t = thread::spawn(move || {
-            tx.send(box 10).unwrap();
+            tx.send(Box::new(10)).unwrap();
         });
         assert!(*rx.recv().unwrap() == 10);
     }
@@ -418,7 +419,7 @@ fn stream_send_recv_stress() {
             }
 
             thread::spawn(move || {
-                tx.send(box i).unwrap();
+                tx.send(Box::new(i)).unwrap();
                 send(tx, i + 1);
             });
         }
@@ -528,12 +529,13 @@ fn very_long_recv_timeout_wont_panic() {
 
 #[test_case]
 fn recv_a_lot() {
+    let count = 10000;
     // Regression test that we don't run out of stack in scheduler context
     let (tx, rx) = channel();
-    for _ in 0..10000 {
+    for _ in 0..count {
         tx.send(()).unwrap();
     }
-    for _ in 0..10000 {
+    for _ in 0..count {
         rx.recv().unwrap();
     }
 }

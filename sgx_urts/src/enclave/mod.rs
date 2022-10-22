@@ -54,7 +54,7 @@ impl SgxEnclave {
         let status = unsafe {
             sgx_create_enclave(
                 pathname.as_c_str().as_ptr() as *const c_char,
-                if debug { 1 } else { 0 },
+                i32::from(debug),
                 ptr::null_mut(),
                 ptr::null_mut(),
                 &mut eid as *mut EnclaveId,
@@ -104,7 +104,7 @@ impl SgxEnclave {
         let status = unsafe {
             sgx_create_enclave_ex(
                 pathname.as_c_str().as_ptr() as *const c_char,
-                if debug { 1 } else { 0 },
+                i32::from(debug),
                 ptr::null_mut(),
                 ptr::null_mut(),
                 &mut eid as *mut EnclaveId,
@@ -158,7 +158,7 @@ impl SgxEnclave {
             sgx_create_enclave_from_buffer_ex(
                 buffer.as_ptr(),
                 buffer.len(),
-                if debug { 1 } else { 0 },
+                i32::from(debug),
                 &mut eid as *mut EnclaveId,
                 &mut misc_attr as *mut MiscAttribute,
                 features.bits.bits(),

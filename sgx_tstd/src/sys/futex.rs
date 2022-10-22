@@ -15,16 +15,47 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::sync::atomic::AtomicI32;
+use crate::sync::atomic::AtomicU32;
 use crate::time::Duration;
 use sgx_sync::Futex;
+use sgx_types::error::errno::{EINTR, ETIMEDOUT};
 
-pub fn futex_wait(futex: &AtomicI32, expected: i32, timeout: Option<Duration>) {
-    let futex = Futex::new(futex);
-    let _ = futex.wait(expected, timeout);
+/// Wait for a futex_wake operation to wake us.
+///
+/// Returns directly if the futex doesn't hold the expected value.
+///
+/// Returns false on timeout, and true in all other cases.
+pub fn futex_wait(futex: &AtomicU32, expected: u32, timeout: Option<Duration>) ->bool {
+    use crate::sync::atomic::Ordering::Relaxed;
+
+    let futex_obj = Futex::new(futex);
+    loop {
+        // No need to wait if the value already changed.
+        if futex.load(Relaxed) != expected {
+            return true;
+        }
+
+        match futex_obj.wait(expected, timeout) {
+            Err(ETIMEDOUT) => return false,
+            Err(EINTR) => continue,
+            _ => return true,
+        }
+    }
 }
 
-pub fn futex_wake(futex: &AtomicI32) {
+/// Wake up one thread that's blocked on futex_wait on this futex.
+///
+/// Returns true if this actually woke up such a thread,
+/// or false if no thread was waiting on this futex.
+///
+/// On some platforms, this always returns false.
+pub fn futex_wake(futex: &AtomicU32) -> bool {
     let futex = Futex::new(futex);
-    let _ = futex.wake(1);
+    futex.wake(1).is_ok()
+}
+
+/// Wake up all threads that are waiting on futex_wait on this futex.
+pub fn futex_wake_all(futex: &AtomicU32) -> bool {
+    let futex = Futex::new(futex);
+    futex.wake(i32::MAX).is_ok()
 }

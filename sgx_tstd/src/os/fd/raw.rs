@@ -38,19 +38,22 @@ pub type RawFd = raw::c_int;
 pub trait AsRawFd {
     /// Extracts the raw file descriptor.
     ///
-    /// This method does **not** pass ownership of the raw file descriptor
-    /// to the caller. The descriptor is only guaranteed to be valid while
-    /// the original object has not yet been destroyed.
+    /// This function is typically used to **borrow** an owned file descriptor.
+    /// When used in this way, this method does **not** pass ownership of the
+    /// raw file descriptor to the caller, and the file descriptor is only
+    /// guaranteed to be valid while the original object has not yet been
+    /// destroyed.
+    ///
+    /// However, borrowing is not strictly required. See [`AsFd::as_fd`]
+    /// for an API which strictly borrows a file descriptor.
     ///
     /// # Example
     ///
     /// ```no_run
     /// use std::fs::File;
     /// # use std::io;
-    /// #[cfg(unix)]
-    /// use std::os::unix::io::{AsRawFd, RawFd};
-    /// #[cfg(target_os = "wasi")]
-    /// use std::os::wasi::io::{AsRawFd, RawFd};
+    /// #[cfg(any(unix, target_os = "wasi"))]
+    /// use std::os::fd::{AsRawFd, RawFd};
     ///
     /// let mut f = File::open("foo.txt")?;
     /// // Note that `raw_fd` is only valid as long as `f` exists.
@@ -67,25 +70,26 @@ pub trait FromRawFd {
     /// Constructs a new instance of `Self` from the given raw file
     /// descriptor.
     ///
-    /// This function **consumes ownership** of the specified file
-    /// descriptor. The returned object will take responsibility for closing
-    /// it when the object goes out of scope.
+    /// This function is typically used to **consume ownership** of the
+    /// specified file descriptor. When used in this way, the returned object
+    /// will take responsibility for closing it when the object goes out of
+    /// scope.
     ///
-    /// This function is also unsafe as the primitives currently returned
-    /// have the contract that they are the sole owner of the file
-    /// descriptor they are wrapping. Usage of this function could
-    /// accidentally allow violating this contract which can cause memory
-    /// unsafety in code that relies on it being true.
+    /// However, consuming ownership is not strictly required. Use a
+    /// [`From<OwnedFd>::from`] implementation for an API which strictly
+    /// consumes ownership.
+    ///
+    /// # Safety
+    ///
+    /// The `fd` passed in must be a valid and open file descriptor.
     ///
     /// # Example
     ///
     /// ```no_run
     /// use std::fs::File;
     /// # use std::io;
-    /// #[cfg(unix)]
-    /// use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
-    /// #[cfg(target_os = "wasi")]
-    /// use std::os::wasi::io::{FromRawFd, IntoRawFd, RawFd};
+    /// #[cfg(any(unix, target_os = "wasi"))]
+    /// use std::os::fd::{FromRawFd, IntoRawFd, RawFd};
     ///
     /// let f = File::open("foo.txt")?;
     /// # #[cfg(any(unix, target_os = "wasi"))]
@@ -104,19 +108,21 @@ pub trait FromRawFd {
 pub trait IntoRawFd {
     /// Consumes this object, returning the raw underlying file descriptor.
     ///
-    /// This function **transfers ownership** of the underlying file descriptor
-    /// to the caller. Callers are then the unique owners of the file descriptor
-    /// and must close the descriptor once it's no longer needed.
+    /// This function is typically used to **transfer ownership** of the underlying
+    /// file descriptor to the caller. When used in this way, callers are then the unique
+    /// owners of the file descriptor and must close it once it's no longer needed.
+    ///
+    /// However, transferring ownership is not strictly required. Use a
+    /// [`Into<OwnedFd>::into`] implementation for an API which strictly
+    /// transfers ownership.
     ///
     /// # Example
     ///
     /// ```no_run
     /// use std::fs::File;
     /// # use std::io;
-    /// #[cfg(unix)]
-    /// use std::os::unix::io::{IntoRawFd, RawFd};
-    /// #[cfg(target_os = "wasi")]
-    /// use std::os::wasi::io::{IntoRawFd, RawFd};
+    /// #[cfg(any(unix, target_os = "wasi"))]
+    /// use std::os::fd::{IntoRawFd, RawFd};
     ///
     /// let f = File::open("foo.txt")?;
     /// #[cfg(any(unix, target_os = "wasi"))]
@@ -213,5 +219,34 @@ impl<'a> AsRawFd for io::StderrLock<'a> {
     #[inline]
     fn as_raw_fd(&self) -> RawFd {
         libc::STDERR_FILENO
+    }
+}
+
+/// This impl allows implementing traits that require `AsRawFd` on Arc.
+/// ```
+/// # #[cfg(any(unix, target_os = "wasi"))] mod group_cfg {
+/// # #[cfg(target_os = "wasi")]
+/// # use std::os::wasi::io::AsRawFd;
+/// # #[cfg(unix)]
+/// # use std::os::unix::io::AsRawFd;
+/// use std::net::UdpSocket;
+/// use std::sync::Arc;
+/// trait MyTrait: AsRawFd {
+/// }
+/// impl MyTrait for Arc<UdpSocket> {}
+/// impl MyTrait for Box<UdpSocket> {}
+/// # }
+/// ```
+impl<T: AsRawFd> AsRawFd for crate::sync::Arc<T> {
+    #[inline]
+    fn as_raw_fd(&self) -> RawFd {
+        (**self).as_raw_fd()
+    }
+}
+
+impl<T: AsRawFd> AsRawFd for Box<T> {
+    #[inline]
+    fn as_raw_fd(&self) -> RawFd {
+        (**self).as_raw_fd()
     }
 }

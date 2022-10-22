@@ -52,7 +52,7 @@ pub unsafe extern "C" fn sgx_verify_report(report: *const Report) -> SgxStatus {
         return SgxStatus::InvalidParameter;
     }
 
-    match (&*report).verify() {
+    match (*report).verify() {
         Ok(_) => SgxStatus::Success,
         Err(e) => e,
     }
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn sgx_get_key(
         return SgxStatus::InvalidParameter;
     }
 
-    match (&*key_request).get_key() {
+    match (*key_request).get_key() {
         Ok(k) => {
             *key = k;
             SgxStatus::Success
@@ -100,7 +100,7 @@ pub unsafe extern "C" fn sgx_verify_report2(report_mac: *const Report2Mac) -> Sg
         return SgxStatus::InvalidParameter;
     }
 
-    match (&*report_mac).verify() {
+    match (*report_mac).verify() {
         Ok(_) => SgxStatus::Success,
         Err(e) => e,
     }

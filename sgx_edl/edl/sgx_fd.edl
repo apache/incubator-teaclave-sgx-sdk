@@ -17,6 +17,7 @@
 
 enclave {
     include "inc/stat.h"
+    include "time.h"
 
     from "sgx_mem.edl" import *;
     from "sgx_msbuf.edl" import *;
@@ -42,5 +43,7 @@ enclave {
         int u_isatty_ocall([out] int *error, int fd);
         int u_dup_ocall([out] int *error, int oldfd);
         int u_eventfd_ocall([out] int *error, unsigned int initval, int flags);
+
+        int u_futimens_ocall([out] int *error, int fd, [in, count=2] const struct timespec *times);
     };
 };

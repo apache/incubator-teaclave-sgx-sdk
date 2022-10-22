@@ -16,8 +16,6 @@
 // under the License..
 
 pub mod pipe;
-#[cfg(feature = "unsupported_process")]
-pub mod process;
 
 mod common;
 pub use common::*;

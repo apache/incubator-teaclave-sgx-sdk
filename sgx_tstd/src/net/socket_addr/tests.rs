@@ -15,8 +15,6 @@
 // specific language governing permissions and limitations
 // under the License..
 
-#![allow(clippy::eq_op)]
-
 use crate::net::test::{sa4, sa6, tsa};
 use crate::net::*;
 
@@ -64,6 +62,75 @@ fn to_socket_addr_string() {
     let s = format!("{}:{}", "77.88.21.11", "24352");
     assert_eq!(Ok(vec![a]), tsa(s));
     // s has been moved into the tsa call
+}
+
+#[test_case]
+fn ipv4_socket_addr_to_string() {
+    // Shortest possible IPv4 length.
+    assert_eq!(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), 0).to_string(), "0.0.0.0:0");
+
+    // Longest possible IPv4 length.
+    assert_eq!(
+        SocketAddrV4::new(Ipv4Addr::new(255, 255, 255, 255), u16::MAX).to_string(),
+        "255.255.255.255:65535"
+    );
+
+    // Test padding.
+    assert_eq!(
+        &format!("{:16}", SocketAddrV4::new(Ipv4Addr::new(1, 1, 1, 1), 53)),
+        "1.1.1.1:53      "
+    );
+    assert_eq!(
+        &format!("{:>16}", SocketAddrV4::new(Ipv4Addr::new(1, 1, 1, 1), 53)),
+        "      1.1.1.1:53"
+    );
+}
+
+#[test_case]
+fn ipv6_socket_addr_to_string() {
+    // IPv4-mapped address.
+    assert_eq!(
+        SocketAddrV6::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0xffff, 0xc000, 0x280), 8080, 0, 0)
+            .to_string(),
+        "[::ffff:192.0.2.128]:8080"
+    );
+
+    // IPv4-compatible address.
+    assert_eq!(
+        SocketAddrV6::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0xc000, 0x280), 8080, 0, 0).to_string(),
+        "[::192.0.2.128]:8080"
+    );
+
+    // IPv6 address with no zero segments.
+    assert_eq!(
+        SocketAddrV6::new(Ipv6Addr::new(8, 9, 10, 11, 12, 13, 14, 15), 80, 0, 0).to_string(),
+        "[8:9:a:b:c:d:e:f]:80"
+    );
+
+    // Shortest possible IPv6 length.
+    assert_eq!(SocketAddrV6::new(Ipv6Addr::UNSPECIFIED, 0, 0, 0).to_string(), "[::]:0");
+
+    // Longest possible IPv6 length.
+    assert_eq!(
+        SocketAddrV6::new(
+            Ipv6Addr::new(0x1111, 0x2222, 0x3333, 0x4444, 0x5555, 0x6666, 0x7777, 0x8888),
+            u16::MAX,
+            u32::MAX,
+            u32::MAX,
+        )
+        .to_string(),
+        "[1111:2222:3333:4444:5555:6666:7777:8888%4294967295]:65535"
+    );
+
+    // Test padding.
+    assert_eq!(
+        &format!("{:22}", SocketAddrV6::new(Ipv6Addr::new(1, 2, 3, 4, 5, 6, 7, 8), 9, 0, 0)),
+        "[1:2:3:4:5:6:7:8]:9   "
+    );
+    assert_eq!(
+        &format!("{:>22}", SocketAddrV6::new(Ipv6Addr::new(1, 2, 3, 4, 5, 6, 7, 8), 9, 0, 0)),
+        "   [1:2:3:4:5:6:7:8]:9"
+    );
 }
 
 #[test_case]
@@ -184,33 +251,34 @@ fn is_v6() {
 fn socket_v4_to_str() {
     let socket = SocketAddrV4::new(Ipv4Addr::new(192, 168, 0, 1), 8080);
 
-    assert_eq!(format!("{}", socket), "192.168.0.1:8080");
-    assert_eq!(format!("{:<20}", socket), "192.168.0.1:8080    ");
-    assert_eq!(format!("{:>20}", socket), "    192.168.0.1:8080");
-    assert_eq!(format!("{:^20}", socket), "  192.168.0.1:8080  ");
-    assert_eq!(format!("{:.10}", socket), "192.168.0.");
+    assert_eq!(format!("{socket}"), "192.168.0.1:8080");
+    assert_eq!(format!("{socket:<20}"), "192.168.0.1:8080    ");
+    assert_eq!(format!("{socket:>20}"), "    192.168.0.1:8080");
+    assert_eq!(format!("{socket:^20}"), "  192.168.0.1:8080  ");
+    assert_eq!(format!("{socket:.10}"), "192.168.0.");
 }
 
 #[test_case]
 fn socket_v6_to_str() {
     let mut socket = SocketAddrV6::new(Ipv6Addr::new(0x2a02, 0x6b8, 0, 1, 0, 0, 0, 1), 53, 0, 0);
 
-    assert_eq!(format!("{}", socket), "[2a02:6b8:0:1::1]:53");
-    assert_eq!(format!("{:<24}", socket), "[2a02:6b8:0:1::1]:53    ");
-    assert_eq!(format!("{:>24}", socket), "    [2a02:6b8:0:1::1]:53");
-    assert_eq!(format!("{:^24}", socket), "  [2a02:6b8:0:1::1]:53  ");
-    assert_eq!(format!("{:.15}", socket), "[2a02:6b8:0:1::");
+    assert_eq!(format!("{socket}"), "[2a02:6b8:0:1::1]:53");
+    assert_eq!(format!("{socket:<24}"), "[2a02:6b8:0:1::1]:53    ");
+    assert_eq!(format!("{socket:>24}"), "    [2a02:6b8:0:1::1]:53");
+    assert_eq!(format!("{socket:^24}"), "  [2a02:6b8:0:1::1]:53  ");
+    assert_eq!(format!("{socket:.15}"), "[2a02:6b8:0:1::");
 
     socket.set_scope_id(5);
 
-    assert_eq!(format!("{}", socket), "[2a02:6b8:0:1::1%5]:53");
-    assert_eq!(format!("{:<24}", socket), "[2a02:6b8:0:1::1%5]:53  ");
-    assert_eq!(format!("{:>24}", socket), "  [2a02:6b8:0:1::1%5]:53");
-    assert_eq!(format!("{:^24}", socket), " [2a02:6b8:0:1::1%5]:53 ");
-    assert_eq!(format!("{:.18}", socket), "[2a02:6b8:0:1::1%5");
+    assert_eq!(format!("{socket}"), "[2a02:6b8:0:1::1%5]:53");
+    assert_eq!(format!("{socket:<24}"), "[2a02:6b8:0:1::1%5]:53  ");
+    assert_eq!(format!("{socket:>24}"), "  [2a02:6b8:0:1::1%5]:53");
+    assert_eq!(format!("{socket:^24}"), " [2a02:6b8:0:1::1%5]:53 ");
+    assert_eq!(format!("{socket:.18}"), "[2a02:6b8:0:1::1%5");
 }
 
 #[test_case]
+#[allow(clippy::eq_op)]
 fn compare() {
     let v4_1 = "224.120.45.1:23456".parse::<SocketAddrV4>().unwrap();
     let v4_2 = "224.210.103.5:12345".parse::<SocketAddrV4>().unwrap();

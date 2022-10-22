@@ -47,6 +47,7 @@ pub mod gnu;
 pub mod io;
 pub mod memchr;
 pub mod mutex;
+pub mod once;
 #[cfg(feature = "unsupported_process")]
 pub mod process;
 #[cfg(feature = "net")]

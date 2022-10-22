@@ -286,10 +286,13 @@ fn test_lots_of_insertions() {
 
     // Try this a few times to make sure we never screw up the hashmap's
     // internal state.
-    for _ in 0..10 {
+    let loops = 10;
+    for _ in 0..loops {
         assert!(m.is_empty());
 
-        for i in 1..1001 {
+        let count = 1001;
+
+        for i in 1..count {
             assert!(m.insert(i, i).is_none());
 
             for j in 1..=i {
@@ -297,42 +300,42 @@ fn test_lots_of_insertions() {
                 assert_eq!(r, Some(&j));
             }
 
-            for j in i + 1..1001 {
+            for j in i + 1..count {
                 let r = m.get(&j);
                 assert_eq!(r, None);
             }
         }
 
-        for i in 1001..2001 {
+        for i in count..(2 * count) {
             assert!(!m.contains_key(&i));
         }
 
         // remove forwards
-        for i in 1..1001 {
+        for i in 1..count {
             assert!(m.remove(&i).is_some());
 
             for j in 1..=i {
                 assert!(!m.contains_key(&j));
             }
 
-            for j in i + 1..1001 {
+            for j in i + 1..count {
                 assert!(m.contains_key(&j));
             }
         }
 
-        for i in 1..1001 {
+        for i in 1..count {
             assert!(!m.contains_key(&i));
         }
 
-        for i in 1..1001 {
+        for i in 1..count {
             assert!(m.insert(i, i).is_none());
         }
 
         // remove backwards
-        for i in (1..1001).rev() {
+        for i in (1..count).rev() {
             assert!(m.remove(&i).is_some());
 
-            for j in i..1001 {
+            for j in i..count {
                 assert!(!m.contains_key(&j));
             }
 
@@ -534,10 +537,10 @@ fn test_show() {
     map.insert(1, 2);
     map.insert(3, 4);
 
-    let map_str = format!("{:?}", map);
+    let map_str = format!("{map:?}");
 
     assert!(map_str == "{1: 2, 3: 4}" || map_str == "{3: 4, 1: 2}");
-    assert_eq!(format!("{:?}", empty), "{}");
+    assert_eq!(format!("{empty:?}"), "{}");
 }
 
 #[test_case]
@@ -1097,4 +1100,10 @@ fn from_array() {
     // If you make a change that causes this line to no longer infer,
     // that's a problem!
     let _must_not_require_type_annotation = HashMap::from([(1, 2)]);
+}
+
+#[test_case]
+fn const_with_hasher() {
+    const X: HashMap<(), (), ()> = HashMap::with_hasher(());
+    assert_eq!(X.len(), 0);
 }

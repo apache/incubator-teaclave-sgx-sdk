@@ -132,20 +132,18 @@ pub mod gnu {
     use crate::enclave::Enclave;
     use crate::ffi::CString;
     use crate::io::{self, Error, ErrorKind};
-    use crate::mem;
     use crate::os::unix::ffi::OsStrExt;
 
     pub fn get_enclave_filename() -> io::Result<Vec<u8>> {
         let p = Enclave::get_path();
-        let result = match p {
+        match p {
             None => Err(Error::new(ErrorKind::Other, "no enclave path found")),
             Some(path) => {
                 let cstr = CString::new(path.as_os_str().as_bytes())?;
-                let v = unsafe { mem::transmute(cstr.into_bytes_with_nul()) };
+                let v = cstr.into_bytes_with_nul();
                 Ok(v)
             }
-        };
-        result
+        }
     }
 }
 

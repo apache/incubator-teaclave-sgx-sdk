@@ -89,20 +89,15 @@ fn copies_append_mode_sink() {
     let tmp_path = tmpdir();
     let source_path = tmp_path.join("copies_append_mode.source");
     let sink_path = tmp_path.join("copies_append_mode.sink");
+    let mut source =
+        OpenOptions::new().create(true).truncate(true).write(true).read(true).open(&source_path).unwrap();
+    write!(source, "not empty").unwrap();
+    source.seek(SeekFrom::Start(0)).unwrap();
+    let mut sink = OpenOptions::new().create(true).append(true).open(&sink_path).unwrap();
 
-    let result: Result<()> = try {
-        let mut source =
-            OpenOptions::new().create(true).truncate(true).write(true).read(true).open(&source_path)?;
-        write!(source, "not empty")?;
-        source.seek(SeekFrom::Start(0))?;
-        let mut sink = OpenOptions::new().create(true).append(true).open(&sink_path)?;
+    let copied = crate::io::copy(&mut source, &mut sink).unwrap();
 
-        let copied = crate::io::copy(&mut source, &mut sink)?;
-
-        assert_eq!(copied, 9);
-    };
-
-    assert!(result.is_ok());
+    assert_eq!(copied, 9);
 }
 
 #[bench_case]

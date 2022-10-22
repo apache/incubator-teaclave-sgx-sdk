@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#![allow(clippy::enum_variant_names)]
+
 use crate::arch::Secinfo;
 use crate::inst::INVALID_LEAF;
 use crate::se::{

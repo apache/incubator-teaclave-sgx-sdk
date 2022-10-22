@@ -17,6 +17,7 @@
 
 #![forbid(non_camel_case_types)]
 #![allow(missing_docs)]
+#![allow(clippy::derive_partial_eq_without_eq)]
 
 //! JSON parsing and serialization
 //!
@@ -237,7 +238,7 @@ pub struct AsPrettyJson<'a, T> {
 
 /// The errors that can arise while parsing a JSON stream.
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ErrorCode {
     InvalidSyntax,
     InvalidNumber,
@@ -258,7 +259,7 @@ pub enum ErrorCode {
     NotUtf8,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ParserError {
     /// msg, line, col
     SyntaxError(ErrorCode, usize, usize),
@@ -268,7 +269,7 @@ pub enum ParserError {
 // Builder and Parser have the same errors.
 pub type BuilderError = ParserError;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DecoderError {
     ParseError(ParserError),
     ExpectedError(string::String, string::String),
@@ -1321,7 +1322,7 @@ impl Index<usize> for Json {
 }
 
 /// The output of the streaming parser.
-#[derive(PartialEq, Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum JsonEvent {
     ObjectStart,
     ObjectEnd,
@@ -1370,7 +1371,7 @@ pub struct Stack {
 /// As an example, `StackElement::Key("foo")`, `StackElement::Key("bar")`,
 /// `StackElement::Index(3)`, and `StackElement::Key("x")` are the
 /// StackElements composing the stack that represents `foo.bar[3].x`.
-#[derive(PartialEq, Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum StackElement<'l> {
     Index(u32),
     Key(&'l str),
@@ -1378,7 +1379,7 @@ pub enum StackElement<'l> {
 
 // Internally, Key elements are stored as indices in a buffer to avoid
 // allocating a string for every member of an object.
-#[derive(PartialEq, Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 enum InternalStackElement {
     InternalIndex(u32),
     InternalKey(u16, u16), // start, size

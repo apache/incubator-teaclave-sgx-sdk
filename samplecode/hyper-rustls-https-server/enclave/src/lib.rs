@@ -46,11 +46,11 @@ pub extern "C" fn run_server() -> SgxStatus {
     match result {
         Ok(Ok(_)) => SgxStatus::Success,
         Ok(Err(e)) => {
-            println!("Failed to run server: {}", e);
+            println!("Failed to run server: {e}");
             SgxStatus::Unexpected
         }
         Err(e) => {
-            println!("Failed to create tokio runtime in enclave: {}", e);
+            println!("Failed to create tokio runtime in enclave: {e}");
             SgxStatus::Unexpected
         }
     }
@@ -88,7 +88,7 @@ async fn run_sample_server() -> Result<(), Box<dyn std::error::Error + Send + Sy
     let server = Server::builder(TlsAcceptor::new(tls_cfg, incoming)).serve(service);
 
     // Run the future, keep going until an error occurs.
-    println!("Starting to serve on https://{}.", addr);
+    println!("Starting to serve on https://{addr}.");
     server.await?;
     Ok(())
 }

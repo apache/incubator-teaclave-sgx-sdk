@@ -26,7 +26,9 @@ use crate::iter;
 use crate::path;
 use crate::path::PathBuf;
 use crate::slice;
-use crate::str;
+#[cfg(feature = "env")]
+use crate::sys::common::small_c_string::run_path_with_cstr;
+use crate::sys::common::small_c_string::run_with_cstr;
 use crate::sys::cvt_ocall;
 use crate::sys::memchr;
 use crate::vec;
@@ -54,14 +56,18 @@ pub fn error_string(errno: i32) -> String {
         fn strerror_r(errnum: c_int, buf: *mut c_char, buflen: size_t) -> c_int;
     }
 
-    let mut buf = [0_i8; TMPBUF_SZ];
+    let mut buf = [0 as c_char; TMPBUF_SZ];
 
     let p = buf.as_mut_ptr();
     unsafe {
-        assert!(strerror_r(errno as c_int, p, buf.len()) >= 0, "strerror_r failure");
+        if strerror_r(errno as c_int, p, buf.len()) < 0 {
+            panic!("strerror_r failure");
+        }
 
         let p = p as *const _;
-        str::from_utf8(CStr::from_ptr(p).to_bytes()).unwrap().to_owned()
+        // We can't always expect a UTF-8 environment. When we don't get that luxury,
+        // it's better to give a low-quality error message than none at all.
+        String::from_utf8_lossy(CStr::from_ptr(p).to_bytes()).into()
     }
 }
 
@@ -78,9 +84,7 @@ pub(crate) fn _getcwd() -> io::Result<PathBuf> {
 
 #[cfg(feature = "env")]
 pub fn chdir(p: &path::Path) -> io::Result<()> {
-    let p: &OsStr = p.as_ref();
-    let p = CString::new(p.as_bytes())?;
-    unsafe { cvt_ocall(libc::chdir(&p)) }
+    run_path_with_cstr(p, |p| cvt_ocall(unsafe { libc::chdir(p) }))
 }
 
 #[allow(clippy::type_complexity)]
@@ -225,20 +229,15 @@ pub fn getenv(k: &OsStr) -> io::Result<Option<OsString>> {
 }
 
 pub fn setenv(k: &OsStr, v: &OsStr) -> io::Result<()> {
-    let k = CString::new(k.as_bytes())?;
-    let v = CString::new(v.as_bytes())?;
-
-    unsafe {
-        cvt_ocall(libc::setenv(&k, &v, 1))
-    }
+    run_with_cstr(k.as_bytes(), |k| {
+        run_with_cstr(v.as_bytes(), |v| {
+            cvt_ocall(unsafe { libc::setenv(k, v, 1) })
+        })
+    })
 }
 
 pub fn unsetenv(n: &OsStr) -> io::Result<()> {
-    let nbuf = CString::new(n.as_bytes())?;
-
-    unsafe {
-        cvt_ocall(libc::unsetenv(&nbuf))
-    }
+    run_with_cstr(n.as_bytes(), |nbuf| cvt_ocall(unsafe { libc::unsetenv(nbuf) }))
 }
 
 pub fn page_size() -> usize {

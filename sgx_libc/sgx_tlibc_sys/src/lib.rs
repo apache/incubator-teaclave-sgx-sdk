@@ -161,6 +161,7 @@ mod bindings {
 
         #[cfg_attr(target_os = "linux", link_name = "__errno_location")]
         pub fn errno_location() -> *mut c_int;
+        pub fn strerror(errnum: c_int) -> *const c_char;
         pub fn strerror_r(errnum: c_int, buf: *mut c_char, buflen: size_t) -> c_int;
     }
 }

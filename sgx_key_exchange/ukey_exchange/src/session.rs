@@ -187,7 +187,7 @@ impl Initiator {
                     &report as *const _,
                     att_key_id as *const _,
                     &mut qe_report_info as *mut _,
-                    (&mut c_msg3.quote).as_mut_ptr().cast(),
+                    (c_msg3.quote).as_mut_ptr().cast(),
                     quote_size,
                 );
                 ensure!(status.is_success(), status);
@@ -203,7 +203,7 @@ impl Initiator {
                     sig_rl,
                     sig_rl_len,
                     &mut qe_report as *mut _,
-                    (&mut c_msg3.quote).as_mut_ptr().cast(),
+                    (c_msg3.quote).as_mut_ptr().cast(),
                     quote_size,
                 );
                 ensure!(status.is_success(), status);

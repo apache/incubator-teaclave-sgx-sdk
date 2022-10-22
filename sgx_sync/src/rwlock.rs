@@ -28,6 +28,7 @@ pub struct StaticRwLock(imp::RwLock);
 unsafe impl Sync for StaticRwLock {}
 
 impl StaticRwLock {
+    #[inline]
     pub const fn new() -> StaticRwLock {
         StaticRwLock(imp::RwLock::new())
     }
@@ -83,17 +84,23 @@ impl Drop for StaticRwLockWriteGuard {
 
 /// An SGX-based reader-writer lock.
 ///
-/// This structure is entirely unsafe and serves as the lowest layer of a
-/// cross-platform binding of system rwlocks. It is recommended to use the
-/// safer types at the top level of this crate instead of this type.
+/// This rwlock cleans up its resources in its `Drop` implementation and may
+/// safely be moved (when not borrowed).
+///
+/// This rwlock does not implement poisoning.
+///
+/// This is either a wrapper around `LazyBox<imp::RwLock>` or `imp::RwLock`,
+/// depending on the platform. It is boxed on platforms where `imp::RwLock` may
+/// not be moved.
 pub struct MovableRwLock(imp::MovableRwLock);
 
 unsafe impl Sync for MovableRwLock {}
 
 impl MovableRwLock {
     /// Creates a new reader-writer lock for use.
-    pub fn new() -> MovableRwLock {
-        MovableRwLock(imp::MovableRwLock::from(imp::RwLock::new()))
+    #[inline]
+    pub const fn new() -> MovableRwLock {
+        MovableRwLock(imp::MovableRwLock::new())
     }
 
     /// Acquires shared access to the underlying lock, blocking the current
@@ -156,13 +163,6 @@ impl MovableRwLock {
     #[inline]
     pub unsafe fn write_unlock(&self) {
         let r = self.0.write_unlock();
-        debug_assert_eq!(r, Ok(()));
-    }
-}
-
-impl Drop for MovableRwLock {
-    fn drop(&mut self) {
-        let r = unsafe { self.0.destroy() };
         debug_assert_eq!(r, Ok(()));
     }
 }

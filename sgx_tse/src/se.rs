@@ -188,7 +188,7 @@ impl LAv2ProtoSpec {
 
         let mut to = 0_i32;
         for i in 1..(self.ts_count() + 1) as usize {
-            let size = (1 << (self.target_spec[i] & 0xF)) as i32;
+            let size = 1 << (self.target_spec[i] & 0xF);
             to += size - 1;
             to &= -size;
 

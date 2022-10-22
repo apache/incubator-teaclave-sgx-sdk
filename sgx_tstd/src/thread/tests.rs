@@ -21,10 +21,11 @@
 use super::Builder;
 use crate::mem;
 use crate::sync::{
+    atomic::{AtomicBool, Ordering},
     mpsc::{channel, Sender},
     Arc, Barrier,
 };
-use crate::thread::{self, ThreadId};
+use crate::thread::{self, Scope, ThreadId};
 use crate::time::Duration;
 use crate::time::Instant;
 
@@ -44,13 +45,12 @@ fn test_unnamed_thread() {
     .expect("thread panicked");
 }
 
-#[allow(clippy::cmp_owned)]
 #[test_case]
 fn test_named_thread() {
     Builder::new()
         .name("ada lovelace".to_string())
         .spawn(move || {
-            assert!(thread::current().name().unwrap() == "ada lovelace".to_string());
+            assert!(thread::current().name().unwrap() == "ada lovelace");
         })
         .unwrap()
         .join()
@@ -72,7 +72,7 @@ fn test_run_basic() {
 }
 
 #[test_case]
-fn test_is_running() {
+fn test_is_finished() {
     let b = Arc::new(Barrier::new(2));
     let t = thread::spawn({
         let b = b.clone();
@@ -83,14 +83,14 @@ fn test_is_running() {
     });
 
     // Thread is definitely running here, since it's still waiting for the barrier.
-    assert!(t.is_running());
+    assert!(!t.is_finished());
 
     // Unblock the barrier.
     b.wait();
 
-    // Now check that t.is_running() becomes false within a reasonable time.
+    // Now check that t.is_finished() becomes true within a reasonable time.
     let start = Instant::now();
-    while t.is_running() {
+    while !t.is_finished() {
         assert!(start.elapsed() < Duration::from_secs(2));
         thread::sleep(Duration::from_millis(15));
     }
@@ -138,7 +138,7 @@ where
 {
     let (tx, rx) = channel();
 
-    let x: Box<_> = box 1;
+    let x: Box<_> = Box::new(1);
     let x_in_parent = (&*x) as *const i32 as usize;
 
     spawnfn(Box::new(move || {
@@ -173,8 +173,8 @@ fn test_avoid_copying_the_body_join() {
     })
 }
 
-#[allow(clippy::needless_return)]
 #[test_case]
+#[allow(clippy::needless_return)]
 fn test_child_doesnt_ref_parent() {
     // If the child refcounts the parent thread, this will stack overflow when
     // climbing the thread tree to dereference each ancestor. (See #1789)
@@ -194,6 +194,28 @@ fn test_child_doesnt_ref_parent() {
 #[test_case]
 fn test_simple_newsched_spawn() {
     thread::spawn(move || {});
+}
+
+#[test_case]
+fn test_park_unpark_before() {
+    for _ in 0..10 {
+        thread::current().unpark();
+        thread::park();
+    }
+}
+
+#[test_case]
+fn test_park_unpark_called_other_thread() {
+    for _ in 0..10 {
+        let th = thread::current();
+
+        let _guard = thread::spawn(move || {
+            super::sleep(Duration::from_millis(50));
+            th.unpark();
+        });
+
+        thread::park();
+    }
 }
 
 #[test_case]
@@ -246,5 +268,39 @@ fn test_thread_id_not_equal() {
     assert!(thread::current().id() != spawned_id);
 }
 
-// NOTE: the corresponding test for stderr is in ui/thread-stderr, due
-// to the test harness apparently interfering with stderr configuration.
+#[test_case]
+fn test_scoped_threads_drop_result_before_join() {
+    let actually_finished = &AtomicBool::new(false);
+    struct X<'scope, 'env>(&'scope Scope<'scope, 'env>, &'env AtomicBool);
+    impl Drop for X<'_, '_> {
+        fn drop(&mut self) {
+            thread::sleep(Duration::from_millis(20));
+            let actually_finished = self.1;
+            self.0.spawn(move || {
+                thread::sleep(Duration::from_millis(20));
+                actually_finished.store(true, Ordering::Relaxed);
+            });
+        }
+    }
+    thread::scope(|s| {
+        s.spawn(move || {
+            thread::sleep(Duration::from_millis(20));
+            X(s, actually_finished)
+        });
+    });
+    assert!(actually_finished.load(Ordering::Relaxed));
+}
+
+#[test_case]
+#[allow(clippy::drop_ref)]
+fn test_scoped_threads_nll() {
+    // this is mostly a *compilation test* for this exact function:
+    fn foo(x: &u8) {
+        thread::scope(|s| {
+            s.spawn(|| drop(x));
+        });
+    }
+    // let's also run it for good measure
+    let x = 42_u8;
+    foo(&x);
+}

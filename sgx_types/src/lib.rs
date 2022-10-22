@@ -16,6 +16,7 @@
 // under the License..
 
 #![no_std]
+#![feature(error_in_core)]
 #![feature(min_specialization)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(non_camel_case_types)]

@@ -64,17 +64,17 @@ fn instant_monotonic_concurrent() {
 #[test_case]
 fn instant_elapsed() {
     let a = Instant::now();
-    a.elapsed();
+    let _ = a.elapsed();
 }
 
 #[test_case]
 fn instant_math() {
     let a = Instant::now();
     let b = Instant::now();
-    println!("a: {:?}", a);
-    println!("b: {:?}", b);
+    println!("a: {a:?}");
+    println!("b: {b:?}");
     let dur = b.duration_since(a);
-    println!("dur: {:?}", dur);
+    println!("dur: {dur:?}");
     assert_almost_eq!(b - dur, a);
     assert_almost_eq!(a + dur, b);
 

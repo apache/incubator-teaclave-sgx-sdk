@@ -351,11 +351,7 @@ pub unsafe extern "C" fn sgx_feof(file: RawProtectedFile) -> i32 {
     }
 
     let file = ManuallyDrop::new(SgxFile::from_raw(file));
-    if file.is_eof() {
-        1
-    } else {
-        0
-    }
+    i32::from(file.is_eof())
 }
 
 /// # Safety
@@ -533,7 +529,7 @@ pub unsafe extern "C" fn sgx_fimport_auto_key(
         KeyPolicy::MRSIGNER
     };
 
-    match fs_imp::import_key(name, *import_key, key_policy) {
+    match fs_imp::import_key(name, *import_key, Some(key_policy)) {
         Ok(_) => 0,
         Err(_) => -1,
     }

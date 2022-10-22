@@ -59,12 +59,12 @@ pub unsafe extern "C" fn seal_data() -> SgxStatus {
     rng.fill_bytes(data.as_mut());
 
     let data = SealData::new(msg, data);
-    println!("sealdata: {:?}", data);
+    println!("sealdata: {data:?}");
 
     let sealed_bytes = match seal(data.clone(), aad.clone()) {
         Ok(bytes) => bytes,
         Err(e) => {
-            println!("seal failed. {:?}", e);
+            println!("seal failed. {e:?}");
             return e;
         }
     };
@@ -73,7 +73,7 @@ pub unsafe extern "C" fn seal_data() -> SgxStatus {
     let sealed_bytes = match fs::read("sealed_data.txt") {
         Ok(bytes) => bytes,
         Err(e) => {
-            println!("read sealed_data.txt failed. {:?}", e);
+            println!("read sealed_data.txt failed. {e:?}");
             return SgxStatus::Unexpected;
         }
     };
@@ -82,13 +82,13 @@ pub unsafe extern "C" fn seal_data() -> SgxStatus {
     let (unsealed_data, unsealed_aad) = match unseal(sealed_bytes) {
         Ok(data) => data,
         Err(e) => {
-            println!("unseal failed. {:?}", e);
+            println!("unseal failed. {e:?}");
             return e;
         }
     };
 
-    println!("unsealed data: {:?}", unsealed_data);
-    println!("aad: {:?}", unsealed_aad);
+    println!("unsealed data: {unsealed_data:?}");
+    println!("aad: {unsealed_aad:?}");
 
     assert_eq!(data, unsealed_data);
     assert_eq!(aad, unsealed_aad);

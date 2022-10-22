@@ -32,7 +32,7 @@ crate-type = ["rlib"]
 [features]
 default = ["panic_on_unsupported_syscall"]
 extra_traits = ["sgx_oc/extra_traits"]
-pthread = ["sgx_trts/thread"]
+pthread = ["sgx_trts/thread", "sgx_sync/capi"]
 panic_on_unsupported_syscall = []
 
 [target.'cfg(not(target_vendor = "teaclave"))'.dependencies]

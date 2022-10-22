@@ -110,7 +110,7 @@ f! {
     }
 
     pub fn CMSG_FIRSTHDR(mhdr: *const msghdr) -> *mut cmsghdr {
-        if (*mhdr).msg_controllen as usize >= mem::size_of::<cmsghdr>() {
+        if (*mhdr).msg_controllen >= mem::size_of::<cmsghdr>() {
             (*mhdr).msg_control as *mut cmsghdr
         } else {
             core::ptr::null_mut::<cmsghdr>()
@@ -130,13 +130,13 @@ f! {
     }
 
     pub fn CMSG_NXTHDR(mhdr: *const msghdr, cmsg: *const cmsghdr) -> *mut cmsghdr {
-        if ((*cmsg).cmsg_len as usize) < mem::size_of::<cmsghdr>() {
+        if ((*cmsg).cmsg_len) < mem::size_of::<cmsghdr>() {
             return core::ptr::null_mut::<cmsghdr>();
         };
-        let next = (cmsg as usize + CMSG_ALIGN((*cmsg).cmsg_len as usize)) as *mut cmsghdr;
-        let max = (*mhdr).msg_control as usize + (*mhdr).msg_controllen as usize;
+        let next = (cmsg as usize + CMSG_ALIGN((*cmsg).cmsg_len)) as *mut cmsghdr;
+        let max = (*mhdr).msg_control as usize + (*mhdr).msg_controllen;
         if (next.offset(1)) as usize > max
-            || next as usize + CMSG_ALIGN((*next).cmsg_len as usize) > max
+            || next as usize + CMSG_ALIGN((*next).cmsg_len) > max
         {
             core::ptr::null_mut::<cmsghdr>()
         } else {
@@ -255,7 +255,7 @@ unsafe fn __sigdelset(set: *mut sigset_t, sig: c_int) {
 unsafe fn __sigismember(set: *const sigset_t, sig: c_int) -> c_int {
     let mask: u64 = __sigmask(sig);
     let word: u64 = __sigword(sig);
-    let val = if mask != 0 { 1 } else { 0 };
+    let val = u64::from(mask != 0);
     ((*set).__val[word as usize] & val) as c_int
 }
 

@@ -15,12 +15,16 @@
 // specific language governing permissions and limitations
 // under the License..
 
+mod lazy;
 mod lock_api;
 mod mutex;
 mod once;
 mod rwlock;
 
+#[allow(unused_imports)]
+pub(crate) use lazy::{Lazy, OnceCell};
+pub(crate) use once::Once;
+
 pub use lock_api::{RawMutex, RawRwLock};
 pub use mutex::{SpinMutex, SpinMutexGuard};
-pub(crate) use once::Once;
 pub use rwlock::{SpinRwLock, SpinRwLockReadGuard, SpinRwLockWriteGuard};

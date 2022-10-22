@@ -147,7 +147,7 @@ impl serialize::Encoder for Encoder {
 
     #[inline]
     fn emit_bool(&mut self, v: bool) -> EncodeResult {
-        self.emit_u8(if v { 1 } else { 0 })
+        self.emit_u8(u8::from(v))
     }
 
     #[inline]

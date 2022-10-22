@@ -22,12 +22,12 @@ use sgx_types::types::{
     AttKeyId, CRaMsg1, CRaMsg2, CRaMsg3, ECallGetGaFn, ECallGetMsg3Fn, ECallProcessMsg2Fn,
     EnclaveId, RaContext,
 };
-use std::lazy::SyncLazy;
 use std::mem::ManuallyDrop;
 use std::slice;
+use std::sync::LazyLock;
 use std::sync::Mutex;
 
-static INITIATOR: SyncLazy<Mutex<Initiator>> = SyncLazy::new(|| Mutex::new(Initiator::new(0, 0)));
+static INITIATOR: LazyLock<Mutex<Initiator>> = LazyLock::new(|| Mutex::new(Initiator::new(0, 0)));
 
 /// # Safety
 #[no_mangle]

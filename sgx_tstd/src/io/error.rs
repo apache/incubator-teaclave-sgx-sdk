@@ -86,6 +86,13 @@ impl fmt::Debug for Error {
     }
 }
 
+impl From<alloc_crate::ffi::NulError> for Error {
+    /// Converts a [`alloc::ffi::NulError`] into a [`Error`].
+    fn from(_: alloc_crate::ffi::NulError) -> Error {
+        const_io_error!(ErrorKind::InvalidInput, "data provided contains a nul byte")
+    }
+}
+
 // Only derive debug in tests, to make sure it
 // doesn't accidentally get printed.
 #[cfg_attr(feature = "unit_test", derive(Debug))]
@@ -152,6 +159,19 @@ struct Custom {
 /// It is used with the [`io::Error`] type.
 ///
 /// [`io::Error`]: Error
+///
+/// # Handling errors and matching on `ErrorKind`
+///
+/// In application code, use `match` for the `ErrorKind` values you are
+/// expecting; use `_` to match "all other errors".
+///
+/// In comprehensive and thorough tests that want to verify that a test doesn't
+/// return any known incorrect error kind, you may want to cut-and-paste the
+/// current full list of errors from here into your test code, and then match
+/// `_` as the correct case. This seems counterintuitive, but it will make your
+/// tests more robust. In particular, if you want to verify that your code does
+/// produce an unrecognized error kind, the robust solution is to check for all
+/// the recognized error kinds and fail in those cases.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[allow(deprecated)]
 #[non_exhaustive]
@@ -338,7 +358,7 @@ pub enum ErrorKind {
 impl ErrorKind {
     pub(crate) fn as_str(&self) -> &'static str {
         use ErrorKind::*;
-        // Strictly alphabetical, please.  (Sadly rustfmt cannot do this yet.)
+        // tidy-alphabetical-start
         match *self {
             AddrInUse => "address in use",
             AddrNotAvailable => "address not available",
@@ -383,6 +403,7 @@ impl ErrorKind {
             WriteZero => "write zero",
             SgxError => "Sgx error status",
         }
+        // tidy-alphabetical-end
     }
 }
 
@@ -415,7 +436,7 @@ impl From<ErrorKind> for Error {
     ///
     /// let not_found = ErrorKind::NotFound;
     /// let error = Error::from(not_found);
-    /// assert_eq!("entity not found", format!("{}", error));
+    /// assert_eq!("entity not found", format!("{error}"));
     /// ```
     #[inline]
     fn from(kind: ErrorKind) -> Error {
@@ -449,6 +470,7 @@ impl Error {
     /// originate from the OS itself. The `error` argument is an arbitrary
     /// payload which will be contained in this [`Error`].
     ///
+    /// Note that this function allocates memory on the heap.
     /// If no extra payload is required, use the `From` conversion from
     /// `ErrorKind`.
     ///
@@ -463,7 +485,7 @@ impl Error {
     /// // errors can also be created from other errors
     /// let custom_error2 = Error::new(ErrorKind::Interrupted, custom_error);
     ///
-    /// // creating an error without payload
+    /// // creating an error without payload (and without memory allocation)
     /// let eof_error = Error::from(ErrorKind::UnexpectedEof);
     /// ```
     pub fn new<E>(kind: ErrorKind, error: E) -> Error
@@ -535,12 +557,13 @@ impl Error {
     /// use std::io::Error;
     ///
     /// let os_error = Error::last_os_error();
-    /// println!("last OS error: {:?}", os_error);
+    /// println!("last OS error: {os_error:?}");
     /// ```
+    #[doc(alias = "errno")]
     #[must_use]
     #[inline]
     pub fn last_os_error() -> Error {
-        Error::from_raw_os_error(sys::os::errno() as i32)
+        Error::from_raw_os_error(sys::os::errno())
     }
 
     /// Creates a new instance of an [`Error`] from a particular OS error code.
@@ -590,7 +613,7 @@ impl Error {
     ///
     /// fn print_os_error(err: &Error) {
     ///     if let Some(raw_os_err) = err.raw_os_error() {
-    ///         println!("raw OS error: {:?}", raw_os_err);
+    ///         println!("raw OS error: {raw_os_err:?}");
     ///     } else {
     ///         println!("Not an OS error");
     ///     }
@@ -649,7 +672,7 @@ impl Error {
     ///
     /// fn print_error(err: &Error) {
     ///     if let Some(inner_err) = err.get_ref() {
-    ///         println!("Inner error: {:?}", inner_err);
+    ///         println!("Inner error: {inner_err:?}");
     ///     } else {
     ///         println!("No inner error");
     ///     }
@@ -723,7 +746,7 @@ impl Error {
     ///
     /// fn print_error(err: &Error) {
     ///     if let Some(inner_err) = err.get_ref() {
-    ///         println!("Inner error: {}", inner_err);
+    ///         println!("Inner error: {inner_err}");
     ///     } else {
     ///         println!("No inner error");
     ///     }
@@ -762,7 +785,7 @@ impl Error {
     ///
     /// fn print_error(err: Error) {
     ///     if let Some(inner_err) = err.into_inner() {
-    ///         println!("Inner error: {}", inner_err);
+    ///         println!("Inner error: {inner_err}");
     ///     } else {
     ///         println!("No inner error");
     ///     }
@@ -784,6 +807,67 @@ impl Error {
             ErrorData::SimpleMessage(..) => None,
             ErrorData::Custom(c) => Some(c.error),
             ErrorData::SgxStatus(s) => Some(Box::new(s)),
+        }
+    }
+
+    /// Attempt to downgrade the inner error to `E` if any.
+    ///
+    /// If this [`Error`] was constructed via [`new`] then this function will
+    /// attempt to perform downgrade on it, otherwise it will return [`Err`].
+    ///
+    /// If downgrade succeeds, it will return [`Ok`], otherwise it will also
+    /// return [`Err`].
+    ///
+    /// [`new`]: Error::new
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(io_error_downcast)]
+    ///
+    /// use std::fmt;
+    /// use std::io;
+    /// use std::error::Error;
+    ///
+    /// #[derive(Debug)]
+    /// enum E {
+    ///     Io(io::Error),
+    ///     SomeOtherVariant,
+    /// }
+    ///
+    /// impl fmt::Display for E {
+    ///    // ...
+    /// #    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    /// #        todo!()
+    /// #    }
+    /// }
+    /// impl Error for E {}
+    ///
+    /// impl From<io::Error> for E {
+    ///     fn from(err: io::Error) -> E {
+    ///         err.downcast::<E>()
+    ///             .map(|b| *b)
+    ///             .unwrap_or_else(E::Io)
+    ///     }
+    /// }
+    /// ```
+    pub fn downcast<E>(self) -> result::Result<Box<E>, Self>
+    where
+        E: error::Error + Send + Sync + 'static,
+    {
+        match self.repr.into_data() {
+            ErrorData::Custom(b) if b.error.is::<E>() => {
+                let res = (*b).error.downcast::<E>();
+
+                // downcast is a really trivial and is marked as inline, so
+                // it's likely be inlined here.
+                //
+                // And the compiler should be able to eliminate the branch
+                // that produces `Err` here since b.error.is::<E>()
+                // returns true.
+                Ok(res.unwrap())
+            }
+            repr_data => Err(Self { repr: Repr::new(repr_data) }),
         }
     }
 
@@ -848,14 +932,14 @@ impl fmt::Display for Error {
         match self.repr.data() {
             ErrorData::Os(code) => {
                 let detail = sys::os::error_string(code);
-                write!(fmt, "{} (os error {})", detail, code)
+                write!(fmt, "{detail} (os error {code})")
             }
-            ErrorData::Custom(c) => c.error.fmt(fmt),
+            ErrorData::Custom(ref c) => c.error.fmt(fmt),
             ErrorData::Simple(kind) => write!(fmt, "{}", kind.as_str()),
             ErrorData::SimpleMessage(msg) => msg.message.fmt(fmt),
             ErrorData::SgxStatus(status) => {
                 let detail = status.__description();
-                write!(fmt, "{} (sgx error: {})", detail, status)
+                write!(fmt, "{detail} (sgx error: {status})")
             }
         }
     }

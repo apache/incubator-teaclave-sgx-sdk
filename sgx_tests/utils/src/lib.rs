@@ -17,9 +17,7 @@
 
 #![no_std]
 #![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
-#![feature(bench_black_box)]
 #![feature(core_intrinsics)]
-#![feature(total_cmp)]
 
 #[macro_use]
 extern crate alloc;

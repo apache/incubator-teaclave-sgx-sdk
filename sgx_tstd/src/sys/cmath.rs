@@ -15,6 +15,9 @@
 // specific language governing permissions and limitations
 // under the License..
 
+// These symbols are all defined by `libm`,
+// or by `compiler-builtins` on unsupported platforms.
+
 extern "C" {
     pub fn acos(n: f64) -> f64;
     pub fn acosf(n: f32) -> f32;

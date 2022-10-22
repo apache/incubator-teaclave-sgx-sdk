@@ -223,7 +223,7 @@ impl MmManager {
                 }
             }
 
-            if result_free_range == None
+            if result_free_range.is_none()
                 || result_free_range.as_ref().unwrap().size() > free_range.size()
             {
                 // Record the minimal free range that satisfies the contraints

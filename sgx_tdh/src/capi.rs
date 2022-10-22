@@ -35,7 +35,7 @@ pub unsafe extern "C" fn sgx_dh_init_session(
     if session.is_null() {
         return SgxStatus::InvalidParameter;
     }
-    if !(&*session).is_enclave_range() {
+    if !(*session).is_enclave_range() {
         return SgxStatus::InvalidParameter;
     }
 
@@ -69,7 +69,7 @@ pub unsafe extern "C" fn sgx_dh_responder_gen_msg1(
     if session.is_null() || msg1.is_null() {
         return SgxStatus::InvalidParameter;
     }
-    if !(&*session).is_enclave_range() {
+    if !(*session).is_enclave_range() {
         return SgxStatus::InvalidParameter;
     }
 
@@ -107,7 +107,7 @@ pub unsafe extern "C" fn sgx_dh_responder_proc_msg2(
     {
         return SgxStatus::InvalidParameter;
     }
-    if !(&*session).is_enclave_range() {
+    if !(*session).is_enclave_range() {
         return SgxStatus::InvalidParameter;
     }
 
@@ -190,7 +190,7 @@ where
         return SgxStatus::InvalidParameter;
     }
 
-    if !(&*session).is_enclave_range() {
+    if !(*session).is_enclave_range() {
         return SgxStatus::InvalidParameter;
     }
 
@@ -260,7 +260,7 @@ where
     if session.is_null() || msg3.is_null() || aek.is_null() || responder_identity.is_null() {
         return SgxStatus::InvalidParameter;
     }
-    if !(&*session).is_enclave_range() {
+    if !(*session).is_enclave_range() {
         return SgxStatus::InvalidParameter;
     }
 

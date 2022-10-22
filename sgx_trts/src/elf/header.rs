@@ -428,7 +428,7 @@ impl fmt::Debug for Machine_ {
     }
 }
 
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Machine {
     None,

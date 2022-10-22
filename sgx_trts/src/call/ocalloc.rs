@@ -101,13 +101,13 @@ impl Drop for OcBuffer {
 
 impl AsRef<[u8]> for OcBuffer {
     fn as_ref(&self) -> &[u8] {
-        &**self
+        self
     }
 }
 
 impl AsMut<[u8]> for OcBuffer {
     fn as_mut(&mut self) -> &mut [u8] {
-        &mut **self
+        self
     }
 }
 

@@ -306,11 +306,7 @@ pub fn winsorize(samples: &mut [f64], pct: f64) {
     let hundred = 100_f64;
     let hi = percentile_of_sorted(&tmp, hundred - pct);
     for samp in samples {
-        if *samp > hi {
-            *samp = hi
-        } else if *samp < lo {
-            *samp = lo
-        }
+        *samp = (*samp).clamp(lo, hi);
     }
 }
 #[inline]

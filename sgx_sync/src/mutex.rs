@@ -34,6 +34,7 @@ unsafe impl Sync for StaticMutex {}
 
 impl StaticMutex {
     /// Creates a new mutex for use.
+    #[inline]
     pub const fn new() -> StaticMutex {
         StaticMutex(imp::Mutex::new())
     }
@@ -65,13 +66,12 @@ impl Drop for StaticMutexGuard {
 
 /// An SGX-based mutual exclusion lock.
 ///
-/// This mutex does *not* have a const constructor, cleans up its resources in
-/// its `Drop` implementation, may safely be moved (when not borrowed), and
-/// does not cause UB when used reentrantly.
+/// This mutex cleans up its resources in its `Drop` implementation, may safely
+/// be moved (when not borrowed), and does not cause UB when used reentrantly.
 ///
 /// This mutex does not implement poisoning.
 ///
-/// This is either a wrapper around `Box<imp::Mutex>` or `imp::Mutex`,
+/// This is either a wrapper around `LazyBox<imp::Mutex>` or `imp::Mutex`,
 /// depending on the platform. It is boxed on platforms where `imp::Mutex` may
 /// not be moved.
 pub struct MovableMutex(imp::MovableMutex);
@@ -80,11 +80,12 @@ unsafe impl Sync for MovableMutex {}
 
 impl MovableMutex {
     /// Creates a new mutex.
-    pub fn new() -> MovableMutex {
-        MovableMutex(imp::MovableMutex::from(imp::Mutex::new()))
+    #[inline]
+    pub const fn new() -> MovableMutex {
+        MovableMutex(imp::MovableMutex::new())
     }
 
-    pub(crate) fn as_ref(&self) -> &imp::Mutex {
+    pub(crate) fn raw(&self) -> &imp::Mutex {
         &self.0
     }
 
@@ -111,13 +112,6 @@ impl MovableMutex {
     #[inline]
     pub unsafe fn raw_unlock(&self) {
         let r = self.0.unlock();
-        debug_assert_eq!(r, Ok(()));
-    }
-}
-
-impl Drop for MovableMutex {
-    fn drop(&mut self) {
-        let r = unsafe { self.0.destroy() };
         debug_assert_eq!(r, Ok(()));
     }
 }

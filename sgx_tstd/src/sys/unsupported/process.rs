@@ -21,7 +21,6 @@ use crate::fmt;
 use crate::io;
 use crate::marker::PhantomData;
 use crate::num::NonZeroI32;
-use crate::os::raw::NonZero_c_int;
 use crate::path::Path;
 use crate::sys::fd::FileDesc;
 use crate::sys::fs::File;
@@ -29,9 +28,10 @@ use crate::sys::unsupported::pipe::AnonPipe;
 use crate::sys::unsupported::{unsupported, unsupported_err};
 use crate::sys_common::IntoInner;
 use crate::sys_common::process::{CommandEnv, CommandEnvs};
+use core::ffi::NonZero_c_int;
 
 use sgx_oc as libc;
-use libc::{c_int, gid_t, uid_t};
+use libc::{c_int, gid_t, pid_t, uid_t};
 
 pub use crate::ffi::OsString as EnvKey;
 
@@ -78,6 +78,8 @@ impl Command {
     pub fn gid(&mut self, _id: gid_t) {}
 
     pub fn groups(&mut self, _groups: &[gid_t]) {}
+
+    pub fn pgroup(&mut self, _pgroup: pid_t) {}
 
     pub fn stdin(&mut self, _stdin: Stdio) {}
 
@@ -171,11 +173,11 @@ impl ExitStatus {
     }
 
     pub fn code(&self) -> Option<i32> {
-        if self.exited() { Some(libc::WEXITSTATUS(self.0)) } else { None }
+        self.exited().then(|| libc::WEXITSTATUS(self.0))
     }
 
     pub fn signal(&self) -> Option<i32> {
-        if libc::WIFSIGNALED(self.0) { Some(libc::WTERMSIG(self.0)) } else { None }
+        libc::WIFSIGNALED(self.0).then(|| libc::WTERMSIG(self.0))
     }
 
     pub fn core_dumped(&self) -> bool {
@@ -183,7 +185,7 @@ impl ExitStatus {
     }
 
     pub fn stopped_signal(&self) -> Option<i32> {
-        if libc::WIFSTOPPED(self.0) { Some(libc::WSTOPSIG(self.0)) } else { None }
+        libc::WIFSTOPPED(self.0).then(|| libc::WSTOPSIG(self.0))
     }
 
     pub fn continued(&self) -> bool {
@@ -202,18 +204,63 @@ impl From<c_int> for ExitStatus {
     }
 }
 
+/// Convert a signal number to a readable, searchable name.
+///
+/// This string should be displayed right after the signal number.
+/// If a signal is unrecognized, it returns the empty string, so that
+/// you just get the number like "0". If it is recognized, you'll get
+/// something like "9 (SIGKILL)".
+fn signal_string(signal: i32) -> &'static str {
+    match signal {
+        libc::SIGHUP => " (SIGHUP)",
+        libc::SIGINT => " (SIGINT)",
+        libc::SIGQUIT => " (SIGQUIT)",
+        libc::SIGILL => " (SIGILL)",
+        libc::SIGTRAP => " (SIGTRAP)",
+        libc::SIGABRT => " (SIGABRT)",
+        libc::SIGBUS => " (SIGBUS)",
+        libc::SIGFPE => " (SIGFPE)",
+        libc::SIGKILL => " (SIGKILL)",
+        libc::SIGUSR1 => " (SIGUSR1)",
+        libc::SIGSEGV => " (SIGSEGV)",
+        libc::SIGUSR2 => " (SIGUSR2)",
+        libc::SIGPIPE => " (SIGPIPE)",
+        libc::SIGALRM => " (SIGALRM)",
+        libc::SIGTERM => " (SIGTERM)",
+        libc::SIGCHLD => " (SIGCHLD)",
+        libc::SIGCONT => " (SIGCONT)",
+        libc::SIGSTOP => " (SIGSTOP)",
+        libc::SIGTSTP => " (SIGTSTP)",
+        libc::SIGTTIN => " (SIGTTIN)",
+        libc::SIGTTOU => " (SIGTTOU)",
+        libc::SIGURG => " (SIGURG)",
+        libc::SIGXCPU => " (SIGXCPU)",
+        libc::SIGXFSZ => " (SIGXFSZ)",
+        libc::SIGVTALRM => " (SIGVTALRM)",
+        libc::SIGPROF => " (SIGPROF)",
+        libc::SIGWINCH => " (SIGWINCH)",
+        libc::SIGIO => " (SIGIO)",
+        libc::SIGSYS => " (SIGSYS)",
+        libc::SIGSTKFLT => " (SIGSTKFLT)",
+        libc::SIGPWR => " (SIGPWR)",
+        _ => "",
+    }
+}
+
 impl fmt::Display for ExitStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(code) = self.code() {
-            write!(f, "exit status: {}", code)
+            write!(f, "exit status: {code}")
         } else if let Some(signal) = self.signal() {
+            let signal_string = signal_string(signal);
             if self.core_dumped() {
-                write!(f, "signal: {} (core dumped)", signal)
+                write!(f, "signal: {signal}{signal_string} (core dumped)")
             } else {
-                write!(f, "signal: {}", signal)
+                write!(f, "signal: {signal}{signal_string}")
             }
         } else if let Some(signal) = self.stopped_signal() {
-            write!(f, "stopped (not terminated) by signal: {}", signal)
+            let signal_string = signal_string(signal);
+            write!(f, "stopped (not terminated) by signal: {signal}{signal_string}")
         } else if self.continued() {
             write!(f, "continued (WIFCONTINUED)")
         } else {
@@ -293,6 +340,9 @@ impl<'a> Iterator for CommandArgs<'a> {
     type Item = &'a OsStr;
     fn next(&mut self) -> Option<&'a OsStr> {
         None
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(0))
     }
 }
 

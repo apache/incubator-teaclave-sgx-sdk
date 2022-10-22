@@ -68,15 +68,15 @@ fn panic_doesnt_poison() {
 
 #[test_case]
 fn test_lock_stderr() {
-    test_lock(stderr, stderr_locked);
+    test_lock(stderr, || stderr().lock());
 }
 #[test_case]
 fn test_lock_stdin() {
-    test_lock(stdin, stdin_locked);
+    test_lock(stdin, || stdin().lock());
 }
 #[test_case]
 fn test_lock_stdout() {
-    test_lock(stdout, stdout_locked);
+    test_lock(stdout, || stdout().lock());
 }
 
 // Helper trait to make lock testing function generic.

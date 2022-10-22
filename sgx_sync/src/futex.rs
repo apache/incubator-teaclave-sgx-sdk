@@ -18,7 +18,7 @@
 use crate::sys::futex as imp;
 use crate::Timespec;
 use core::marker::PhantomData;
-use core::sync::atomic::AtomicI32;
+use core::sync::atomic::AtomicU32;
 use core::time::Duration;
 use sgx_types::error::OsResult;
 
@@ -72,11 +72,11 @@ impl_enum! {
 
 pub struct Futex<'a> {
     futex: imp::Futex,
-    marker: PhantomData<&'a AtomicI32>,
+    marker: PhantomData<&'a AtomicU32>,
 }
 
 impl<'a> Futex<'a> {
-    pub fn new(futex: &AtomicI32) -> Futex<'a> {
+    pub fn new(futex: &AtomicU32) -> Futex<'a> {
         Futex {
             futex: imp::Futex::new(futex as *const _ as usize),
             marker: PhantomData,
@@ -84,14 +84,14 @@ impl<'a> Futex<'a> {
     }
 
     #[inline]
-    pub fn wait(&self, expected: i32, timeout: Option<Duration>) -> OsResult {
+    pub fn wait(&self, expected: u32, timeout: Option<Duration>) -> OsResult {
         self.futex.wait(expected, timeout)
     }
 
     #[inline]
     pub fn wait_bitset(
         &self,
-        expected: i32,
+        expected: u32,
         timeout: Option<(Timespec, FutexClockId)>,
         bitset: u32,
     ) -> OsResult {
@@ -114,7 +114,7 @@ impl<'a> Futex<'a> {
         nwakes: i32,
         new_futex: &Futex,
         nrequeues: i32,
-        expected: i32,
+        expected: u32,
     ) -> OsResult<usize> {
         self.futex.cmp_requeue(
             nwakes as usize,

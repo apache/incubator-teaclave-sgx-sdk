@@ -52,7 +52,7 @@ pub const TD_INFO_RESERVED_BYTES: usize = 112;
 pub const TD_TEE_TCB_INFO_RESERVED_BYTES: usize = 111;
 
 #[derive(Clone, Copy, Debug)]
-#[repr(C, packed)]
+#[repr(C)]
 pub struct TeeInfo {
     pub attributes: TeeAttributes,
     pub xfam: TeeAttributes,

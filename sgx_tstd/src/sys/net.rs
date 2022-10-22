@@ -50,7 +50,7 @@ pub fn cvt_gai(err: c_int) -> io::Result<()> {
     let detail = libc::gai_error_string(err);
     Err(io::Error::new(
         io::ErrorKind::Uncategorized,
-        &format!("failed to lookup address information: {}", detail)[..],
+        &format!("failed to lookup address information: {detail}")[..],
     ))
 }
 
@@ -173,7 +173,7 @@ impl Socket {
 
     fn recv_with_flags(&self, buf: &mut [u8], flags: c_int) -> io::Result<usize> {
         let ret = cvt_ocall(unsafe { libc::recv(self.as_raw_fd(), buf, flags) })?;
-        Ok(ret as usize)
+        Ok(ret)
     }
 
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
@@ -208,7 +208,7 @@ impl Socket {
 
     pub fn recv_msg(&self, msg: &mut libc::MsgHdrMut) -> io::Result<usize> {
         let n = cvt_ocall(unsafe { libc::recvmsg(self.as_raw_fd(), msg, libc::MSG_CMSG_CLOEXEC) })?;
-        Ok(n as usize)
+        Ok(n)
     }
 
     pub fn peek_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
@@ -230,7 +230,7 @@ impl Socket {
 
     pub fn send_msg(&self, msg: &libc::MsgHdr) -> io::Result<usize> {
         let n = cvt_ocall(unsafe { libc::sendmsg(self.as_raw_fd(), msg, 0) })?;
-        Ok(n as usize)
+        Ok(n)
     }
 
     pub fn set_timeout(&self, dur: Option<Duration>, kind: c_int) -> io::Result<()> {
@@ -307,6 +307,15 @@ impl Socket {
         Ok(raw != 0)
     }
 
+    pub fn set_quickack(&self, quickack: bool) -> io::Result<()> {
+        setsockopt(self, libc::IPPROTO_TCP, libc::TCP_QUICKACK, quickack as c_int)
+    }
+
+    pub fn quickack(&self) -> io::Result<bool> {
+        let raw: c_int = getsockopt(self, libc::IPPROTO_TCP, libc::TCP_QUICKACK)?;
+        Ok(raw != 0)
+    }
+
     pub fn set_passcred(&self, passcred: bool) -> io::Result<()> {
         setsockopt(self, libc::SOL_SOCKET, libc::SO_PASSCRED, passcred as c_int)
     }
@@ -321,9 +330,14 @@ impl Socket {
         cvt_ocall(unsafe { libc::ioctl_arg1(self.as_raw_fd(), libc::FIONBIO as u64, &mut nonblocking) }).map(drop)
     }
 
+    pub fn set_mark(&self, mark: u32) -> io::Result<()> {
+        let option = libc::SO_MARK;
+        setsockopt(self, libc::SOL_SOCKET, option, mark as libc::c_int)
+    }
+
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
         let raw: c_int = getsockopt(self, libc::SOL_SOCKET, libc::SO_ERROR)?;
-        if raw == 0 { Ok(None) } else { Ok(Some(io::Error::from_raw_os_error(raw as i32))) }
+        if raw == 0 { Ok(None) } else { Ok(Some(io::Error::from_raw_os_error(raw))) }
     }
 
     // This is used by sys_common code to abstract over Windows and Unix.

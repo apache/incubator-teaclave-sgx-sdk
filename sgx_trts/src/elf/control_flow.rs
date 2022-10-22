@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ControlFlow<C, B> {
     Continue(C),
     Break(B),

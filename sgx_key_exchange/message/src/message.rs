@@ -199,7 +199,7 @@ impl RaMsg2 {
         raw_msg.kdf_id = self.kdf_id;
         raw_msg.sign_gb_ga = self.sign_gb_ga.into();
         raw_msg.mac = self.mac;
-        raw_msg.sig_rl_size = raw_len - header_len as u32;
+        raw_msg.sig_rl_size = raw_len - header_len;
         if let Some(sig_rl) = self.sig_rl.as_ref() {
             bytes[header_len as usize..].copy_from_slice(sig_rl);
         }
@@ -219,7 +219,7 @@ impl RaMsg2 {
         raw_msg.kdf_id = self.kdf_id;
         raw_msg.sign_gb_ga = self.sign_gb_ga.into();
         raw_msg.mac = self.mac;
-        raw_msg.sig_rl_size = raw_len - header_len as u32;
+        raw_msg.sig_rl_size = raw_len - header_len;
         if let Some(sig_rl) = self.sig_rl.as_ref() {
             bytes[header_len as usize..].copy_from_slice(sig_rl);
         }

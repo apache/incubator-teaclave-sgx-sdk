@@ -356,7 +356,7 @@ impl MmArea {
             let (pe_needed, pr_needed) = self.is_needed_modify_perm(new_perm)?;
 
             if pe_needed || pr_needed {
-                let _ = modpr_ocall(self.start(), count, perm).unwrap();
+                modpr_ocall(self.start(), count, perm).unwrap();
             }
 
             let pages = PageRange::new(
@@ -378,10 +378,10 @@ impl MmArea {
             }
 
             if pr_needed && new_perm == MmPerm::None {
-                let _ = mprotect_ocall(self.start(), count, perm).unwrap();
+                mprotect_ocall(self.start(), count, perm).unwrap();
             }
         } else {
-            let _ = mprotect_ocall(self.start(), count, perm).unwrap();
+            mprotect_ocall(self.start(), count, perm).unwrap();
         }
 
         self.perm = new_perm;

@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#![allow(clippy::enum_variant_names)]
+
 use crate::edmm::{PageInfo, PageType};
 use crate::tcs::tc;
 use crate::version::*;

@@ -123,11 +123,7 @@ pub unsafe extern "C" fn pthread_self() -> pthread_t {
 
 #[no_mangle]
 pub unsafe extern "C" fn pthread_equal(t1: pthread_t, t2: pthread_t) -> c_int {
-    if t1 == t2 {
-        1
-    } else {
-        0
-    }
+    i32::from(t1 == t2)
 }
 
 #[no_mangle]

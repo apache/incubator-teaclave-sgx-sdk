@@ -133,13 +133,13 @@ impl Error for FsError {
 #[macro_export]
 macro_rules! esgx {
     ($status:expr) => {
-        crate::sys::error::FsError::from_sgx_error($status)
+        $crate::sys::error::FsError::from_sgx_error($status)
     };
 }
 
 #[macro_export]
 macro_rules! eos {
     ($errno:expr) => {
-        crate::sys::error::FsError::from_os_error($errno)
+        $crate::sys::error::FsError::from_os_error($errno)
     };
 }

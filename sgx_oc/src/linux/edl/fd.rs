@@ -112,4 +112,10 @@ extern "C" {
         initval: c_uint,
         flags: c_int,
     ) -> sgx_status_t;
+    pub fn u_futimens_ocall(
+        result: *mut c_int,
+        errno: *mut c_int,
+        fd: c_int,
+        times: *const [timespec; 2],
+    ) -> sgx_status_t;
 }

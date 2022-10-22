@@ -33,11 +33,11 @@
 // under the License..
 
 use crate::rand::Rng;
+use crate::sync::OnceCell;
 use crate::sync::SpinMutex;
 use crate::veh::{ExceptionHandler, Handle};
 use alloc::collections::linked_list::{Iter, LinkedList};
 use core::fmt;
-use core::lazy::OnceCell;
 use core::mem;
 use core::num::NonZeroUsize;
 

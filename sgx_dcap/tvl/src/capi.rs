@@ -16,12 +16,12 @@
 // under the License..
 
 use crate::QveReportInfo;
+use core::ptr;
 use core::slice;
 use sgx_types::error::Quote3Error;
 use sgx_types::types::time_t;
 use sgx_types::types::{QlQeReportInfo, QlQvResult};
 
-#[allow(unaligned_references)]
 /// # Safety
 #[no_mangle]
 pub unsafe extern "C" fn sgx_tvl_verify_qve_report_and_identity(
@@ -58,7 +58,7 @@ pub unsafe extern "C" fn sgx_tvl_verify_qve_report_and_identity(
 
     let qve_report_info = &*qve_report_info;
     let qve_report_info = QveReportInfo {
-        qve_report: &qve_report_info.qe_report,
+        qve_report: &*ptr::addr_of!(qve_report_info.qe_report),
         expiration_time: expiration_check_date,
         collateral_expiration_status,
         quote_verification_result,

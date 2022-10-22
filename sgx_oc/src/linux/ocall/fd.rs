@@ -88,7 +88,7 @@ pub unsafe fn readv(fd: c_int, mut iov: Vec<&mut [u8]>) -> OCallResult<size_t> {
 
     let mut total_size: usize = 0;
     for s in iov.iter() {
-        check_enclave_buffer(*s)?;
+        check_enclave_buffer(s)?;
         total_size = total_size
             .checked_add(s.len())
             .ok_or_else(|| OCallError::from_custom_error("Overflow"))?;
@@ -155,7 +155,7 @@ pub unsafe fn preadv64(fd: c_int, mut iov: Vec<&mut [u8]>, offset: off64_t) -> O
 
     let mut total_size: usize = 0;
     for s in iov.iter() {
-        check_enclave_buffer(*s)?;
+        check_enclave_buffer(s)?;
         total_size = total_size
             .checked_add(s.len())
             .ok_or_else(|| OCallError::from_custom_error("Overflow"))?;
@@ -276,7 +276,7 @@ pub unsafe fn writev(fd: c_int, iov: Vec<&[u8]>) -> OCallResult<size_t> {
 
     let mut total_size: usize = 0;
     for s in iov.iter() {
-        check_enclave_buffer(*s)?;
+        check_enclave_buffer(s)?;
         total_size = total_size
             .checked_add(s.len())
             .ok_or_else(|| OCallError::from_custom_error("Overflow"))?;
@@ -328,7 +328,7 @@ pub unsafe fn pwritev64(fd: c_int, iov: Vec<&[u8]>, offset: off64_t) -> OCallRes
 
     let mut total_size: usize = 0;
     for s in iov.iter() {
-        check_enclave_buffer(*s)?;
+        check_enclave_buffer(s)?;
         total_size = total_size
             .checked_add(s.len())
             .ok_or_else(|| OCallError::from_custom_error("Overflow"))?;
@@ -601,6 +601,23 @@ pub unsafe fn eventfd(initval: c_uint, flags: c_int) -> OCallResult<c_int> {
         &mut error as *mut c_int,
         initval,
         flags,
+    );
+
+    ensure!(status.is_success(), esgx!(status));
+    ensure!(result >= 0, eos!(error));
+
+    Ok(result)
+}
+
+pub unsafe fn futimens(fd: c_int, times: &[timespec; 2]) -> OCallResult<c_int> {
+    let mut result: c_int = 0;
+    let mut error: c_int = 0;
+
+    let status = u_futimens_ocall(
+        &mut result as *mut c_int,
+        &mut error as *mut c_int,
+        fd,
+        times as *const [timespec; 2],
     );
 
     ensure!(status.is_success(), esgx!(status));

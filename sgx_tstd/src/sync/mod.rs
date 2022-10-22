@@ -36,7 +36,7 @@
 //!         B = 4;
 //!         A = A + B;
 //!         C = B;
-//!         println!("{} {} {}", A, B, C);
+//!         println!("{A} {B} {C}");
 //!         C = A;
 //!     }
 //! }
@@ -168,6 +168,7 @@
 
 pub use alloc_crate::sync::{Arc, Weak};
 pub use core::sync::atomic;
+pub use core::sync::Exclusive;
 
 pub use self::barrier::{Barrier, BarrierWaitResult};
 pub use self::condvar::{Condvar, WaitTimeoutResult};
@@ -177,12 +178,17 @@ pub use self::once::{Once, OnceState, ONCE_INIT};
 pub use self::poison::{LockResult, PoisonError, TryLockError, TryLockResult};
 pub use self::rwlock::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
+pub use self::lazy_lock::LazyLock;
+pub use self::once_lock::OnceLock;
+
 #[cfg(feature = "thread")]
 pub mod mpsc;
 
 mod barrier;
 mod condvar;
+mod lazy_lock;
 mod mutex;
 mod once;
+mod once_lock;
 mod poison;
 mod rwlock;

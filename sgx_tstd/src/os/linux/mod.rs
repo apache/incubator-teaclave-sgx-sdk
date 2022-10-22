@@ -18,6 +18,8 @@
 //! Linux-specific definitions.
 
 pub mod fs;
+#[cfg(feature = "net")]
+pub mod net;
 #[cfg(feature = "unsupported_process")]
 pub mod process;
 pub mod raw;

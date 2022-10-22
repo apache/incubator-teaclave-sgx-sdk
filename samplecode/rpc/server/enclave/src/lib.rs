@@ -37,7 +37,7 @@ impl Greeter for MyGreeter {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        println!("Got a request: {:?}", request);
+        println!("Got a request: {request:?}");
 
         let reply = hello_world::HelloReply {
             message: format!("Hello {}!", request.into_inner().name).into(),
@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "[::1]:50051".parse().unwrap();
     let greeter = MyGreeter::default();
 
-    println!("GreeterServer listening on {}", addr);
+    println!("GreeterServer listening on {addr}");
 
     Server::builder()
         .add_service(GreeterServer::new(greeter))
@@ -76,11 +76,11 @@ pub extern "C" fn run_server() -> SgxStatus {
     match result {
         Ok(Ok(_)) => SgxStatus::Success,
         Ok(Err(e)) => {
-            println!("Failed to run server: {}", e);
+            println!("Failed to run server: {e}");
             SgxStatus::Unexpected
         }
         Err(e) => {
-            println!("Failed to create tokio runtime in enclave: {}", e);
+            println!("Failed to create tokio runtime in enclave: {e}");
             SgxStatus::Unexpected
         }
     }
@@ -93,7 +93,7 @@ pub extern "C" fn run_server() -> SgxStatus {
     //match main() {
     //    Ok(_) => SgxStatus::Success,
     //    Err(e) => {
-    //        println!("Failed to run server: {}", e);
+    //        println!("Failed to run server: {e}");
     //        SgxStatus::Unexpected
     //    }
     //}

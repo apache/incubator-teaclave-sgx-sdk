@@ -155,7 +155,7 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for SpinRwLock<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.try_read() {
             Some(guard) => write!(f, "SpinRwLock {{ value: ")
-                .and_then(|()| (&*guard).fmt(f))
+                .and_then(|()| (*guard).fmt(f))
                 .and_then(|()| write!(f, "}}")),
             None => write!(f, "SpinRwLock {{ <locked> }}"),
         }

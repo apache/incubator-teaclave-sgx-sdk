@@ -19,8 +19,8 @@
 mod tests;
 
 use crate::cmp;
-use crate::io::{self, IoSlice, IoSliceMut, Read, ReadBuf};
-use crate::ops::{Deref, DerefMut};
+use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut, Read};
+use crate::mem::MaybeUninit;
 use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 use crate::sys::cvt_ocall;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
@@ -37,14 +37,14 @@ const fn max_iov() -> usize {
 impl FileDesc {
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
         let ret = cvt_ocall(unsafe { libc::read(self.as_raw_fd(), buf) })?;
-        Ok(ret as usize)
+        Ok(ret)
     }
 
     pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         let len = cmp::min(bufs.len(), max_iov());
-        let vbufs: Vec<&mut [u8]> = bufs[..len].iter_mut().map(|msl| msl.deref_mut()).collect();
+        let vbufs: Vec<&mut [u8]> = bufs[..len].iter_mut().map(|msl| &mut **msl).collect();
         let ret = cvt_ocall(unsafe { libc::readv(self.as_raw_fd(), vbufs) })?;
-        Ok(ret as usize)
+        Ok(ret)
     }
 
     #[inline]
@@ -61,31 +61,30 @@ impl FileDesc {
         cvt_ocall(unsafe { libc::pread64(self.as_raw_fd(), buf, offset as i64) })
     }
 
-    pub fn read_buf(&self, buf: &mut ReadBuf<'_>) -> io::Result<()> {
+    pub fn read_buf(&self, mut cursor: BorrowedCursor<'_>) -> io::Result<()> {
         let ret = cvt_ocall(unsafe {
-            libc::read(self.as_raw_fd(), core::mem::MaybeUninit::slice_assume_init_mut(buf.unfilled_mut()))
+            libc::read(self.as_raw_fd(), MaybeUninit::slice_assume_init_mut(cursor.as_mut()))
         })?;
 
         // Safety: `ret` bytes were written to the initialized portion of the buffer
         unsafe {
-            buf.assume_init(ret as usize);
+            cursor.advance(ret);
         }
-        buf.add_filled(ret as usize);
         Ok(())
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
         let ret = cvt_ocall(unsafe { libc::write(self.as_raw_fd(), buf) })?;
-        Ok(ret as usize)
+        Ok(ret)
     }
 
     pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
         let vbufs: Vec<&[u8]> = bufs[..cmp::min(bufs.len(), max_iov())]
             .iter()
-            .map(|msl| msl.deref())
+            .map(|msl| &**msl)
             .collect();
         let ret = cvt_ocall(unsafe { libc::writev(self.as_raw_fd(), vbufs) })?;
-        Ok(ret as usize)
+        Ok(ret)
     }
 
     #[inline]

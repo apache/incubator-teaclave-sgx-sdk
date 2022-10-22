@@ -71,9 +71,7 @@ mod imp {
     use sgx_oc::ocall;
 
     pub fn args() -> Args {
-        Args {
-            iter: clone().into_iter(),
-        }
+        Args { iter: clone().into_iter() }
     }
 
     fn clone() -> Vec<OsString> {

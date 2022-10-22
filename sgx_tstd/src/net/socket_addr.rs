@@ -15,25 +15,28 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#![allow(clippy::derive_hash_xor_eq)]
+
 #[cfg(feature = "unit_test")]
 mod tests;
 
 use crate::cmp::Ordering;
 #[cfg(feature = "net")]
 use crate::convert::TryInto;
-use crate::convert::TryFrom;
-use crate::fmt;
+use crate::fmt::{self, Write};
 use crate::hash;
-use crate::io::{self, Write};
+use crate::io;
 use crate::iter;
 use crate::mem;
-use crate::net::{htons, ntohs, IpAddr, Ipv4Addr, Ipv6Addr};
+use crate::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use crate::option;
 use crate::slice;
 #[cfg(feature = "net")]
 use crate::sys_common::net::LookupHost;
-use crate::sys_common::{AsInner, FromInner, IntoInner};
+use crate::sys_common::{FromInner, IntoInner};
 use crate::vec;
+
+use super::display_buffer::DisplayBuffer;
 
 use sgx_oc::ocall::SockAddr;
 use sgx_oc as c;
@@ -93,11 +96,10 @@ pub enum SocketAddr {
 /// assert_eq!(socket.ip(), &Ipv4Addr::new(127, 0, 0, 1));
 /// assert_eq!(socket.port(), 8080);
 /// ```
-#[derive(Copy)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub struct SocketAddrV4 {
-    // Do not assume that this struct is implemented as the underlying system representation.
-    // The memory layout is not part of the stable interface that std exposes.
-    inner: c::sockaddr_in,
+    ip: Ipv4Addr,
+    port: u16,
 }
 
 /// An IPv6 socket address.
@@ -126,11 +128,12 @@ pub struct SocketAddrV4 {
 /// assert_eq!(socket.ip(), &Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1));
 /// assert_eq!(socket.port(), 8080);
 /// ```
-#[derive(Copy)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub struct SocketAddrV6 {
-    // Do not assume that this struct is implemented as the underlying system representation.
-    // The memory layout is not part of the stable interface that std exposes.
-    inner: c::sockaddr_in6,
+    ip: Ipv6Addr,
+    port: u16,
+    flowinfo: u32,
+    scope_id: u32,
 }
 
 impl SocketAddr {
@@ -148,7 +151,7 @@ impl SocketAddr {
     /// assert_eq!(socket.port(), 8080);
     /// ```
     #[must_use]
-    pub fn new(ip: IpAddr, port: u16) -> SocketAddr {
+    pub const fn new(ip: IpAddr, port: u16) -> SocketAddr {
         match ip {
             IpAddr::V4(a) => SocketAddr::V4(SocketAddrV4::new(a, port)),
             IpAddr::V6(a) => SocketAddr::V6(SocketAddrV6::new(a, port, 0, 0)),
@@ -283,15 +286,8 @@ impl SocketAddrV4 {
     /// let socket = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080);
     /// ```
     #[must_use]
-    pub fn new(ip: Ipv4Addr, port: u16) -> SocketAddrV4 {
-        SocketAddrV4 {
-            inner: c::sockaddr_in {
-                sin_family: c::AF_INET as c::sa_family_t,
-                sin_port: htons(port),
-                sin_addr: ip.into_inner(),
-                ..unsafe { mem::zeroed() }
-            },
-        }
+    pub const fn new(ip: Ipv4Addr, port: u16) -> SocketAddrV4 {
+        SocketAddrV4 { ip, port }
     }
 
     /// Returns the IP address associated with this socket address.
@@ -306,9 +302,7 @@ impl SocketAddrV4 {
     /// ```
     #[must_use]
     pub const fn ip(&self) -> &Ipv4Addr {
-        // SAFETY: `Ipv4Addr` is `#[repr(C)] struct { _: in_addr; }`.
-        // It is safe to cast from `&in_addr` to `&Ipv4Addr`.
-        unsafe { &*(&self.inner.sin_addr as *const c::in_addr as *const Ipv4Addr) }
+        &self.ip
     }
 
     /// Changes the IP address associated with this socket address.
@@ -323,7 +317,7 @@ impl SocketAddrV4 {
     /// assert_eq!(socket.ip(), &Ipv4Addr::new(192, 168, 0, 1));
     /// ```
     pub fn set_ip(&mut self, new_ip: Ipv4Addr) {
-        self.inner.sin_addr = new_ip.into_inner()
+        self.ip = new_ip;
     }
 
     /// Returns the port number associated with this socket address.
@@ -338,7 +332,7 @@ impl SocketAddrV4 {
     /// ```
     #[must_use]
     pub const fn port(&self) -> u16 {
-        ntohs(self.inner.sin_port)
+        self.port
     }
 
     /// Changes the port number associated with this socket address.
@@ -353,7 +347,7 @@ impl SocketAddrV4 {
     /// assert_eq!(socket.port(), 4242);
     /// ```
     pub fn set_port(&mut self, new_port: u16) {
-        self.inner.sin_port = htons(new_port);
+        self.port = new_port;
     }
 }
 
@@ -374,19 +368,9 @@ impl SocketAddrV6 {
     ///
     /// let socket = SocketAddrV6::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1), 8080, 0, 0);
     /// ```
-    #[allow(clippy::needless_update)]
     #[must_use]
-    pub fn new(ip: Ipv6Addr, port: u16, flowinfo: u32, scope_id: u32) -> SocketAddrV6 {
-        SocketAddrV6 {
-            inner: c::sockaddr_in6 {
-                sin6_family: c::AF_INET6 as c::sa_family_t,
-                sin6_port: htons(port),
-                sin6_addr: *ip.as_inner(),
-                sin6_flowinfo: flowinfo,
-                sin6_scope_id: scope_id,
-                ..unsafe { mem::zeroed() }
-            },
-        }
+    pub const fn new(ip: Ipv6Addr, port: u16, flowinfo: u32, scope_id: u32) -> SocketAddrV6 {
+        SocketAddrV6 { ip, port, flowinfo, scope_id }
     }
 
     /// Returns the IP address associated with this socket address.
@@ -401,7 +385,7 @@ impl SocketAddrV6 {
     /// ```
     #[must_use]
     pub const fn ip(&self) -> &Ipv6Addr {
-        unsafe { &*(&self.inner.sin6_addr as *const c::in6_addr as *const Ipv6Addr) }
+        &self.ip
     }
 
     /// Changes the IP address associated with this socket address.
@@ -416,7 +400,7 @@ impl SocketAddrV6 {
     /// assert_eq!(socket.ip(), &Ipv6Addr::new(76, 45, 0, 0, 0, 0, 0, 0));
     /// ```
     pub fn set_ip(&mut self, new_ip: Ipv6Addr) {
-        self.inner.sin6_addr = *new_ip.as_inner()
+        self.ip = new_ip;
     }
 
     /// Returns the port number associated with this socket address.
@@ -431,7 +415,7 @@ impl SocketAddrV6 {
     /// ```
     #[must_use]
     pub const fn port(&self) -> u16 {
-        ntohs(self.inner.sin6_port)
+        self.port
     }
 
     /// Changes the port number associated with this socket address.
@@ -446,7 +430,7 @@ impl SocketAddrV6 {
     /// assert_eq!(socket.port(), 4242);
     /// ```
     pub fn set_port(&mut self, new_port: u16) {
-        self.inner.sin6_port = htons(new_port);
+        self.port = new_port;
     }
 
     /// Returns the flow information associated with this address.
@@ -471,7 +455,7 @@ impl SocketAddrV6 {
     /// ```
     #[must_use]
     pub const fn flowinfo(&self) -> u32 {
-        self.inner.sin6_flowinfo
+        self.flowinfo
     }
 
     /// Changes the flow information associated with this socket address.
@@ -488,7 +472,7 @@ impl SocketAddrV6 {
     /// assert_eq!(socket.flowinfo(), 56);
     /// ```
     pub fn set_flowinfo(&mut self, new_flowinfo: u32) {
-        self.inner.sin6_flowinfo = new_flowinfo;
+        self.flowinfo = new_flowinfo;
     }
 
     /// Returns the scope ID associated with this address.
@@ -508,7 +492,7 @@ impl SocketAddrV6 {
     /// ```
     #[must_use]
     pub const fn scope_id(&self) -> u32 {
-        self.inner.sin6_scope_id
+        self.scope_id
     }
 
     /// Changes the scope ID associated with this socket address.
@@ -525,70 +509,49 @@ impl SocketAddrV6 {
     /// assert_eq!(socket.scope_id(), 42);
     /// ```
     pub fn set_scope_id(&mut self, new_scope_id: u32) {
-        self.inner.sin6_scope_id = new_scope_id;
+        self.scope_id = new_scope_id;
     }
 }
 
 impl FromInner<c::sockaddr_in> for SocketAddrV4 {
     fn from_inner(addr: c::sockaddr_in) -> SocketAddrV4 {
-        SocketAddrV4 { inner: addr }
+        SocketAddrV4 { ip: Ipv4Addr::from_inner(addr.sin_addr), port: u16::from_be(addr.sin_port) }
     }
 }
 
 impl FromInner<c::sockaddr_in6> for SocketAddrV6 {
     fn from_inner(addr: c::sockaddr_in6) -> SocketAddrV6 {
-        SocketAddrV6 { inner: addr }
-    }
-}
-
-impl From<SocketAddrV4> for SocketAddr {
-    /// Converts a [`SocketAddrV4`] into a [`SocketAddr::V4`].
-    fn from(sock4: SocketAddrV4) -> SocketAddr {
-        SocketAddr::V4(sock4)
-    }
-}
-
-impl From<SocketAddrV6> for SocketAddr {
-    /// Converts a [`SocketAddrV6`] into a [`SocketAddr::V6`].
-    fn from(sock6: SocketAddrV6) -> SocketAddr {
-        SocketAddr::V6(sock6)
-    }
-}
-
-impl<I: Into<IpAddr>> From<(I, u16)> for SocketAddr {
-    /// Converts a tuple struct (Into<[`IpAddr`]>, `u16`) into a [`SocketAddr`].
-    ///
-    /// This conversion creates a [`SocketAddr::V4`] for an [`IpAddr::V4`]
-    /// and creates a [`SocketAddr::V6`] for an [`IpAddr::V6`].
-    ///
-    /// `u16` is treated as port of the newly created [`SocketAddr`].
-    fn from(pieces: (I, u16)) -> SocketAddr {
-        SocketAddr::new(pieces.0.into(), pieces.1)
-    }
-}
-
-impl<'a> IntoInner<(*const c::sockaddr, c::socklen_t)> for &'a SocketAddr {
-    fn into_inner(self) -> (*const c::sockaddr, c::socklen_t) {
-        match *self {
-            SocketAddr::V4(ref a) => {
-                (a as *const _ as *const _, mem::size_of_val(a) as c::socklen_t)
-            }
-            SocketAddr::V6(ref a) => {
-                (a as *const _ as *const _, mem::size_of_val(a) as c::socklen_t)
-            }
+        SocketAddrV6 {
+            ip: Ipv6Addr::from_inner(addr.sin6_addr),
+            port: u16::from_be(addr.sin6_port),
+            flowinfo: addr.sin6_flowinfo,
+            scope_id: addr.sin6_scope_id,
         }
     }
 }
 
 impl IntoInner<c::sockaddr_in> for SocketAddrV4 {
     fn into_inner(self) -> c::sockaddr_in {
-        self.inner
+        c::sockaddr_in {
+            sin_family: c::AF_INET as c::sa_family_t,
+            sin_port: self.port.to_be(),
+            sin_addr: self.ip.into_inner(),
+            ..unsafe { mem::zeroed() }
+        }
     }
 }
 
 impl IntoInner<c::sockaddr_in6> for SocketAddrV6 {
+    #[allow(clippy::needless_update)]
     fn into_inner(self) -> c::sockaddr_in6 {
-        self.inner
+        c::sockaddr_in6 {
+            sin6_family: c::AF_INET6 as c::sa_family_t,
+            sin6_port: self.port.to_be(),
+            sin6_addr: self.ip.into_inner(),
+            sin6_flowinfo: self.flowinfo,
+            sin6_scope_id: self.scope_id,
+            ..unsafe { mem::zeroed() }
+        }
     }
 }
 
@@ -622,6 +585,32 @@ impl TryFrom<SockAddr> for SocketAddr {
     }
 }
 
+impl From<SocketAddrV4> for SocketAddr {
+    /// Converts a [`SocketAddrV4`] into a [`SocketAddr::V4`].
+    fn from(sock4: SocketAddrV4) -> SocketAddr {
+        SocketAddr::V4(sock4)
+    }
+}
+
+impl From<SocketAddrV6> for SocketAddr {
+    /// Converts a [`SocketAddrV6`] into a [`SocketAddr::V6`].
+    fn from(sock6: SocketAddrV6) -> SocketAddr {
+        SocketAddr::V6(sock6)
+    }
+}
+
+impl<I: Into<IpAddr>> From<(I, u16)> for SocketAddr {
+    /// Converts a tuple struct (Into<[`IpAddr`]>, `u16`) into a [`SocketAddr`].
+    ///
+    /// This conversion creates a [`SocketAddr::V4`] for an [`IpAddr::V4`]
+    /// and creates a [`SocketAddr::V6`] for an [`IpAddr::V6`].
+    ///
+    /// `u16` is treated as port of the newly created [`SocketAddr`].
+    fn from(pieces: (I, u16)) -> SocketAddr {
+        SocketAddr::new(pieces.0.into(), pieces.1)
+    }
+}
+
 impl fmt::Display for SocketAddr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
@@ -639,25 +628,18 @@ impl fmt::Debug for SocketAddr {
 
 impl fmt::Display for SocketAddrV4 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Fast path: if there's no alignment stuff, write to the output buffer
-        // directly
+        // If there are no alignment requirements, write the socket address directly to `f`.
+        // Otherwise, write it to a local buffer and then use `f.pad`.
         if f.precision().is_none() && f.width().is_none() {
             write!(f, "{}:{}", self.ip(), self.port())
         } else {
-            const IPV4_SOCKET_BUF_LEN: usize = (3 * 4)  // the segments
-                + 3  // the separators
-                + 1 + 5; // the port
-            let mut buf = [0; IPV4_SOCKET_BUF_LEN];
-            let mut buf_slice = &mut buf[..];
+            const LONGEST_IPV4_SOCKET_ADDR: &str = "255.255.255.255:65536";
 
-            // Unwrap is fine because writing to a sufficiently-sized
-            // buffer is infallible
-            write!(buf_slice, "{}:{}", self.ip(), self.port()).unwrap();
-            let len = IPV4_SOCKET_BUF_LEN - buf_slice.len();
+            let mut buf = DisplayBuffer::<{ LONGEST_IPV4_SOCKET_ADDR.len() }>::new();
+            // Buffer is long enough for the longest possible IPv4 socket address, so this should never fail.
+            write!(buf, "{}:{}", self.ip(), self.port()).unwrap();
 
-            // This unsafe is OK because we know what is being written to the buffer
-            let buf = unsafe { crate::str::from_utf8_unchecked(&buf[..len]) };
-            f.pad(buf)
+            f.pad(buf.as_str())
         }
     }
 }
@@ -670,35 +652,26 @@ impl fmt::Debug for SocketAddrV4 {
 
 impl fmt::Display for SocketAddrV6 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Fast path: if there's no alignment stuff, write to the output
-        // buffer directly
+        // If there are no alignment requirements, write the socket address directly to `f`.
+        // Otherwise, write it to a local buffer and then use `f.pad`.
         if f.precision().is_none() && f.width().is_none() {
             match self.scope_id() {
                 0 => write!(f, "[{}]:{}", self.ip(), self.port()),
                 scope_id => write!(f, "[{}%{}]:{}", self.ip(), scope_id, self.port()),
             }
         } else {
-            const IPV6_SOCKET_BUF_LEN: usize = (4 * 8)  // The address
-            + 7  // The colon separators
-            + 2  // The brackets
-            + 1 + 10 // The scope id
-            + 1 + 5; // The port
+            const LONGEST_IPV6_SOCKET_ADDR: &str =
+                "[ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%4294967296]:65536";
 
-            let mut buf = [0; IPV6_SOCKET_BUF_LEN];
-            let mut buf_slice = &mut buf[..];
-
+            let mut buf = DisplayBuffer::<{ LONGEST_IPV6_SOCKET_ADDR.len() }>::new();
             match self.scope_id() {
-                0 => write!(buf_slice, "[{}]:{}", self.ip(), self.port()),
-                scope_id => write!(buf_slice, "[{}%{}]:{}", self.ip(), scope_id, self.port()),
+                0 => write!(buf, "[{}]:{}", self.ip(), self.port()),
+                scope_id => write!(buf, "[{}%{}]:{}", self.ip(), scope_id, self.port()),
             }
-            // Unwrap is fine because writing to a sufficiently-sized
-            // buffer is infallible
+            // Buffer is long enough for the longest possible IPv6 socket address, so this should never fail.
             .unwrap();
-            let len = IPV6_SOCKET_BUF_LEN - buf_slice.len();
 
-            // This unsafe is OK because we know what is being written to the buffer
-            let buf = unsafe { crate::str::from_utf8_unchecked(&buf[..len]) };
-            f.pad(buf)
+            f.pad(buf.as_str())
         }
     }
 }
@@ -708,38 +681,6 @@ impl fmt::Debug for SocketAddrV6 {
         fmt::Display::fmt(self, fmt)
     }
 }
-
-impl Clone for SocketAddrV4 {
-    fn clone(&self) -> SocketAddrV4 {
-        *self
-    }
-}
-
-impl Clone for SocketAddrV6 {
-    fn clone(&self) -> SocketAddrV6 {
-        *self
-    }
-}
-
-impl PartialEq for SocketAddrV4 {
-    fn eq(&self, other: &SocketAddrV4) -> bool {
-        self.inner.sin_port == other.inner.sin_port
-            && self.inner.sin_addr.s_addr == other.inner.sin_addr.s_addr
-    }
-}
-
-impl PartialEq for SocketAddrV6 {
-    fn eq(&self, other: &SocketAddrV6) -> bool {
-        self.inner.sin6_port == other.inner.sin6_port
-            && self.inner.sin6_addr.s6_addr == other.inner.sin6_addr.s6_addr
-            && self.inner.sin6_flowinfo == other.inner.sin6_flowinfo
-            && self.inner.sin6_scope_id == other.inner.sin6_scope_id
-    }
-}
-
-impl Eq for SocketAddrV4 {}
-
-impl Eq for SocketAddrV6 {}
 
 impl PartialOrd for SocketAddrV4 {
     fn partial_cmp(&self, other: &SocketAddrV4) -> Option<Ordering> {
@@ -767,19 +708,13 @@ impl Ord for SocketAddrV6 {
 
 impl hash::Hash for SocketAddrV4 {
     fn hash<H: hash::Hasher>(&self, s: &mut H) {
-        (self.inner.sin_port, self.inner.sin_addr.s_addr).hash(s)
+        (self.port, self.ip).hash(s)
     }
 }
 
 impl hash::Hash for SocketAddrV6 {
     fn hash<H: hash::Hasher>(&self, s: &mut H) {
-        (
-            self.inner.sin6_port,
-            &self.inner.sin6_addr.s6_addr,
-            self.inner.sin6_flowinfo,
-            self.inner.sin6_scope_id,
-        )
-            .hash(s)
+        (self.port, &self.ip, self.flowinfo, self.scope_id).hash(s)
     }
 }
 

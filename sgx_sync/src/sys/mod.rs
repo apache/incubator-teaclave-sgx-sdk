@@ -16,8 +16,7 @@
 // under the License..
 
 pub mod condvar;
+pub mod futex;
 pub mod mutex;
+pub mod ocall;
 pub mod rwlock;
-
-pub(crate) mod futex;
-pub(crate) mod ocall;

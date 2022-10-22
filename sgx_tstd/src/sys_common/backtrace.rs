@@ -24,16 +24,15 @@ use crate::fmt;
 use crate::io;
 use crate::io::prelude::*;
 use crate::path::{Path, PathBuf};
-use crate::sys_common::mutex::StaticMutex;
+use crate::sync::{Mutex, PoisonError};
 use crate::sys::backtrace::{self, BacktraceFmt, BytesOrWideString, PrintFmt};
 
 /// Max number of frames to print.
 const MAX_NB_FRAMES: usize = 100;
 
-// SAFETY: Don't attempt to lock this reentrantly.
-pub unsafe fn lock() -> impl Drop {
-    static LOCK: StaticMutex = StaticMutex::new();
-    LOCK.lock()
+pub fn lock() -> impl Drop {
+    static LOCK: Mutex<()> = Mutex::new(());
+    LOCK.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 /// Prints the current backtrace.
@@ -180,7 +179,7 @@ pub fn output_filename(
     //     if let Some(cwd) = cwd {
     //         if let Ok(stripped) = file.strip_prefix(&cwd) {
     //             if let Some(s) = stripped.to_str() {
-    //                 return write!(fmt, ".{}{}", path::MAIN_SEPARATOR, s);
+    //                 return write!(fmt, ".{}{s}", path::MAIN_SEPARATOR);
     //             }
     //         }
     //     }

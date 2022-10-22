@@ -317,21 +317,20 @@ unsafe fn relocate_elf_rela(elf: &ElfFile, sym_offset: u64, rel_offset: u64, rel
             }
             sections::R_X86_64_GLOB_DAT | sections::R_X86_64_JMP_SLOT | sections::R_X86_64_64 => {
                 if let Some(sym) = get_sym(sym_table, rel.get_symbol_table_index()) {
-                    *reloc_addr = elf.input.as_slice().as_ptr() as u64
-                        + sym.value()
-                        + rel.get_addend() as u64;
+                    *reloc_addr =
+                        elf.input.as_slice().as_ptr() as u64 + sym.value() + rel.get_addend();
                 }
             }
             sections::R_X86_64_DTPMOD64 => *reloc_addr = 1_u64,
             sections::R_X86_64_DTPOFF64 => {
                 if let Some(sym) = get_sym(sym_table, rel.get_symbol_table_index()) {
-                    *reloc_addr = sym.value() + rel.get_addend() as u64;
+                    *reloc_addr = sym.value() + rel.get_addend();
                 }
             }
             sections::R_X86_64_TPOFF64 => {
                 if let Some(sym) = get_sym(sym_table, rel.get_symbol_table_index()) {
                     if let Some(tls_size) = tls_size(elf) {
-                        *reloc_addr = sym.value() + rel.get_addend() as u64 - tls_size;
+                        *reloc_addr = sym.value() + rel.get_addend() - tls_size;
                     }
                 }
             }

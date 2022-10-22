@@ -40,11 +40,10 @@ impl Thread {
         let p = Box::into_raw(box p);
         let ret = NativeThread::new(thread_start, p as *mut _)
             .map(|t| Thread { native: t })
-            .map_err(io::Error::from_sgx_error);
-
-        if ret.is_err() {
-            drop(Box::from_raw(p));
-        }
+            .map_err(|e| {
+                drop(Box::from_raw(p));
+                io::Error::from_sgx_error(e)
+            });
 
         return ret;
 

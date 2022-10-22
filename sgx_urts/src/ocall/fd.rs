@@ -16,7 +16,7 @@
 // under the License..
 
 use crate::ocall::util::*;
-use libc::{self, c_int, c_uint, c_ulong, c_void, off64_t, off_t, size_t, ssize_t};
+use libc::{self, c_int, c_uint, c_ulong, c_void, off64_t, off_t, size_t, ssize_t, timespec};
 use std::io::Error;
 
 #[no_mangle]
@@ -248,6 +248,21 @@ pub unsafe extern "C" fn u_eventfd_ocall(
 ) -> c_int {
     let mut errno = 0;
     let ret = libc::eventfd(initval, flags);
+    if ret < 0 {
+        errno = Error::last_os_error().raw_os_error().unwrap_or(0);
+    }
+    set_error(error, errno);
+    ret
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn u_futimens_ocall(
+    error: *mut c_int,
+    fd: c_int,
+    times: *const [timespec; 2],
+) -> c_int {
+    let mut errno = 0;
+    let ret = libc::futimens(fd, times as *const timespec);
     if ret < 0 {
         errno = Error::last_os_error().raw_os_error().unwrap_or(0);
     }
