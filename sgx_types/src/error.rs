@@ -16,6 +16,7 @@
 // under the License..
 
 use crate::int32_t;
+use core::error::Error;
 use core::fmt;
 use core::result;
 
@@ -326,6 +327,13 @@ impl sgx_status_t {
 impl fmt::Display for sgx_status_t {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+impl Error for sgx_status_t {
+    #[allow(deprecated)]
+    fn description(&self) -> &str {
+        self.__description()
     }
 }
 

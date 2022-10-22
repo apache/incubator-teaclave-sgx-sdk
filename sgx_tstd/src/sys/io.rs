@@ -16,6 +16,7 @@
 // under the License..
 
 use crate::marker::PhantomData;
+use crate::os::fd::{AsFd, AsRawFd};
 use crate::slice;
 
 use sgx_libc::{c_void, iovec};
@@ -38,7 +39,9 @@ impl<'a> IoSlice<'a> {
 
     #[inline]
     pub fn advance(&mut self, n: usize) {
-        assert!(self.vec.iov_len >= n, "advancing IoSlice beyond its length");
+        if self.vec.iov_len < n {
+            panic!("advancing IoSlice beyond its length");
+        }
 
         unsafe {
             self.vec.iov_len -= n;
@@ -69,7 +72,9 @@ impl<'a> IoSliceMut<'a> {
 
     #[inline]
     pub fn advance(&mut self, n: usize) {
-        assert!(self.vec.iov_len >= n, "advancing IoSliceMut beyond its length");
+        if self.vec.iov_len < n {
+            panic!("advancing IoSliceMut beyond its length");
+        }
 
         unsafe {
             self.vec.iov_len -= n;
@@ -86,4 +91,13 @@ impl<'a> IoSliceMut<'a> {
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
         unsafe { slice::from_raw_parts_mut(self.vec.iov_base as *mut u8, self.vec.iov_len) }
     }
+}
+
+pub fn is_terminal(fd: &impl AsFd) -> bool {
+    let fd = fd.as_fd();
+    unsafe { libc::isatty(fd.as_raw_fd()) != 0 }
+}
+
+mod libc {
+    pub use sgx_libc::ocall::isatty;
 }

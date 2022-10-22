@@ -42,9 +42,11 @@ impl InstantEx for Instant {
     ///
     /// # Panics
     ///
-    /// This function may panic if the current time is earlier than this
-    /// instant, which is something that can happen if an `Instant` is
-    /// produced synthetically.
+    /// Previous rust versions panicked when the current time was earlier than self. Currently this
+    /// method returns a Duration of zero in that case. Future versions may reintroduce the panic.
+    /// See [Monotonicity].
+    ///
+    /// [Monotonicity]: Instant#monotonicity
     ///
     /// # Examples
     ///
@@ -90,7 +92,7 @@ impl SystemTimeEx for SystemTime {
     ///
     /// This function may fail as the underlying system clock is susceptible to
     /// drift and updates (e.g., the system clock could go backwards), so this
-    /// function may not always succeed. If successful, [`Ok`]`(`[`Duration`]`)` is
+    /// function might not always succeed. If successful, <code>[Ok]\([Duration])</code> is
     /// returned where the duration represents the amount of time elapsed from
     /// this time measurement to the current time.
     ///

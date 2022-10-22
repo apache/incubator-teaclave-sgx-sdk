@@ -110,7 +110,7 @@ extern "C" {
 
 /// Get the last error number.
 pub fn errno() -> i32 {
-    unsafe { (*errno_location()) as i32 }
+    unsafe { *errno_location() }
 }
 
 /// Set the last error number.
@@ -121,7 +121,7 @@ pub fn set_errno(e: i32) {
 /// Gets a detailed string description for the given error number.
 pub unsafe fn error_string(errno: i32, buf: &mut [i8]) -> i32 {
     let p = buf.as_mut_ptr();
-    strerror_r(errno as c_int, p as *mut c_char, buf.len()) as i32
+    strerror_r(errno as c_int, p as *mut c_char, buf.len())
 }
 
 pub unsafe fn memchr(s: *const u8, c: u8, n: usize) -> *const u8 {
@@ -511,6 +511,9 @@ pub const AT_FDCWD: c_int = -100;
 pub const AT_SYMLINK_NOFOLLOW: c_int = 0x100;
 pub const AT_REMOVEDIR: c_int = 0x200;
 pub const AT_SYMLINK_FOLLOW: c_int = 0x400;
+
+pub const UTIME_OMIT: c_long = 1073741822;
+pub const UTIME_NOW: c_long = 1073741823;
 
 pub const CLOCK_REALTIME: clockid_t = 0;
 pub const CLOCK_MONOTONIC: clockid_t = 1;
@@ -1420,7 +1423,7 @@ pub const SA_NOCLDWAIT: c_int = 0x00000002;
 
 pub const SIG_DFL: sighandler_t = 0_usize;
 pub const SIG_IGN: sighandler_t = 1_usize;
-pub const SIG_ERR: sighandler_t = !0 as usize;
+pub const SIG_ERR: sighandler_t = !0_usize;
 
 pub const SIGTRAP: c_int = 5;
 pub const SIGCHLD: c_int = 17;
@@ -1562,7 +1565,7 @@ unsafe fn __sigdelset(set: *mut sigset_t, sig: c_int) {
 unsafe fn __sigismember(set: *const sigset_t, sig: c_int) -> c_int {
     let mask: u64 = __sigmask(sig);
     let word: u64 = __sigword(sig);
-    let val = if mask != 0 { 1 } else { 0 };
+    let val = u64::from(mask != 0);
     ((*set).__val[word as usize] & val) as c_int
 }
 
@@ -1617,7 +1620,7 @@ pub const fn CMSG_ALIGN(len: usize) -> usize {
 
 #[inline]
 pub unsafe fn CMSG_FIRSTHDR(mhdr: *const msghdr) -> *mut cmsghdr {
-    if (*mhdr).msg_controllen as usize >= mem::size_of::<cmsghdr>() {
+    if (*mhdr).msg_controllen >= mem::size_of::<cmsghdr>() {
         (*mhdr).msg_control as *mut cmsghdr
     } else {
         ptr::null_mut::<cmsghdr>()
@@ -1641,13 +1644,13 @@ pub unsafe fn CMSG_LEN(length: c_uint) -> c_uint {
 
 #[inline]
 pub unsafe fn CMSG_NXTHDR(mhdr: *const msghdr, cmsg: *const cmsghdr) -> *mut cmsghdr {
-    if ((*cmsg).cmsg_len as usize) < mem::size_of::<cmsghdr>() {
+    if ((*cmsg).cmsg_len) < mem::size_of::<cmsghdr>() {
         return ptr::null_mut::<cmsghdr>();
     };
-    let next = (cmsg as usize + CMSG_ALIGN((*cmsg).cmsg_len as usize)) as *mut cmsghdr;
-    let max = (*mhdr).msg_control as usize + (*mhdr).msg_controllen as usize;
+    let next = (cmsg as usize + CMSG_ALIGN((*cmsg).cmsg_len)) as *mut cmsghdr;
+    let max = (*mhdr).msg_control as usize + (*mhdr).msg_controllen;
     if (next.offset(1)) as usize > max
-        || next as usize + CMSG_ALIGN((*next).cmsg_len as usize) > max
+        || next as usize + CMSG_ALIGN((*next).cmsg_len) > max
     {
         ptr::null_mut::<cmsghdr>()
     } else {

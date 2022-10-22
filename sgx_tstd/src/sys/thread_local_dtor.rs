@@ -15,13 +15,9 @@
 // specific language governing permissions and limitations
 // under the License..
 
-// Since what appears to be glibc 2.18 this symbol has been shipped which
-// GCC and clang both use to invoke destructors in thread_local globals, so
-// let's do the same!
-//
-// Note, however, that we run on lots older linuxes, as well as cross
-// compiling from a newer linux to an older linux, so we also have a
-// fallback implementation to use as well.
+//! Provides thread-local destructors without an associated "key", which
+//! can be more efficient.
+
 pub unsafe fn register_dtor(t: *mut u8, dtor: unsafe extern "C" fn(*mut u8)) {
     use crate::sys_common::thread_local_dtor::register_dtor_fallback;
     register_dtor_fallback(t, dtor);

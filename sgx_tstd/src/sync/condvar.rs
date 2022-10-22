@@ -27,18 +27,12 @@
 //! Synchronization library supports, as well as the OCALLs that each API function needs.
 //!
 
-use crate::alloc::AllocError;
 use crate::fmt;
 use crate::sync::{mutex, poison, LockResult, SgxMutexGuard, PoisonError};
 use crate::sys_common::condvar as sys;
 use crate::time::{Duration, Instant};
 #[cfg(not(feature = "untrusted_time"))]
 use crate::untrusted::time::InstantEx;
-
-use sgx_libc as libc;
-use sgx_trts::oom;
-
-pub use crate::sys_common::condvar::SgxThreadCondvar;
 
 /// A type indicating whether a timed wait on a condition variable returned
 /// due to a time out or not.
@@ -138,7 +132,7 @@ impl WaitTimeoutResult {
 /// }
 /// ```
 pub struct SgxCondvar {
-    inner: sys::SgxMovableThreadCondvar,
+    inner: sys::Condvar,
 }
 
 impl SgxCondvar {
@@ -153,8 +147,9 @@ impl SgxCondvar {
     /// let condvar = Condvar::new();
     /// ```
     #[must_use]
-    pub fn new() -> SgxCondvar {
-        SgxCondvar { inner: sys::SgxMovableThreadCondvar::new() }
+    #[inline]
+    pub const fn new() -> SgxCondvar {
+        SgxCondvar { inner: sys::Condvar::new() }
     }
 
     /// Blocks the current thread until this condition variable receives a
@@ -407,8 +402,8 @@ impl SgxCondvar {
     ) -> LockResult<(SgxMutexGuard<'a, T>, WaitTimeoutResult)> {
         let (poisoned, result) = unsafe {
             let lock = mutex::guard_lock(&guard);
-            let result = self.inner.wait_timeout(lock, dur);
-            (mutex::guard_poison(&guard).get(), WaitTimeoutResult(result.err() == Some(libc::ETIMEDOUT)))
+            let success = self.inner.wait_timeout(lock, dur);
+            (mutex::guard_poison(&guard).get(), WaitTimeoutResult(!success))
         };
         if poisoned { Err(PoisonError::new((guard, result))) } else { Ok((guard, result)) }
     }
@@ -491,36 +486,6 @@ impl SgxCondvar {
     ///
     /// If there is a blocked thread on this condition variable, then it will
     /// be woken up from its call to [`wait`] or [`wait_timeout`]. Calls to
-    /// `signal` are not buffered in any way.
-    ///
-    /// To wake up all threads, see [`broadcast`].
-    pub fn signal(&self) {
-        unsafe { self.inner.signal(); }
-    }
-
-    /// Wakes up all blocked threads on this condvar.
-    ///
-    /// This method will ensure that any current waiters on the condition
-    /// variable are awoken. Calls to `broadcast()` are not buffered in any
-    /// way.
-    ///
-    /// To wake up only one thread, see [`signal`].
-    pub fn broadcast(&self) {
-        unsafe {
-            let ret = self.inner.broadcast();
-            match ret {
-                Err(r) if r == libc::ENOMEM => {
-                    oom::rsgx_oom(AllocError)
-                },
-                _ => {},
-            }
-        }
-    }
-
-    /// Wakes up one blocked thread on this condvar.
-    ///
-    /// If there is a blocked thread on this condition variable, then it will
-    /// be woken up from its call to [`wait`] or [`wait_timeout`]. Calls to
     /// `notify_one` are not buffered in any way.
     ///
     /// To wake up all threads, see [`notify_all`].
@@ -554,9 +519,8 @@ impl SgxCondvar {
     ///     started = cvar.wait(started).unwrap();
     /// }
     /// ```
-    #[inline]
     pub fn notify_one(&self) {
-        self.signal()
+        self.inner.notify_one()
     }
 
     /// Wakes up all blocked threads on this condvar.
@@ -594,9 +558,8 @@ impl SgxCondvar {
     ///     started = cvar.wait(started).unwrap();
     /// }
     /// ```
-    #[inline]
     pub fn notify_all(&self) {
-        self.broadcast()
+        self.inner.notify_all()
     }
 }
 

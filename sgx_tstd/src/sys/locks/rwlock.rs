@@ -17,8 +17,10 @@
 
 use crate::cell::UnsafeCell;
 use crate::collections::LinkedList;
+use crate::mem;
 use crate::sync::SgxThreadSpinlock;
-use crate::sys::mutex;
+use crate::sys_common::lazy_box::{LazyBox, LazyInit};
+use crate::sys::locks::mutex;
 use crate::thread::rsgx_thread_self;
 use crate::time::Duration;
 
@@ -26,7 +28,127 @@ use sgx_libc as libc;
 use sgx_trts::enclave::SgxThreadData;
 use sgx_types::{sgx_thread_t, SysError, SGX_THREAD_T_NULL};
 
-struct SgxThreadRwLockInner {
+/// An OS-based reader-writer lock.
+///
+/// This structure is entirely unsafe and serves as the lowest layer of a
+/// cross-platform binding of system rwlocks. It is recommended to use the
+/// safer types at the top level of this crate instead of this type.
+pub struct RwLock {
+    inner: UnsafeCell<RwLockInner>,
+}
+
+pub type MovableRwLock = LazyBox<RwLock>;
+
+unsafe impl Send for RwLock {}
+unsafe impl Sync for RwLock {}
+
+impl LazyInit for RwLock {
+    fn init() -> Box<Self> {
+        Box::new(Self::new())
+    }
+
+    fn destroy(rwlock: Box<Self>) {
+        // We're not allowed to pthread_rwlock_destroy a locked rwlock,
+        // so check first if it's unlocked.
+        if unsafe { rwlock.is_locked() } {
+            // The rwlock is locked. This happens if a RwLock{Read,Write}Guard is leaked.
+            // In this case, we just leak the RwLock too.
+            mem::forget(rwlock);
+        }
+    }
+
+    fn cancel_init(_: Box<Self>) {
+        // In this case, we can just drop it without any checks,
+        // since it cannot have been locked yet.
+    }
+}
+
+impl RwLock {
+    /// Creates a new reader-writer lock for use.
+    pub const fn new() -> Self {
+        RwLock {
+            inner: UnsafeCell::new(RwLockInner::new()),
+        }
+    }
+
+    /// Acquires shared access to the underlying lock, blocking the current
+    /// thread to do so.
+    #[inline]
+    pub unsafe fn read(&self) -> SysError {
+        let rwlock = &mut *self.inner.get();
+        rwlock.read()
+    }
+
+    /// Attempts to acquire shared access to this lock, returning whether it
+    /// succeeded or not.
+    ///
+    /// This function does not block the current thread.
+    #[inline]
+    pub unsafe fn try_read(&self) -> SysError {
+        let rwlock = &mut *self.inner.get();
+        rwlock.try_read()
+    }
+
+    /// Acquires write access to the underlying lock, blocking the current thread
+    /// to do so.
+    #[inline]
+    pub unsafe fn write(&self) -> SysError {
+        let rwlock = &mut *self.inner.get();
+        rwlock.write()
+    }
+
+    /// Attempts to acquire exclusive access to this lock, returning whether it
+    /// succeeded or not.
+    ///
+    /// This function does not block the current thread.
+    #[inline]
+    pub unsafe fn try_write(&self) -> SysError {
+        let rwlock = &mut *self.inner.get();
+        rwlock.try_write()
+    }
+
+    /// Unlocks previously acquired shared access to this lock.
+    #[inline]
+    pub unsafe fn read_unlock(&self) -> SysError {
+        let rwlock = &mut *self.inner.get();
+        rwlock.read_unlock()
+    }
+
+    /// Unlocks previously acquired exclusive access to this lock.
+    #[inline]
+    pub unsafe fn write_unlock(&self) -> SysError {
+        let rwlock = &mut *self.inner.get();
+        rwlock.write_unlock()
+    }
+
+    #[inline]
+    pub unsafe fn unlock(&self) -> SysError {
+        let rwlock = &mut *self.inner.get();
+        rwlock.unlock()
+    }
+
+    /// Destroys OS-related resources with this RWLock.
+    #[inline]
+    pub unsafe fn destroy(&self) -> SysError {
+        let rwlock = &mut *self.inner.get();
+        rwlock.destroy()
+    }
+
+    #[inline]
+    unsafe fn is_locked(&self) -> bool {
+        let rwlock = &*self.inner.get();
+        rwlock.is_locked()
+    }
+}
+
+impl Drop for RwLock {
+    fn drop(&mut self) {
+        let r = unsafe { self.destroy() };
+        debug_assert_eq!(r, Ok(()));
+    }
+}
+
+struct RwLockInner {
     reader_count: u32,
     writer_waiting: u32,
     lock: SgxThreadSpinlock,
@@ -35,9 +157,9 @@ struct SgxThreadRwLockInner {
     writer_queue: LinkedList<sgx_thread_t>,
 }
 
-impl SgxThreadRwLockInner {
+impl RwLockInner {
     const fn new() -> Self {
-        SgxThreadRwLockInner {
+        RwLockInner {
             reader_count: 0,
             writer_waiting: 0,
             lock: SgxThreadSpinlock::new(),
@@ -209,104 +331,21 @@ impl SgxThreadRwLockInner {
     }
 
     unsafe fn destroy(&mut self) -> SysError {
-        self.lock.lock();
-        let ret = if self.owner != SGX_THREAD_T_NULL
-            || self.reader_count != 0
-            || self.writer_waiting != 0
-            || !self.reader_queue.is_empty()
-            || !self.writer_queue.is_empty()
-        {
+        if self.is_locked() {
             Err(libc::EBUSY)
         } else {
             Ok(())
-        };
-        self.lock.unlock();
-        ret
-    }
-}
-
-pub type SgxMovableThreadRwLock = Box<SgxThreadRwLock>;
-
-unsafe impl Send for SgxThreadRwLock {}
-unsafe impl Sync for SgxThreadRwLock {}
-
-/// An OS-based reader-writer lock.
-///
-/// This structure is entirely unsafe and serves as the lowest layer of a
-/// cross-platform binding of system rwlocks. It is recommended to use the
-/// safer types at the top level of this crate instead of this type.
-pub struct SgxThreadRwLock {
-    lock: UnsafeCell<SgxThreadRwLockInner>,
-}
-
-impl SgxThreadRwLock {
-    /// Creates a new reader-writer lock for use.
-    pub const fn new() -> Self {
-        SgxThreadRwLock {
-            lock: UnsafeCell::new(SgxThreadRwLockInner::new()),
         }
     }
 
-    /// Acquires shared access to the underlying lock, blocking the current
-    /// thread to do so.
-    #[inline]
-    pub unsafe fn read(&self) -> SysError {
-        let rwlock: &mut SgxThreadRwLockInner = &mut *self.lock.get();
-        rwlock.read()
-    }
-
-    /// Attempts to acquire shared access to this lock, returning whether it
-    /// succeeded or not.
-    ///
-    /// This function does not block the current thread.
-    #[inline]
-    pub unsafe fn try_read(&self) -> SysError {
-        let rwlock: &mut SgxThreadRwLockInner = &mut *self.lock.get();
-        rwlock.try_read()
-    }
-
-    /// Acquires write access to the underlying lock, blocking the current thread
-    /// to do so.
-    #[inline]
-    pub unsafe fn write(&self) -> SysError {
-        let rwlock: &mut SgxThreadRwLockInner = &mut *self.lock.get();
-        rwlock.write()
-    }
-
-    /// Attempts to acquire exclusive access to this lock, returning whether it
-    /// succeeded or not.
-    ///
-    /// This function does not block the current thread.
-    #[inline]
-    pub unsafe fn try_write(&self) -> SysError {
-        let rwlock: &mut SgxThreadRwLockInner = &mut *self.lock.get();
-        rwlock.try_write()
-    }
-
-    /// Unlocks previously acquired shared access to this lock.
-    #[inline]
-    pub unsafe fn read_unlock(&self) -> SysError {
-        let rwlock: &mut SgxThreadRwLockInner = &mut *self.lock.get();
-        rwlock.read_unlock()
-    }
-
-    /// Unlocks previously acquired exclusive access to this lock.
-    #[inline]
-    pub unsafe fn write_unlock(&self) -> SysError {
-        let rwlock: &mut SgxThreadRwLockInner = &mut *self.lock.get();
-        rwlock.write_unlock()
-    }
-
-    #[inline]
-    pub unsafe fn unlock(&self) -> SysError {
-        let rwlock: &mut SgxThreadRwLockInner = &mut *self.lock.get();
-        rwlock.unlock()
-    }
-
-    /// Destroys OS-related resources with this RWLock.
-    #[inline]
-    pub unsafe fn destroy(&self) -> SysError {
-        let rwlock: &mut SgxThreadRwLockInner = &mut *self.lock.get();
-        rwlock.destroy()
+    unsafe fn is_locked(&self) -> bool {
+        self.lock.lock();
+        let is_locked = self.owner != SGX_THREAD_T_NULL
+            || self.reader_count != 0
+            || self.writer_waiting != 0
+            || !self.reader_queue.is_empty()
+            || !self.writer_queue.is_empty();
+        self.lock.unlock();
+        is_locked
     }
 }

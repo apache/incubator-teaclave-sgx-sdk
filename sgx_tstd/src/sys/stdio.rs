@@ -17,7 +17,7 @@
 
 use crate::io::{self, IoSlice, IoSliceMut};
 use crate::mem::ManuallyDrop;
-use crate::os::unix::io::{AsFd, BorrowedFd, FromRawFd};
+use crate::os::unix::io::FromRawFd;
 use crate::sys::fd::FileDesc;
 use sgx_libc as libc;
 
@@ -101,53 +101,11 @@ impl io::Write for Stderr {
 }
 
 pub fn is_ebadf(err: &io::Error) -> bool {
-    err.raw_os_error() == Some(libc::EBADF as i32)
+    err.raw_os_error() == Some(libc::EBADF)
 }
 
 pub const STDIN_BUF_SIZE: usize = crate::sys_common::io::DEFAULT_BUF_SIZE;
 
 pub fn panic_output() -> Option<impl io::Write> {
     Some(Stderr::new())
-}
-
-impl AsFd for io::Stdin {
-    #[inline]
-    fn as_fd(&self) -> BorrowedFd<'_> {
-        unsafe { BorrowedFd::borrow_raw_fd(libc::STDIN_FILENO) }
-    }
-}
-
-impl<'a> AsFd for io::StdinLock<'a> {
-    #[inline]
-    fn as_fd(&self) -> BorrowedFd<'_> {
-        unsafe { BorrowedFd::borrow_raw_fd(libc::STDIN_FILENO) }
-    }
-}
-
-impl AsFd for io::Stdout {
-    #[inline]
-    fn as_fd(&self) -> BorrowedFd<'_> {
-        unsafe { BorrowedFd::borrow_raw_fd(libc::STDOUT_FILENO) }
-    }
-}
-
-impl<'a> AsFd for io::StdoutLock<'a> {
-    #[inline]
-    fn as_fd(&self) -> BorrowedFd<'_> {
-        unsafe { BorrowedFd::borrow_raw_fd(libc::STDOUT_FILENO) }
-    }
-}
-
-impl AsFd for io::Stderr {
-    #[inline]
-    fn as_fd(&self) -> BorrowedFd<'_> {
-        unsafe { BorrowedFd::borrow_raw_fd(libc::STDERR_FILENO) }
-    }
-}
-
-impl<'a> AsFd for io::StderrLock<'a> {
-    #[inline]
-    fn as_fd(&self) -> BorrowedFd<'_> {
-        unsafe { BorrowedFd::borrow_raw_fd(libc::STDERR_FILENO) }
-    }
 }

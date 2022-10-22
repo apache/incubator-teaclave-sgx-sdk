@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//! Constants specific to the `f64` double-precision floating point type.
+//! Constants for the `f64` double-precision floating point type.
 //!
 //! *[See also the `f64` primitive type](primitive@f64).*
 //!
@@ -28,6 +28,7 @@
 
 #![allow(missing_docs)]
 
+
 use crate::intrinsics;
 use crate::sys::cmath;
 
@@ -37,9 +38,8 @@ pub use core::f64::{
     MIN_EXP, MIN_POSITIVE, NAN, NEG_INFINITY, RADIX,
 };
 
-#[lang = "f64_runtime"]
 impl f64 {
-    /// Returns the largest integer less than or equal to a number.
+    /// Returns the largest integer less than or equal to `self`.
     ///
     /// # Examples
     ///
@@ -52,13 +52,14 @@ impl f64 {
     /// assert_eq!(g.floor(), 3.0);
     /// assert_eq!(h.floor(), -4.0);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn floor(self) -> f64 {
         unsafe { intrinsics::floorf64(self) }
     }
 
-    /// Returns the smallest integer greater than or equal to a number.
+    /// Returns the smallest integer greater than or equal to `self`.
     ///
     /// # Examples
     ///
@@ -69,13 +70,14 @@ impl f64 {
     /// assert_eq!(f.ceil(), 4.0);
     /// assert_eq!(g.ceil(), 4.0);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn ceil(self) -> f64 {
         unsafe { intrinsics::ceilf64(self) }
     }
 
-    /// Returns the nearest integer to a number. Round half-way cases away from
+    /// Returns the nearest integer to `self`. Round half-way cases away from
     /// `0.0`.
     ///
     /// # Examples
@@ -87,13 +89,15 @@ impl f64 {
     /// assert_eq!(f.round(), 3.0);
     /// assert_eq!(g.round(), -3.0);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn round(self) -> f64 {
         unsafe { intrinsics::roundf64(self) }
     }
 
-    /// Returns the integer part of a number.
+    /// Returns the integer part of `self`.
+    /// This means that non-integer numbers are always truncated towards zero.
     ///
     /// # Examples
     ///
@@ -106,13 +110,14 @@ impl f64 {
     /// assert_eq!(g.trunc(), 3.0);
     /// assert_eq!(h.trunc(), -3.0);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn trunc(self) -> f64 {
         unsafe { intrinsics::truncf64(self) }
     }
 
-    /// Returns the fractional part of a number.
+    /// Returns the fractional part of `self`.
     ///
     /// # Examples
     ///
@@ -125,14 +130,14 @@ impl f64 {
     /// assert!(abs_difference_x < 1e-10);
     /// assert!(abs_difference_y < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn fract(self) -> f64 {
         self - self.trunc()
     }
 
-    /// Computes the absolute value of `self`. Returns `NAN` if the
-    /// number is `NAN`.
+    /// Computes the absolute value of `self`.
     ///
     /// # Examples
     ///
@@ -148,6 +153,7 @@ impl f64 {
     ///
     /// assert!(f64::NAN.abs().is_nan());
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn abs(self) -> f64 {
@@ -158,7 +164,7 @@ impl f64 {
     ///
     /// - `1.0` if the number is positive, `+0.0` or `INFINITY`
     /// - `-1.0` if the number is negative, `-0.0` or `NEG_INFINITY`
-    /// - `NAN` if the number is `NAN`
+    /// - NaN if the number is NaN
     ///
     /// # Examples
     ///
@@ -170,6 +176,7 @@ impl f64 {
     ///
     /// assert!(f64::NAN.signum().is_nan());
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn signum(self) -> f64 {
@@ -180,8 +187,10 @@ impl f64 {
     /// `sign`.
     ///
     /// Equal to `self` if the sign of `self` and `sign` are the same, otherwise
-    /// equal to `-self`. If `self` is a `NAN`, then a `NAN` with the sign of
-    /// `sign` is returned.
+    /// equal to `-self`. If `self` is a NaN, then a NaN with the sign bit of
+    /// `sign` is returned. Note, however, that conserving the sign bit on NaN
+    /// across arithmetical operations is not generally guaranteed.
+    /// See [explanation of NaN as a special value](primitive@f32) for more info.
     ///
     /// # Examples
     ///
@@ -195,6 +204,7 @@ impl f64 {
     ///
     /// assert!(f64::NAN.copysign(1.0).is_nan());
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn copysign(self, sign: f64) -> f64 {
@@ -221,6 +231,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn mul_add(self, a: f64, b: f64) -> f64 {
@@ -244,6 +255,7 @@ impl f64 {
     /// assert_eq!(a.div_euclid(-b), -1.0); // 7.0 >= -4.0 * -1.0
     /// assert_eq!((-a).div_euclid(-b), 2.0); // -7.0 >= -4.0 * 2.0
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn div_euclid(self, rhs: f64) -> f64 {
@@ -277,6 +289,7 @@ impl f64 {
     /// // limitation due to round-off error
     /// assert!((-f64::EPSILON).rem_euclid(3.0) != 0.0);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn rem_euclid(self, rhs: f64) -> f64 {
@@ -286,7 +299,9 @@ impl f64 {
 
     /// Raises a number to an integer power.
     ///
-    /// Using this function is generally faster than using `powf`
+    /// Using this function is generally faster than using `powf`.
+    /// It might have a different sequence of rounding operations than `powf`,
+    /// so the results are not guaranteed to agree.
     ///
     /// # Examples
     ///
@@ -296,6 +311,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn powi(self, n: i32) -> f64 {
@@ -312,6 +328,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn powf(self, n: f64) -> f64 {
@@ -335,6 +352,7 @@ impl f64 {
     /// assert!(negative.sqrt().is_nan());
     /// assert!(negative_zero.sqrt() == negative_zero);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn sqrt(self) -> f64 {
@@ -355,6 +373,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn exp(self) -> f64 {
@@ -373,6 +392,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn exp2(self) -> f64 {
@@ -393,6 +413,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn ln(self) -> f64 {
@@ -415,6 +436,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn log(self, base: f64) -> f64 {
@@ -433,6 +455,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn log2(self) -> f64 {
@@ -456,6 +479,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn log10(self) -> f64 {
@@ -479,6 +503,7 @@ impl f64 {
     /// assert!(abs_difference_x < 1e-10);
     /// assert!(abs_difference_y < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn abs_sub(self, other: f64) -> f64 {
@@ -497,6 +522,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn cbrt(self) -> f64 {
@@ -517,6 +543,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn hypot(self, other: f64) -> f64 {
@@ -534,6 +561,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn sin(self) -> f64 {
@@ -551,6 +579,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn cos(self) -> f64 {
@@ -567,6 +596,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-14);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn tan(self) -> f64 {
@@ -587,6 +617,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn asin(self) -> f64 {
@@ -607,6 +638,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn acos(self) -> f64 {
@@ -626,6 +658,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn atan(self) -> f64 {
@@ -658,6 +691,7 @@ impl f64 {
     /// assert!(abs_difference_1 < 1e-10);
     /// assert!(abs_difference_2 < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn atan2(self, other: f64) -> f64 {
@@ -679,6 +713,7 @@ impl f64 {
     /// assert!(abs_difference_0 < 1e-10);
     /// assert!(abs_difference_1 < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[inline]
     pub fn sin_cos(self) -> (f64, f64) {
         (self.sin(), self.cos())
@@ -698,6 +733,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-20);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn exp_m1(self) -> f64 {
@@ -718,6 +754,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-20);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn ln_1p(self) -> f64 {
@@ -739,6 +776,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn sinh(self) -> f64 {
@@ -760,6 +798,7 @@ impl f64 {
     /// // Same result
     /// assert!(abs_difference < 1.0e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn cosh(self) -> f64 {
@@ -781,6 +820,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1.0e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn tanh(self) -> f64 {
@@ -799,6 +839,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1.0e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn asinh(self) -> f64 {
@@ -817,6 +858,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1.0e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn acosh(self) -> f64 {
@@ -835,6 +877,7 @@ impl f64 {
     ///
     /// assert!(abs_difference < 1.0e-10);
     /// ```
+    #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn atanh(self) -> f64 {
@@ -845,6 +888,7 @@ impl f64 {
     // because of their non-standard behavior (e.g., log(-n) returns -Inf instead
     // of expected NaN).
     #[allow(clippy::if_same_then_else)]
+    #[rustc_allow_incoherent_impl]
     fn log_wrapper<F: Fn(f64) -> f64>(self, log_fn: F) -> f64 {
         if !cfg!(any(target_os = "solaris", target_os = "illumos")) {
             log_fn(self)

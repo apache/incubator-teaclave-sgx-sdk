@@ -42,8 +42,10 @@ pub mod fs;
 #[cfg(feature = "backtrace")]
 pub mod gnu;
 pub mod io;
+pub mod lazy_box;
 pub mod memchr;
 pub mod mutex;
+pub mod once;
 #[cfg(feature = "net")]
 pub mod net;
 pub mod remutex;

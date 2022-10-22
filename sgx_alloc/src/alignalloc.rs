@@ -308,7 +308,7 @@ mod platform {
 
     fn gen_alignmask(al: usize, a: usize, m: u64) -> i64 {
         if a > al {
-            gen_alignmask(al, (a >> 1) as usize, m | (m >> (a >> 1)))
+            gen_alignmask(al, a >> 1, m | (m >> (a >> 1)))
         } else {
             m as i64
         }

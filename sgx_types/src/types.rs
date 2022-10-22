@@ -1246,7 +1246,7 @@ pub const SL_DEFAULT_SLEEP_RETRIES: uint32_t = 20000;
 pub const SL_DEFUALT_MAX_TASKS_QWORDS: uint32_t = 1;
 pub const SL_MAX_TASKS_MAX_QWORDS: uint32_t = 8;
 
-pub const _SGX_USWITCHLESS_WORKER_EVENT_NUM: size_t = 4;
+pub const SGX_USWITCHLESS_WORKER_EVENT_NUM: size_t = 4;
 
 #[repr(C)]
 pub struct sgx_uswitchless_config_t {
@@ -1255,10 +1255,11 @@ pub struct sgx_uswitchless_config_t {
     pub num_tworkers: uint32_t,
     pub retries_before_fallback: uint32_t,
     pub retries_before_sleep: uint32_t,
-    pub callback_func: [sgx_uswitchless_worker_callback_t; _SGX_USWITCHLESS_WORKER_EVENT_NUM],
+    pub callback_func: [sgx_uswitchless_worker_callback_t; SGX_USWITCHLESS_WORKER_EVENT_NUM],
 }
 
 impl Default for sgx_uswitchless_config_t {
+    #[allow(invalid_value)]
     fn default() -> sgx_uswitchless_config_t {
         let mut config: sgx_uswitchless_config_t = unsafe { core::mem::zeroed() };
         config.num_uworkers = 1;

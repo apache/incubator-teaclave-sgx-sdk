@@ -26,7 +26,7 @@ use std::collections::LinkedList;
 use std::convert::From;
 use std::num::NonZeroU64;
 use std::ops::Drop;
-use std::sync::{Arc, Once, SgxRwLock, SgxThreadMutex, ONCE_INIT};
+use std::sync::{Arc, Once, SgxRwLock, SgxMutex, PoisonError, ONCE_INIT};
 use std::u64;
 
 #[repr(u32)]
@@ -53,19 +53,21 @@ pub struct HandlerId(NonZeroU64);
 
 impl HandlerId {
     fn new() -> HandlerId {
-        static GUARD: SgxThreadMutex = SgxThreadMutex::new();
-        static mut COUNTER: u64 = 1;
-
-        unsafe {
-            let _guard = GUARD.lock();
-            if COUNTER == u64::MAX {
-                panic!("failed to generate unique HandlerId : bitspace exhausted");
-            }
-            let id = COUNTER;
-            COUNTER += 1;
-            let _ = GUARD.unlock();
-            HandlerId(NonZeroU64::new(id).unwrap())
+        #[cold]
+        fn exhausted() -> ! {
+            panic!("failed to generate unique Handler ID: bitspace exhausted")
         }
+        static COUNTER: SgxMutex<u64> = SgxMutex::new(0);
+
+        let mut counter = COUNTER.lock().unwrap_or_else(PoisonError::into_inner);
+        let Some(id) = counter.checked_add(1) else {
+            drop(counter);
+            exhausted();
+        };
+
+        *counter = id;
+        drop(counter);
+        HandlerId(NonZeroU64::new(id).unwrap())
     }
 }
 

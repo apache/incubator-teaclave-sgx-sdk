@@ -25,7 +25,7 @@ use std::mem;
 use std::num::NonZeroU64;
 use std::sync::Arc;
 #[allow(deprecated)]
-use std::sync::{SgxMutex, SgxThreadMutex};
+use std::sync::{SgxMutex, PoisonError};
 use std::u64;
 
 thread_local! { static SIGNAL_MASK: Cell<SigSet> = Cell::new(SigSet::new()) }
@@ -145,20 +145,25 @@ pub struct ActionId(NonZeroU64);
 
 impl ActionId {
     fn new() -> Self {
-        static GUARD: SgxThreadMutex = SgxThreadMutex::new();
-        static mut COUNTER: u64 = 1;
-
-        unsafe {
-            let _guard = GUARD.lock();
-            if COUNTER == u64::MAX {
-                panic!("failed to generate unique ActionId : bitspace exhausted");
-            }
-            let id = COUNTER;
-            COUNTER += 1;
-            let _ = GUARD.unlock();
-            ActionId(NonZeroU64::new(id).unwrap())
+        #[cold]
+        fn exhausted() -> ! {
+            panic!("failed to generate unique Action ID: bitspace exhausted")
         }
+
+        static COUNTER: SgxMutex<u64> = SgxMutex::new(0);
+
+        let mut counter = COUNTER.lock().unwrap_or_else(PoisonError::into_inner);
+        let Some(id) = counter.checked_add(1) else {
+            drop(counter);
+            exhausted();
+        };
+
+        *counter = id;
+        drop(counter);
+        ActionId(NonZeroU64::new(id).unwrap())
     }
+
+    
 }
 
 pub type Action = dyn Fn(&siginfo_t) + Send + Sync;

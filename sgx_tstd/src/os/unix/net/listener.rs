@@ -78,7 +78,7 @@ impl UnixListener {
     /// let listener = match UnixListener::bind("/path/to/the/socket") {
     ///     Ok(sock) => sock,
     ///     Err(e) => {
-    ///         println!("Couldn't connect: {:?}", e);
+    ///         println!("Couldn't connect: {e:?}");
     ///         return
     ///     }
     /// };
@@ -112,7 +112,7 @@ impl UnixListener {
     ///     let listener2 = match UnixListener::bind_addr(&addr) {
     ///         Ok(sock) => sock,
     ///         Err(err) => {
-    ///             println!("Couldn't bind: {:?}", err);
+    ///             println!("Couldn't bind: {err:?}");
     ///             return Err(err);
     ///         }
     ///     };
@@ -149,8 +149,8 @@ impl UnixListener {
     ///     let listener = UnixListener::bind("/path/to/the/socket")?;
     ///
     ///     match listener.accept() {
-    ///         Ok((socket, addr)) => println!("Got a client: {:?}", addr),
-    ///         Err(e) => println!("accept function failed: {:?}", e),
+    ///         Ok((socket, addr)) => println!("Got a client: {addr:?}"),
+    ///         Err(e) => println!("accept function failed: {e:?}"),
     ///     }
     ///     Ok(())
     /// }
@@ -235,7 +235,7 @@ impl UnixListener {
     ///     let listener = UnixListener::bind("/tmp/sock")?;
     ///
     ///     if let Ok(Some(err)) = listener.take_error() {
-    ///         println!("Got error: {:?}", err);
+    ///         println!("Got error: {err:?}");
     ///     }
     ///     Ok(())
     /// }

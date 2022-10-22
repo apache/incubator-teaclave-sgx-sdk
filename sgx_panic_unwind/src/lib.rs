@@ -1,7 +1,15 @@
 //! Implementation of panics via stack unwinding
 //!
 //! This crate is an implementation of panics in Rust using "most native" stack
-//! unwinding mechanism of the platform this is being compiled for.
+//! unwinding mechanism of the platform this is being compiled for. This
+//! essentially gets categorized into three buckets currently:
+//!
+//! 1. MSVC targets use SEH in the `seh.rs` file.
+//! 2. Emscripten uses C++ exceptions in the `emcc.rs` file.
+//! 3. All other targets use libunwind/libgcc in the `gcc.rs` file.
+//!
+//! More documentation about each implementation can be found in the respective
+//! module.
 
 #![no_std]
 #![unstable(feature = "panic_unwind", issue = "32837")]
@@ -12,7 +20,6 @@
 
 #![feature(core_intrinsics)]
 #![feature(lang_items)]
-#![feature(nll)]
 #![feature(panic_unwind)]
 #![feature(staged_api)]
 #![feature(std_internals)]
@@ -23,7 +30,6 @@
 #![feature(c_unwind)]
 
 extern crate alloc;
-extern crate sgx_libc;
 extern crate sgx_unwind;
 
 use alloc::boxed::Box;
@@ -42,8 +48,6 @@ extern "C" {
     fn __rust_foreign_exception() -> !;
 }
 
-mod dwarf;
-
 /// # Safety
 #[rustc_std_internal_symbol]
 #[allow(improper_ctypes_definitions)]
@@ -55,7 +59,7 @@ pub unsafe extern "C" fn __rust_panic_cleanup(payload: *mut u8) -> *mut (dyn Any
 // Entry point for raising an exception, just delegates to the platform-specific
 // implementation.
 #[rustc_std_internal_symbol]
-pub unsafe extern "C-unwind" fn __rust_start_panic(payload: *mut &mut dyn BoxMeUp) -> u32 {
+pub unsafe fn __rust_start_panic(payload: *mut &mut dyn BoxMeUp) -> u32 {
     let payload = Box::from_raw((*payload).take_box());
 
     imp::panic(payload)

@@ -103,7 +103,7 @@ pub fn get_enclave_id() -> sgx_enclave_id_t {
 /// set_enclave_id is to set enclave ID.
 ///
 pub fn set_enclave_id(eid: sgx_enclave_id_t) {
-    ENCLAVE_ID.store(eid as u64, Ordering::SeqCst);
+    ENCLAVE_ID.store(eid, Ordering::SeqCst);
 }
 
 ///

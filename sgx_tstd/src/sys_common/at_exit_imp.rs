@@ -21,7 +21,7 @@
 
 use crate::mem;
 use crate::ptr;
-use crate::sync::SgxThreadSpinlock as ThreadSpinlock;
+use crate::sys_common::mutex::StaticMutex;
 
 type Queue = Vec<Box<dyn FnOnce()>>;
 
@@ -29,8 +29,10 @@ type Queue = Vec<Box<dyn FnOnce()>>;
 // on poisoning and this module needs to operate at a lower level than requiring
 // the thread infrastructure to be in place (useful on the borders of
 // initialization/destruction).
-static LOCK: ThreadSpinlock = ThreadSpinlock::new();
+// It is UB to attempt to acquire this mutex reentrantly!
+static LOCK: StaticMutex = StaticMutex::new();
 static mut QUEUE: *mut Queue = ptr::null_mut();
+
 const DONE: *mut Queue = 1_usize as *mut _;
 
 // The maximum number of times the cleanup routines will be run. While running
@@ -54,9 +56,10 @@ unsafe fn init() -> bool {
 pub fn cleanup() {
     for i in 1..=ITERS {
         unsafe {
-            LOCK.lock();
-            let queue = mem::replace(&mut QUEUE, if i == ITERS { DONE } else { ptr::null_mut() });
-            LOCK.unlock();
+            let queue = {
+                let _guard = LOCK.lock();
+                mem::replace(&mut QUEUE, if i == ITERS { DONE } else { ptr::null_mut() })
+            };
 
             // make sure we're not recursively cleaning up
             assert!(queue != DONE);
@@ -75,16 +78,14 @@ pub fn cleanup() {
 
 pub fn push(f: Box<dyn FnOnce()>) -> bool {
     unsafe {
-        LOCK.lock();
-        let ret = if init() {
+        let _guard = LOCK.lock();
+        if init() {
             // We are just moving `f` around, not calling it.
             // There is no possibility of reentrancy here.
             (*QUEUE).push(f);
             true
         } else {
             false
-        };
-        LOCK.unlock();
-        ret
+        }
     }
 }

@@ -216,7 +216,7 @@
 //! ```
 //! let vec = vec![1, 2, 3, 4];
 //! for x in vec.iter() {
-//!    println!("vec contained {}", x);
+//!    println!("vec contained {x:?}");
 //! }
 //! ```
 //!
@@ -263,7 +263,7 @@
 //! ```
 //! let vec = vec![1, 2, 3, 4];
 //! for x in vec.iter().rev() {
-//!    println!("vec contained {}", x);
+//!    println!("vec contained {x:?}");
 //! }
 //! ```
 //!
@@ -323,7 +323,7 @@
 //!
 //! println!("Number of occurrences of each character");
 //! for (char, count) in &count {
-//!     println!("{}: {}", char, count);
+//!     println!("{char}: {count}");
 //! }
 //! ```
 //!
@@ -356,7 +356,7 @@
 //!     // Check if they're sober enough to have another beer.
 //!     if person.blood_alcohol > 0.3 {
 //!         // Too drunk... for now.
-//!         println!("Sorry {}, I have to cut you off", id);
+//!         println!("Sorry {id}, I have to cut you off");
 //!     } else {
 //!         // Have another!
 //!         person.blood_alcohol += 0.1;
@@ -415,6 +415,7 @@
 //!
 //! [IntoIterator]: crate::iter::IntoIterator "iter::IntoIterator"
 
+#[doc(hidden)]
 pub use crate::ops::Bound;
 pub use alloc_crate::collections::{binary_heap, btree_map, btree_set};
 pub use alloc_crate::collections::{linked_list, vec_deque};

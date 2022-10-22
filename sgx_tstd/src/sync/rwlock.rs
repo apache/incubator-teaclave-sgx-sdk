@@ -18,13 +18,9 @@
 use crate::cell::UnsafeCell;
 use crate::fmt;
 use crate::ops::{Deref, DerefMut};
+use crate::ptr::NonNull;
 use crate::sync::{poison, LockResult, TryLockError, TryLockResult};
 use crate::sys_common::rwlock as sys;
-
-use sgx_libc as libc;
-
-pub use crate::sys_common::rwlock::SgxThreadRwLock;
-
 
 /// A reader-writer lock
 ///
@@ -94,7 +90,7 @@ pub use crate::sys_common::rwlock::SgxThreadRwLock;
 ///
 /// [`SgxMutex`]: super::SgxMutex
 pub struct SgxRwLock<T: ?Sized> {
-    inner: sys::SgxMovableThreadRwLock,
+    inner: sys::MovableRwLock,
     poison: poison::Flag,
     data: UnsafeCell<T>,
 }
@@ -110,8 +106,18 @@ unsafe impl<T: ?Sized + Send + Sync> Sync for SgxRwLock<T> {}
 ///
 /// [`read`]: RwLock::read
 /// [`try_read`]: RwLock::try_read
+#[must_use = "if unused the RwLock will immediately unlock"]
+#[must_not_suspend = "holding a RwLockReadGuard across suspend \
+                      points can cause deadlocks, delays, \
+                      and cause Futures to not implement `Send`"]
+#[clippy::has_significant_drop]
 pub struct SgxRwLockReadGuard<'a, T: ?Sized + 'a> {
-    lock: &'a SgxRwLock<T>,
+    // NB: we use a pointer instead of `&'a T` to avoid `noalias` violations, because a
+    // `Ref` argument doesn't hold immutability for its whole scope, only until it drops.
+    // `NonNull` is also covariant over `T`, just like we would have with `&T`. `NonNull`
+    // is preferable over `const* T` to allow for niche optimization.
+    data: NonNull<T>,
+    inner_lock: &'a sys::MovableRwLock,
 }
 
 impl<T: ?Sized> !Send for SgxRwLockReadGuard<'_, T> {}
@@ -125,6 +131,10 @@ unsafe impl<T: ?Sized + Sync> Sync for SgxRwLockReadGuard<'_, T> {}
 ///
 /// [`write`]: RwLock::write
 /// [`try_write`]: RwLock::try_write
+#[must_use = "if unused the RwLock will immediately unlock"]
+#[must_not_suspend = "holding a RwLockWriteGuard across suspend \
+                      points can cause deadlocks, delays, \
+                      and cause Future's to not implement `Send`"]
 pub struct SgxRwLockWriteGuard<'a, T: ?Sized + 'a> {
     lock: &'a SgxRwLock<T>,
     poison: poison::Guard,
@@ -143,9 +153,10 @@ impl<T> SgxRwLock<T> {
     ///
     /// let lock = RwLock::new(5);
     /// ```
-    pub fn new(t: T) -> SgxRwLock<T> {
+    #[inline]
+    pub const fn new(t: T) -> SgxRwLock<T> {
         SgxRwLock {
-            inner: sys::SgxMovableThreadRwLock::new(),
+            inner: sys::MovableRwLock::new(),
             poison: poison::Flag::new(),
             data: UnsafeCell::new(t),
         }
@@ -153,7 +164,7 @@ impl<T> SgxRwLock<T> {
 }
 
 impl<T: ?Sized> SgxRwLock<T> {
-    /// Locks this rwlock with shared read access, blocking the current thread
+    /// Locks this `SgxRwLock` with shared read access, blocking the current thread
     /// until it can be acquired.
     ///
     /// The calling thread will be blocked until there are no more writers which
@@ -167,9 +178,10 @@ impl<T: ?Sized> SgxRwLock<T> {
     ///
     /// # Errors
     ///
-    /// This function will return an error if the RwLock is poisoned. An RwLock
-    /// is poisoned whenever a writer panics while holding an exclusive lock.
-    /// The failure will occur immediately after the lock has been acquired.
+    /// This function will return an error if the `SgxRwLock` is poisoned. An
+    /// `SgxRwLock` is poisoned whenever a writer panics while holding an exclusive
+    /// lock. The failure will occur immediately after the lock has been
+    /// acquired.
     ///
     /// # Panics
     ///
@@ -195,16 +207,12 @@ impl<T: ?Sized> SgxRwLock<T> {
     #[inline]
     pub fn read(&self) -> LockResult<SgxRwLockReadGuard<'_, T>> {
         unsafe {
-            let ret = self.inner.read();
-            match ret {
-                Err(libc::EAGAIN) => panic!("rwlock maximum reader count exceeded"),
-                Err(libc::EDEADLK) => panic!("rwlock read lock would result in deadlock"),
-                _ => SgxRwLockReadGuard::new(self),
-            }
+            self.inner.read();
+            SgxRwLockReadGuard::new(self)
         }
     }
 
-    /// Attempts to acquire this rwlock with shared read access.
+    /// Attempts to acquire this `SgxRwLock` with shared read access.
     ///
     /// If the access could not be granted at this time, then `Err` is returned.
     /// Otherwise, an RAII guard is returned which will release the shared access
@@ -217,13 +225,13 @@ impl<T: ?Sized> SgxRwLock<T> {
     ///
     /// # Errors
     ///
-    /// This function will return the [`Poisoned`] error if the RwLock is poisoned.
-    /// An RwLock is poisoned whenever a writer panics while holding an exclusive
-    /// lock. `Poisoned` will only be returned if the lock would have otherwise been
-    /// acquired.
+    /// This function will return the [`Poisoned`] error if the `RwLock` is
+    /// poisoned. An `RwLock` is poisoned whenever a writer panics while holding
+    /// an exclusive lock. `Poisoned` will only be returned if the lock would
+    /// have otherwise been acquired.
     ///
-    /// This function will return the [`WouldBlock`] error if the RwLock could not
-    /// be acquired because it was already locked exclusively.
+    /// This function will return the [`WouldBlock`] error if the `RwLock` could
+    /// not be acquired because it was already locked exclusively.
     ///
     /// [`Poisoned`]: TryLockError::Poisoned
     /// [`WouldBlock`]: TryLockError::WouldBlock
@@ -243,27 +251,28 @@ impl<T: ?Sized> SgxRwLock<T> {
     #[inline]
     pub fn try_read(&self) -> TryLockResult<SgxRwLockReadGuard<'_, T>> {
         unsafe {
-            match self.inner.try_read() {
-                Ok(_) => Ok(SgxRwLockReadGuard::new(self)?),
-                Err(_) => Err(TryLockError::WouldBlock),
+            if self.inner.try_read() {
+                Ok(SgxRwLockReadGuard::new(self)?)
+            } else {
+                Err(TryLockError::WouldBlock)
             }
         }
     }
 
-    /// Locks this rwlock with exclusive write access, blocking the current
+    /// Locks this `SgxRwLock` with exclusive write access, blocking the current
     /// thread until it can be acquired.
     ///
     /// This function will not return while other writers or other readers
     /// currently have access to the lock.
     ///
-    /// Returns an RAII guard which will drop the write access of this rwlock
+    /// Returns an RAII guard which will drop the write access of this `SgxRwLock`
     /// when dropped.
     ///
     /// # Errors
     ///
-    /// This function will return an error if the RwLock is poisoned. An RwLock
-    /// is poisoned whenever a writer panics while holding an exclusive lock.
-    /// An error will be returned when the lock is acquired.
+    /// This function will return an error if the `RwLock` is poisoned. An
+    /// `SgxRwLock` is poisoned whenever a writer panics while holding an exclusive
+    /// lock. An error will be returned when the lock is acquired.
     ///
     /// # Panics
     ///
@@ -284,15 +293,12 @@ impl<T: ?Sized> SgxRwLock<T> {
     #[inline]
     pub fn write(&self) -> LockResult<SgxRwLockWriteGuard<'_, T>> {
         unsafe {
-            match self.inner.write() {
-                Err(libc::EAGAIN) => panic!("rwlock maximum writer count exceeded"),
-                Err(libc::EDEADLK) => panic!("rwlock write lock would result in deadlock"),
-                _ => SgxRwLockWriteGuard::new(self),
-            }
+            self.inner.write();
+            SgxRwLockWriteGuard::new(self)
         }
     }
 
-    /// Attempts to lock this rwlock with exclusive write access.
+    /// Attempts to lock this `SgxRwLock` with exclusive write access.
     ///
     /// If the lock could not be acquired at this time, then `Err` is returned.
     /// Otherwise, an RAII guard is returned which will release the lock when
@@ -305,13 +311,13 @@ impl<T: ?Sized> SgxRwLock<T> {
     ///
     /// # Errors
     ///
-    /// This function will return the [`Poisoned`] error if the RwLock is
-    /// poisoned. An RwLock is poisoned whenever a writer panics while holding
-    /// an exclusive lock. `Poisoned` will only be returned if the lock would have
-    /// otherwise been acquired.
+    /// This function will return the [`Poisoned`] error if the `RwLock` is
+    /// poisoned. An `RwLock` is poisoned whenever a writer panics while holding
+    /// an exclusive lock. `Poisoned` will only be returned if the lock would
+    /// have otherwise been acquired.
     ///
-    /// This function will return the [`WouldBlock`] error if the RwLock could not
-    /// be acquired because it was already locked exclusively.
+    /// This function will return the [`WouldBlock`] error if the `RwLock` could
+    /// not be acquired because it was already locked exclusively.
     ///
     /// [`Poisoned`]: TryLockError::Poisoned
     /// [`WouldBlock`]: TryLockError::WouldBlock
@@ -332,9 +338,10 @@ impl<T: ?Sized> SgxRwLock<T> {
     #[inline]
     pub fn try_write(&self) -> TryLockResult<SgxRwLockWriteGuard<'_, T>> {
         unsafe {
-            match self.inner.try_write() {
-                Ok(_) => Ok(SgxRwLockWriteGuard::new(self)?),
-                Err(_) => Err(TryLockError::WouldBlock),
+            if self.inner.try_write() {
+                Ok(SgxRwLockWriteGuard::new(self)?)
+            } else {
+                Err(TryLockError::WouldBlock)
             }
         }
     }
@@ -365,14 +372,52 @@ impl<T: ?Sized> SgxRwLock<T> {
         self.poison.get()
     }
 
+    /// Clear the poisoned state from a lock
+    ///
+    /// If the lock is poisoned, it will remain poisoned until this function is called. This allows
+    /// recovering from a poisoned state and marking that it has recovered. For example, if the
+    /// value is overwritten by a known-good value, then the mutex can be marked as un-poisoned. Or
+    /// possibly, the value could be inspected to determine if it is in a consistent state, and if
+    /// so the poison is removed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(mutex_unpoison)]
+    ///
+    /// use std::sync::{Arc, SgxRwLock as RwLock};
+    /// use std::thread;
+    ///
+    /// let lock = Arc::new(RwLock::new(0));
+    /// let c_lock = Arc::clone(&lock);
+    ///
+    /// let _ = thread::spawn(move || {
+    ///     let _lock = c_lock.write().unwrap();
+    ///     panic!(); // the mutex gets poisoned
+    /// }).join();
+    ///
+    /// assert_eq!(lock.is_poisoned(), true);
+    /// let guard = lock.write().unwrap_or_else(|mut e| {
+    ///     **e.get_mut() = 1;
+    ///     lock.clear_poison();
+    ///     e.into_inner()
+    /// });
+    /// assert_eq!(lock.is_poisoned(), false);
+    /// assert_eq!(*guard, 1);
+    /// ```
+    #[inline]
+    pub fn clear_poison(&self) {
+        self.poison.clear();
+    }
+
     /// Consumes this `RwLock`, returning the underlying data.
     ///
     /// # Errors
     ///
-    /// This function will return an error if the RwLock is poisoned. An RwLock
-    /// is poisoned whenever a writer panics while holding an exclusive lock. An
-    /// error will only be returned if the lock would have otherwise been
-    /// acquired.
+    /// This function will return an error if the `SgxRwLock` is poisoned. An
+    /// `SgxRwLock` is poisoned whenever a writer panics while holding an exclusive
+    /// lock. An error will only be returned if the lock would have otherwise
+    /// been acquired.
     ///
     /// # Examples
     ///
@@ -391,7 +436,7 @@ impl<T: ?Sized> SgxRwLock<T> {
         T: Sized,
     {
         let data = self.data.into_inner();
-        poison::map_result(self.poison.borrow(), |_| data)
+        poison::map_result(self.poison.borrow(), |()| data)
     }
 
     /// Returns a mutable reference to the underlying data.
@@ -401,10 +446,10 @@ impl<T: ?Sized> SgxRwLock<T> {
     ///
     /// # Errors
     ///
-    /// This function will return an error if the RwLock is poisoned. An RwLock
-    /// is poisoned whenever a writer panics while holding an exclusive lock. An
-    /// error will only be returned if the lock would have otherwise been
-    /// acquired.
+    /// This function will return an error if the `SgxRwLock` is poisoned. An
+    /// `SgxRwLock` is poisoned whenever a writer panics while holding an exclusive
+    /// lock. An error will only be returned if the lock would have otherwise
+    /// been acquired.
     ///
     /// # Examples
     ///
@@ -417,7 +462,7 @@ impl<T: ?Sized> SgxRwLock<T> {
     /// ```
     pub fn get_mut(&mut self) -> LockResult<&mut T> {
         let data = self.data.get_mut();
-        poison::map_result(self.poison.borrow(), |_| data)
+        poison::map_result(self.poison.borrow(), |()| data)
     }
 }
 
@@ -462,15 +507,23 @@ impl<T> From<T> for SgxRwLock<T> {
 }
 
 impl<'rwlock, T: ?Sized> SgxRwLockReadGuard<'rwlock, T> {
-
+    /// Create a new instance of `SgxRwLockReadGuard<T>` from a `SgxRwLock<T>`.
+    // SAFETY: if and only if `lock.inner.read()` (or `lock.inner.try_read()`) has been
+    // successfully called from the same thread before instantiating this object.
     unsafe fn new(lock: &'rwlock SgxRwLock<T>) -> LockResult<SgxRwLockReadGuard<'rwlock, T>> {
-        poison::map_result(lock.poison.borrow(), |_| SgxRwLockReadGuard { lock })
+        poison::map_result(lock.poison.borrow(), |()| SgxRwLockReadGuard {
+            data: NonNull::new_unchecked(lock.data.get()),
+            inner_lock: &lock.inner,
+        })
     }
 }
 
 impl<'rwlock, T: ?Sized> SgxRwLockWriteGuard<'rwlock, T> {
+    /// Create a new instance of `SgxRwLockWriteGuard<T>` from a `SgxRwLock<T>`.
+    // SAFETY: if and only if `lock.inner.write()` (or `lock.inner.try_write()`) has been
+    // successfully called from the same thread before instantiating this object.
     unsafe fn new(lock: &'rwlock SgxRwLock<T>) -> LockResult<SgxRwLockWriteGuard<'rwlock, T>> {
-        poison::map_result(lock.poison.borrow(), |guard| SgxRwLockWriteGuard { lock, poison: guard })
+        poison::map_result(lock.poison.guard(), |guard| SgxRwLockWriteGuard { lock, poison: guard })
     }
 }
 
@@ -502,7 +555,8 @@ impl<T: ?Sized> Deref for SgxRwLockReadGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        unsafe { &*self.lock.data.get() }
+        // SAFETY: the conditions of `RwLockGuard::new` were satisfied when created.
+        unsafe { self.data.as_ref() }
     }
 }
 
@@ -510,31 +564,33 @@ impl<T: ?Sized> Deref for SgxRwLockWriteGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
+        // SAFETY: the conditions of `SgxRwLockWriteGuard::new` were satisfied when created.
         unsafe { &*self.lock.data.get() }
     }
 }
 
 impl<T: ?Sized> DerefMut for SgxRwLockWriteGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
+        // SAFETY: the conditions of `SgxRwLockWriteGuard::new` were satisfied when created.
         unsafe { &mut *self.lock.data.get() }
     }
 }
 
 impl<T: ?Sized> Drop for SgxRwLockReadGuard<'_, T> {
     fn drop(&mut self) {
-        let result = unsafe {
-            self.lock.inner.read_unlock()
-        };
-        debug_assert_eq!(result, Ok(()), "Error when unlocking an SgxRwLock: {}", result.unwrap_err());
+        // SAFETY: the conditions of `SgxRwLockReadGuard::new` were satisfied when created.
+        unsafe {
+            self.inner_lock.read_unlock();
+        }
     }
 }
 
 impl<T: ?Sized> Drop for SgxRwLockWriteGuard<'_, T> {
     fn drop(&mut self) {
         self.lock.poison.done(&self.poison);
-        let result = unsafe {
-            self.lock.inner.write_unlock()
-        };
-        debug_assert_eq!(result, Ok(()), "Error when unlocking an SgxRwLock: {}", result.unwrap_err());
+        // SAFETY: the conditions of `SgxRwLockWriteGuard::new` were satisfied when created.
+        unsafe {
+            self.lock.inner.write_unlock();
+        }
     }
 }

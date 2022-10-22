@@ -15,96 +15,41 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use core::time::Duration;
-use crate::sys::condvar as imp;
-use crate::sys::mutex as mutex_imp;
-use crate::sys_common::mutex::{SgxMovableThreadMutex, SgxThreadMutex};
+use crate::sys::locks as imp;
+use crate::sys_common::mutex::MovableMutex;
+use crate::time::Duration;
 
-use sgx_types::SysError;
+use sgx_libc as libc;
 
 mod check;
 
-pub struct SgxThreadCondvar(imp::SgxThreadCondvar);
+type CondvarCheck = <imp::MovableMutex as check::CondvarCheck>::Check;
 
-unsafe impl Send for SgxThreadCondvar {}
-unsafe impl Sync for SgxThreadCondvar {}
-
-impl SgxThreadCondvar {
-    pub const fn new() -> SgxThreadCondvar {
-        SgxThreadCondvar(imp::SgxThreadCondvar::new())
-    }
-
-    #[inline]
-    pub unsafe fn wait(&self, mutex: &SgxThreadMutex) -> SysError {
-        self.0.wait(mutex.raw())
-    }
-
-    #[inline]
-    pub unsafe fn wait_timeout(&self, mutex: &SgxThreadMutex, dur: Duration) -> SysError {
-        self.0.wait_timeout(mutex.raw(), dur)
-    }
-
-    #[inline]
-    pub unsafe fn signal(&self) -> SysError {
-        self.0.signal()
-    }
-
-    #[inline]
-    pub unsafe fn broadcast(&self) -> SysError {
-        self.0.broadcast()
-    }
-
-    #[inline]
-    pub unsafe fn notify_one(&self) -> SysError {
-        self.signal()
-    }
-
-    #[inline]
-    pub unsafe fn notify_all(&self) -> SysError {
-        self.broadcast()
-    }
-
-    #[inline]
-    pub unsafe fn destroy(&self) -> SysError {
-        self.0.destroy()
-    }
-}
-
-type CondvarCheck = <mutex_imp::SgxMovableThreadMutex as check::CondvarCheck>::Check;
-
-/// An OS-based condition variable.
-pub struct SgxMovableThreadCondvar {
-    inner: imp::SgxMovableThreadCondvar,
+/// An SGX-based condition variable.
+pub struct Condvar {
+    inner: imp::MovableCondvar,
     check: CondvarCheck,
 }
 
-impl SgxMovableThreadCondvar {
+impl Condvar {
     /// Creates a new condition variable for use.
-    pub fn new() -> SgxMovableThreadCondvar {
-        let c = imp::SgxMovableThreadCondvar::from(imp::SgxThreadCondvar::new());
-        SgxMovableThreadCondvar { inner: c, check: CondvarCheck::new() }
-    }
-
     #[inline]
-    pub unsafe fn signal(&self) -> SysError {
-        self.inner.signal()
-    }
-
-    #[inline]
-    pub unsafe fn broadcast(&self) -> SysError {
-        self.inner.broadcast()
+    pub const fn new() -> Self {
+        Self { inner: imp::MovableCondvar::new(), check: CondvarCheck::new() }
     }
 
     /// Signals one waiter on this condition variable to wake up.
     #[inline]
-    pub unsafe fn notify_one(&self) -> SysError {
-        self.signal()
+    pub fn notify_one(&self) {
+        let r = unsafe { self.inner.notify_one() };
+        debug_assert_eq!(r, Ok(()));
     }
 
     /// Awakens all current waiters on this condition variable.
     #[inline]
-    pub unsafe fn notify_all(&self) -> SysError {
-        self.broadcast()
+    pub fn notify_all(&self) {
+        let r = unsafe { self.inner.notify_all() };
+        debug_assert_eq!(r, Ok(()));
     }
 
     /// Waits for a signal on the specified mutex.
@@ -113,9 +58,10 @@ impl SgxMovableThreadCondvar {
     ///
     /// May panic if used with more than one mutex.
     #[inline]
-    pub unsafe fn wait(&self, mutex: &SgxMovableThreadMutex) -> SysError {
+    pub unsafe fn wait(&self, mutex: &MovableMutex) {
         self.check.verify(mutex);
-        self.inner.wait(mutex.raw())
+        let r = self.inner.wait(mutex.raw());
+        debug_assert_eq!(r, Ok(()));
     }
 
     /// Waits for a signal on the specified mutex with a timeout duration
@@ -125,15 +71,10 @@ impl SgxMovableThreadCondvar {
     ///
     /// May panic if used with more than one mutex.
     #[inline]
-    pub unsafe fn wait_timeout(&self, mutex: &SgxMovableThreadMutex, dur: Duration) -> SysError {
+    pub unsafe fn wait_timeout(&self, mutex: &MovableMutex, dur: Duration) -> bool {
         self.check.verify(mutex);
-        self.inner.wait_timeout(mutex.raw(), dur)
-    }
-}
-
-impl Drop for SgxMovableThreadCondvar {
-    fn drop(&mut self) {
-        let r = unsafe { self.inner.destroy() };
-        debug_assert_eq!(r, Ok(()));
+        let r = self.inner.wait_timeout(mutex.raw(), dur);
+        debug_assert!(r == Err(libc::ETIMEDOUT) || r == Ok(()));
+        r == Ok(())
     }
 }
