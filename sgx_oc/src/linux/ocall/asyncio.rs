@@ -60,6 +60,11 @@ pub unsafe fn epoll_create1(flags: c_int) -> OCallResult<c_int> {
     Ok(result)
 }
 
+pub unsafe fn epoll_create(size: c_int) -> OCallResult<c_int> {
+    ensure!(size > 0, eos!(EINVAL));
+    epoll_create1(0)
+}
+
 pub unsafe fn epoll_ctl(
     epfd: c_int,
     op: c_int,

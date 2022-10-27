@@ -50,6 +50,15 @@ pub unsafe extern "C" fn epoll_create1(flags: c_int) -> c_int {
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn epoll_create(size: c_int) -> c_int {
+    if let Ok(fd) = ocall::epoll_create(size) {
+        fd
+    } else {
+        -1
+    }
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn epoll_ctl(
     epfd: c_int,
     op: c_int,
