@@ -25,17 +25,17 @@ export CFLAGS
 #      __asm__("jmp *%rax\n\t");
 #  }
 #  #pragma GCC pop_options 
-line=`grep -n "__x86_return_thunk()" ./configure | cut -d: -f 1`
+line=`grep -n "__x86_return_thunk()" $srcdir/configure | cut -d: -f 1`
 if [ -n "$line" ]; then
   echo "__x86_return_thunk() already exist..."
 else
-  line_end=`grep -n "\"checking whether the C compiler works... \"" ./configure | cut -d: -f 1`
+  line_end=`grep -n "\"checking whether the C compiler works... \"" $srcdir/configure | cut -d: -f 1`
   line_start=`expr $line_end - 30`  #Search an scope
-  sed -i "${line_start},${line_end} s/^_ACEOF/#pragma GCC push_options\r\n#pragma GCC optimize (\"-fomit-frame-pointer\")\r\nvoid __x86_return_thunk(){__asm__(\"ret\\\n\\\t\");}\r\nvoid __x86_indirect_thunk_rax(){__asm__(\"jmp \*%rax\\\n\\\t\");}\r\n#pragma GCC pop_options\r\n_ACEOF/" ./configure
+  sed -i "${line_start},${line_end} s/^_ACEOF/#pragma GCC push_options\r\n#pragma GCC optimize (\"-fomit-frame-pointer\")\r\nvoid __x86_return_thunk(){__asm__(\"ret\\\n\\\t\");}\r\nvoid __x86_indirect_thunk_rax(){__asm__(\"jmp \*%rax\\\n\\\t\");}\r\n#pragma GCC pop_options\r\n_ACEOF/" $srcdir/configure
 
-  line_end=`grep -n "\"checking whether we are cross compiling... \"" ./configure | cut -d: -f 1`
+  line_end=`grep -n "\"checking whether we are cross compiling... \"" $srcdir/configure | cut -d: -f 1`
   line_start=`expr $line_end - 30`  #Search an scope
-  sed -i "${line_start},${line_end} s/^_ACEOF/#pragma GCC push_options\r\n#pragma GCC optimize (\"-fomit-frame-pointer\")\r\nvoid __x86_return_thunk(){__asm__(\"ret\\\n\\\t\");}\r\nvoid __x86_indirect_thunk_rax(){__asm__(\"jmp \*%rax\\\n\\\t\");}\r\n#pragma GCC pop_options\r\n_ACEOF/" ./configure
+  sed -i "${line_start},${line_end} s/^_ACEOF/#pragma GCC push_options\r\n#pragma GCC optimize (\"-fomit-frame-pointer\")\r\nvoid __x86_return_thunk(){__asm__(\"ret\\\n\\\t\");}\r\nvoid __x86_indirect_thunk_rax(){__asm__(\"jmp \*%rax\\\n\\\t\");}\r\n#pragma GCC pop_options\r\n_ACEOF/" $srcdir/configure
 fi
 
 test -n "$NOCONFIGURE" || "$srcdir/configure" --enable-shared=no \
