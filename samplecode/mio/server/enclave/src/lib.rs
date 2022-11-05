@@ -439,7 +439,8 @@ pub extern "C" fn run_server(max_conn: uint8_t) {
 
     let config = make_config(cert, key);
 
-    let listener = TcpListener::bind(&addr).expect("cannot listen on port");
+    let listener = net::TcpListener::bind(&addr).expect("cannot listen on port");
+    let listener = TcpListener::from_std(listener).unwrap();
     let mut poll = mio::Poll::new()
         .unwrap();
     poll.register(&listener,
