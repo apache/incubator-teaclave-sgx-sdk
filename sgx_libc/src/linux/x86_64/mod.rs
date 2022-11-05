@@ -1649,9 +1649,7 @@ pub unsafe fn CMSG_NXTHDR(mhdr: *const msghdr, cmsg: *const cmsghdr) -> *mut cms
     };
     let next = (cmsg as usize + CMSG_ALIGN((*cmsg).cmsg_len)) as *mut cmsghdr;
     let max = (*mhdr).msg_control as usize + (*mhdr).msg_controllen;
-    if (next.offset(1)) as usize > max
-        || next as usize + CMSG_ALIGN((*next).cmsg_len) > max
-    {
+    if (next.offset(1)) as usize > max || next as usize + CMSG_ALIGN((*next).cmsg_len) > max {
         ptr::null_mut::<cmsghdr>()
     } else {
         next as *mut cmsghdr

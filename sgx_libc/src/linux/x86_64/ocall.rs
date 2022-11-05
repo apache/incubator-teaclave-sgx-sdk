@@ -3599,6 +3599,14 @@ pub unsafe fn poll(fds: *mut pollfd, nfds: nfds_t, timeout: c_int) -> c_int {
     result
 }
 
+pub unsafe fn epoll_create(size: c_int) -> c_int {
+    if size <= 0 {
+        set_errno(EINVAL);
+        return -1;
+    }
+    epoll_create1(0)
+}
+
 pub unsafe fn epoll_create1(flags: c_int) -> c_int {
     let mut result: c_int = 0;
     let mut error: c_int = 0;
