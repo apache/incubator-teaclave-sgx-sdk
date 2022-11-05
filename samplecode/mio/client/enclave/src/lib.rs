@@ -27,7 +27,7 @@ extern crate sgx_tstd as std;
 
 use std::collections;
 use std::untrusted::fs;
-use std::net::SocketAddr;
+use std::net::{self, SocketAddr};
 use std::str;
 use std::io;
 use std::string::String;
@@ -337,7 +337,8 @@ pub extern "C" fn run_client() {
     let flag_http = true;
 
     let config = make_config(cert);
-    let sock = TcpStream::connect(&addr).unwrap();
+    let stream = net::TcpStream::connect(&addr).expect("connect failed");
+    let sock = TcpStream::from_stream(stream).unwrap();
 
     let dns_name = webpki::DNSNameRef::try_from_ascii_str(hostname).unwrap();
     let mut tlsclient = TlsClient::new(sock, dns_name, config);
