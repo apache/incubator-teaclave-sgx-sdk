@@ -16,8 +16,8 @@
 // under the License..
 
 use crate::lock_api::RawRwLock;
-use crate::sys::rwlock as imp;
-use sgx_types::error::errno::EBUSY;
+use crate::sys::locks::rwlock as imp;
+// use sgx_types::error::errno::EBUSY;
 
 /// An SGX-based reader-writer lock., meant for use in static variables.
 ///
@@ -41,9 +41,7 @@ impl StaticRwLock {
     pub fn read(&'static self) -> StaticRwLockReadGuard {
         // Safety: All methods require static references, therefore self
         // cannot be moved between invocations.
-        let r = unsafe { self.0.read() };
-        debug_assert_eq!(r, Ok(()));
-
+        unsafe { self.0.read() };
         StaticRwLockReadGuard(&self.0)
     }
 
@@ -55,8 +53,7 @@ impl StaticRwLock {
     pub fn write(&'static self) -> StaticRwLockWriteGuard {
         // Safety: All methods require static references, therefore self
         // cannot be moved between invocations.
-        let r = unsafe { self.0.write() };
-        debug_assert_eq!(r, Ok(()));
+        unsafe { self.0.write() };
 
         StaticRwLockWriteGuard(&self.0)
     }
@@ -67,8 +64,9 @@ pub struct StaticRwLockReadGuard(&'static imp::RwLock);
 
 impl Drop for StaticRwLockReadGuard {
     fn drop(&mut self) {
-        let r = unsafe { self.0.read_unlock() };
-        debug_assert_eq!(r, Ok(()));
+        unsafe {
+            self.0.read_unlock();
+        }
     }
 }
 
@@ -77,8 +75,9 @@ pub struct StaticRwLockWriteGuard(&'static imp::RwLock);
 
 impl Drop for StaticRwLockWriteGuard {
     fn drop(&mut self) {
-        let r = unsafe { self.0.write_unlock() };
-        debug_assert_eq!(r, Ok(()));
+        unsafe {
+            self.0.write_unlock();
+        }
     }
 }
 
@@ -107,8 +106,7 @@ impl MovableRwLock {
     /// thread to do so.
     #[inline]
     pub fn read(&self) {
-        let r = unsafe { self.0.read() };
-        debug_assert_eq!(r, Ok(()));
+        unsafe { self.0.read() }
     }
 
     /// Attempts to acquire shared access to this lock, returning whether it
@@ -117,9 +115,7 @@ impl MovableRwLock {
     /// This function does not block the current thread.
     #[inline]
     pub fn try_read(&self) -> bool {
-        let r = unsafe { self.0.try_read() };
-        debug_assert!(r == Err(EBUSY) || r == Ok(()));
-        r == Ok(())
+        unsafe { self.0.try_read() }
     }
 
     /// Acquires write access to the underlying lock, blocking the current thread
@@ -129,8 +125,7 @@ impl MovableRwLock {
     /// previous method call.
     #[inline]
     pub fn write(&self) {
-        let r = unsafe { self.0.write() };
-        debug_assert_eq!(r, Ok(()));
+        unsafe { self.0.write() }
     }
 
     /// Attempts to acquire exclusive access to this lock, returning whether it
@@ -142,9 +137,7 @@ impl MovableRwLock {
     /// previous method call.
     #[inline]
     pub fn try_write(&self) -> bool {
-        let r = unsafe { self.0.try_write() };
-        debug_assert!(r == Err(EBUSY) || r == Ok(()));
-        r == Ok(())
+        unsafe { self.0.try_write() }
     }
 
     /// Unlocks previously acquired shared access to this lock.
@@ -152,8 +145,7 @@ impl MovableRwLock {
     /// Behavior is undefined if the current thread does not have shared access.
     #[inline]
     pub unsafe fn read_unlock(&self) {
-        let r = self.0.read_unlock();
-        debug_assert_eq!(r, Ok(()));
+        self.0.read_unlock()
     }
 
     /// Unlocks previously acquired exclusive access to this lock.
@@ -162,8 +154,7 @@ impl MovableRwLock {
     /// exclusive access.
     #[inline]
     pub unsafe fn write_unlock(&self) {
-        let r = self.0.write_unlock();
-        debug_assert_eq!(r, Ok(()));
+        self.0.write_unlock()
     }
 }
 

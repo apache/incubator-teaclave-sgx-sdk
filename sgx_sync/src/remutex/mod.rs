@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
-mod futex;
-pub use futex::Parker;
+mod generic;
+pub use generic::{ReentrantMutex, ReentrantMutexGuard};
 
-// mod generic;
-// pub use generic::Parker;
+// mod legacy;
+// pub use legacy::{ReentrantMutex, ReentrantMutexGuard};

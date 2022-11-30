@@ -40,7 +40,8 @@
 // All in all, this is instead implemented with atomics and lock-free
 // operations! Whee!
 
-//mod futex;
-mod generic;
+mod futex;
+pub use futex::{Once, OnceState};
 
-pub use generic::{Once, OnceState};
+// mod generic;
+// pub use generic::{Once, OnceState};

@@ -16,10 +16,9 @@
 // under the License..
 
 use crate::mutex::MovableMutex;
-use crate::sys::condvar as imp;
-use crate::sys::mutex as mutex_imp;
+use crate::sys::locks::condvar as imp;
+use crate::sys::locks::mutex as mutex_imp;
 use core::time::Duration;
-use sgx_types::error::errno::ETIMEDOUT;
 
 mod check;
 
@@ -44,15 +43,13 @@ impl Condvar {
     /// Signals one waiter on this condition variable to wake up.
     #[inline]
     pub fn notify_one(&self) {
-        let r = unsafe { self.inner.notify_one() };
-        debug_assert_eq!(r, Ok(()));
+        unsafe { self.inner.notify_one() };
     }
 
     /// Awakens all current waiters on this condition variable.
     #[inline]
     pub fn notify_all(&self) {
-        let r = unsafe { self.inner.notify_all() };
-        debug_assert_eq!(r, Ok(()));
+        unsafe { self.inner.notify_all() };
     }
 
     /// Waits for a signal on the specified mutex.
@@ -62,9 +59,9 @@ impl Condvar {
     /// May panic if used with more than one mutex.
     #[inline]
     pub unsafe fn wait(&self, mutex: &MovableMutex) {
-        self.check.verify(mutex);
-        let r = self.inner.wait(mutex.raw());
-        debug_assert_eq!(r, Ok(()));
+        let mutex_raw = mutex.raw();
+        self.check.verify(mutex_raw);
+        self.inner.wait(mutex_raw)
     }
 
     /// Waits for a signal on the specified mutex with a timeout duration
@@ -75,10 +72,9 @@ impl Condvar {
     /// May panic if used with more than one mutex.
     #[inline]
     pub unsafe fn wait_timeout(&self, mutex: &MovableMutex, dur: Duration) -> bool {
-        self.check.verify(mutex);
-        let r = self.inner.wait_timeout(mutex.raw(), dur);
-        debug_assert!(r == Err(ETIMEDOUT) || r == Ok(()));
-        r == Ok(())
+        let mutex_raw = mutex.raw();
+        self.check.verify(mutex_raw);
+        self.inner.wait_timeout(mutex_raw, dur)
     }
 }
 

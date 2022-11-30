@@ -14,10 +14,9 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License..
-
-use crate::lazy_box::{LazyBox, LazyInit};
-use crate::mutex::MovableMutex;
-use crate::sys::mutex as imp;
+use crate::sys::lazy_box::{LazyBox, LazyInit};
+use crate::sys::locks::futex;
+use crate::sys::locks::generic;
 use core::ptr;
 use core::sync::atomic::{AtomicPtr, Ordering};
 
@@ -42,8 +41,9 @@ impl SameMutexCheck {
             addr: AtomicPtr::new(ptr::null_mut()),
         }
     }
-    pub fn verify(&self, mutex: &MovableMutex) {
-        let addr = mutex.raw() as *const imp::Mutex as *const () as *mut _;
+    pub fn verify(&self, mutex: &generic::mutex::MovableMutex) {
+        let raw: &generic::mutex::Mutex = mutex;
+        let addr = raw as *const generic::mutex::Mutex as *const () as *mut _;
         // Relaxed is okay here because we never read through `self.addr`, and only use it to
         // compare addresses.
         match self.addr.compare_exchange(
@@ -61,7 +61,7 @@ impl SameMutexCheck {
 
 /// Unboxed mutexes may move, so `Condvar` can not require its address to stay
 /// constant.
-impl CondvarCheck for imp::Mutex {
+impl CondvarCheck for futex::mutex::Mutex {
     type Check = NoCheck;
 }
 
@@ -72,5 +72,5 @@ impl NoCheck {
     pub const fn new() -> Self {
         Self
     }
-    pub fn verify(&self, _: &MovableMutex) {}
+    pub fn verify(&self, _: &futex::mutex::MovableMutex) {}
 }

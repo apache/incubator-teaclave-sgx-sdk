@@ -102,6 +102,7 @@ fn test_rw_arc_no_poison_rr() {
     let lock = arc.read().unwrap();
     assert_eq!(*lock, 1);
 }
+
 #[test_case]
 fn test_rw_arc_no_poison_rw() {
     let arc = Arc::new(RwLock::new(1));

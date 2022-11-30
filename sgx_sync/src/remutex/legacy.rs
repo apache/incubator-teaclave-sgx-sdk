@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::sys::mutex as sys;
+use crate::sys::locks::generic::mutex as sys;
 use core::fmt;
 use core::ops::Deref;
 use core::panic::{RefUnwindSafe, UnwindSafe};

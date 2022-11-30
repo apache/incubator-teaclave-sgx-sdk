@@ -30,12 +30,6 @@ pub const SGX_FILE_ID: u64 = 0x5347_585F_4649_4C45;
 pub const SGX_FILE_MAJOR_VERSION: u8 = 0x01;
 pub const SGX_FILE_MINOR_VERSION: u8 = 0x00;
 
-#[derive(Copy, Clone, Debug, Default)]
-#[repr(C)]
-pub struct McUuid {
-    mc_uuid: [u8; 16],
-}
-
 impl_enum! {
     #[repr(u8)]
     #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -110,8 +104,6 @@ pub const FULLNAME_MAX_LEN: usize = PATHNAME_MAX_LEN + FILENAME_MAX_LEN;
 pub struct MetadataEncrypted {
     pub file_name: [u8; FILENAME_MAX_LEN],
     pub size: usize,
-    pub mc_uuid: McUuid,
-    pub mc_value: u32,
     pub mht_key: Key128bit,
     pub mht_gmac: Mac128bit,
     pub data: [u8; MD_USER_DATA_SIZE],

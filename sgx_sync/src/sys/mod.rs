@@ -15,8 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-pub mod condvar;
 pub mod futex;
-pub mod mutex;
+pub mod lazy_box;
+pub mod locks;
 pub mod ocall;
-pub mod rwlock;

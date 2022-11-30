@@ -16,9 +16,9 @@
 // under the License..
 
 use crate::spin::SpinMutex;
-use crate::sys::condvar::{Condvar, MovableCondvar};
-use crate::sys::mutex::{MovableMutex, MovableReentrantMutex, Mutex, MutexControl};
-use crate::sys::rwlock::{MovableRwLock, RwLock};
+use crate::sys::locks::generic::condvar::{Condvar, MovableCondvar};
+use crate::sys::locks::generic::mutex::{MovableMutex, MovableReentrantMutex, Mutex, MutexControl};
+use crate::sys::locks::generic::rwlock::{MovableRwLock, RwLock};
 use alloc::boxed::Box;
 use core::mem;
 use core::mem::ManuallyDrop;

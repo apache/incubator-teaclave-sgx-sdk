@@ -16,8 +16,7 @@
 // under the License..
 
 use crate::lock_api::RawMutex;
-use crate::sys::mutex as imp;
-use sgx_types::error::errno::EBUSY;
+use crate::sys::locks::mutex as imp;
 
 /// An SGX-based mutual exclusion lock, meant for use in static variables.
 ///
@@ -46,9 +45,7 @@ impl StaticMutex {
     /// same thread.
     #[inline]
     pub unsafe fn lock(&'static self) -> StaticMutexGuard {
-        let r = self.0.lock();
-        debug_assert_eq!(r, Ok(()));
-
+        self.0.lock();
         StaticMutexGuard(&self.0)
     }
 }
@@ -59,8 +56,9 @@ pub struct StaticMutexGuard(&'static imp::Mutex);
 impl Drop for StaticMutexGuard {
     #[inline]
     fn drop(&mut self) {
-        let r = unsafe { self.0.unlock() };
-        debug_assert_eq!(r, Ok(()));
+        unsafe {
+            self.0.unlock();
+        }
     }
 }
 
@@ -92,17 +90,14 @@ impl MovableMutex {
     /// Locks the mutex blocking the current thread until it is available.
     #[inline]
     pub fn raw_lock(&self) {
-        let r = unsafe { self.0.lock() };
-        debug_assert_eq!(r, Ok(()));
+        unsafe { self.0.lock() }
     }
 
     /// Attempts to lock the mutex without blocking, returning whether it was
     /// successfully acquired or not.
     #[inline]
     pub fn try_lock(&self) -> bool {
-        let r = unsafe { self.0.try_lock() };
-        debug_assert!(r == Err(EBUSY) || r == Ok(()));
-        r == Ok(())
+        unsafe { self.0.try_lock() }
     }
 
     /// Unlocks the mutex.
@@ -111,8 +106,7 @@ impl MovableMutex {
     /// mutex.
     #[inline]
     pub unsafe fn raw_unlock(&self) {
-        let r = self.0.unlock();
-        debug_assert_eq!(r, Ok(()));
+        self.0.unlock()
     }
 }
 

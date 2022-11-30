@@ -15,9 +15,10 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::sync::atomic::AtomicU32;
-use crate::time::Duration;
-use sgx_sync::Futex;
+use crate::sys::futex::Futex;
+use core::sync::atomic::AtomicU32;
+use core::sync::atomic::Ordering::Relaxed;
+use core::time::Duration;
 use sgx_types::error::errno::{EINTR, ETIMEDOUT};
 
 /// Wait for a futex_wake operation to wake us.
@@ -25,10 +26,8 @@ use sgx_types::error::errno::{EINTR, ETIMEDOUT};
 /// Returns directly if the futex doesn't hold the expected value.
 ///
 /// Returns false on timeout, and true in all other cases.
-pub fn futex_wait(futex: &AtomicU32, expected: u32, timeout: Option<Duration>) ->bool {
-    use crate::sync::atomic::Ordering::Relaxed;
-
-    let futex_obj = Futex::new(futex);
+pub fn futex_wait(futex: &AtomicU32, expected: u32, timeout: Option<Duration>) -> bool {
+    let futex_obj = Futex::new(futex as *const _ as usize);
     loop {
         // No need to wait if the value already changed.
         if futex.load(Relaxed) != expected {
@@ -50,7 +49,7 @@ pub fn futex_wait(futex: &AtomicU32, expected: u32, timeout: Option<Duration>) -
 ///
 /// On some platforms, this always returns false.
 pub fn futex_wake(futex: &AtomicU32) -> bool {
-    let futex = Futex::new(futex);
+    let futex = Futex::new(futex as *const _ as usize);
     match futex.wake(1) {
         Ok(0) => false,
         Ok(_) => true,
@@ -60,6 +59,6 @@ pub fn futex_wake(futex: &AtomicU32) -> bool {
 
 /// Wake up all threads that are waiting on futex_wait on this futex.
 pub fn futex_wake_all(futex: &AtomicU32) {
-    let futex = Futex::new(futex);
-    let _ = futex.wake(i32::MAX);
+    let futex = Futex::new(futex as *const _ as usize);
+    let _ = futex.wake(i32::MAX as usize);
 }

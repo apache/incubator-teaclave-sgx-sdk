@@ -25,6 +25,7 @@
 #![feature(linked_list_remove)]
 #![feature(negative_impls)]
 #![feature(never_type)]
+#![allow(dead_code)]
 #![allow(clippy::missing_safety_doc)]
 #![allow(non_camel_case_types)]
 
@@ -37,7 +38,6 @@ extern crate sgx_types;
 mod barrier;
 mod condvar;
 mod futex;
-mod lazy_box;
 mod lazy_lock;
 mod lock_api;
 mod mutex;

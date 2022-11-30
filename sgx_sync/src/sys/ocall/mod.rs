@@ -264,36 +264,6 @@ impl Timeout {
     }
 }
 
-extern "C" {
-    pub fn u_thread_wait_event_ocall(
-        result: *mut i32,
-        error: *mut i32,
-        tcs: usize,
-        timeout: *const timespec,
-        clockid: i32,
-        absolute_time: i32,
-    ) -> SgxStatus;
-
-    pub fn u_thread_set_event_ocall(result: *mut i32, error: *mut i32, tcs: usize) -> SgxStatus;
-
-    pub fn u_thread_set_multiple_events_ocall(
-        result: *mut i32,
-        error: *mut i32,
-        tcss: *const usize,
-        total: usize,
-    ) -> SgxStatus;
-
-    pub fn u_thread_setwait_events_ocall(
-        result: *mut i32,
-        error: *mut i32,
-        wait_tcs: usize,
-        self_tcs: usize,
-        timeout: *const timespec,
-        clockid: i32,
-        absolute_time: i32,
-    ) -> SgxStatus;
-}
-
 pub fn thread_wait_event(tcs: TcsId, dur: Option<Duration>) -> OsResult {
     let mut result: i32 = 0;
     let mut error: i32 = 0;
@@ -406,4 +376,34 @@ pub fn thread_wait_event_ex(tcs: TcsId, timeout: Option<Timeout>) -> OsResult {
     ensure!(status.is_success(), ESGX);
     ensure!(result == 0, error);
     Ok(())
+}
+
+extern "C" {
+    pub fn u_thread_wait_event_ocall(
+        result: *mut i32,
+        error: *mut i32,
+        tcs: usize,
+        timeout: *const timespec,
+        clockid: i32,
+        absolute_time: i32,
+    ) -> SgxStatus;
+
+    pub fn u_thread_set_event_ocall(result: *mut i32, error: *mut i32, tcs: usize) -> SgxStatus;
+
+    pub fn u_thread_set_multiple_events_ocall(
+        result: *mut i32,
+        error: *mut i32,
+        tcss: *const usize,
+        total: usize,
+    ) -> SgxStatus;
+
+    pub fn u_thread_setwait_events_ocall(
+        result: *mut i32,
+        error: *mut i32,
+        wait_tcs: usize,
+        self_tcs: usize,
+        timeout: *const timespec,
+        clockid: i32,
+        absolute_time: i32,
+    ) -> SgxStatus;
 }

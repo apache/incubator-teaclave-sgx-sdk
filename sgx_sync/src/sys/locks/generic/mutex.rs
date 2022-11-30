@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::lazy_box::{LazyBox, LazyInit};
+use crate::sys::lazy_box::{LazyBox, LazyInit};
 use crate::sys::ocall;
 use alloc::boxed::Box;
 use alloc::collections::LinkedList;

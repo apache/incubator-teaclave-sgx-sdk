@@ -226,7 +226,9 @@ impl Bucket {
             }
         });
 
-        Item::batch_wake(&items_to_wake);
+        if !items_to_wake.is_empty() {
+            Item::batch_wake(&items_to_wake);
+        }
         count
     }
 

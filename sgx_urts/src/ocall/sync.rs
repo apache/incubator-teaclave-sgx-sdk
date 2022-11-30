@@ -17,6 +17,7 @@
 
 use crate::ocall::util::*;
 use libc::{self, c_int, size_t, timespec};
+use std::collections::VecDeque;
 use std::io::Error;
 use std::slice;
 use std::sync::atomic::{AtomicI32, Ordering};
@@ -35,10 +36,12 @@ impl SeEvent {
     }
 
     pub fn wait_timeout(&self, timeout: &timespec, clockid: c_int, absolute_time: c_int) -> i32 {
-        let (wait_op, clockid) = if absolute_time == 1 {
-            (libc::FUTEX_WAIT_BITSET, clockid)
+        const FUTEX_BITSET_MATCH_ANY: u32 = 0xFFFF_FFFF;
+
+        let (wait_op, clockid, bitset) = if absolute_time == 1 {
+            (libc::FUTEX_WAIT_BITSET, clockid, FUTEX_BITSET_MATCH_ANY)
         } else {
-            (libc::FUTEX_WAIT, 0)
+            (libc::FUTEX_WAIT, 0, 0)
         };
 
         if self.0.fetch_add(-1, Ordering::SeqCst) == 0 {
@@ -50,19 +53,14 @@ impl SeEvent {
                     -1,
                     timeout as *const timespec,
                     0,
-                    0,
+                    bitset,
                 )
             };
+            let _ = self
+                .0
+                .compare_exchange(-1, 0, Ordering::SeqCst, Ordering::SeqCst);
             if ret < 0 {
-                match Error::last_os_error().raw_os_error() {
-                    Some(e) if e == libc::ETIMEDOUT || e == libc::EAGAIN || e == libc::EINTR => {
-                        let _ = self
-                            .0
-                            .compare_exchange(-1, 0, Ordering::SeqCst, Ordering::SeqCst);
-                        return -1;
-                    }
-                    _ => (),
-                };
+                return -1;
             }
         }
         0
@@ -81,16 +79,11 @@ impl SeEvent {
                     0,
                 )
             };
+            let _ = self
+                .0
+                .compare_exchange(-1, 0, Ordering::SeqCst, Ordering::SeqCst);
             if ret < 0 {
-                match Error::last_os_error().raw_os_error() {
-                    Some(e) if e == libc::EAGAIN || e == libc::EINTR => {
-                        let _ = self
-                            .0
-                            .compare_exchange(-1, 0, Ordering::SeqCst, Ordering::SeqCst);
-                        return -1;
-                    }
-                    _ => (),
-                };
+                return -1;
             }
         }
         0
@@ -126,13 +119,13 @@ struct TcsEvent<'a> {
 }
 
 struct TcsEventCache<'a> {
-    cache: Mutex<Vec<TcsEvent<'a>>>,
+    cache: Mutex<VecDeque<TcsEvent<'a>>>,
 }
 
 impl<'a> TcsEventCache<'a> {
     fn new() -> TcsEventCache<'a> {
         TcsEventCache {
-            cache: Mutex::new(Vec::new()),
+            cache: Mutex::new(VecDeque::with_capacity(16)),
         }
     }
 
@@ -142,7 +135,7 @@ impl<'a> TcsEventCache<'a> {
             Some(e) => e.event,
             None => {
                 let event = Box::leak(Box::new(SeEvent::new()));
-                cahce_guard.push(TcsEvent { tcs, event });
+                cahce_guard.push_back(TcsEvent { tcs, event });
                 event
             }
         }
@@ -217,7 +210,7 @@ pub unsafe extern "C" fn u_thread_set_multiple_events_ocall(
     tcss: *const size_t,
     total: size_t,
 ) -> c_int {
-    if tcss.is_null() {
+    if tcss.is_null() || total == 0 {
         set_error(error, libc::EINVAL);
         return -1;
     }
@@ -225,7 +218,7 @@ pub unsafe extern "C" fn u_thread_set_multiple_events_ocall(
     let tcss_slice = slice::from_raw_parts(tcss, total);
     let mut errno = 0;
     let mut result = 0;
-    for tcs in tcss_slice.iter() {
+    for tcs in tcss_slice.iter().filter(|&&tcs| tcs != 0) {
         result = get_tcs_event(*tcs).wake();
         if result != 0 {
             errno = Error::last_os_error().raw_os_error().unwrap_or(0);
