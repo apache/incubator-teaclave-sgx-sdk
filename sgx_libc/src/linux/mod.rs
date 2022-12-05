@@ -18,6 +18,7 @@
 use core::mem;
 use core::ptr;
 use core::slice;
+use sgx_oc::ocall::set_errno;
 use sgx_trts::rand::rand;
 
 cfg_if! {
@@ -52,12 +53,6 @@ extern "C" {
 #[no_mangle]
 pub extern "C" fn errno() -> c_int {
     unsafe { *errno_location() }
-}
-
-/// Set the last error number.
-#[no_mangle]
-pub extern "C" fn set_errno(e: c_int) {
-    unsafe { *errno_location() = e }
 }
 
 #[no_mangle]

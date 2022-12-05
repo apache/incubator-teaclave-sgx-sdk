@@ -26,11 +26,18 @@ pub unsafe extern "C" fn sgx_create_report(
     report_data: *const ReportData,
     report: *mut Report,
 ) -> SgxStatus {
-    if target_info.is_null() || report_data.is_null() || report.is_null() {
+    if report.is_null() {
         return SgxStatus::InvalidParameter;
     }
 
-    match Report::for_target(&*target_info, &*report_data) {
+    let result = match (target_info.is_null(), report_data.is_null()) {
+        (true, true) => Report::for_self(),
+        (false, false) => Report::for_target(&*target_info, &*report_data),
+        (true, false) => Report::for_target(&TargetInfo::default(), &*report_data),
+        (false, true) => Report::for_target(&*target_info, &ReportData::default()),
+    };
+
+    match result {
         Ok(r) => {
             *report = r;
             SgxStatus::Success

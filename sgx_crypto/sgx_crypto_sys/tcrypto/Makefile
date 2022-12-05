@@ -124,6 +124,8 @@ ifeq ("$(wildcard $(IPPCP_DIR)/lib/linux/intel64)", "")
 CHECK_OPT := opt_check_failed
 endif
 
+.NOTPARALLEL:
+
 .PHONY: all
 all: $(CHECK_OPT) $(BUILD_DIR) $(TARGET) $(DISP_LIB_NAME)
 

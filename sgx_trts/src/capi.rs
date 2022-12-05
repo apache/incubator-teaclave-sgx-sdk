@@ -276,13 +276,19 @@ pub unsafe extern "C" fn sgx_read_rand(p: *mut u8, len: usize) -> u32 {
     }
 }
 
+#[inline]
+#[no_mangle]
+pub unsafe extern "C" fn get_thread_data() -> *const c_void {
+    current().tds() as *const _ as *const c_void
+}
+
 pub type sgx_thread_t = *const c_void;
 pub const SGX_THREAD_T_NULL: *const c_void = ptr::null();
 
 #[inline]
 #[no_mangle]
 pub unsafe extern "C" fn sgx_thread_self() -> sgx_thread_t {
-    current().tds() as *const _ as sgx_thread_t
+    get_thread_data()
 }
 
 #[inline]

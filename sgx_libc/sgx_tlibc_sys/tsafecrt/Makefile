@@ -58,6 +58,8 @@ LIB_OBJS := $(addprefix $(OUT_DIR)/, $(LIB_OBJS))
 LIB_NAME := $(OUT_DIR)/libtsafecrt.a
 BUILD_DIR := build_dir
 
+.NOTPARALLEL:
+
 .PHONY: all
 all: $(BUILD_DIR) $(LIB_NAME)
 

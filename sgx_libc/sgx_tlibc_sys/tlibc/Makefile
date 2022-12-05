@@ -89,6 +89,8 @@ CHECK_OPT := opt_check_failed
 endif
 endif
 
+.NOTPARALLEL:
+
 .PHONY: all
 all: $(CHECK_OPT) $(BUILD_DIR) $(LIBC_NAME)
 

@@ -43,13 +43,14 @@ untrusted_time = []
 unsupported_process = []
 panic-unwind = ["panic_unwind"]
 profiler = ["profiler_builtins"]
+capi = ["sgx_sync/capi", "sgx_rsrvmm/capi"]
 
 [dependencies]
 sgx_alloc = { path = "../../sgx_alloc" }
 sgx_backtrace_sys = { path = "../../sgx_backtrace/sgx_backtrace_sys", optional = true }
 sgx_demangle = { path = "../../sgx_demangle", optional = true }
 sgx_ffi = { path = "../../sgx_ffi" }
-sgx_oc = { path = "../../sgx_oc", default-features = false, features = ["align"] }
+sgx_oc = { path = "../../sgx_oc", default-features = false, features = ["align", "extra_traits"] }
 sgx_sync = { path = "../../sgx_sync" }
 sgx_trts = { path = "../../sgx_trts" }
 sgx_types = { path = "../../sgx_types" }
