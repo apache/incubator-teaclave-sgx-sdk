@@ -179,7 +179,7 @@ impl FileInner {
         ensure!(old_len > 0, eos!(EINVAL));
         ensure!(old_len < FILENAME_MAX_LEN - 1, eos!(ENAMETOOLONG));
 
-        let new_len = old_name.len();
+        let new_len = new_name.len();
         ensure!(new_len > 0, eos!(EINVAL));
         ensure!(new_len < FILENAME_MAX_LEN - 1, eos!(ENAMETOOLONG));
 
@@ -189,6 +189,7 @@ impl FileInner {
         self.metadata.encrypted_plain.file_name.fill(0);
         self.metadata.encrypted_plain.file_name[0..new_len].copy_from_slice(new_name.as_bytes());
 
+        self.need_writing = true;
         Ok(())
     }
 }
