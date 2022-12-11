@@ -477,6 +477,11 @@ impl_enum! {
         SGX_QL_PSW_NOT_AVAILABLE                            = 0x0000_E052,
         SGX_QL_COLLATERAL_VERSION_NOT_SUPPORTED             = 0x0000_E053,
         SGX_QL_TDX_MODULE_MISMATCH                          = 0x0000_E060,
+        SGX_QL_QEIDENTITY_NOT_FOUND                         = 0x0000_E061,
+        SGX_QL_TCBINFO_NOT_FOUND                            = 0x0000_E062,
+        SGX_QL_INTERNAL_SERVER_ERROR                        = 0x0000_E063,
+        SGX_QL_SUPPLEMENTAL_DATA_VERSION_NOT_SUPPORTED      = 0x0000_E064,
+        SGX_QL_ROOT_CA_UNTRUSTED                            = 0x0000_E065,
         SGX_QL_ERROR_MAX                                    = 0x0000_E0FF,
     }
 }
@@ -627,6 +632,15 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_TDX_MODULE_MISMATCH => {
                 "TDX SEAM module identity is NOT match to Intel signed TDX SEAM module"
             }
+            sgx_quote3_error_t::SGX_QL_QEIDENTITY_NOT_FOUND => "QE identity was not found",
+            sgx_quote3_error_t::SGX_QL_TCBINFO_NOT_FOUND => "TCB Info was not found",
+            sgx_quote3_error_t::SGX_QL_INTERNAL_SERVER_ERROR => "Internal server error",
+            sgx_quote3_error_t::SGX_QL_SUPPLEMENTAL_DATA_VERSION_NOT_SUPPORTED => {
+                "The supplemental data version is not supported"
+            }
+            sgx_quote3_error_t::SGX_QL_ROOT_CA_UNTRUSTED => {
+                "The certificate used to establish SSL session is untrusted"
+            }
             sgx_quote3_error_t::SGX_QL_ERROR_MAX => {
                 "Indicate max error to allow better translation."
             }
@@ -772,6 +786,13 @@ impl sgx_quote3_error_t {
                 "SGX_QL_COLLATERAL_VERSION_NOT_SUPPORTED"
             }
             sgx_quote3_error_t::SGX_QL_TDX_MODULE_MISMATCH => "SGX_QL_TDX_MODULE_MISMATCH",
+            sgx_quote3_error_t::SGX_QL_QEIDENTITY_NOT_FOUND => "SGX_QL_QEIDENTITY_NOT_FOUND",
+            sgx_quote3_error_t::SGX_QL_TCBINFO_NOT_FOUND => "SGX_QL_TCBINFO_NOT_FOUND",
+            sgx_quote3_error_t::SGX_QL_INTERNAL_SERVER_ERROR => "SGX_QL_INTERNAL_SERVER_ERROR",
+            sgx_quote3_error_t::SGX_QL_SUPPLEMENTAL_DATA_VERSION_NOT_SUPPORTED => {
+                "SGX_QL_SUPPLEMENTAL_DATA_VERSION_NOT_SUPPORTED"
+            }
+            sgx_quote3_error_t::SGX_QL_ROOT_CA_UNTRUSTED => "SGX_QL_ROOT_CA_UNTRUSTED",
             sgx_quote3_error_t::SGX_QL_ERROR_MAX => "SGX_QL_ERROR_MAX",
         }
     }
@@ -808,6 +829,9 @@ impl_enum! {
         SGX_QCNL_ERROR_STATUS_CERTS_UNAVAILABLE = 0x0000_B012,
         SGX_QCNL_ERROR_STATUS_SERVICE_UNAVAILABLE = 0x0000_B013,
         SGX_QCNL_INVALID_CONFIG                 = 0x0000_B030,
+        SGX_QCNL_CACHE_MISSING                  = 0x0000_B031,
+        SGX_QCNL_CACHE_EXPIRED                  = 0x0000_B032,
+        SGX_QCNL_ROOT_CA_UNTRUSTED              = 0x0000_B033,
     }
 }
 
@@ -853,6 +877,11 @@ impl sgx_qcnl_error_t {
                 "Service is currently not available"
             }
             sgx_qcnl_error_t::SGX_QCNL_INVALID_CONFIG => "Error in configuration file",
+            sgx_qcnl_error_t::SGX_QCNL_CACHE_MISSING => "Cache missing",
+            sgx_qcnl_error_t::SGX_QCNL_CACHE_EXPIRED => "Cache expired",
+            sgx_qcnl_error_t::SGX_QCNL_ROOT_CA_UNTRUSTED => {
+                "The certificate used to establish SSL session is untrusted"
+            }
         }
     }
 
@@ -893,6 +922,9 @@ impl sgx_qcnl_error_t {
                 "SGX_QCNL_ERROR_STATUS_SERVICE_UNAVAILABLE"
             }
             sgx_qcnl_error_t::SGX_QCNL_INVALID_CONFIG => "SGX_QCNL_INVALID_CONFIG",
+            sgx_qcnl_error_t::SGX_QCNL_CACHE_MISSING => "SGX_QCNL_CACHE_MISSING",
+            sgx_qcnl_error_t::SGX_QCNL_CACHE_EXPIRED => "SGX_QCNL_CACHE_EXPIRED",
+            sgx_qcnl_error_t::SGX_QCNL_ROOT_CA_UNTRUSTED => "SGX_QCNL_ROOT_CA_UNTRUSTED",
         }
     }
 }

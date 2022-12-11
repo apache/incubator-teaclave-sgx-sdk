@@ -17,11 +17,11 @@
 
 //! Filesystem manipulation operations.
 
-use crate::io::{self, SeekFrom, Seek, Read, Write};
+use crate::io::{self, Read, Seek, SeekFrom, Write};
 use crate::path::Path;
 use crate::sys::sgxfs as fs_imp;
 use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
-use sgx_types::{sgx_key_128bit_t, sgx_align_key_128bit_t};
+use sgx_types::{sgx_align_key_128bit_t, sgx_key_128bit_t};
 
 /// A reference to an open file on the filesystem.
 ///
@@ -122,8 +122,28 @@ impl SgxFile {
         OpenOptions::new().read(true).open_ex(path.as_ref(), key)
     }
 
+    pub fn open_with<P: AsRef<Path>>(
+        path: P,
+        key: Option<&sgx_key_128bit_t>,
+        cache_size: Option<u64>,
+    ) -> io::Result<SgxFile> {
+        OpenOptions::new()
+            .read(true)
+            .open_with(path.as_ref(), key, cache_size)
+    }
+
     pub fn create_ex<P: AsRef<Path>>(path: P, key: &sgx_key_128bit_t) -> io::Result<SgxFile> {
         OpenOptions::new().write(true).open_ex(path.as_ref(), key)
+    }
+
+    pub fn create_with<P: AsRef<Path>>(
+        path: P,
+        key: Option<&sgx_key_128bit_t>,
+        cache_size: Option<u64>,
+    ) -> io::Result<SgxFile> {
+        OpenOptions::new()
+            .write(true)
+            .open_with(path.as_ref(), key, cache_size)
     }
 
     pub fn is_eof(&self) -> bool {
@@ -140,7 +160,9 @@ impl SgxFile {
 }
 
 impl AsInner<fs_imp::SgxFile> for SgxFile {
-    fn as_inner(&self) -> &fs_imp::SgxFile { &self.inner }
+    fn as_inner(&self) -> &fs_imp::SgxFile {
+        &self.inner
+    }
 }
 impl FromInner<fs_imp::SgxFile> for SgxFile {
     fn from_inner(f: fs_imp::SgxFile) -> SgxFile {
@@ -163,7 +185,9 @@ impl Write for SgxFile {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.inner.write(buf)
     }
-    fn flush(&mut self) -> io::Result<()> { self.inner.flush() }
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
 }
 
 impl Seek for SgxFile {
@@ -182,7 +206,9 @@ impl<'a> Write for &'a SgxFile {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.inner.write(buf)
     }
-    fn flush(&mut self) -> io::Result<()> { self.inner.flush() }
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
 }
 
 impl<'a> Seek for &'a SgxFile {
@@ -206,7 +232,8 @@ impl OpenOptions {
     /// `read`-able if opened.
     ///
     pub fn read(&mut self, read: bool) -> &mut OpenOptions {
-        self.0.read(read); self
+        self.0.read(read);
+        self
     }
 
     /// Sets the option for write access.
@@ -215,7 +242,8 @@ impl OpenOptions {
     /// `write`-able if opened.
     ///
     pub fn write(&mut self, write: bool) -> &mut OpenOptions {
-        self.0.write(write); self
+        self.0.write(write);
+        self
     }
 
     /// Sets the option for the append mode.
@@ -241,17 +269,20 @@ impl OpenOptions {
     /// `seek(SeekFrom::Current(0))`, and restore it before the next read.
     ///
     pub fn append(&mut self, append: bool) -> &mut OpenOptions {
-        self.0.append(append); self
+        self.0.append(append);
+        self
     }
 
     /// Sets the option for update a previous file.
     pub fn update(&mut self, update: bool) -> &mut OpenOptions {
-        self.0.update(update); self
+        self.0.update(update);
+        self
     }
 
     /// Sets the option for binary a file.
     pub fn binary(&mut self, binary: bool) -> &mut OpenOptions {
-        self.0.binary(binary); self
+        self.0.binary(binary);
+        self
     }
 
     /// Opens a file at `path` with the options specified by `self`.
@@ -263,6 +294,15 @@ impl OpenOptions {
         self._open_ex(path.as_ref(), key)
     }
 
+    pub fn open_with<P: AsRef<Path>>(
+        &self,
+        path: P,
+        key: Option<&sgx_key_128bit_t>,
+        cache_size: Option<u64>,
+    ) -> io::Result<SgxFile> {
+        self._open_with(path.as_ref(), key, cache_size)
+    }
+
     fn _open(&self, path: &Path) -> io::Result<SgxFile> {
         let inner = fs_imp::SgxFile::open(path, &self.0)?;
         Ok(SgxFile { inner })
@@ -272,10 +312,22 @@ impl OpenOptions {
         let inner = fs_imp::SgxFile::open_ex(path, &self.0, key)?;
         Ok(SgxFile { inner })
     }
+
+    fn _open_with(
+        &self,
+        path: &Path,
+        key: Option<&sgx_key_128bit_t>,
+        cache_size: Option<u64>,
+    ) -> io::Result<SgxFile> {
+        let inner = fs_imp::SgxFile::open_with(path, &self.0, key, cache_size)?;
+        Ok(SgxFile { inner })
+    }
 }
 
 impl AsInnerMut<fs_imp::OpenOptions> for OpenOptions {
-    fn as_inner_mut(&mut self) -> &mut fs_imp::OpenOptions { &mut self.0 }
+    fn as_inner_mut(&mut self) -> &mut fs_imp::OpenOptions {
+        &mut self.0
+    }
 }
 
 pub fn remove<P: AsRef<Path>>(path: P) -> io::Result<()> {

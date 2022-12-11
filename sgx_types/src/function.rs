@@ -77,6 +77,12 @@ extern "C" {
     pub fn sgx_thread_rwlock_wrunlock(rwlock: *mut sgx_thread_rwlock_t) -> int32_t;
     pub fn sgx_thread_rwlock_unlock(rwlock: *mut sgx_thread_rwlock_t) -> int32_t;
 
+    /* intel sgx sdk 2.18 */
+    pub fn sgx_thread_spin_init(mutex: *mut sgx_thread_spinlock_t) -> int32_t;
+    pub fn sgx_thread_spin_destroy(mutex: *mut sgx_thread_spinlock_t) -> int32_t;
+    pub fn sgx_thread_spin_trylock(mutex: *mut sgx_thread_spinlock_t) -> int32_t;
+    pub fn sgx_thread_spin_unlock(mutex: *mut sgx_thread_spinlock_t) -> int32_t;
+
     /* intel sgx sdk 2.8 */
     //
     // sgx_rsrv_mem_mngr.h
@@ -659,6 +665,54 @@ extern "C" {
     //
     pub fn sgx_ocalloc(size: size_t) -> *mut c_void;
     pub fn sgx_ocfree();
+
+    /* intel sgx sdk 2.18 */
+    pub fn sgx_mm_mutex_create() -> *mut sgx_mm_mutex;
+    pub fn sgx_mm_mutex_lock(mutex: *mut sgx_mm_mutex) -> int32_t;
+    pub fn sgx_mm_mutex_unlock(mutex: *mut sgx_mm_mutex) -> int32_t;
+    pub fn sgx_mm_mutex_destroy(mutex: *mut sgx_mm_mutex) -> int32_t;
+    pub fn sgx_mm_is_within_enclave(addr: *const c_void, size: size_t) -> bool;
+
+    pub fn sgx_mm_register_pfhandler(pfhandler: sgx_mm_pfhandler_t) -> bool;
+    pub fn sgx_mm_unregister_pfhandler(pfhandler: sgx_mm_pfhandler_t) -> bool;
+
+    pub fn sgx_mm_alloc_ocall(
+        addr: uint64_t,
+        length: size_t,
+        page_type: int32_t,
+        alloc_flags: int32_t,
+    ) -> int32_t;
+    pub fn sgx_mm_modify_ocall(
+        addr: uint64_t,
+        length: size_t,
+        page_properties_from: int32_t,
+        page_properties_to: int32_t,
+    ) -> int32_t;
+}
+
+/* intel sgx sdk 2.18 */
+//#[link(name = "sgx_mm")]
+extern "C" {
+    pub fn sgx_mm_alloc(
+        addr: *mut c_void,
+        length: size_t,
+        flags: int32_t,
+        handler: sgx_enclave_fault_handler_t,
+        handler_private: *mut c_void,
+        out_addr: *mut *mut c_void,
+    ) -> int32_t;
+
+    pub fn sgx_mm_commit(addr: *mut c_void, length: size_t) -> int32_t;
+    pub fn sgx_mm_commit_data(
+        addr: *mut c_void,
+        length: size_t,
+        data: *mut uint8_t,
+        prot: int32_t,
+    ) -> int32_t;
+    pub fn sgx_mm_uncommit(addr: *mut c_void, length: size_t) -> int32_t;
+    pub fn sgx_mm_dealloc(addr: *mut c_void, length: size_t) -> int32_t;
+    pub fn sgx_mm_modify_permissions(addr: *mut c_void, length: size_t, prot: int32_t) -> int32_t;
+    pub fn sgx_mm_modify_type(addr: *mut c_void, length: size_t, page_type: int32_t) -> int32_t;
 }
 
 //#[link(name = "sgx_epid")]
@@ -905,6 +959,13 @@ extern "C" {
     ) -> SGX_FILE;
 
     pub fn sgx_fopen_auto_key(filename: *const c_char, mode: *const c_char) -> SGX_FILE;
+    /* intel sgx sdk 2.18 */
+    pub fn sgx_fopen_ex(
+        filename: *const c_char,
+        mode: *const c_char,
+        key: *const sgx_key_128bit_t,
+        cache_size: uint64_t,
+    ) -> SGX_FILE;
 
     pub fn sgx_fwrite(ptr: *const c_void, size: size_t, count: size_t, stream: SGX_FILE) -> size_t;
 
@@ -1050,7 +1111,10 @@ extern "C" {
     ) -> sgx_quote3_error_t;
     pub fn sgx_ql_free_root_ca_crl(p_root_ca_crl: *const uint8_t) -> sgx_quote3_error_t;
     /* intel DCAP 2.14 */
-    pub fn sgx_ql_set_logging_callback(logger: sgx_ql_logging_callback_t) -> sgx_quote3_error_t;
+    pub fn sgx_ql_set_logging_callback(
+        logger: sgx_ql_logging_callback_t,
+        loglevel: sgx_ql_log_level_t,
+    ) -> sgx_quote3_error_t;
 }
 
 //#[link(name = "sgx_default_qcnl_wrapper")]
@@ -1116,7 +1180,10 @@ extern "C" {
     /* intel DCAP 1.13 */
     pub fn sgx_qcnl_get_api_version(p_major_ver: *mut uint16_t, p_minor_ver: *mut uint16_t)
         -> bool;
-    pub fn sgx_qcnl_set_logging_callback(logger: sgx_ql_logging_callback_t) -> sgx_qcnl_error_t;
+    pub fn sgx_qcnl_set_logging_callback(
+        logger: sgx_ql_logging_callback_t,
+        loglevel: sgx_ql_log_level_t,
+    ) -> sgx_qcnl_error_t;
 
     /* intel DCAP 1.13 delete */
     // pub fn sgx_qcnl_register_platform(
@@ -1185,6 +1252,33 @@ extern "C" {
         p_qve_report_info: *mut sgx_ql_qe_report_info_t,
         supplemental_data_size: uint32_t,
         p_supplemental_data: *mut uint8_t,
+    ) -> sgx_quote3_error_t;
+
+    /* intel DCAP 1.15 */
+    pub fn tee_qv_get_collateral(
+        p_quote: *const uint8_t,
+        quote_size: uint32_t,
+        pp_quote_collateral: *mut *mut uint8_t,
+        p_collateral_size: *mut uint32_t,
+    ) -> sgx_quote3_error_t;
+
+    pub fn tee_qv_free_collateral(p_quote_collateral: *const uint8_t) -> sgx_quote3_error_t;
+    pub fn tee_get_supplemental_data_version_and_size(
+        p_quote: *const uint8_t,
+        quote_size: uint32_t,
+        p_version: *mut uint32_t,
+        p_data_size: *mut uint32_t,
+    ) -> sgx_quote3_error_t;
+
+    pub fn tee_verify_quote(
+        p_quote: *const uint8_t,
+        quote_size: uint32_t,
+        p_quote_collateral: *const uint8_t,
+        expiration_check_date: time_t,
+        p_collateral_expiration_status: *mut uint32_t,
+        p_quote_verification_result: *mut sgx_ql_qv_result_t,
+        p_qve_report_info: *mut sgx_ql_qe_report_info_t,
+        p_supp_data_descriptor: *const tee_supp_data_descriptor_t,
     ) -> sgx_quote3_error_t;
 }
 

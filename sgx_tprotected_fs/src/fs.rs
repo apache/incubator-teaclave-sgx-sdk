@@ -48,6 +48,25 @@ unsafe fn rsgx_fopen_auto_key(filename: &CStr, mode: &CStr) -> SysResult<SGX_FIL
     }
 }
 
+unsafe fn rsgx_fopen_ex(
+    filename: &CStr,
+    mode: &CStr,
+    key: Option<&sgx_key_128bit_t>,
+    cache_size: u64,
+) -> SysResult<SGX_FILE> {
+    let file = sgx_fopen_ex(
+        filename.as_ptr(),
+        mode.as_ptr(),
+        key.map_or(core::ptr::null(), |key| key as *const sgx_key_128bit_t),
+        cache_size,
+    );
+    if file.is_null() {
+        Err(errno())
+    } else {
+        Ok(file)
+    }
+}
+
 unsafe fn rsgx_fwrite(stream: SGX_FILE, buf: &[u8]) -> SysResult<usize> {
     if stream.is_null() {
         return Err(libc::EINVAL);
@@ -273,6 +292,61 @@ impl SgxFileStream {
     ///
     pub fn open_auto_key(filename: &CStr, mode: &CStr) -> SysResult<SgxFileStream> {
         unsafe { rsgx_fopen_auto_key(filename, mode).map(|f| SgxFileStream { stream: f }) }
+    }
+
+    ///
+    /// The open function creates or opens a protected file.
+    ///
+    /// # Description
+    ///
+    /// open_ex is expert version of open/open_auto_key which is used if you want to control the internal `cache size`.
+    /// The specified `cache size` must be page (4KB by default) aligned.
+    /// Note that export_auto_key and import_auto_key don't support configuring `cache_size` right now.
+    ///
+    /// # Parameters
+    ///
+    /// **filename**
+    ///
+    /// The name of the file to be created or opened.
+    ///
+    /// **mode**
+    ///
+    /// The file open mode string. Allowed values are any combination of, or, with possible
+    /// and possible (since string functions are currently not sup- ported, is meaningless).
+    ///
+    /// **key**
+    ///
+    /// The encryption key of the file (optional). This key is used as a key derivation key, used for deriving encryption
+    /// keys for the file. If the file is created with open, you should protect this key and provide it as
+    /// input every time the file is opened.
+    ///
+    /// **cache_size**
+    ///
+    /// Internal cache size in byte, which used to cache R/W data in enclave before flush to actual file.
+    /// It must larger than default cache size (192KB), and must be page (4KB by default) aligned.
+    ///
+    /// # Requirements
+    ///
+    /// Header: sgx_tprotected_fs.edl
+    ///
+    /// Library: libsgx_tprotected_fs.a
+    ///
+    /// This API is provided by Occlum's fork of Intel SGX SDK.
+    ///
+    /// # Return value
+    ///
+    /// If the function succeeds, it returns a valid file pointer, which can be used by all the other functions
+    /// in the Protected FS API, otherwise, error code is returned.
+    ///
+    pub fn open_ex(
+        filename: &CStr,
+        mode: &CStr,
+        key: Option<&sgx_key_128bit_t>,
+        cache_size: u64,
+    ) -> SysResult<SgxFileStream> {
+        unsafe {
+            rsgx_fopen_ex(filename, mode, key, cache_size).map(|f| SgxFileStream { stream: f })
+        }
     }
 
     ///
