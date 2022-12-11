@@ -211,7 +211,7 @@ macro_rules! impl_struct_clone {
 
 macro_rules! impl_struct_ContiguousMemory {
     ($($t:ty;)*) => {$(
-        unsafe impl ContiguousMemory for $t {}
+        unsafe impl $crate::marker::ContiguousMemory for $t {}
     )*}
 }
 
@@ -254,6 +254,175 @@ macro_rules! impl_enum {
                 }
             }
         }
+    )
+}
+
+#[macro_export]
+macro_rules! impl_bitflags {
+    (
+        $(#[$outer:meta])*
+        pub struct $BitFlags:ident: $T:ty {
+            $(
+                const $Flag:ident = $value:expr;
+            )+
+        }
+    )
+    => (
+        $(#[$outer])*
+        pub struct $BitFlags($T);
+
+        impl $BitFlags {
+            $(
+                pub const $Flag: $BitFlags = $BitFlags($value);
+            )+
+
+            #[inline]
+            pub const fn empty() -> $BitFlags {
+                $BitFlags(0)
+            }
+
+            #[inline]
+            pub const fn all() -> $BitFlags {
+                $BitFlags($($value)|+)
+            }
+
+            #[inline]
+            pub const fn bits(&self) -> $T {
+                self.0
+            }
+
+            #[inline]
+            pub fn from_bits(bits: $T) -> Option<$BitFlags> {
+                if (bits & !$BitFlags::all().bits()) == 0 {
+                    Some($BitFlags(bits))
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            pub const fn from_bits_truncate(bits: $T) -> $BitFlags {
+                $BitFlags(bits & $BitFlags::all().bits())
+            }
+
+            /// # Safety
+            #[inline]
+            pub const unsafe fn from_bits_unchecked(bits: $T) -> $BitFlags {
+                $BitFlags(bits)
+            }
+
+            #[inline]
+            pub const fn is_empty(&self) -> bool {
+                self.bits() == Self::empty().bits()
+            }
+
+            #[inline]
+            pub const fn is_all(&self) -> bool {
+                self.0 == Self::all().0
+            }
+
+            #[inline]
+            pub const fn contains(&self, other: $BitFlags) -> bool {
+                (self.0 & other.0) == other.0
+            }
+
+            #[inline]
+            pub const fn intersects(&self, other: $BitFlags) -> bool {
+                !$BitFlags(self.0 & other.0).is_empty()
+            }
+
+            #[inline]
+            pub fn insert(&mut self, other: $BitFlags) {
+                self.0 |= other.0;
+            }
+
+            #[inline]
+            pub fn remove(&mut self, other: $BitFlags) {
+                self.0 &= !other.0;
+            }
+
+            #[inline]
+            pub fn toggle(&mut self, other: $BitFlags) {
+                self.0 ^= other.0;
+            }
+        }
+
+        impl ::core::default::Default for $BitFlags {
+            #[inline]
+            fn default() -> Self {
+                Self::empty()
+            }
+        }
+
+        impl ::core::ops::Not for $BitFlags {
+            type Output = $BitFlags;
+            #[inline]
+            fn not(self) -> $BitFlags {
+                $BitFlags(!self.0) & $BitFlags::all()
+            }
+        }
+
+        impl ::core::ops::BitAnd for $BitFlags {
+            type Output = $BitFlags;
+            #[inline]
+            fn bitand(self, rhs: $BitFlags) -> $BitFlags {
+                $BitFlags(self.0 & rhs.0)
+            }
+        }
+
+        impl ::core::ops::BitOr for $BitFlags {
+            type Output = $BitFlags;
+            #[inline]
+            fn bitor(self, rhs: $BitFlags) -> $BitFlags {
+                $BitFlags(self.0 | rhs.0)
+            }
+        }
+
+        impl ::core::ops::BitXor for $BitFlags {
+            type Output = $BitFlags;
+            #[inline]
+            fn bitxor(self, rhs: $BitFlags) -> $BitFlags {
+                $BitFlags(self.0 ^ rhs.0)
+            }
+        }
+
+        impl ::core::ops::BitAndAssign for $BitFlags {
+            #[inline]
+            fn bitand_assign(&mut self, rhs: $BitFlags) {
+                self.0 &= rhs.0;
+            }
+        }
+
+        impl ::core::ops::BitOrAssign for $BitFlags {
+            #[inline]
+            fn bitor_assign(&mut self, rhs: $BitFlags) {
+                self.0 |= rhs.0;
+            }
+        }
+
+        impl ::core::ops::BitXorAssign for $BitFlags {
+            #[inline]
+            fn bitxor_assign(&mut self, rhs: $BitFlags) {
+                self.0 ^= rhs.0;
+            }
+        }
+
+        impl ::core::ops::Sub for $BitFlags {
+            type Output = $BitFlags;
+            #[inline]
+            fn sub(self, rhs: $BitFlags) -> $BitFlags {
+                $BitFlags(self.0 & !rhs.0)
+            }
+        }
+
+        impl ::core::ops::SubAssign for $BitFlags {
+            #[inline]
+            fn sub_assign(&mut self, rhs: $BitFlags) {
+                self.0 &= !rhs.0;
+            }
+        }
+
+        unsafe impl $crate::marker::ContiguousMemory for $BitFlags {}
     )
 }
 

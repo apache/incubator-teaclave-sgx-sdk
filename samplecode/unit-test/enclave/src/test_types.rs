@@ -17,7 +17,7 @@ pub fn check_metadata_size() {
 
 pub fn check_version() {
     //https://github.com/intel/linux-sgx/blob/master/common/inc/internal/metadata.h#L41
-    let curr_version = 0x0000000200000004;
+    let curr_version = 0x0000000300000000;
     assert_eq!(
         meta_data_make_version!(MAJOR_VERSION, MINOR_VERSION),
         curr_version
