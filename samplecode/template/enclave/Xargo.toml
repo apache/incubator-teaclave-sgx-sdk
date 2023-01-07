@@ -19,6 +19,10 @@
 alloc = {}
 
 [dependencies.std]
-path = "../../../../rustlib/std"
+path = "../../../rustlib/std"
 features = ["net", "thread", "untrusted_fs", "untrusted_time", "unsupported_process"]
 stage = 1
+
+[dependencies.proc_macro]
+path = "../../../rustlib/proc_macro"
+stage = 2

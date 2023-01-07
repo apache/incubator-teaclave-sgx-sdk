@@ -16,8 +16,13 @@
 // under the License.
 
 enclave {
-    from "sgx_tstd.edl" import *;
     from "sgx_stdio.edl" import *;
+    from "sgx_net.edl" import *;
+    from "sgx_fs.edl" import *;
+    from "sgx_thread.edl" import *;
+    from "sgx_process.edl" import *;
+    from "sgx_tstd.edl" import *;
+
     trusted {
         /* define ECALLs here. */
 
