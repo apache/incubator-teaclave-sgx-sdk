@@ -16,12 +16,12 @@
 // under the License..
 
 use crate::cmp;
-use crate::io::{self, IoSlice, IoSliceMut, Read, ReadBuf};
+use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut, Read};
 use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 use crate::sys::cvt;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 
-use sgx_libc::{c_int, c_void};
+use sgx_libc::{c_int, c_void, off64_t};
 
 #[derive(Debug)]
 pub struct FileDesc(OwnedFd);
@@ -73,26 +73,25 @@ impl FileDesc {
                 self.as_raw_fd(),
                 buf.as_mut_ptr() as *mut c_void,
                 cmp::min(buf.len(), READ_LIMIT),
-                offset as i64,
+                offset as off64_t,
             ))
             .map(|n| n as usize)
         }
     }
 
-    pub fn read_buf(&self, buf: &mut ReadBuf<'_>) -> io::Result<()> {
+    pub fn read_buf(&self, mut cursor: BorrowedCursor<'_>) -> io::Result<()> {
         let ret = cvt(unsafe {
             libc::read(
                 self.as_raw_fd(),
-                buf.unfilled_mut().as_mut_ptr() as *mut c_void,
-                cmp::min(buf.remaining(), READ_LIMIT),
+                cursor.as_mut().as_mut_ptr() as *mut libc::c_void,
+                cmp::min(cursor.capacity(), READ_LIMIT),
             )
         })?;
 
         // Safety: `ret` bytes were written to the initialized portion of the buffer
         unsafe {
-            buf.assume_init(ret as usize);
+            cursor.advance(ret as usize);
         }
-        buf.add_filled(ret as usize);
         Ok(())
     }
 
@@ -131,7 +130,7 @@ impl FileDesc {
                 self.as_raw_fd(),
                 buf.as_ptr() as *const c_void,
                 cmp::min(buf.len(), READ_LIMIT),
-                offset as i64,
+                offset as off64_t,
             ))
             .map(|n| n as usize)
         }

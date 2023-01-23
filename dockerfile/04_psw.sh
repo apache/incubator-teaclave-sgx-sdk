@@ -22,7 +22,13 @@ curl -fsSL  https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key 
         libsgx-uae-service=$VERSION \
         libsgx-urts=$VERSION \
         sgx-aesm-service=$VERSION \
-	libsgx-ae-qe3=$DCAP_VERSION \
+        libsgx-ae-qe3=$DCAP_VERSION \
+        libsgx-dcap-ql=$DCAP_VERSION \
+        libsgx-dcap-ql-dev=$DCAP_VERSION \
+        libsgx-dcap-quote-verify=$DCAP_VERSION \
+        libsgx-dcap-quote-verify-dev=$DCAP_VERSION \
+        libsgx-dcap-default-qpl=$DCAP_VERSION \
+        libsgx-dcap-default-qpl-dev=$DCAP_VERSION \
         libsgx-pce-logic=$DCAP_VERSION \
         libsgx-qe3-logic=$DCAP_VERSION \
         libsgx-ra-network=$DCAP_VERSION \

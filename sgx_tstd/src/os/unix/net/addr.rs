@@ -19,16 +19,17 @@ use crate::ffi::OsStr;
 use crate::os::unix::ffi::OsStrExt;
 use crate::path::Path;
 use crate::sys::cvt;
-use crate::{ascii, fmt, io, mem, ptr};
+use crate::{fmt, io, mem, ptr};
 use sgx_libc as libc;
 
 fn sun_path_offset(addr: &libc::sockaddr_un) -> usize {
     // Work with an actual instance of the type since using a null pointer is UB
-    let base = addr as *const _ as usize;
-    let path = &addr.sun_path as *const _ as usize;
+    let base = (addr as *const libc::sockaddr_un).addr();
+    let path = (&addr.sun_path as *const libc::c_char).addr();
     path - base
 }
 
+#[allow(clippy::get_first)]
 pub(super) fn sockaddr_un(path: &Path) -> io::Result<(libc::sockaddr_un, libc::socklen_t)> {
     // SAFETY: All zeros is a valid representation for `sockaddr_un`.
     let mut addr: libc::sockaddr_un = unsafe { mem::zeroed() };
@@ -71,18 +72,6 @@ enum AddressKind<'a> {
     Abstract(&'a [u8]),
 }
 
-struct AsciiEscaped<'a>(&'a [u8]);
-
-impl<'a> fmt::Display for AsciiEscaped<'a> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(fmt, "\"")?;
-        for byte in self.0.iter().cloned().flat_map(ascii::escape_default) {
-            write!(fmt, "{}", byte as char)?;
-        }
-        write!(fmt, "\"")
-    }
-}
-
 /// An address associated with a Unix socket.
 ///
 /// # Examples
@@ -93,7 +82,7 @@ impl<'a> fmt::Display for AsciiEscaped<'a> {
 /// let socket = match UnixListener::bind("/tmp/sock") {
 ///     Ok(sock) => sock,
 ///     Err(e) => {
-///         println!("Couldn't bind: {:?}", e);
+///         println!("Couldn't bind: {e:?}");
 ///         return
 ///     }
 /// };
@@ -146,12 +135,11 @@ impl SocketAddr {
     /// # Examples
     ///
     /// ```
-    /// #![feature(unix_socket_creation)]
     /// use std::os::unix::net::SocketAddr;
     /// use std::path::Path;
     ///
     /// # fn main() -> std::io::Result<()> {
-    /// let address = SocketAddr::from_path("/path/to/socket")?;
+    /// let address = SocketAddr::from_pathname("/path/to/socket")?;
     /// assert_eq!(address.as_pathname(), Some(Path::new("/path/to/socket")));
     /// # Ok(())
     /// # }
@@ -160,12 +148,11 @@ impl SocketAddr {
     /// Creating a `SocketAddr` with a NULL byte results in an error.
     ///
     /// ```
-    /// #![feature(unix_socket_creation)]
     /// use std::os::unix::net::SocketAddr;
     ///
-    /// assert!(SocketAddr::from_path("/path/with/\0/bytes").is_err());
+    /// assert!(SocketAddr::from_pathname("/path/with/\0/bytes").is_err());
     /// ```
-    pub fn from_path<P>(path: P) -> io::Result<SocketAddr>
+    pub fn from_pathname<P>(path: P) -> io::Result<SocketAddr>
     where
         P: AsRef<Path>,
     {
@@ -303,7 +290,7 @@ impl SocketAddr {
     ///     let listener = match UnixListener::bind_addr(&addr) {
     ///         Ok(sock) => sock,
     ///         Err(err) => {
-    ///             println!("Couldn't bind: {:?}", err);
+    ///             println!("Couldn't bind: {err:?}");
     ///             return Err(err);
     ///         }
     ///     };
@@ -324,7 +311,7 @@ impl SocketAddr {
 
             crate::ptr::copy_nonoverlapping(
                 namespace.as_ptr(),
-                addr.sun_path.as_mut_ptr().offset(1) as *mut u8,
+                addr.sun_path.as_mut_ptr().add(1) as *mut u8,
                 namespace.len(),
             );
             let len = (sun_path_offset(&addr) + 1 + namespace.len()) as libc::socklen_t;
@@ -337,8 +324,8 @@ impl fmt::Debug for SocketAddr {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.address() {
             AddressKind::Unnamed => write!(fmt, "(unnamed)"),
-            AddressKind::Abstract(name) => write!(fmt, "{} (abstract)", AsciiEscaped(name)),
-            AddressKind::Pathname(path) => write!(fmt, "{:?} (pathname)", path),
+            AddressKind::Abstract(name) => write!(fmt, "\"{}\" (abstract)", name.escape_ascii()),
+            AddressKind::Pathname(path) => write!(fmt, "{path:?} (pathname)"),
         }
     }
 }

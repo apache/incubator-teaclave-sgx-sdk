@@ -62,11 +62,10 @@
 //! ```
 
 #![allow(non_camel_case_types)]
-#![allow(dead_code)] // sys isn't exported yet
+#![allow(dead_code)]
 
 use crate::sync::atomic::{self, AtomicUsize, Ordering};
 use crate::sys::thread_local_key as imp;
-use crate::sync::SgxThreadMutex;
 
 /// A type for TLS keys that are statically allocated.
 ///
@@ -82,8 +81,10 @@ use crate::sync::SgxThreadMutex;
 /// ```ignore (cannot-doctest-private-modules)
 /// use tls::os::{StaticKey, INIT};
 ///
+/// // Use a regular global static to store the key.
 /// static KEY: StaticKey = INIT;
 ///
+/// // The state provided via `get` and `set` is thread-local.
 /// unsafe {
 ///     assert!(KEY.get().is_null());
 ///     KEY.set(1 as *mut u8);
@@ -161,27 +162,6 @@ impl StaticKey {
     }
 
     unsafe fn lazy_init(&self) -> usize {
-        // Currently the Windows implementation of TLS is pretty hairy, and
-        // it greatly simplifies creation if we just synchronize everything.
-        //
-        // Additionally a 0-index of a tls key hasn't been seen on windows, so
-        // we just simplify the whole branch.
-        if imp::requires_synchronized_create() {
-            // We never call `INIT_LOCK.init()`, so it is UB to attempt to
-            // acquire this mutex reentrantly!
-            static INIT_LOCK: SgxThreadMutex = SgxThreadMutex::new();
-            let r = INIT_LOCK.lock();
-            rtassert!(r.is_ok());
-            let mut key = self.key.load(Ordering::SeqCst);
-            if key == 0 {
-                key = imp::create(self.dtor) as usize;
-                self.key.store(key, Ordering::SeqCst);
-            }
-            INIT_LOCK.unlock();
-            rtassert!(key != 0);
-            return key;
-        }
-
         // POSIX allows the key created here to be 0, but the compare_exchange
         // below relies on using 0 as a sentinel value to check who won the
         // race to set the shared TLS key. As far as I know, there is no
@@ -247,4 +227,3 @@ impl Drop for Key {
         unsafe { imp::destroy(self.key) }
     }
 }
-

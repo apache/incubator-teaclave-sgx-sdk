@@ -31,12 +31,16 @@
 //! * [`ToSocketAddrs`] is a trait that used for generic address resolution when interacting
 //!   with networking objects like [`TcpListener`], [`TcpStream`] or [`UdpSocket`]
 //! * Other types are return or parameter types for various methods in this module
+//!
+//! Rust disables inheritance of socket objects to child processes by default when possible.  For
+//! example, through the use of the `CLOEXEC` flag in UNIX systems or the `HANDLE_FLAG_INHERIT`
+//! flag on Windows.
 
 use crate::io::{self, ErrorKind};
 
-pub use self::addr::{SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
-pub use self::ip::{IpAddr, Ipv4Addr, Ipv6Addr, Ipv6MulticastScope};
+pub use self::ip_addr::{IpAddr, Ipv4Addr, Ipv6Addr, Ipv6MulticastScope};
 pub use self::parser::AddrParseError;
+pub use self::socket_addr::{SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 #[cfg(feature = "net")]
 pub use self::tcp::IntoIncoming;
 #[cfg(feature = "net")]
@@ -44,9 +48,10 @@ pub use self::tcp::{Incoming, TcpListener, TcpStream};
 #[cfg(feature = "net")]
 pub use self::udp::UdpSocket;
 
-mod addr;
-mod ip;
+mod display_buffer;
+mod ip_addr;
 mod parser;
+mod socket_addr;
 #[cfg(feature = "net")]
 mod tcp;
 #[cfg(feature = "net")]
@@ -71,15 +76,6 @@ pub enum Shutdown {
     ///
     /// See [`Shutdown::Read`] and [`Shutdown::Write`] for more information.
     Both,
-}
-
-#[inline]
-const fn htons(i: u16) -> u16 {
-    i.to_be()
-}
-#[inline]
-const fn ntohs(i: u16) -> u16 {
-    u16::from_be(i)
 }
 
 fn each_addr<A: ToSocketAddrs, F, T>(addr: A, mut f: F) -> io::Result<T>

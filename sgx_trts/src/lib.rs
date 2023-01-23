@@ -67,7 +67,6 @@
 #![feature(allocator_api)]
 #![feature(specialization)]
 #![feature(vec_into_raw_parts)]
-#![feature(toowned_clone_into)]
 #![feature(rustc_attrs)]
 #![allow(incomplete_features)]
 #![allow(non_camel_case_types)]
@@ -91,6 +90,7 @@ pub mod ascii;
 pub mod c_str;
 pub mod cpu_feature;
 pub mod cpuid;
+pub mod emm;
 pub mod enclave;
 pub mod memchr;
 pub mod memeq;

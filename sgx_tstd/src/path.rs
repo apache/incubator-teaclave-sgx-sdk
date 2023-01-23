@@ -82,6 +82,7 @@
 //! [`push`]: PathBuf::push
 
 #![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::bool_to_int_with_if)]
 
 use crate::borrow::{Borrow, Cow};
 use crate::cmp;
@@ -175,8 +176,9 @@ pub enum Prefix<'a> {
 
     /// Device namespace prefix, e.g., `\\.\COM42`.
     ///
-    /// Device namespace prefixes consist of `\\.\` immediately followed by the
-    /// device name.
+    /// Device namespace prefixes consist of `\\.\` (possibly using `/`
+    /// instead of `\`), immediately followed by the device name.
+
     DeviceNS(&'a OsStr),
 
     /// Prefix using Windows' _**U**niform **N**aming **C**onvention_, e.g.
@@ -194,7 +196,7 @@ impl<'a> Prefix<'a> {
     fn len(&self) -> usize {
         use self::Prefix::*;
         fn os_str_len(s: &OsStr) -> usize {
-            os_str_as_u8_slice(s).len()
+            s.bytes().len()
         }
         match *self {
             Verbatim(x) => 4 + os_str_len(x),
@@ -296,21 +298,20 @@ where
     }
 }
 
-// See note at the top of this module to understand why these are used:
-//
-// These casts are safe as OsStr is internally a wrapper around [u8] on all
-// platforms.
-//
-// Note that currently this relies on the special knowledge that libstd has;
-// these types are single-element structs but are not marked repr(transparent)
-// or repr(C) which would make these casts allowable outside std.
-fn os_str_as_u8_slice(s: &OsStr) -> &[u8] {
-    unsafe { &*(s as *const OsStr as *const [u8]) }
-}
 unsafe fn u8_slice_as_os_str(s: &[u8]) -> &OsStr {
-    // SAFETY: see the comment of `os_str_as_u8_slice`
-    &*(s as *const [u8] as *const OsStr)
+    // SAFETY: See note at the top of this module to understand why this and
+    // `OsStr::bytes` are used:
+    //
+    // This casts are safe as OsStr is internally a wrapper around [u8] on all
+    // platforms.
+    //
+    // Note that currently this relies on the special knowledge that libstd has;
+    // these types are single-element structs but are not marked
+    // repr(transparent) or repr(C) which would make these casts not allowable
+    // outside std.
+    unsafe { &*(s as *const [u8] as *const OsStr) }
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Cross-platform, iterator-independent parsing
@@ -324,7 +325,7 @@ fn has_physical_root(s: &[u8], prefix: Option<Prefix<'_>>) -> bool {
 
 // basic workhorse for splitting stem and extension
 fn rsplit_file_at_dot(file: &OsStr) -> (Option<&OsStr>, Option<&OsStr>) {
-    if os_str_as_u8_slice(file) == b".." {
+    if file.bytes() == b".." {
         return (Some(file), None);
     }
 
@@ -332,7 +333,7 @@ fn rsplit_file_at_dot(file: &OsStr) -> (Option<&OsStr>, Option<&OsStr>) {
     // and back. This is safe to do because (1) we only look at ASCII
     // contents of the encoding and (2) new &OsStr values are produced
     // only from ASCII-bounded slices of existing &OsStr values.
-    let mut iter = os_str_as_u8_slice(file).rsplitn(2, |b| *b == b'.');
+    let mut iter = file.bytes().rsplitn(2, |b| *b == b'.');
     let after = iter.next();
     let before = iter.next();
     if before == Some(b"") {
@@ -343,7 +344,7 @@ fn rsplit_file_at_dot(file: &OsStr) -> (Option<&OsStr>, Option<&OsStr>) {
 }
 
 fn split_file_at_dot(file: &OsStr) -> (&OsStr, Option<&OsStr>) {
-    let slice = os_str_as_u8_slice(file);
+    let slice = file.bytes();
     if slice == b".." {
         return (file, None);
     }
@@ -569,7 +570,7 @@ impl AsRef<Path> for Component<'_> {
 /// let path = Path::new("/tmp/foo/bar.txt");
 ///
 /// for component in path.components() {
-///     println!("{:?}", component);
+///     println!("{component:?}");
 /// }
 /// ```
 ///
@@ -700,7 +701,7 @@ impl<'a> Components<'a> {
         if self.has_root() {
             return false;
         }
-        let mut iter = self.path[self.prefix_len()..].iter();
+        let mut iter = self.path[self.prefix_remaining()..].iter();
         match (iter.next(), iter.next()) {
             (Some(&b'.'), None) => true,
             (Some(&b'.'), Some(&b)) => self.is_sep_byte(b),
@@ -1392,17 +1393,17 @@ impl PathBuf {
     fn _set_extension(&mut self, extension: &OsStr) -> bool {
         let file_stem = match self.file_stem() {
             None => return false,
-            Some(f) => os_str_as_u8_slice(f),
+            Some(f) => f.bytes(),
         };
 
         // truncate until right after the file stem
-        let end_file_stem = file_stem[file_stem.len()..].as_ptr() as usize;
-        let start = os_str_as_u8_slice(&self.inner).as_ptr() as usize;
+        let end_file_stem = file_stem[file_stem.len()..].as_ptr().addr();
+        let start = self.inner.bytes().as_ptr().addr();
         let v = self.as_mut_vec();
         v.truncate(end_file_stem.wrapping_sub(start));
 
         // add the new extension, if any
-        let new = os_str_as_u8_slice(extension);
+        let new = extension.bytes();
         if !new.is_empty() {
             v.reserve_exact(new.len() + 1);
             v.push(b'.');
@@ -1852,7 +1853,7 @@ impl Path {
     }
     // The following (private!) function reveals the byte encoding used for OsStr.
     fn as_u8_slice(&self) -> &[u8] {
-        os_str_as_u8_slice(&self.inner)
+        self.inner.bytes()
     }
 
     /// Directly wraps a string slice as a `Path` slice.
@@ -2281,12 +2282,13 @@ impl Path {
     ///
     /// [`Path::file_stem`]: Path::file_stem
     ///
+    #[allow(clippy::bind_instead_of_map)]
     #[must_use]
     pub fn file_prefix(&self) -> Option<&OsStr> {
-        self.file_name().map(split_file_at_dot).map(|(before, _after)| before)
+        self.file_name().map(split_file_at_dot).and_then(|(before, _after)| Some(before))
     }
 
-    /// Extracts the extension of [`self.file_name`], if possible.
+    /// Extracts the extension (without the leading dot) of [`self.file_name`], if possible.
     ///
     /// The extension is:
     ///
@@ -2582,6 +2584,9 @@ impl Path {
 
     /// Returns `true` if the path points at an existing entity.
     ///
+    /// Warning: this method may be error-prone, consider using [`try_exists()`] instead!
+    /// It also has a risk of introducing time-of-check to time-of-use (TOCTOU) bugs.
+    ///
     /// This function will traverse symbolic links to query information about the
     /// destination file.
     ///
@@ -2598,7 +2603,9 @@ impl Path {
     /// # See Also
     ///
     /// This is a convenience function that coerces errors to false. If you want to
-    /// check errors, call [`fs::metadata`].
+    /// check errors, call [`Path::try_exists`].
+    ///
+    /// [`try_exists()`]: Self::try_exists
     #[cfg(feature = "untrusted_fs")]
     #[must_use]
     #[inline]
@@ -2615,19 +2622,19 @@ impl Path {
     /// unrelated to the path not existing. (E.g. it will return `Err(_)` in case of permission
     /// denied on some of the parent directories.)
     ///
+    /// Note that while this avoids some pitfalls of the `exists()` method, it still can not
+    /// prevent time-of-check to time-of-use (TOCTOU) bugs. You should only use it in scenarios
+    /// where those bugs are not an issue.
+    ///
     /// # Examples
     ///
     /// ```no_run
-    /// #![feature(path_try_exists)]
-    ///
     /// use std::path::Path;
     /// assert!(!Path::new("does_not_exist.txt").try_exists().expect("Can't check existence of file does_not_exist.txt"));
     /// assert!(Path::new("/root/secret_file.txt").try_exists().is_err());
     /// ```
     ///
     /// [`exists()`]: Self::exists
-    // FIXME: stabilization should modify documentation of `exists()` to recommend this method
-    // instead.
     #[cfg(feature = "untrusted_fs")]
     #[inline]
     pub fn try_exists(&self) -> io::Result<bool> {
@@ -2793,6 +2800,7 @@ impl cmp::PartialEq for Path {
 }
 
 impl Hash for Path {
+    #[allow(clippy::redundant_pattern)]
     fn hash<H: Hasher>(&self, h: &mut H) {
         let bytes = self.as_u8_slice();
         let (prefix_len, verbatim) = match parse_prefix(&self.inner) {
@@ -2825,7 +2833,7 @@ impl Hash for Path {
                 if !verbatim {
                     component_start += match tail {
                         [b'.'] => 1,
-                        [b'.', sep, ..] if is_sep_byte(*sep) => 1,
+                        [b'.', sep @ _, ..] if is_sep_byte(*sep) => 1,
                         _ => 0,
                     };
                 }

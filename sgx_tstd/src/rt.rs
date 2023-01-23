@@ -24,6 +24,7 @@ use crate::slice;
 use crate::str;
 use crate::sync::Once;
 use crate::sync::SgxSpinlock;
+use crate::sys;
 use crate::thread;
 use sgx_trts::enclave::rsgx_is_supported_EDMM;
 use sgx_types::{sgx_enclave_id_t, sgx_thread_t, SGX_THREAD_T_NULL};
@@ -82,6 +83,15 @@ macro_rules! rtunwrap {
     };
 }
 
+macro_rules! should_panic {
+    ($fmt:expr) => {{
+        match crate::panic::catch_unwind(crate::panic::AssertUnwindSafe(|| $fmt)).is_err() {
+            true => {}
+            false => crate::rt::begin_panic($fmt),
+        }
+    }};
+}
+
 static INIT: Once = Once::new();
 static EXIT: Once = Once::new();
 static GLOBAL_INIT_LOCK: SgxSpinlock = SgxSpinlock::new();
@@ -101,6 +111,7 @@ pub extern "C" fn t_global_exit_ecall() {
     });
 }
 
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn t_global_init_ecall(id: u64, path: *const u8, len: usize) {
     if path.is_null() {
@@ -121,7 +132,9 @@ pub extern "C" fn t_global_init_ecall(id: u64, path: *const u8, len: usize) {
 }
 
 global_dtors_object! {
-    GLOBAL_DTORS, global_exit = { cleanup(); }
+    GLOBAL_DTORS, global_dtors = {
+        let _ = crate::panic::catch_unwind(cleanup);
+    }
 }
 
 // One-time runtime cleanup.
@@ -134,5 +147,7 @@ pub (crate) fn cleanup() {
         crate::io::cleanup();
 
         crate::sys_common::at_exit_imp::cleanup();
+        // SAFETY: Only called once during runtime cleanup.
+        unsafe { sys::cleanup() };
     });
 }

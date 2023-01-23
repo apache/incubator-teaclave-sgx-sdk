@@ -22,7 +22,7 @@ sgxtime [readme](documents/sgxtime.md) for instructions.
 * #### Intel SGX OOT 2.11.0 Driver or DCAP 1.36.2 Driver
 * #### Intel SGX SDK v2.12
 * #### Intel SGX PSW
-* #### Rust nightly-2020-10-25
+* #### Rust nightly-2022-10-22
 
 You can find the [installation guides](https://download.01.org/intel-sgx/sgx-linux/2.9/docs/) for Intel SGX software on the 01.org website.
 

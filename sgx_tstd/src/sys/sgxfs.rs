@@ -15,14 +15,14 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::os::unix::prelude::*;
-use crate::ffi::{CString, CStr};
+use crate::ffi::{CStr, CString};
 use crate::io::{self, Error, SeekFrom};
+use crate::os::unix::prelude::*;
 use crate::path::Path;
 use crate::sys_common::FromInner;
 use sgx_libc as libc;
 use sgx_tprotected_fs::{self, SgxFileStream};
-use sgx_types::{sgx_status_t, sgx_key_128bit_t, sgx_align_key_128bit_t};
+use sgx_types::{sgx_align_key_128bit_t, sgx_key_128bit_t, sgx_status_t};
 
 pub struct SgxFile(SgxFileStream);
 
@@ -64,10 +64,10 @@ impl OpenOptions {
 
     fn get_access_mode(&self) -> io::Result<String> {
         let mut mode = match (self.read, self.write, self.append) {
-            (true,  false, false) => "r".to_string(),
-            (false, true,  false) => "w".to_string(),
-            (false, false, true)  => "a".to_string(),
-            _ => {return Err(Error::from_raw_os_error(libc::EINVAL))},
+            (true, false, false) => "r".to_string(),
+            (false, true, false) => "w".to_string(),
+            (false, false, true) => "a".to_string(),
+            _ => return Err(Error::from_raw_os_error(libc::EINVAL)),
         };
         if self.update {
             mode += "+";
@@ -84,82 +84,99 @@ impl SgxFile {
         let path = cstr(path)?;
         let mode = opts.get_access_mode()?;
         let opts = CString::new(mode.as_bytes())?;
-        SgxFile::open_c(&path, &opts, &sgx_key_128bit_t::default(), true)
+        SgxFile::open_c(&path, &opts, None, true, None)
     }
 
     pub fn open_ex(path: &Path, opts: &OpenOptions, key: &sgx_key_128bit_t) -> io::Result<SgxFile> {
         let path = cstr(path)?;
         let mode = opts.get_access_mode()?;
         let opts = CString::new(mode.as_bytes())?;
-        SgxFile::open_c(&path, &opts, key, false)
+        SgxFile::open_c(&path, &opts, Some(key), false, None)
     }
 
-    pub fn open_c(path: &CStr, opts: &CStr, key: &sgx_key_128bit_t, auto: bool) -> io::Result<SgxFile> {
-        let file = if auto {
+    pub fn open_with(
+        path: &Path,
+        opts: &OpenOptions,
+        key: Option<&sgx_key_128bit_t>,
+        cache_size: Option<u64>,
+    ) -> io::Result<SgxFile> {
+        let path = cstr(path)?;
+        let mode = opts.get_access_mode()?;
+        let opts = CString::new(mode.as_bytes())?;
+        SgxFile::open_c(&path, &opts, key, false, cache_size)
+    }
+
+    pub fn open_c(
+        path: &CStr,
+        opts: &CStr,
+        key: Option<&sgx_key_128bit_t>,
+        auto: bool,
+        cache_size: Option<u64>,
+    ) -> io::Result<SgxFile> {
+        let file = if cache_size.is_some() {
+            SgxFileStream::open_ex(path, opts, key, cache_size.unwrap())
+        } else if auto == true || key.is_none() {
             SgxFileStream::open_auto_key(path, opts)
         } else {
-            SgxFileStream::open(path, opts, key)
+            SgxFileStream::open(path, opts, key.unwrap())
         };
 
-        file.map(SgxFile)
-            .map_err(|err| {
-                match err {
-                    1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
-                    2 => Error::from_raw_os_error(libc::ENOENT),
-                    3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
-                    4 | 5 => Error::from_raw_os_error(err),
-                    r if r > 4096 => {
-                        let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
-                        Error::from_sgx_error(status)
-                    },
-                    _ => Error::from_raw_os_error(err),
-                }
-            })
+        file.map(SgxFile).map_err(|err| match err {
+            1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
+            2 => Error::from_raw_os_error(libc::ENOENT),
+            3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
+            4 | 5 => Error::from_raw_os_error(err),
+            r if r > 4096 => {
+                let status =
+                    sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
+                Error::from_sgx_error(status)
+            }
+            _ => Error::from_raw_os_error(err),
+        })
     }
 
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
-        self.0.read(buf).map_err(|err| {
-            match err {
-                1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
-                2 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_INVALID_PARAMETER),
-                3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
-                4 | 5 => Error::from_raw_os_error(err),
-                r if r > 4096 => {
-                    let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
-                    Error::from_sgx_error(status)
-                },
-                _ => Error::from_raw_os_error(err),
+        self.0.read(buf).map_err(|err| match err {
+            1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
+            2 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_INVALID_PARAMETER),
+            3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
+            4 | 5 => Error::from_raw_os_error(err),
+            r if r > 4096 => {
+                let status =
+                    sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
+                Error::from_sgx_error(status)
             }
+            _ => Error::from_raw_os_error(err),
         })
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
-        self.0.write(buf).map_err(|err| {
-            match err {
-                1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
-                2 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_INVALID_PARAMETER),
-                3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
-                4 | 5 => Error::from_raw_os_error(err),
-                r if r > 4096 => {
-                    let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
-                    Error::from_sgx_error(status)
-                },
-                _ => Error::from_raw_os_error(err),
+        self.0.write(buf).map_err(|err| match err {
+            1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
+            2 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_INVALID_PARAMETER),
+            3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
+            4 | 5 => Error::from_raw_os_error(err),
+            r if r > 4096 => {
+                let status =
+                    sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
+                Error::from_sgx_error(status)
             }
+            _ => Error::from_raw_os_error(err),
         })
     }
 
     pub fn tell(&self) -> io::Result<u64> {
-        self.0.tell().map_err(|err| {
-            match err {
+        self.0
+            .tell()
+            .map_err(|err| match err {
                 r if r > 4096 => {
-                    let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
+                    let status = sgx_status_t::from_repr(r as u32)
+                        .unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
                     Error::from_sgx_error(status)
-                },
+                }
                 _ => Error::from_raw_os_error(err),
-            }
-        })
-        .map(|offset| offset as u64)
+            })
+            .map(|offset| offset as u64)
     }
 
     pub fn seek(&self, pos: SeekFrom) -> io::Result<u64> {
@@ -169,33 +186,31 @@ impl SgxFile {
             SeekFrom::Current(off) => (sgx_tprotected_fs::SeekFrom::Current, off),
         };
 
-        self.0.seek(offset, whence).map_err(|err| {
-            match err {
-                r if r > 4096 => {
-                    let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
-                    Error::from_sgx_error(status)
-                },
-                _ => Error::from_raw_os_error(err),
+        self.0.seek(offset, whence).map_err(|err| match err {
+            r if r > 4096 => {
+                let status =
+                    sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
+                Error::from_sgx_error(status)
             }
+            _ => Error::from_raw_os_error(err),
         })?;
 
         let offset = self.tell()?;
-        Ok(offset as u64)
+        Ok(offset)
     }
 
     pub fn flush(&self) -> io::Result<()> {
-        self.0.flush().map_err(|err| {
-            match err {
-                1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
-                2 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_INVALID_PARAMETER),
-                3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
-                4 | 5 => Error::from_raw_os_error(err),
-                r if r > 4096 => {
-                    let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
-                    Error::from_sgx_error(status)
-                },
-                _ => Error::from_raw_os_error(err),
+        self.0.flush().map_err(|err| match err {
+            1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
+            2 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_INVALID_PARAMETER),
+            3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
+            4 | 5 => Error::from_raw_os_error(err),
+            r if r > 4096 => {
+                let status =
+                    sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
+                Error::from_sgx_error(status)
             }
+            _ => Error::from_raw_os_error(err),
         })
     }
 
@@ -208,87 +223,82 @@ impl SgxFile {
     }
 
     pub fn clear_cache(&self) -> io::Result<()> {
-        self.0.clear_cache().map_err(|err| {
-            match err {
-                1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
-                2 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_INVALID_PARAMETER),
-                3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
-                4 | 5 => Error::from_raw_os_error(err),
-                r if r > 4096 => {
-                    let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
-                    Error::from_sgx_error(status)
-                },
-                _ => Error::from_raw_os_error(err),
+        self.0.clear_cache().map_err(|err| match err {
+            1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
+            2 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_INVALID_PARAMETER),
+            3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
+            4 | 5 => Error::from_raw_os_error(err),
+            r if r > 4096 => {
+                let status =
+                    sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
+                Error::from_sgx_error(status)
             }
+            _ => Error::from_raw_os_error(err),
         })
     }
 }
 
 pub fn remove(path: &Path) -> io::Result<()> {
     let path = cstr(path)?;
-    sgx_tprotected_fs::remove(&path).map_err(|err| {
-        match err {
-            1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
-            2 => Error::from_raw_os_error(libc::ENOENT),
-            3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
-            4 | 5 => Error::from_raw_os_error(err),
-            r if r > 4096 => {
-                let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
-                Error::from_sgx_error(status)
-            },
-            _ => Error::from_raw_os_error(err),
+    sgx_tprotected_fs::remove(&path).map_err(|err| match err {
+        1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
+        2 => Error::from_raw_os_error(libc::ENOENT),
+        3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
+        4 | 5 => Error::from_raw_os_error(err),
+        r if r > 4096 => {
+            let status =
+                sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
+            Error::from_sgx_error(status)
         }
+        _ => Error::from_raw_os_error(err),
     })
 }
 
 pub fn export_auto_key(path: &Path) -> io::Result<sgx_key_128bit_t> {
     let path = cstr(path)?;
-    sgx_tprotected_fs::export_auto_key(&path).map_err(|err| {
-        match err {
-            1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
-            2 => Error::from_raw_os_error(libc::ENOENT),
-            3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
-            4 | 5 => Error::from_raw_os_error(err),
-            r if r > 4096 => {
-                let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
-                Error::from_sgx_error(status)
-            },
-            _ => Error::from_raw_os_error(err),
+    sgx_tprotected_fs::export_auto_key(&path).map_err(|err| match err {
+        1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
+        2 => Error::from_raw_os_error(libc::ENOENT),
+        3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
+        4 | 5 => Error::from_raw_os_error(err),
+        r if r > 4096 => {
+            let status =
+                sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
+            Error::from_sgx_error(status)
         }
+        _ => Error::from_raw_os_error(err),
     })
 }
 
 pub fn export_align_auto_key(path: &Path) -> io::Result<sgx_align_key_128bit_t> {
     let path = cstr(path)?;
-    sgx_tprotected_fs::export_align_auto_key(&path).map_err(|err| {
-        match err {
-            1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
-            2 => Error::from_raw_os_error(libc::ENOENT),
-            3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
-            4 | 5 => Error::from_raw_os_error(err),
-            r if r > 4096 => {
-                let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
-                Error::from_sgx_error(status)
-            },
-            _ => Error::from_raw_os_error(err),
+    sgx_tprotected_fs::export_align_auto_key(&path).map_err(|err| match err {
+        1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
+        2 => Error::from_raw_os_error(libc::ENOENT),
+        3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
+        4 | 5 => Error::from_raw_os_error(err),
+        r if r > 4096 => {
+            let status =
+                sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
+            Error::from_sgx_error(status)
         }
+        _ => Error::from_raw_os_error(err),
     })
 }
 
 pub fn import_auto_key(path: &Path, key: &sgx_key_128bit_t) -> io::Result<()> {
     let path = cstr(path)?;
-    sgx_tprotected_fs::import_auto_key(&path, key).map_err(|err| {
-        match err {
-            1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
-            2 => Error::from_raw_os_error(libc::ENOENT),
-            3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
-            4 | 5 => Error::from_raw_os_error(err),
-            r if r > 4096 => {
-                let status = sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
-                Error::from_sgx_error(status)
-            },
-            _ => Error::from_raw_os_error(err),
+    sgx_tprotected_fs::import_auto_key(&path, key).map_err(|err| match err {
+        1 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_UNEXPECTED),
+        2 => Error::from_raw_os_error(libc::ENOENT),
+        3 => Error::from_sgx_error(sgx_status_t::SGX_ERROR_OUT_OF_MEMORY),
+        4 | 5 => Error::from_raw_os_error(err),
+        r if r > 4096 => {
+            let status =
+                sgx_status_t::from_repr(r as u32).unwrap_or(sgx_status_t::SGX_ERROR_UNEXPECTED);
+            Error::from_sgx_error(status)
         }
+        _ => Error::from_raw_os_error(err),
     })
 }
 
@@ -324,7 +334,7 @@ pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
     let mut writer = SgxFile::create(to)?;
     let perm = metadata.permissions();
 
-    let ret = io::copy::copy(&mut reader, &mut writer)?;
+    let ret = io::copy::generic_copy(&mut reader, &mut writer)?;
     fs::set_permissions(to, perm)?;
     Ok(ret)
 }

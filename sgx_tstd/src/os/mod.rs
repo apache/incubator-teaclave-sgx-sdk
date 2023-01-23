@@ -21,4 +21,6 @@ pub mod linux;
 pub mod raw;
 pub mod unix;
 
-mod fd;
+pub mod fd;
+#[cfg(feature = "net")]
+mod net;

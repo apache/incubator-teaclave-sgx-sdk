@@ -146,7 +146,7 @@
 //!
 //! // Unbounded receiver waiting for all senders to complete.
 //! while let Ok(msg) = rx.recv() {
-//!     println!("{}", msg);
+//!     println!("{msg}");
 //! }
 //!
 //! println!("completed");
@@ -384,7 +384,7 @@ impl<T> !Sync for Receiver<T> {}
 /// });
 ///
 /// for x in recv.iter() {
-///     println!("Got: {}", x);
+///     println!("Got: {x}");
 /// }
 /// ```
 #[derive(Debug)]
@@ -426,7 +426,7 @@ pub struct Iter<'a, T: 'a> {
 /// thread::sleep(Duration::from_secs(2)); // block for two seconds
 ///
 /// for x in receiver.try_iter() {
-///     println!("Got: {}", x);
+///     println!("Got: {x}");
 /// }
 /// ```
 #[derive(Debug)]
@@ -459,7 +459,7 @@ pub struct TryIter<'a, T: 'a> {
 /// });
 ///
 /// for x in recv.into_iter() {
-///     println!("Got: {}", x);
+///     println!("Got: {x}");
 /// }
 /// ```
 #[derive(Debug)]
@@ -546,16 +546,16 @@ impl<T> !Sync for Sender<T> {}
 /// let mut msg;
 ///
 /// msg = receiver.recv().unwrap();
-/// println!("message {} received", msg);
+/// println!("message {msg} received");
 ///
 /// // "Thread unblocked!" will be printed now
 ///
 /// msg = receiver.recv().unwrap();
-/// println!("message {} received", msg);
+/// println!("message {msg} received");
 ///
 /// msg = receiver.recv().unwrap();
 ///
-/// println!("message {} received", msg);
+/// println!("message {msg} received");
 /// ```
 pub struct SyncSender<T> {
     inner: Arc<sync::Packet<T>>,
@@ -979,14 +979,14 @@ impl<T> SyncSender<T> {
     ///
     /// let mut msg;
     /// msg = receiver.recv().unwrap();
-    /// println!("message {} received", msg);
+    /// println!("message {msg} received");
     ///
     /// msg = receiver.recv().unwrap();
-    /// println!("message {} received", msg);
+    /// println!("message {msg} received");
     ///
     /// // Third message may have never been sent
     /// match receiver.try_recv() {
-    ///     Ok(msg) => println!("message {} received", msg),
+    ///     Ok(msg) => println!("message {msg} received"),
     ///     Err(_) => println!("the third message was never sent"),
     /// }
     /// ```

@@ -24,13 +24,14 @@ pub use self::rand::hashmap_random_keys;
 #[cfg(feature = "backtrace")]
 pub mod backtrace;
 pub mod cmath;
-pub mod condvar;
+pub mod common;
 pub mod env;
 pub mod fd;
 pub mod fs;
 pub mod io;
+pub mod kernel_copy;
+pub mod locks;
 pub mod memchr;
-pub mod mutex;
 #[cfg(feature = "net")]
 pub mod net;
 pub mod os;
@@ -39,7 +40,6 @@ pub mod path;
 #[cfg(feature = "pipe")]
 pub mod pipe;
 pub mod rand;
-pub mod rwlock;
 pub mod sgxfs;
 #[cfg(feature = "stdio")]
 pub mod stdio;
@@ -50,6 +50,10 @@ pub mod thread_local_dtor;
 #[cfg(feature = "thread")]
 pub mod thread_local_key;
 pub mod time;
+
+// SAFETY: must be called only once during runtime cleanup.
+// NOTE: this is not guaranteed to run, for example when the program aborts.
+pub unsafe fn cleanup() {}
 
 pub fn decode_error_kind(errno: i32) -> ErrorKind {
     use ErrorKind::*;

@@ -73,11 +73,11 @@ pub struct enclave_css_t {
 }
 
 /* version of metadata */
-/* based on 2.9.1 */
-pub const MAJOR_VERSION: u32 = 2;
-pub const MINOR_VERSION: u32 = 4;
+/* based on 2.18 */
+pub const MAJOR_VERSION: u32 = 3;
+pub const MINOR_VERSION: u32 = 0;
 
-pub const SGX_2_ELRANGE_MAJOR_VERSION: u32 = 12;
+pub const SGX_2_ELRANGE_MAJOR_VERSION: u32 = 13;
 pub const SGX_1_ELRANGE_MAJOR_VERSION: u32 = 11;
 pub const SGX_MAJOR_VERSION_GAP: u32 = 10;
 
@@ -101,13 +101,14 @@ pub const MAX_SAVE_BUF_SIZE: u32 = 2632;
 pub const TCS_NUM_MIN: u32 = 1;
 pub const SSA_NUM_MIN: u32 = 2;
 pub const SSA_FRAME_SIZE_MIN: u32 = 1;
-pub const SSA_FRAME_SIZE_MAX: u32 = 2;
-pub const STACK_SIZE_MIN: u32 = 0x0000_2000; /*   8 KB */
-pub const STACK_SIZE_MAX: u32 = 0x0004_0000; /* 256 KB */
-pub const HEAP_SIZE_MIN: u32 = 0x0000_1000; /*   4 KB */
-pub const HEAP_SIZE_MAX: u32 = 0x0100_0000; /*  16 MB */
-pub const RSRV_SIZE_MIN: u32 = 0x0000_0000; /*   0 KB */
-pub const RSRV_SIZE_MAX: u32 = 0x0000_0000; /*   0 KB */
+pub const SSA_FRAME_SIZE_MAX: u32 = 4;
+pub const STACK_SIZE_MIN: u32 = 0x0000_2000; // 8 KB
+pub const STACK_SIZE_MAX: u32 = 0x0004_0000; // 256 KB
+pub const HEAP_SIZE_MIN: u32 = 0x0000_1000; // 4 KB
+pub const HEAP_SIZE_MAX: u32 = 0x0100_0000; // 16 MB
+pub const RSRV_SIZE_MIN: u32 = 0x0000_0000; // 0 KB
+pub const RSRV_SIZE_MAX: u32 = 0x0000_0000; // 0 KB
+pub const USER_REGION_SIZE: u32 = 0x0000_0000; // 0 KB
 pub const DEFAULT_MISC_SELECT: u32 = 0;
 pub const DEFAULT_MISC_MASK: u32 = 0xFFFF_FFFF;
 pub const ISVFAMILYID_MAX: u64 = 0xFFFF_FFFF_FFFF_FFFF;
@@ -157,6 +158,7 @@ pub const LAYOUT_ID_THREAD_GROUP_DYN: u32 = group_id!(19);
 pub const LAYOUT_ID_RSRV_MIN: u32 = 20;
 pub const LAYOUT_ID_RSRV_INIT: u32 = 21;
 pub const LAYOUT_ID_RSRV_MAX: u32 = 22;
+pub const LAYOUT_ID_USER_REGION: u32 = 23;
 
 type si_flags_t = u64;
 

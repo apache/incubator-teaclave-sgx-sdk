@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use super::{BufWriter, ErrorKind, Read, ReadBuf, Result, Write, DEFAULT_BUF_SIZE};
+use super::{BorrowedBuf, BufWriter, ErrorKind, Read, Result, Write, DEFAULT_BUF_SIZE};
 use crate::mem::MaybeUninit;
 
 /// Copies the entire contents of a reader into a writer.
@@ -56,12 +56,22 @@ use crate::mem::MaybeUninit;
 ///     Ok(())
 /// }
 /// ```
+///
+/// # Platform-specific behavior
+///
+/// On Linux (including Android), this function uses `copy_file_range(2)`,
+/// `sendfile(2)` or `splice(2)` syscalls to move data directly between file
+/// descriptors if possible.
+///
+/// Note that platform-specific behavior [may change in the future][changes].
+///
+/// [changes]: crate::io#platform-specific-behavior
 pub fn copy<R: ?Sized, W: ?Sized>(reader: &mut R, writer: &mut W) -> Result<u64>
 where
     R: Read,
     W: Write,
 {
-    generic_copy(reader, writer)
+    crate::sys::kernel_copy::copy_spec(reader, writer)
 }
 
 /// The userspace read-write-loop implementation of `io::copy` that is used when
@@ -97,37 +107,39 @@ impl<I: Write> BufferedCopySpec for BufWriter<I> {
 
         loop {
             let buf = writer.buffer_mut();
-            let mut read_buf = ReadBuf::uninit(buf.spare_capacity_mut());
+            let mut read_buf: BorrowedBuf<'_> = buf.spare_capacity_mut().into();
 
-            // SAFETY: init is either 0 or the initialized_len of the previous iteration
             unsafe {
-                read_buf.assume_init(init);
+                // SAFETY: init is either 0 or the init_len from the previous iteration.
+                read_buf.set_init(init);
             }
 
             if read_buf.capacity() >= DEFAULT_BUF_SIZE {
-                match reader.read_buf(&mut read_buf) {
+                let mut cursor = read_buf.unfilled();
+                match reader.read_buf(cursor.reborrow()) {
                     Ok(()) => {
-                        let bytes_read = read_buf.filled_len();
+                        let bytes_read = cursor.written();
 
                         if bytes_read == 0 {
                             return Ok(len);
                         }
 
-                        init = read_buf.initialized_len() - bytes_read;
-
-                        // SAFETY: ReadBuf guarantees all of its filled bytes are init
-                        unsafe { buf.set_len(buf.len() + bytes_read) };
+                        init = read_buf.init_len() - bytes_read;
                         len += bytes_read as u64;
+
+                        // SAFETY: BorrowedBuf guarantees all of its filled bytes are init
+                        unsafe { buf.set_len(buf.len() + bytes_read) };
+
                         // Read again if the buffer still has enough capacity, as BufWriter itself would do
                         // This will occur if the reader returns short reads
-                        continue;
                     }
-                    Err(ref e) if e.kind() == ErrorKind::Interrupted => continue,
+                    Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
                     Err(e) => return Err(e),
                 }
+            } else {
+                writer.flush_buf()?;
+                init = 0;
             }
-
-            writer.flush_buf()?;
         }
     }
 }
@@ -136,13 +148,13 @@ fn stack_buffer_copy<R: Read + ?Sized, W: Write + ?Sized>(
     reader: &mut R,
     writer: &mut W,
 ) -> Result<u64> {
-    let mut buf = [MaybeUninit::uninit(); DEFAULT_BUF_SIZE];
-    let mut buf = ReadBuf::uninit(&mut buf);
+    let buf: &mut [_] = &mut [MaybeUninit::uninit(); DEFAULT_BUF_SIZE];
+    let mut buf: BorrowedBuf<'_> = buf.into();
 
     let mut len = 0;
 
     loop {
-        match reader.read_buf(&mut buf) {
+        match reader.read_buf(buf.unfilled()) {
             Ok(()) => {}
             Err(e) if e.kind() == ErrorKind::Interrupted => continue,
             Err(e) => return Err(e),

@@ -436,8 +436,8 @@ pub fn rsgx_create_enclave_with_workers(
     num_tworkers: u32,
 ) -> SgxResult<sgx_enclave_id_t> {
     let us_config = sgx_uswitchless_config_t {
-        num_tworkers,
-        num_uworkers,
+        num_tworkers: num_tworkers as u64,
+        num_uworkers: num_uworkers as u64,
         ..Default::default()
     };
     let mut enclave_ex_p: [*const c_void; 32] = [ptr::null(); 32];

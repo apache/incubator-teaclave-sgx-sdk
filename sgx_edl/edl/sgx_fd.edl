@@ -19,6 +19,7 @@ enclave {
 
     include "inc/stat.h"
     include "sys/uio.h"
+    include "time.h"
 
     from "sgx_mem.edl" import *;
 
@@ -37,11 +38,20 @@ enclave {
         size_t u_writev_ocall([out] int *error, int fd, [in, count=iovcnt] const struct iovec *iov, int iovcnt);
         size_t u_pwritev64_ocall([out] int *error, int fd, [in, count=iovcnt] const struct iovec *iov, int iovcnt, int64_t offset);
 
+        size_t u_sendfile_ocall([out] int *error, int out_fd, int in_fd, [in, out] int64_t *offset, size_t count);
+        size_t u_copy_file_range_ocall([out] int *error, int fd_in, [in, out] int64_t *off_in, int fd_out, [in, out] int64_t *off_out, size_t len, unsigned int flags);
+        size_t u_splice_ocall([out] int *error, int fd_in, [in, out] int64_t *off_in, int fd_out, [in, out] int64_t *off_out, size_t len, unsigned int flags);
+
         int u_fcntl_arg0_ocall([out] int *error, int fd, int cmd);
         int u_fcntl_arg1_ocall([out] int *error, int fd, int cmd, int arg);
         int u_ioctl_arg0_ocall([out] int *error, int fd, int request);
         int u_ioctl_arg1_ocall([out] int *error, int fd, int request, [in, out] int *arg);
 
         int u_close_ocall([out] int *error, int fd);
+        int u_isatty_ocall([out] int *error, int fd);
+        int u_dup_ocall([out] int *error, int oldfd);
+        int u_eventfd_ocall([out] int *error, unsigned int initval, int flags);
+
+        int u_futimens_ocall([out] int *error, int fd, [in, count=2] const struct timespec *times);
     };
 };

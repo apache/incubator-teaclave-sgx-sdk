@@ -42,14 +42,30 @@ macro_rules! panic {
 /// necessary to use [`io::stdout().flush()`][flush] to ensure the output is emitted
 /// immediately.
 ///
+/// The `print!` macro will lock the standard output on each call. If you call
+/// `print!` within a hot loop, this behavior may be the bottleneck of the loop.
+/// To avoid this, lock stdout with [`io::stdout().lock()`][lock]:
+/// ```
+/// use std::io::{stdout, Write};
+///
+/// let mut lock = stdout().lock();
+/// write!(lock, "hello world").unwrap();
+/// ```
+///
 /// Use `print!` only for the primary output of your program. Use
 /// [`eprint!`] instead to print error and progress messages.
 ///
 /// [flush]: crate::io::Write::flush
+/// [`println!`]: crate::println
+/// [`eprint!`]: crate::eprint
+/// [lock]: crate::io::Stdout
 ///
 /// # Panics
 ///
 /// Panics if writing to `io::stdout()` fails.
+///
+/// Writing to non-blocking stdout can cause an error, which will lead
+/// this macro to panic.
 ///
 /// # Examples
 ///
@@ -75,7 +91,9 @@ macro_rules! panic {
 #[cfg_attr(not(test), rustc_diagnostic_item = "print_macro")]
 #[allow_internal_unstable(print_internals)]
 macro_rules! print {
-    ($($arg:tt)*) => ($crate::io::_print($crate::format_args!($($arg)*)));
+    ($($arg:tt)*) => {{
+        $crate::io::_print($crate::format_args!($($arg)*));
+    }};
 }
 
 /// Prints to the standard output, with a newline.
@@ -83,17 +101,32 @@ macro_rules! print {
 /// On all platforms, the newline is the LINE FEED character (`\n`/`U+000A`) alone
 /// (no additional CARRIAGE RETURN (`\r`/`U+000D`)).
 ///
-/// Use the [`format!`] syntax to write data to the standard output.
+/// This macro uses the same syntax as [`format!`], but writes to the standard output instead.
 /// See [`std::fmt`] for more information.
+///
+/// The `println!` macro will lock the standard output on each call. If you call
+/// `println!` within a hot loop, this behavior may be the bottleneck of the loop.
+/// To avoid this, lock stdout with [`io::stdout().lock()`][lock]:
+/// ```
+/// use std::io::{stdout, Write};
+///
+/// let mut lock = stdout().lock();
+/// writeln!(lock, "hello world").unwrap();
+/// ```
 ///
 /// Use `println!` only for the primary output of your program. Use
 /// [`eprintln!`] instead to print error and progress messages.
 ///
 /// [`std::fmt`]: crate::fmt
+/// [`eprintln!`]: crate::eprintln
+/// [lock]: crate::io::Stdout
 ///
 /// # Panics
 ///
 /// Panics if writing to [`io::stdout`] fails.
+///
+/// Writing to non-blocking stdout can cause an error, which will lead
+/// this macro to panic.
 ///
 /// [`io::stdout`]: crate::io::stdout
 ///
@@ -103,16 +136,20 @@ macro_rules! print {
 /// println!(); // prints just a newline
 /// println!("hello there!");
 /// println!("format {} arguments", "some");
+/// let local_variable = "some";
+/// println!("format {local_variable} arguments");
 /// ```
 #[cfg(feature = "stdio")]
 #[macro_export]
 #[cfg_attr(not(test), rustc_diagnostic_item = "println_macro")]
 #[allow_internal_unstable(print_internals, format_args_nl)]
 macro_rules! println {
-    () => ($crate::print!("\n"));
-    ($($arg:tt)*) => ({
+    () => {
+        $crate::print!("\n")
+    };
+    ($($arg:tt)*) => {{
         $crate::io::_print($crate::format_args_nl!($($arg)*));
-    })
+    }};
 }
 
 #[cfg(not(feature = "stdio"))]
@@ -141,6 +178,9 @@ macro_rules! println { ($($arg:tt)*) => ({}) }
 ///
 /// Panics if writing to `io::stderr` fails.
 ///
+/// Writing to non-blocking stdout can cause an error, which will lead
+/// this macro to panic.
+///
 /// # Examples
 ///
 /// ```
@@ -151,7 +191,9 @@ macro_rules! println { ($($arg:tt)*) => ({}) }
 #[cfg_attr(not(test), rustc_diagnostic_item = "eprint_macro")]
 #[allow_internal_unstable(print_internals)]
 macro_rules! eprint {
-    ($($arg:tt)*) => ($crate::io::_eprint($crate::format_args!($($arg)*)));
+    ($($arg:tt)*) => {{
+        $crate::io::_eprint($crate::format_args!($($arg)*));
+    }};
 }
 
 /// Prints to the standard error, with a newline.
@@ -165,10 +207,14 @@ macro_rules! eprint {
 ///
 /// [`io::stderr`]: crate::io::stderr
 /// [`io::stdout`]: crate::io::stdout
+/// [`println!`]: crate::println
 ///
 /// # Panics
 ///
 /// Panics if writing to `io::stderr` fails.
+///
+/// Writing to non-blocking stdout can cause an error, which will lead
+/// this macro to panic.
 ///
 /// # Examples
 ///
@@ -180,10 +226,12 @@ macro_rules! eprint {
 #[cfg_attr(not(test), rustc_diagnostic_item = "eprintln_macro")]
 #[allow_internal_unstable(print_internals, format_args_nl)]
 macro_rules! eprintln {
-    () => ($crate::eprint!("\n"));
-    ($($arg:tt)*) => ({
+    () => {
+        $crate::eprint!("\n")
+    };
+    ($($arg:tt)*) => {{
         $crate::io::_eprint($crate::format_args_nl!($($arg)*));
-    })
+    }};
 }
 
 #[cfg(not(feature = "stdio"))]
