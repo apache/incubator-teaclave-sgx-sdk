@@ -4,9 +4,6 @@ Cargo.lock
 #object file
 *.o
 
-#app
-app
-
 #library
 *.a
 
