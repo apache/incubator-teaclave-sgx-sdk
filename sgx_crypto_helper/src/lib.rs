@@ -30,7 +30,6 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(clippy::too_many_arguments)]
-
 #![cfg_attr(all(feature = "mesalock_sgx", not(target_env = "sgx")), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![cfg_attr(test, feature(test))]
@@ -39,27 +38,38 @@
 #[macro_use]
 extern crate sgx_tstd as std;
 
-extern crate sgx_types;
 #[cfg(any(feature = "mesalock_sgx", target_env = "sgx"))]
 extern crate sgx_tcrypto as crypto;
-#[cfg(not(any(feature = "mesalock_sgx", target_env = "sgx")))]
+extern crate sgx_types;
+#[cfg(all(
+    feature = "crypto",
+    not(any(feature = "mesalock_sgx", target_env = "sgx"))
+))]
 extern crate sgx_ucrypto as crypto;
 
-use std::prelude::v1::*;
-use sgx_types::SgxResult;
+#[cfg(any(feature = "crypto"))]
 use crypto::SgxRsaPrivKey;
+#[cfg(any(feature = "crypto"))]
 use crypto::SgxRsaPubKey;
+use sgx_types::SgxResult;
+use std::prelude::v1::*;
 
 /// A trait to express the ability to create a RSA keypair with default e
 /// (65537) or customized e, and to_privkey/to_pubkey, encryption/decryption API.
 pub trait RsaKeyPair {
     /// Create a new RSA keypair with default e = 65537.
-    fn new() -> SgxResult<Self> where Self: std::marker::Sized;
+    fn new() -> SgxResult<Self>
+    where
+        Self: std::marker::Sized;
     /// Create a new RSA keypair with customized e
-    fn new_with_e(e: u32) -> SgxResult<Self> where Self: std::marker::Sized;
+    fn new_with_e(e: u32) -> SgxResult<Self>
+    where
+        Self: std::marker::Sized;
     /// Get a private key instance typed `SgxRsaPrivKey` which is defined in sgx_tcrypto/sgx_ucrypto.
+    #[cfg(any(feature = "crypto"))]
     fn to_privkey(self) -> SgxResult<SgxRsaPrivKey>;
     /// get a public key instance typed `SgxPubPrivKey` which is defined in sgx_tcrypto/sgx_ucrypto.
+    #[cfg(any(feature = "crypto"))]
     fn to_pubkey(self) -> SgxResult<SgxRsaPubKey>;
     /// Encrypt a u8 slice to a Vec<u8>. Returns the length of ciphertext if OK.
     fn encrypt_buffer(self, plaintext: &[u8], ciphertext: &mut Vec<u8>) -> SgxResult<usize>;
@@ -67,15 +77,15 @@ pub trait RsaKeyPair {
     fn decrypt_buffer(self, ciphertext: &[u8], plaintext: &mut Vec<u8>) -> SgxResult<usize>;
 }
 
-#[cfg(any(feature = "mesalock_sgx", target_env = "sgx"))]
-extern crate serde_sgx;
 #[cfg(not(any(feature = "mesalock_sgx", target_env = "sgx")))]
 extern crate serde;
-
 #[cfg(any(feature = "mesalock_sgx", target_env = "sgx"))]
-extern crate serde_derive_sgx as serde_derive;
+extern crate serde_sgx;
+
 #[cfg(not(any(feature = "mesalock_sgx", target_env = "sgx")))]
 extern crate serde_derive;
+#[cfg(any(feature = "mesalock_sgx", target_env = "sgx"))]
+extern crate serde_derive_sgx as serde_derive;
 
 #[cfg(any(feature = "mesalock_sgx", target_env = "sgx"))]
 #[macro_use]
@@ -84,5 +94,6 @@ extern crate serde_big_array_sgx as serde_big_array;
 #[macro_use]
 extern crate serde_big_array;
 
+#[cfg(feature = "rsa2048")]
 pub mod rsa2048;
 pub mod rsa3072;

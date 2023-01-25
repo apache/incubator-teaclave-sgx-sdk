@@ -1,15 +1,17 @@
+#[cfg(feature = "crypto")]
 use crypto::rsgx_create_rsa_key_pair;
+#[cfg(feature = "crypto")]
 use crypto::{SgxRsaPrivKey, SgxRsaPubKey};
 use itertools::Itertools;
 use sgx_types::sgx_status_t;
 use sgx_types::SgxResult;
 use sgx_types::{SGX_RSA3072_KEY_SIZE, SGX_RSA3072_PRI_EXP_SIZE, SGX_RSA3072_PUB_EXP_SIZE};
-pub const SGX_RSA3072_DEFAULT_E: [u8;SGX_RSA3072_PUB_EXP_SIZE]    = [0x01, 0x00, 0x00, 0x01]; // 16777217
+pub const SGX_RSA3072_DEFAULT_E: [u8; SGX_RSA3072_PUB_EXP_SIZE] = [0x01, 0x00, 0x00, 0x01]; // 16777217
 use std::fmt;
 
-use std::prelude::v1::*;
 use crate::RsaKeyPair;
 use serde_derive::*;
+use std::prelude::v1::*;
 
 big_array! { BigArray; }
 
@@ -58,7 +60,6 @@ pub struct Rsa3072KeyPair {
     iqmp: [u8; SGX_RSA3072_KEY_SIZE / 2],
 }
 
-
 impl Default for Rsa3072KeyPair {
     fn default() -> Self {
         Rsa3072KeyPair {
@@ -76,7 +77,9 @@ impl Default for Rsa3072KeyPair {
 
 impl fmt::Debug for Rsa3072KeyPair {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, r#"Rsa3072KeyPair: {{ n:{:02X}, d:{:02X}, e:{:02X}, p:{:02X}, q:{:02X}, dmp1:{:02X}, dmq:{:02X}, iqmp:{:02X} }}"#,
+        write!(
+            f,
+            r#"Rsa3072KeyPair: {{ n:{:02X}, d:{:02X}, e:{:02X}, p:{:02X}, q:{:02X}, dmp1:{:02X}, dmq:{:02X}, iqmp:{:02X} }}"#,
             self.n.iter().format(""),
             self.d.iter().format(""),
             self.e.iter().format(""),
@@ -84,10 +87,12 @@ impl fmt::Debug for Rsa3072KeyPair {
             self.q.iter().format(""),
             self.dmp1.iter().format(""),
             self.dmq1.iter().format(""),
-            self.iqmp.iter().format(""))
+            self.iqmp.iter().format("")
+        )
     }
 }
 
+#[cfg(feature = "crypto")]
 impl RsaKeyPair for Rsa3072KeyPair {
     fn new() -> SgxResult<Self> {
         let mut newkey = Self::default();
@@ -197,7 +202,7 @@ impl RsaKeyPair for Rsa3072KeyPair {
 
         for i in 0..count {
             let cipher_slice = &ciphertext[i * bs..i * bs + bs];
-            let plain_slice = &mut vec![0;bs_plain];
+            let plain_slice = &mut vec![0; bs_plain];
             let mut plain_len = bs_plain;
 
             privkey.decrypt_sha256(plain_slice, &mut plain_len, cipher_slice)?;
@@ -244,6 +249,7 @@ impl Default for Rsa3072PubKey {
 }
 
 impl Rsa3072PubKey {
+    #[cfg(feature = "crypto")]
     fn to_pubkey(self) -> SgxResult<SgxRsaPubKey> {
         let result = SgxRsaPubKey::new();
         match result.create(
@@ -257,6 +263,7 @@ impl Rsa3072PubKey {
         }
     }
 
+    #[cfg(feature = "crypto")]
     pub fn encrypt_buffer(self, plaintext: &[u8], ciphertext: &mut Vec<u8>) -> SgxResult<usize> {
         let pubkey = self.to_pubkey()?;
         let bs = 384;
@@ -280,26 +287,32 @@ impl Rsa3072PubKey {
 
 impl fmt::Debug for Rsa3072PubKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, r#"Rsa3072KeyPair: {{ n:{:02X}, e:{:02X} }}"#,
+        write!(
+            f,
+            r#"Rsa3072KeyPair: {{ n:{:02X}, e:{:02X} }}"#,
             self.n.iter().format(""),
-            self.e.iter().format(""))
+            self.e.iter().format("")
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    extern crate rdrand;
     extern crate rand_core;
+    extern crate rdrand;
     extern crate test;
 
-    use self::test::Bencher;
-    use self::rdrand::RdRand;
     use self::rand_core::RngCore;
-    use crate::RsaKeyPair;
+    use self::rdrand::RdRand;
+    use self::test::Bencher;
     use crate::rsa3072::Rsa3072KeyPair;
     use crate::rsa3072::Rsa3072PubKey;
+    #[cfg(feature = "crypto")]
     use crate::rsa3072::SgxRsaPrivKey;
+    #[cfg(feature = "crypto")]
     use crate::rsa3072::SgxRsaPubKey;
+    use crate::RsaKeyPair;
+    #[cfg(feature = "crypto")]
     use crypto::rsgx_create_rsa_key_pair;
     use sgx_types::sgx_status_t;
 
@@ -345,6 +358,7 @@ mod tests {
         assert!(keypair.to_privkey().is_ok());
     }
 
+    #[cfg(feature = "crypto")]
     #[test]
     fn rsa_encrypt_decrypt() {
         let text = String::from("abc");
@@ -435,9 +449,12 @@ mod tests {
 
         let exported_pub_key = exported_pub_key.unwrap();
         let serialized_pub_key = serde_json::to_string(&exported_pub_key).unwrap();
-        let deserialized_pub_key: Rsa3072PubKey = serde_json::from_str(&serialized_pub_key).unwrap();
+        let deserialized_pub_key: Rsa3072PubKey =
+            serde_json::from_str(&serialized_pub_key).unwrap();
 
-        assert!(deserialized_pub_key.encrypt_buffer(&plaintext, &mut ciphertext).is_ok());
+        assert!(deserialized_pub_key
+            .encrypt_buffer(&plaintext, &mut ciphertext)
+            .is_ok());
         let mut decrypted: Vec<u8> = Vec::new();
         assert!(kp.decrypt_buffer(&ciphertext, &mut decrypted).is_ok());
         assert_eq!("T".repeat(1000), String::from_utf8(decrypted).unwrap());
@@ -446,7 +463,7 @@ mod tests {
     #[bench]
     fn encrypt_speed_bench(b: &mut Bencher) {
         let mut rng = RdRand::new().unwrap();
-        let mut buffer = vec![0;1*1024*1024];
+        let mut buffer = vec![0; 1 * 1024 * 1024];
         let kp = Rsa3072KeyPair::new().unwrap();
         let mut ciphertext: Vec<u8> = Vec::new();
         rng.fill_bytes(&mut buffer);
@@ -456,7 +473,7 @@ mod tests {
     #[bench]
     fn decrypt_speed_bench(b: &mut Bencher) {
         let mut rng = RdRand::new().unwrap();
-        let mut buffer = vec![0;1*1024*1024];
+        let mut buffer = vec![0; 1 * 1024 * 1024];
         let kp = Rsa3072KeyPair::new().unwrap();
         let mut ciphertext: Vec<u8> = Vec::new();
         rng.fill_bytes(&mut buffer);

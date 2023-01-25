@@ -14,21 +14,23 @@ crate-type = ["staticlib","rlib"]
 
 [features]
 default = ["ucrypto_help"]
+rsa2048 = []
+crypto = []
 ucrypto_help = [
-    "sgx_ucrypto",
+    # "sgx_ucrypto",
     "libc",
     "serde",
     "serde_derive",
     "serde-big-array"]
 mesalock_sgx = [
-    "sgx_tcrypto",
+    # "sgx_tcrypto",
     "sgx_tstd",
     "serde-sgx",
     "serde_derive-sgx",
     "serde-big-array-sgx"]
 
 [dependencies]
-sgx_ucrypto = { rev = "v1.1.3", git = "https://github.com/apache/teaclave-sgx-sdk.git", optional = true }
+# sgx_ucrypto = { rev = "v1.1.3", git = "https://github.com/apache/teaclave-sgx-sdk.git", optional = true }
 libc = { version = "0.2", optional = true }
 itertools = { version = "*", default-features = false }
 serde = { version = "1.0.104", optional = true }
@@ -39,7 +41,7 @@ serde_derive-sgx = { git = "https://github.com/mesalock-linux/serde-sgx", packag
 serde-big-array-sgx = { git = "https://github.com/mesalock-linux/serde-big-array-sgx", package = 'serde-big-array', optional = true }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_tcrypto = { rev = "v1.1.3", git = "https://github.com/apache/teaclave-sgx-sdk.git", optional = true }
+# sgx_tcrypto = { rev = "v1.1.3", git = "https://github.com/apache/teaclave-sgx-sdk.git", optional = true }
 sgx_tstd    = { rev = "v1.1.3", git = "https://github.com/apache/teaclave-sgx-sdk.git", optional = true }
 sgx_types   = { rev = "v1.1.3", git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
