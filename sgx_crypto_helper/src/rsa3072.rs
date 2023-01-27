@@ -9,6 +9,11 @@ use sgx_types::{SGX_RSA3072_KEY_SIZE, SGX_RSA3072_PRI_EXP_SIZE, SGX_RSA3072_PUB_
 pub const SGX_RSA3072_DEFAULT_E: [u8; SGX_RSA3072_PUB_EXP_SIZE] = [0x01, 0x00, 0x00, 0x01]; // 16777217
 use std::fmt;
 
+#[cfg(feature = "crypto_direct")]
+use crate::crypto_direct as crypto;
+#[cfg(feature = "crypto_direct")]
+use crypto::{SgxRsaPrivKey, SgxRsaPubKey};
+
 use crate::RsaKeyPair;
 use serde_derive::*;
 use std::prelude::v1::*;
@@ -264,6 +269,41 @@ impl Rsa3072PubKey {
     }
 
     #[cfg(feature = "crypto")]
+    pub fn encrypt_buffer(self, plaintext: &[u8], ciphertext: &mut Vec<u8>) -> SgxResult<usize> {
+        let pubkey = self.to_pubkey()?;
+        let bs = 384;
+
+        let bs_plain = bs - 2 * 256 / 8 - 2;
+        let count = (plaintext.len() + bs_plain - 1) / bs_plain;
+        ciphertext.resize(bs * count, 0);
+
+        for i in 0..count {
+            let cipher_slice = &mut ciphertext[i * bs..i * bs + bs];
+            let mut out_len = bs;
+            let plain_slice =
+                &plaintext[i * bs_plain..std::cmp::min(i * bs_plain + bs_plain, plaintext.len())];
+
+            pubkey.encrypt_sha256(cipher_slice, &mut out_len, plain_slice)?;
+        }
+
+        Ok(ciphertext.len())
+    }
+
+    #[cfg(feature = "crypto_direct")]
+    fn to_pubkey(self) -> SgxResult<SgxRsaPubKey> {
+        let mut result = SgxRsaPubKey::new();
+        match result.create(
+            SGX_RSA3072_KEY_SIZE as i32,
+            SGX_RSA3072_PUB_EXP_SIZE as i32,
+            &self.n,
+            &self.e,
+        ) {
+            Ok(()) => Ok(result),
+            Err(x) => Err(x),
+        }
+    }
+
+    #[cfg(feature = "crypto_direct")]
     pub fn encrypt_buffer(self, plaintext: &[u8], ciphertext: &mut Vec<u8>) -> SgxResult<usize> {
         let pubkey = self.to_pubkey()?;
         let bs = 384;

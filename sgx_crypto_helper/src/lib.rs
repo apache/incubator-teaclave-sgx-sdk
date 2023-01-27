@@ -47,6 +47,9 @@ extern crate sgx_types;
 ))]
 extern crate sgx_ucrypto as crypto;
 
+#[cfg(feature = "crypto_direct")]
+mod crypto_direct;
+
 #[cfg(any(feature = "crypto"))]
 use crypto::SgxRsaPrivKey;
 #[cfg(any(feature = "crypto"))]
