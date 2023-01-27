@@ -219,6 +219,18 @@ impl RsaKeyPair for Rsa3072KeyPair {
     }
 }
 
+// TODO or directly "impl RsaKeyPair"?
+#[cfg(feature = "crypto_direct")]
+impl Rsa3072KeyPair {
+    pub fn encrypt_buffer(self, plaintext: &[u8], ciphertext: &mut Vec<u8>) -> SgxResult<usize> {
+        todo!("Rsa3072KeyPair/crypto_direct::encrypt_buffer")
+    }
+
+    pub fn decrypt_buffer(self, ciphertext: &[u8], plaintext: &mut Vec<u8>) -> SgxResult<usize> {
+        todo!("Rsa3072KeyPair/crypto_direct::decrypt_buffer")
+    }
+}
+
 impl Rsa3072KeyPair {
     pub fn export_pubkey(self) -> SgxResult<Rsa3072PubKey> {
         Ok(Rsa3072PubKey {
