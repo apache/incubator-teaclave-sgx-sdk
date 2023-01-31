@@ -34,13 +34,6 @@ pub struct SgxRsaPubKey {
 }
 
 impl SgxRsaPubKey {
-    pub fn new() -> SgxRsaPubKey {
-        SgxRsaPubKey {
-            // TODO what to use?
-            key: RsaPublicKey::new(BigUint::from(0u32), BigUint::from(0u32)).unwrap(),
-        }
-    }
-
     /// Normally it calls: "sgx_create_rsa_pub1_key"
     /// sgx_create_rsa_pub1_key generates a public key of the desired RSA
     /// cryptographic with the input RSA key components.
@@ -70,13 +63,12 @@ impl SgxRsaPubKey {
     /// Some of the pointers is NULL, or the input size is less than 0.
     /// SGX_ERROR_UNEXPECTED
     /// Unexpected error occurs during generating the RSA public key.
-    pub fn create(&mut self, _mod_size: i32, _exp_size: i32, n: &[u8], e: &[u8]) -> SgxError {
-        // TODO mod_size or exp_size? or other?
-        // TODO "from_bytes_be" or "from_bytes_le"? other?
-        self.key = RsaPublicKey::new(BigUint::from_bytes_be(n), BigUint::from_bytes_be(e))
-            .map_err(|err| sgx_status_t::SGX_ERROR_INVALID_PARAMETER)?;
-
-        Ok(())
+    pub fn new(_mod_size: i32, _exp_size: i32, n: &[u8], e: &[u8]) -> SgxRsaPubKey {
+        SgxRsaPubKey {
+            key: RsaPublicKey::new(BigUint::from_bytes_be(n), BigUint::from_bytes_be(e))
+                .map_err(|err| sgx_status_t::SGX_ERROR_INVALID_PARAMETER)
+                .unwrap(),
+        }
     }
 
     /// Normally it calls: "sgx_rsa_pub_encrypt_sha256"
@@ -125,11 +117,11 @@ impl SgxRsaPubKey {
     }
 }
 
-impl Default for SgxRsaPubKey {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// impl Default for SgxRsaPubKey {
+//     fn default() -> Self {
+//         Self::new()
+//     }
+// }
 
 pub struct SgxRsaPrivKey {
     key: RefCell<sgx_rsa_key_t>,

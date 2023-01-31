@@ -303,16 +303,16 @@ impl Rsa3072PubKey {
 
     #[cfg(feature = "crypto_direct")]
     fn to_pubkey(self) -> SgxResult<SgxRsaPubKey> {
-        let mut result = SgxRsaPubKey::new();
-        match result.create(
+        let mut result = SgxRsaPubKey::new(
             SGX_RSA3072_KEY_SIZE as i32,
             SGX_RSA3072_PUB_EXP_SIZE as i32,
             &self.n,
             &self.e,
-        ) {
-            Ok(()) => Ok(result),
-            Err(x) => Err(x),
-        }
+        );
+
+        Ok(result)
+        // TODO
+        // Err(x) => Err(x),
     }
 
     #[cfg(feature = "crypto_direct")]
