@@ -63,7 +63,15 @@ impl SgxRsaPubKey {
     /// Some of the pointers is NULL, or the input size is less than 0.
     /// SGX_ERROR_UNEXPECTED
     /// Unexpected error occurs during generating the RSA public key.
-    pub fn new(_mod_size: i32, _exp_size: i32, n: &[u8], e: &[u8]) -> SgxRsaPubKey {
+    pub fn new(mod_size: i32, exp_size: i32, n: &[u8], e: &[u8]) -> SgxRsaPubKey {
+        assert!(
+            mod_size as usize == n.len(),
+            "SgxRsaPubKey::new: wrong modulus length??"
+        );
+        assert!(
+            exp_size as usize == e.len(),
+            "SgxRsaPubKey::new: wrong exponent length??"
+        );
         SgxRsaPubKey {
             key: RsaPublicKey::new(BigUint::from_bytes_be(n), BigUint::from_bytes_be(e))
                 .map_err(|err| sgx_status_t::SGX_ERROR_INVALID_PARAMETER)
@@ -112,6 +120,7 @@ impl SgxRsaPubKey {
             .map_err(|err| sgx_status_t::SGX_ERROR_UNEXPECTED)?;
 
         *out_len = enc_data.len();
+        out_data.copy_from_slice(&enc_data);
 
         Ok(())
     }
