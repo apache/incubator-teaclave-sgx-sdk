@@ -280,27 +280,6 @@ impl Rsa3072PubKey {
         }
     }
 
-    #[cfg(feature = "crypto")]
-    pub fn encrypt_buffer(self, plaintext: &[u8], ciphertext: &mut Vec<u8>) -> SgxResult<usize> {
-        let pubkey = self.to_pubkey()?;
-        let bs = 384;
-
-        let bs_plain = bs - 2 * 256 / 8 - 2;
-        let count = (plaintext.len() + bs_plain - 1) / bs_plain;
-        ciphertext.resize(bs * count, 0);
-
-        for i in 0..count {
-            let cipher_slice = &mut ciphertext[i * bs..i * bs + bs];
-            let mut out_len = bs;
-            let plain_slice =
-                &plaintext[i * bs_plain..std::cmp::min(i * bs_plain + bs_plain, plaintext.len())];
-
-            pubkey.encrypt_sha256(cipher_slice, &mut out_len, plain_slice)?;
-        }
-
-        Ok(ciphertext.len())
-    }
-
     #[cfg(feature = "crypto_direct")]
     fn to_pubkey(self) -> SgxResult<SgxRsaPubKey> {
         let mut result = SgxRsaPubKey::new(
@@ -315,7 +294,6 @@ impl Rsa3072PubKey {
         // Err(x) => Err(x),
     }
 
-    #[cfg(feature = "crypto_direct")]
     pub fn encrypt_buffer(self, plaintext: &[u8], ciphertext: &mut Vec<u8>) -> SgxResult<usize> {
         let pubkey = self.to_pubkey()?;
         let bs = 384;

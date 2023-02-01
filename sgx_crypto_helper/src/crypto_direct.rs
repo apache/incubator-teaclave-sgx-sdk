@@ -73,7 +73,9 @@ impl SgxRsaPubKey {
             "SgxRsaPubKey::new: wrong exponent length??"
         );
         SgxRsaPubKey {
-            key: RsaPublicKey::new(BigUint::from_bytes_be(n), BigUint::from_bytes_be(e))
+            // TODO when to choose from_bytes_be? platform? feature? never?
+            // [interstellar] DO NOT change without testing! This would completely break `integritee-cli`!
+            key: RsaPublicKey::new(BigUint::from_bytes_le(n), BigUint::from_bytes_le(e))
                 .map_err(|err| sgx_status_t::SGX_ERROR_INVALID_PARAMETER)
                 .unwrap(),
         }
