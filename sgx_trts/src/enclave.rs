@@ -23,7 +23,7 @@
 use sgx_types::metadata::*;
 use sgx_types::*;
 
-pub const LAYOUT_ENTRY_NUM: usize = 42;
+pub const LAYOUT_ENTRY_NUM: usize = 43;
 
 #[link(name = "sgx_trts")]
 extern "C" {
