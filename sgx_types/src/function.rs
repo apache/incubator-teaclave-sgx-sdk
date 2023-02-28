@@ -694,7 +694,7 @@ extern "C" {
 //#[link(name = "sgx_mm")]
 extern "C" {
     pub fn sgx_mm_alloc(
-        addr: *mut c_void,
+        addr: *const c_void,
         length: size_t,
         flags: int32_t,
         handler: sgx_enclave_fault_handler_t,
@@ -702,17 +702,17 @@ extern "C" {
         out_addr: *mut *mut c_void,
     ) -> int32_t;
 
-    pub fn sgx_mm_commit(addr: *mut c_void, length: size_t) -> int32_t;
+    pub fn sgx_mm_commit(addr: *const c_void, length: size_t) -> int32_t;
     pub fn sgx_mm_commit_data(
-        addr: *mut c_void,
+        addr: *const c_void,
         length: size_t,
-        data: *mut uint8_t,
+        data: *const uint8_t,
         prot: int32_t,
     ) -> int32_t;
-    pub fn sgx_mm_uncommit(addr: *mut c_void, length: size_t) -> int32_t;
-    pub fn sgx_mm_dealloc(addr: *mut c_void, length: size_t) -> int32_t;
-    pub fn sgx_mm_modify_permissions(addr: *mut c_void, length: size_t, prot: int32_t) -> int32_t;
-    pub fn sgx_mm_modify_type(addr: *mut c_void, length: size_t, page_type: int32_t) -> int32_t;
+    pub fn sgx_mm_uncommit(addr: *const c_void, length: size_t) -> int32_t;
+    pub fn sgx_mm_dealloc(addr: *const c_void, length: size_t) -> int32_t;
+    pub fn sgx_mm_modify_permissions(addr: *const c_void, length: size_t, prot: int32_t) -> int32_t;
+    pub fn sgx_mm_modify_type(addr: *const c_void, length: size_t, page_type: int32_t) -> int32_t;
 }
 
 //#[link(name = "sgx_epid")]
