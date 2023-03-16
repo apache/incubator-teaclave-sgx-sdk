@@ -679,3 +679,19 @@ pub fn rsgx_get_elrange_base() -> *const u8 {
 pub fn rsgx_get_elrange_size() -> usize {
     unsafe { g_global_data.elrange_size as usize }
 }
+
+///
+/// rsgx_get_enclave_entry is to get enclave entry point address.
+///
+/// **Note**
+///
+/// This API is only an experimental funtion.
+///
+#[inline]
+pub fn rsgx_get_enclave_entry() -> usize {
+    extern "C" {
+        fn enclave_entry();
+    }
+    let entry_addr: unsafe extern "C" fn() = enclave_entry;
+    entry_addr as usize
+}
