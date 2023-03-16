@@ -1752,6 +1752,59 @@ impl_enum! {
     }
 }
 
+/* intel DCAP 1.15 */
+//
+// tdx_attes.h
+//
+pub const TDX_UUID_SIZE: usize = 16;
+pub const TDX_REPORT_DATA_SIZE: usize = 64;
+pub const TDX_REPORT_SIZE: usize = 1024;
+
+impl_struct! {
+    pub struct tdx_uuid_t {
+        pub d: [uint8_t; TDX_UUID_SIZE],
+    }
+}
+
+impl_copy_clone! {
+    pub struct tdx_report_data_t {
+        pub d: [uint8_t; TDX_REPORT_DATA_SIZE],
+    }
+
+    pub struct tdx_report_t {
+        pub d: [uint8_t; TDX_REPORT_SIZE],
+    }
+}
+
+impl_struct_default! {
+    tdx_report_data_t; //64
+    tdx_report_t; //1024
+}
+
+impl_struct_ContiguousMemory! {
+    tdx_report_data_t;
+    tdx_report_t;
+}
+
+impl_packed_copy_clone! {
+    pub struct tdx_rtmr_event_t {
+        pub version: uint32_t,
+        pub rtmr_index: uint64_t,
+        pub extend_data: [uint8_t; 48],
+        pub event_type: uint32_t,
+        pub event_data_size: uint32_t,
+        pub event_data: [uint8_t; 0],
+    }
+}
+
+impl_struct_default! {
+    tdx_rtmr_event_t; //68
+}
+
+impl_struct_ContiguousMemory! {
+    tdx_rtmr_event_t;
+}
+
 /* intel sgx sdk 2.7.1 */
 //
 // sgx_secure_align_api.h

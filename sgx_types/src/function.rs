@@ -711,7 +711,8 @@ extern "C" {
     ) -> int32_t;
     pub fn sgx_mm_uncommit(addr: *const c_void, length: size_t) -> int32_t;
     pub fn sgx_mm_dealloc(addr: *const c_void, length: size_t) -> int32_t;
-    pub fn sgx_mm_modify_permissions(addr: *const c_void, length: size_t, prot: int32_t) -> int32_t;
+    pub fn sgx_mm_modify_permissions(addr: *const c_void, length: size_t, prot: int32_t)
+        -> int32_t;
     pub fn sgx_mm_modify_type(addr: *const c_void, length: size_t, page_type: int32_t) -> int32_t;
 }
 
@@ -1280,6 +1281,14 @@ extern "C" {
         p_qve_report_info: *mut sgx_ql_qe_report_info_t,
         p_supp_data_descriptor: *const tee_supp_data_descriptor_t,
     ) -> sgx_quote3_error_t;
+
+    /* intel DCAP 1.16 */
+    pub fn tee_get_fmspc_from_quote(
+        p_quote: *const uint8_t,
+        quote_size: uint32_t,
+        p_fmspc_from_quote: *mut uint8_t,
+        fmspc_from_quote_size: uint32_t,
+    ) -> sgx_quote3_error_t;
 }
 
 /* intel DCAP 1.7 */
@@ -1299,6 +1308,37 @@ extern "C" {
         supplemental_data_size: uint32_t,
         qve_isvsvn_threshold: sgx_isv_svn_t,
     ) -> sgx_quote3_error_t;
+}
+
+/* intel DCAP 1.15 */
+//#[link(name = "libtdx_attest")]
+extern "C" {
+    //
+    // tdx_attes.h
+    //
+    pub fn tdx_att_get_quote(
+        p_tdx_report_data: *const tdx_report_data_t,
+        att_key_id_list: *const tdx_uuid_t,
+        list_size: uint32_t,
+        p_att_key_id: *mut tdx_uuid_t,
+        pp_quote: *mut *mut uint8_t,
+        p_quote_size: *mut uint32_t,
+        flags: uint32_t,
+    ) -> tdx_attest_error_t;
+
+    pub fn tdx_att_free_quote(p_quote: *const uint8_t) -> tdx_attest_error_t;
+
+    pub fn tdx_att_get_report(
+        p_tdx_report_data: *const tdx_report_data_t,
+        p_tdx_report: *mut tdx_report_t,
+    ) -> tdx_attest_error_t;
+
+    pub fn tdx_att_extend(p_rtmr_event: *const tdx_rtmr_event_t) -> tdx_attest_error_t;
+
+    pub fn tdx_att_get_supported_att_key_ids(
+        p_att_key_id_list: *mut tdx_uuid_t,
+        p_list_size: *mut uint32_t,
+    ) -> tdx_attest_error_t;
 }
 
 /* intel sgx sdk 2.16 */
