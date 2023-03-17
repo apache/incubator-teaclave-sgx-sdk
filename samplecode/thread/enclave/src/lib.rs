@@ -59,12 +59,12 @@ pub extern "C" fn ecall_initialize() {
         SgxCondvar::new(),
     ));
     let ptr = Box::into_raw(lock);
-    GLOBAL_COND_BUFFER.store(ptr as *mut (), Ordering::SeqCst);
+    GLOBAL_COND_BUFFER.store(ptr as *mut (), Ordering::Relaxed);
 }
 
 #[no_mangle]
 pub extern "C" fn ecall_uninitialize() {
-    let ptr = GLOBAL_COND_BUFFER.swap(0 as *mut (), Ordering::SeqCst)
+    let ptr = GLOBAL_COND_BUFFER.swap(0 as *mut (), Ordering::Relaxed)
         as *mut (SgxMutex<CondBuffer>, SgxCondvar, SgxCondvar);
     if ptr.is_null() {
         return;
@@ -73,7 +73,7 @@ pub extern "C" fn ecall_uninitialize() {
 }
 
 fn get_ref_cond_buffer() -> Option<&'static (SgxMutex<CondBuffer>, SgxCondvar, SgxCondvar)> {
-    let ptr = GLOBAL_COND_BUFFER.load(Ordering::SeqCst)
+    let ptr = GLOBAL_COND_BUFFER.load(Ordering::Relaxed)
         as *mut (SgxMutex<CondBuffer>, SgxCondvar, SgxCondvar);
     if ptr.is_null() {
         None

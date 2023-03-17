@@ -48,15 +48,15 @@ extern {
 static CALLBACK_FN: AtomicPtr<()> = AtomicPtr::new(0 as * mut ());
 
 pub fn init(cb: Callback) {
-    let ptr = CALLBACK_FN.load(Ordering::SeqCst);
+    let ptr = CALLBACK_FN.load(Ordering::Relaxed);
     if ptr.is_null() {
         let ptr: * mut Callback = Box::into_raw(Box::new(cb));
-        CALLBACK_FN.store(ptr as * mut (), Ordering::SeqCst);
+        CALLBACK_FN.store(ptr as * mut (), Ordering::Relaxed);
     }
 }
 
 fn get_callback() -> Option<&'static Callback>{
-    let ptr = CALLBACK_FN.load(Ordering::SeqCst) as *mut Callback;
+    let ptr = CALLBACK_FN.load(Ordering::Relaxed) as *mut Callback;
     if ptr.is_null() {
          return None;
     }

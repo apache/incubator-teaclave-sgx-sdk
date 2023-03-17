@@ -85,7 +85,7 @@ static GLOBAL_HASH_BUFFER: AtomicPtr<()> = AtomicPtr::new(0 as * mut ());
 
 fn get_ref_hash_buffer() -> Option<&'static RefCell<SetIntersection>>
 {
-    let ptr = GLOBAL_HASH_BUFFER.load(Ordering::SeqCst) as * mut RefCell<SetIntersection>;
+    let ptr = GLOBAL_HASH_BUFFER.load(Ordering::Relaxed) as * mut RefCell<SetIntersection>;
     if ptr.is_null() {
         None
     } else {
@@ -107,7 +107,7 @@ fn initialize() -> sgx_status_t {
 
     let data_box = Box::new(RefCell::<SetIntersection>::new(data));
     let ptr = Box::into_raw(data_box);
-    GLOBAL_HASH_BUFFER.store(ptr as *mut (), Ordering::SeqCst);
+    GLOBAL_HASH_BUFFER.store(ptr as *mut (), Ordering::Relaxed);
 
     sgx_status_t::SGX_SUCCESS
 }
@@ -116,7 +116,7 @@ fn initialize() -> sgx_status_t {
 pub extern "C"
 fn uninitialize() {
 
-    let ptr = GLOBAL_HASH_BUFFER.swap(0 as * mut (), Ordering::SeqCst) as * mut RefCell<SetIntersection>;
+    let ptr = GLOBAL_HASH_BUFFER.swap(0 as * mut (), Ordering::Relaxed) as * mut RefCell<SetIntersection>;
     if ptr.is_null() {
        return;
     }
