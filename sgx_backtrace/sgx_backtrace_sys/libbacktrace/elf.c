@@ -3000,22 +3000,20 @@ elf_add (struct backtrace_state *state, const char *filename, int descriptor,
         debug_view_valid = 0;
     }
 
-    if (!backtrace_dwarf_add (state, base_address,
-                              sections[DEBUG_INFO].data,
-                              sections[DEBUG_INFO].size,
-                              sections[DEBUG_LINE].data,
-                              sections[DEBUG_LINE].size,
-                              sections[DEBUG_ABBREV].data,
-                              sections[DEBUG_ABBREV].size,
-                              sections[DEBUG_RANGES].data,
-                              sections[DEBUG_RANGES].size,
-                              sections[DEBUG_STR].data,
-                              sections[DEBUG_STR].size,
-                              ehdr.e_ident[EI_DATA] == ELFDATA2MSB,
-                              error_callback, data, fileline_fn))
-        goto fail;
-
-    *found_dwarf = 1;
+    if (backtrace_dwarf_add (state, base_address,
+                             sections[DEBUG_INFO].data,
+                             sections[DEBUG_INFO].size,
+                             sections[DEBUG_LINE].data,
+                             sections[DEBUG_LINE].size,
+                             sections[DEBUG_ABBREV].data,
+                             sections[DEBUG_ABBREV].size,
+                             sections[DEBUG_RANGES].data,
+                             sections[DEBUG_RANGES].size,
+                             sections[DEBUG_STR].data,
+                             sections[DEBUG_STR].size,
+                             ehdr.e_ident[EI_DATA] == ELFDATA2MSB,
+                             error_callback, data, fileline_fn))
+        *found_dwarf = 1;
 
     return 1;
 

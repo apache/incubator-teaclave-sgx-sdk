@@ -134,11 +134,11 @@ write_validate (void *addr)
 static int (*mem_validate_func) (void *addr, size_t len);
 static int msync_validate (void *addr, size_t len)
 {
-  // #ifdef HAVE_SGX
-  // extern int sgx_is_within_enclave(const void *addr, size_t size);
-  // if(!sgx_is_within_enclave(addr, len))
-  //   abort();
-  // #endif
+#ifdef HAVE_SGX
+  extern int sgx_is_within_enclave(const void *addr, size_t size);
+  if(!sgx_is_within_enclave(addr, len))
+    abort();
+#endif
 
   if (msync (addr, len, MS_ASYNC) != 0)
     {
