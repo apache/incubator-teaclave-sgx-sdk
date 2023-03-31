@@ -285,7 +285,7 @@ fn default_hook(info: &PanicInfo<'_>) {
                     drop(backtrace::print(err, crate::sys::backtrace::PrintFmt::Full))
                 }
                 Some(BacktraceStyle::Off) => {
-                    if FIRST_PANIC.swap(false, Ordering::SeqCst) {
+                    if FIRST_PANIC.swap(false, Ordering::Relaxed) {
                         let _ = writeln!(
                             err,
                             "note: call backtrace::enable_backtrace with 'PrintFormat::Short/Full' for a backtrace."
