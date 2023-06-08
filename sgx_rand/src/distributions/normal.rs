@@ -24,9 +24,9 @@ use crate::{Open01, Rand, Rng};
 ///
 /// See `Normal` for the general normal distribution.
 ///
-/// Implemented via the ZIGNOR variant[1] of the Ziggurat method.
+/// Implemented via the ZIGNOR variant\[1\] of the Ziggurat method.
 ///
-/// [1]: Jurgen A. Doornik (2005). [*An Improved Ziggurat Method to
+/// \[1\]: Jurgen A. Doornik (2005). [*An Improved Ziggurat Method to
 /// Generate Normal Random
 /// Samples*](http://www.doornik.com/research/ziggurat.pdf). Nuffield
 /// College, Oxford
