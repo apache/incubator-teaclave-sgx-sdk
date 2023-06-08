@@ -35,9 +35,9 @@ use crate::{Open01, Rng};
 /// where `Γ` is the Gamma function, `k` is the shape and `θ` is the
 /// scale and both `k` and `θ` are strictly positive.
 ///
-/// The algorithm used is that described by Marsaglia & Tsang 2000[1],
+/// The algorithm used is that described by Marsaglia & Tsang 2000\[1\],
 /// falling back to directly sampling from an Exponential for `shape
-/// == 1`, and using the boosting technique described in [1] for
+/// == 1`, and using the boosting technique described in \[1\] for
 /// `shape < 1`.
 ///
 /// # Example
@@ -50,7 +50,7 @@ use crate::{Open01, Rng};
 /// println!("{} is from a Gamma(2, 5) distribution", v);
 /// ```
 ///
-/// [1]: George Marsaglia and Wai Wan Tsang. 2000. "A Simple Method
+/// \[1\]: George Marsaglia and Wai Wan Tsang. 2000. "A Simple Method
 /// for Generating Gamma Variables" *ACM Trans. Math. Softw.* 26, 3
 /// (September 2000),
 /// 363-372. DOI:[10.1145/358407.358414](http://doi.acm.org/10.1145/358407.358414)

@@ -24,14 +24,14 @@ const KEY_WORDS: usize = 8; // 8 words for the 256-bit key
 const STATE_WORDS: usize = 16;
 const CHACHA_ROUNDS: u32 = 20; // Cryptographically secure from 8 upwards as of this writing
 
-/// A random number generator that uses the ChaCha20 algorithm [1].
+/// A random number generator that uses the ChaCha20 algorithm \[1\].
 ///
 /// The ChaCha algorithm is widely accepted as suitable for
 /// cryptographic purposes, but this implementation has not been
 /// verified as such. Prefer a generator like `OsRng` that defers to
 /// the operating system for cases that need high security.
 ///
-/// [1]: D. J. Bernstein, [*ChaCha, a variant of
+/// \[1\]: D. J. Bernstein, [*ChaCha, a variant of
 /// Salsa20*](http://cr.yp.to/chacha.html)
 #[derive(Copy, Clone, Debug)]
 pub struct ChaChaRng {

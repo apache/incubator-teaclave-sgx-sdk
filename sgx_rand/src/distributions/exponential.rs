@@ -24,11 +24,11 @@ use crate::{Rand, Rng};
 ///
 /// See `Exp` for the general exponential distribution.
 ///
-/// Implemented via the ZIGNOR variant[1] of the Ziggurat method. The
+/// Implemented via the ZIGNOR variant\[1\] of the Ziggurat method. The
 /// exact description in the paper was adjusted to use tables for the
 /// exponential distribution rather than normal.
 ///
-/// [1]: Jurgen A. Doornik (2005). [*An Improved Ziggurat Method to
+/// \[1\]: Jurgen A. Doornik (2005). [*An Improved Ziggurat Method to
 /// Generate Normal Random
 /// Samples*](http://www.doornik.com/research/ziggurat.pdf). Nuffield
 /// College, Oxford

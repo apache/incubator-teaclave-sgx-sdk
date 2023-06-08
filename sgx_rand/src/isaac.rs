@@ -30,14 +30,14 @@ const RAND_SIZE_LEN: usize = 8;
 const RAND_SIZE: u32 = 1 << RAND_SIZE_LEN;
 const RAND_SIZE_USIZE: usize = 1 << RAND_SIZE_LEN;
 
-/// A random number generator that uses the ISAAC algorithm[1].
+/// A random number generator that uses the ISAAC algorithm\[1\].
 ///
 /// The ISAAC algorithm is generally accepted as suitable for
 /// cryptographic purposes, but this implementation has not be
 /// verified as such. Prefer a generator like `OsRng` that defers to
 /// the operating system for cases that need high security.
 ///
-/// [1]: Bob Jenkins, [*ISAAC: A fast cryptographic random number
+/// \[1\]: Bob Jenkins, [*ISAAC: A fast cryptographic random number
 /// generator*](http://www.burtleburtle.net/bob/rand/isaacafa.html)
 #[derive(Copy)]
 pub struct IsaacRng {
@@ -309,7 +309,7 @@ impl fmt::Debug for IsaacRng {
 const RAND_SIZE_64_LEN: usize = 8;
 const RAND_SIZE_64: usize = 1 << RAND_SIZE_64_LEN;
 
-/// A random number generator that uses ISAAC-64[1], the 64-bit
+/// A random number generator that uses ISAAC-64\[1\], the 64-bit
 /// variant of the ISAAC algorithm.
 ///
 /// The ISAAC algorithm is generally accepted as suitable for
@@ -317,7 +317,7 @@ const RAND_SIZE_64: usize = 1 << RAND_SIZE_64_LEN;
 /// verified as such. Prefer a generator like `OsRng` that defers to
 /// the operating system for cases that need high security.
 ///
-/// [1]: Bob Jenkins, [*ISAAC: A fast cryptographic random number
+/// \[1\]: Bob Jenkins, [*ISAAC: A fast cryptographic random number
 /// generator*](http://www.burtleburtle.net/bob/rand/isaacafa.html)
 #[derive(Copy)]
 pub struct Isaac64Rng {
