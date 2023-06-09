@@ -34,10 +34,13 @@ impl_enum! {
     }
 }
 
+// ProtFlags may have richer meaning compared to ProtFlags
+// ProtFlags and AllocFlags are confused to developer
+// PageInfo->flags should change to PageInfo->prot
 impl_bitflags! {
     #[repr(C)]
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-    pub struct PageFlags: u8 {
+    pub struct ProtFlags: u8 {
         const NONE     = 0x00;
         const R        = 0x01;
         const W        = 0x02;
@@ -51,7 +54,13 @@ impl_bitflags! {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct PageInfo {
     pub typ: PageType,
-    pub flags: PageFlags,
+    pub prot: ProtFlags,
+}
+
+impl Into<u32> for PageInfo {
+    fn into(self) -> u32 {
+        (Into::<u8>::into(self.typ) as u32) << 8 | (self.prot.bits() as u32)
+    }
 }
 
 unsafe impl ContiguousMemory for PageInfo {}
@@ -106,7 +115,7 @@ impl PageRange {
     pub(crate) fn modify(&self) -> SgxResult {
         for page in self.iter() {
             let _ = page.modpe();
-            if !page.info.flags.contains(PageFlags::W | PageFlags::X) {
+            if !page.info.prot.contains(ProtFlags::W | ProtFlags::X) {
                 page.accept()?;
             }
         }

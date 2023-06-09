@@ -30,6 +30,8 @@
 #![feature(nonnull_slice_from_raw_parts)]
 #![feature(ptr_internals)]
 #![feature(thread_local)]
+#![feature(trait_alias)]
+#![feature(new_uninit)]
 #![cfg_attr(feature = "sim", feature(unchecked_math))]
 #![allow(clippy::missing_safety_doc)]
 #![allow(dead_code)]
@@ -60,6 +62,8 @@ mod version;
 mod xsave;
 
 pub mod capi;
+pub mod edmm;
+pub mod emm;
 
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
 pub mod aexnotify;

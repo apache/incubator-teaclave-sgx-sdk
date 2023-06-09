@@ -15,15 +15,10 @@
 // specific language governing permissions and limitations
 // under the License..
 
-pub(crate) mod epc;
+pub(crate) mod alloc;
+pub(crate) mod bitmap;
+pub(crate) mod ema;
+pub(crate) mod flags;
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
-pub(crate) mod layout;
-pub(crate) mod mem;
-pub(crate) mod perm;
-pub(crate) mod tcs;
-#[cfg(not(any(feature = "sim", feature = "hyper")))]
-pub(crate) mod trim;
-
-pub use epc::{PageInfo, PageRange, PageType, ProtFlags};
-pub use mem::{apply_epc_pages, trim_epc_pages};
-pub use perm::{modpr_ocall, mprotect_ocall};
+pub(crate) mod interior;
+pub(crate) mod user;

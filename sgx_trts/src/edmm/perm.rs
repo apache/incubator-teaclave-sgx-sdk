@@ -27,6 +27,8 @@ cfg_if! {
 mod hw {
     use crate::arch::SE_PAGE_SHIFT;
     use crate::call::{ocall, OCallIndex, OcAlloc};
+    use crate::edmm::{PageInfo, PageType};
+    use crate::emm::flags::AllocFlags;
     use alloc::boxed::Box;
     use core::convert::Into;
     use sgx_types::error::{SgxResult, SgxStatus};
@@ -66,6 +68,74 @@ mod hw {
         .map_err(|_| SgxStatus::OutOfMemory)?;
 
         ocall(OCallIndex::Mprotect, Some(change.as_mut()))
+    }
+
+    // In keeping with Intel SDK, here we use the name page_properties,
+    // but page_type: PageType is more appropriate
+    #[repr(C)]
+    #[derive(Clone, Copy, Debug, Default)]
+    struct EmmAllocOcall {
+        retval: i32,
+        addr: usize,
+        size: usize,
+        page_properties: u32,
+        alloc_flags: u32,
+    }
+
+    /// FIXME: fake alloc
+    pub fn alloc_ocall(
+        addr: usize,
+        length: usize,
+        page_type: PageType,
+        alloc_flags: AllocFlags,
+    ) -> SgxResult {
+        let mut change = Box::try_new_in(
+            EmmAllocOcall {
+                retval: 0, // not sure
+                addr,
+                size: length,
+                page_properties: Into::<u8>::into(page_type) as u32,
+                alloc_flags: alloc_flags.bits(),
+            },
+            OcAlloc,
+        )
+        .map_err(|_| SgxStatus::OutOfMemory)?;
+
+        ocall(OCallIndex::Alloc, Some(change.as_mut()))
+    }
+
+    // In keeping with Intel SDK, here we use the name flags_from (si_flags),
+    // but we rename si_flags to page_info, here info_from: PageInfo is more appropriate
+    #[repr(C)]
+    #[derive(Clone, Copy, Debug, Default)]
+    struct EmmModifyOcall {
+        retval: i32,
+        addr: usize,
+        size: usize,
+        flags_from: u32,
+        flags_to: u32,
+    }
+
+    /// FIXME: fake modify
+    pub fn modify_ocall(
+        addr: usize,
+        length: usize,
+        info_from: PageInfo,
+        info_to: PageInfo,
+    ) -> SgxResult {
+        let mut change = Box::try_new_in(
+            EmmModifyOcall {
+                retval: 0,
+                addr,
+                size: length,
+                flags_from: Into::<u32>::into(info_from),
+                flags_to: Into::<u32>::into(info_to),
+            },
+            OcAlloc,
+        )
+        .map_err(|_| SgxStatus::OutOfMemory)?;
+
+        ocall(OCallIndex::Modify, Some(change.as_mut()))
     }
 }
 

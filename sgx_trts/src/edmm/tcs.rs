@@ -63,7 +63,7 @@ pub fn mktcs(mk_tcs: NonNull<MkTcs>) -> SgxResult {
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
 mod hw {
     use crate::arch::{self, Layout, Tcs};
-    use crate::edmm::epc::{Page, PageFlags, PageInfo, PageType};
+    use crate::edmm::epc::{Page, PageInfo, PageType, ProtFlags};
     use crate::enclave::MmLayout;
     use crate::tcs::list;
     use core::ptr;
@@ -123,7 +123,7 @@ mod hw {
             tcs.as_ptr() as usize,
             PageInfo {
                 typ: PageType::Tcs,
-                flags: PageFlags::MODIFIED,
+                prot: ProtFlags::MODIFIED,
             },
         )?;
         page.accept()?;
@@ -175,7 +175,7 @@ mod hw {
                 tcs.as_ptr() as usize,
                 PageInfo {
                     typ: PageType::Trim,
-                    flags: PageFlags::MODIFIED,
+                    prot: ProtFlags::MODIFIED,
                 },
             )?;
             page.accept()?;

@@ -26,7 +26,7 @@ cfg_if! {
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
 mod hw {
     use crate::arch::{self, Layout};
-    use crate::edmm::epc::{PageFlags, PageInfo, PageRange, PageType};
+    use crate::edmm::epc::{PageInfo, PageRange, PageType, ProtFlags};
     use crate::edmm::layout::LayoutTable;
     use crate::edmm::perm;
     use crate::edmm::trim;
@@ -47,7 +47,7 @@ mod hw {
                 count,
                 PageInfo {
                     typ: PageType::Reg,
-                    flags: PageFlags::R | PageFlags::W | PageFlags::PENDING,
+                    prot: ProtFlags::R | ProtFlags::W | ProtFlags::PENDING,
                 },
             )?;
             if (attr.attr & arch::PAGE_DIR_GROW_DOWN) == 0 {
@@ -74,7 +74,7 @@ mod hw {
             count,
             PageInfo {
                 typ: PageType::Trim,
-                flags: PageFlags::MODIFIED,
+                prot: ProtFlags::MODIFIED,
             },
         )?;
         pages.accept_forward()?;
@@ -96,7 +96,7 @@ mod hw {
             count,
             PageInfo {
                 typ: PageType::Reg,
-                flags: PageFlags::R | PageFlags::W | PageFlags::PENDING,
+                prot: ProtFlags::R | ProtFlags::W | ProtFlags::PENDING,
             },
         )?;
         pages.accept_forward()?;
@@ -131,7 +131,7 @@ mod hw {
                         count,
                         PageInfo {
                             typ: PageType::Trim,
-                            flags: PageFlags::MODIFIED,
+                            prot: ProtFlags::MODIFIED,
                         },
                     )?;
                     pages.accept_forward()?;
@@ -196,7 +196,7 @@ mod hw {
             count,
             PageInfo {
                 typ: PageType::Reg,
-                flags: PageFlags::PR | PageFlags::from_bits_truncate(perm),
+                prot: ProtFlags::PR | ProtFlags::from_bits_truncate(perm),
             },
         )?;
 

@@ -40,9 +40,21 @@ macro_rules! is_page_aligned {
     };
 }
 
+macro_rules! round_to {
+    ($num:expr, $align:expr) => {
+        ($num + $align - 1) & (!($align - 1))
+    };
+}
+
 macro_rules! round_to_page {
     ($num:expr) => {
         ($num + crate::arch::SE_PAGE_SIZE - 1) & (!(crate::arch::SE_PAGE_SIZE - 1))
+    };
+}
+
+macro_rules! trim_to {
+    ($num:expr, $align:expr) => {
+        $num & (!($align - 1))
     };
 }
 
@@ -726,8 +738,8 @@ impl From<PageType> for SecInfoFlags {
 impl From<edmm::PageInfo> for SecInfoFlags {
     fn from(data: edmm::PageInfo) -> SecInfoFlags {
         let typ = data.typ as u64;
-        let flags = data.flags.bits() as u64;
-        SecInfoFlags::from_bits_truncate((typ << 8) | flags)
+        let prot = data.prot.bits() as u64;
+        SecinfoFlags::from_bits_truncate((typ << 8) | prot)
     }
 }
 
