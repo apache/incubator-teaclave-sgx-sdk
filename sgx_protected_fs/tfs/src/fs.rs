@@ -56,6 +56,9 @@ pub struct SgxFile {
     inner: fs_imp::SgxFile,
 }
 
+unsafe impl Send for SgxFile {}
+unsafe impl Sync for SgxFile {}
+
 /// Read the entire contents of a file into a bytes vector.
 #[cfg(feature = "tfs")]
 pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
