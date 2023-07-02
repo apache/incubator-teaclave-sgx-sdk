@@ -23,27 +23,33 @@ use sgx_types::error::{SgxResult, SgxStatus};
 bitflags! {
     // 用bitflags的话，在ema输入的时候可能存在RESERVED & COMMIT_NOW 需要check一下
     pub struct AllocFlags: u32 {
-        const RESERVED = 0b0000_0001;
-        const COMMIT_NOW = 0b0000_0010;
-        const COMMIT_ON_DEMAND = 0b0000_0100;
-        const SYSTEM = 0b0001_0000;
-        const GROWSDOWN = 0x0010_0000;
-        const GROWSUP = 0x0100_0000;
+        const RESERVED = 0b0001;
+        const COMMIT_NOW = 0b0010;
+        const COMMIT_ON_DEMAND = 0b0100;
+        const GROWSDOWN = 0b00010000;
+        const GROWSUP = 0b00100000;
+        const FIXED = 0b01000000;
     }
 }
 
 impl AllocFlags {
     pub fn try_from(value: u32) -> SgxResult<Self> {
         match value {
-            0b0001_0001 => Ok(Self::RESERVED | Self::SYSTEM),
-            0b0010_0001 => Ok(Self::RESERVED | Self::GROWSDOWN),
-            0b0100_0001 => Ok(Self::RESERVED | Self::COMMIT_ON_DEMAND),
-            0b0001_0010 => Ok(Self::COMMIT_NOW | Self::SYSTEM),
-            0b0010_0010 => Ok(Self::COMMIT_NOW | Self::GROWSDOWN),
-            0b0100_0010 => Ok(Self::COMMIT_NOW | Self::COMMIT_ON_DEMAND),
-            0b0001_0100 => Ok(Self::COMMIT_ON_DEMAND | Self::SYSTEM),
-            0b0010_0100 => Ok(Self::COMMIT_ON_DEMAND | Self::GROWSDOWN),
-            0b0100_0100 => Ok(Self::COMMIT_ON_DEMAND | Self::COMMIT_ON_DEMAND),
+            0b0000_0001 => Ok(Self::RESERVED),
+            0b0000_0010 => Ok(Self::COMMIT_NOW),
+            0b0000_0100 => Ok(Self::COMMIT_ON_DEMAND),
+            0b0001_0000 => Ok(Self::GROWSDOWN),
+            0b0010_0000 => Ok(Self::GROWSUP),
+            0b0100_0000 => Ok(Self::FIXED),
+            0b0001_0001 => Ok(Self::RESERVED | Self::GROWSDOWN),
+            0b0010_0001 => Ok(Self::RESERVED | Self::GROWSUP),
+            0b0100_0001 => Ok(Self::RESERVED | Self::FIXED),
+            0b0001_0010 => Ok(Self::COMMIT_NOW | Self::GROWSDOWN),
+            0b0010_0010 => Ok(Self::COMMIT_NOW | Self::GROWSUP),
+            0b0100_0010 => Ok(Self::COMMIT_NOW | Self::FIXED),
+            0b0001_0100 => Ok(Self::COMMIT_ON_DEMAND | Self::GROWSDOWN),
+            0b0010_0100 => Ok(Self::COMMIT_ON_DEMAND | Self::GROWSUP),
+            0b0100_0100 => Ok(Self::COMMIT_ON_DEMAND | Self::FIXED),
             _ => Err(SgxStatus::InvalidParameter),
         }
     }

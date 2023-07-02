@@ -34,13 +34,9 @@ use crate::trts::Version;
 use crate::veh::{ExceptionHandler, ExceptionInfo};
 
 use super::alloc::ResAlloc;
+use super::alloc::StaticAlloc;
 use super::bitmap::BitArray;
 use super::flags::AllocFlags;
-
-// pub struct Box<T, A = Global>(_, _)
-// where
-//          A: Allocator,
-//          T: ?Sized;
 
 #[repr(C)]
 #[derive(Clone)]
@@ -81,6 +77,7 @@ where
     ) -> SgxResult<Self> {
         // check flags' eligibility
         AllocFlags::try_from(alloc_flags.bits())?;
+
         if start != 0
             && length != 0
             && is_within_enclave(start as *const u8, length)
@@ -103,38 +100,33 @@ where
         }
     }
 
-    // Returns a newly allocated ema in charging of the memory in the range [addr, len). 
-    // After the call, the original ema will be left containing the elements [0, addr) 
+    // Returns a newly allocated ema in charging of the memory in the range [addr, len).
+    // After the call, the original ema will be left containing the elements [0, addr)
     // with its previous capacity unchanged.
-    pub fn split(&mut self, addr: usize) -> SgxResult<Box<EMA<A>,A>> {
+    pub fn split(&mut self, addr: usize) -> SgxResult<Box<EMA<A>, A>> {
         let l_start = self.start;
         let l_length = addr - l_start;
 
         let r_start = addr;
         let r_length = (self.start + self.length) - addr;
 
-        let new_bitarray = match &mut self.eaccept_map{
+        let new_bitarray = match &mut self.eaccept_map {
             Some(bitarray) => {
                 let pos = (addr - self.start) >> crate::arch::SE_PAGE_SHIFT;
                 // split self.eaccept_map
                 Some(bitarray.split(pos)?)
             }
-            None => {
-                None
-            }
+            None => None,
         };
-        
+
         // 这里之后可以优化
         // 1. self.clone() 会把原有的bitmap重新alloc并复制一份，但其实clone之后这里是None即可
         // 2. 使用Box::new_in 会把 self.clone() 这部分在栈上的数据再拷贝一份到Box新申请的内存区域
-        let mut new_ema: Box<EMA<A>,A> = Box::new_in(
-            self.clone(), 
-            self.alloc.clone()
-        );
+        let mut new_ema: Box<EMA<A>, A> = Box::new_in(self.clone(), self.alloc.clone());
 
         self.start = l_start;
         self.length = l_length;
-        
+
         new_ema.start = r_start;
         new_ema.length = r_length;
         new_ema.eaccept_map = new_bitarray;
@@ -145,7 +137,11 @@ where
     // If the previous ema is divided into three parts -> (left ema, middle ema, right ema), return (middle ema, right ema).
     // If the previous ema is divided into two parts -> (left ema, right ema)
     // end split: return (None, right ema), start split: return (left ema, None)
-    fn split_into_three(&mut self, start: usize, length: usize) -> SgxResult<(Option<Box<EMA<A>,A>>, Option<Box<EMA<A>,A>>)> {
+    fn split_into_three(
+        &mut self,
+        start: usize,
+        length: usize,
+    ) -> SgxResult<(Option<Box<EMA<A>, A>>, Option<Box<EMA<A>, A>>)> {
         if start > self.start {
             let mut new_ema = self.split(start)?;
             if new_ema.start + new_ema.length > start + length {
@@ -224,6 +220,28 @@ where
         }
     }
 
+    // Attension, return EACCES SgxStatus may be more appropriate
+    pub fn commit_check(&self) -> SgxResult {
+        if self.info.prot.intersects(ProtFlags::R | ProtFlags::W) {
+            return Err(SgxStatus::InvalidParameter);
+        }
+
+        if self.info.typ != PageType::Reg {
+            return Err(SgxStatus::InvalidParameter);
+        }
+
+        if self.alloc_flags.contains(AllocFlags::RESERVED) {
+            return Err(SgxStatus::InvalidParameter);
+        }
+
+        Ok(())
+    }
+
+    /// commit all the memory in this ema
+    pub fn commit_self(&mut self) -> SgxResult {
+        self.commit(self.start, self.length)
+    }
+
     /// ema_do_commit
     pub fn commit(&mut self, start: usize, length: usize) -> SgxResult {
         ensure!(
@@ -260,8 +278,10 @@ where
     /// uncommit EPC page
     pub fn uncommit(&mut self, start: usize, length: usize, prot: ProtFlags) -> SgxResult {
         // need READ for trimming
-        ensure!(self.info.prot != ProtFlags::NONE && self.eaccept_map.is_some(), 
-            SgxStatus::InvalidParameter);
+        ensure!(
+            self.info.prot != ProtFlags::NONE && self.eaccept_map.is_some(),
+            SgxStatus::InvalidParameter
+        );
 
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
             return Ok(());
@@ -303,21 +323,23 @@ where
             }
 
             let block_length = block_end - block_start;
-            perm::modify_ocall(block_start, block_length,
-                PageInfo { 
+            perm::modify_ocall(
+                block_start,
+                block_length,
+                PageInfo {
                     typ: self.info.typ,
                     prot,
                 },
-                PageInfo { 
+                PageInfo {
                     typ: PageType::Trim,
                     prot,
                 },
             )?;
 
             let pages = PageRange::new(
-                block_start, 
-                block_length / crate::arch::SE_PAGE_SIZE, 
-                trim_info
+                block_start,
+                block_length / crate::arch::SE_PAGE_SIZE,
+                trim_info,
             )?;
 
             let init_idx = (block_start - self.start) >> crate::arch::SE_PAGE_SHIFT;
@@ -328,12 +350,14 @@ where
             }
 
             // eaccept trim notify
-            perm::modify_ocall(block_start, block_length,
-                PageInfo { 
+            perm::modify_ocall(
+                block_start,
+                block_length,
+                PageInfo {
                     typ: PageType::Trim,
                     prot,
                 },
-                PageInfo { 
+                PageInfo {
                     typ: PageType::Trim,
                     prot,
                 },
@@ -401,7 +425,7 @@ where
             )?;
         }
 
-        Ok(())      
+        Ok(())
     }
 
     pub fn dealloc(&mut self) -> SgxResult {
@@ -421,8 +445,24 @@ where
         round_to!(curr_end, align)
     }
 
+    pub fn end(&self) -> usize {
+        self.start + self.length
+    }
+
     pub fn start(&self) -> usize {
         self.start
+    }
+
+    pub fn len(&self) -> usize {
+        self.length
+    }
+
+    pub fn lower_than_addr(&self, addr: usize) -> bool {
+        self.end() <= addr
+    }
+
+    pub fn higher_than_addr(&self, addr: usize) -> bool {
+        self.start >= addr
     }
 
     // get and set attributes
@@ -443,12 +483,11 @@ where
     }
 }
 
-// 
+//
 // intrusive_adapter!(pub RegEmaAda = Box<EMA<ResAlloc>, ResAlloc>: EMA<ResAlloc> { link: LinkedListLink });
 
 // regular ema adapter
-intrusive_adapter!(pub RegEmaAda = Box<EMA<ResAlloc>>: EMA<ResAlloc> { link: LinkedListLink });
+intrusive_adapter!(pub RegEmaAda = ResAlloc, Box<EMA<ResAlloc>, ResAlloc>: EMA<ResAlloc> { link: LinkedListLink });
 
 // reserve ema adapter
-intrusive_adapter!(pub ResEmaAda = Box<EMA<ResAlloc>>: EMA<ResAlloc> { link: LinkedListLink });
-
+intrusive_adapter!(pub ResEmaAda = StaticAlloc, Box<EMA<StaticAlloc>, StaticAlloc>: EMA<StaticAlloc> { link: LinkedListLink });

@@ -15,18 +15,18 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use super::ema::{RegEmaAda, EMA};
+use super::ema::{ResEmaAda, EMA};
 use crate::emm::interior::Reserve;
 use crate::enclave::MmLayout;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use spin::{Once, Mutex};
 use core::alloc::Layout;
 use core::ffi::c_void;
 use core::ptr::NonNull;
 use intrusive_collections::intrusive_adapter;
 use intrusive_collections::{LinkedList, LinkedListLink};
 use sgx_types::error::{SgxResult, SgxStatus};
+use spin::{Mutex, Once};
 
 #[derive(Clone, Copy)]
 pub struct UserRange {
@@ -34,16 +34,37 @@ pub struct UserRange {
     pub end: usize,
 }
 
+impl UserRange {
+    fn start(&self) -> usize {
+        self.start
+    }
+    fn end(&self) -> usize {
+        self.end
+    }
+}
+
 pub static USER_RANGE: Once<UserRange> = Once::new();
 
 pub fn init_range(start: usize, end: usize) {
-    // init 
-    *USER_RANGE.call_once(|| {
-        UserRange {
-            start,
-            end,
+    // init
+    let _ = *USER_RANGE.call_once(|| UserRange { start, end });
+}
+
+pub fn is_within_rts_range(start: usize, len: usize) -> bool {
+    let end = if len > 0 {
+        if let Some(end) = start.checked_add(len - 1) {
+            end
+        } else {
+            return false;
         }
-    });
+    } else {
+        start
+    };
+    let user_range = USER_RANGE.get().unwrap();
+    let user_start = user_range.start();
+    let user_end = user_range.end();
+
+    (start >= user_end) || (end < user_start)
 }
 
 pub fn is_within_user_range(start: usize, len: usize) -> bool {
@@ -56,13 +77,15 @@ pub fn is_within_user_range(start: usize, len: usize) -> bool {
     } else {
         start
     };
-    let base = MmLayout::elrange_base();
+    let user_range = USER_RANGE.get().unwrap();
+    let user_start = user_range.start();
+    let user_end = user_range.end();
 
-    (start <= end) && (start >= base) && (end < base + MmLayout::elrange_size())
+    (start <= end) && (start >= user_start) && (end < user_end)
 }
 
 pub struct UserMem {
-    emas: LinkedList<RegEmaAda>,
+    emas: LinkedList<ResEmaAda>,
 
     // statistics
     allocated: usize,
@@ -72,7 +95,7 @@ pub struct UserMem {
 impl UserMem {
     pub fn new() -> Self {
         Self {
-            emas: LinkedList::new(RegEmaAda::new()),
+            emas: LinkedList::new(ResEmaAda::new()),
             allocated: 0,
             total: 0,
         }

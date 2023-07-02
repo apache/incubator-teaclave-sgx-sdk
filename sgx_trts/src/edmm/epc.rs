@@ -26,11 +26,14 @@ impl_enum! {
     #[repr(u8)]
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub enum PageType {
-        Secs = 0,
+        // Secs = 0,
+        None = 0,
         Tcs  = 1,
         Reg  = 2,
-        Va   = 3,
+        // Va   = 3,
         Trim = 4,
+        Frist = 5,
+        Rest = 6,
     }
 }
 

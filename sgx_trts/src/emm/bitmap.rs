@@ -99,10 +99,10 @@ impl<A: Allocator + Clone> BitArray<A> {
                     break;
                 }
             }
-            true_range.push((start,end));
+            true_range.push((start, end));
         }
 
-        return true_range;  
+        return true_range;
     }
 
     /// Set the value of the bit at a given index.
@@ -154,7 +154,5 @@ impl<A: Allocator + Clone> BitArray<A> {
         return Ok(r_array);
     }
 }
-
-
 
 // FIXME: add more unit test

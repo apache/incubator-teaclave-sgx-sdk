@@ -2,7 +2,7 @@ use core::alloc::{AllocError, Allocator, Layout};
 use core::ptr::NonNull;
 
 /// alloc layout memory from Reserve region
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct ResAlloc;
 
 unsafe impl Allocator for ResAlloc {
@@ -16,7 +16,7 @@ unsafe impl Allocator for ResAlloc {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct StaticAlloc;
 
 unsafe impl Allocator for StaticAlloc {
