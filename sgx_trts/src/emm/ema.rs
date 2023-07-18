@@ -15,17 +15,17 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use core::alloc::Allocator;
-
-use crate::arch::Secinfo;
-use crate::arch::SecinfoFlags;
+use crate::arch::SE_PAGE_SHIFT;
+use crate::arch::SE_PAGE_SIZE;
 use crate::edmm::perm;
 use crate::edmm::PageRange;
 use crate::edmm::{PageInfo, PageType, ProtFlags};
 use crate::enclave::is_within_enclave;
+use alloc::alloc::Global;
 use alloc::boxed::Box;
 use intrusive_collections::intrusive_adapter;
 use intrusive_collections::LinkedListLink;
+use intrusive_collections::UnsafeRef;
 use sgx_types::error::SgxResult;
 use sgx_types::error::SgxStatus;
 
@@ -37,13 +37,11 @@ use super::alloc::ResAlloc;
 use super::alloc::StaticAlloc;
 use super::bitmap::BitArray;
 use super::flags::AllocFlags;
+use super::interior::Alloc;
 
 #[repr(C)]
 #[derive(Clone)]
-pub struct EMA<A>
-where
-    A: Allocator + Clone,
-{
+pub struct EMA {
     // starting address, page aligned
     start: usize,
     // bytes, or page may be more available
@@ -51,20 +49,21 @@ where
     alloc_flags: AllocFlags,
     info: PageInfo,
     // bitmap for EACCEPT status
-    eaccept_map: Option<BitArray<A>>,
-    // custom PF handler (for EACCEPTCOPY use)
+    eaccept_map: Option<BitArray>,
+    // custom PF handler
     handler: Option<ExceptionHandler>,
     // private data for handler
     priv_data: Option<*mut ExceptionInfo>,
-    alloc: A,
+    alloc: Alloc,
     // intrusive linkedlist
     link: LinkedListLink,
 }
 
-impl<A> EMA<A>
-where
-    A: Allocator + Clone,
-{
+// TODO: remove send and sync
+unsafe impl Send for EMA {}
+unsafe impl Sync for EMA {}
+
+impl EMA {
     // start address must be page aligned
     pub fn new(
         start: usize,
@@ -73,7 +72,7 @@ where
         info: PageInfo,
         handler: Option<ExceptionHandler>,
         priv_data: Option<*mut ExceptionInfo>,
-        alloc: A,
+        alloc: Alloc,
     ) -> SgxResult<Self> {
         // check flags' eligibility
         AllocFlags::try_from(alloc_flags.bits())?;
@@ -100,10 +99,10 @@ where
         }
     }
 
-    // Returns a newly allocated ema in charging of the memory in the range [addr, len).
-    // After the call, the original ema will be left containing the elements [0, addr)
+    // Returns a newly allocated ema in charging of the memory in the range [addr, addr + len).
+    // After the call, the original ema will be left containing the elements [start, addr)
     // with its previous capacity unchanged.
-    pub fn split(&mut self, addr: usize) -> SgxResult<Box<EMA<A>, A>> {
+    pub fn split(&mut self, addr: usize) -> SgxResult<*mut EMA> {
         let l_start = self.start;
         let l_length = addr - l_start;
 
@@ -119,53 +118,37 @@ where
             None => None,
         };
 
-        // 这里之后可以优化
-        // 1. self.clone() 会把原有的bitmap重新alloc并复制一份，但其实clone之后这里是None即可
-        // 2. 使用Box::new_in 会把 self.clone() 这部分在栈上的数据再拷贝一份到Box新申请的内存区域
-        let mut new_ema: Box<EMA<A>, A> = Box::new_in(self.clone(), self.alloc.clone());
+        let new_ema: *mut EMA = match self.alloc {
+            Alloc::Reserve => {
+                let mut ema = Box::new_in(self.clone(), ResAlloc);
+                ema.start = r_start;
+                ema.length = r_length;
+                ema.eaccept_map = new_bitarray;
+                Box::into_raw(ema)
+            }
+            Alloc::Static => {
+                let mut ema = Box::new_in(self.clone(), StaticAlloc);
+                ema.start = r_start;
+                ema.length = r_length;
+                ema.eaccept_map = new_bitarray;
+                Box::into_raw(ema)
+            }
+        };
 
         self.start = l_start;
         self.length = l_length;
 
-        new_ema.start = r_start;
-        new_ema.length = r_length;
-        new_ema.eaccept_map = new_bitarray;
-
         return Ok(new_ema);
     }
 
-    // If the previous ema is divided into three parts -> (left ema, middle ema, right ema), return (middle ema, right ema).
-    // If the previous ema is divided into two parts -> (left ema, right ema)
-    // end split: return (None, right ema), start split: return (left ema, None)
-    fn split_into_three(
-        &mut self,
-        start: usize,
-        length: usize,
-    ) -> SgxResult<(Option<Box<EMA<A>, A>>, Option<Box<EMA<A>, A>>)> {
-        if start > self.start {
-            let mut new_ema = self.split(start)?;
-            if new_ema.start + new_ema.length > start + length {
-                let r_ema = new_ema.split(start + length)?;
-                return Ok((Some(new_ema), Some(r_ema)));
-            } else {
-                return Ok((Some(new_ema), None));
-            }
-        } else {
-            if self.start + self.length > start + length {
-                let new_ema = self.split(start + length)?;
-                return Ok((None, Some(new_ema)));
-            } else {
-                return Ok((None, None));
-            }
-        }
-    }
-
-    // 这里存在一个问题，如果是reserve ema node, 没有eaccept map怎么办
+    // FIXME: handling reserve ema node doesn't have ema eaccept
     /// Alloc the reserve / committed / vitual memory indeed
     pub fn alloc(&mut self) -> SgxResult {
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
             return Ok(());
         }
+
+        // new self bitmap
 
         // COMMIT_ON_DEMAND and COMMIT_NOW both need to mmap memory in urts
         perm::alloc_ocall(self.start, self.length, self.info.typ, self.alloc_flags)?;
@@ -275,13 +258,26 @@ where
         return Ok(());
     }
 
+    pub fn uncommit_check(&self) -> SgxResult {
+        if self.alloc_flags.contains(AllocFlags::RESERVED) {
+            return Err(SgxStatus::InvalidParameter);
+        }
+        Ok(())
+    }
+
+    pub fn uncommit_self(&mut self) -> SgxResult {
+        let prot = self.info.prot;
+        if prot == ProtFlags::NONE {
+            self.modify_perm(ProtFlags::R)?
+        }
+
+        self.uncommit(self.start, self.length, prot)
+    }
+
     /// uncommit EPC page
     pub fn uncommit(&mut self, start: usize, length: usize, prot: ProtFlags) -> SgxResult {
         // need READ for trimming
-        ensure!(
-            self.info.prot != ProtFlags::NONE && self.eaccept_map.is_some(),
-            SgxStatus::InvalidParameter
-        );
+        ensure!(self.eaccept_map.is_some(), SgxStatus::InvalidParameter);
 
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
             return Ok(());
@@ -367,6 +363,29 @@ where
         Ok(())
     }
 
+    pub fn modify_perm_check(&self) -> SgxResult {
+        if self.info.typ != PageType::Reg {
+            return Err(SgxStatus::InvalidParameter);
+        }
+
+        if self.alloc_flags.contains(AllocFlags::RESERVED) {
+            return Err(SgxStatus::InvalidParameter);
+        }
+
+        match &self.eaccept_map {
+            Some(bitmap) => {
+                if !bitmap.all_true() {
+                    return Err(SgxStatus::InvalidParameter);
+                }
+            }
+            None => {
+                return Err(SgxStatus::InvalidParameter);
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn modify_perm(&mut self, new_prot: ProtFlags) -> SgxResult {
         if self.info.prot == new_prot {
             return Ok(());
@@ -428,6 +447,69 @@ where
         Ok(())
     }
 
+    pub fn change_to_tcs(&mut self) -> SgxResult {
+        // the ema has and only has one page
+        if self.length != SE_PAGE_SIZE {
+            return Err(SgxStatus::InvalidParameter);
+        }
+
+        // page must be committed
+        if !self.is_page_committed(self.start) {
+            return Err(SgxStatus::InvalidParameter);
+        }
+
+        let info = self.info;
+
+        // page has been changed to tcs
+        if info.typ == PageType::Tcs {
+            return Ok(());
+        }
+
+        if (info.prot != (ProtFlags::R | ProtFlags::W)) || (info.typ != PageType::Reg) {
+            return Err(SgxStatus::InvalidParameter);
+        }
+
+        perm::modify_ocall(
+            self.start,
+            self.length,
+            info,
+            PageInfo {
+                typ: PageType::Tcs,
+                prot: info.prot,
+            },
+        )?;
+
+        let eaccept_info = PageInfo {
+            typ: PageType::Tcs,
+            prot: ProtFlags::MODIFIED,
+        };
+
+        let pages = PageRange::new(
+            self.start,
+            self.length / crate::arch::SE_PAGE_SIZE,
+            eaccept_info,
+        )?;
+
+        for page in pages.iter() {
+            page.accept()?;
+        }
+
+        self.info = PageInfo {
+            typ: PageType::Tcs,
+            prot: ProtFlags::NONE,
+        };
+        Ok(())
+    }
+
+    fn is_page_committed(&self, addr: usize) -> bool {
+        assert!(addr % SE_PAGE_SIZE == 0);
+        if self.eaccept_map.is_none() {
+            return false;
+        }
+        let pos = (addr - self.start) >> SE_PAGE_SHIFT;
+        self.eaccept_map.as_ref().unwrap().get(pos)
+    }
+
     pub fn dealloc(&mut self) -> SgxResult {
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
             return Ok(());
@@ -465,15 +547,14 @@ where
         self.start >= addr
     }
 
-    // get and set attributes
-    pub fn set_flags(flags: AllocFlags) -> SgxResult<()> {
-        todo!()
+    pub fn set_flags(&mut self, flags: AllocFlags) {
+        self.alloc_flags = flags;
     }
-    pub fn set_prot(info: PageInfo) -> SgxResult<()> {
-        todo!()
+    pub fn set_prot(&mut self, info: PageInfo) {
+        self.info = info;
     }
-    fn flags() -> AllocFlags {
-        todo!()
+    fn flags(&self) -> AllocFlags {
+        self.alloc_flags
     }
     fn info(&self) -> PageInfo {
         self.info
@@ -483,11 +564,4 @@ where
     }
 }
 
-//
-// intrusive_adapter!(pub RegEmaAda = Box<EMA<ResAlloc>, ResAlloc>: EMA<ResAlloc> { link: LinkedListLink });
-
-// regular ema adapter
-intrusive_adapter!(pub RegEmaAda = ResAlloc, Box<EMA<ResAlloc>, ResAlloc>: EMA<ResAlloc> { link: LinkedListLink });
-
-// reserve ema adapter
-intrusive_adapter!(pub ResEmaAda = StaticAlloc, Box<EMA<StaticAlloc>, StaticAlloc>: EMA<StaticAlloc> { link: LinkedListLink });
+intrusive_adapter!(pub EmaAda = UnsafeRef<EMA>: EMA { link: LinkedListLink });

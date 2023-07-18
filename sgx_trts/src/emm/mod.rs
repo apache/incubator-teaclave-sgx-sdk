@@ -21,4 +21,5 @@ pub(crate) mod ema;
 pub(crate) mod flags;
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
 pub(crate) mod interior;
+pub(crate) mod range;
 pub(crate) mod user;

@@ -15,18 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use super::ema::{ResEmaAda, EMA};
-use crate::emm::interior::Reserve;
-use crate::enclave::MmLayout;
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use core::alloc::Layout;
-use core::ffi::c_void;
-use core::ptr::NonNull;
-use intrusive_collections::intrusive_adapter;
-use intrusive_collections::{LinkedList, LinkedListLink};
-use sgx_types::error::{SgxResult, SgxStatus};
-use spin::{Mutex, Once};
+use spin::Once;
 
 #[derive(Clone, Copy)]
 pub struct UserRange {
@@ -82,38 +71,4 @@ pub fn is_within_user_range(start: usize, len: usize) -> bool {
     let user_end = user_range.end();
 
     (start <= end) && (start >= user_start) && (end < user_end)
-}
-
-pub struct UserMem {
-    emas: LinkedList<ResEmaAda>,
-
-    // statistics
-    allocated: usize,
-    total: usize,
-}
-
-impl UserMem {
-    pub fn new() -> Self {
-        Self {
-            emas: LinkedList::new(ResEmaAda::new()),
-            allocated: 0,
-            total: 0,
-        }
-    }
-    // fn split(ema: Box<EMA>) -> SgxResult<()>{
-    //     todo!()
-    // }
-    // fn merge(ema1: Box<EMA>, ema2: Box<EMA>)
-    //     -> SgxResult<()> {
-    //         todo!()
-    //     }
-    pub fn alloc(&mut self, layout: Layout) -> Result<NonNull<u8>, ()> {
-        todo!()
-    }
-    pub fn dealloc(&mut self, ptr: NonNull<u8>, layout: Layout) {
-        todo!()
-    }
-    pub fn commit(&mut self, layout: Layout) -> Result<NonNull<u8>, ()> {
-        todo!()
-    }
 }

@@ -16,28 +16,43 @@
 // under the License..
 use alloc::boxed::Box;
 use alloc::vec;
-use alloc::vec::Vec;
 use core::alloc::Allocator;
+use core::alloc::Layout;
 use core::clone::Clone;
+use core::ptr::NonNull;
 use sgx_types::error::SgxResult;
 use sgx_types::error::SgxStatus;
 
-// box 能否 #[repr(C)]
+use super::alloc::ResAlloc;
+use super::alloc::StaticAlloc;
+use super::interior::Alloc;
+
+#[repr(C)]
 #[derive(Clone)]
-pub struct BitArray<A: Allocator + Clone> {
-    pub bits: usize,
-    pub bytes: usize,
-    pub data: Box<[u8], A>, // temporariy use ResAlloc
-    alloc: A,
+pub struct BitArray {
+    bits: usize,
+    bytes: usize,
+    data: *mut u8,
+    alloc: Alloc,
 }
 
-impl<A: Allocator + Clone> BitArray<A> {
+impl BitArray {
     /// Init BitArray in Reserve memory with all zeros.
-    pub fn new_in(bits: usize, alloc: A) -> SgxResult<Self> {
+    pub fn new(bits: usize, alloc: Alloc) -> SgxResult<Self> {
         let bytes = (bits + 7) / 8;
 
         // FIXME: return error if out of memory
-        let data: Box<[u8], A> = vec::from_elem_in(0_u8, bytes, alloc.clone()).into_boxed_slice();
+        let data = match alloc {
+            Alloc::Reserve => {
+                let data = vec::from_elem_in(0_u8, bytes, ResAlloc).into_boxed_slice();
+                Box::into_raw(data) as *mut u8
+            }
+            Alloc::Static => {
+                let data = vec::from_elem_in(0_u8, bytes, StaticAlloc).into_boxed_slice();
+                Box::into_raw(data) as *mut u8
+            }
+        };
+
         Ok(Self {
             bits,
             bytes,
@@ -52,7 +67,18 @@ impl<A: Allocator + Clone> BitArray<A> {
         let byte_index = index / 8;
         let bit_index = index % 8;
         let bit_mask = 1 << bit_index;
-        (self.data.get(byte_index).unwrap() & bit_mask) != 0
+        let data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
+        (data.get(byte_index).unwrap() & bit_mask) != 0
+    }
+
+    // check whether each bit set true
+    pub fn all_true(&self) -> bool {
+        for pos in 0..self.bits {
+            if !self.get(pos) {
+                return false;
+            }
+        }
+        true
     }
 
     // Set the value of the bit at a given index.
@@ -61,48 +87,13 @@ impl<A: Allocator + Clone> BitArray<A> {
         let bit_index = index % 8;
         let bit_mask = 1 << bit_index;
 
-        let data = self.data.as_mut();
+        let data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
+
         if value {
             data[byte_index] |= bit_mask;
         } else {
             data[byte_index] &= !bit_mask;
         }
-    }
-
-    // return chunk range with all true, Vec<[start, end)>
-    pub fn true_range(&self) -> Vec<(usize, usize), A> {
-        let mut true_range: Vec<(usize, usize), A> = Vec::new_in(self.alloc.clone());
-
-        let start: usize = 0;
-        let end: usize = self.bits;
-
-        // TODO: optimized with [u8] slice
-        while start < end {
-            let mut block_start = start;
-            while block_start < end {
-                if self.get(block_start) {
-                    break;
-                } else {
-                    block_start += 1;
-                }
-            }
-
-            if block_start == end {
-                break;
-            }
-
-            let mut block_end = block_start + 1;
-            while block_end < end {
-                if self.get(block_end) {
-                    block_end += 1;
-                } else {
-                    break;
-                }
-            }
-            true_range.push((start, end));
-        }
-
-        return true_range;
     }
 
     /// Set the value of the bit at a given index.
@@ -114,17 +105,20 @@ impl<A: Allocator + Clone> BitArray<A> {
     /// Set the value of the bit at a given index.
     /// The range includes [0, index).
     pub fn set_full(&mut self) {
-        self.data.fill(0xFF);
+        let data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
+        data.fill(0xFF);
     }
 
     /// Clear all the bits
     pub fn clear(&mut self) {
-        self.data.fill(0);
+        let data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
+        data.fill(0);
     }
 
     // split current bit array into left and right bit array
     // return right bit array
-    pub fn split(&mut self, pos: usize) -> SgxResult<BitArray<A>> {
+    // TODO: more check
+    pub fn split(&mut self, pos: usize) -> SgxResult<BitArray> {
         ensure!(pos > 0 && pos < self.bits, SgxStatus::InvalidParameter);
 
         let byte_index = pos / 8;
@@ -137,21 +131,50 @@ impl<A: Allocator + Clone> BitArray<A> {
         let r_bits = self.bits - l_bits;
         let r_bytes = (r_bits + 7) / 8;
 
-        let mut r_array = Self::new_in(r_bits, self.alloc.clone())?;
+        let r_array = Self::new(r_bits, self.alloc.clone())?;
 
-        for (idx, item) in r_array.data[..(r_bytes - 1)].iter_mut().enumerate() {
+        let r_data = unsafe { core::slice::from_raw_parts_mut(r_array.data, r_array.bytes) };
+
+        let l_data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
+
+        for (idx, item) in r_data[..(r_bytes - 1)].iter_mut().enumerate() {
             // current byte index in previous bit_array
             let curr_idx = idx + byte_index;
-            let low_bits = self.data[curr_idx] >> bit_index;
-            let high_bits = self.data[curr_idx + 1] << (8 - bit_index);
+            let low_bits = l_data[curr_idx] >> bit_index;
+            let high_bits = l_data[curr_idx + 1] << (8 - bit_index);
             *item = high_bits | low_bits;
         }
-        r_array.data[r_bytes - 1] = self.data[self.bytes - 1] >> bit_index;
+        r_data[r_bytes - 1] = l_data[self.bytes - 1] >> bit_index;
 
         self.bits = l_bits;
         self.bytes = l_bytes;
 
         return Ok(r_array);
+    }
+}
+
+impl Drop for BitArray {
+    fn drop(&mut self) {
+        match self.alloc {
+            Alloc::Reserve => {
+                // for interior allocator, layout is redundant
+                let fake_layout: Layout = Layout::new::<u8>();
+                unsafe {
+                    let data_ptr = NonNull::new_unchecked(self.data);
+                    ResAlloc.deallocate(data_ptr, fake_layout);
+                }
+            }
+            Alloc::Static => {
+                // for interior allocator, layout is redundant
+                // If the bitmap is splitted, the size of
+                // allocated layout is not recorded in bitmap struct
+                let fake_layout: Layout = Layout::new::<u8>();
+                unsafe {
+                    let data_ptr = NonNull::new_unchecked(self.data);
+                    StaticAlloc.deallocate(data_ptr, fake_layout);
+                }
+            }
+        }
     }
 }
 

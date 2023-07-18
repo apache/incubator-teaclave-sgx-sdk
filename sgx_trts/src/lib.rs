@@ -37,6 +37,7 @@
 #![allow(dead_code)]
 #![allow(non_camel_case_types)]
 #![feature(linked_list_cursors)]
+#![feature(strict_provenance)]
 
 #[cfg(all(feature = "sim", feature = "hyper"))]
 compile_error!("feature \"sim\" and feature \"hyper\" cannot be enabled at the same time");

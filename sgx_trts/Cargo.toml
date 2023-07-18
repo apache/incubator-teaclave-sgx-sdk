@@ -40,7 +40,8 @@ sgx_types = { path = "../sgx_types" }
 sgx_crypto_sys = { path = "../sgx_crypto/sgx_crypto_sys" }
 sgx_tlibc_sys = { path = "../sgx_libc/sgx_tlibc_sys" }
 
-intrusive-collections = { git = "https://github.com/ClawSeven/intrusive-rs.git", rev = "3db5618" }
+intrusive-collections = { git = "https://github.com/ClawSeven/intrusive-rs.git", rev = "6d34cd7" }
+# intrusive-collections = { git = "https://github.com/ClawSeven/intrusive-rs.git", rev = "3db5618" }
 buddy_system_allocator = "0.9.0"
 spin = "0.9.4"
 bitflags = "1.3"
