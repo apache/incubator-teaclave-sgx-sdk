@@ -264,7 +264,6 @@ impl SgxInternalSealedData {
     }
 
     pub fn seal_data(additional_text: &[u8], encrypt_text: &[u8]) -> SgxResult<Self> {
-        //let attribute_mask = sgx_attributes_t{flags: SGX_FLAGS_RESERVED | SGX_FLAGS_INITTED | SGX_FLAGS_DEBUG, xfrm: 0};
         /* intel sgx sdk 1.8 */
         let attribute_mask = sgx_attributes_t {
             flags: TSEAL_DEFAULT_FLAGSMASK,
