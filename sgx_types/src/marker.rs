@@ -73,6 +73,7 @@ impl_marker_for_array! {BytewiseEquality,
 /// a contiguous area of memory inside the enclave. Developer needs to
 /// implement this trait as a marker for the data structure he/she wants
 /// to feed into SGX apis.
+#[allow(clippy::missing_safety_doc)]
 pub unsafe trait ContiguousMemory {}
 
 impl_unsafe_marker_for!(ContiguousMemory,

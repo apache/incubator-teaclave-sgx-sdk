@@ -483,6 +483,7 @@ impl_enum! {
         SGX_QL_SUPPLEMENTAL_DATA_VERSION_NOT_SUPPORTED      = 0x0000_E064,
         SGX_QL_ROOT_CA_UNTRUSTED                            = 0x0000_E065,
         SGX_QL_TCB_NOT_SUPPORTED                            = 0x0000_E066,
+        SGX_QL_CONFIG_INVALID_JSON                          = 0x0000_E067,
         SGX_QL_ERROR_MAX                                    = 0x0000_E0FF,
     }
 }
@@ -518,7 +519,7 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_UNSUPPORTED_LOADING_POLICY => {
                 "Unsupported enclave loading policy."
             }
-            sgx_quote3_error_t::SGX_QL_INTERFACE_UNAVAILABLE => "Unable to load the QE enclave.",
+            sgx_quote3_error_t::SGX_QL_INTERFACE_UNAVAILABLE => "Unable to load the PCE enclave.",
             sgx_quote3_error_t::SGX_QL_PLATFORM_LIB_UNAVAILABLE => {
                 "Unable to find the platform library with the dependent APIs."
             }
@@ -644,6 +645,9 @@ impl sgx_quote3_error_t {
             }
             sgx_quote3_error_t::SGX_QL_TCB_NOT_SUPPORTED => {
                 "Current TCB level cannot be found in platform/enclave TCB info"
+            }
+            sgx_quote3_error_t::SGX_QL_CONFIG_INVALID_JSON => {
+                "The QPL's config file is in JSON format but has a format error"
             }
             sgx_quote3_error_t::SGX_QL_ERROR_MAX => {
                 "Indicate max error to allow better translation."
@@ -798,6 +802,7 @@ impl sgx_quote3_error_t {
             }
             sgx_quote3_error_t::SGX_QL_ROOT_CA_UNTRUSTED => "SGX_QL_ROOT_CA_UNTRUSTED",
             sgx_quote3_error_t::SGX_QL_TCB_NOT_SUPPORTED => "SGX_QL_TCB_NOT_SUPPORTED",
+            sgx_quote3_error_t::SGX_QL_CONFIG_INVALID_JSON => "SGX_QL_CONFIG_INVALID_JSON",
             sgx_quote3_error_t::SGX_QL_ERROR_MAX => "SGX_QL_ERROR_MAX",
         }
     }
@@ -837,6 +842,8 @@ impl_enum! {
         SGX_QCNL_CACHE_MISSING                  = 0x0000_B031,
         SGX_QCNL_CACHE_EXPIRED                  = 0x0000_B032,
         SGX_QCNL_ROOT_CA_UNTRUSTED              = 0x0000_B033,
+        SGX_QCNL_CONFIG_INVALID_JSON            = 0x0000_B035,
+        SGX_QCNL_CONFIG_NOT_JSON                = 0x0000_B036,
     }
 }
 
@@ -887,6 +894,10 @@ impl sgx_qcnl_error_t {
             sgx_qcnl_error_t::SGX_QCNL_ROOT_CA_UNTRUSTED => {
                 "The certificate used to establish SSL session is untrusted"
             }
+            sgx_qcnl_error_t::SGX_QCNL_CONFIG_INVALID_JSON => {
+                "The config file is in JSON format but has a format error"
+            }
+            sgx_qcnl_error_t::SGX_QCNL_CONFIG_NOT_JSON => "The config file is not in JSON format",
         }
     }
 
@@ -930,6 +941,8 @@ impl sgx_qcnl_error_t {
             sgx_qcnl_error_t::SGX_QCNL_CACHE_MISSING => "SGX_QCNL_CACHE_MISSING",
             sgx_qcnl_error_t::SGX_QCNL_CACHE_EXPIRED => "SGX_QCNL_CACHE_EXPIRED",
             sgx_qcnl_error_t::SGX_QCNL_ROOT_CA_UNTRUSTED => "SGX_QCNL_ROOT_CA_UNTRUSTED",
+            sgx_qcnl_error_t::SGX_QCNL_CONFIG_INVALID_JSON => "SGX_QCNL_CONFIG_INVALID_JSON",
+            sgx_qcnl_error_t::SGX_QCNL_CONFIG_NOT_JSON => "SGX_QCNL_CONFIG_NOT_JSON",
         }
     }
 }

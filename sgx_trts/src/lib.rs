@@ -86,6 +86,7 @@ extern crate alloc;
 #[macro_use]
 mod macros;
 
+pub mod aex;
 pub mod ascii;
 pub mod c_str;
 pub mod cpu_feature;
