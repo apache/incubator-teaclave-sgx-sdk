@@ -688,13 +688,22 @@ extern "C" {
         page_properties_from: int32_t,
         page_properties_to: int32_t,
     ) -> int32_t;
+
+    /* intel sgx sdk 2.20 */
+    pub fn sgx_set_ssa_aexnotify(flags: int32_t) -> sgx_status_t;
+    pub fn sgx_register_aex_handler(
+        aex_node: *mut sgx_aex_mitigation_node_t,
+        handler: sgx_aex_mitigation_fn_t,
+        args: *const c_void,
+    ) -> sgx_status_t;
+    pub fn sgx_unregister_aex_handler(handler: sgx_aex_mitigation_fn_t) -> sgx_status_t;
 }
 
 /* intel sgx sdk 2.18 */
 //#[link(name = "sgx_mm")]
 extern "C" {
     pub fn sgx_mm_alloc(
-        addr: *mut c_void,
+        addr: *const c_void,
         length: size_t,
         flags: int32_t,
         handler: sgx_enclave_fault_handler_t,
@@ -702,17 +711,18 @@ extern "C" {
         out_addr: *mut *mut c_void,
     ) -> int32_t;
 
-    pub fn sgx_mm_commit(addr: *mut c_void, length: size_t) -> int32_t;
+    pub fn sgx_mm_commit(addr: *const c_void, length: size_t) -> int32_t;
     pub fn sgx_mm_commit_data(
-        addr: *mut c_void,
+        addr: *const c_void,
         length: size_t,
-        data: *mut uint8_t,
+        data: *const uint8_t,
         prot: int32_t,
     ) -> int32_t;
-    pub fn sgx_mm_uncommit(addr: *mut c_void, length: size_t) -> int32_t;
-    pub fn sgx_mm_dealloc(addr: *mut c_void, length: size_t) -> int32_t;
-    pub fn sgx_mm_modify_permissions(addr: *mut c_void, length: size_t, prot: int32_t) -> int32_t;
-    pub fn sgx_mm_modify_type(addr: *mut c_void, length: size_t, page_type: int32_t) -> int32_t;
+    pub fn sgx_mm_uncommit(addr: *const c_void, length: size_t) -> int32_t;
+    pub fn sgx_mm_dealloc(addr: *const c_void, length: size_t) -> int32_t;
+    pub fn sgx_mm_modify_permissions(addr: *const c_void, length: size_t, prot: int32_t)
+        -> int32_t;
+    pub fn sgx_mm_modify_type(addr: *const c_void, length: size_t, page_type: int32_t) -> int32_t;
 }
 
 //#[link(name = "sgx_epid")]
@@ -1088,10 +1098,19 @@ extern "C" {
         fmspc: *const uint8_t,
         fmspc_size: uint16_t,
         pck_ra: *const c_char,
-        pp_quote_collateral: *mut *mut tdx_ql_qve_collateral_t,
+        pp_quote_collateral: *mut *mut tdx_ql_qv_collateral_t,
+    ) -> sgx_quote3_error_t;
+    /* intel DCAP 1.17 */
+    pub fn tdx_ql_get_quote_verification_collateral_with_params(
+        fmspc: *const uint8_t,
+        fmspc_size: uint16_t,
+        pck_ra: *const c_char,
+        custom_param: *const c_void,
+        custom_param_length: uint16_t,
+        pp_quote_collateral: *mut *mut tdx_ql_qv_collateral_t,
     ) -> sgx_quote3_error_t;
     pub fn tdx_ql_free_quote_verification_collateral(
-        p_quote_collateral: *const sgx_ql_qve_collateral_t,
+        p_quote_collateral: *const tdx_ql_qv_collateral_t,
     ) -> sgx_quote3_error_t;
     pub fn sgx_ql_get_qve_identity(
         pp_qve_identity: *mut *mut c_char,
@@ -1103,18 +1122,21 @@ extern "C" {
         p_qve_identity: *const c_char,
         p_qve_identity_issuer_chain: *const c_char,
     ) -> sgx_quote3_error_t;
-
-    /* intel DCAP 1.4 */
+    /* intel DCAP 1.14 */
     pub fn sgx_ql_get_root_ca_crl(
         pp_root_ca_crl: *mut *mut uint8_t,
         p_root_ca_crl_size: *mut uint16_t,
     ) -> sgx_quote3_error_t;
     pub fn sgx_ql_free_root_ca_crl(p_root_ca_crl: *const uint8_t) -> sgx_quote3_error_t;
-    /* intel DCAP 2.14 */
+    /* intel DCAP 1.14 */
     pub fn sgx_ql_set_logging_callback(
         logger: sgx_ql_logging_callback_t,
         loglevel: sgx_ql_log_level_t,
     ) -> sgx_quote3_error_t;
+    /* intel DCAP 1.17 */
+    pub fn sgx_qpl_clear_cache(cache_type: sgx_qpl_cache_type_t) -> sgx_quote3_error_t;
+    pub fn sgx_qpl_global_init() -> sgx_quote3_error_t;
+    pub fn sgx_qpl_global_cleanup() -> sgx_quote3_error_t;
 }
 
 //#[link(name = "sgx_default_qcnl_wrapper")]
@@ -1193,6 +1215,11 @@ extern "C" {
     //     user_token: *const uint8_t,
     //     user_token_size: uint16_t,
     // ) -> sgx_qcnl_error_t;
+
+    /* intel DCAP 1.17 */
+    pub fn sgx_qcnl_clear_cache(cache_type: uint32_t) -> sgx_qcnl_error_t;
+    pub fn sgx_qcnl_global_init() -> sgx_qcnl_error_t;
+    pub fn sgx_qcnl_global_cleanup() -> sgx_qcnl_error_t;
 }
 
 //#[link(name = "dcap_quoteverify")]
@@ -1245,7 +1272,7 @@ extern "C" {
     pub fn tdx_qv_verify_quote(
         p_quote: *const uint8_t,
         quote_size: uint32_t,
-        p_quote_collateral: *const tdx_ql_qve_collateral_t,
+        p_quote_collateral: *const tdx_ql_qv_collateral_t,
         expiration_check_date: time_t,
         p_collateral_expiration_status: *mut uint32_t,
         p_quote_verification_result: *mut sgx_ql_qv_result_t,
@@ -1280,6 +1307,14 @@ extern "C" {
         p_qve_report_info: *mut sgx_ql_qe_report_info_t,
         p_supp_data_descriptor: *const tee_supp_data_descriptor_t,
     ) -> sgx_quote3_error_t;
+
+    /* intel DCAP 1.16 */
+    pub fn tee_get_fmspc_from_quote(
+        p_quote: *const uint8_t,
+        quote_size: uint32_t,
+        p_fmspc_from_quote: *mut uint8_t,
+        fmspc_from_quote_size: uint32_t,
+    ) -> sgx_quote3_error_t;
 }
 
 /* intel DCAP 1.7 */
@@ -1299,6 +1334,37 @@ extern "C" {
         supplemental_data_size: uint32_t,
         qve_isvsvn_threshold: sgx_isv_svn_t,
     ) -> sgx_quote3_error_t;
+}
+
+/* intel DCAP 1.15 */
+//#[link(name = "libtdx_attest")]
+extern "C" {
+    //
+    // tdx_attes.h
+    //
+    pub fn tdx_att_get_quote(
+        p_tdx_report_data: *const tdx_report_data_t,
+        att_key_id_list: *const tdx_uuid_t,
+        list_size: uint32_t,
+        p_att_key_id: *mut tdx_uuid_t,
+        pp_quote: *mut *mut uint8_t,
+        p_quote_size: *mut uint32_t,
+        flags: uint32_t,
+    ) -> tdx_attest_error_t;
+
+    pub fn tdx_att_free_quote(p_quote: *const uint8_t) -> tdx_attest_error_t;
+
+    pub fn tdx_att_get_report(
+        p_tdx_report_data: *const tdx_report_data_t,
+        p_tdx_report: *mut tdx_report_t,
+    ) -> tdx_attest_error_t;
+
+    pub fn tdx_att_extend(p_rtmr_event: *const tdx_rtmr_event_t) -> tdx_attest_error_t;
+
+    pub fn tdx_att_get_supported_att_key_ids(
+        p_att_key_id_list: *mut tdx_uuid_t,
+        p_list_size: *mut uint32_t,
+    ) -> tdx_attest_error_t;
 }
 
 /* intel sgx sdk 2.16 */

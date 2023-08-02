@@ -20,13 +20,16 @@ use sgx_trts::veh::{
     exception_handle, rsgx_register_exception_handler, rsgx_unregister_exception_handler,
 };
 use sgx_types::SE_WORDSIZE;
-use sgx_types::{sgx_exception_info_t, sgx_exception_vector_t};
+use sgx_types::{
+    sgx_cpu_context_t, sgx_exception_info_t, sgx_exception_type_t, sgx_exception_vector_t,
+};
 use sgx_types::{EXCEPTION_CONTINUE_EXECUTION, EXCEPTION_CONTINUE_SEARCH};
 use std::collections::LinkedList;
 use std::convert::From;
 use std::num::NonZeroU64;
 use std::ops::Drop;
-use std::sync::{Arc, Once, SgxRwLock, SgxMutex, PoisonError, ONCE_INIT};
+use std::slice;
+use std::sync::{Arc, Once, PoisonError, SgxMutex, SgxRwLock, ONCE_INIT};
 use std::u64;
 
 #[repr(u32)]
@@ -46,7 +49,7 @@ impl From<ContinueType> for i32 {
 }
 
 #[allow(unknown_lints, bare_trait_objects)]
-type ExceptionHandler = dyn Fn(&mut sgx_exception_info_t) -> ContinueType + Send + Sync;
+type ExceptionHandler = dyn Fn(&mut ExceptionInfo) -> ContinueType + Send + Sync;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct HandlerId(NonZeroU64);
@@ -68,6 +71,45 @@ impl HandlerId {
         *counter = id;
         drop(counter);
         HandlerId(NonZeroU64::new(id).unwrap())
+    }
+}
+
+pub struct ExceptionInfo<'a>(&'a mut sgx_exception_info_t);
+
+impl<'a> ExceptionInfo<'a> {
+    #[inline]
+    fn new(exception_info: &'a mut sgx_exception_info_t) -> ExceptionInfo {
+        ExceptionInfo(exception_info)
+    }
+
+    #[inline]
+    pub fn cpu_context(&mut self) -> &mut sgx_cpu_context_t {
+        &mut self.0.cpu_context
+    }
+
+    #[inline]
+    pub fn faulting_address(&self) -> u64 {
+        self.0.exinfo.faulting_address
+    }
+
+    #[inline]
+    pub fn error_code(&self) -> u32 {
+        self.0.exinfo.error_code
+    }
+
+    #[inline]
+    pub fn exception_vector(&self) -> sgx_exception_vector_t {
+        self.0.exception_vector
+    }
+
+    #[inline]
+    pub fn exception_type(&self) -> sgx_exception_type_t {
+        self.0.exception_type
+    }
+
+    #[inline]
+    pub fn xsave_area(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(&self.0.xsave_area as *const _, self.0.xsave_size as usize) }
     }
 }
 
@@ -114,32 +156,34 @@ impl GlobalData {
 }
 
 extern "C" fn native_exception_handler(info: *mut sgx_exception_info_t) -> int32_t {
+    let mut exception_info = ExceptionInfo::new(unsafe { info.as_mut().unwrap() });
     if let Ok(handlers) = GlobalData::get().manager.exception_handler.read() {
-        let info = unsafe { info.as_mut().unwrap() };
         for h in handlers.iter() {
-            match (h.handler)(info) {
+            match (h.handler)(&mut exception_info) {
                 ContinueType::Search => {}
                 ContinueType::Execution => return EXCEPTION_CONTINUE_EXECUTION,
             }
         }
     }
-    unsafe { panic_handler(info).into() }
+    unsafe { panic_handler(&mut exception_info).into() }
 }
 
-unsafe extern "C" fn panic_handler(info: *mut sgx_exception_info_t) -> ContinueType {
-    let exception_info = info.as_mut().unwrap();
-    let mut rsp = exception_info.cpu_context.rsp;
+unsafe extern "C" fn panic_handler(info: &mut ExceptionInfo) -> ContinueType {
+    let vector = info.exception_vector() as u32 as u64;
+    let cpu_context = info.cpu_context();
+
+    let mut rsp = cpu_context.rsp;
     if rsp & 0xF == 0 {
         rsp -= SE_WORDSIZE as u64;
-        exception_info.cpu_context.rsp = rsp;
+        cpu_context.rsp = rsp;
         let addr = rsp as *mut u64;
-        *addr = exception_info.cpu_context.rip;
+        *addr = cpu_context.rip;
     } else {
     }
 
-    exception_info.cpu_context.rdi = exception_info.exception_vector as u32 as u64;
-    exception_info.cpu_context.rsi = exception_info.cpu_context.rip;
-    exception_info.cpu_context.rip = exception_panic as usize as u64;
+    cpu_context.rdi = vector;
+    cpu_context.rsi = cpu_context.rip;
+    cpu_context.rip = exception_panic as usize as u64;
 
     ContinueType::Execution
 }
@@ -188,7 +232,7 @@ impl Drop for ExceptionManager {
 
 fn register_exception_impl<F>(first: bool, handler: F) -> Option<HandlerId>
 where
-    F: Fn(&mut sgx_exception_info_t) -> ContinueType + Sync + Send + 'static,
+    F: Fn(&mut ExceptionInfo) -> ContinueType + Sync + Send + 'static,
 {
     let globals = GlobalData::ensure();
 
@@ -222,7 +266,7 @@ where
 ///
 pub fn register_exception<F>(is_first: bool, handler: F) -> Option<HandlerId>
 where
-    F: Fn(&mut sgx_exception_info_t) -> ContinueType + Sync + Send + 'static,
+    F: Fn(&mut ExceptionInfo) -> ContinueType + Sync + Send + 'static,
 {
     register_exception_impl(is_first, handler)
 }
@@ -243,7 +287,7 @@ where
 ///
 pub fn register<F>(handler: F) -> Option<HandlerId>
 where
-    F: Fn(&mut sgx_exception_info_t) -> ContinueType + Sync + Send + 'static,
+    F: Fn(&mut ExceptionInfo) -> ContinueType + Sync + Send + 'static,
 {
     register_exception_impl(true, handler)
 }

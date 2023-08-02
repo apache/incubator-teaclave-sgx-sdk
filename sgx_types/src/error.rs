@@ -482,6 +482,8 @@ impl_enum! {
         SGX_QL_INTERNAL_SERVER_ERROR                        = 0x0000_E063,
         SGX_QL_SUPPLEMENTAL_DATA_VERSION_NOT_SUPPORTED      = 0x0000_E064,
         SGX_QL_ROOT_CA_UNTRUSTED                            = 0x0000_E065,
+        SGX_QL_TCB_NOT_SUPPORTED                            = 0x0000_E066,
+        SGX_QL_CONFIG_INVALID_JSON                          = 0x0000_E067,
         SGX_QL_ERROR_MAX                                    = 0x0000_E0FF,
     }
 }
@@ -517,7 +519,7 @@ impl sgx_quote3_error_t {
             sgx_quote3_error_t::SGX_QL_UNSUPPORTED_LOADING_POLICY => {
                 "Unsupported enclave loading policy."
             }
-            sgx_quote3_error_t::SGX_QL_INTERFACE_UNAVAILABLE => "Unable to load the QE enclave.",
+            sgx_quote3_error_t::SGX_QL_INTERFACE_UNAVAILABLE => "Unable to load the PCE enclave.",
             sgx_quote3_error_t::SGX_QL_PLATFORM_LIB_UNAVAILABLE => {
                 "Unable to find the platform library with the dependent APIs."
             }
@@ -640,6 +642,12 @@ impl sgx_quote3_error_t {
             }
             sgx_quote3_error_t::SGX_QL_ROOT_CA_UNTRUSTED => {
                 "The certificate used to establish SSL session is untrusted"
+            }
+            sgx_quote3_error_t::SGX_QL_TCB_NOT_SUPPORTED => {
+                "Current TCB level cannot be found in platform/enclave TCB info"
+            }
+            sgx_quote3_error_t::SGX_QL_CONFIG_INVALID_JSON => {
+                "The QPL's config file is in JSON format but has a format error"
             }
             sgx_quote3_error_t::SGX_QL_ERROR_MAX => {
                 "Indicate max error to allow better translation."
@@ -793,6 +801,8 @@ impl sgx_quote3_error_t {
                 "SGX_QL_SUPPLEMENTAL_DATA_VERSION_NOT_SUPPORTED"
             }
             sgx_quote3_error_t::SGX_QL_ROOT_CA_UNTRUSTED => "SGX_QL_ROOT_CA_UNTRUSTED",
+            sgx_quote3_error_t::SGX_QL_TCB_NOT_SUPPORTED => "SGX_QL_TCB_NOT_SUPPORTED",
+            sgx_quote3_error_t::SGX_QL_CONFIG_INVALID_JSON => "SGX_QL_CONFIG_INVALID_JSON",
             sgx_quote3_error_t::SGX_QL_ERROR_MAX => "SGX_QL_ERROR_MAX",
         }
     }
@@ -832,6 +842,8 @@ impl_enum! {
         SGX_QCNL_CACHE_MISSING                  = 0x0000_B031,
         SGX_QCNL_CACHE_EXPIRED                  = 0x0000_B032,
         SGX_QCNL_ROOT_CA_UNTRUSTED              = 0x0000_B033,
+        SGX_QCNL_CONFIG_INVALID_JSON            = 0x0000_B035,
+        SGX_QCNL_CONFIG_NOT_JSON                = 0x0000_B036,
     }
 }
 
@@ -882,6 +894,10 @@ impl sgx_qcnl_error_t {
             sgx_qcnl_error_t::SGX_QCNL_ROOT_CA_UNTRUSTED => {
                 "The certificate used to establish SSL session is untrusted"
             }
+            sgx_qcnl_error_t::SGX_QCNL_CONFIG_INVALID_JSON => {
+                "The config file is in JSON format but has a format error"
+            }
+            sgx_qcnl_error_t::SGX_QCNL_CONFIG_NOT_JSON => "The config file is not in JSON format",
         }
     }
 
@@ -925,6 +941,8 @@ impl sgx_qcnl_error_t {
             sgx_qcnl_error_t::SGX_QCNL_CACHE_MISSING => "SGX_QCNL_CACHE_MISSING",
             sgx_qcnl_error_t::SGX_QCNL_CACHE_EXPIRED => "SGX_QCNL_CACHE_EXPIRED",
             sgx_qcnl_error_t::SGX_QCNL_ROOT_CA_UNTRUSTED => "SGX_QCNL_ROOT_CA_UNTRUSTED",
+            sgx_qcnl_error_t::SGX_QCNL_CONFIG_INVALID_JSON => "SGX_QCNL_CONFIG_INVALID_JSON",
+            sgx_qcnl_error_t::SGX_QCNL_CONFIG_NOT_JSON => "SGX_QCNL_CONFIG_NOT_JSON",
         }
     }
 }
@@ -994,6 +1012,94 @@ impl sgx_ql_qv_result_t {
 }
 
 impl fmt::Display for sgx_ql_qv_result_t {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
+    pub enum tdx_attest_error_t {
+        TDX_ATTEST_SUCCESS                      = 0x0000_0000,
+        // TDX_ATTEST_ERROR_MIN                 = 0x0000_0001,
+        TDX_ATTEST_ERROR_UNEXPECTED             = 0x0000_0001,
+        TDX_ATTEST_ERROR_INVALID_PARAMETER      = 0x0000_0002,
+        TDX_ATTEST_ERROR_OUT_OF_MEMORY          = 0x0000_0003,
+        TDX_ATTEST_ERROR_VSOCK_FAILURE          = 0x0000_0004,
+        TDX_ATTEST_ERROR_REPORT_FAILURE         = 0x0000_0005,
+        TDX_ATTEST_ERROR_EXTEND_FAILURE         = 0x0000_0006,
+        TDX_ATTEST_ERROR_NOT_SUPPORTED          = 0x0000_0007,
+        TDX_ATTEST_ERROR_QUOTE_FAILURE          = 0x0000_0008,
+        TDX_ATTEST_ERROR_BUSY                   = 0x0000_0009,
+        TDX_ATTEST_ERROR_DEVICE_FAILURE         = 0x0000_000A,
+        TDX_ATTEST_ERROR_INVALID_RTMR_INDEX     = 0x0000_000B,
+        TDX_ATTEST_ERROR_UNSUPPORTED_ATT_KEY_ID = 0x0000_000C,
+        TDX_ATTEST_ERROR_MAX                    = 0x0000_000D,
+    }
+}
+
+impl tdx_attest_error_t {
+    pub fn __description(&self) -> &'static str {
+        match *self {
+            tdx_attest_error_t::TDX_ATTEST_SUCCESS => "Success.",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_UNEXPECTED => "Unexpected error.",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_INVALID_PARAMETER => "The parameter is incorrect.",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_OUT_OF_MEMORY => {
+                "Not enough memory is available to complete this operation."
+            }
+            tdx_attest_error_t::TDX_ATTEST_ERROR_VSOCK_FAILURE => {
+                "vsock related failure."
+            }
+            tdx_attest_error_t::TDX_ATTEST_ERROR_REPORT_FAILURE => "Failed to get the TD Report.",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_EXTEND_FAILURE => "Failed to extend rtmr.",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_NOT_SUPPORTED => {
+                "Request feature is not supported."
+            }
+            tdx_attest_error_t::TDX_ATTEST_ERROR_QUOTE_FAILURE => {
+                "Failed to get the TD Quote."
+            }
+            tdx_attest_error_t::TDX_ATTEST_ERROR_BUSY => "The device driver return busy.",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_DEVICE_FAILURE => "Failed to acess tdx attest device.",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_INVALID_RTMR_INDEX => "Only supported RTMR index is 2 and 3.",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_UNSUPPORTED_ATT_KEY_ID => "The platform Quoting infrastructure does not support any of the keys described in att_key_id_list.",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_MAX => "Indicate max error.",
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match *self {
+            tdx_attest_error_t::TDX_ATTEST_SUCCESS => "TDX_ATTEST_SUCCESS",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_UNEXPECTED => "TDX_ATTEST_ERROR_UNEXPECTED",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_INVALID_PARAMETER => {
+                "TDX_ATTEST_ERROR_INVALID_PARAMETER"
+            }
+            tdx_attest_error_t::TDX_ATTEST_ERROR_OUT_OF_MEMORY => "TDX_ATTEST_ERROR_OUT_OF_MEMORY",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_VSOCK_FAILURE => "TDX_ATTEST_ERROR_VSOCK_FAILURE",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_REPORT_FAILURE => {
+                "TDX_ATTEST_ERROR_REPORT_FAILURE"
+            }
+            tdx_attest_error_t::TDX_ATTEST_ERROR_EXTEND_FAILURE => {
+                "TDX_ATTEST_ERROR_EXTEND_FAILURE"
+            }
+            tdx_attest_error_t::TDX_ATTEST_ERROR_NOT_SUPPORTED => "TDX_ATTEST_ERROR_NOT_SUPPORTED",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_QUOTE_FAILURE => "TDX_ATTEST_ERROR_QUOTE_FAILURE",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_BUSY => "TDX_ATTEST_ERROR_BUSY",
+            tdx_attest_error_t::TDX_ATTEST_ERROR_DEVICE_FAILURE => {
+                "TDX_ATTEST_ERROR_DEVICE_FAILURE"
+            }
+            tdx_attest_error_t::TDX_ATTEST_ERROR_INVALID_RTMR_INDEX => {
+                "TDX_ATTEST_ERROR_INVALID_RTMR_INDEX"
+            }
+            tdx_attest_error_t::TDX_ATTEST_ERROR_UNSUPPORTED_ATT_KEY_ID => {
+                "TDX_ATTEST_ERROR_UNSUPPORTED_ATT_KEY_ID"
+            }
+            tdx_attest_error_t::TDX_ATTEST_ERROR_MAX => "TDX_ATTEST_ERROR_MAX",
+        }
+    }
+}
+
+impl fmt::Display for tdx_attest_error_t {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.as_str())
     }

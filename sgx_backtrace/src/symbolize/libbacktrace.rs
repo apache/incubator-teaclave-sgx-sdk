@@ -41,10 +41,12 @@
 #![allow(bad_style)]
 #![allow(dead_code)]
 
+use crate::backtrace::uw;
 use crate::bt;
 use core::{marker, ptr, slice};
 use libc::{self, c_char, c_int, c_void, uintptr_t};
 use sgx_trts::c_str::CString;
+use sgx_trts::enclave;
 
 use crate::symbolize::{ResolveWhat, SymbolName};
 use crate::types::BytesOrWideString;
@@ -197,6 +199,8 @@ struct SyminfoState<'a> {
     pc: usize,
 }
 
+static ENCLAVE_ENTRY_NAME: &str = "enclave_entry\0";
+
 extern "C" fn syminfo_cb(
     data: *mut c_void,
     pc: uintptr_t,
@@ -233,6 +237,17 @@ extern "C" fn syminfo_cb(
             &mut pcinfo_state as *mut _ as *mut _,
         );
         if !pcinfo_state.called {
+            let mut symname = symname;
+            if symname.is_null() {
+                let sym_address =
+                    uw::_Unwind_FindEnclosingFunction((pc + 1) as *mut c_void) as usize;
+                let enclave_entry = enclave::rsgx_get_enclave_entry();
+                if sym_address == enclave_entry || (sym_address - 0x04) == enclave_entry {
+                    //0x04 endbr64
+                    symname = ENCLAVE_ENTRY_NAME as *const _ as *const c_char
+                }
+            }
+
             let inner = Symbol::Syminfo {
                 pc,
                 symname,

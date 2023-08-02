@@ -25,7 +25,7 @@ use std::mem;
 use std::num::NonZeroU64;
 use std::sync::Arc;
 #[allow(deprecated)]
-use std::sync::{SgxMutex, PoisonError};
+use std::sync::{PoisonError, SgxMutex};
 use std::u64;
 
 thread_local! { static SIGNAL_MASK: Cell<SigSet> = Cell::new(SigSet::new()) }
@@ -162,8 +162,6 @@ impl ActionId {
         drop(counter);
         ActionId(NonZeroU64::new(id).unwrap())
     }
-
-    
 }
 
 pub type Action = dyn Fn(&siginfo_t) + Send + Sync;

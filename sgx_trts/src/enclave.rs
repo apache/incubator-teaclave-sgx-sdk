@@ -23,7 +23,7 @@
 use sgx_types::metadata::*;
 use sgx_types::*;
 
-pub const LAYOUT_ENTRY_NUM: usize = 42;
+pub const LAYOUT_ENTRY_NUM: usize = 43;
 
 #[link(name = "sgx_trts")]
 extern "C" {
@@ -61,6 +61,7 @@ pub struct global_data_t {
     pub enclave_image_address: u64,
     pub elrange_start_address: u64,
     pub elrange_size: u64,
+    pub edmm_bk_overhead: usize,
 }
 
 #[repr(C)]
@@ -74,12 +75,17 @@ pub struct thread_data_t {
     pub flags: usize,
     pub xsave_size: usize,
     pub last_error: usize,
+    pub aex_mitigation_list: usize,
+    pub aex_notify_flag: usize,
+    pub first_ssa_xsave: usize,
     pub m_next: usize,
     pub tls_addr: usize,
     pub tls_array: usize,
     pub exception_flag: usize,
     pub cxx_thread_info: [usize; 6],
     pub stack_commit_addr: usize,
+    pub aex_notify_entropy_cache: u32,
+    pub aex_notify_entropy_remaining: i32,
 }
 
 #[derive(Copy, Clone)]
@@ -286,6 +292,7 @@ pub struct SgxThreadData {
     stack_guard: usize,
     xsave_size: usize,
     last_error: usize,
+    first_ssa_xsave: usize,
     tls_addr: usize,
     tls_array: usize,
     exception_flag: usize,
@@ -315,6 +322,7 @@ impl SgxThreadData {
             stack_guard: td.stack_guard,
             xsave_size: td.xsave_size,
             last_error: td.last_error,
+            first_ssa_xsave: td.first_ssa_xsave,
             tls_addr: td.tls_addr,
             tls_array: td.tls_array,
             exception_flag: td.exception_flag,
@@ -334,6 +342,7 @@ impl SgxThreadData {
             stack_guard: td.stack_guard,
             xsave_size: td.xsave_size,
             last_error: td.last_error,
+            first_ssa_xsave: td.first_ssa_xsave,
             tls_addr: td.tls_addr,
             tls_array: td.tls_array,
             exception_flag: td.exception_flag,
@@ -678,4 +687,20 @@ pub fn rsgx_get_elrange_base() -> *const u8 {
 #[inline]
 pub fn rsgx_get_elrange_size() -> usize {
     unsafe { g_global_data.elrange_size as usize }
+}
+
+///
+/// rsgx_get_enclave_entry is to get enclave entry point address.
+///
+/// **Note**
+///
+/// This API is only an experimental funtion.
+///
+#[inline]
+pub fn rsgx_get_enclave_entry() -> usize {
+    extern "C" {
+        fn enclave_entry();
+    }
+    let entry_addr: unsafe extern "C" fn() = enclave_entry;
+    entry_addr as usize
 }

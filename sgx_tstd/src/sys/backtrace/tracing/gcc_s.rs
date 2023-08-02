@@ -17,6 +17,7 @@
 
 use crate::ffi::c_void;
 use crate::sys::backtrace::Bomb;
+use sgx_trts::enclave;
 
 use sgx_unwind as uw;
 
@@ -101,8 +102,15 @@ pub unsafe fn trace(mut cb: &mut dyn FnMut(&super::Frame) -> bool) {
         };
 
         let mut bomb = Bomb::new(true);
-        let keep_going = cb(&cx);
+        let mut keep_going = cb(&cx);
         bomb.set(false);
+
+        let sym_addr = cx.symbol_address() as usize;
+        let enclave_entry = enclave::rsgx_get_enclave_entry();
+        if enclave_entry == sym_addr || enclave_entry == (sym_addr - 0x04) {
+            //0x04 endbr64
+            keep_going = false;
+        }
 
         if keep_going {
             uw::_URC_NO_REASON

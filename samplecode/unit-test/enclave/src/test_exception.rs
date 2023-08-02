@@ -16,9 +16,8 @@
 // under the License..
 
 use sgx_signal::exception::{register_exception, unregister};
-use sgx_signal::ContinueType;
+use sgx_signal::{ContinueType, ExceptionInfo};
 use sgx_trts::enclave;
-use sgx_types::sgx_exception_info_t;
 use std::backtrace::{self, PrintFormat};
 use std::panic;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -49,7 +48,7 @@ pub fn test_exception_handler() {
     let status = Arc::new(AtomicUsize::new(2));
     let handler1 = {
         let status = Arc::clone(&status);
-        move |_info: &mut sgx_exception_info_t| {
+        move |_info: &mut ExceptionInfo| {
             status.fetch_add(2, Ordering::Relaxed);
             ContinueType::Search
         }
@@ -57,7 +56,7 @@ pub fn test_exception_handler() {
 
     let handler2 = {
         let status = Arc::clone(&status);
-        move |_info: &mut sgx_exception_info_t| {
+        move |_info: &mut ExceptionInfo| {
             status.store(1, Ordering::Relaxed);
             ContinueType::Search
         }

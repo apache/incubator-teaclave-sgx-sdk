@@ -22,8 +22,11 @@ use crate::slice;
 use crate::sys::backtrace::{self, Bomb, BytesOrWideString};
 use crate::sys_common::backtrace::{ResolveWhat, SymbolName};
 
-use sgx_backtrace_sys as bt;
+use sgx_trts::enclave;
 use sgx_libc::{self, c_char, c_int, c_void, uintptr_t};
+
+use sgx_backtrace_sys as bt;
+use sgx_unwind as uw;
 
 pub enum Symbol<'a> {
     Syminfo {
@@ -160,6 +163,8 @@ struct SyminfoState<'a> {
     pc: usize,
 }
 
+static ENCLAVE_ENTRY_NAME: &str = "enclave_entry\0";
+
 extern "C" fn syminfo_cb(
     data: *mut c_void,
     pc: uintptr_t,
@@ -196,6 +201,17 @@ extern "C" fn syminfo_cb(
             &mut pcinfo_state as *mut _ as *mut _,
         );
         if !pcinfo_state.called {
+            let mut symname = symname;
+            if symname.is_null() {
+                let sym_address =
+                    uw::_Unwind_FindEnclosingFunction((pc + 1) as *mut c_void) as usize;
+                let enclave_entry = enclave::rsgx_get_enclave_entry();
+                if sym_address == enclave_entry || (sym_address - 0x04) == enclave_entry {
+                    //0x04 endbr64
+                    symname = ENCLAVE_ENTRY_NAME as *const _ as *const c_char
+                }
+            }
+
             let inner = Symbol::Syminfo {
                 pc,
                 symname,

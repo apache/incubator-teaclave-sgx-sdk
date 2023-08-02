@@ -32,6 +32,7 @@ pub const SGX_FLAGS_MODE64BIT: uint64_t = 0x0000_0000_0000_0004; //If set, then 
 pub const SGX_FLAGS_PROVISION_KEY: uint64_t = 0x0000_0000_0000_0010; //If set, then the enclave has access to provision key
 pub const SGX_FLAGS_EINITTOKEN_KEY: uint64_t = 0x0000_0000_0000_0020; //If set, then the enclave has access to EINITTOKEN key
 pub const SGX_FLAGS_KSS: uint64_t = 0x0000_0000_0000_0080; //If set enclave uses KSS
+pub const SGX_FLAGS_AEX_NOTIFY: uint64_t = 0x0000_0000_0000_0400; //If set, then the enclave enables AEX Notify
 pub const SGX_FLAGS_RESERVED: uint64_t = !(SGX_FLAGS_INITTED
     | SGX_FLAGS_DEBUG
     | SGX_FLAGS_MODE64BIT
@@ -1057,16 +1058,55 @@ impl_struct! {
     }
 }
 
-impl_struct! {
-    pub struct sgx_exception_info_t {
-        pub cpu_context: sgx_cpu_context_t,
-        pub exception_vector: sgx_exception_vector_t,
-        pub exception_type: sgx_exception_type_t,
-        pub exinfo: sgx_misc_exinfo_t,
+cfg_if! {
+    if #[cfg(target_arch = "x86")] {
+        #[repr(C, align(64))]
+        pub struct sgx_exception_info_t {
+            pub cpu_context: sgx_cpu_context_t,
+            pub exception_vector: sgx_exception_vector_t,
+            pub exception_type: sgx_exception_type_t,
+            pub exinfo: sgx_misc_exinfo_t,
+            pub exception_valid: uint32_t,
+            pub do_aex_mitigation: uint32_t,
+            pub xsave_size: uint64_t,
+            pub reserved: [uint64_t; 6],
+            pub xsave_area: [uint8_t; 0],
+        }
+    } else {
+        #[repr(C, align(64))]
+        pub struct sgx_exception_info_t {
+            pub cpu_context: sgx_cpu_context_t,
+            pub exception_vector: sgx_exception_vector_t,
+            pub exception_type: sgx_exception_type_t,
+            pub exinfo: sgx_misc_exinfo_t,
+            pub exception_valid: uint32_t,
+            pub do_aex_mitigation: uint32_t,
+            pub xsave_size: uint64_t,
+            pub reserved: [uint64_t; 1],
+            pub xsave_area: [uint8_t; 0],
+        }
     }
 }
 
+impl_struct_ContiguousMemory! {
+    sgx_exception_info_t;
+}
+
 pub type sgx_exception_handler_t = extern "C" fn(info: *mut sgx_exception_info_t) -> int32_t;
+
+/* intel sgx sdk 2.20 */
+//
+// sgx_trts_aex.h
+//
+#[repr(C)]
+pub struct sgx_aex_mitigation_node_t {
+    pub handler: sgx_aex_mitigation_fn_t,
+    pub args: *const c_void,
+    pub next: *mut sgx_aex_mitigation_node_t,
+}
+
+pub type sgx_aex_mitigation_fn_t =
+    extern "C" fn(info: *mut sgx_exception_info_t, args: *const c_void) -> c_void;
 
 //
 // sgx_tseal.h
@@ -1398,7 +1438,10 @@ pub struct sgx_ql_qve_collateral_t {
     pub qe_identity_size: uint32_t,
 }
 
+/* intel DCAP 1.17 */
+// Deprecate structure name tdx_ql_qve_collateral_t
 pub type tdx_ql_qve_collateral_t = sgx_ql_qve_collateral_t;
+pub type tdx_ql_qv_collateral_t = sgx_ql_qve_collateral_t;
 
 impl_enum! {
     #[repr(u8)]
@@ -1406,6 +1449,17 @@ impl_enum! {
     pub enum sgx_prod_type_t {
         SGX_PROD_TYPE_SGX   = 0,
         SGX_PROD_TYPE_TDX   = 1,
+    }
+}
+
+/* intel DCAP 1.17 */
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+    pub enum sgx_qpl_cache_type_t {
+        SGX_QPL_CACHE_CERTIFICATE   = 1,
+        SGX_QPL_CACHE_QV_COLLATERAL = 2,
+        SGX_QPL_CACHE_MULTICERTS    = 4,
     }
 }
 
@@ -1750,6 +1804,59 @@ impl_enum! {
         SGX_QE_TYPE_ECDSA   = 0,
         SGX_QE_TYPE_TD      = 1,
     }
+}
+
+/* intel DCAP 1.15 */
+//
+// tdx_attes.h
+//
+pub const TDX_UUID_SIZE: usize = 16;
+pub const TDX_REPORT_DATA_SIZE: usize = 64;
+pub const TDX_REPORT_SIZE: usize = 1024;
+
+impl_struct! {
+    pub struct tdx_uuid_t {
+        pub d: [uint8_t; TDX_UUID_SIZE],
+    }
+}
+
+impl_copy_clone! {
+    pub struct tdx_report_data_t {
+        pub d: [uint8_t; TDX_REPORT_DATA_SIZE],
+    }
+
+    pub struct tdx_report_t {
+        pub d: [uint8_t; TDX_REPORT_SIZE],
+    }
+}
+
+impl_struct_default! {
+    tdx_report_data_t; //64
+    tdx_report_t; //1024
+}
+
+impl_struct_ContiguousMemory! {
+    tdx_report_data_t;
+    tdx_report_t;
+}
+
+impl_packed_copy_clone! {
+    pub struct tdx_rtmr_event_t {
+        pub version: uint32_t,
+        pub rtmr_index: uint64_t,
+        pub extend_data: [uint8_t; 48],
+        pub event_type: uint32_t,
+        pub event_data_size: uint32_t,
+        pub event_data: [uint8_t; 0],
+    }
+}
+
+impl_struct_default! {
+    tdx_rtmr_event_t; //68
+}
+
+impl_struct_ContiguousMemory! {
+    tdx_rtmr_event_t;
 }
 
 /* intel sgx sdk 2.7.1 */

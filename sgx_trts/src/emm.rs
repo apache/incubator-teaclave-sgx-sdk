@@ -181,7 +181,7 @@ impl EmmAlloc {
         };
 
         let ret = sgx_mm_alloc(
-            addr as *mut _,
+            addr as *const _,
             length,
             flags as i32,
             mem::transmute(options.handler),
@@ -199,7 +199,7 @@ impl EmmAlloc {
     // AllocFlags::COMMIT_ON_DEMAND.
     #[inline]
     pub unsafe fn commit(&self, addr: NonNull<u8>, length: usize) -> SysError {
-        let ret = sgx_mm_commit(addr.as_ptr() as *mut _, length);
+        let ret = sgx_mm_commit(addr.as_ptr() as *const _, length);
         if ret == 0 {
             Ok(())
         } else {
@@ -215,9 +215,9 @@ impl EmmAlloc {
     #[inline]
     pub unsafe fn commit_with_data(addr: NonNull<u8>, data: &[u8], perm: Perm) -> SysError {
         let ret = sgx_mm_commit_data(
-            addr.as_ptr() as *mut _,
+            addr.as_ptr() as *const _,
             data.len(),
-            data.as_ptr() as *mut _,
+            data.as_ptr() as *const _,
             perm.bits() as _,
         );
         if ret == 0 {
@@ -232,7 +232,7 @@ impl EmmAlloc {
     /// reserved.
     #[inline]
     pub unsafe fn uncommit(&self, addr: NonNull<u8>, length: usize) -> SysError {
-        let ret = sgx_mm_uncommit(addr.as_ptr() as *mut _, length);
+        let ret = sgx_mm_uncommit(addr.as_ptr() as *const _, length);
         if ret == 0 {
             Ok(())
         } else {
@@ -245,7 +245,7 @@ impl EmmAlloc {
     /// for future allocation.
     #[inline]
     pub unsafe fn dealloc(&self, addr: NonNull<u8>, length: usize) -> SysError {
-        let ret = sgx_mm_dealloc(addr.as_ptr() as *mut _, length);
+        let ret = sgx_mm_dealloc(addr.as_ptr() as *const _, length);
         if ret == 0 {
             Ok(())
         } else {
@@ -261,7 +261,7 @@ impl EmmAlloc {
         length: usize,
         perm: Perm,
     ) -> SysError {
-        let ret = sgx_mm_modify_permissions(addr.as_ptr() as *mut _, length, perm.bits() as _);
+        let ret = sgx_mm_modify_permissions(addr.as_ptr() as *const _, length, perm.bits() as _);
         if ret == 0 {
             Ok(())
         } else {
@@ -277,7 +277,7 @@ impl EmmAlloc {
         length: usize,
         page_type: PageType,
     ) -> SysError {
-        let ret = sgx_mm_modify_type(addr.as_ptr() as *mut _, length, page_type as _);
+        let ret = sgx_mm_modify_type(addr.as_ptr() as *const _, length, page_type as _);
         if ret == 0 {
             Ok(())
         } else {

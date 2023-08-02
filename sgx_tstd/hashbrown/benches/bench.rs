@@ -53,7 +53,7 @@ lazy_static::lazy_static! {
 struct DropType(usize);
 impl Drop for DropType {
     fn drop(&mut self) {
-        SIDE_EFFECT.fetch_add(self.0, atomic::Ordering::SeqCst);
+        SIDE_EFFECT.fetch_add(self.0, atomic::Ordering::Relaxed);
     }
 }
 

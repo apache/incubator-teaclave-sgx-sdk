@@ -35,6 +35,7 @@
 #![allow(clippy::upper_case_acronyms)]
 use super::super::Bomb;
 use core::ffi::c_void;
+use sgx_trts::enclave;
 
 pub enum Frame {
     Raw(*mut uw::_Unwind_Context),
@@ -117,8 +118,15 @@ pub unsafe fn trace(mut cb: &mut dyn FnMut(&super::Frame) -> bool) {
         };
 
         let mut bomb = Bomb { enabled: true };
-        let keep_going = cb(&cx);
+        let mut keep_going = cb(&cx);
         bomb.enabled = false;
+
+        let sym_addr = cx.symbol_address() as usize;
+        let enclave_entry = enclave::rsgx_get_enclave_entry();
+        if enclave_entry == sym_addr || enclave_entry == (sym_addr - 0x04) {
+            //0x04 endbr64
+            keep_going = false;
+        }
 
         if keep_going {
             uw::_URC_NO_REASON
@@ -136,7 +144,7 @@ pub unsafe fn trace(mut cb: &mut dyn FnMut(&super::Frame) -> bool) {
 #[allow(non_camel_case_types)]
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-mod uw {
+pub mod uw {
     pub use self::_Unwind_Reason_Code::*;
 
     use core::ffi::c_void;

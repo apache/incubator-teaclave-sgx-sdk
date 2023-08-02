@@ -178,7 +178,7 @@ impl Sessions {
     fn new_session(svr_ptr : *mut TlsServer) -> Option<usize> {
         match GLOBAL_CONTEXTS.write() {
             Ok(mut gctxts) => {
-                let curr_id = GLOBAL_CONTEXT_COUNT.fetch_add(1, Ordering::SeqCst);
+                let curr_id = GLOBAL_CONTEXT_COUNT.fetch_add(1, Ordering::Relaxed);
                 gctxts.insert(curr_id, AtomicPtr::new(svr_ptr));
                 Some(curr_id)
             },
