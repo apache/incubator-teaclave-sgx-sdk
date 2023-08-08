@@ -28,7 +28,7 @@ use super::alloc::StaticAlloc;
 use super::interior::Alloc;
 
 #[repr(C)]
-#[derive(Clone)]
+#[derive(Debug)]
 pub struct BitArray {
     bits: usize,
     bytes: usize,
@@ -37,13 +37,14 @@ pub struct BitArray {
 }
 
 impl BitArray {
-    /// Init BitArray in Reserve memory with all zeros.
+    /// Init BitArray with all zero bits
     pub fn new(bits: usize, alloc: Alloc) -> SgxResult<Self> {
         let bytes = (bits + 7) / 8;
 
-        // FIXME: return error if out of memory
+        // FIXME: return error if OOM
         let data = match alloc {
             Alloc::Reserve => {
+                // Set bits to all zeros
                 let data = vec::from_elem_in(0_u8, bytes, ResAlloc).into_boxed_slice();
                 Box::into_raw(data) as *mut u8
             }
@@ -61,28 +62,34 @@ impl BitArray {
         })
     }
 
-    // Get the value of the bit at a given index.
-    // todo: return SgxResult
-    pub fn get(&self, index: usize) -> bool {
+    /// Get the value of the bit at a given index
+    pub fn get(&self, index: usize) -> SgxResult<bool> {
+        if index >= self.bits {
+            return Err(SgxStatus::InvalidParameter);
+        }
+
         let byte_index = index / 8;
         let bit_index = index % 8;
         let bit_mask = 1 << bit_index;
         let data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
-        (data.get(byte_index).unwrap() & bit_mask) != 0
+        Ok((data.get(byte_index).unwrap() & bit_mask) != 0)
     }
 
-    // check whether each bit set true
+    /// Check whether all bits are set true
     pub fn all_true(&self) -> bool {
         for pos in 0..self.bits {
-            if !self.get(pos) {
+            if !self.get(pos).unwrap() {
                 return false;
             }
         }
         true
     }
 
-    // Set the value of the bit at a given index.
-    pub fn set(&mut self, index: usize, value: bool) {
+    /// Set the value of the bit at the specified index
+    pub fn set(&mut self, index: usize, value: bool) -> SgxResult {
+        if index >= self.bits {
+            return Err(SgxStatus::InvalidParameter);
+        }
         let byte_index = index / 8;
         let bit_index = index % 8;
         let bit_mask = 1 << bit_index;
@@ -94,16 +101,10 @@ impl BitArray {
         } else {
             data[byte_index] &= !bit_mask;
         }
+        Ok(())
     }
 
-    /// Set the value of the bit at a given index.
-    /// The range includes [0, index).
-    pub fn set_until(&mut self, index: usize, value: bool) {
-        todo!()
-    }
-
-    /// Set the value of the bit at a given index.
-    /// The range includes [0, index).
+    /// Set all the bits to true
     pub fn set_full(&mut self) {
         let data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
         data.fill(0xFF);
@@ -115,16 +116,15 @@ impl BitArray {
         data.fill(0);
     }
 
-    // split current bit array into left and right bit array
-    // return right bit array
-    // TODO: more check
+    /// Split current bit array at specified position, return a new allocated bit array
+    /// corresponding to the bits at the range of [pos, end).
+    /// And the current bit array manages the bits at the range of [0, pos).
     pub fn split(&mut self, pos: usize) -> SgxResult<BitArray> {
         ensure!(pos > 0 && pos < self.bits, SgxStatus::InvalidParameter);
 
         let byte_index = pos / 8;
         let bit_index = pos % 8;
 
-        // let l_bits = (byte_index << 3) + bit_index;
         let l_bits = pos;
         let l_bytes = (l_bits + 7) / 8;
 
@@ -134,7 +134,6 @@ impl BitArray {
         let r_array = Self::new(r_bits, self.alloc.clone())?;
 
         let r_data = unsafe { core::slice::from_raw_parts_mut(r_array.data, r_array.bytes) };
-
         let l_data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
 
         for (idx, item) in r_data[..(r_bytes - 1)].iter_mut().enumerate() {
@@ -149,7 +148,7 @@ impl BitArray {
         self.bits = l_bits;
         self.bytes = l_bytes;
 
-        return Ok(r_array);
+        Ok(r_array)
     }
 }
 
@@ -157,7 +156,9 @@ impl Drop for BitArray {
     fn drop(&mut self) {
         match self.alloc {
             Alloc::Reserve => {
-                // for interior allocator, layout is redundant
+                // Layout is redundant since interior allocator maintains the allocated size.
+                // Besides, if the bitmap is splitted, the recorded size
+                // in bitmap is not corresponding to allocated layout.
                 let fake_layout: Layout = Layout::new::<u8>();
                 unsafe {
                     let data_ptr = NonNull::new_unchecked(self.data);
@@ -165,9 +166,6 @@ impl Drop for BitArray {
                 }
             }
             Alloc::Static => {
-                // for interior allocator, layout is redundant
-                // If the bitmap is splitted, the size of
-                // allocated layout is not recorded in bitmap struct
                 let fake_layout: Layout = Layout::new::<u8>();
                 unsafe {
                     let data_ptr = NonNull::new_unchecked(self.data);
@@ -177,5 +175,3 @@ impl Drop for BitArray {
         }
     }
 }
-
-// FIXME: add more unit test

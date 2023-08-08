@@ -3,7 +3,7 @@ use core::ptr::NonNull;
 
 use crate::emm::interior::{RES_ALLOCATOR, STATIC};
 
-/// alloc layout memory from Reserve region
+/// Alloc layout memory from reserve memory region
 #[derive(Clone, Copy)]
 pub struct ResAlloc;
 
@@ -25,12 +25,15 @@ unsafe impl Allocator for ResAlloc {
     }
 }
 
+/// Alloc layout memory from static memory region
 #[derive(Clone, Copy)]
 pub struct StaticAlloc;
 
 unsafe impl Allocator for StaticAlloc {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         STATIC
+            .get()
+            .unwrap()
             .lock()
             .alloc(layout)
             .map(|addr| NonNull::slice_from_raw_parts(addr, layout.size()))
@@ -39,6 +42,6 @@ unsafe impl Allocator for StaticAlloc {
 
     #[inline]
     unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
-        STATIC.lock().dealloc(ptr, layout);
+        STATIC.get().unwrap().lock().dealloc(ptr, layout);
     }
 }

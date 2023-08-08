@@ -15,11 +15,20 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use self::{interior::init_alloc, range::init_range_manage, user::init_user_range};
+
 pub(crate) mod alloc;
 pub(crate) mod bitmap;
 pub(crate) mod ema;
 pub(crate) mod flags;
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
 pub(crate) mod interior;
+mod pfhandler;
 pub(crate) mod range;
 pub(crate) mod user;
+
+fn init_emm(user_start: usize, user_end: usize) {
+    init_user_range(user_start, user_end);
+    init_range_manage();
+    init_alloc();
+}

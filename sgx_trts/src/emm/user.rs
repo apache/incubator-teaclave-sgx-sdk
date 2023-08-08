@@ -32,10 +32,10 @@ impl UserRange {
     }
 }
 
+/// User memory range specified by SDK developer
 pub static USER_RANGE: Once<UserRange> = Once::new();
 
-pub fn init_range(start: usize, end: usize) {
-    // init
+pub fn init_user_range(start: usize, end: usize) {
     let _ = *USER_RANGE.call_once(|| UserRange { start, end });
 }
 

@@ -21,7 +21,6 @@ use crate::edmm::perm;
 use crate::edmm::PageRange;
 use crate::edmm::{PageInfo, PageType, ProtFlags};
 use crate::enclave::is_within_enclave;
-use alloc::alloc::Global;
 use alloc::boxed::Box;
 use intrusive_collections::intrusive_adapter;
 use intrusive_collections::LinkedListLink;
@@ -31,29 +30,31 @@ use sgx_types::error::SgxStatus;
 
 use crate::feature::SysFeatures;
 use crate::trts::Version;
-use crate::veh::{ExceptionHandler, ExceptionInfo};
 
 use super::alloc::ResAlloc;
 use super::alloc::StaticAlloc;
 use super::bitmap::BitArray;
 use super::flags::AllocFlags;
 use super::interior::Alloc;
+use super::pfhandler::PfHandler;
+use super::pfhandler::PfInfo;
 
+/// Enclave Management Area
 #[repr(C)]
-#[derive(Clone)]
 pub struct EMA {
-    // starting address, page aligned
+    // page aligned start address
     start: usize,
-    // bytes, or page may be more available
+    // bytes, round to page bytes
     length: usize,
     alloc_flags: AllocFlags,
     info: PageInfo,
     // bitmap for EACCEPT status
+    // FIXME: replace BitArray with pointer
     eaccept_map: Option<BitArray>,
     // custom PF handler
-    handler: Option<ExceptionHandler>,
-    // private data for handler
-    priv_data: Option<*mut ExceptionInfo>,
+    handler: Option<PfHandler>,
+    // private data for PF handler
+    priv_data: Option<*mut PfInfo>,
     alloc: Alloc,
     // intrusive linkedlist
     link: LinkedListLink,
@@ -64,17 +65,18 @@ unsafe impl Send for EMA {}
 unsafe impl Sync for EMA {}
 
 impl EMA {
-    // start address must be page aligned
+    /// Initialize EMA node with null eaccept map,
+    /// and start address must be page aligned
     pub fn new(
         start: usize,
         length: usize,
         alloc_flags: AllocFlags,
         info: PageInfo,
-        handler: Option<ExceptionHandler>,
-        priv_data: Option<*mut ExceptionInfo>,
+        handler: Option<PfHandler>,
+        priv_data: Option<*mut PfInfo>,
         alloc: Alloc,
     ) -> SgxResult<Self> {
-        // check flags' eligibility
+        // check alloc flags' eligibility
         AllocFlags::try_from(alloc_flags.bits())?;
 
         if start != 0
@@ -83,7 +85,7 @@ impl EMA {
             && is_page_aligned!(start)
             && (length % crate::arch::SE_PAGE_SIZE) == 0
         {
-            return Ok(Self {
+            Ok(Self {
                 start,
                 length,
                 alloc_flags,
@@ -93,15 +95,15 @@ impl EMA {
                 priv_data,
                 link: LinkedListLink::new(),
                 alloc,
-            });
+            })
         } else {
-            return Err(SgxStatus::InvalidParameter);
+            Err(SgxStatus::InvalidParameter)
         }
     }
 
-    // Returns a newly allocated ema in charging of the memory in the range [addr, addr + len).
-    // After the call, the original ema will be left containing the elements [start, addr)
-    // with its previous capacity unchanged.
+    /// Split current ema at specified address, return a new allocated ema
+    /// corresponding to the memory at the range of [addr, end).
+    /// And the current ema manages the memory at the range of [start, addr).
     pub fn split(&mut self, addr: usize) -> SgxResult<*mut EMA> {
         let l_start = self.start;
         let l_length = addr - l_start;
@@ -112,22 +114,46 @@ impl EMA {
         let new_bitarray = match &mut self.eaccept_map {
             Some(bitarray) => {
                 let pos = (addr - self.start) >> crate::arch::SE_PAGE_SHIFT;
-                // split self.eaccept_map
                 Some(bitarray.split(pos)?)
             }
             None => None,
         };
 
+        // Initialize EMA with same allocator
         let new_ema: *mut EMA = match self.alloc {
             Alloc::Reserve => {
-                let mut ema = Box::new_in(self.clone(), ResAlloc);
+                let mut ema = Box::new_in(
+                    EMA::new(
+                        self.start,
+                        self.length,
+                        self.alloc_flags,
+                        self.info,
+                        self.handler,
+                        self.priv_data,
+                        Alloc::Reserve,
+                    )
+                    .unwrap(),
+                    ResAlloc,
+                );
                 ema.start = r_start;
                 ema.length = r_length;
                 ema.eaccept_map = new_bitarray;
                 Box::into_raw(ema)
             }
             Alloc::Static => {
-                let mut ema = Box::new_in(self.clone(), StaticAlloc);
+                let mut ema = Box::new_in(
+                    EMA::new(
+                        self.start,
+                        self.length,
+                        self.alloc_flags,
+                        self.info,
+                        self.handler,
+                        self.priv_data,
+                        Alloc::Static,
+                    )
+                    .unwrap(),
+                    StaticAlloc,
+                );
                 ema.start = r_start;
                 ema.length = r_length;
                 ema.eaccept_map = new_bitarray;
@@ -138,56 +164,46 @@ impl EMA {
         self.start = l_start;
         self.length = l_length;
 
-        return Ok(new_ema);
+        Ok(new_ema)
     }
 
-    // FIXME: handling reserve ema node doesn't have ema eaccept
-    /// Alloc the reserve / committed / vitual memory indeed
+    /// Allocate the reserve / committed / virtual memory at corresponding memory
     pub fn alloc(&mut self) -> SgxResult {
+        // RESERVED region only occupy memory range, but no real allocation
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
             return Ok(());
         }
 
-        // new self bitmap
+        // Allocate new eaccept_map for COMMIT_ON_DEMAND and COMMIT_NOW
+        if self.eaccept_map.is_none() {
+            let eaccept_map = match self.alloc {
+                Alloc::Reserve => {
+                    let page_num = self.length >> SE_PAGE_SHIFT;
+                    BitArray::new(page_num, Alloc::Reserve)?
+                }
+                Alloc::Static => {
+                    let page_num = self.length >> SE_PAGE_SHIFT;
+                    BitArray::new(page_num, Alloc::Static)?
+                }
+            };
+            self.eaccept_map = Some(eaccept_map);
+        };
 
-        // COMMIT_ON_DEMAND and COMMIT_NOW both need to mmap memory in urts
+        // Ocall to mmap memory in urts
         perm::alloc_ocall(self.start, self.length, self.info.typ, self.alloc_flags)?;
 
+        // Set the corresponding bits of eaccept map
         if self.alloc_flags.contains(AllocFlags::COMMIT_NOW) {
-            let grow_up: bool = if self.alloc_flags.contains(AllocFlags::GROWSDOWN) {
-                false
-            } else {
-                true
-            };
+            let grow_up: bool = !self.alloc_flags.contains(AllocFlags::GROWSDOWN);
             self.eaccept(self.start, self.length, grow_up)?;
-            // set eaccept map full
-            match &mut self.eaccept_map {
-                Some(map) => {
-                    map.set_full();
-                }
-                None => {
-                    // COMMIT_NOW must have eaccept_map
-                    return Err(SgxStatus::Unexpected);
-                }
-            }
+            self.eaccept_map.as_mut().unwrap().set_full();
         } else {
-            // clear eaccept map
-            match &mut self.eaccept_map {
-                Some(map) => {
-                    map.clear();
-                }
-                None => {
-                    // COMMIT_NOW must have eaccept_map
-                    return Err(SgxStatus::Unexpected);
-                }
-            }
+            self.eaccept_map.as_mut().unwrap().clear();
         }
-        return Ok(());
+        Ok(())
     }
 
-    /// do eaccept for targeted EPC page
-    /// similiar to "apply_epc_pages(addr: usize, count: usize)" / intel emm do_commit()
-    /// do not change eaccept map
+    /// Eaccept target EPC pages with cpu instruction
     fn eaccept(&self, start: usize, length: usize, grow_up: bool) -> SgxResult {
         let info = PageInfo {
             typ: self.info.typ,
@@ -203,7 +219,7 @@ impl EMA {
         }
     }
 
-    // Attension, return EACCES SgxStatus may be more appropriate
+    /// Check the prerequisites of ema commitment
     pub fn commit_check(&self) -> SgxResult {
         if self.info.prot.intersects(ProtFlags::R | ProtFlags::W) {
             return Err(SgxStatus::InvalidParameter);
@@ -220,12 +236,12 @@ impl EMA {
         Ok(())
     }
 
-    /// commit all the memory in this ema
+    /// Commit the corresponding memory of this ema
     pub fn commit_self(&mut self) -> SgxResult {
         self.commit(self.start, self.length)
     }
 
-    /// ema_do_commit
+    /// Commit the partial memory of this ema
     pub fn commit(&mut self, start: usize, length: usize) -> SgxResult {
         ensure!(
             length != 0
@@ -242,22 +258,23 @@ impl EMA {
 
         let pages = PageRange::new(start, length / crate::arch::SE_PAGE_SIZE, info)?;
 
-        // page index for parsing start address
+        // Page index of the start address
         let init_idx = (start - self.start) >> crate::arch::SE_PAGE_SHIFT;
         let map = self.eaccept_map.as_mut().unwrap();
 
         for (idx, page) in pages.iter().enumerate() {
             let page_idx = idx + init_idx;
-            if map.get(page_idx) {
+            if map.get(page_idx).unwrap() {
                 continue;
             } else {
                 page.accept()?;
-                map.set(page_idx, true);
+                map.set(page_idx, true)?;
             }
         }
-        return Ok(());
+        Ok(())
     }
 
+    /// Check the prerequisites of ema uncommitment
     pub fn uncommit_check(&self) -> SgxResult {
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
             return Err(SgxStatus::InvalidParameter);
@@ -265,6 +282,7 @@ impl EMA {
         Ok(())
     }
 
+    /// Uncommit the corresponding memory of this ema
     pub fn uncommit_self(&mut self) -> SgxResult {
         let prot = self.info.prot;
         if prot == ProtFlags::NONE {
@@ -274,9 +292,8 @@ impl EMA {
         self.uncommit(self.start, self.length, prot)
     }
 
-    /// uncommit EPC page
+    /// Uncommit the partial memory of this ema
     pub fn uncommit(&mut self, start: usize, length: usize, prot: ProtFlags) -> SgxResult {
-        // need READ for trimming
         ensure!(self.eaccept_map.is_some(), SgxStatus::InvalidParameter);
 
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
@@ -292,12 +309,11 @@ impl EMA {
         let mut start = start;
         let end: usize = start + length;
 
-        // TODO: optimized with [u8] slice
         while start < end {
             let mut block_start = start;
             while block_start < end {
                 let pos = (block_start - self.start) >> crate::arch::SE_PAGE_SHIFT;
-                if map.get(pos) {
+                if map.get(pos).unwrap() {
                     break;
                 } else {
                     block_start += crate::arch::SE_PAGE_SIZE;
@@ -311,7 +327,7 @@ impl EMA {
             let mut block_end = block_start + crate::arch::SE_PAGE_SIZE;
             while block_end < end {
                 let pos = (block_end - self.start) >> crate::arch::SE_PAGE_SHIFT;
-                if map.get(pos) {
+                if map.get(pos).unwrap() {
                     block_end += crate::arch::SE_PAGE_SIZE;
                 } else {
                     break;
@@ -342,10 +358,10 @@ impl EMA {
             for (idx, page) in pages.iter().enumerate() {
                 page.accept()?;
                 let pos = idx + init_idx;
-                map.set(pos, false);
+                map.set(pos, false)?;
             }
 
-            // eaccept trim notify
+            // Notify trimming
             perm::modify_ocall(
                 block_start,
                 block_length,
@@ -363,6 +379,7 @@ impl EMA {
         Ok(())
     }
 
+    /// Check the prerequisites of modifying permissions
     pub fn modify_perm_check(&self) -> SgxResult {
         if self.info.typ != PageType::Reg {
             return Err(SgxStatus::InvalidParameter);
@@ -386,11 +403,13 @@ impl EMA {
         Ok(())
     }
 
+    /// Modifying the permissions of corresponding memory of this ema
     pub fn modify_perm(&mut self, new_prot: ProtFlags) -> SgxResult {
         if self.info.prot == new_prot {
             return Ok(());
         }
 
+        // Notify modifying permissions
         if SysFeatures::get().version() == Version::Sdk2_0 {
             perm::modify_ocall(
                 self.start,
@@ -410,17 +429,16 @@ impl EMA {
 
         let pages = PageRange::new(self.start, self.length / crate::arch::SE_PAGE_SIZE, info)?;
 
+        // Modpe the EPC with cpu instruction
         for page in pages.iter() {
-            // If new_prot is the subset of self.info.prot, no need to apply modpe.
-            // So we can't use new_prot != self.info.prot as determination
             if (new_prot | self.info.prot) != self.info.prot {
                 page.modpe()?;
             }
 
-            // new permission is RWX, no EMODPR needed in untrusted part, hence no
-            // EACCEPT
+            // If the new permission is RWX, no EMODPR needed in untrusted part (modify ocall)
             if (new_prot & (ProtFlags::W | ProtFlags::X)) != (ProtFlags::W | ProtFlags::X) {
                 page.accept()?;
+                return Ok(());
             }
         }
 
@@ -447,20 +465,19 @@ impl EMA {
         Ok(())
     }
 
+    /// Changing the page type from Reg to Tcs
     pub fn change_to_tcs(&mut self) -> SgxResult {
-        // the ema has and only has one page
+        // The ema must have and only have one page
         if self.length != SE_PAGE_SIZE {
             return Err(SgxStatus::InvalidParameter);
         }
 
-        // page must be committed
+        // The page must be committed
         if !self.is_page_committed(self.start) {
             return Err(SgxStatus::InvalidParameter);
         }
 
         let info = self.info;
-
-        // page has been changed to tcs
         if info.typ == PageType::Tcs {
             return Ok(());
         }
@@ -501,15 +518,16 @@ impl EMA {
         Ok(())
     }
 
-    fn is_page_committed(&self, addr: usize) -> bool {
+    pub fn is_page_committed(&self, addr: usize) -> bool {
         assert!(addr % SE_PAGE_SIZE == 0);
         if self.eaccept_map.is_none() {
             return false;
         }
         let pos = (addr - self.start) >> SE_PAGE_SHIFT;
-        self.eaccept_map.as_ref().unwrap().get(pos)
+        self.eaccept_map.as_ref().unwrap().get(pos).unwrap()
     }
 
+    /// Deallocate the corresponding memory of this ema
     pub fn dealloc(&mut self) -> SgxResult {
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
             return Ok(());
@@ -522,46 +540,67 @@ impl EMA {
         Ok(())
     }
 
+    /// Obtain the aligned end address
     pub fn aligned_end(&self, align: usize) -> usize {
         let curr_end = self.start + self.length;
         round_to!(curr_end, align)
     }
 
+    /// Obtain the end address of ema
     pub fn end(&self) -> usize {
         self.start + self.length
     }
 
+    /// Obtain the start address of ema
     pub fn start(&self) -> usize {
         self.start
     }
 
+    /// Obtain the length of ema (bytes)
     pub fn len(&self) -> usize {
         self.length
     }
 
+    /// Check if the ema range is lower than the address
     pub fn lower_than_addr(&self, addr: usize) -> bool {
         self.end() <= addr
     }
 
+    /// Check if the ema range is higher than the address
     pub fn higher_than_addr(&self, addr: usize) -> bool {
         self.start >= addr
     }
 
-    pub fn set_flags(&mut self, flags: AllocFlags) {
+    /// Check if the ema range contains the specified address
+    pub fn overlap_addr(&self, addr: usize) -> bool {
+        (addr >= self.start) && (addr < self.start + self.length)
+    }
+
+    fn set_flags(&mut self, flags: AllocFlags) {
         self.alloc_flags = flags;
     }
-    pub fn set_prot(&mut self, info: PageInfo) {
+
+    fn set_prot(&mut self, info: PageInfo) {
         self.info = info;
     }
-    fn flags(&self) -> AllocFlags {
+
+    /// Obtain the allocator of ema
+    pub fn allocator(&self) -> Alloc {
+        self.alloc.clone()
+    }
+
+    pub fn flags(&self) -> AllocFlags {
         self.alloc_flags
     }
-    fn info(&self) -> PageInfo {
+
+    pub fn info(&self) -> PageInfo {
         self.info
     }
-    fn handler(&self) -> Option<ExceptionHandler> {
-        self.handler
+
+    pub fn fault_handler(&self) -> (Option<PfHandler>, Option<*mut PfInfo>) {
+        (self.handler, self.priv_data)
     }
 }
 
+// Implement ema adapter for the operations of intrusive linkedlist
 intrusive_adapter!(pub EmaAda = UnsafeRef<EMA>: EMA { link: LinkedListLink });

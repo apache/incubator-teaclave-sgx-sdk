@@ -40,6 +40,7 @@ macro_rules! is_page_aligned {
     };
 }
 
+// rounds to up
 macro_rules! round_to {
     ($num:expr, $align:expr) => {
         ($num + $align - 1) & (!($align - 1))
