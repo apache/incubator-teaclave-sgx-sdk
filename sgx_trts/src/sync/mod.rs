@@ -19,6 +19,7 @@ mod lazy;
 mod lock_api;
 mod mutex;
 mod once;
+mod remutex;
 mod rwlock;
 
 #[allow(unused_imports)]
@@ -27,4 +28,5 @@ pub(crate) use once::Once;
 
 pub use lock_api::{RawMutex, RawRwLock};
 pub use mutex::{SpinMutex, SpinMutexGuard};
+pub use remutex::{SpinReentrantMutex, SpinReentrantMutexGuard};
 pub use rwlock::{SpinRwLock, SpinRwLockReadGuard, SpinRwLockWriteGuard};
