@@ -20,6 +20,7 @@ use crate::error;
 use crate::sync::SpinMutex;
 use crate::veh::list;
 use core::num::NonZeroU64;
+use core::slice;
 use sgx_types::error::{SgxResult, SgxStatus};
 
 pub const MAX_REGISTER_COUNT: usize = 64;
@@ -79,11 +80,43 @@ impl_struct! {
 impl_struct! {
     #[repr(C)]
     #[derive(Debug)]
-    pub struct ExceptionInfo {
-        pub context: CpuContext,
-        pub vector: ExceptionVector,
-        pub exception_type: ExceptionType,
+    pub struct MiscExInfo {
+        pub faulting_address: u64,
+        pub error_code: u32,
+        pub reserved: u32,
     }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct ExceptionInfo {
+    pub context: CpuContext,
+    pub vector: ExceptionVector,
+    pub exception_type: ExceptionType,
+    pub exinfo: MiscExInfo,
+    pub exception_valid: u32,
+    pub do_aex_mitigation: u32,
+    pub xsave_size: u64,
+    pub reserved: [u64; 1],
+    pub xsave_area: [u8; 0],
+}
+
+impl ExceptionInfo {
+    #[inline]
+    pub fn xsave_area(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(&self.xsave_area as *const u8, self.xsave_size as usize) }
+    }
+
+    #[inline]
+    pub fn xsave_area_mut(&mut self) -> &mut [u8] {
+        unsafe {
+            slice::from_raw_parts_mut(&mut self.xsave_area as *mut u8, self.xsave_size as usize)
+        }
+    }
+}
+
+impl_struct_ContiguousMemory! {
+    ExceptionInfo;
 }
 
 impl_enum! {

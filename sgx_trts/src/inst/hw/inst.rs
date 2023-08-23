@@ -94,6 +94,26 @@ impl EncluInst {
         }
     }
 
+    pub fn eacceptcopy(info: &Secinfo, addr: usize, source: usize) -> Result<(), u32> {
+        unsafe {
+            let error;
+            asm!(
+                "xchg rbx, {0}",
+                "enclu",
+                "mov rbx, {0}",
+                inout(reg) info => _,
+                inlateout("eax") Enclu::EAccept as u32 => error,
+                in("rcx") addr,
+                in("rdx") source,
+                options(nostack),
+            );
+            match error {
+                0 => Ok(()),
+                _ => Err(error),
+            }
+        }
+    }
+
     pub fn emodpe(info: &Secinfo, addr: usize) -> Result<(), u32> {
         unsafe {
             asm!(

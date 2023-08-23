@@ -77,11 +77,11 @@ pub const SL_MAX_TASKS_MAX_QWORDS: u32 = 8;
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct SwitchlessConfig {
-    pub pool_size_qwords: u32,
-    pub uworkers: u32,
-    pub tworkers: u32,
-    pub retries_before_fallback: u32,
-    pub retries_before_sleep: u32,
+    pub pool_size_qwords: u64,
+    pub uworkers: u64,
+    pub tworkers: u64,
+    pub retries_before_fallback: u64,
+    pub retries_before_sleep: u64,
     pub callback: [Option<SwitchlessWokerCallback>; 4],
 }
 

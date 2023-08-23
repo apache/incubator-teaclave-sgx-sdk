@@ -60,8 +60,10 @@ mod version;
 mod xsave;
 
 pub mod capi;
-pub mod edmm;
 
+#[cfg(not(any(feature = "sim", feature = "hyper")))]
+pub mod aexnotify;
+pub mod edmm;
 pub mod error;
 #[macro_use]
 pub mod feature;

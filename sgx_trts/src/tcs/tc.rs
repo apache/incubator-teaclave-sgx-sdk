@@ -154,6 +154,8 @@ impl<'a> ThreadControl<'a> {
         self.tds.stack_limit = tcs_base.wrapping_offset(self.tds.stack_limit as isize) as usize;
         self.tds.stack_commit = self.tds.stack_limit;
         self.tds.first_ssa_gpr = tcs_base.wrapping_offset(self.tds.first_ssa_gpr as isize) as usize;
+        self.tds.first_ssa_xsave =
+            tcs_base.wrapping_offset(self.tds.first_ssa_xsave as isize) as usize;
         self.tds.tls_array = tcs_base.wrapping_offset(self.tds.tls_array as isize) as usize;
         self.tds.tls_addr = tcs_base.wrapping_offset(self.tds.tls_addr as isize) as usize;
         self.tds.last_sp -= STATIC_STACK_SIZE;

@@ -254,6 +254,15 @@ pub fn ecall<T>(idx: ECallIndex, tcs: &mut Tcs, ms: *mut T, tidx: usize) -> SgxR
         tc.init(tidx, false)?;
     }
 
+    #[cfg(not(any(feature = "sim", feature = "hyper")))]
+    {
+        let tds = tc.tds_mut();
+        if tds.aex_notify_flag == 1 {
+            tds.aex_notify_flag = 0;
+            let _ = crate::aexnotify::AEXNotify::set(true);
+        }
+    }
+
     #[cfg(not(feature = "hyper"))]
     if is_root_ecall {
         let _ = crate::pkru::Pkru::write(0);

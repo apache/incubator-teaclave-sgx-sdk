@@ -40,16 +40,20 @@
 #define SGX_FLAGS_MODE64BIT      0x0000000000000004ULL     /* If set, then the enclave is 64 bit */
 #define SGX_FLAGS_PROVISION_KEY  0x0000000000000010ULL     /* If set, then the enclave has access to provision key */
 #define SGX_FLAGS_EINITTOKEN_KEY 0x0000000000000020ULL     /* If set, then the enclave has access to EINITTOKEN key */
-#define SGX_FLAGS_KSS            0x0000000000000080ULL     /* If set enclave uses KSS */
+#define SGX_FLAGS_KSS            0x0000000000000080ULL     /* If set, then the enclave uses KSS */
+#define SGX_FLAGS_AEX_NOTIFY     0x0000000000000400ULL     /* If set, then the enclave enables AEX Notify */
+
+#define SGX_FLAGS_NON_CHECK_BITS 0x00FF000000000000ULL     /* BIT[55-48] will not be checked */
 
 /* XSAVE Feature Request Mask */
 #define SGX_XFRM_LEGACY          0x0000000000000003ULL     /* Legacy XFRM which includes the basic feature bits required by SGX, x87 state(0x01) and SSE state(0x02) */
 #define SGX_XFRM_AVX             0x0000000000000006ULL     /* AVX XFRM which includes AVX state(0x04) and SSE state(0x02) required by AVX */
-#define SGX_XFRM_AVX512          0x00000000000000E6ULL     /* AVX-512 XFRM - not supported */
+#define SGX_XFRM_AVX512          0x00000000000000E6ULL     /* AVX-512 XFRM */
 #define SGX_XFRM_MPX             0x0000000000000018ULL     /* MPX XFRM - not supported */
 #define SGX_XFRM_PKRU            0x0000000000000200ULL     /* PKRU state */
+#define SGX_XFRM_AMX             0x0000000000060000ULL     /* AMX XFRM, including XTILEDATA(0x40000) and XTILECFG(0x20000) */
 
-#define SGX_XFRM_RESERVED        (~(SGX_XFRM_LEGACY | SGX_XFRM_AVX | SGX_XFRM_AVX512 | SGX_XFRM_PKRU))
+#define SGX_XFRM_RESERVED        (~(SGX_XFRM_LEGACY | SGX_XFRM_AVX | SGX_XFRM_AVX512 | SGX_XFRM_PKRU | SGX_XFRM_AMX))
 
 typedef struct _attributes_t
 {
@@ -57,7 +61,9 @@ typedef struct _attributes_t
     uint64_t      xfrm;
 } sgx_attributes_t;
 
-/* define MISCSELECT - all bits are currently reserved */
+/* Define MISCSELECT
+ *      bit 0: EXINFO
+ *      bit 31-1: reserved(0) */
 typedef uint32_t    sgx_misc_select_t;
 
 typedef struct _sgx_misc_attribute_t {

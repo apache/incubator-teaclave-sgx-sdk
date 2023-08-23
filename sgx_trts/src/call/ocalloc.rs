@@ -129,7 +129,7 @@ impl DerefMut for OcBuffer {
 
 #[cfg(not(feature = "hyper"))]
 mod stack {
-    use crate::arch::{self, SsaGpr};
+    use crate::arch;
     use crate::enclave;
     use crate::tcs;
     use core::alloc::{AllocError, Allocator, Layout};
@@ -166,10 +166,10 @@ mod stack {
             let align = cmp::min(layout.align(), OcAlloc::OC_MAX_ALIGN);
             let size = layout.size();
 
-            let tc = tcs::current();
-            let tds = tc.tds();
+            let mut tc = tcs::current();
+            let tds = tc.tds_mut();
 
-            let ssa_gpr = unsafe { &mut *(tds.first_ssa_gpr as *mut SsaGpr) };
+            let ssa_gpr = tds.ssa_gpr_mut();
             let mut addr = ssa_gpr.rsp_u as usize;
 
             // check u_rsp points to the untrusted address.
@@ -233,11 +233,12 @@ mod stack {
         //              | xbp_u       |
         //              | xsp_u       |
         pub(super) unsafe fn oc_free(&self) -> SgxResult {
-            let tc = tcs::current();
-            let tds = tc.tds();
+            let mut tc = tcs::current();
+            let tds = tc.tds_mut();
+            let last_sp = tds.last_sp;
 
-            let ssa_gpr = &mut *(tds.first_ssa_gpr as *mut SsaGpr);
-            let addr = tds.last_sp - 3 * mem::size_of::<usize>();
+            let ssa_gpr = tds.ssa_gpr_mut();
+            let addr = last_sp - 3 * mem::size_of::<usize>();
             let usp = *(addr as *const usize);
 
             if enclave::is_within_host(usp as *const u8, mem::size_of::<usize>()) {

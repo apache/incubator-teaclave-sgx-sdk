@@ -73,7 +73,8 @@ impl_bitflags! {
         const EINITTOKENKEY = 0x0000_0000_0000_0020;
         const CET           = 0x0000_0000_0000_0040;
         const KSS           = 0x0000_0000_0000_0080;
-        const NON_SECURITY  = 0x0000_0000_0000_0004 | 0x0000_0000_0000_0010 | 0x0000_0000_0000_0020;
+        const AEXNOTIFY     = 0x0000_0000_0000_0400;
+        const NON_SECURITY  = 0x00FF_FFFF_FFFF_FFC0 | 0x0000_0000_0000_0004 | 0x0000_0000_0000_0010 | 0x0000_0000_0000_0020;
         const DEFAULT_MASK  = !(0x00FF_FFFF_FFFF_FFC0 | 0x0000_0000_0000_0004 | 0x0000_0000_0000_0010 | 0x0000_0000_0000_0020);
     }
 }
@@ -84,7 +85,8 @@ pub const XFRM_AVX: u64 = 0x0000_0000_0000_0006; // AVX
 pub const XFRM_AVX512: u64 = 0x0000_0000_0000_00E6; // AVX-512 - not supported
 pub const XFRM_MPX: u64 = 0x0000_0000_0000_0018; // MPX - not supported
 pub const XFRM_PKRU: u64 = 0x0000_0000_0000_0200; // PKRU state
-pub const XFRM_RESERVED: u64 = !(XFRM_LEGACY | XFRM_AVX | XFRM_AVX512 | XFRM_PKRU);
+pub const XFRM_AMX: u64 = 0x0000_0000_0006_0000; // AMX XFRM, including XTILEDATA(0x40000) and XTILECFG(0x20000)
+pub const XFRM_RESERVED: u64 = !(XFRM_LEGACY | XFRM_AVX | XFRM_AVX512 | XFRM_PKRU | XFRM_AMX);
 
 impl_bitflags! {
     #[repr(C)]

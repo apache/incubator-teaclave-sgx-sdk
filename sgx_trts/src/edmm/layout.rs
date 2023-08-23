@@ -161,4 +161,12 @@ impl<'a> LayoutTable<'a> {
             false
         }
     }
+
+    pub fn is_user_region_exist(&self) -> bool {
+        if SysFeatures::get().is_edmm() {
+            self.layout_by_id(arch::LAYOUT_ID_USER_REGION).is_some()
+        } else {
+            false
+        }
+    }
 }

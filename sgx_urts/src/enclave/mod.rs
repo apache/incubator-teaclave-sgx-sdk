@@ -181,8 +181,8 @@ impl SgxEnclave {
     pub fn create_with_switchless<P: AsRef<Path>>(
         path: P,
         debug: bool,
-        uworkers: u32,
-        tworkers: u32,
+        uworkers: u64,
+        tworkers: u64,
     ) -> SgxResult<SgxEnclave> {
         let config = SwitchlessConfig {
             uworkers,

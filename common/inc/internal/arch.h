@@ -99,7 +99,7 @@ flags definitions
 typedef struct _tcs_t
 {
     uint64_t            reserved0;       /* (0) */
-    uint64_t            flags;           /* (8)bit 0: DBGOPTION */
+    uint64_t            flags;           /* (8)bit 0: DBGOPTION, bit 1: AEXNOTIFY */
     uint64_t            ossa;            /* (16)State Save Area */
     uint32_t            cssa;            /* (24)Current SSA slot */
     uint32_t            nssa;            /* (28)Number of SSA slots */
@@ -131,9 +131,13 @@ typedef struct _exit_info_t
 #define SE_VECTOR_BP    3
 #define SE_VECTOR_BR    5
 #define SE_VECTOR_UD    6
+#define SE_VECTOR_GP    13
+#define SE_VECTOR_PF    14
 #define SE_VECTOR_MF    16
 #define SE_VECTOR_AC    17
 #define SE_VECTOR_XM    19
+
+#define SSA_AEXNOTIFY_MASK 0x1U     /* Only set the first bit */
 
 typedef struct _ssa_gpr_t
 {
@@ -153,15 +157,25 @@ typedef struct _ssa_gpr_t
     uint64_t    r13;                    /* (104) */
     uint64_t    r14;                    /* (112) */
     uint64_t    r15;                    /* (120) */
-    REGISTER(flags);                 /* (128) */
-    REGISTER(   ip);                 /* (136) */
-    REGISTER( sp_u);                 /* (144) untrusted stack pointer. saved by EENTER */
-    REGISTER( bp_u);                 /* (152) untrusted frame pointer. saved by EENTER */
+    REGISTER(flags);                    /* (128) */
+    REGISTER(   ip);                    /* (136) */
+    REGISTER( sp_u);                    /* (144) untrusted stack pointer. saved by EENTER */
+    REGISTER( bp_u);                    /* (152) untrusted frame pointer. saved by EENTER */
     exit_info_t exit_info;              /* (160) contain information for exits */
-    uint32_t    reserved;               /* (164) padding to multiple of 8 bytes */
+    uint8_t     reserved[3];            /* (164) padding */
+    uint8_t     aex_notify;             /* (167) AEX Notify */
     uint64_t    fs;                     /* (168) FS register */
     uint64_t    gs;                     /* (176) GS register */
 } ssa_gpr_t;
+
+typedef struct _misc_exinfo
+{
+    uint64_t maddr; // address for #PF, #GP.
+    uint32_t errcd;
+    uint32_t reserved;
+} misc_exinfo_t;
+
+#define MISC_BYTE_SIZE sizeof(misc_exinfo_t)
 
 typedef uint64_t si_flags_t;
 

@@ -25,12 +25,15 @@ cfg_if! {
     if #[cfg(feature = "sim")] {
         global_asm!(include_str!("../inst/sim/td.S"), options(att_syntax));
         global_asm!(include_str!("../inst/sim/enclu.S"), options(att_syntax));
+        global_asm!(include_str!("../inst/sim/aexnotify.S"), options(att_syntax));
     } else if #[cfg(feature = "hyper")] {
         global_asm!(include_str!("../inst/hyper/td.S"), options(att_syntax));
         global_asm!(include_str!("../inst/hyper/enclu.S"), options(att_syntax));
+        global_asm!(include_str!("../inst/hyper/aexnotify.S"), options(att_syntax));
     } else {
         global_asm!(include_str!("../inst/hw/td.S"), options(att_syntax));
         global_asm!(include_str!("../inst/hw/enclu.S"), options(att_syntax));
+        global_asm!(include_str!("../inst/hw/aexnotify.S"), options(att_syntax));
     }
 }
 

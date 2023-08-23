@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use crate::arch::Global;
 use sgx_types::types;
 
 pub fn get_xfrm() -> u64 {
@@ -58,4 +59,9 @@ pub fn is_enabled() -> bool {
         fn get_xsave_enabled() -> i32;
     }
     unsafe { get_xsave_enabled() != 0 }
+}
+
+#[inline]
+pub fn xsave_size() -> usize {
+    Global::get().td_template.xsave_size
 }

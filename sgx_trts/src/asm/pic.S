@@ -35,12 +35,14 @@ __ImageBase:
 .equ xsave_size,          (SE_WORDSIZE * 7)
 .equ self_addr,           0
 .equ stack_guard,         (SE_WORDSIZE * 5)
+.equ aex_notify_flag,     (SE_WORDSIZE * 10)
 
 /* SSA GPR */
 .equ ssa_sp_t,            32
 .equ ssa_sp_u,            144
 .equ ssa_bp_u,            152
 .equ ssa_exit_info,       160
+.equ aex_notify,          167
 
 .equ EXIT_INFO_VALID,     0x80000000
 /* OCALL command */
@@ -168,6 +170,8 @@ _start:
     call    restore_xregs
     lfence
 
+    DISABLE_AEXNOTIFY_ECALL
+.Lrestore_untrust_stack:
 /* set xdi and xsi */
     mov     $OCMD_ERET, %rdi
     mov     %rbx, %rsi
@@ -339,6 +343,9 @@ DECLARE_LOCAL_FUNC __do_ocall
 
     /* restore outside stack context */
     mov     first_ssa_gpr(%rbx), %rdx
+
+    DISABLE_AEXNOTIFY_OCALL
+.Lrestore_outside_stack:
     mov     ssa_bp_u(%rdx), %rbp
     mov     ssa_sp_u(%rdx), %rsp
     /*
@@ -453,17 +460,6 @@ Lereport_inst:
     SE_EPILOG
 */
 
-/*
- * -------------------------------------------------------------------------
- * extern "C" void abort(void) __attribute__(__noreturn__);
- * -------------------------------------------------------------------------
- */
-/*
-DECLARE_GLOBAL_FUNC abort
-    lea_pic ENCLAVE_STATE, %rax
-    movl    $ENCLAVE_CRASHED, (%rax)
-    ud2
-*/
 /* 
  * -------------------------------------------------------------------------
  * extern "C" __attribute__((regparm(1))) void continue_execution(sgx_exception_info_t *info);
@@ -506,15 +502,3 @@ DECLARE_LOCAL_FUNC continue_execution
     pop     %rsp                       /* xsp: xax */
     xchg    %rax, %rsp
     ret     $(RED_ZONE_SIZE)           /* pop xip and red zone (if any) */
-
-/*
-DECLARE_GLOBAL_FUNC lfence
-    pop %r11
-    lfence
-    jmp *%r11
-
-DECLARE_GLOBAL_FUNC mfence
-    pop %r11
-    mfence
-    jmp *%r11
-*/

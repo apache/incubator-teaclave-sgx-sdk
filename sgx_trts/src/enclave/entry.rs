@@ -70,16 +70,11 @@ pub unsafe extern "C" fn enter_enclave(index: u64, ms: usize, tcs: *mut Tcs, css
             _ => Err(SgxStatus::Unexpected),
         }
     } else if cssa == 1 {
-        match ecall {
-            ECallIndex::Except => {
-                let mut result = veh::handle(tcs);
-                if !tc::check_static_stack_guard(tcs) {
-                    result = Err(SgxStatus::StackOverRun);
-                }
-                result
-            }
-            _ => Err(SgxStatus::Unexpected),
+        let mut result = veh::handle(tcs);
+        if !tc::check_static_stack_guard(tcs) {
+            result = Err(SgxStatus::StackOverRun);
         }
+        result
     } else {
         Err(SgxStatus::Unexpected)
     };

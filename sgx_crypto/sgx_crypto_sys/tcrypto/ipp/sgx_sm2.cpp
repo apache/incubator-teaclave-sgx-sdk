@@ -524,8 +524,8 @@ sgx_status_t sgx_calculate_sm2_priv_key(const unsigned char* hash_drg, int hash_
     const unsigned char* sgx_sm2_order, int sgx_sm2_order_len,
     unsigned char* out_key, int out_key_len) {
 
-    if (out_key == NULL || hash_drg_len <= 0 || sgx_sm2_order <= 0 ||
-        out_key_len <= 0 || hash_drg == NULL || sgx_sm2_order_len == NULL) {
+    if (out_key == NULL || hash_drg_len <= 0 || sgx_sm2_order == NULL ||
+        out_key_len <= 0 || hash_drg == NULL || sgx_sm2_order_len <= 0) {
         return SGX_ERROR_INVALID_PARAMETER;
     }
 

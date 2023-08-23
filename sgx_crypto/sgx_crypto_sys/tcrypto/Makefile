@@ -77,7 +77,7 @@ CFLAGS += $(CPPFLAGS) $(ENCLAVE_CFLAGS) $(SGX_COMMON_FLAGS) -Werror -fno-excepti
 
 OBJ += sgx_tcrypto_common.o sgx_rsa_internal.o
 SRCDIR := ipp
-DISPDIR := $(SRCDIR)/ipp_disp
+DISPDIR := $(SRCDIR)/ipp_disp/intel64
 
 LIB_NAME := libsgx_tcrypto_ipp.a
 

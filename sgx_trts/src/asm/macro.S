@@ -26,11 +26,15 @@
 .equ SE_EACCEPT,        5
 .equ SE_EMODPE,         6
 .equ SE_EVERIFYREPORT2, 8
+.equ SE_EDECCSSA,       9
 
 .equ SE_ECREATE,    0
 .equ SE_EADD,       1
 .equ SE_EINIT,      2
 .equ SE_EREMOVE,    3
+.equ SE_EDBGRD,     4
+.equ SE_EDBGWR,     5
+.equ SE_EEXTEND,    6
 
 .macro DECLARE_GLOBAL_FUNC name
     .globl \name
