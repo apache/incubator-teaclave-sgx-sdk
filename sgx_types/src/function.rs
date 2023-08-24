@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::error::{PceError, QcnlError, Quote3Error, SgxStatus};
+use crate::error::{PceError, QcnlError, Quote3Error, SgxStatus, TdxAttestError};
 use crate::metadata::MetaData;
 use crate::types::*;
 
@@ -306,10 +306,19 @@ extern "C" {
         fmspc: *const u8,
         fmspc_size: u16,
         pck_ra: *const c_char,
-        pp_quote_collateral: *mut *mut CQlQveCollateral,
+        pp_quote_collateral: *mut *mut CTdxQlQvCollateral,
+    ) -> Quote3Error;
+    /* intel DCAP 1.17 */
+    pub fn tdx_ql_get_quote_verification_collateral_with_params(
+        fmspc: *const u8,
+        fmspc_size: u16,
+        pck_ra: *const c_char,
+        custom_param: *const c_void,
+        custom_param_length: u16,
+        pp_quote_collateral: *mut *mut CTdxQlQvCollateral,
     ) -> Quote3Error;
     pub fn tdx_ql_free_quote_verification_collateral(
-        p_quote_collateral: *const CQlQveCollateral,
+        p_quote_collateral: *const CTdxQlQvCollateral,
     ) -> Quote3Error;
 
     pub fn sgx_ql_get_qve_identity(
@@ -323,14 +332,20 @@ extern "C" {
         p_qve_identity_issuer_chain: *const c_char,
     ) -> Quote3Error;
 
-    /* intel DCAP 1.4 */
+    /* intel DCAP 1.14 */
     pub fn sgx_ql_get_root_ca_crl(
         pp_root_ca_crl: *mut *mut u8,
         p_root_ca_crl_size: *mut u16,
     ) -> Quote3Error;
     pub fn sgx_ql_free_root_ca_crl(p_root_ca_crl: *const uint8_t) -> Quote3Error;
-    /* intel DCAP 2.14 */
-    pub fn sgx_ql_set_logging_callback(logger: QlLoggingCallbackFn) -> Quote3Error;
+    /* intel DCAP 1.17 */
+    pub fn sgx_ql_set_logging_callback(
+        logger: QlLoggingCallbackFn,
+        loglevel: QlLogLevel,
+    ) -> Quote3Error;
+    pub fn sgx_qpl_clear_cache(cache_type: QplCacheType) -> Quote3Error;
+    pub fn sgx_qpl_global_init() -> Quote3Error;
+    pub fn sgx_qpl_global_cleanup() -> Quote3Error;
 }
 
 //#[link(name = "sgx_default_qcnl_wrapper")]
@@ -397,7 +412,14 @@ extern "C" {
     pub fn sgx_qcnl_free_root_ca_crl(p_root_ca_crl: *const u8);
     /* intel DCAP 1.13 */
     pub fn sgx_qcnl_get_api_version(p_major_ver: *mut u16, p_minor_ver: *mut u16) -> bool;
-    pub fn sgx_qcnl_set_logging_callback(logger: QlLoggingCallbackFn) -> QcnlError;
+    pub fn sgx_qcnl_set_logging_callback(
+        logger: QlLoggingCallbackFn,
+        loglevel: QlLogLevel,
+    ) -> QcnlError;
+    /* intel DCAP 1.17 */
+    pub fn sgx_qcnl_clear_cache(cache_type: u32) -> QcnlError;
+    pub fn sgx_qcnl_global_init() -> QcnlError;
+    pub fn sgx_qcnl_global_cleanup() -> QcnlError;
 }
 
 //#[link(name = "dcap_quoteverify")]
@@ -443,7 +465,7 @@ extern "C" {
     pub fn tdx_qv_verify_quote(
         p_quote: *const u8,
         quote_size: u32,
-        p_quote_collateral: *const CQlQveCollateral,
+        p_quote_collateral: *const CTdxQlQvCollateral,
         expiration_check_date: time_t,
         p_collateral_expiration_status: *mut u32,
         p_quote_verification_result: *mut QlQvResult,
@@ -451,4 +473,65 @@ extern "C" {
         supplemental_data_size: u32,
         p_supplemental_data: *mut u8,
     ) -> Quote3Error;
+
+    /* intel DCAP 1.15 */
+    pub fn tee_qv_get_collateral(
+        p_quote: *const u8,
+        quote_size: u32,
+        pp_quote_collateral: *mut *mut u8,
+        p_collateral_size: *mut u32,
+    ) -> Quote3Error;
+
+    pub fn tee_qv_free_collateral(p_quote_collateral: *const u8) -> Quote3Error;
+    pub fn tee_get_supplemental_data_version_and_size(
+        p_quote: *const u8,
+        quote_size: u32,
+        p_version: *mut u32,
+        p_data_size: *mut u32,
+    ) -> Quote3Error;
+
+    pub fn tee_verify_quote(
+        p_quote: *const u8,
+        quote_size: u32,
+        p_quote_collateral: *const u8,
+        expiration_check_date: time_t,
+        p_collateral_expiration_status: *mut u32,
+        p_quote_verification_result: *mut QlQvResult,
+        p_qve_report_info: *mut QlQeReportInfo,
+        p_supp_data_descriptor: *const CTeeSuppDataDescriptor,
+    ) -> Quote3Error;
+    /* intel DCAP 1.16 */
+    pub fn tee_get_fmspc_from_quote(
+        p_quote: *const u8,
+        quote_size: u32,
+        p_fmspc_from_quote: *mut u8,
+        fmspc_from_quote_size: u32,
+    ) -> Quote3Error;
+}
+
+/* intel DCAP 1.15 */
+//#[link(name = "libtdx_attest")]
+extern "C" {
+    //
+    // tdx_attes.h
+    //
+    pub fn tdx_att_get_quote(
+        p_tdx_report_data: *const TdxReportData,
+        att_key_id_list: *const TdxUuid,
+        list_size: u32,
+        p_att_key_id: *mut TdxUuid,
+        pp_quote: *mut *mut u8,
+        p_quote_size: *mut u32,
+        flags: u32,
+    ) -> TdxAttestError;
+    pub fn tdx_att_free_quote(p_quote: *const u8) -> TdxAttestError;
+    pub fn tdx_att_get_report(
+        p_tdx_report_data: *const TdxReportData,
+        p_tdx_report: *mut TdxReport,
+    ) -> TdxAttestError;
+    pub fn tdx_att_extend(p_rtmr_event: *const TdxRtmrEvent) -> TdxAttestError;
+    pub fn tdx_att_get_supported_att_key_ids(
+        p_att_key_id_list: *mut TdxUuid,
+        p_list_size: *mut u32,
+    ) -> TdxAttestError;
 }

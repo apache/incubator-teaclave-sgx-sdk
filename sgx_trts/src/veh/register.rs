@@ -98,7 +98,7 @@ pub struct ExceptionInfo {
     pub do_aex_mitigation: u32,
     pub xsave_size: u64,
     pub reserved: [u64; 1],
-    pub xsave_area: [u8; 0],
+    pub(super) xsave_area: [u8; 0],
 }
 
 impl ExceptionInfo {

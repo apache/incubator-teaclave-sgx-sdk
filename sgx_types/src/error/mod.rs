@@ -438,6 +438,13 @@ impl_enum! {
         PswNotAvailable                         = 0x0000_E052,
         CollateralVersionNotSupported           = 0x0000_E053,
         TdxModuleMismatch                       = 0x0000_E060,
+        QeQeIdentityNotFound                    = 0x0000_E061,
+        TcbInfoNotFound                         = 0x0000_E062,
+        InternalServerError                     = 0x0000_E063,
+        SupplementalDataVersionNotSupport       = 0x0000_E064,
+        RootCAUntrusted                         = 0x0000_E065,
+        TcbNotSupported                         = 0x0000_E066,
+        ConfigInvalidJson                       = 0x0000_E067,
         ErrorMax                                = 0x0000_E0FF,
     }
 }
@@ -557,7 +564,22 @@ impl Quote3Error {
                 "SGX quote verification collateral version not supported by QVL/QvE."
             }
             Quote3Error::TdxModuleMismatch => {
-                "TDX SEAM module identity is NOT match to Intel signed TDX SEAM module"
+                "TDX SEAM module identity is NOT match to Intel signed TDX SEAM module."
+            }
+            Quote3Error::QeQeIdentityNotFound => "QE identity was not found.",
+            Quote3Error::TcbInfoNotFound => "TCB Info was not found.",
+            Quote3Error::InternalServerError => "Internal server error.",
+            Quote3Error::SupplementalDataVersionNotSupport => {
+                "The supplemental data version is not supported."
+            }
+            Quote3Error::RootCAUntrusted => {
+                "The certificate used to establish SSL session is untrusted."
+            }
+            Quote3Error::TcbNotSupported => {
+                "Current TCB level cannot be found in platform/enclave TCB info."
+            }
+            Quote3Error::ConfigInvalidJson => {
+                "The QPL's config file is in JSON format but has a format error."
             }
             Quote3Error::ErrorMax => "Indicate max error to allow better translation.",
         }
@@ -645,6 +667,13 @@ impl Quote3Error {
             Quote3Error::PswNotAvailable => "PswNotAvailable",
             Quote3Error::CollateralVersionNotSupported => "CollateralVersionNotSupported",
             Quote3Error::TdxModuleMismatch => "TdxModuleMismatch",
+            Quote3Error::QeQeIdentityNotFound => "QeQeIdentityNotFound",
+            Quote3Error::TcbInfoNotFound => "TcbInfoNotFound",
+            Quote3Error::InternalServerError => "InternalServerError",
+            Quote3Error::SupplementalDataVersionNotSupport => "SupplementalDataVersionNotSupport",
+            Quote3Error::RootCAUntrusted => "RootCAUntrusted",
+            Quote3Error::TcbNotSupported => "TcbNotSupported",
+            Quote3Error::ConfigInvalidJson => "ConfigInvalidJson",
             Quote3Error::ErrorMax => "ErrorMax",
         }
     }
@@ -681,6 +710,11 @@ impl_enum! {
         StatusCertsUnavaliable      = 0x0000_B012,
         StatusServiceUnavaliable    = 0x0000_B013,
         InvalidConfig               = 0x0000_B030,
+        CacheMissing                = 0x0000_B031,
+        CacheExpired                = 0x0000_B032,
+        RootCAUntrusted             = 0x0000_B033,
+        ConfigInvalidJson           = 0x0000_B035,
+        ConfigNotJson               = 0x0000_B036,
     }
 }
 
@@ -694,20 +728,20 @@ impl QcnlError {
             QcnlError::NetworkProxyFail => "Network error : Couldn't resolve proxy.",
             QcnlError::NetworkHostFail => "Network error : Couldn't resolve host.",
             QcnlError::NetworkNotConnected => {
-                "Network error : Failed to connect() to host or proxy."
+                "Network error: Failed to connect() to host or proxy."
             }
             QcnlError::NetworkHttp2Error => {
-                "Network error : A problem was detected in the HTTP2 framing layer."
+                "Network error: A problem was detected in the HTTP2 framing layer."
             }
             QcnlError::NetworkWriteError => {
-                "Network error : an error was returned to libcurl from a write callback."
+                "Network error: an error was returned to libcurl from a write callback."
             }
             QcnlError::NetworkTimeout => "Network error : Operation timeout.",
             QcnlError::NetworkHttpsError => {
-                "Network error : A problem occurred somewhere in the SSL/TLS handshake."
+                "Network error: A problem occurred somewhere in the SSL/TLS handshake."
             }
             QcnlError::NetworkUnknownOption => {
-                "Network error : An option passed to libcurl is not recognized/known."
+                "Network error: An option passed to libcurl is not recognized/known."
             }
             QcnlError::NetworkInitError => "Failed to initialize CURL library.",
             QcnlError::MsgError => "HTTP message error.",
@@ -718,6 +752,15 @@ impl QcnlError {
             QcnlError::StatusCertsUnavaliable => "Certs not available.",
             QcnlError::StatusServiceUnavaliable => "Service is currently not available.",
             QcnlError::InvalidConfig => "Error in configuration file.",
+            QcnlError::CacheMissing => "Cache missing.",
+            QcnlError::CacheExpired => "Cache expired.",
+            QcnlError::RootCAUntrusted => {
+                "The certificate used to establish SSL session is untrusted."
+            }
+            QcnlError::ConfigInvalidJson => {
+                "The config file is in JSON format but has a format error."
+            }
+            QcnlError::ConfigNotJson => "The config file is not in JSON format.",
         }
     }
 
@@ -744,6 +787,11 @@ impl QcnlError {
             QcnlError::StatusCertsUnavaliable => "StatusCertsUnavaliable",
             QcnlError::StatusServiceUnavaliable => "StatusServiceUnavaliable",
             QcnlError::InvalidConfig => "InvalidConfig",
+            QcnlError::CacheMissing => "CacheMissing",
+            QcnlError::CacheExpired => "CacheExpired",
+            QcnlError::RootCAUntrusted => "RootCAUntrusted",
+            QcnlError::ConfigInvalidJson => "ConfigInvalidJson",
+            QcnlError::ConfigNotJson => "ConfigNotJson",
         }
     }
 }
@@ -754,10 +802,82 @@ impl fmt::Display for QcnlError {
     }
 }
 
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+    pub enum TdxAttestError {
+        Success                     = 0x0000_0000,
+        Unexpected                  = 0x0000_0001,
+        InvalidParameter            = 0x0000_0002,
+        OutOfMemory                 = 0x0000_0003,
+        VSockFailure                = 0x0000_0004,
+        ReportFailure               = 0x0000_0005,
+        ExtendFailure               = 0x0000_0006,
+        NotSupported                = 0x0000_0007,
+        QuoteFailure                = 0x0000_0008,
+        DeviceBusy                  = 0x0000_0009,
+        DeviceFailure               = 0x0000_000A,
+        InvaildRtmrIndex            = 0x0000_000B,
+        UnsupportedAttKeyId         = 0x0000_000C,
+        ErrorMax                    = 0x0000_000D,
+    }
+}
+
+impl TdxAttestError {
+    pub fn __description(&self) -> &'static str {
+        match *self {
+            TdxAttestError::Success => "Success.",
+            TdxAttestError::Unexpected => "Unexpected error.",
+            TdxAttestError::InvalidParameter => "The parameter is incorrect.",
+            TdxAttestError::OutOfMemory => "Out of memory error.",
+            TdxAttestError::VSockFailure => "vsock related failure.",
+            TdxAttestError::ReportFailure => "Failed to get the TD Report.",
+            TdxAttestError::ExtendFailure => "Failed to extend rtmr.",
+            TdxAttestError::NotSupported => "Request feature is not supported.",
+            TdxAttestError::QuoteFailure => "Failed to get the TD Quote.",
+            TdxAttestError::DeviceBusy => "The device driver return busy.",
+            TdxAttestError::DeviceFailure => "Failed to acess tdx attest device.",
+            TdxAttestError::InvaildRtmrIndex => "Only supported RTMR index is 2 and 3.",
+            TdxAttestError::UnsupportedAttKeyId => {
+                "The platform Quoting infrastructure does not support any of the keys described in att_key_id_list."
+            }
+            TdxAttestError::ErrorMax => {
+                "Indicate max error."
+            }
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match *self {
+            TdxAttestError::Success => "Success.",
+            TdxAttestError::Unexpected => "Unexpected",
+            TdxAttestError::InvalidParameter => "InvalidParameter",
+            TdxAttestError::OutOfMemory => "OutOfMemory",
+            TdxAttestError::VSockFailure => "VSockFailure",
+            TdxAttestError::ReportFailure => "ReportFailure",
+            TdxAttestError::ExtendFailure => "ExtendFailure",
+            TdxAttestError::NotSupported => "NotSupported",
+            TdxAttestError::QuoteFailure => "QuoteFailure",
+            TdxAttestError::DeviceBusy => "DeviceBusy",
+            TdxAttestError::DeviceFailure => "DeviceFailure",
+            TdxAttestError::InvaildRtmrIndex => "InvaildRtmrIndex",
+            TdxAttestError::UnsupportedAttKeyId => "UnsupportedAttKeyId",
+            TdxAttestError::ErrorMax => "ErrorMax",
+        }
+    }
+}
+
+impl fmt::Display for TdxAttestError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 pub type SgxResult<T = ()> = result::Result<T, SgxStatus>;
 pub type SgxPceResult<T = ()> = result::Result<T, PceError>;
 pub type SgxQcnlResult<T = ()> = result::Result<T, QcnlError>;
 pub type SgxQuote3Result<T = ()> = result::Result<T, Quote3Error>;
+pub type SgxTdxAttestResult<T = ()> = result::Result<T, TdxAttestError>;
 
 pub type OsError = i32;
 pub type OsResult<T = ()> = result::Result<T, OsError>;

@@ -159,6 +159,17 @@ impl_enum! {
     }
 }
 
+/* intel DCAP 1.17 */
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub enum QplCacheType {
+        Certificate = 1,
+        Collateral = 2,
+        MultiCerts = 4,
+    }
+}
+
 impl_enum! {
     #[repr(u32)]
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -375,10 +386,11 @@ impl_enum! {
 }
 
 //
-// qve_header.h
+// sgx_qve_header.h
 //
 pub const ROOT_KEY_ID_SIZE: usize = 48;
 pub const PLATFORM_INSTANCE_ID_SIZE: usize = 16;
+pub const MAX_SA_LIST_SIZE: usize = 160;
 
 /* intel DCAP 1.7 */
 impl_enum! {
@@ -417,11 +429,13 @@ impl_copy_clone! {
         pub dynamic_platform: PckCertFlag,
         pub cached_keys: PckCertFlag,
         pub smt_enabled: PckCertFlag,
+        /* intel DCAP 1.15 */
+        pub sa_list: [c_char; MAX_SA_LIST_SIZE]
     }
 }
 
 impl_struct_default! {
-    QlQvSupplemental; //176
+    QlQvSupplemental; //336
 }
 
 impl_asref_array! {
@@ -430,6 +444,14 @@ impl_asref_array! {
 
 impl_struct_ContiguousMemory! {
     QlQvSupplemental;
+}
+
+/* intel DCAP 1.15 */
+#[repr(C)]
+pub struct CTeeSuppDataDescriptor {
+    pub major_version: u16,
+    pub data_size: u32,
+    pub p_data: *mut u8,
 }
 
 impl_enum! {
