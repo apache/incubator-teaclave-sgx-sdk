@@ -77,7 +77,7 @@ impl EMA {
         alloc: Alloc,
     ) -> SgxResult<Self> {
         // check alloc flags' eligibility
-        AllocFlags::try_from(alloc_flags.bits())?;
+        // AllocFlags::try_from(alloc_flags.bits())?;
 
         if start != 0
             && length != 0
@@ -574,6 +574,25 @@ impl EMA {
     /// Check if the ema range contains the specified address
     pub fn overlap_addr(&self, addr: usize) -> bool {
         (addr >= self.start) && (addr < self.start + self.length)
+    }
+
+    pub fn set_eaccept_map_full(&mut self) -> SgxResult {
+        if self.eaccept_map.is_none() {
+            let eaccept_map = match self.alloc {
+                Alloc::Reserve => {
+                    let page_num = self.length >> SE_PAGE_SHIFT;
+                    BitArray::new(page_num, Alloc::Reserve)?
+                }
+                Alloc::Static => {
+                    let page_num = self.length >> SE_PAGE_SHIFT;
+                    BitArray::new(page_num, Alloc::Static)?
+                }
+            };
+            self.eaccept_map = Some(eaccept_map);
+        } else {
+            self.eaccept_map.as_mut().unwrap().set_full();
+        }
+        Ok(())
     }
 
     fn set_flags(&mut self, flags: AllocFlags) {

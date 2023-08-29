@@ -19,11 +19,12 @@ use crate::{
     arch::SE_PAGE_SIZE,
     edmm::{PageInfo, PageType, ProtFlags},
     enclave::is_within_enclave,
+    sync::SpinReentrantMutex,
 };
 use alloc::boxed::Box;
 use intrusive_collections::{linked_list::CursorMut, LinkedList, UnsafeRef};
 use sgx_types::error::{SgxResult, SgxStatus};
-use spin::{Mutex, Once};
+use spin::Once;
 
 use super::{
     alloc::{ResAlloc, StaticAlloc},
@@ -43,11 +44,13 @@ const PAGE_TYPE_MASK: usize = 0xFF << PAGE_TYPE_SHIFT;
 const ALLIGNMENT_SHIFT: usize = 24;
 const ALLIGNMENT_MASK: usize = 0xFF << ALLIGNMENT_SHIFT;
 
-pub static RM: Once<Mutex<RangeManage>> = Once::new();
+pub const EMA_PROT_MASK: usize = 0x7;
+
+pub static RM: Once<SpinReentrantMutex<RangeManage>> = Once::new();
 
 /// Initialize range management
 pub fn init_range_manage() {
-    RM.call_once(|| Mutex::new(RangeManage::new()));
+    RM.call_once(|| SpinReentrantMutex::new(RangeManage::new()));
 }
 
 /// RangeManage manages virtual memory range
@@ -72,6 +75,47 @@ impl RangeManage {
         }
     }
 
+    // Reserve memory range for allocations created
+    // by the RTS enclave loader at fixed address ranges
+    pub fn init_static_region(
+        &mut self,
+        addr: usize,
+        size: usize,
+        alloc_flags: AllocFlags,
+        info: PageInfo,
+        handler: Option<PfHandler>,
+        priv_data: Option<*mut PfInfo>,
+    ) -> SgxResult {
+        ensure!(
+            addr != 0 && size != 0 && is_within_enclave(addr as *const u8, size),
+            SgxStatus::InvalidParameter
+        );
+
+        let mut next_ema = self.find_free_region_at(addr, size, RangeType::Rts)?;
+
+        let mut new_ema = Box::<EMA, ResAlloc>::new_in(
+            EMA::new(
+                addr,
+                size,
+                alloc_flags,
+                info,
+                handler,
+                priv_data,
+                Alloc::Reserve,
+            )?,
+            ResAlloc,
+        );
+        // new_ema.alloc()?;
+        if !alloc_flags.contains(AllocFlags::RESERVED) {
+            new_ema.set_eaccept_map_full()?;
+        }
+
+        let new_ema_ref = unsafe { UnsafeRef::from_raw(Box::into_raw(new_ema)) };
+        next_ema.insert_before(new_ema_ref);
+
+        Ok(())
+    }
+
     /// Allocate a new memory region in enclave address space (ELRANGE).
     pub fn alloc(
         &mut self,
@@ -84,8 +128,18 @@ impl RangeManage {
         alloc: Alloc,
     ) -> SgxResult<usize> {
         let addr = addr.unwrap_or(0);
+        // let alloc_flags =
+        //     AllocFlags::try_from(((flags & ALLOC_FLAGS_MASK) >> ALLOC_FLAGS_SHIFT) as u32)?;
+
         let alloc_flags =
-            AllocFlags::try_from(((flags & ALLOC_FLAGS_MASK) >> ALLOC_FLAGS_SHIFT) as u32)?;
+            AllocFlags::from_bits(((flags & ALLOC_FLAGS_MASK) >> ALLOC_FLAGS_SHIFT) as u32)
+                .ok_or(SgxStatus::InvalidParameter)?;
+
+        // TODO: uncouple EMA and range management
+        // if alloc_flags.contains(AllocFlags::SYSTEM) {
+        //     return Err(SgxStatus::InvalidParameter);
+        // }
+
         let mut page_type =
             match PageType::try_from(((flags & PAGE_TYPE_MASK) >> PAGE_TYPE_SHIFT) as u8) {
                 Ok(typ) => typ,
@@ -164,7 +218,103 @@ impl RangeManage {
                         info,
                         handler,
                         priv_data,
+                        Alloc::Reserve,
+                    )?,
+                    ResAlloc,
+                );
+                new_ema.alloc()?;
+
+                unsafe { UnsafeRef::from_raw(Box::into_raw(new_ema)) }
+            }
+            Alloc::Static => {
+                let mut new_ema = Box::<EMA, StaticAlloc>::new_in(
+                    EMA::new(
+                        free_addr,
+                        size,
+                        alloc_flags,
+                        info,
+                        handler,
+                        priv_data,
                         Alloc::Static,
+                    )?,
+                    StaticAlloc,
+                );
+                new_ema.alloc()?;
+
+                unsafe { UnsafeRef::from_raw(Box::into_raw(new_ema)) }
+            }
+        };
+
+        next_ema.insert_before(new_ema_ref);
+        Ok(free_addr)
+    }
+
+    /// Allocate a new memory region in enclave address space (ELRANGE).
+    pub fn alloc_inner(
+        &mut self,
+        addr: Option<usize>,
+        size: usize,
+        alloc_flags: AllocFlags,
+        info: PageInfo,
+        handler: Option<PfHandler>,
+        priv_data: Option<*mut PfInfo>,
+        typ: RangeType,
+        alloc: Alloc,
+    ) -> SgxResult<usize> {
+        let addr = addr.unwrap_or(0);
+
+        // Default align is 12
+        let align_flag = 12;
+        let align_mask: usize = (1 << align_flag) - 1;
+
+        if (size % SE_PAGE_SIZE) > 0 {
+            return Err(SgxStatus::InvalidParameter);
+        }
+
+        if (addr & align_mask) > 0 {
+            return Err(SgxStatus::InvalidParameter);
+        }
+
+        if (addr > 0) && !is_within_enclave(addr as *const u8, size) {
+            return Err(SgxStatus::InvalidParameter);
+        }
+
+        if addr > 0 {
+            let is_fixed_alloc = alloc_flags.contains(AllocFlags::FIXED);
+            // FIXME: search_ema_range implicitly contains splitting ema!
+            let range = self.search_ema_range(addr, addr + size, typ, false);
+
+            match range {
+                // exist in emas list
+                Ok(_) => {
+                    // TODO: realloc EMA from reserve
+                    if is_fixed_alloc {
+                        return Err(SgxStatus::InvalidParameter);
+                    }
+                }
+                // not exist in emas list
+                Err(_) => {
+                    let next_ema = self.find_free_region_at(addr, size, typ);
+                    if next_ema.is_err() && is_fixed_alloc {
+                        return Err(SgxStatus::InvalidParameter);
+                    }
+                }
+            };
+        };
+
+        let (free_addr, mut next_ema) = self.find_free_region(size, 1 << align_flag, typ)?;
+
+        let new_ema_ref = match alloc {
+            Alloc::Reserve => {
+                let mut new_ema = Box::<EMA, ResAlloc>::new_in(
+                    EMA::new(
+                        free_addr,
+                        size,
+                        alloc_flags,
+                        info,
+                        handler,
+                        priv_data,
+                        Alloc::Reserve,
                     )?,
                     ResAlloc,
                 );

@@ -31,6 +31,8 @@ mod hw {
     use crate::edmm::perm;
     use crate::edmm::trim;
     use crate::elf::program::Type;
+    use crate::emm::flags::AllocFlags;
+    use crate::emm::range::RM;
     use crate::enclave::parse;
     use crate::enclave::MmLayout;
     use crate::feature::{SysFeatures, Version};
@@ -187,6 +189,45 @@ mod hw {
 
             modify_perm(start, count, (arch::SI_FLAG_R | arch::SI_FLAG_W) as u8)?;
         }
+        Ok(())
+    }
+
+    pub fn init_segment_emas() -> SgxResult {
+        let elf = parse::new_elf()?;
+        let text_relo = parse::has_text_relo()?;
+
+        let base = MmLayout::image_base();
+        for phdr in elf.program_iter() {
+            let typ = phdr.get_type().unwrap_or(Type::Null);
+
+            if typ == Type::Load {
+                let mut perm = ProtFlags::R;
+                let start = base + trim_to_page!(phdr.virtual_addr() as usize);
+                let end =
+                    base + round_to_page!(phdr.virtual_addr() as usize + phdr.mem_size() as usize);
+
+                if phdr.flags().is_write() || text_relo {
+                    perm |= ProtFlags::W;
+                }
+                if phdr.flags().is_execute() {
+                    perm |= ProtFlags::X;
+                }
+
+                let mut range_manage = RM.get().unwrap().lock();
+                range_manage.init_static_region(
+                    start,
+                    end - start,
+                    AllocFlags::SYSTEM,
+                    PageInfo {
+                        typ: PageType::Reg,
+                        prot: perm,
+                    },
+                    None,
+                    None,
+                )?;
+            }
+        }
+
         Ok(())
     }
 
