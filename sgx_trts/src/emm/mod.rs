@@ -22,6 +22,6 @@ pub(crate) mod flags;
 pub(crate) mod init;
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
 pub(crate) mod interior;
-mod pfhandler;
+pub(crate) mod pfhandler;
 pub(crate) mod range;
 pub(crate) mod user;

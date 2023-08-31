@@ -37,31 +37,55 @@ union Pfec {
     bits: PfecBits,
 }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-struct PfecBits {
-    p: u32,  // P flag.
-    rw: u32, // RW access flag, 0 for read, 1 for write.
-    reserved1: u32,
-    sgx: u32, // SGX bit.
-    reserved2: u32,
-}
+#[repr(C, packed)]
+#[derive(Clone, Copy, Debug)]
+struct PfecBits(u32);
 
-impl Default for PfecBits {
-    fn default() -> Self {
-        Self {
-            p: 1,
-            rw: 1,
-            reserved1: 13,
-            sgx: 1,
-            reserved2: 16,
-        }
+impl PfecBits {
+    const P_OFFSET: u32 = 0;
+    const P_MASK: u32 = 0x00000001;
+    const RW_OFFSET: u32 = 1;
+    const RW_MASK: u32 = 0x00000002;
+    const SGX_OFFSET: u32 = 15;
+    const SGX_MASK: u32 = 0x00008000;
+
+    #[inline]
+    pub fn p(&self) -> u32 {
+        (self.0 & Self::P_MASK) >> Self::P_OFFSET
+    }
+
+    #[inline]
+    pub fn rw(&self) -> u32 {
+        (self.0 & Self::RW_MASK) >> Self::RW_OFFSET
+    }
+
+    #[inline]
+    pub fn sgx(&self) -> u32 {
+        (self.0 & Self::SGX_MASK) >> Self::SGX_OFFSET
+    }
+
+    #[inline]
+    pub fn set_p(&mut self, p: u32) {
+        let p = (p << Self::P_OFFSET) & Self::P_MASK;
+        self.0 = (self.0 & (!Self::P_MASK)) | p;
+    }
+
+    #[inline]
+    pub fn set_rw(&mut self, rw: u32) {
+        let rw = (rw << Self::RW_OFFSET) & Self::RW_MASK;
+        self.0 = (self.0 & (!Self::RW_MASK)) | rw;
+    }
+
+    #[inline]
+    pub fn set_sgx(&mut self, sgx: u32) {
+        let sgx = (sgx << Self::SGX_OFFSET) & Self::SGX_MASK;
+        self.0 = (self.0 & (!Self::SGX_MASK)) | sgx;
     }
 }
 
 pub type PfHandler = extern "C" fn(info: &mut PfInfo) -> HandleResult;
 
-extern "C" fn mm_enclave_pfhandler(info: &mut PfInfo) -> HandleResult {
+pub extern "C" fn mm_enclave_pfhandler(info: &mut PfInfo) -> HandleResult {
     let addr = trim_to_page!(info.maddr as usize);
     let mut range_manage = RM.get().unwrap().lock();
     let mut ema_cursor = match range_manage.search_ema(addr, RangeType::User) {
@@ -86,7 +110,7 @@ extern "C" fn mm_enclave_pfhandler(info: &mut PfInfo) -> HandleResult {
     // No customized page fault handler
     if ema.is_page_committed(addr) {
         // check spurious #pf
-        let rw_bit = unsafe { info.pfec.bits.rw };
+        let rw_bit = unsafe { info.pfec.bits.rw() };
         if (rw_bit == 0 && !ema.info().prot.contains(ProtFlags::R))
             || (rw_bit == 1 && !ema.info().prot.contains(ProtFlags::W))
         {
@@ -97,7 +121,7 @@ extern "C" fn mm_enclave_pfhandler(info: &mut PfInfo) -> HandleResult {
     }
 
     if ema.flags().contains(AllocFlags::COMMIT_ON_DEMAND) {
-        let rw_bit = unsafe { info.pfec.bits.rw };
+        let rw_bit = unsafe { info.pfec.bits.rw() };
         if (rw_bit == 0 && !ema.info().prot.contains(ProtFlags::R))
             || (rw_bit == 1 && !ema.info().prot.contains(ProtFlags::W))
         {

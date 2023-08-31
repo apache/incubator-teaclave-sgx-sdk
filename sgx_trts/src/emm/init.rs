@@ -63,7 +63,7 @@ fn build_rts_context_emas(entry: &LayoutEntry, offset: usize) -> SgxResult {
     assert!(is_page_aligned!(rva));
 
     // TODO: not sure get_enclave_base() equal to elrange_base or image_base
-    let addr = MmLayout::elrange_base() + (rva as usize);
+    let addr = MmLayout::image_base() + (rva as usize);
     let size = (entry.page_count << arch::SE_PAGE_SHIFT) as usize;
     let mut range_manage = RM.get().unwrap().lock();
 

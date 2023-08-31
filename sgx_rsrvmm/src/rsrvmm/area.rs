@@ -25,7 +25,7 @@ use core::convert::From;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 use sgx_trts::edmm::{modpr_ocall, mprotect_ocall};
-use sgx_trts::edmm::{PageFlags, PageInfo, PageRange, PageType};
+use sgx_trts::edmm::{ProtFlags, PageInfo, PageRange, PageType};
 use sgx_trts::trts;
 use sgx_types::error::errno::*;
 use sgx_types::error::OsResult;
@@ -364,7 +364,7 @@ impl MmArea {
                 count,
                 PageInfo {
                     typ: PageType::Reg,
-                    flags: PageFlags::from_bits_truncate(perm.into()) | PageFlags::PR,
+                    prot: ProtFlags::from_bits_truncate(perm.into()) | ProtFlags::PR,
                 },
             )
             .map_err(|_| EINVAL)?;
