@@ -107,6 +107,7 @@ pub const LEGACY_REPORT_TYPE: u8 = 0x0; // SGX Legacy Report Type
 pub const TEE_REPORT2_TYPE: u8 = 0x81; // TEE Report Type2
 pub const TEE_REPORT2_SUBTYPE: u8 = 0x0; // SUBTYPE for Report Type2 is 0
 pub const TEE_REPORT2_VERSION: u8 = 0x0; // VERSION for Report Type2 is 0
+pub const TEE_REPORT2_VERSION_SERVICETD: u8 = 0x1; // VERSION for Report Type2 which mr_servicetd is used
 
 impl_struct! {
     #[repr(C)]

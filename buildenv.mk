@@ -67,6 +67,10 @@ else
     COMMON_FLAGS += -fstack-protector-strong
 endif
 
+ifdef _TD_MIGRATION
+    COMMON_FLAGS += -D_TD_MIGRATION
+endif
+
 COMMON_FLAGS += -ffunction-sections -fdata-sections
 
 # turn on compiler warnings as much as possible

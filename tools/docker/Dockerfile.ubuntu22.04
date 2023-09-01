@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM ubuntu:18.04
+FROM ubuntu:22.04
 
 LABEL authors="The Teaclave Authors"
 
@@ -50,7 +50,6 @@ RUN apt-get update && DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-i
         libfuse-dev \
         libjsoncpp-dev \
         liblog4cpp5-dev \
-        libprotobuf-c0-dev \
         libprotobuf-dev \
         libssl-dev \
         libtool \
@@ -77,7 +76,7 @@ RUN apt-get update && DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-i
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-ENV CODENAME                    bionic
+ENV CODENAME                    jammy
 ENV SGX_SDK_RELEASE_VERSION     2.21
 ENV SGX_DCAP_RELEASE_VERSION    1.18
 ENV SGX_SDK_CODE_VERSION        2.21
@@ -85,11 +84,11 @@ ENV SGX_DCAP_CODE_VERSION       1.18
 ENV SGX_SDK_BIN_VERSION         2.21.100.1
 ENV SGX_SDK_PKGS_VERSION        2.21.100.1
 ENV SGX_DCAP_PKGS_VERSION       1.18.100.1
-ENV SGX_SDK_VERSION             ${SGX_SDK_PKGS_VERSION}-bionic1
-ENV SGX_DCAP_VERSION            ${SGX_DCAP_PKGS_VERSION}-bionic1
+ENV SGX_SDK_VERSION             ${SGX_SDK_PKGS_VERSION}-jammy1
+ENV SGX_DCAP_VERSION            ${SGX_DCAP_PKGS_VERSION}-jammy1
 ENV RUST_TOOLCHAIN              nightly-2022-10-22
 ENV OS_NAME                     ubuntu
-ENV BINUTILS_DIST               ubuntu18.04
+ENV BINUTILS_DIST               ubuntu22.04
 ENV TOOLSET_DIST                ubuntu20.04
 ENV SGX_SDK_URL                 "https://download.01.org/intel-sgx/sgx-linux/${SGX_SDK_CODE_VERSION}/distro/${BINUTILS_DIST}-server/sgx_linux_x64_sdk_${SGX_SDK_BIN_VERSION}.bin"
 

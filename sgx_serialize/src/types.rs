@@ -23,9 +23,9 @@ use sgx_types::types::{
 };
 use sgx_types::types::{
     Attributes, AttributesFlags, ConfigId, CpuSvn, KeyId, KeyName, KeyPolicy, KeyRequest,
-    Measurement, MiscAttribute, MiscSelect, Report, Report2, Report2Body, Report2Mac, ReportBody,
-    ReportData, TargetInfo, TeeAttributes, TeeCpuSvn, TeeInfo, TeeMeasurement, TeeReportData,
-    TeeReportType, TeeTcbInfo, TeeTcbSvn,
+    Measurement, MiscAttribute, MiscSelect, Report, Report2, Report2Body, Report2BodyV15,
+    Report2Mac, ReportBody, ReportData, TargetInfo, TeeAttributes, TeeCpuSvn, TeeInfo, TeeInfoV15,
+    TeeMeasurement, TeeReportData, TeeReportType, TeeTcbInfo, TeeTcbInfoV15, TeeTcbSvn,
 };
 use sgx_types::types::{BaseName, PsSecPropDesc, QuoteNonce, Spid};
 use sgx_types::types::{Ec256PrivateKey, Ec256PublicKey, Ec256SharedKey, Ec256Signature};
@@ -1608,14 +1608,6 @@ impl Decodable for TeeInfo {
 
 impl Encodable for TeeTcbInfo {
     fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
-        // let TeeTcbInfo {
-        //     valid: ref _valid,
-        //     tee_tcb_svn: ref _tee_tcb_svn,
-        //     mr_seam: ref _mr_seam,
-        //     mr_seam_signer: ref _mr_seam_signer,
-        //     attributes: ref _attributes,
-        //     reserved: ref _reserved,
-        // } = *self;
         let _valid = unsafe { &*core::ptr::addr_of!(self.valid) };
         let _tee_tcb_svn = unsafe { &*core::ptr::addr_of!(self.tee_tcb_svn) };
         let _mr_seam = unsafe { &*core::ptr::addr_of!(self.mr_seam) };
@@ -1661,20 +1653,6 @@ impl Decodable for TeeTcbInfo {
 
 impl Encodable for Report2Body {
     fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
-        // let Report2Body {
-        //     tee_tcb_svn: ref _tee_tcb_svn,
-        //     mr_seam: ref _mr_seam,
-        //     mrsigner_seam: ref _mrsigner_seam,
-        //     seam_attributes: ref _seam_attributes,
-        //     td_attributes: ref _td_attributes,
-        //     xfam: ref _xfam,
-        //     mr_td: ref _mr_td,
-        //     mr_config_id: ref _mr_config_id,
-        //     mr_owner: ref _mr_owner,
-        //     mr_owner_config: ref _mr_owner_config,
-        //     rt_mr: ref _rt_mr,
-        //     report_data: ref _report_data,
-        // } = *self;
         let _tee_tcb_svn = unsafe { &*core::ptr::addr_of!(self.tee_tcb_svn) };
         let _mr_seam = unsafe { &*core::ptr::addr_of!(self.mr_seam) };
         let _mrsigner_seam = unsafe { &*core::ptr::addr_of!(self.mrsigner_seam) };
@@ -1749,6 +1727,208 @@ impl Decodable for Report2Body {
                 )?,
                 rt_mr: d.read_struct_field("rt_mr", 10usize, Decodable::decode)?,
                 report_data: d.read_struct_field("report_data", 11usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
+impl Encodable for TeeInfoV15 {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let TeeInfoV15 {
+            attributes: ref _attributes,
+            xfam: ref _xfam,
+            mr_td: ref _mr_td,
+            mr_config_id: ref _mr_config_id,
+            mr_owner: ref _mr_owner,
+            mr_owner_config: ref _mr_owner_config,
+            rt_mr: ref _rt_mr,
+            mr_servicetd: ref _mr_servicetd,
+            reserved: ref _reserved,
+        } = *self;
+        e.emit_struct("TeeInfoV15", 8usize, |e| -> _ {
+            e.emit_struct_field("attributes", 0usize, |e| -> _ {
+                Encodable::encode(&*_attributes, e)
+            })?;
+            e.emit_struct_field("xfam", 1usize, |e| -> _ { Encodable::encode(&*_xfam, e) })?;
+            e.emit_struct_field("mr_td", 2usize, |e| -> _ { Encodable::encode(&*_mr_td, e) })?;
+            e.emit_struct_field("mr_config_id", 3usize, |e| -> _ {
+                Encodable::encode(&*_mr_config_id, e)
+            })?;
+            e.emit_struct_field("mr_owner", 4usize, |e| -> _ {
+                Encodable::encode(&*_mr_owner, e)
+            })?;
+            e.emit_struct_field("mr_owner_config", 5usize, |e| -> _ {
+                Encodable::encode(&*_mr_owner_config, e)
+            })?;
+            e.emit_struct_field("rt_mr", 6usize, |e| -> _ { Encodable::encode(&*_rt_mr, e) })?;
+            e.emit_struct_field("mr_servicetd", 7usize, |e| -> _ {
+                Encodable::encode(&*_mr_servicetd, e)
+            })?;
+            e.emit_struct_field("reserved", 8usize, |e| -> _ {
+                Encodable::encode(&*_reserved, e)
+            })
+        })
+    }
+}
+
+impl Decodable for TeeInfoV15 {
+    fn decode<D: Decoder>(d: &mut D) -> Result<TeeInfoV15, D::Error> {
+        d.read_struct("TeeInfoV15", 8usize, |d| -> _ {
+            Ok(TeeInfoV15 {
+                attributes: d.read_struct_field("attributes", 0usize, Decodable::decode)?,
+                xfam: d.read_struct_field("xfam", 1usize, Decodable::decode)?,
+                mr_td: d.read_struct_field("mr_td", 2usize, Decodable::decode)?,
+                mr_config_id: d.read_struct_field("mr_config_id", 3usize, Decodable::decode)?,
+                mr_owner: d.read_struct_field("mr_owner", 4usize, Decodable::decode)?,
+                mr_owner_config: d.read_struct_field(
+                    "mr_owner_config",
+                    5usize,
+                    Decodable::decode,
+                )?,
+                rt_mr: d.read_struct_field("rt_mr", 6usize, Decodable::decode)?,
+                mr_servicetd: d.read_struct_field("mr_servicetd", 7usize, Decodable::decode)?,
+                reserved: d.read_struct_field("reserved", 8usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
+impl Encodable for TeeTcbInfoV15 {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let _valid = unsafe { &*core::ptr::addr_of!(self.valid) };
+        let _tee_tcb_svn = unsafe { &*core::ptr::addr_of!(self.tee_tcb_svn) };
+        let _mr_seam = unsafe { &*core::ptr::addr_of!(self.mr_seam) };
+        let _mr_seam_signer = unsafe { &*core::ptr::addr_of!(self.mr_seam_signer) };
+        let _attributes = unsafe { &*core::ptr::addr_of!(self.attributes) };
+        let _tee_tcb_svn2 = unsafe { &*core::ptr::addr_of!(self.tee_tcb_svn2) };
+        let _reserved = unsafe { &*core::ptr::addr_of!(self.reserved) };
+
+        e.emit_struct("TeeTcbInfoV15", 6usize, |e| -> _ {
+            e.emit_struct_field("valid", 0usize, |e| -> _ { Encodable::encode(&*_valid, e) })?;
+            e.emit_struct_field("tee_tcb_svn", 1usize, |e| -> _ {
+                Encodable::encode(&*_tee_tcb_svn, e)
+            })?;
+            e.emit_struct_field("mr_seam", 2usize, |e| -> _ {
+                Encodable::encode(&*_mr_seam, e)
+            })?;
+            e.emit_struct_field("mr_seam_signer", 3usize, |e| -> _ {
+                Encodable::encode(&*_mr_seam_signer, e)
+            })?;
+            e.emit_struct_field("attributes", 4usize, |e| -> _ {
+                Encodable::encode(&*_attributes, e)
+            })?;
+            e.emit_struct_field("tee_tcb_svn2", 5usize, |e| -> _ {
+                Encodable::encode(&*_tee_tcb_svn2, e)
+            })?;
+            e.emit_struct_field("reserved", 6usize, |e| -> _ {
+                Encodable::encode(&*_reserved, e)
+            })
+        })
+    }
+}
+
+impl Decodable for TeeTcbInfoV15 {
+    fn decode<D: Decoder>(d: &mut D) -> Result<TeeTcbInfoV15, D::Error> {
+        d.read_struct("TeeTcbInfoV15", 8usize, |d| -> _ {
+            Ok(TeeTcbInfoV15 {
+                valid: d.read_struct_field("valid", 0usize, Decodable::decode)?,
+                tee_tcb_svn: d.read_struct_field("tee_tcb_svn", 1usize, Decodable::decode)?,
+                mr_seam: d.read_struct_field("mr_seam", 2usize, Decodable::decode)?,
+                mr_seam_signer: d.read_struct_field("mr_seam_signer", 3usize, Decodable::decode)?,
+                attributes: d.read_struct_field("attributes", 4usize, Decodable::decode)?,
+                tee_tcb_svn2: d.read_struct_field("tee_tcb_svn2", 5usize, Decodable::decode)?,
+                reserved: d.read_struct_field("reserved", 6usize, Decodable::decode)?,
+            })
+        })
+    }
+}
+
+impl Encodable for Report2BodyV15 {
+    fn encode<S: Encoder>(&self, e: &mut S) -> Result<(), S::Error> {
+        let _tee_tcb_svn = unsafe { &*core::ptr::addr_of!(self.tee_tcb_svn) };
+        let _mr_seam = unsafe { &*core::ptr::addr_of!(self.mr_seam) };
+        let _mrsigner_seam = unsafe { &*core::ptr::addr_of!(self.mrsigner_seam) };
+        let _seam_attributes = unsafe { &*core::ptr::addr_of!(self.seam_attributes) };
+        let _td_attributes = unsafe { &*core::ptr::addr_of!(self.td_attributes) };
+        let _xfam = unsafe { &*core::ptr::addr_of!(self.xfam) };
+        let _mr_td = unsafe { &*core::ptr::addr_of!(self.mr_td) };
+        let _mr_config_id = unsafe { &*core::ptr::addr_of!(self.mr_config_id) };
+        let _mr_owner = unsafe { &*core::ptr::addr_of!(self.mr_owner) };
+        let _mr_owner_config = unsafe { &*core::ptr::addr_of!(self.mr_owner_config) };
+        let _rt_mr = unsafe { &*core::ptr::addr_of!(self.rt_mr) };
+        let _report_data = unsafe { &*core::ptr::addr_of!(self.report_data) };
+        let _tee_tcb_svn2 = unsafe { &*core::ptr::addr_of!(self.tee_tcb_svn2) };
+        let _mr_servicetd = unsafe { &*core::ptr::addr_of!(self.mr_servicetd) };
+
+        e.emit_struct("Report2BodyV15", 12usize, |e| -> _ {
+            e.emit_struct_field("tee_tcb_svn", 0usize, |e| -> _ {
+                Encodable::encode(&*_tee_tcb_svn, e)
+            })?;
+            e.emit_struct_field("mr_seam", 1usize, |e| -> _ {
+                Encodable::encode(&*_mr_seam, e)
+            })?;
+            e.emit_struct_field("mrsigner_seam", 2usize, |e| -> _ {
+                Encodable::encode(&*_mrsigner_seam, e)
+            })?;
+            e.emit_struct_field("seam_attributes", 3usize, |e| -> _ {
+                Encodable::encode(&*_seam_attributes, e)
+            })?;
+            e.emit_struct_field("td_attributes", 4usize, |e| -> _ {
+                Encodable::encode(&*_td_attributes, e)
+            })?;
+            e.emit_struct_field("xfam", 5usize, |e| -> _ { Encodable::encode(&*_xfam, e) })?;
+            e.emit_struct_field("mr_td", 6usize, |e| -> _ { Encodable::encode(&*_mr_td, e) })?;
+            e.emit_struct_field("mr_config_id", 7usize, |e| -> _ {
+                Encodable::encode(&*_mr_config_id, e)
+            })?;
+            e.emit_struct_field("mr_owner", 8usize, |e| -> _ {
+                Encodable::encode(&*_mr_owner, e)
+            })?;
+            e.emit_struct_field("mr_owner_config", 9usize, |e| -> _ {
+                Encodable::encode(&*_mr_owner_config, e)
+            })?;
+            e.emit_struct_field("rt_mr", 10usize, |e| -> _ {
+                Encodable::encode(&*_rt_mr, e)
+            })?;
+            e.emit_struct_field("report_data", 11usize, |e| -> _ {
+                Encodable::encode(&*_report_data, e)
+            })?;
+            e.emit_struct_field("tee_tcb_svn2", 12usize, |e| -> _ {
+                Encodable::encode(&*_tee_tcb_svn2, e)
+            })?;
+            e.emit_struct_field("mr_servicetd", 13usize, |e| -> _ {
+                Encodable::encode(&*_mr_servicetd, e)
+            })
+        })
+    }
+}
+
+impl Decodable for Report2BodyV15 {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Report2BodyV15, D::Error> {
+        d.read_struct("Report2BodyV15", 8usize, |d| -> _ {
+            Ok(Report2BodyV15 {
+                tee_tcb_svn: d.read_struct_field("tee_tcb_svn", 0usize, Decodable::decode)?,
+                mr_seam: d.read_struct_field("mr_seam", 1usize, Decodable::decode)?,
+                mrsigner_seam: d.read_struct_field("mrsigner_seam", 2usize, Decodable::decode)?,
+                seam_attributes: d.read_struct_field(
+                    "seam_attributes",
+                    3usize,
+                    Decodable::decode,
+                )?,
+                td_attributes: d.read_struct_field("td_attributes", 4usize, Decodable::decode)?,
+                xfam: d.read_struct_field("xfam", 5usize, Decodable::decode)?,
+                mr_td: d.read_struct_field("mr_td", 6usize, Decodable::decode)?,
+                mr_config_id: d.read_struct_field("mr_config_id", 7usize, Decodable::decode)?,
+                mr_owner: d.read_struct_field("mr_owner", 8usize, Decodable::decode)?,
+                mr_owner_config: d.read_struct_field(
+                    "mr_owner_config",
+                    9usize,
+                    Decodable::decode,
+                )?,
+                rt_mr: d.read_struct_field("rt_mr", 10usize, Decodable::decode)?,
+                report_data: d.read_struct_field("report_data", 11usize, Decodable::decode)?,
+                tee_tcb_svn2: d.read_struct_field("tee_tcb_svn2", 12usize, Decodable::decode)?,
+                mr_servicetd: d.read_struct_field("mr_servicetd", 13usize, Decodable::decode)?,
             })
         })
     }

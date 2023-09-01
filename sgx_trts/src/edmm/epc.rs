@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::arch::{Secinfo, SE_PAGE_SHIFT, SE_PAGE_SIZE};
+use crate::arch::{SecInfo, SE_PAGE_SHIFT, SE_PAGE_SIZE};
 use crate::enclave::is_within_enclave;
 use crate::inst::EncluInst;
 use core::num::NonZeroUsize;
@@ -204,12 +204,12 @@ impl Page {
     }
 
     pub fn accept(&self) -> SgxResult {
-        let secinfo: Secinfo = self.info.into();
+        let secinfo: SecInfo = self.info.into();
         EncluInst::eaccept(&secinfo, self.addr).map_err(|_| SgxStatus::Unexpected)
     }
 
     pub fn modpe(&self) -> SgxResult {
-        let secinfo: Secinfo = self.info.into();
+        let secinfo: SecInfo = self.info.into();
         EncluInst::emodpe(&secinfo, self.addr).map_err(|_| SgxStatus::Unexpected)
     }
 }

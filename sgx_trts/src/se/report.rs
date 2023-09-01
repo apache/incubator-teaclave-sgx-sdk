@@ -31,8 +31,10 @@ use sgx_types::types::{
 };
 use sgx_types::types::{
     CONFIGID_SIZE, CPUSVN_SIZE, HASH_SIZE, ISVEXT_PROD_ID_SIZE, ISV_FAMILY_ID_SIZE, KEYID_SIZE,
-    MAC_SIZE, REPORT_BODY_RESERVED1_BYTES, REPORT_BODY_RESERVED2_BYTES,
-    REPORT_BODY_RESERVED3_BYTES, REPORT_BODY_RESERVED4_BYTES, REPORT_DATA_SIZE,
+    MAC_SIZE, REPORT2_MAC_RESERVED1_BYTES, REPORT2_MAC_RESERVED2_BYTES,
+    REPORT_BODY_RESERVED1_BYTES, REPORT_BODY_RESERVED2_BYTES, REPORT_BODY_RESERVED3_BYTES,
+    REPORT_BODY_RESERVED4_BYTES, REPORT_DATA_SIZE, TEE_REPORT2_SUBTYPE, TEE_REPORT2_TYPE,
+    TEE_REPORT2_VERSION, TEE_REPORT2_VERSION_SERVICETD,
 };
 
 #[repr(C, align(128))]
@@ -149,6 +151,22 @@ impl AlignReport {
 impl AlignReport2Mac {
     pub fn verify(&self) -> SgxResult {
         ensure!(self.is_enclave_range(), SgxStatus::InvalidParameter);
+        ensure!(
+            self.0.report_type.report_type == TEE_REPORT2_TYPE,
+            SgxStatus::InvalidParameter
+        );
+        ensure!(
+            self.0.report_type.subtype == TEE_REPORT2_SUBTYPE
+                && (self.0.report_type.version == TEE_REPORT2_VERSION
+                    || self.0.report_type.version == TEE_REPORT2_VERSION_SERVICETD),
+            SgxStatus::InvalidParameter
+        );
+        ensure!(
+            self.0.report_type.reserved == 0
+                && self.0.reserved1 == [0; REPORT2_MAC_RESERVED1_BYTES]
+                && self.0.reserved2 == [0; REPORT2_MAC_RESERVED2_BYTES],
+            SgxStatus::InvalidParameter
+        );
 
         EncluInst::everify_report2(self).map_err(|e| match e {
             inst::INVALID_REPORTMACSTRUCT => SgxStatus::MacMismatch,

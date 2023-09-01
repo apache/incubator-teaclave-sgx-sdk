@@ -20,5 +20,5 @@
 cd /root && \
 wget https://download.01.org/intel-sgx/sgx-linux/$SGX_SDK_RELEASE_VERSION/as.ld.objdump.r4.tar.gz && \
 tar xzf as.ld.objdump.r4.tar.gz && \
-cp -r external/toolset/$BINUTILS_DIST/* /usr/bin/ && \
+cp -r external/toolset/$TOOLSET_DIST/* /usr/bin/ && \
 rm -rf ./external ./as.ld.objdump.r4.tar.gz

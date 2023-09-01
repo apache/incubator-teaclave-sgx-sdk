@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::arch::{Secinfo, Tcs};
+use crate::arch::{SecInfo, Tcs};
 use crate::enclave::EnclaveRange;
 use crate::error::abort as gp;
 use crate::inst::sim::derive::{self, DeriveData, SeOwnerEpoch};
@@ -404,17 +404,17 @@ impl EncluInst {
     }
 
     #[inline]
-    pub fn eaccept(_info: &Secinfo, _addr: usize) -> Result<(), u32> {
+    pub fn eaccept(_info: &SecInfo, _addr: usize) -> Result<(), u32> {
         Ok(())
     }
 
     #[inline]
-    pub fn eacceptcopy(_info: &Secinfo, _addr: usize, _source: usize) -> Result<(), u32> {
+    pub fn eacceptcopy(_info: &SecInfo, _addr: usize, _source: usize) -> Result<(), u32> {
         Ok(())
     }
 
     #[inline]
-    pub fn emodpe(_info: &Secinfo, _addr: usize) -> Result<(), u32> {
+    pub fn emodpe(_info: &SecInfo, _addr: usize) -> Result<(), u32> {
         Ok(())
     }
 
