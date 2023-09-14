@@ -32,13 +32,14 @@ use sgx_types::error::{SgxResult, SgxStatus};
 
 macro_rules! try_error {
     ($cond:expr) => {
-        if $cond {
+        if ($cond) {
             state::set_state(State::Crashed);
             bail!(SgxStatus::EnclaveCrashed);
         }
     };
     ($cond:expr, $e:expr) => {
-        if !($cond) {
+        if ($cond) {
+            state::set_state(State::Crashed);
             bail!($e);
         }
     };
