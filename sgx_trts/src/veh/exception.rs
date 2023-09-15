@@ -16,7 +16,7 @@
 // under the License..
 
 use crate::arch::{self, MiscExInfo, SsaGpr, Tcs, Tds};
-use crate::edmm;
+use crate::emm;
 use crate::emm::pfhandler::{mm_enclave_pfhandler, PfInfo};
 use crate::enclave::state::{self, State};
 use crate::error;
@@ -139,7 +139,7 @@ pub fn handle(tcs: &mut Tcs) -> SgxResult {
         if (tds.stack_commit > page_aligned_delta)
             && ((tds.stack_commit - page_aligned_delta) >= tds.stack_limit)
         {
-            result = edmm::mem::expand_stack_epc_pages(
+            result = emm::init::expand_stack_epc_pages(
                 tds.stack_commit - page_aligned_delta,
                 page_aligned_delta >> arch::SE_PAGE_SHIFT,
             )

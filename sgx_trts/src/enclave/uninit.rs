@@ -63,7 +63,7 @@ pub fn rtuninit(tc: ThreadControl) -> SgxResult {
             let is_legal = tc.is_init();
         } else {
             use crate::feature::SysFeatures;
-            use crate::edmm::layout::LayoutTable;
+            use crate::emm::layout::LayoutTable;
 
             let is_legal = if SysFeatures::get().is_edmm() {
                 tc.is_utility() || !LayoutTable::new().is_dyn_tcs_exist()
@@ -81,10 +81,6 @@ pub fn rtuninit(tc: ThreadControl) -> SgxResult {
 
     #[cfg(not(any(feature = "sim", feature = "hyper")))]
     {
-        // if SysFeatures::get().is_edmm() && edmm::tcs::accept_trim_tcs(tcs).is_err() {
-        //     state::set_state(State::Crashed);
-        //     bail!(SgxStatus::Unexpected);
-        // }
         if SysFeatures::get().is_edmm() {
             let mut range_manage = RM.get().unwrap().lock();
 

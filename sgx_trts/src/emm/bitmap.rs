@@ -23,9 +23,9 @@ use core::ptr::NonNull;
 use sgx_types::error::SgxResult;
 use sgx_types::error::SgxStatus;
 
+use super::alloc::Alloc;
 use super::alloc::ResAlloc;
 use super::alloc::StaticAlloc;
-use super::interior::Alloc;
 
 #[repr(C)]
 #[derive(Debug)]

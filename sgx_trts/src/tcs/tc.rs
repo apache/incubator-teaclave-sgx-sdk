@@ -207,7 +207,7 @@ impl<'a> ThreadControl<'a> {
 
     #[cfg(not(any(feature = "sim", feature = "hyper")))]
     fn is_dyn_tcs(&self) -> bool {
-        let table = crate::edmm::layout::LayoutTable::new();
+        let table = crate::emm::layout::LayoutTable::new();
         if let Some(attr) = table.check_dyn_range(self.tcs() as *const Tcs as usize, 1, None) {
             if attr.flags == arch::SI_FLAGS_TCS {
                 return true;
@@ -307,5 +307,5 @@ pub fn get_stack_guard() -> NonZeroUsize {
 
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
 fn stack_max_page() -> usize {
-    crate::edmm::layout::LayoutTable::new().dyn_stack_max_page()
+    crate::emm::layout::LayoutTable::new().dyn_stack_max_page()
 }

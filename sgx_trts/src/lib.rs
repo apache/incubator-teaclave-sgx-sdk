@@ -65,7 +65,6 @@ mod version;
 mod xsave;
 
 pub mod capi;
-pub mod edmm;
 pub mod emm;
 
 #[cfg(not(any(feature = "sim", feature = "hyper")))]

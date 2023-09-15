@@ -16,9 +16,9 @@
 // under the License..
 
 use crate::{
-    edmm::ProtFlags,
+    emm::ProtFlags,
     emm::{
-        flags::AllocFlags,
+        page::AllocFlags,
         range::{RangeType, RM},
     },
     veh::HandleResult,

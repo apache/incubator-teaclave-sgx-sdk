@@ -26,5 +26,8 @@ pub mod state;
 
 pub use atexit::{at_exit, cleanup};
 pub use init::{ctors, global_init, rtinit};
-pub use mem::{is_within_enclave, is_within_host, EnclaveRange, MmLayout};
+pub use mem::{
+    is_within_enclave, is_within_host, is_within_rts_range, is_within_user_range, EnclaveRange,
+    MmLayout,
+};
 pub use uninit::{global_exit, rtuninit, UNINIT_FLAG};

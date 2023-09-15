@@ -15,9 +15,17 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use crate::arch::SE_PAGE_SIZE;
 use crate::call::{ocall, OCallIndex, OcBuffer};
-use crate::edmm::mem::{apply_epc_pages, trim_epc_pages};
-use crate::enclave::{self, MmLayout};
+use crate::emm::alloc::Alloc;
+use crate::emm::page::AllocFlags;
+use crate::emm::pfhandler::{PfHandler, PfInfo};
+use crate::emm::range::{
+    RangeType, ALLIGNMENT_MASK, ALLIGNMENT_SHIFT, ALLOC_FLAGS_MASK, ALLOC_FLAGS_SHIFT,
+    PAGE_TYPE_MASK, PAGE_TYPE_SHIFT, RM,
+};
+use crate::emm::{apply_epc_pages, trim_epc_pages, PageInfo, PageType, ProtFlags};
+use crate::enclave::{self, is_within_enclave, MmLayout};
 use crate::error;
 use crate::rand::rand;
 use crate::tcs::{current, stack_size, tcs_max_num, tcs_policy};
@@ -26,8 +34,8 @@ use crate::veh::{register_exception, unregister, ExceptionHandler, Handle};
 use core::convert::TryFrom;
 use core::ffi::c_void;
 use core::num::NonZeroUsize;
-use core::ptr;
 use core::slice;
+use core::{mem, ptr};
 use sgx_types::error::SgxStatus;
 
 #[inline]
@@ -172,6 +180,119 @@ pub unsafe extern "C" fn sgx_is_outside_enclave(p: *const u8, len: usize) -> i32
 
 #[inline]
 #[no_mangle]
+pub unsafe extern "C" fn sgx_apply_epc_pages(addr: usize, count: usize) -> i32 {
+    if apply_epc_pages(addr, count).is_ok() {
+        0
+    } else {
+        -1
+    }
+}
+
+#[inline]
+#[no_mangle]
+pub unsafe extern "C" fn sgx_trim_epc_pages(addr: usize, count: usize) -> i32 {
+    if trim_epc_pages(addr, count).is_ok() {
+        0
+    } else {
+        -1
+    }
+}
+
+// TODO: replace inarguments with "C" style arguments
+#[inline]
+#[no_mangle]
+pub unsafe extern "C" fn sgx_mm_alloc(
+    addr: usize,
+    size: usize,
+    flags: usize,
+    handler: *mut c_void,
+    priv_data: *mut PfInfo,
+    out_addr: *mut *mut u8,
+) -> u32 {
+    let handler = if handler.is_null() {
+        None
+    } else {
+        Some(mem::transmute::<*mut c_void, PfHandler>(handler))
+    };
+
+    let alloc_flags =
+        match AllocFlags::from_bits(((flags & ALLOC_FLAGS_MASK) >> ALLOC_FLAGS_SHIFT) as u32) {
+            Some(flags) => flags,
+            None => {
+                return SgxStatus::InvalidParameter.into();
+            }
+        };
+
+    let mut page_type =
+        match PageType::try_from(((flags & PAGE_TYPE_MASK) >> PAGE_TYPE_SHIFT) as u8) {
+            Ok(typ) => typ,
+            Err(_) => return SgxStatus::InvalidParameter.into(),
+        };
+
+    if page_type == PageType::None {
+        page_type = PageType::Reg;
+    }
+
+    if (size % SE_PAGE_SIZE) > 0 {
+        return SgxStatus::InvalidParameter.into();
+    }
+
+    let mut align_flag: u8 = ((flags & ALLIGNMENT_MASK) >> ALLIGNMENT_SHIFT) as u8;
+    if align_flag == 0 {
+        align_flag = 12;
+    }
+    if align_flag < 12 {
+        return SgxStatus::InvalidParameter.into();
+    }
+    let align_mask: usize = (1 << align_flag) - 1;
+
+    if (addr & align_mask) > 0 {
+        return SgxStatus::InvalidParameter.into();
+    }
+
+    if (addr > 0) && !is_within_enclave(addr as *const u8, size) {
+        return SgxStatus::InvalidParameter.into();
+    }
+
+    let info = if alloc_flags.contains(AllocFlags::RESERVED) {
+        PageInfo {
+            prot: ProtFlags::NONE,
+            typ: PageType::None,
+        }
+    } else {
+        PageInfo {
+            prot: ProtFlags::R | ProtFlags::W,
+            typ: page_type,
+        }
+    };
+
+    let priv_data = if priv_data.is_null() {
+        None
+    } else {
+        Some(priv_data)
+    };
+
+    let mut range_manage = RM.get().unwrap().lock();
+    match range_manage.alloc(
+        Some(addr),
+        size,
+        alloc_flags,
+        info,
+        handler,
+        priv_data,
+        RangeType::User,
+        Alloc::Reserve,
+    ) {
+        Ok(base) => {
+            *out_addr = base as *mut u8;
+            0
+        }
+        Err(err) => err.into(),
+    }
+}
+
+#[inline]
+#[no_mangle]
 pub unsafe extern "C" fn sgx_ocall(idx: i32, ms: *mut c_void) -> u32 {
     if let Ok(index) = OCallIndex::try_from(idx) {
         let ms = if !ms.is_null() { Some(&mut *ms) } else { None };
@@ -224,26 +345,6 @@ pub unsafe extern "C" fn sgx_ocfree() {
 #[no_mangle]
 pub unsafe extern "C" fn sgx_ocremain_size() -> usize {
     OcBuffer::remain_size()
-}
-
-#[inline]
-#[no_mangle]
-pub unsafe extern "C" fn sgx_apply_epc_pages(addr: usize, count: usize) -> i32 {
-    if apply_epc_pages(addr, count).is_ok() {
-        0
-    } else {
-        -1
-    }
-}
-
-#[inline]
-#[no_mangle]
-pub unsafe extern "C" fn sgx_trim_epc_pages(addr: usize, count: usize) -> i32 {
-    if trim_epc_pages(addr, count).is_ok() {
-        0
-    } else {
-        -1
-    }
 }
 
 #[allow(clippy::redundant_closure)]

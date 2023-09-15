@@ -17,7 +17,7 @@
 
 #![allow(clippy::enum_variant_names)]
 
-use crate::edmm::{self, PageType};
+use crate::emm::{PageInfo, PageType};
 use crate::tcs::tc;
 use crate::version::*;
 use crate::xsave;

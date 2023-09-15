@@ -16,16 +16,17 @@
 // under the License..
 
 use crate::arch::{SE_PAGE_SHIFT, SE_PAGE_SIZE};
-use crate::edmm::{perm, PageInfo, PageRange, PageType, ProtFlags};
+use crate::emm::{PageInfo, PageRange, PageType, ProtFlags};
 use crate::enclave::is_within_enclave;
 use alloc::boxed::Box;
 use intrusive_collections::{intrusive_adapter, LinkedListLink, UnsafeRef};
 use sgx_types::error::{SgxResult, SgxStatus};
 
+use super::alloc::Alloc;
 use super::alloc::{ResAlloc, StaticAlloc};
 use super::bitmap::BitArray;
-use super::flags::AllocFlags;
-use super::interior::Alloc;
+use super::ocall;
+use super::page::AllocFlags;
 use super::pfhandler::{PfHandler, PfInfo};
 
 /// Enclave Management Area
@@ -179,7 +180,7 @@ impl EMA {
         };
 
         // Ocall to mmap memory in urts
-        perm::alloc_ocall(self.start, self.length, self.info.typ, self.alloc_flags)?;
+        ocall::alloc_ocall(self.start, self.length, self.info.typ, self.alloc_flags)?;
 
         // Set the corresponding bits of eaccept map
         if self.alloc_flags.contains(AllocFlags::COMMIT_NOW) {
@@ -324,7 +325,7 @@ impl EMA {
             }
 
             let block_length = block_end - block_start;
-            perm::modify_ocall(
+            ocall::modify_ocall(
                 block_start,
                 block_length,
                 PageInfo {
@@ -351,7 +352,7 @@ impl EMA {
             }
 
             // Notify trimming
-            perm::modify_ocall(
+            ocall::modify_ocall(
                 block_start,
                 block_length,
                 PageInfo {
@@ -399,7 +400,7 @@ impl EMA {
         }
 
         // Notify modifying permissions
-        perm::modify_ocall(
+        ocall::modify_ocall(
             self.start,
             self.length,
             self.info,
@@ -434,7 +435,7 @@ impl EMA {
         };
 
         if new_prot == ProtFlags::NONE {
-            perm::modify_ocall(
+            ocall::modify_ocall(
                 self.start,
                 self.length,
                 PageInfo {
@@ -472,7 +473,7 @@ impl EMA {
             return Err(SgxStatus::InvalidParameter);
         }
 
-        perm::modify_ocall(
+        ocall::modify_ocall(
             self.start,
             self.length,
             info,

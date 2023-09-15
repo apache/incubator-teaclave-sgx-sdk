@@ -15,22 +15,35 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::arch::{SecInfo, SE_PAGE_SHIFT, SE_PAGE_SIZE};
+use crate::arch::{self, Secinfo, SE_PAGE_SHIFT, SE_PAGE_SIZE};
+use crate::emm::layout::LayoutTable;
+use crate::emm::trim;
 use crate::enclave::is_within_enclave;
 use crate::inst::EncluInst;
+use bitflags::bitflags;
 use core::num::NonZeroUsize;
 use sgx_types::error::{SgxResult, SgxStatus};
 use sgx_types::marker::ContiguousMemory;
+
+bitflags! {
+    pub struct AllocFlags: u32 {
+        const RESERVED = 0b0001;
+        const COMMIT_NOW = 0b0010;
+        const COMMIT_ON_DEMAND = 0b0100;
+        const GROWSDOWN = 0b00010000;
+        const GROWSUP = 0b00100000;
+        const FIXED = 0b01000000;
+        const SYSTEM = 0b10000000;
+    }
+}
 
 impl_enum! {
     #[repr(u8)]
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub enum PageType {
-        // Secs = 0,
         None = 0,
         Tcs  = 1,
         Reg  = 2,
-        // Va   = 3,
         Trim = 4,
         Frist = 5,
         Rest = 6,
@@ -224,4 +237,50 @@ impl Page {
         let secinfo: SecInfo = self.info.into();
         EncluInst::emodpe(&secinfo, self.addr).map_err(|_| SgxStatus::Unexpected)
     }
+}
+
+pub fn apply_epc_pages(addr: usize, count: usize) -> SgxResult {
+    ensure!(addr != 0 && count != 0, SgxStatus::InvalidParameter);
+
+    if let Some(attr) = LayoutTable::new().check_dyn_range(addr, count, None) {
+        let pages = PageRange::new(
+            addr,
+            count,
+            PageInfo {
+                typ: PageType::Reg,
+                prot: ProtFlags::R | ProtFlags::W | ProtFlags::PENDING,
+            },
+        )?;
+        if (attr.attr & arch::PAGE_DIR_GROW_DOWN) == 0 {
+            pages.accept_forward()
+        } else {
+            pages.accept_backward()
+        }
+    } else {
+        Err(SgxStatus::InvalidParameter)
+    }
+}
+
+pub fn trim_epc_pages(addr: usize, count: usize) -> SgxResult {
+    ensure!(addr != 0 && count != 0, SgxStatus::InvalidParameter);
+
+    LayoutTable::new()
+        .check_dyn_range(addr, count, None)
+        .ok_or(SgxStatus::InvalidParameter)?;
+
+    trim::trim_range(addr, count)?;
+
+    let pages = PageRange::new(
+        addr,
+        count,
+        PageInfo {
+            typ: PageType::Trim,
+            prot: ProtFlags::MODIFIED,
+        },
+    )?;
+    pages.accept_forward()?;
+
+    trim::trim_range_commit(addr, count)?;
+
+    Ok(())
 }

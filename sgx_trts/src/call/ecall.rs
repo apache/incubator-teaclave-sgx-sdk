@@ -278,11 +278,11 @@ pub fn ecall<T>(idx: ECallIndex, tcs: &mut Tcs, ms: *mut T, tidx: usize) -> SgxR
             {
                 if crate::feature::SysFeatures::get().is_edmm() {
                     // save all the static tcs into the tcs table. These TCS would be trimmed in the uninit flow.
-                    crate::edmm::tcs::add_static_tcs()?;
+                    crate::emm::tcs::add_static_tcs()?;
 
                     // change back the page permission
-                    crate::edmm::mem::change_perm().map_err(|e| {
-                        let _ = crate::edmm::tcs::clear_static_tcs();
+                    crate::emm::init::change_perm().map_err(|e| {
+                        let _ = crate::emm::tcs::clear_static_tcs();
                         e
                     })?;
                 }

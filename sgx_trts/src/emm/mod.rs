@@ -15,13 +15,19 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#[cfg(not(any(feature = "sim", feature = "hyper")))]
 pub(crate) mod alloc;
 pub(crate) mod bitmap;
 pub(crate) mod ema;
-pub(crate) mod flags;
 pub(crate) mod init;
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
-pub(crate) mod interior;
+pub(crate) mod layout;
+pub(crate) mod ocall;
+pub(crate) mod page;
 pub(crate) mod pfhandler;
 pub(crate) mod range;
-pub(crate) mod user;
+pub(crate) mod tcs;
+pub(crate) mod trim;
+
+pub use ocall::{modpr_ocall, mprotect_ocall};
+pub use page::{apply_epc_pages, trim_epc_pages, PageInfo, PageRange, PageType, ProtFlags};

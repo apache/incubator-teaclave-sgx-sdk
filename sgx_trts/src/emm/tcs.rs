@@ -63,7 +63,7 @@ pub fn mktcs(mk_tcs: NonNull<MkTcs>) -> SgxResult {
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
 mod hw {
     use crate::arch::{self, Layout, Tcs};
-    use crate::edmm::epc::PageType;
+    use crate::emm::page::PageType;
     use crate::emm::range::{RangeType, RM};
     use crate::enclave::MmLayout;
     use crate::tcs::list;
@@ -72,7 +72,7 @@ mod hw {
     use sgx_types::error::{SgxResult, SgxStatus};
 
     pub fn add_tcs(mut tcs: NonNull<Tcs>) -> SgxResult {
-        use crate::edmm::layout::LayoutTable;
+        use crate::emm::layout::LayoutTable;
 
         let base = MmLayout::image_base();
         let table = LayoutTable::new();
