@@ -15,29 +15,18 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::arch::SE_PAGE_SHIFT;
-use crate::arch::SE_PAGE_SIZE;
-use crate::edmm::perm;
-use crate::edmm::PageRange;
-use crate::edmm::{PageInfo, PageType, ProtFlags};
+use crate::arch::{SE_PAGE_SHIFT, SE_PAGE_SIZE};
+use crate::edmm::{perm, PageInfo, PageRange, PageType, ProtFlags};
 use crate::enclave::is_within_enclave;
 use alloc::boxed::Box;
-use intrusive_collections::intrusive_adapter;
-use intrusive_collections::LinkedListLink;
-use intrusive_collections::UnsafeRef;
-use sgx_types::error::SgxResult;
-use sgx_types::error::SgxStatus;
+use intrusive_collections::{intrusive_adapter, LinkedListLink, UnsafeRef};
+use sgx_types::error::{SgxResult, SgxStatus};
 
-use crate::feature::SysFeatures;
-use crate::trts::Version;
-
-use super::alloc::ResAlloc;
-use super::alloc::StaticAlloc;
+use super::alloc::{ResAlloc, StaticAlloc};
 use super::bitmap::BitArray;
 use super::flags::AllocFlags;
 use super::interior::Alloc;
-use super::pfhandler::PfHandler;
-use super::pfhandler::PfInfo;
+use super::pfhandler::{PfHandler, PfInfo};
 
 /// Enclave Management Area
 #[repr(C)]
@@ -221,7 +210,7 @@ impl EMA {
 
     /// Check the prerequisites of ema commitment
     pub fn commit_check(&self) -> SgxResult {
-        if self.info.prot.intersects(ProtFlags::R | ProtFlags::W) {
+        if !self.info.prot.intersects(ProtFlags::R | ProtFlags::W) {
             return Err(SgxStatus::InvalidParameter);
         }
 
@@ -410,17 +399,15 @@ impl EMA {
         }
 
         // Notify modifying permissions
-        if SysFeatures::get().version() == Version::Sdk2_0 {
-            perm::modify_ocall(
-                self.start,
-                self.length,
-                self.info,
-                PageInfo {
-                    typ: self.info.typ,
-                    prot: new_prot,
-                },
-            )?;
-        }
+        perm::modify_ocall(
+            self.start,
+            self.length,
+            self.info,
+            PageInfo {
+                typ: self.info.typ,
+                prot: new_prot,
+            },
+        )?;
 
         let info = PageInfo {
             typ: PageType::Reg,
@@ -438,7 +425,6 @@ impl EMA {
             // If the new permission is RWX, no EMODPR needed in untrusted part (modify ocall)
             if (new_prot & (ProtFlags::W | ProtFlags::X)) != (ProtFlags::W | ProtFlags::X) {
                 page.accept()?;
-                return Ok(());
             }
         }
 
@@ -447,7 +433,7 @@ impl EMA {
             prot: new_prot,
         };
 
-        if new_prot == ProtFlags::NONE && SysFeatures::get().version() == Version::Sdk2_0 {
+        if new_prot == ProtFlags::NONE {
             perm::modify_ocall(
                 self.start,
                 self.length,
@@ -578,7 +564,7 @@ impl EMA {
 
     pub fn set_eaccept_map_full(&mut self) -> SgxResult {
         if self.eaccept_map.is_none() {
-            let eaccept_map = match self.alloc {
+            let mut eaccept_map = match self.alloc {
                 Alloc::Reserve => {
                     let page_num = self.length >> SE_PAGE_SHIFT;
                     BitArray::new(page_num, Alloc::Reserve)?
@@ -588,6 +574,7 @@ impl EMA {
                     BitArray::new(page_num, Alloc::Static)?
                 }
             };
+            eaccept_map.set_full();
             self.eaccept_map = Some(eaccept_map);
         } else {
             self.eaccept_map.as_mut().unwrap().set_full();
@@ -605,7 +592,7 @@ impl EMA {
 
     /// Obtain the allocator of ema
     pub fn allocator(&self) -> Alloc {
-        self.alloc.clone()
+        self.alloc
     }
 
     pub fn flags(&self) -> AllocFlags {
@@ -623,3 +610,24 @@ impl EMA {
 
 // Implement ema adapter for the operations of intrusive linkedlist
 intrusive_adapter!(pub EmaAda = UnsafeRef<EMA>: EMA { link: LinkedListLink });
+
+// pub struct EmaRange<'a> {
+//     pub cursor: CursorMut<'a, EmaAda>,
+//     pub count : usize,
+// }
+
+// impl<'a> Iterator for EmaRange<'a> {
+//     type Item = &'a mut EMA;
+
+//     fn next(&mut self) -> Option<Self::Item> {
+//         if self.count == 0 {
+//             None
+//         } else {
+//             self.cursor.move_next();
+//             self.count -= 1;
+
+//             let ema = unsafe { self.cursor.get_mut().unwrap() };
+//             Some(ema)
+//         }
+//     }
+// }

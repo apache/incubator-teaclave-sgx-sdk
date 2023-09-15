@@ -19,7 +19,6 @@ use alloc::boxed::Box;
 use alloc::vec;
 use core::alloc::Allocator;
 use core::alloc::Layout;
-use core::clone::Clone;
 use core::ptr::NonNull;
 use sgx_types::error::SgxResult;
 use sgx_types::error::SgxStatus;
@@ -132,7 +131,7 @@ impl BitArray {
         let r_bits = self.bits - l_bits;
         let r_bytes = (r_bits + 7) / 8;
 
-        let r_array = Self::new(r_bits, self.alloc.clone())?;
+        let r_array = Self::new(r_bits, self.alloc)?;
 
         let r_data = unsafe { core::slice::from_raw_parts_mut(r_array.data, r_array.bytes) };
         let l_data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };

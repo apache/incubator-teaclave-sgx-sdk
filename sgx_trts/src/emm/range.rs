@@ -18,7 +18,7 @@
 use crate::{
     arch::SE_PAGE_SIZE,
     edmm::{PageInfo, PageType, ProtFlags},
-    enclave::is_within_enclave,
+    enclave::{is_within_enclave, MmLayout},
     sync::SpinReentrantMutex,
 };
 use alloc::boxed::Box;
@@ -32,7 +32,7 @@ use super::{
     flags::AllocFlags,
     interior::Alloc,
     pfhandler::{PfHandler, PfInfo},
-    user::{is_within_rts_range, is_within_user_range, USER_RANGE},
+    user::{is_within_rts_range, is_within_user_range},
 };
 
 const ALLOC_FLAGS_SHIFT: usize = 0;
@@ -116,6 +116,44 @@ impl RangeManage {
         Ok(())
     }
 
+    // Clear the EMAs in charging of [start, end) memory region,
+    // return next ema cursor
+    fn clear_reserved_emas(
+        &mut self,
+        start: usize,
+        end: usize,
+        typ: RangeType,
+        alloc: Alloc,
+    ) -> SgxResult<CursorMut<'_, EmaAda>> {
+        let (mut cursor, ema_num) = self.search_ema_range(start, end, typ, true)?;
+        let start_ema_ptr = cursor.get().unwrap() as *const EMA;
+
+        // Check EMA attributes
+        let mut count = ema_num;
+        while count != 0 {
+            let ema = cursor.get().unwrap();
+            // EMA must be reserved and can not manage internal memory region
+            if !ema.flags().contains(AllocFlags::RESERVED) || ema.allocator() != alloc {
+                return Err(SgxStatus::InvalidParameter);
+            }
+            cursor.move_next();
+            count -= 1;
+        }
+
+        let mut cursor = match typ {
+            RangeType::Rts => unsafe { self.rts.cursor_mut_from_ptr(start_ema_ptr) },
+            RangeType::User => unsafe { self.user.cursor_mut_from_ptr(start_ema_ptr) },
+        };
+
+        count = ema_num;
+        while count != 0 {
+            cursor.remove();
+            count -= 1;
+        }
+
+        Ok(cursor)
+    }
+
     /// Allocate a new memory region in enclave address space (ELRANGE).
     pub fn alloc(
         &mut self,
@@ -183,6 +221,9 @@ impl RangeManage {
             }
         };
 
+        let mut alloc_addr: Option<usize> = None;
+        let mut alloc_next_ema: Option<CursorMut<'_, EmaAda>> = None;
+
         if addr > 0 {
             let is_fixed_alloc = alloc_flags.contains(AllocFlags::FIXED);
             // FIXME: search_ema_range implicitly contains splitting ema!
@@ -192,8 +233,16 @@ impl RangeManage {
                 // exist in emas list
                 Ok(_) => {
                     // TODO: realloc EMA from reserve
-                    if is_fixed_alloc {
-                        return Err(SgxStatus::InvalidParameter);
+                    match self.clear_reserved_emas(addr, addr + size, typ, alloc) {
+                        Ok(ema) => {
+                            alloc_addr = Some(addr);
+                            alloc_next_ema = Some(ema);
+                        }
+                        Err(_) => {
+                            if is_fixed_alloc {
+                                return Err(SgxStatus::InvalidParameter);
+                            }
+                        }
                     }
                 }
                 // not exist in emas list
@@ -206,13 +255,19 @@ impl RangeManage {
             };
         };
 
-        let (free_addr, mut next_ema) = self.find_free_region(size, 1 << align_flag, typ)?;
+        if alloc_addr.is_none() {
+            let (free_addr, next_ema) = self.find_free_region(size, 1 << align_flag, typ)?;
+            alloc_addr = Some(free_addr);
+            alloc_next_ema = Some(next_ema);
+        }
+
+        // let (free_addr, mut next_ema) = self.find_free_region(size, 1 << align_flag, typ)?;
 
         let new_ema_ref = match alloc {
             Alloc::Reserve => {
                 let mut new_ema = Box::<EMA, ResAlloc>::new_in(
                     EMA::new(
-                        free_addr,
+                        alloc_addr.unwrap(),
                         size,
                         alloc_flags,
                         info,
@@ -229,7 +284,7 @@ impl RangeManage {
             Alloc::Static => {
                 let mut new_ema = Box::<EMA, StaticAlloc>::new_in(
                     EMA::new(
-                        free_addr,
+                        alloc_addr.unwrap(),
                         size,
                         alloc_flags,
                         info,
@@ -245,8 +300,8 @@ impl RangeManage {
             }
         };
 
-        next_ema.insert_before(new_ema_ref);
-        Ok(free_addr)
+        alloc_next_ema.unwrap().insert_before(new_ema_ref);
+        Ok(alloc_addr.unwrap())
     }
 
     /// Allocate a new memory region in enclave address space (ELRANGE).
@@ -279,6 +334,9 @@ impl RangeManage {
             return Err(SgxStatus::InvalidParameter);
         }
 
+        let mut alloc_addr: Option<usize> = None;
+        let mut alloc_next_ema: Option<CursorMut<'_, EmaAda>> = None;
+
         if addr > 0 {
             let is_fixed_alloc = alloc_flags.contains(AllocFlags::FIXED);
             // FIXME: search_ema_range implicitly contains splitting ema!
@@ -288,8 +346,16 @@ impl RangeManage {
                 // exist in emas list
                 Ok(_) => {
                     // TODO: realloc EMA from reserve
-                    if is_fixed_alloc {
-                        return Err(SgxStatus::InvalidParameter);
+                    match self.clear_reserved_emas(addr, addr + size, typ, alloc) {
+                        Ok(ema) => {
+                            alloc_addr = Some(addr);
+                            alloc_next_ema = Some(ema);
+                        }
+                        Err(_) => {
+                            if is_fixed_alloc {
+                                return Err(SgxStatus::InvalidParameter);
+                            }
+                        }
                     }
                 }
                 // not exist in emas list
@@ -302,13 +368,19 @@ impl RangeManage {
             };
         };
 
-        let (free_addr, mut next_ema) = self.find_free_region(size, 1 << align_flag, typ)?;
+        if alloc_addr.is_none() {
+            let (free_addr, next_ema) = self.find_free_region(size, 1 << align_flag, typ)?;
+            alloc_addr = Some(free_addr);
+            alloc_next_ema = Some(next_ema);
+        }
+
+        // let (free_addr, mut next_ema) = self.find_free_region(size, 1 << align_flag, typ)?;
 
         let new_ema_ref = match alloc {
             Alloc::Reserve => {
                 let mut new_ema = Box::<EMA, ResAlloc>::new_in(
                     EMA::new(
-                        free_addr,
+                        alloc_addr.unwrap(),
                         size,
                         alloc_flags,
                         info,
@@ -325,7 +397,7 @@ impl RangeManage {
             Alloc::Static => {
                 let mut new_ema = Box::<EMA, StaticAlloc>::new_in(
                     EMA::new(
-                        free_addr,
+                        alloc_addr.unwrap(),
                         size,
                         alloc_flags,
                         info,
@@ -341,8 +413,8 @@ impl RangeManage {
             }
         };
 
-        next_ema.insert_before(new_ema_ref);
-        Ok(free_addr)
+        alloc_next_ema.unwrap().insert_before(new_ema_ref);
+        Ok(alloc_addr.unwrap())
     }
 
     /// Commit a partial or full range of memory allocated previously with
@@ -428,18 +500,22 @@ impl RangeManage {
         typ: RangeType,
     ) -> SgxResult {
         ensure!(
-            (size != 0)
-                && (size % SE_PAGE_SIZE == 0)
-                && (addr % SE_PAGE_SIZE == 0)
-                && (prot.contains(ProtFlags::X) && !prot.contains(ProtFlags::R)),
+            (size != 0) && (size % SE_PAGE_SIZE == 0) && (addr % SE_PAGE_SIZE == 0),
             SgxStatus::InvalidParameter
         );
+
+        if prot.contains(ProtFlags::X) && !prot.contains(ProtFlags::R) {
+            return Err(SgxStatus::InvalidParameter);
+        }
+
         let (mut cursor, ema_num) = self.search_ema_range(addr, addr + size, typ, true)?;
         let start_ema_ptr = cursor.get().unwrap() as *const EMA;
 
         let mut count = ema_num;
         while count != 0 {
-            cursor.get().unwrap().modify_perm_check()?;
+            let ema = cursor.get().unwrap();
+            ema.modify_perm_check()?;
+            // cursor.get().unwrap().modify_perm_check()?;
             cursor.move_next();
             count -= 1;
         }
@@ -659,9 +735,8 @@ impl RangeManage {
         align: usize,
         typ: RangeType,
     ) -> SgxResult<(usize, CursorMut<'_, EmaAda>)> {
-        let user_range = USER_RANGE.get().unwrap();
-        let user_base = user_range.start;
-        let user_end = user_range.end;
+        let user_base = MmLayout::user_region_mem_base();
+        let user_end = user_base + MmLayout::user_region_mem_size();
 
         let mut addr;
 

@@ -30,7 +30,7 @@ use sgx_types::error::SgxResult;
 #[link_section = ".data.rel.ro"]
 static mut STACK_CHK_GUARD: OnceCell<NonZeroUsize> = OnceCell::new();
 
-pub const STATIC_STACK_SIZE: usize = 2656; // 16 bytes aligned
+pub const STATIC_STACK_SIZE: usize = 4096;
 const CANARY_OFFSET: usize = arch::SE_GUARD_PAGE_SIZE + STATIC_STACK_SIZE - mem::size_of::<usize>();
 
 extern "C" {

@@ -28,17 +28,13 @@ mod hw {
     use crate::arch::{self, Layout};
     use crate::edmm::epc::{PageInfo, PageRange, PageType, ProtFlags};
     use crate::edmm::layout::LayoutTable;
-    use crate::edmm::perm;
     use crate::edmm::trim;
     use crate::elf::program::Type;
     use crate::emm::flags::AllocFlags;
-    use crate::emm::range::RM;
+    use crate::emm::range::{RangeType, RM};
     use crate::enclave::parse;
     use crate::enclave::MmLayout;
-    use crate::feature::{SysFeatures, Version};
-    use core::convert::TryFrom;
     use sgx_types::error::{SgxResult, SgxStatus};
-    use sgx_types::types::ProtectPerm;
 
     pub fn apply_epc_pages(addr: usize, count: usize) -> SgxResult {
         ensure!(addr != 0 && count != 0, SgxStatus::InvalidParameter);
@@ -93,15 +89,8 @@ mod hw {
             .check_dyn_range(addr, count, None)
             .ok_or(SgxStatus::InvalidParameter)?;
 
-        let pages = PageRange::new(
-            addr,
-            count,
-            PageInfo {
-                typ: PageType::Reg,
-                prot: ProtFlags::R | ProtFlags::W | ProtFlags::PENDING,
-            },
-        )?;
-        pages.accept_forward()?;
+        let mut range_manage = RM.get().unwrap().lock();
+        range_manage.commit(addr, count << arch::SE_PAGE_SHIFT, RangeType::Rts)?;
 
         Ok(())
     }
@@ -148,6 +137,7 @@ mod hw {
         let text_relo = parse::has_text_relo()?;
 
         let base = MmLayout::image_base();
+        let mut range_manage = RM.get().unwrap().lock();
         for phdr in elf.program_iter() {
             let typ = phdr.get_type().unwrap_or(Type::Null);
             if typ == Type::Load && text_relo && !phdr.flags().is_write() {
@@ -155,25 +145,26 @@ mod hw {
                 let start = base + trim_to_page!(phdr.virtual_addr() as usize);
                 let end =
                     base + round_to_page!(phdr.virtual_addr() as usize + phdr.mem_size() as usize);
-                let count = (end - start) / arch::SE_PAGE_SIZE;
+                let size = end - start;
 
                 if phdr.flags().is_read() {
-                    perm |= arch::SI_FLAG_R;
+                    perm |= arch::SGX_EMA_PROT_READ;
                 }
                 if phdr.flags().is_execute() {
-                    perm |= arch::SI_FLAG_X;
+                    perm |= arch::SGX_EMA_PROT_EXEC;
                 }
 
-                modify_perm(start, count, perm as u8)?;
+                let prot = ProtFlags::from_bits_truncate(perm as u8);
+                range_manage.modify_perms(start, size, prot, RangeType::Rts)?;
             }
             if typ == Type::GnuRelro {
                 let start = base + trim_to_page!(phdr.virtual_addr() as usize);
                 let end =
                     base + round_to_page!(phdr.virtual_addr() as usize + phdr.mem_size() as usize);
-                let count = (end - start) / arch::SE_PAGE_SIZE;
+                let size = end - start;
 
-                if count > 0 {
-                    modify_perm(start, count, arch::SI_FLAG_R as u8)?;
+                if size > 0 {
+                    range_manage.modify_perms(start, size, ProtFlags::R, RangeType::Rts)?;
                 }
             }
         }
@@ -185,9 +176,9 @@ mod hw {
                 && (layout.entry.page_count > 0)
         }) {
             let start = base + unsafe { layout.entry.rva as usize };
-            let count = unsafe { layout.entry.page_count as usize };
+            let size = unsafe { layout.entry.page_count as usize } << arch::SE_PAGE_SHIFT;
 
-            modify_perm(start, count, (arch::SI_FLAG_R | arch::SI_FLAG_W) as u8)?;
+            range_manage.modify_perms(start, size, ProtFlags::R, RangeType::Rts)?;
         }
         Ok(())
     }
@@ -229,27 +220,6 @@ mod hw {
         }
 
         Ok(())
-    }
-
-    fn modify_perm(addr: usize, count: usize, perm: u8) -> SgxResult {
-        let pages = PageRange::new(
-            addr,
-            count,
-            PageInfo {
-                typ: PageType::Reg,
-                prot: ProtFlags::PR | ProtFlags::from_bits_truncate(perm),
-            },
-        )?;
-
-        if SysFeatures::get().version() == Version::Sdk2_0 {
-            perm::modpr_ocall(
-                addr,
-                count,
-                ProtectPerm::try_from(perm).map_err(|_| SgxStatus::InvalidParameter)?,
-            )?;
-        }
-
-        pages.modify()
     }
 }
 

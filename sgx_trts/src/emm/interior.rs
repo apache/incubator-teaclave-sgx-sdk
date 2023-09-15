@@ -45,12 +45,6 @@ const MAX_EMALLOC_SIZE: usize = 0x10000000;
 const ALLOC_MASK: usize = 1;
 const SIZE_MASK: usize = !(EXACT_MATCH_INCREMENT - 1);
 
-/// Init two level allocator
-pub fn init_alloc() {
-    init_static_alloc();
-    init_reserve_alloc()
-}
-
 /// Lowest level: Allocator for static memory
 pub static STATIC: Once<LockedHeap<32>> = Once::new();
 
@@ -58,7 +52,7 @@ pub static STATIC: Once<LockedHeap<32>> = Once::new();
 static mut STATIC_MEM: [u8; STATIC_MEM_SIZE] = [0; STATIC_MEM_SIZE];
 
 /// Init lowest level static memory allocator
-fn init_static_alloc() {
+pub fn init_static_alloc() {
     STATIC.call_once(|| {
         let static_alloc = LockedHeap::empty();
         unsafe {
@@ -75,12 +69,12 @@ pub static RES_ALLOCATOR: Once<Mutex<Reserve>> = Once::new();
 
 /// Init reserve memory allocator
 /// init_reserve_alloc() need to be called after init_static_alloc()
-fn init_reserve_alloc() {
+pub fn init_reserve_alloc() {
     RES_ALLOCATOR.call_once(|| Mutex::new(Reserve::new(INIT_MEM_SIZE)));
 }
 
 // Enum for allocator types
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Alloc {
     Static,

@@ -566,6 +566,14 @@ pub const SI_FLAGS_SECS: u64 = SI_FLAG_SECS;
 pub const SI_MASK_TCS: u64 = SI_FLAG_PT_MASK;
 pub const SI_MASK_MEM_ATTRIBUTE: u64 = 0x7;
 
+pub const SGX_EMA_PROT_NONE: u64 = 0x0;
+pub const SGX_EMA_PROT_READ: u64 = 0x1;
+pub const SGX_EMA_PROT_WRITE: u64 = 0x2;
+pub const SGX_EMA_PROT_EXEC: u64 = 0x4;
+pub const SGX_EMA_PROT_READ_WRITE: u64 = SGX_EMA_PROT_READ | SGX_EMA_PROT_WRITE;
+pub const SGX_EMA_PROT_READ_EXEC: u64 = SGX_EMA_PROT_READ | SGX_EMA_PROT_EXEC;
+pub const SGX_EMA_PROT_READ_WRITE_EXEC: u64 = SGX_EMA_PROT_READ_WRITE | SGX_EMA_PROT_EXEC;
+
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
 pub struct OCallContext {

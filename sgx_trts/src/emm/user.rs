@@ -15,30 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use spin::Once;
-
-#[derive(Clone, Copy)]
-pub struct UserRange {
-    pub start: usize,
-    pub end: usize,
-}
-
-impl UserRange {
-    fn start(&self) -> usize {
-        self.start
-    }
-    fn end(&self) -> usize {
-        self.end
-    }
-}
-
-/// User memory range specified by SDK developer
-pub static USER_RANGE: Once<UserRange> = Once::new();
-
-pub fn init_user_range(start: usize, end: usize) {
-    let _ = *USER_RANGE.call_once(|| UserRange { start, end });
-}
-
+use crate::enclave::MmLayout;
 pub fn is_within_rts_range(start: usize, len: usize) -> bool {
     let end = if len > 0 {
         if let Some(end) = start.checked_add(len - 1) {
@@ -49,11 +26,11 @@ pub fn is_within_rts_range(start: usize, len: usize) -> bool {
     } else {
         start
     };
-    let user_range = USER_RANGE.get().unwrap();
-    let user_start = user_range.start();
-    let user_end = user_range.end();
 
-    (start >= user_end) || (end < user_start)
+    let user_base = MmLayout::user_region_mem_base();
+    let user_end = user_base + MmLayout::user_region_mem_size();
+
+    (start <= end) && ((start >= user_end) || (end < user_base))
 }
 
 pub fn is_within_user_range(start: usize, len: usize) -> bool {
@@ -66,9 +43,9 @@ pub fn is_within_user_range(start: usize, len: usize) -> bool {
     } else {
         start
     };
-    let user_range = USER_RANGE.get().unwrap();
-    let user_start = user_range.start();
-    let user_end = user_range.end();
 
-    (start <= end) && (start >= user_start) && (end < user_end)
+    let user_base = MmLayout::user_region_mem_base();
+    let user_end = user_base + MmLayout::user_region_mem_size();
+
+    (start <= end) && (start >= user_base) && (end < user_end)
 }

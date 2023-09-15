@@ -272,6 +272,7 @@ pub fn ecall<T>(idx: ECallIndex, tcs: &mut Tcs, ms: *mut T, tidx: usize) -> SgxR
         ensure!(is_root_ecall, SgxStatus::ECallNotAllowed);
 
         FIRST_ECALL.call_once(|| {
+            debug_call_once();
             // EDMM:
             #[cfg(not(any(feature = "sim", feature = "hyper")))]
             {
@@ -353,3 +354,6 @@ pub fn thread_is_exit() -> bool {
         }
     }
 }
+
+#[no_mangle]
+pub extern "C" fn debug_call_once() {}

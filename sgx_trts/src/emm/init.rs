@@ -26,18 +26,23 @@ use crate::emm::range::{RangeType, EMA_PROT_MASK};
 use crate::enclave::MmLayout;
 use crate::{arch, emm::range::RM};
 
-use super::{interior::init_alloc, range::init_range_manage, user::init_user_range};
+use super::interior::{init_reserve_alloc, init_static_alloc};
+use super::range::init_range_manage;
 
-pub fn init_emm(user_start: usize, user_end: usize) {
-    // check user_start not equals to 0
-    init_user_range(user_start, user_end);
+pub fn init_emm() {
     init_range_manage();
-    init_alloc();
+    init_static_alloc();
+    init_reserve_alloc();
 }
 
 pub fn init_rts_emas() -> SgxResult {
     init_segment_emas()?;
-    init_rts_contexts_emas(arch::Global::get().layout_table(), 0)?;
+    // let mut layout = arch::Global::get().layout_table();
+    // layout = &layout[..(layout.len() - 1)];
+
+    // let layout = arch::Global::get().layout_table().split_last().unwrap().1;
+    let layout = arch::Global::get().layout_table();
+    init_rts_contexts_emas(layout, 0)?;
     Ok(())
 }
 
@@ -59,11 +64,15 @@ fn init_rts_contexts_emas(table: &[Layout], offset: usize) -> SgxResult {
 }
 
 fn build_rts_context_emas(entry: &LayoutEntry, offset: usize) -> SgxResult {
+    if entry.id == arch::LAYOUT_ID_USER_REGION {
+        return Ok(());
+    }
+
     let rva = offset + (entry.rva as usize);
     assert!(is_page_aligned!(rva));
 
     // TODO: not sure get_enclave_base() equal to elrange_base or image_base
-    let addr = MmLayout::image_base() + (rva as usize);
+    let addr = MmLayout::image_base() + rva;
     let size = (entry.page_count << arch::SE_PAGE_SHIFT) as usize;
     let mut range_manage = RM.get().unwrap().lock();
 
@@ -85,7 +94,7 @@ fn build_rts_context_emas(entry: &LayoutEntry, offset: usize) -> SgxResult {
 
     let post_remove = (entry.attributes & arch::PAGE_ATTR_POST_REMOVE) != 0;
     let post_add = (entry.attributes & arch::PAGE_ATTR_POST_ADD) != 0;
-    let static_min = (entry.attributes & arch::PAGE_ATTR_EADD) != 0;
+    let static_min = ((entry.attributes & arch::PAGE_ATTR_EADD) != 0) && !post_remove;
 
     if post_remove {
         // TODO: maybe AllocFlags need more flags or PageType is not None

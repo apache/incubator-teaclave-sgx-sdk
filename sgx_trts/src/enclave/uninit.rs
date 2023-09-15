@@ -15,9 +15,11 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use crate::arch;
+use crate::emm::range::{RangeType, RM};
 use crate::enclave::state::{self, State};
 use crate::enclave::{atexit, parse};
-use crate::tcs::ThreadControl;
+use crate::tcs::{list, ThreadControl};
 use core::sync::atomic::AtomicBool;
 use sgx_types::error::SgxResult;
 
@@ -61,7 +63,7 @@ pub fn rtuninit(tc: ThreadControl) -> SgxResult {
             let is_legal = tc.is_init();
         } else {
             use crate::feature::SysFeatures;
-            use crate::edmm::{self, layout::LayoutTable};
+            use crate::edmm::layout::LayoutTable;
 
             let is_legal = if SysFeatures::get().is_edmm() {
                 tc.is_utility() || !LayoutTable::new().is_dyn_tcs_exist()
@@ -79,9 +81,24 @@ pub fn rtuninit(tc: ThreadControl) -> SgxResult {
 
     #[cfg(not(any(feature = "sim", feature = "hyper")))]
     {
-        if SysFeatures::get().is_edmm() && edmm::tcs::accept_trim_tcs(tcs).is_err() {
-            state::set_state(State::Crashed);
-            bail!(SgxStatus::Unexpected);
+        // if SysFeatures::get().is_edmm() && edmm::tcs::accept_trim_tcs(tcs).is_err() {
+        //     state::set_state(State::Crashed);
+        //     bail!(SgxStatus::Unexpected);
+        // }
+        if SysFeatures::get().is_edmm() {
+            let mut range_manage = RM.get().unwrap().lock();
+
+            let mut list_guard = list::TCS_LIST.lock();
+            for tcs in list_guard.iter_mut().filter(|&t| !ptr::eq(t.as_ptr(), tcs)) {
+                let result =
+                    range_manage.dealloc(tcs.as_ptr() as usize, arch::SE_PAGE_SIZE, RangeType::Rts);
+                if result.is_err() {
+                    state::set_state(State::Crashed);
+                    bail!(SgxStatus::Unexpected);
+                }
+            }
+
+            list_guard.clear();
         }
     }
 

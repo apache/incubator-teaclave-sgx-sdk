@@ -63,7 +63,8 @@ pub fn mktcs(mk_tcs: NonNull<MkTcs>) -> SgxResult {
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
 mod hw {
     use crate::arch::{self, Layout, Tcs};
-    use crate::edmm::epc::{Page, PageInfo, PageType, ProtFlags};
+    use crate::edmm::epc::PageType;
+    use crate::emm::range::{RangeType, RM};
     use crate::enclave::MmLayout;
     use crate::tcs::list;
     use core::ptr;
@@ -71,8 +72,7 @@ mod hw {
     use sgx_types::error::{SgxResult, SgxStatus};
 
     pub fn add_tcs(mut tcs: NonNull<Tcs>) -> SgxResult {
-        use crate::call::{ocall, OCallIndex};
-        use crate::edmm::{self, layout::LayoutTable};
+        use crate::edmm::layout::LayoutTable;
 
         let base = MmLayout::image_base();
         let table = LayoutTable::new();
@@ -93,8 +93,11 @@ mod hw {
             if let Some(layout) = table.layout_by_id(id) {
                 if unsafe { layout.entry.attributes & arch::PAGE_ATTR_DYN_THREAD } != 0 {
                     let addr = base + unsafe { layout.entry.rva as usize } + offset;
-                    let count = unsafe { layout.entry.page_count };
-                    edmm::mem::apply_epc_pages(addr, count as usize)?;
+                    let size = unsafe { layout.entry.page_count } << arch::SE_PAGE_SHIFT;
+                    let mut range_manage = RM.get().unwrap().lock();
+                    range_manage
+                        .commit(addr, size as usize, RangeType::Rts)
+                        .map_err(|_| SgxStatus::Unexpected)?;
                 }
             }
         }
@@ -115,18 +118,15 @@ mod hw {
         tc.ofsbase = tcs_ptr + tc.ofsbase - base as u64;
         tc.ogsbase = tcs_ptr + tc.ogsbase - base as u64;
 
-        // ocall for MKTCS
-        ocall(OCallIndex::OCall(0), Some(tc))?;
-
-        // EACCEPT for MKTCS
-        let page = Page::new(
-            tcs.as_ptr() as usize,
-            PageInfo {
-                typ: PageType::Tcs,
-                prot: ProtFlags::MODIFIED,
-            },
-        )?;
-        page.accept()?;
+        let mut range_manage = RM.get().unwrap().lock();
+        range_manage
+            .modify_type(
+                tcs.as_ptr() as usize,
+                arch::SE_PAGE_SIZE,
+                PageType::Tcs,
+                RangeType::Rts,
+            )
+            .map_err(|_| SgxStatus::Unexpected)?;
 
         Ok(())
     }
@@ -166,23 +166,6 @@ mod hw {
             }
             Ok(())
         }
-    }
-
-    pub fn accept_trim_tcs(tcs: &Tcs) -> SgxResult {
-        let mut list_guard = list::TCS_LIST.lock();
-        for tcs in list_guard.iter_mut().filter(|&t| !ptr::eq(t.as_ptr(), tcs)) {
-            let page = Page::new(
-                tcs.as_ptr() as usize,
-                PageInfo {
-                    typ: PageType::Trim,
-                    prot: ProtFlags::MODIFIED,
-                },
-            )?;
-            page.accept()?;
-        }
-
-        list_guard.clear();
-        Ok(())
     }
 }
 
