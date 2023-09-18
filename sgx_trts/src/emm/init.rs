@@ -88,17 +88,19 @@ mod hw {
 
         // entry is guard page or has EREMOVE, build a reserved ema
         if (entry.si_flags == 0) || (entry.attributes & arch::PAGE_ATTR_EREMOVE != 0) {
-            range_manage.init_static_region(
-                addr,
-                size,
-                AllocFlags::RESERVED | AllocFlags::SYSTEM,
-                PageInfo {
-                    typ: PageType::None,
-                    prot: ProtFlags::NONE,
-                },
-                None,
-                None,
-            )?;
+            range_manage
+                .init_static_region(
+                    addr,
+                    size,
+                    AllocFlags::RESERVED | AllocFlags::SYSTEM,
+                    PageInfo {
+                        typ: PageType::None,
+                        prot: ProtFlags::NONE,
+                    },
+                    None,
+                    None,
+                )
+                .map_err(|_| SgxStatus::Unexpected)?;
             return Ok(());
         }
 
@@ -108,19 +110,23 @@ mod hw {
 
         if post_remove {
             // TODO: maybe AllocFlags need more flags or PageType is not None
-            range_manage.init_static_region(
-                addr,
-                size,
-                AllocFlags::SYSTEM,
-                PageInfo {
-                    typ: PageType::None,
-                    prot: ProtFlags::R | ProtFlags::W,
-                },
-                None,
-                None,
-            )?;
+            range_manage
+                .init_static_region(
+                    addr,
+                    size,
+                    AllocFlags::SYSTEM,
+                    PageInfo {
+                        typ: PageType::None,
+                        prot: ProtFlags::R | ProtFlags::W,
+                    },
+                    None,
+                    None,
+                )
+                .map_err(|_| SgxStatus::Unexpected)?;
 
-            range_manage.dealloc(addr, size, RangeType::Rts)?;
+            range_manage
+                .dealloc(addr, size, RangeType::Rts)
+                .map_err(|_| SgxStatus::Unexpected)?;
         }
 
         if post_add {
@@ -134,22 +140,24 @@ mod hw {
             };
 
             // TODO: revise alloc and not use int
-            range_manage.alloc(
-                Some(addr),
-                size,
-                AllocFlags::COMMIT_ON_DEMAND
-                    | commit_direction
-                    | AllocFlags::SYSTEM
-                    | AllocFlags::FIXED,
-                PageInfo {
-                    typ: PageType::Reg,
-                    prot: ProtFlags::R | ProtFlags::W,
-                },
-                None,
-                None,
-                RangeType::Rts,
-                Alloc::Reserve,
-            )?;
+            range_manage
+                .alloc(
+                    Some(addr),
+                    size,
+                    AllocFlags::COMMIT_ON_DEMAND
+                        | commit_direction
+                        | AllocFlags::SYSTEM
+                        | AllocFlags::FIXED,
+                    PageInfo {
+                        typ: PageType::Reg,
+                        prot: ProtFlags::R | ProtFlags::W,
+                    },
+                    None,
+                    None,
+                    RangeType::Rts,
+                    Alloc::Reserve,
+                )
+                .map_err(|_| SgxStatus::Unexpected)?;
         } else if static_min {
             let info = if entry.id == arch::LAYOUT_ID_TCS {
                 PageInfo {
@@ -164,7 +172,9 @@ mod hw {
                     ),
                 }
             };
-            range_manage.init_static_region(addr, size, AllocFlags::SYSTEM, info, None, None)?;
+            range_manage
+                .init_static_region(addr, size, AllocFlags::SYSTEM, info, None, None)
+                .map_err(|_| SgxStatus::Unexpected)?;
         }
 
         Ok(())
@@ -178,7 +188,9 @@ mod hw {
             .ok_or(SgxStatus::InvalidParameter)?;
 
         let mut range_manage = RM.get().unwrap().lock();
-        range_manage.commit(addr, count << arch::SE_PAGE_SHIFT, RangeType::Rts)?;
+        range_manage
+            .commit(addr, count << arch::SE_PAGE_SHIFT, RangeType::Rts)
+            .map_err(|_| SgxStatus::Unexpected)?;
 
         Ok(())
     }
@@ -206,7 +218,9 @@ mod hw {
                 }
 
                 let prot = ProtFlags::from_bits_truncate(perm as u8);
-                range_manage.modify_perms(start, size, prot, RangeType::Rts)?;
+                range_manage
+                    .modify_perms(start, size, prot, RangeType::Rts)
+                    .map_err(|_| SgxStatus::Unexpected)?;
             }
             if typ == Type::GnuRelro {
                 let start = base + trim_to_page!(phdr.virtual_addr() as usize);
@@ -215,7 +229,9 @@ mod hw {
                 let size = end - start;
 
                 if size > 0 {
-                    range_manage.modify_perms(start, size, ProtFlags::R, RangeType::Rts)?;
+                    range_manage
+                        .modify_perms(start, size, ProtFlags::R, RangeType::Rts)
+                        .map_err(|_| SgxStatus::Unexpected)?;
                 }
             }
         }
@@ -229,7 +245,9 @@ mod hw {
             let start = base + unsafe { layout.entry.rva as usize };
             let size = unsafe { layout.entry.page_count as usize } << arch::SE_PAGE_SHIFT;
 
-            range_manage.modify_perms(start, size, ProtFlags::R, RangeType::Rts)?;
+            range_manage
+                .modify_perms(start, size, ProtFlags::R, RangeType::Rts)
+                .map_err(|_| SgxStatus::Unexpected)?;
         }
         Ok(())
     }
@@ -256,17 +274,19 @@ mod hw {
                 }
 
                 let mut range_manage = RM.get().unwrap().lock();
-                range_manage.init_static_region(
-                    start,
-                    end - start,
-                    AllocFlags::SYSTEM,
-                    PageInfo {
-                        typ: PageType::Reg,
-                        prot: perm,
-                    },
-                    None,
-                    None,
-                )?;
+                range_manage
+                    .init_static_region(
+                        start,
+                        end - start,
+                        AllocFlags::SYSTEM,
+                        PageInfo {
+                            typ: PageType::Reg,
+                            prot: perm,
+                        },
+                        None,
+                        None,
+                    )
+                    .map_err(|_| SgxStatus::Unexpected)?;
             }
         }
 

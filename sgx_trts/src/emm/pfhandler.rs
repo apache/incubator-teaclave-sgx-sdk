@@ -89,14 +89,14 @@ pub extern "C" fn mm_enclave_pfhandler(info: &mut PfInfo) -> HandleResult {
     let addr = trim_to_page!(info.maddr as usize);
     let mut range_manage = RM.get().unwrap().lock();
     let mut ema_cursor = match range_manage.search_ema(addr, RangeType::User) {
-        Err(_) => {
+        None => {
             let ema_cursor = range_manage.search_ema(addr, RangeType::Rts);
-            if ema_cursor.is_err() {
+            if ema_cursor.is_none() {
                 return HandleResult::Search;
             }
             ema_cursor.unwrap()
         }
-        Ok(ema_cursor) => ema_cursor,
+        Some(ema_cursor) => ema_cursor,
     };
 
     let ema = unsafe { ema_cursor.get_mut().unwrap() };

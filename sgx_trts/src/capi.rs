@@ -287,7 +287,7 @@ pub unsafe extern "C" fn sgx_mm_alloc(
             *out_addr = base as *mut u8;
             0
         }
-        Err(err) => err.into(),
+        Err(err) => err as u32,
     }
 }
 

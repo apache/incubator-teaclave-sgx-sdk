@@ -134,7 +134,7 @@ mod hw {
 
 #[cfg(any(feature = "sim", feature = "hyper"))]
 mod sw {
-    use sgx_types::error::SgxResult;
+    use sgx_types::error::OsResult;
     use sgx_types::types::ProtectPerm;
 
     #[allow(clippy::unnecessary_wraps)]

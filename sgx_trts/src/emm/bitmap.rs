@@ -20,8 +20,8 @@ use alloc::vec;
 use core::alloc::Allocator;
 use core::alloc::Layout;
 use core::ptr::NonNull;
-use sgx_types::error::SgxResult;
-use sgx_types::error::SgxStatus;
+use sgx_tlibc_sys::EACCES;
+use sgx_types::error::OsResult;
 
 use super::alloc::Alloc;
 use super::alloc::ResAlloc;
@@ -38,7 +38,7 @@ pub struct BitArray {
 
 impl BitArray {
     /// Init BitArray with all zero bits
-    pub fn new(bits: usize, alloc: Alloc) -> SgxResult<Self> {
+    pub fn new(bits: usize, alloc: Alloc) -> OsResult<Self> {
         let bytes = (bits + 7) / 8;
 
         // FIXME: return error if OOM
@@ -63,9 +63,9 @@ impl BitArray {
     }
 
     /// Get the value of the bit at a given index
-    pub fn get(&self, index: usize) -> SgxResult<bool> {
+    pub fn get(&self, index: usize) -> OsResult<bool> {
         if index >= self.bits {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EACCES);
         }
 
         let byte_index = index / 8;
@@ -86,9 +86,9 @@ impl BitArray {
     }
 
     /// Set the value of the bit at the specified index
-    pub fn set(&mut self, index: usize, value: bool) -> SgxResult {
+    pub fn set(&mut self, index: usize, value: bool) -> OsResult {
         if index >= self.bits {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EACCES);
         }
         let byte_index = index / 8;
         let bit_index = index % 8;
@@ -119,8 +119,8 @@ impl BitArray {
     /// Split current bit array at specified position, return a new allocated bit array
     /// corresponding to the bits at the range of [pos, end).
     /// And the current bit array manages the bits at the range of [0, pos).
-    pub fn split(&mut self, pos: usize) -> SgxResult<BitArray> {
-        ensure!(pos > 0 && pos < self.bits, SgxStatus::InvalidParameter);
+    pub fn split(&mut self, pos: usize) -> OsResult<BitArray> {
+        assert!(pos > 0 && pos < self.bits);
 
         let byte_index = pos / 8;
         let bit_index = pos % 8;

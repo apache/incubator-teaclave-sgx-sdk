@@ -20,6 +20,7 @@ use intrusive_collections::intrusive_adapter;
 use intrusive_collections::singly_linked_list::CursorMut;
 use intrusive_collections::singly_linked_list::{Link, SinglyLinkedList};
 use intrusive_collections::UnsafeRef;
+use sgx_tlibc_sys::ENOMEM;
 
 use core::alloc::{AllocError, Allocator, Layout};
 use core::mem::size_of;
@@ -31,7 +32,7 @@ use spin::{Mutex, Once};
 use super::page::AllocFlags;
 use super::range::{RangeType, RM};
 use super::{PageInfo, PageType, ProtFlags};
-use sgx_types::error::{SgxResult, SgxStatus};
+use sgx_types::error::OsResult;
 
 // The size of fixed static memory for Static Allocator
 const STATIC_MEM_SIZE: usize = 65536;
@@ -368,7 +369,7 @@ impl Reserve {
     }
 
     /// Malloc memory
-    pub fn emalloc(&mut self, size: usize) -> SgxResult<usize> {
+    pub fn emalloc(&mut self, size: usize) -> OsResult<usize> {
         let mut bsize = round_to!(size + HEADER_SIZE, EXACT_MATCH_INCREMENT);
         bsize = bsize.max(MIN_BLOCK_SIZE);
 
@@ -389,7 +390,7 @@ impl Reserve {
             block = self.alloc_from_chunks(bsize);
             // Should never happen
             if block.is_none() {
-                return Err(SgxStatus::InvalidParameter);
+                return Err(ENOMEM);
             }
         }
 
@@ -429,7 +430,7 @@ impl Reserve {
         let block_size = block.block_size();
         let block_end = block_addr + block_size;
         let res = self.find_chunk_with_block(block_addr, block_size);
-        if res.is_err() {
+        if res.is_none() {
             panic!();
         }
 
@@ -450,7 +451,7 @@ impl Reserve {
 
     /// Adding the size of interior memory
     /// rsize: memory increment
-    pub unsafe fn add_chunks(&mut self, rsize: usize) -> SgxResult {
+    pub unsafe fn add_chunks(&mut self, rsize: usize) -> OsResult {
         // Here we alloc at least INIT_MEM_SIZE size,
         // but commit rsize memory, the remaining memory is COMMIT_ON_DEMAND
         let increment = self.incr_size.max(rsize);
@@ -516,9 +517,9 @@ impl Reserve {
         &mut self,
         block_addr: usize,
         block_size: usize,
-    ) -> SgxResult<CursorMut<'_, ChunkAda>> {
+    ) -> Option<CursorMut<'_, ChunkAda>> {
         if block_size == 0 {
-            return Err(SgxStatus::InvalidParameter);
+            return None;
         }
         let mut cursor = self.chunks.front_mut();
         while !cursor.is_null() {
@@ -526,11 +527,11 @@ impl Reserve {
             if (block_addr >= chunk.base)
                 && ((block_addr + block_size) <= (chunk.base + chunk.used))
             {
-                return Ok(cursor);
+                return Some(cursor);
             }
             cursor.move_next();
         }
 
-        Err(SgxStatus::InvalidParameter)
+        None
     }
 }

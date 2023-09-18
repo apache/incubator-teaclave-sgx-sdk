@@ -23,7 +23,8 @@ use crate::{
 };
 use alloc::boxed::Box;
 use intrusive_collections::{linked_list::CursorMut, LinkedList, UnsafeRef};
-use sgx_types::error::{SgxResult, SgxStatus};
+use sgx_tlibc_sys::{EEXIST, EINVAL, ENOMEM, EPERM};
+use sgx_types::error::OsResult;
 use spin::Once;
 
 use super::{
@@ -83,13 +84,15 @@ impl RangeManage {
         info: PageInfo,
         handler: Option<PfHandler>,
         priv_data: Option<*mut PfInfo>,
-    ) -> SgxResult {
+    ) -> OsResult {
         ensure!(
             addr != 0 && size != 0 && is_within_enclave(addr as *const u8, size),
-            SgxStatus::InvalidParameter
+            EINVAL
         );
 
-        let mut next_ema = self.find_free_region_at(addr, size, RangeType::Rts)?;
+        let mut next_ema = self
+            .find_free_region_at(addr, size, RangeType::Rts)
+            .ok_or(EINVAL)?;
 
         let mut new_ema = Box::<EMA, ResAlloc>::new_in(
             EMA::new(
@@ -122,7 +125,7 @@ impl RangeManage {
         end: usize,
         typ: RangeType,
         alloc: Alloc,
-    ) -> SgxResult<CursorMut<'_, EmaAda>> {
+    ) -> Option<CursorMut<'_, EmaAda>> {
         let (mut cursor, ema_num) = self.search_ema_range(start, end, typ, true)?;
         let start_ema_ptr = cursor.get().unwrap() as *const EMA;
 
@@ -132,7 +135,7 @@ impl RangeManage {
             let ema = cursor.get().unwrap();
             // EMA must be reserved and can not manage internal memory region
             if !ema.flags().contains(AllocFlags::RESERVED) || ema.allocator() != alloc {
-                return Err(SgxStatus::InvalidParameter);
+                return None;
             }
             cursor.move_next();
             count -= 1;
@@ -149,7 +152,7 @@ impl RangeManage {
             count -= 1;
         }
 
-        Ok(cursor)
+        Some(cursor)
     }
 
     /// Allocate a new memory region in enclave address space (ELRANGE).
@@ -163,7 +166,7 @@ impl RangeManage {
         priv_data: Option<*mut PfInfo>,
         typ: RangeType,
         alloc: Alloc,
-    ) -> SgxResult<usize> {
+    ) -> OsResult<usize> {
         let addr = addr.unwrap_or(0);
 
         // Default align is 12
@@ -171,15 +174,15 @@ impl RangeManage {
         let align_mask: usize = (1 << align_flag) - 1;
 
         if (size % SE_PAGE_SIZE) > 0 {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EINVAL);
         }
 
         if (addr & align_mask) > 0 {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EINVAL);
         }
 
         if (addr > 0) && !is_within_enclave(addr as *const u8, size) {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EINVAL);
         }
 
         let mut alloc_addr: Option<usize> = None;
@@ -192,29 +195,31 @@ impl RangeManage {
 
             match range {
                 // exist in emas list
-                Ok(_) => match self.clear_reserved_emas(addr, addr + size, typ, alloc) {
-                    Ok(ema) => {
+                Some(_) => match self.clear_reserved_emas(addr, addr + size, typ, alloc) {
+                    Some(ema) => {
                         alloc_addr = Some(addr);
                         alloc_next_ema = Some(ema);
                     }
-                    Err(_) => {
+                    None => {
                         if is_fixed_alloc {
-                            return Err(SgxStatus::InvalidParameter);
+                            return Err(EEXIST);
                         }
                     }
                 },
                 // not exist in emas list
-                Err(_) => {
+                None => {
                     let next_ema = self.find_free_region_at(addr, size, typ);
-                    if next_ema.is_err() && is_fixed_alloc {
-                        return Err(SgxStatus::InvalidParameter);
+                    if next_ema.is_none() && is_fixed_alloc {
+                        return Err(EPERM);
                     }
                 }
             };
         };
 
         if alloc_addr.is_none() {
-            let (free_addr, next_ema) = self.find_free_region(size, 1 << align_flag, typ)?;
+            let (free_addr, next_ema) = self
+                .find_free_region(size, 1 << align_flag, typ)
+                .ok_or(ENOMEM)?;
             alloc_addr = Some(free_addr);
             alloc_next_ema = Some(next_ema);
         }
@@ -264,8 +269,10 @@ impl RangeManage {
 
     /// Commit a partial or full range of memory allocated previously with
     /// COMMIT_ON_DEMAND.
-    pub fn commit(&mut self, addr: usize, size: usize, typ: RangeType) -> SgxResult {
-        let (mut cursor, ema_num) = self.search_ema_range(addr, addr + size, typ, true)?;
+    pub fn commit(&mut self, addr: usize, size: usize, typ: RangeType) -> OsResult {
+        let (mut cursor, ema_num) = self
+            .search_ema_range(addr, addr + size, typ, true)
+            .ok_or(EINVAL)?;
         let start_ema_ptr = cursor.get().unwrap() as *const EMA;
 
         let mut count = ema_num;
@@ -291,8 +298,10 @@ impl RangeManage {
     }
 
     /// Deallocate the address range.
-    pub fn dealloc(&mut self, addr: usize, size: usize, typ: RangeType) -> SgxResult {
-        let (mut cursor, mut ema_num) = self.search_ema_range(addr, addr + size, typ, false)?;
+    pub fn dealloc(&mut self, addr: usize, size: usize, typ: RangeType) -> OsResult {
+        let (mut cursor, mut ema_num) = self
+            .search_ema_range(addr, addr + size, typ, false)
+            .ok_or(EINVAL)?;
         while ema_num != 0 {
             // Calling remove() implicitly moves cursor pointing to next ema
             let mut ema = cursor.remove().unwrap();
@@ -320,16 +329,18 @@ impl RangeManage {
         size: usize,
         new_page_typ: PageType,
         range_typ: RangeType,
-    ) -> SgxResult {
+    ) -> OsResult {
         if new_page_typ != PageType::Tcs {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EPERM);
         }
 
         if size != SE_PAGE_SIZE {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EINVAL);
         }
 
-        let (mut cursor, ema_num) = self.search_ema_range(addr, addr + size, range_typ, true)?;
+        let (mut cursor, ema_num) = self
+            .search_ema_range(addr, addr + size, range_typ, true)
+            .ok_or(EINVAL)?;
         assert!(ema_num == 1);
         unsafe { cursor.get_mut().unwrap().change_to_tcs()? };
 
@@ -343,17 +354,19 @@ impl RangeManage {
         size: usize,
         prot: ProtFlags,
         typ: RangeType,
-    ) -> SgxResult {
+    ) -> OsResult {
         ensure!(
             (size != 0) && (size % SE_PAGE_SIZE == 0) && (addr % SE_PAGE_SIZE == 0),
-            SgxStatus::InvalidParameter
+            EINVAL
         );
 
         if prot.contains(ProtFlags::X) && !prot.contains(ProtFlags::R) {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EINVAL);
         }
 
-        let (mut cursor, ema_num) = self.search_ema_range(addr, addr + size, typ, true)?;
+        let (mut cursor, ema_num) = self
+            .search_ema_range(addr, addr + size, typ, true)
+            .ok_or(EINVAL)?;
         let start_ema_ptr = cursor.get().unwrap() as *const EMA;
 
         let mut count = ema_num;
@@ -380,8 +393,10 @@ impl RangeManage {
     }
 
     /// Uncommit (trim) physical EPC pages in a previously committed range.
-    pub fn uncommit(&mut self, addr: usize, size: usize, typ: RangeType) -> SgxResult {
-        let (mut cursor, ema_num) = self.search_ema_range(addr, addr + size, typ, true)?;
+    pub fn uncommit(&mut self, addr: usize, size: usize, typ: RangeType) -> OsResult {
+        let (mut cursor, ema_num) = self
+            .search_ema_range(addr, addr + size, typ, true)
+            .ok_or(EINVAL)?;
         let start_ema_ptr = cursor.get().unwrap() as *const EMA;
 
         let mut count = ema_num;
@@ -417,7 +432,7 @@ impl RangeManage {
         end: usize,
         typ: RangeType,
         continuous: bool,
-    ) -> SgxResult<(CursorMut<'_, EmaAda>, usize)> {
+    ) -> Option<(CursorMut<'_, EmaAda>, usize)> {
         let mut cursor = match typ {
             RangeType::Rts => self.rts.front(),
             RangeType::User => self.user.front(),
@@ -428,7 +443,7 @@ impl RangeManage {
         }
 
         if cursor.is_null() || cursor.get().unwrap().higher_than_addr(end) {
-            return Err(SgxStatus::InvalidParameter);
+            return None;
         }
 
         let mut curr_ema = cursor.get().unwrap();
@@ -442,7 +457,7 @@ impl RangeManage {
             // If continuity is required, there should
             // be no gaps in the specified range in the emas list.
             if continuous && prev_end != curr_ema.start() {
-                return Err(SgxStatus::InvalidParameter);
+                return None;
             }
 
             emas_num += 1;
@@ -495,11 +510,11 @@ impl RangeManage {
             RangeType::User => unsafe { self.user.cursor_mut_from_ptr(start_ema_ptr) },
         };
 
-        Ok((start_cursor, emas_num))
+        Some((start_cursor, emas_num))
     }
 
     // search for a ema node whose memory range contains address
-    pub fn search_ema(&mut self, addr: usize, typ: RangeType) -> SgxResult<CursorMut<'_, EmaAda>> {
+    pub fn search_ema(&mut self, addr: usize, typ: RangeType) -> Option<CursorMut<'_, EmaAda>> {
         let mut cursor = match typ {
             RangeType::Rts => self.rts.front_mut(),
             RangeType::User => self.user.front_mut(),
@@ -508,12 +523,12 @@ impl RangeManage {
         while !cursor.is_null() {
             let ema = cursor.get().unwrap();
             if ema.overlap_addr(addr) {
-                return Ok(cursor);
+                return Some(cursor);
             }
             cursor.move_next();
         }
 
-        Err(SgxStatus::InvalidParameter)
+        None
     }
 
     // Find a free space at addr with 'len' bytes in reserve region,
@@ -524,19 +539,19 @@ impl RangeManage {
         addr: usize,
         len: usize,
         typ: RangeType,
-    ) -> SgxResult<CursorMut<'_, EmaAda>> {
+    ) -> Option<CursorMut<'_, EmaAda>> {
         if !is_within_enclave(addr as *const u8, len) {
-            return Err(SgxStatus::InvalidParameter);
+            return None;
         }
         match typ {
             RangeType::Rts => {
                 if !is_within_rts_range(addr, len) {
-                    return Err(SgxStatus::InvalidParameter);
+                    return None;
                 }
             }
             RangeType::User => {
                 if !is_within_user_range(addr, len) {
-                    return Err(SgxStatus::InvalidParameter);
+                    return None;
                 }
             }
         }
@@ -550,7 +565,7 @@ impl RangeManage {
             let start_curr = cursor.get().map(|ema| ema.start()).unwrap();
             let end_curr = start_curr + cursor.get().map(|ema| ema.len()).unwrap();
             if start_curr >= addr + len {
-                return Ok(cursor);
+                return Some(cursor);
             }
 
             if addr >= end_curr {
@@ -562,10 +577,10 @@ impl RangeManage {
 
         // means addr is larger than the end of the last ema node
         if cursor.is_null() {
-            return Ok(cursor);
+            return Some(cursor);
         }
 
-        Err(SgxStatus::InvalidParameter)
+        None
     }
 
     // Find a free space of size at least 'size' bytes in reserve region,
@@ -575,7 +590,7 @@ impl RangeManage {
         len: usize,
         align: usize,
         typ: RangeType,
-    ) -> SgxResult<(usize, CursorMut<'_, EmaAda>)> {
+    ) -> Option<(usize, CursorMut<'_, EmaAda>)> {
         let user_base = MmLayout::user_region_mem_base();
         let user_end = user_base + MmLayout::user_region_mem_size();
 
@@ -593,23 +608,23 @@ impl RangeManage {
                     if user_base >= len {
                         addr = trim_to!(user_base - len, align);
                         if is_within_enclave(addr as *const u8, len) {
-                            return Ok((addr, cursor));
+                            return Some((addr, cursor));
                         }
                     } else {
                         addr = round_to!(user_end, align);
                         // no integer overflow
                         if addr + len >= addr && is_within_enclave(addr as *const u8, len) {
-                            return Ok((addr, cursor));
+                            return Some((addr, cursor));
                         }
                     }
-                    return Err(SgxStatus::InvalidParameter);
+                    return None;
                 }
                 RangeType::User => {
                     addr = round_to!(user_base, align);
                     if is_within_user_range(addr, len) {
-                        return Ok((addr, cursor));
+                        return Some((addr, cursor));
                     }
-                    return Err(SgxStatus::InvalidParameter);
+                    return None;
                 }
             }
         }
@@ -628,7 +643,7 @@ impl RangeManage {
                     && (typ == RangeType::User || is_within_rts_range(curr_end, len))
                 {
                     cursor.move_next();
-                    return Ok((curr_end, cursor));
+                    return Some((curr_end, cursor));
                 }
             }
             cursor.move_next();
@@ -642,7 +657,7 @@ impl RangeManage {
                 || (typ == RangeType::User && is_within_user_range(addr, len)))
         {
             cursor.move_next();
-            return Ok((addr, cursor));
+            return Some((addr, cursor));
         }
 
         // Cursor moves to emas->front_mut.
@@ -653,7 +668,7 @@ impl RangeManage {
         // Back to the first ema to check rts region before user region
         let start_first = cursor.get().map(|ema| ema.start()).unwrap();
         if start_first < len {
-            return Err(SgxStatus::InvalidParameter);
+            return None;
         }
 
         addr = trim_to!(start_first, align);
@@ -661,16 +676,16 @@ impl RangeManage {
         match typ {
             RangeType::User => {
                 if is_within_user_range(addr, len) {
-                    return Ok((addr, cursor));
+                    return Some((addr, cursor));
                 }
             }
             RangeType::Rts => {
                 if is_within_enclave(addr as *const u8, len) && is_within_rts_range(addr, len) {
-                    return Ok((addr, cursor));
+                    return Some((addr, cursor));
                 }
             }
         }
 
-        Err(SgxStatus::InvalidParameter)
+        None
     }
 }

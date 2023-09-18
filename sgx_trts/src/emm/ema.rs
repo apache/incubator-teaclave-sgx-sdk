@@ -20,7 +20,8 @@ use crate::emm::{PageInfo, PageRange, PageType, ProtFlags};
 use crate::enclave::is_within_enclave;
 use alloc::boxed::Box;
 use intrusive_collections::{intrusive_adapter, LinkedListLink, UnsafeRef};
-use sgx_types::error::{SgxResult, SgxStatus};
+use sgx_tlibc_sys::{EACCES, EFAULT, EINVAL};
+use sgx_types::error::OsResult;
 
 use super::alloc::Alloc;
 use super::alloc::{ResAlloc, StaticAlloc};
@@ -65,7 +66,7 @@ impl EMA {
         handler: Option<PfHandler>,
         priv_data: Option<*mut PfInfo>,
         alloc: Alloc,
-    ) -> SgxResult<Self> {
+    ) -> OsResult<Self> {
         // check alloc flags' eligibility
         // AllocFlags::try_from(alloc_flags.bits())?;
 
@@ -87,14 +88,14 @@ impl EMA {
                 alloc,
             })
         } else {
-            Err(SgxStatus::InvalidParameter)
+            Err(EINVAL)
         }
     }
 
     /// Split current ema at specified address, return a new allocated ema
     /// corresponding to the memory at the range of [addr, end).
     /// And the current ema manages the memory at the range of [start, addr).
-    pub fn split(&mut self, addr: usize) -> SgxResult<*mut EMA> {
+    pub fn split(&mut self, addr: usize) -> OsResult<*mut EMA> {
         let l_start = self.start;
         let l_length = addr - l_start;
 
@@ -158,7 +159,7 @@ impl EMA {
     }
 
     /// Allocate the reserve / committed / virtual memory at corresponding memory
-    pub fn alloc(&mut self) -> SgxResult {
+    pub fn alloc(&mut self) -> OsResult {
         // RESERVED region only occupy memory range, but no real allocation
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
             return Ok(());
@@ -180,7 +181,8 @@ impl EMA {
         };
 
         // Ocall to mmap memory in urts
-        ocall::alloc_ocall(self.start, self.length, self.info.typ, self.alloc_flags)?;
+        ocall::alloc_ocall(self.start, self.length, self.info.typ, self.alloc_flags)
+            .map_err(|_| EFAULT)?;
 
         // Set the corresponding bits of eaccept map
         if self.alloc_flags.contains(AllocFlags::COMMIT_NOW) {
@@ -194,7 +196,7 @@ impl EMA {
     }
 
     /// Eaccept target EPC pages with cpu instruction
-    fn eaccept(&self, start: usize, length: usize, grow_up: bool) -> SgxResult {
+    fn eaccept(&self, start: usize, length: usize, grow_up: bool) -> OsResult {
         let info = PageInfo {
             typ: self.info.typ,
             prot: self.info.prot | ProtFlags::PENDING,
@@ -210,35 +212,35 @@ impl EMA {
     }
 
     /// Check the prerequisites of ema commitment
-    pub fn commit_check(&self) -> SgxResult {
+    pub fn commit_check(&self) -> OsResult {
         if !self.info.prot.intersects(ProtFlags::R | ProtFlags::W) {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EACCES);
         }
 
         if self.info.typ != PageType::Reg {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EACCES);
         }
 
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EACCES);
         }
 
         Ok(())
     }
 
     /// Commit the corresponding memory of this ema
-    pub fn commit_self(&mut self) -> SgxResult {
+    pub fn commit_self(&mut self) -> OsResult {
         self.commit(self.start, self.length)
     }
 
     /// Commit the partial memory of this ema
-    pub fn commit(&mut self, start: usize, length: usize) -> SgxResult {
+    pub fn commit(&mut self, start: usize, length: usize) -> OsResult {
         ensure!(
             length != 0
                 && (length % crate::arch::SE_PAGE_SIZE) == 0
                 && start >= self.start
                 && start + length <= self.start + self.length,
-            SgxStatus::InvalidParameter
+            EINVAL
         );
 
         let info = PageInfo {
@@ -265,15 +267,15 @@ impl EMA {
     }
 
     /// Check the prerequisites of ema uncommitment
-    pub fn uncommit_check(&self) -> SgxResult {
+    pub fn uncommit_check(&self) -> OsResult {
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EACCES);
         }
         Ok(())
     }
 
     /// Uncommit the corresponding memory of this ema
-    pub fn uncommit_self(&mut self) -> SgxResult {
+    pub fn uncommit_self(&mut self) -> OsResult {
         let prot = self.info.prot;
         if prot == ProtFlags::NONE {
             self.modify_perm(ProtFlags::R)?
@@ -283,8 +285,8 @@ impl EMA {
     }
 
     /// Uncommit the partial memory of this ema
-    pub fn uncommit(&mut self, start: usize, length: usize, prot: ProtFlags) -> SgxResult {
-        ensure!(self.eaccept_map.is_some(), SgxStatus::InvalidParameter);
+    pub fn uncommit(&mut self, start: usize, length: usize, prot: ProtFlags) -> OsResult {
+        assert!(self.eaccept_map.is_some());
 
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
             return Ok(());
@@ -336,7 +338,8 @@ impl EMA {
                     typ: PageType::Trim,
                     prot,
                 },
-            )?;
+            )
+            .map_err(|_| EFAULT)?;
 
             let pages = PageRange::new(
                 block_start,
@@ -363,30 +366,31 @@ impl EMA {
                     typ: PageType::Trim,
                     prot,
                 },
-            )?;
+            )
+            .map_err(|_| EFAULT)?;
             start = block_end;
         }
         Ok(())
     }
 
     /// Check the prerequisites of modifying permissions
-    pub fn modify_perm_check(&self) -> SgxResult {
+    pub fn modify_perm_check(&self) -> OsResult {
         if self.info.typ != PageType::Reg {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EACCES);
         }
 
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EACCES);
         }
 
         match &self.eaccept_map {
             Some(bitmap) => {
                 if !bitmap.all_true() {
-                    return Err(SgxStatus::InvalidParameter);
+                    return Err(EINVAL);
                 }
             }
             None => {
-                return Err(SgxStatus::InvalidParameter);
+                return Err(EINVAL);
             }
         }
 
@@ -394,7 +398,7 @@ impl EMA {
     }
 
     /// Modifying the permissions of corresponding memory of this ema
-    pub fn modify_perm(&mut self, new_prot: ProtFlags) -> SgxResult {
+    pub fn modify_perm(&mut self, new_prot: ProtFlags) -> OsResult {
         if self.info.prot == new_prot {
             return Ok(());
         }
@@ -408,7 +412,8 @@ impl EMA {
                 typ: self.info.typ,
                 prot: new_prot,
             },
-        )?;
+        )
+        .map_err(|_| EFAULT)?;
 
         let info = PageInfo {
             typ: PageType::Reg,
@@ -446,22 +451,23 @@ impl EMA {
                     typ: self.info.typ,
                     prot: ProtFlags::NONE,
                 },
-            )?;
+            )
+            .map_err(|_| EFAULT)?;
         }
 
         Ok(())
     }
 
     /// Changing the page type from Reg to Tcs
-    pub fn change_to_tcs(&mut self) -> SgxResult {
+    pub fn change_to_tcs(&mut self) -> OsResult {
         // The ema must have and only have one page
         if self.length != SE_PAGE_SIZE {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EINVAL);
         }
 
         // The page must be committed
         if !self.is_page_committed(self.start) {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EACCES);
         }
 
         let info = self.info;
@@ -470,7 +476,7 @@ impl EMA {
         }
 
         if (info.prot != (ProtFlags::R | ProtFlags::W)) || (info.typ != PageType::Reg) {
-            return Err(SgxStatus::InvalidParameter);
+            return Err(EACCES);
         }
 
         ocall::modify_ocall(
@@ -481,7 +487,8 @@ impl EMA {
                 typ: PageType::Tcs,
                 prot: info.prot,
             },
-        )?;
+        )
+        .map_err(|_| EFAULT)?;
 
         let eaccept_info = PageInfo {
             typ: PageType::Tcs,
@@ -515,7 +522,7 @@ impl EMA {
     }
 
     /// Deallocate the corresponding memory of this ema
-    pub fn dealloc(&mut self) -> SgxResult {
+    pub fn dealloc(&mut self) -> OsResult {
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
             return Ok(());
         }
@@ -563,7 +570,7 @@ impl EMA {
         (addr >= self.start) && (addr < self.start + self.length)
     }
 
-    pub fn set_eaccept_map_full(&mut self) -> SgxResult {
+    pub fn set_eaccept_map_full(&mut self) -> OsResult {
         if self.eaccept_map.is_none() {
             let mut eaccept_map = match self.alloc {
                 Alloc::Reserve => {

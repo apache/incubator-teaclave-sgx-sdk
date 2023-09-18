@@ -22,7 +22,8 @@ use crate::enclave::is_within_enclave;
 use crate::inst::EncluInst;
 use bitflags::bitflags;
 use core::num::NonZeroUsize;
-use sgx_types::error::{SgxResult, SgxStatus};
+use sgx_tlibc_sys::{EFAULT, EINVAL};
+use sgx_types::error::{OsResult, SgxResult, SgxStatus};
 use sgx_types::marker::ContiguousMemory;
 
 bitflags! {
@@ -91,7 +92,7 @@ pub struct PageRange {
 unsafe impl ContiguousMemory for PageRange {}
 
 impl PageRange {
-    pub fn new(addr: usize, count: usize, info: PageInfo) -> SgxResult<PageRange> {
+    pub fn new(addr: usize, count: usize, info: PageInfo) -> OsResult<PageRange> {
         if addr != 0
             && count != 0
             && is_within_enclave(addr as *const u8, count * SE_PAGE_SIZE)
@@ -103,32 +104,32 @@ impl PageRange {
                 info,
             })
         } else {
-            Err(SgxStatus::InvalidParameter)
+            Err(EINVAL)
         }
     }
 
-    pub fn accept_forward(&self) -> SgxResult {
+    pub fn accept_forward(&self) -> OsResult {
         for page in self.iter() {
             page.accept()?;
         }
         Ok(())
     }
 
-    pub fn accept_backward(&self) -> SgxResult {
+    pub fn accept_backward(&self) -> OsResult {
         for page in self.iter().rev() {
             page.accept()?;
         }
         Ok(())
     }
 
-    pub fn modpe(&self) -> SgxResult {
+    pub fn modpe(&self) -> OsResult {
         for page in self.iter() {
             page.modpe()?;
         }
         Ok(())
     }
 
-    pub(crate) fn modify(&self) -> SgxResult {
+    pub(crate) fn modify(&self) -> OsResult {
         for page in self.iter() {
             let _ = page.modpe();
             if !page.info.prot.contains(ProtFlags::W | ProtFlags::X) {
@@ -214,12 +215,12 @@ pub struct Page {
 unsafe impl ContiguousMemory for Page {}
 
 impl Page {
-    pub fn new(addr: usize, info: PageInfo) -> SgxResult<Page> {
+    pub fn new(addr: usize, info: PageInfo) -> OsResult<Page> {
         ensure!(
             addr != 0
                 && is_within_enclave(addr as *const u8, SE_PAGE_SIZE)
                 && is_page_aligned!(addr),
-            SgxStatus::InvalidParameter
+            EINVAL
         );
         Ok(Page { addr, info })
     }
@@ -228,14 +229,14 @@ impl Page {
         Page { addr, info }
     }
 
-    pub fn accept(&self) -> SgxResult {
-        let secinfo: SecInfo = self.info.into();
-        EncluInst::eaccept(&secinfo, self.addr).map_err(|_| SgxStatus::Unexpected)
+    pub fn accept(&self) -> OsResult {
+        let secinfo: Secinfo = self.info.into();
+        EncluInst::eaccept(&secinfo, self.addr).map_err(|_| EFAULT)
     }
 
-    pub fn modpe(&self) -> SgxResult {
-        let secinfo: SecInfo = self.info.into();
-        EncluInst::emodpe(&secinfo, self.addr).map_err(|_| SgxStatus::Unexpected)
+    pub fn modpe(&self) -> OsResult {
+        let secinfo: Secinfo = self.info.into();
+        EncluInst::emodpe(&secinfo, self.addr).map_err(|_| EFAULT)
     }
 }
 
@@ -250,11 +251,12 @@ pub fn apply_epc_pages(addr: usize, count: usize) -> SgxResult {
                 typ: PageType::Reg,
                 prot: ProtFlags::R | ProtFlags::W | ProtFlags::PENDING,
             },
-        )?;
+        )
+        .map_err(|_| SgxStatus::Unexpected)?;
         if (attr.attr & arch::PAGE_DIR_GROW_DOWN) == 0 {
-            pages.accept_forward()
+            pages.accept_forward().map_err(|_| SgxStatus::Unexpected)
         } else {
-            pages.accept_backward()
+            pages.accept_backward().map_err(|_| SgxStatus::Unexpected)
         }
     } else {
         Err(SgxStatus::InvalidParameter)
@@ -277,8 +279,9 @@ pub fn trim_epc_pages(addr: usize, count: usize) -> SgxResult {
             typ: PageType::Trim,
             prot: ProtFlags::MODIFIED,
         },
-    )?;
-    pages.accept_forward()?;
+    )
+    .map_err(|_| SgxStatus::Unexpected)?;
+    pages.accept_forward().map_err(|_| SgxStatus::Unexpected)?;
 
     trim::trim_range_commit(addr, count)?;
 
