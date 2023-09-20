@@ -115,7 +115,7 @@ pub fn handle(tcs: &mut Tcs) -> SgxResult {
     size += mem::size_of::<ExceptionInfo>();
     size += xsave_size;
     sp -= size;
-    sp &= !0xF;
+    sp &= !0x3F;
 
     // check the decreased sp to make sure it is in the trusted stack range
     try_error!(!tds.is_stack_addr(sp, 0), SgxStatus::StackOverRun);

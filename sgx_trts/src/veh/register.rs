@@ -87,7 +87,7 @@ impl_struct! {
     }
 }
 
-#[repr(C)]
+#[repr(C, align(64))]
 #[derive(Debug)]
 pub struct ExceptionInfo {
     pub context: CpuContext,
