@@ -31,7 +31,12 @@ use crate::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
 
 use super::cache_aligned::CacheAligned;
 
-// Node within the linked list queue of messages to send
+/// Node within the linked list queue of messages to send
+///
+/// For AtomicPtr, the methods load and store read and write the address.
+/// To load the contents is pretty much another operation, but it is not 
+/// atomic and and it is very unsafe. If there is access to the content 
+/// where the pointer is pointed, it is best to use Acquire/Release.
 struct Node<T> {
     // FIXME: this could be an uninitialized T if we're careful enough, and
     //      that would reduce memory usage (and be a bit faster).
@@ -53,6 +58,13 @@ pub struct Queue<T, ProducerAddition = (), ConsumerAddition = ()> {
     producer: CacheAligned<Producer<T, ProducerAddition>>,
 }
 
+/// Note about memory ordering:
+/// 
+/// Here cached_nodes is just a counter between threads and doesn't synchronize
+/// with other variables. Therefore, `Relaxed` can be used in both single-threaded 
+/// and multi-threaded environments.
+/// 
+/// About AtomicPtr, see `struct Node<T>`.
 struct Consumer<T, Addition> {
     tail: UnsafeCell<*mut Node<T>>, // where to pop from
     tail_prev: AtomicPtr<Node<T>>,  // where to pop from
@@ -143,6 +155,8 @@ impl<T, ProducerAddition, ConsumerAddition> Queue<T, ProducerAddition, ConsumerA
             let n = self.alloc();
             assert!((*n).value.is_none());
             (*n).value = Some(t);
+            // Here Release ensures that previous operations can be completed, 
+            // so there can use Relaxed.
             (*n).next.store(ptr::null_mut(), Ordering::Relaxed);
             (**self.producer.head.get()).next.store(n, Ordering::Release);
             *(&self.producer.head).get() = n;
@@ -153,7 +167,7 @@ impl<T, ProducerAddition, ConsumerAddition> Queue<T, ProducerAddition, ConsumerA
         // First try to see if we can consume the 'first' node for our uses.
         if *self.producer.first.get() != *self.producer.tail_copy.get() {
             let ret = *self.producer.first.get();
-            *self.producer.0.first.get() = (*ret).next.load(Ordering::Relaxed);
+            *self.producer.0.first.get() = (*ret).next.load(Ordering::Acquire);
             return ret;
         }
         // If the above fails, then update our copy of the tail and try
@@ -161,7 +175,7 @@ impl<T, ProducerAddition, ConsumerAddition> Queue<T, ProducerAddition, ConsumerA
         *self.producer.0.tail_copy.get() = self.consumer.tail_prev.load(Ordering::Acquire);
         if *self.producer.first.get() != *self.producer.tail_copy.get() {
             let ret = *self.producer.first.get();
-            *self.producer.0.first.get() = (*ret).next.load(Ordering::Relaxed);
+            *self.producer.0.first.get() = (*ret).next.load(Ordering::Acquire);
             return ret;
         }
         // If all of that fails, then we have to allocate a new node
@@ -198,7 +212,9 @@ impl<T, ProducerAddition, ConsumerAddition> Queue<T, ProducerAddition, ConsumerA
                 if (*tail).cached {
                     self.consumer.tail_prev.store(tail, Ordering::Release);
                 } else {
-                    (*self.consumer.tail_prev.load(Ordering::Relaxed))
+                    // Here the operation needs to access to the fields of the content pointed 
+                    // to by AtomicPtr, Using Acquire can be enough.
+                    (*self.consumer.tail_prev.load(Ordering::Acquire))
                         .next
                         .store(next, Ordering::Relaxed);
                     // We have successfully erased all references to 'tail', so
@@ -241,7 +257,7 @@ impl<T, ProducerAddition, ConsumerAddition> Drop for Queue<T, ProducerAddition, 
         unsafe {
             let mut cur = *self.producer.first.get();
             while !cur.is_null() {
-                let next = (*cur).next.load(Ordering::Relaxed);
+                let next = (*cur).next.load(Ordering::Acquire);
                 let _n: Box<Node<T>> = Box::from_raw(cur);
                 cur = next;
             }

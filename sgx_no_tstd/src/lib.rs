@@ -45,6 +45,11 @@ fn begin_panic_handler(_info: &PanicInfo<'_>) -> ! {
 #[no_mangle]
 unsafe extern "C" fn rust_eh_personality() {}
 
+/// Note about memory ordering:
+/// 
+/// HOOK here is used as an allocation error handler, which needs to make sure the 
+/// memory contents are initialized before storing the memory address to the HOOK.
+/// So use Release and Acquire is enough.
 static HOOK: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());
 
 /// Registers a custom allocation error hook, replacing any that was previously registered.
@@ -59,7 +64,7 @@ static HOOK: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());
 ///
 /// The allocation error hook is a global resource.
 pub fn set_alloc_error_hook(hook: fn(Layout)) {
-    HOOK.store(hook as *mut (), Ordering::SeqCst);
+    HOOK.store(hook as *mut (), Ordering::Release);
 }
 
 /// Unregisters the current allocation error hook, returning it.
@@ -68,7 +73,7 @@ pub fn set_alloc_error_hook(hook: fn(Layout)) {
 ///
 /// If no custom hook is registered, the default hook will be returned.
 pub fn take_alloc_error_hook() -> fn(Layout) {
-    let hook = HOOK.swap(ptr::null_mut(), Ordering::SeqCst);
+    let hook = HOOK.swap(ptr::null_mut(), Ordering::AcqRel);
     if hook.is_null() {
         default_alloc_error_hook
     } else {
@@ -80,7 +85,7 @@ fn default_alloc_error_hook(_layout: Layout) {}
 
 #[alloc_error_handler]
 pub fn rust_oom(layout: Layout) -> ! {
-    let hook = HOOK.load(Ordering::SeqCst);
+    let hook = HOOK.load(Ordering::Acquire);
     let hook: fn(Layout) = if hook.is_null() {
         default_alloc_error_hook
     } else {

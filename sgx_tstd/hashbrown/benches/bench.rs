@@ -45,6 +45,10 @@ impl Iterator for RandomKeys {
 
 // Just an arbitrary side effect to make the maps not shortcircuit to the non-dropping path
 // when dropping maps/entries (most real world usages likely have drop in the key or value)
+//
+// Note about memory ordering:
+// Here SIDE_EFFECT does't synchronize with other varibales, it is just a counting
+// variable, using ‘Relaxed’ is enough to ensure the correctness of the program.
 lazy_static::lazy_static! {
     static ref SIDE_EFFECT: AtomicUsize = AtomicUsize::new(0);
 }

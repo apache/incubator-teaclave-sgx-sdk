@@ -48,16 +48,31 @@ const EMPTY: *mut u8 = ptr::null_mut(); // initial state: no data, no blocked re
 
 pub struct Packet<T> {
     queue: mpsc::Queue<T>,
+
     cnt: AtomicIsize,          // How many items are on this channel
     steals: UnsafeCell<isize>, // How many times has a port received without blocking?
+    
+    // For AtomicPtr, the methods load and store read and write the address.
+    // To load the contents is pretty much another operation, but it is not 
+    // atomic and and it is very unsafe. If there is access to the content 
+    // where the pointer is pointed, it is best to use Acquire/Release.
     to_wake: AtomicPtr<u8>,    // SignalToken for wake up
 
     // The number of channels which are currently using this packet.
+    //
+    // Here channels field is used for counts across multiple threads, and doesn't 
+    // synchronized with other variety. Using Relaxed is enough.
     channels: AtomicUsize,
 
     // See the discussion in Port::drop and the channel send methods for what
     // these are used for
+    //
+    // Here port_dropped is just a signal variety to see if this packet has been dropped
+    // and it doesn't synchronized with any other variety. Using Relaxed is enough.
     port_dropped: AtomicBool,
+
+    // Here sender_drain field is used for counts across multiple threads, and also 
+    // doesn't synchronized with other variety. Using Relaxed is enough.
     sender_drain: AtomicIsize,
 
     // this lock protects various portions of this implementation during
@@ -110,8 +125,11 @@ impl<T> Packet<T> {
         if let Some(token) = token {
             assert_eq!(self.cnt.load(Ordering::SeqCst), 0);
             assert_eq!(self.to_wake.load(Ordering::SeqCst), EMPTY);
-            self.to_wake.store(unsafe { token.to_raw() }, Ordering::SeqCst);
-            self.cnt.store(-1, Ordering::SeqCst);
+            self.to_wake.store(unsafe { token.to_raw() }, Ordering::Release);
+            // Here cnt is synchronized with to_wake, using Release to
+            // ensure that when cnt changes to -1, operation about to_wake
+            // has been completed.
+            self.cnt.store(-1, Ordering::Release);
 
             // This store is a little sketchy. What's happening here is that
             // we're transferring a blocker from a oneshot or stream channel to
@@ -146,7 +164,7 @@ impl<T> Packet<T> {
 
     pub fn send(&self, t: T) -> Result<(), T> {
         // See Port::drop for what's going on
-        if self.port_dropped.load(Ordering::SeqCst) {
+        if self.port_dropped.load(Ordering::Relaxed) {
             return Err(t);
         }
 
@@ -175,12 +193,16 @@ impl<T> Packet<T> {
         // preflight check serves as the definitive "this will never be
         // received". Once we get beyond this check, we have permanently
         // entered the realm of "this may be received"
-        if self.cnt.load(Ordering::SeqCst) < DISCONNECTED + FUDGE {
+        //
+        // Relaxed can be used here, because there no variety to synchronize.
+        if self.cnt.load(Ordering::Relaxed) < DISCONNECTED + FUDGE {
             return Err(t);
         }
 
         self.queue.push(t);
-        match self.cnt.fetch_add(1, Ordering::SeqCst) {
+        // Here cnt needs to synchronize with queue before cnt and to_wake in the 
+        // take_to_wake operation after cnt. Using AcqRel is enough.
+        match self.cnt.fetch_add(1, Ordering::AcqRel) {
             -1 => {
                 self.take_to_wake().signal();
             }
@@ -197,9 +219,10 @@ impl<T> Packet<T> {
             n if n < DISCONNECTED + FUDGE => {
                 // see the comment in 'try' for a shared channel for why this
                 // window of "not disconnected" is ok.
-                self.cnt.store(DISCONNECTED, Ordering::SeqCst);
-
-                if self.sender_drain.fetch_add(1, Ordering::SeqCst) == 0 {
+                //
+                // there is nothing to synchronized with. Using Relaxed is enough.
+                self.cnt.store(DISCONNECTED, Ordering::Relaxed);
+                if self.sender_drain.fetch_add(1, Ordering::Relaxed) == 0 {
                     loop {
                         // drain the queue, for info on the thread yield see the
                         // discussion in try_recv
@@ -212,7 +235,7 @@ impl<T> Packet<T> {
                         }
                         // maybe we're done, if we're not the last ones
                         // here, then we need to go try again.
-                        if self.sender_drain.fetch_sub(1, Ordering::SeqCst) == 1 {
+                        if self.sender_drain.fetch_sub(1, Ordering::Relaxed) == 1 {
                             break;
                         }
                     }
@@ -270,13 +293,15 @@ impl<T> Packet<T> {
                 "This is a known bug in the Rust standard library. See https://github.com/rust-lang/rust/issues/39364"
             );
             let ptr = token.to_raw();
-            self.to_wake.store(ptr, Ordering::SeqCst);
+            self.to_wake.store(ptr, Ordering::Release);
 
             let steals = ptr::replace(self.steals.get(), 0);
 
-            match self.cnt.fetch_sub(1 + steals, Ordering::SeqCst) {
+            match self.cnt.fetch_sub(1 + steals, Ordering::Release) {
                 DISCONNECTED => {
-                    self.cnt.store(DISCONNECTED, Ordering::SeqCst);
+                    // Here cnt doesn't synchronize with to other shared variables, Using 
+                    // Relaxed is enough.
+                    self.cnt.store(DISCONNECTED, Ordering::Relaxed);
                 }
                 // If we factor in our steals and notice that the channel has no
                 // data, we successfully sleep
@@ -288,7 +313,7 @@ impl<T> Packet<T> {
                 }
             }
 
-            self.to_wake.store(EMPTY, Ordering::SeqCst);
+            self.to_wake.store(EMPTY, Ordering::Release);
             drop(SignalToken::from_raw(ptr));
             Abort
         }
@@ -333,9 +358,12 @@ impl<T> Packet<T> {
             // might decrement steals.
             Some(data) => unsafe {
                 if *self.steals.get() > MAX_STEALS {
-                    match self.cnt.swap(0, Ordering::SeqCst) {
+                    // Here cnt needs to synchronize with steals, Using Acquire is enough.
+                    match self.cnt.swap(0, Ordering::Acquire) {
                         DISCONNECTED => {
-                            self.cnt.store(DISCONNECTED, Ordering::SeqCst);
+                            // Here cnt doesn't synchronize with to other shared variables, Using 
+                            // Relaxed is enough.
+                            self.cnt.store(DISCONNECTED, Ordering::Release);
                         }
                         n => {
                             let m = cmp::min(n, *self.steals.get());
@@ -352,7 +380,8 @@ impl<T> Packet<T> {
             // See the discussion in the stream implementation for why we try
             // again.
             None => {
-                match self.cnt.load(Ordering::SeqCst) {
+                // Here cnt needs to sychronize with queue, Using Acquire is enough.
+                match self.cnt.load(Ordering::Acquire) {
                     n if n != DISCONNECTED => Err(Empty),
                     _ => {
                         match self.queue.pop() {
@@ -370,7 +399,8 @@ impl<T> Packet<T> {
     // Prepares this shared packet for a channel clone, essentially just bumping
     // a refcount.
     pub fn clone_chan(&self) {
-        let old_count = self.channels.fetch_add(1, Ordering::SeqCst);
+        // There also doesn't exist variety to synchronize.
+        let old_count = self.channels.fetch_add(1, Ordering::Relaxed);
 
         // See comments on Arc::clone() on why we do this (for `mem::forget`).
         if old_count > MAX_REFCOUNT {
@@ -382,13 +412,14 @@ impl<T> Packet<T> {
     // Chan is dropped and may end up waking up a receiver. It's the receiver's
     // responsibility on the other end to figure out that we've disconnected.
     pub fn drop_chan(&self) {
-        match self.channels.fetch_sub(1, Ordering::SeqCst) {
+        match self.channels.fetch_sub(1, Ordering::Relaxed) {
             1 => {}
             n if n > 1 => return,
             n => panic!("bad number of channels left {n}"),
         }
 
-        match self.cnt.swap(DISCONNECTED, Ordering::SeqCst) {
+        // Here cnt needs to synchronize with to_wake.
+        match self.cnt.swap(DISCONNECTED, Ordering::Acquire) {
             -1 => {
                 self.take_to_wake().signal();
             }
@@ -403,13 +434,16 @@ impl<T> Packet<T> {
     // and why it is done in this fashion.
     #[allow(clippy::while_let_loop)]
     pub fn drop_port(&self) {
-        self.port_dropped.store(true, Ordering::SeqCst);
+        self.port_dropped.store(true, Ordering::Relaxed);
         let mut steals = unsafe { *self.steals.get() };
+        // Here cnt needs to sychronize with queue when CAS fails, Using Acquire is enough.
+        // In general, ordering success in CAS is at least the same or more strict than 
+        // fail in CAS. So Using Acquire in success is OK.
         while match self.cnt.compare_exchange(
             steals,
             DISCONNECTED,
-            Ordering::SeqCst,
-            Ordering::SeqCst,
+            Ordering::Acquire,
+            Ordering::Acquire,
         ) {
             Ok(_) => false,
             Err(old) => old != DISCONNECTED,
@@ -429,8 +463,8 @@ impl<T> Packet<T> {
 
     // Consumes ownership of the 'to_wake' field.
     fn take_to_wake(&self) -> SignalToken {
-        let ptr = self.to_wake.load(Ordering::SeqCst);
-        self.to_wake.store(EMPTY, Ordering::SeqCst);
+        let ptr = self.to_wake.load(Ordering::Acquire);
+        self.to_wake.store(EMPTY, Ordering::Release);
         assert!(ptr != EMPTY);
         unsafe { SignalToken::from_raw(ptr) }
     }
@@ -441,9 +475,11 @@ impl<T> Packet<T> {
 
     // increment the count on the channel (used for selection)
     fn bump(&self, amt: isize) -> isize {
-        match self.cnt.fetch_add(amt, Ordering::SeqCst) {
+        // There doesn't exist operation needed to be synchronized,
+        // Using Relaxed is safe.
+        match self.cnt.fetch_add(amt, Ordering::Relaxed) {
             DISCONNECTED => {
-                self.cnt.store(DISCONNECTED, Ordering::SeqCst);
+                self.cnt.store(DISCONNECTED, Ordering::Relaxed);
                 DISCONNECTED
             }
             n => n,
@@ -471,7 +507,9 @@ impl<T> Packet<T> {
         // the channel count and figure out what we should do to make it
         // positive.
         let steals = {
-            let cnt = self.cnt.load(Ordering::SeqCst);
+            // Here doesn't exist variety or operation need to be
+            // synchronized, no need to use other ordering to restrict
+            let cnt = self.cnt.load(Ordering::Relaxed);
             if cnt < 0 && cnt != DISCONNECTED { -cnt } else { 0 }
         };
         let prev = self.bump(steals + 1);

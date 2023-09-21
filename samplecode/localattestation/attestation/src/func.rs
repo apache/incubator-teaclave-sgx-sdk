@@ -45,18 +45,23 @@ extern {
                              dest_enclave_id:sgx_enclave_id_t) -> sgx_status_t;
 }
 
+// For AtomicPtr, the methods load and store read and write the address.
+// To load the contents is pretty much another operation, but it is not 
+// atomic and and it is very unsafe. If there is access to the content 
+// where the pointer is pointed, it is best to use Acquire/Release to 
+// prevent get uninitialized memory.
 static CALLBACK_FN: AtomicPtr<()> = AtomicPtr::new(0 as * mut ());
 
 pub fn init(cb: Callback) {
-    let ptr = CALLBACK_FN.load(Ordering::Relaxed);
+    let ptr = CALLBACK_FN.load(Ordering::Acquire);
     if ptr.is_null() {
         let ptr: * mut Callback = Box::into_raw(Box::new(cb));
-        CALLBACK_FN.store(ptr as * mut (), Ordering::Relaxed);
+        CALLBACK_FN.store(ptr as * mut (), Ordering::Release);
     }
 }
 
 fn get_callback() -> Option<&'static Callback>{
-    let ptr = CALLBACK_FN.load(Ordering::Relaxed) as *mut Callback;
+    let ptr = CALLBACK_FN.load(Ordering::Acquire) as *mut Callback;
     if ptr.is_null() {
          return None;
     }

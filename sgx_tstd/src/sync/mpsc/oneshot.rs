@@ -107,15 +107,18 @@ impl<T> Packet<T> {
             assert!((*self.data.get()).is_none());
             ptr::write(self.data.get(), Some(t));
             ptr::write(self.upgrade.get(), SendUsed);
-
-            match self.state.swap(DATA, Ordering::SeqCst) {
+            // Here state needs to synchronize with "data" and "upgrade",
+            // using release is enough to ensure the safety.
+            match self.state.swap(DATA, Ordering::Release) {
                 // Sent the data, no one was waiting
                 EMPTY => Ok(()),
 
                 // Couldn't send the data, the port hung up first. Return the data
                 // back up the stack.
                 DISCONNECTED => {
-                    self.state.swap(DISCONNECTED, Ordering::SeqCst);
+                    // Here state needs to synchronize with upgrade,
+                    // using Acquire is enough to ensure the safety.
+                    self.state.swap(DISCONNECTED, Ordering::Acquire);
                     ptr::write(self.upgrade.get(), NothingSent);
                     Err((&mut *self.data.get()).take().unwrap())
                 }
@@ -142,12 +145,12 @@ impl<T> Packet<T> {
     pub fn recv(&self, deadline: Option<Instant>) -> Result<T, Failure<T>> {
         // Attempt to not block the thread (it's a little expensive). If it looks
         // like we're not empty, then immediately go through to `try_recv`.
-        if self.state.load(Ordering::SeqCst) == EMPTY {
+        if self.state.load(Ordering::Acquire) == EMPTY {
             let (wait_token, signal_token) = blocking::tokens();
             let ptr = unsafe { signal_token.to_raw() };
 
             // race with senders to enter the blocking state
-            if self.state.compare_exchange(EMPTY, ptr, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+            if self.state.compare_exchange(EMPTY, ptr, Ordering::Release, Ordering::Relaxed).is_ok() {
                 if let Some(deadline) = deadline {
                     let timed_out = !wait_token.wait_max_until(deadline);
                     // Try to reset the state
@@ -169,7 +172,7 @@ impl<T> Packet<T> {
 
     pub fn try_recv(&self) -> Result<T, Failure<T>> {
         unsafe {
-            match self.state.load(Ordering::SeqCst) {
+            match self.state.load(Ordering::Acquire) {
                 EMPTY => Err(Empty),
 
                 // We saw some data on the channel, but the channel can be used
@@ -179,11 +182,13 @@ impl<T> Packet<T> {
                 // the state changes under our feet we'd rather just see that state
                 // change.
                 DATA => {
+                    // Here state needs to synchronize with "data",
+                    // using release is enough to ensure the safety.
                     let _ = self.state.compare_exchange(
                         DATA,
                         EMPTY,
-                        Ordering::SeqCst,
-                        Ordering::SeqCst,
+                        Ordering::Acquire,
+                        Ordering::Relaxed,
                     );
                     match (&mut *self.data.get()).take() {
                         Some(data) => Ok(data),
@@ -222,7 +227,9 @@ impl<T> Packet<T> {
             };
             ptr::write(self.upgrade.get(), GoUp(up));
 
-            match self.state.swap(DISCONNECTED, Ordering::SeqCst) {
+            // Here state needs to synchronize upgrade before and after it
+            // using AcqRel is enough to ensure the safety.
+            match self.state.swap(DISCONNECTED, Ordering::AcqRel) {
                 // If the channel is empty or has data on it, then we're good to go.
                 // Senders will check the data before the upgrade (in case we
                 // plastered over the DATA state).
@@ -242,7 +249,7 @@ impl<T> Packet<T> {
     }
 
     pub fn drop_chan(&self) {
-        match self.state.swap(DISCONNECTED, Ordering::SeqCst) {
+        match self.state.swap(DISCONNECTED, Ordering::AcqRel) {
             DATA | DISCONNECTED | EMPTY => {}
 
             // If someone's waiting, we gotta wake them up
@@ -253,7 +260,7 @@ impl<T> Packet<T> {
     }
 
     pub fn drop_port(&self) {
-        match self.state.swap(DISCONNECTED, Ordering::SeqCst) {
+        match self.state.swap(DISCONNECTED, Ordering::AcqRel) {
             // An empty channel has nothing to do, and a remotely disconnected
             // channel also has nothing to do b/c we're about to run the drop
             // glue
@@ -280,7 +287,7 @@ impl<T> Packet<T> {
     //
     // The return value indicates whether there's data on this port.
     pub fn abort_selection(&self) -> Result<bool, Receiver<T>> {
-        let state = match self.state.load(Ordering::SeqCst) {
+        let state = match self.state.load(Ordering::Acquire) {
             // Each of these states means that no further activity will happen
             // with regard to abortion selection
             s @ (EMPTY | DATA | DISCONNECTED) => s,
@@ -289,7 +296,7 @@ impl<T> Packet<T> {
             // of it (may fail)
             ptr => self
                 .state
-                .compare_exchange(ptr, EMPTY, Ordering::SeqCst, Ordering::SeqCst)
+                .compare_exchange(ptr, EMPTY, Ordering::AcqRel, Ordering::Acquire)
                 .unwrap_or_else(|x| x),
         };
 
