@@ -26,20 +26,20 @@ use crate::{
 
 #[repr(C)]
 pub struct PfInfo {
-    maddr: u64, // address for #PF.
-    pfec: Pfec,
-    reserved: u32,
+    pub maddr: u64, // address for #PF.
+    pub pfec: Pfec,
+    pub reserved: u32,
 }
 
 #[repr(C)]
-union Pfec {
-    errcd: u32,
-    bits: PfecBits,
+pub union Pfec {
+    pub errcd: u32,
+    pub bits: PfecBits,
 }
 
 #[repr(C, packed)]
 #[derive(Clone, Copy, Debug)]
-struct PfecBits(u32);
+pub struct PfecBits(u32);
 
 impl PfecBits {
     const P_OFFSET: u32 = 0;
@@ -129,7 +129,7 @@ pub extern "C" fn mm_enclave_pfhandler(info: &mut PfInfo) -> HandleResult {
         };
         ema.commit_check()
             .expect("The EPC page fails to meet the commit condition.");
-        ema.commit(addr, addr + crate::arch::SE_PAGE_SIZE)
+        ema.commit(addr, crate::arch::SE_PAGE_SIZE)
             .expect("The EPC page fails to be committed.");
         HandleResult::Execution
     } else {

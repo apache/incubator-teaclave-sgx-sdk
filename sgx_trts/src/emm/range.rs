@@ -52,6 +52,98 @@ pub fn init_range_manage() {
     RM.call_once(|| SpinReentrantMutex::new(RangeManage::new()));
 }
 
+pub fn user_mm_alloc(
+    addr: Option<usize>,
+    size: usize,
+    alloc_flags: AllocFlags,
+    info: PageInfo,
+    handler: Option<PfHandler>,
+    priv_data: Option<*mut PfInfo>,
+) -> OsResult<usize> {
+    let mut range_manage = RM.get().unwrap().lock();
+    range_manage.alloc(
+        addr,
+        size,
+        alloc_flags,
+        info,
+        handler,
+        priv_data,
+        RangeType::User,
+        Alloc::Reserve,
+    )
+}
+
+pub fn user_mm_dealloc(addr: usize, size: usize) -> OsResult {
+    let mut range_manage = RM.get().unwrap().lock();
+    range_manage.dealloc(addr, size, RangeType::User)
+}
+
+pub fn user_mm_commit(addr: usize, size: usize) -> OsResult {
+    let mut range_manage = RM.get().unwrap().lock();
+    range_manage.commit(addr, size, RangeType::User)
+}
+
+pub fn user_mm_uncommit(addr: usize, size: usize) -> OsResult {
+    let mut range_manage = RM.get().unwrap().lock();
+    range_manage.uncommit(addr, size, RangeType::User)
+}
+
+pub fn user_mm_modify_type(addr: usize, size: usize, new_page_typ: PageType) -> OsResult {
+    let mut range_manage = RM.get().unwrap().lock();
+    range_manage.modify_type(addr, size, new_page_typ, RangeType::User)
+}
+
+pub fn user_mm_modify_perms(addr: usize, size: usize, prot: ProtFlags) -> OsResult {
+    let mut range_manage = RM.get().unwrap().lock();
+    range_manage.modify_perms(addr, size, prot, RangeType::User)
+}
+
+pub fn rts_mm_alloc(
+    addr: Option<usize>,
+    size: usize,
+    alloc_flags: AllocFlags,
+    info: PageInfo,
+    handler: Option<PfHandler>,
+    priv_data: Option<*mut PfInfo>,
+) -> OsResult<usize> {
+    let mut range_manage = RM.get().unwrap().lock();
+    range_manage.alloc(
+        addr,
+        size,
+        alloc_flags,
+        info,
+        handler,
+        priv_data,
+        RangeType::Rts,
+        Alloc::Reserve,
+    )
+}
+
+pub fn rts_mm_dealloc(addr: usize, size: usize) -> OsResult {
+    let mut range_manage = RM.get().unwrap().lock();
+    range_manage.dealloc(addr, size, RangeType::Rts)
+}
+
+pub fn rts_mm_commit(addr: usize, size: usize) -> OsResult {
+    let mut range_manage = RM.get().unwrap().lock();
+    range_manage.commit(addr, size, RangeType::Rts)
+}
+
+pub fn rts_mm_uncommit(addr: usize, size: usize) -> OsResult {
+    let mut range_manage = RM.get().unwrap().lock();
+    range_manage.uncommit(addr, size, RangeType::Rts)
+}
+
+pub fn rts_mm_modify_type(addr: usize, size: usize, new_page_typ: PageType) -> OsResult {
+    let mut range_manage = RM.get().unwrap().lock();
+    range_manage.modify_type(addr, size, new_page_typ, RangeType::Rts)
+}
+
+pub fn rts_mm_modify_perms(addr: usize, size: usize, prot: ProtFlags) -> OsResult {
+    let mut range_manage = RM.get().unwrap().lock();
+    range_manage.modify_perms(addr, size, prot, RangeType::Rts)
+}
+
 /// RangeManage manages virtual memory range
 pub struct RangeManage {
     user: LinkedList<EmaAda>,

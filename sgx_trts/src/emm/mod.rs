@@ -30,4 +30,16 @@ pub(crate) mod tcs;
 pub(crate) mod trim;
 
 pub use ocall::{modpr_ocall, mprotect_ocall};
-pub use page::{apply_epc_pages, trim_epc_pages, PageInfo, PageRange, PageType, ProtFlags};
+pub use page::{
+    apply_epc_pages, trim_epc_pages, AllocFlags, PageInfo, PageRange, PageType, ProtFlags,
+};
+pub use pfhandler::{PfHandler, PfInfo, Pfec, PfecBits};
+
+pub use range::{
+    rts_mm_alloc, rts_mm_commit, rts_mm_dealloc, rts_mm_modify_perms, rts_mm_modify_type,
+    rts_mm_uncommit,
+};
+pub use range::{
+    user_mm_alloc, user_mm_commit, user_mm_dealloc, user_mm_modify_perms, user_mm_modify_type,
+    user_mm_uncommit,
+};

@@ -181,8 +181,7 @@ impl EMA {
         };
 
         // Ocall to mmap memory in urts
-        ocall::alloc_ocall(self.start, self.length, self.info.typ, self.alloc_flags)
-            .map_err(|_| EFAULT)?;
+        ocall::alloc_ocall(self.start, self.length, self.info.typ, self.alloc_flags)?;
 
         // Set the corresponding bits of eaccept map
         if self.alloc_flags.contains(AllocFlags::COMMIT_NOW) {
@@ -277,7 +276,7 @@ impl EMA {
     /// Uncommit the corresponding memory of this ema
     pub fn uncommit_self(&mut self) -> OsResult {
         let prot = self.info.prot;
-        if prot == ProtFlags::NONE {
+        if prot == ProtFlags::NONE && (self.info.typ != PageType::Tcs) {
             self.modify_perm(ProtFlags::R)?
         }
 
@@ -338,8 +337,7 @@ impl EMA {
                     typ: PageType::Trim,
                     prot,
                 },
-            )
-            .map_err(|_| EFAULT)?;
+            )?;
 
             let pages = PageRange::new(
                 block_start,
@@ -366,8 +364,7 @@ impl EMA {
                     typ: PageType::Trim,
                     prot,
                 },
-            )
-            .map_err(|_| EFAULT)?;
+            )?;
             start = block_end;
         }
         Ok(())
@@ -412,8 +409,7 @@ impl EMA {
                 typ: self.info.typ,
                 prot: new_prot,
             },
-        )
-        .map_err(|_| EFAULT)?;
+        )?;
 
         let info = PageInfo {
             typ: PageType::Reg,
@@ -451,8 +447,7 @@ impl EMA {
                     typ: self.info.typ,
                     prot: ProtFlags::NONE,
                 },
-            )
-            .map_err(|_| EFAULT)?;
+            )?;
         }
 
         Ok(())
@@ -487,8 +482,7 @@ impl EMA {
                 typ: PageType::Tcs,
                 prot: info.prot,
             },
-        )
-        .map_err(|_| EFAULT)?;
+        )?;
 
         let eaccept_info = PageInfo {
             typ: PageType::Tcs,
@@ -527,7 +521,7 @@ impl EMA {
             return Ok(());
         }
 
-        if self.info.prot == ProtFlags::NONE {
+        if self.info.prot == ProtFlags::NONE && (self.info.typ != PageType::Tcs) {
             self.modify_perm(ProtFlags::R)?;
         }
         self.uncommit(self.start, self.length, ProtFlags::NONE)?;

@@ -31,7 +31,8 @@ mod hw {
     use crate::emm::{PageInfo, PageType};
     use alloc::boxed::Box;
     use core::convert::Into;
-    use sgx_types::error::{SgxResult, SgxStatus};
+    use sgx_tlibc_sys::EFAULT;
+    use sgx_types::error::{OsResult, SgxResult, SgxStatus};
     use sgx_types::types::ProtectPerm;
     #[repr(C)]
     #[derive(Clone, Copy, Debug, Default)]
@@ -48,7 +49,7 @@ mod hw {
         length: usize,
         page_type: PageType,
         alloc_flags: AllocFlags,
-    ) -> SgxResult {
+    ) -> OsResult {
         let mut change = Box::try_new_in(
             EmmAllocOcall {
                 retval: 0,
@@ -59,9 +60,14 @@ mod hw {
             },
             OcAlloc,
         )
-        .map_err(|_| SgxStatus::OutOfMemory)?;
+        .map_err(|_| EFAULT)?;
 
-        ocall(OCallIndex::Alloc, Some(change.as_mut()))
+        let ocall_ret = ocall(OCallIndex::Alloc, Some(change.as_mut()));
+        if ocall_ret == Ok(()) && change.retval == 0 {
+            Ok(())
+        } else {
+            Err(EFAULT)
+        }
     }
 
     #[repr(C)]
@@ -79,7 +85,7 @@ mod hw {
         length: usize,
         info_from: PageInfo,
         info_to: PageInfo,
-    ) -> SgxResult {
+    ) -> OsResult {
         let mut change = Box::try_new_in(
             EmmModifyOcall {
                 retval: 0,
@@ -90,9 +96,14 @@ mod hw {
             },
             OcAlloc,
         )
-        .map_err(|_| SgxStatus::OutOfMemory)?;
+        .map_err(|_| EFAULT)?;
 
-        ocall(OCallIndex::Modify, Some(change.as_mut()))
+        let ocall_ret = ocall(OCallIndex::Modify, Some(change.as_mut()));
+        if ocall_ret == Ok(()) && change.retval == 0 {
+            Ok(())
+        } else {
+            Err(EFAULT)
+        }
     }
 
     #[repr(C)]
@@ -144,7 +155,7 @@ mod sw {
         _length: usize,
         _page_type: PageType,
         _alloc_flags: AllocFlags,
-    ) -> SgxResult {
+    ) -> OsResult {
         Ok(())
     }
 
@@ -155,7 +166,7 @@ mod sw {
         _length: usize,
         _info_from: PageInfo,
         _info_to: PageInfo,
-    ) -> SgxResult {
+    ) -> OsResult {
         Ok(())
     }
 
