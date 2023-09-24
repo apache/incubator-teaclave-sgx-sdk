@@ -20,7 +20,7 @@ use crate::emm::{PageInfo, PageRange, PageType, ProtFlags};
 use crate::enclave::is_within_enclave;
 use alloc::boxed::Box;
 use intrusive_collections::{intrusive_adapter, LinkedListLink, UnsafeRef};
-use sgx_tlibc_sys::{EACCES, EFAULT, EINVAL};
+use sgx_tlibc_sys::{c_void, EACCES, EINVAL};
 use sgx_types::error::OsResult;
 
 use super::alloc::Alloc;
@@ -28,7 +28,7 @@ use super::alloc::{ResAlloc, StaticAlloc};
 use super::bitmap::BitArray;
 use super::ocall;
 use super::page::AllocFlags;
-use super::pfhandler::{PfHandler, PfInfo};
+use super::pfhandler::PfHandler;
 
 /// Enclave Management Area
 #[repr(C)]
@@ -45,7 +45,7 @@ pub struct EMA {
     // custom PF handler
     handler: Option<PfHandler>,
     // private data for PF handler
-    priv_data: Option<*mut PfInfo>,
+    priv_data: Option<*mut c_void>,
     alloc: Alloc,
     // intrusive linkedlist
     link: LinkedListLink,
@@ -64,7 +64,7 @@ impl EMA {
         alloc_flags: AllocFlags,
         info: PageInfo,
         handler: Option<PfHandler>,
-        priv_data: Option<*mut PfInfo>,
+        priv_data: Option<*mut c_void>,
         alloc: Alloc,
     ) -> OsResult<Self> {
         // check alloc flags' eligibility
@@ -605,7 +605,7 @@ impl EMA {
         self.info
     }
 
-    pub fn fault_handler(&self) -> (Option<PfHandler>, Option<*mut PfInfo>) {
+    pub fn fault_handler(&self) -> (Option<PfHandler>, Option<*mut c_void>) {
         (self.handler, self.priv_data)
     }
 }

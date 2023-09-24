@@ -19,7 +19,7 @@ use crate::arch::SE_PAGE_SIZE;
 use crate::call::{ocall, OCallIndex, OcBuffer};
 use crate::emm::alloc::Alloc;
 use crate::emm::page::AllocFlags;
-use crate::emm::pfhandler::{PfHandler, PfInfo};
+use crate::emm::pfhandler::PfHandler;
 use crate::emm::range::{
     RangeType, ALLIGNMENT_MASK, ALLIGNMENT_SHIFT, ALLOC_FLAGS_MASK, ALLOC_FLAGS_SHIFT,
     PAGE_TYPE_MASK, PAGE_TYPE_SHIFT, RM,
@@ -206,7 +206,7 @@ pub unsafe extern "C" fn sgx_mm_alloc(
     size: usize,
     flags: usize,
     handler: *mut c_void,
-    priv_data: *mut PfInfo,
+    priv_data: *mut c_void,
     out_addr: *mut *mut u8,
 ) -> u32 {
     let handler = if handler.is_null() {

@@ -23,7 +23,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use intrusive_collections::{linked_list::CursorMut, LinkedList, UnsafeRef};
-use sgx_tlibc_sys::{EEXIST, EINVAL, ENOMEM, EPERM};
+use sgx_tlibc_sys::{c_void, EEXIST, EINVAL, ENOMEM, EPERM};
 use sgx_types::error::OsResult;
 use spin::Once;
 
@@ -31,7 +31,7 @@ use super::{
     alloc::{Alloc, ResAlloc, StaticAlloc},
     ema::{EmaAda, EMA},
     page::AllocFlags,
-    pfhandler::{PfHandler, PfInfo},
+    pfhandler::PfHandler,
 };
 
 pub const ALLOC_FLAGS_SHIFT: usize = 0;
@@ -58,7 +58,7 @@ pub fn user_mm_alloc(
     alloc_flags: AllocFlags,
     info: PageInfo,
     handler: Option<PfHandler>,
-    priv_data: Option<*mut PfInfo>,
+    priv_data: Option<*mut c_void>,
 ) -> OsResult<usize> {
     let mut range_manage = RM.get().unwrap().lock();
     range_manage.alloc(
@@ -104,7 +104,7 @@ pub fn rts_mm_alloc(
     alloc_flags: AllocFlags,
     info: PageInfo,
     handler: Option<PfHandler>,
-    priv_data: Option<*mut PfInfo>,
+    priv_data: Option<*mut c_void>,
 ) -> OsResult<usize> {
     let mut range_manage = RM.get().unwrap().lock();
     range_manage.alloc(
@@ -175,7 +175,7 @@ impl RangeManage {
         alloc_flags: AllocFlags,
         info: PageInfo,
         handler: Option<PfHandler>,
-        priv_data: Option<*mut PfInfo>,
+        priv_data: Option<*mut c_void>,
     ) -> OsResult {
         ensure!(
             addr != 0 && size != 0 && is_within_enclave(addr as *const u8, size),
@@ -255,7 +255,7 @@ impl RangeManage {
         alloc_flags: AllocFlags,
         info: PageInfo,
         handler: Option<PfHandler>,
-        priv_data: Option<*mut PfInfo>,
+        priv_data: Option<*mut c_void>,
         typ: RangeType,
         alloc: Alloc,
     ) -> OsResult<usize> {

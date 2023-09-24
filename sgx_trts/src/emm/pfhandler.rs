@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use sgx_tlibc_sys::c_void;
+
 use crate::{
     emm::ProtFlags,
     emm::{
@@ -25,6 +27,7 @@ use crate::{
 };
 
 #[repr(C)]
+#[derive(Clone, Copy, Default)]
 pub struct PfInfo {
     pub maddr: u64, // address for #PF.
     pub pfec: Pfec,
@@ -32,13 +35,20 @@ pub struct PfInfo {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub union Pfec {
     pub errcd: u32,
     pub bits: PfecBits,
 }
 
+impl Default for Pfec {
+    fn default() -> Self {
+        Pfec { errcd: 0 }
+    }
+}
+
 #[repr(C, packed)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Default)]
 pub struct PfecBits(u32);
 
 impl PfecBits {
@@ -83,7 +93,7 @@ impl PfecBits {
     }
 }
 
-pub type PfHandler = extern "C" fn(info: &mut PfInfo) -> HandleResult;
+pub type PfHandler = extern "C" fn(info: &mut PfInfo, priv_data: *mut c_void) -> HandleResult;
 
 pub extern "C" fn mm_enclave_pfhandler(info: &mut PfInfo) -> HandleResult {
     let addr = trim_to_page!(info.maddr as usize);
@@ -103,8 +113,7 @@ pub extern "C" fn mm_enclave_pfhandler(info: &mut PfInfo) -> HandleResult {
     let (handler, priv_data) = ema.fault_handler();
     if let Some(handler) = handler {
         drop(range_manage);
-        let mut pf_info = unsafe { priv_data.unwrap().read() };
-        return handler(&mut pf_info);
+        return handler(info, priv_data.unwrap());
     }
 
     // No customized page fault handler
