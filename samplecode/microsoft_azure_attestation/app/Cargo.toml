@@ -1,0 +1,23 @@
+[package]
+name = "maa"
+version = "1.0.0"
+authors = ["Fanghao Yang"]
+build = "build.rs"
+
+[dependencies]
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sha2 = "*"
+base64 = "*"
+base64-url = "2.0.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1"
+libloading = "*"
+reqwest = { version = "0.11.20", features = ["blocking", "json"] }
+jsonwebtoken = "7.0"
+jsonwebkey = { version = "0.3", features = ["pkcs-convert"] }
+x509-certificate = "0.21.0"
+
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
+sgx_types = { path = "../../../sgx_types" }
+sgx_urts = { path = "../../../sgx_urts" }
