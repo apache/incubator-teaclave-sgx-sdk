@@ -89,8 +89,8 @@ uint32_t sgx_get_rsrvmm_default_perm(void);
 
 size_t get_stack_guard(void);
 
-int sgx_apply_epc_pages(void *start_address, size_t page_number);
-int sgx_trim_epc_pages(void *start_address, size_t page_number);
+int sgx_commit_rts_pages(void *start_address, size_t page_number);
+int sgx_uncommit_rts_pages(void *start_address, size_t page_number);
 
 #ifdef __cplusplus
 }

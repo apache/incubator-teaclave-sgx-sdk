@@ -122,7 +122,7 @@ void* sbrk(intptr_t n)
                 size = prev_heap_used - heap_min_size;
             }
             assert((size & (SE_PAGE_SIZE - 1)) == 0);
-            int ret = sgx_trim_epc_pages(start_addr, size >> SE_PAGE_SHIFT);
+            int ret = sgx_uncommit_rts_pages(start_addr, size >> SE_PAGE_SHIFT);
             if (ret != 0)
             {
                 heap_used = prev_heap_used;
@@ -166,7 +166,7 @@ void* sbrk(intptr_t n)
             size = heap_used - heap_min_size;
         }
         assert((size & (SE_PAGE_SIZE - 1)) == 0);
-        int ret = sgx_apply_epc_pages(start_addr, size >> SE_PAGE_SHIFT);
+        int ret = sgx_commit_rts_pages(start_addr, size >> SE_PAGE_SHIFT);
         if (ret != 0)
         {
             heap_used = prev_heap_used;

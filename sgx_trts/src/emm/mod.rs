@@ -27,12 +27,9 @@ pub(crate) mod page;
 pub(crate) mod pfhandler;
 pub(crate) mod range;
 pub(crate) mod tcs;
-pub(crate) mod trim;
 
-pub use ocall::{modpr_ocall, mprotect_ocall};
-pub use page::{
-    apply_epc_pages, trim_epc_pages, AllocFlags, PageInfo, PageRange, PageType, ProtFlags,
-};
+pub use ocall::{alloc_ocall, modify_ocall};
+pub use page::{AllocFlags, PageInfo, PageRange, PageType, ProtFlags};
 pub use pfhandler::{PfHandler, PfInfo, Pfec, PfecBits};
 
 pub use range::{

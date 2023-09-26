@@ -161,7 +161,7 @@ impl RsrvMem {
                     )
                 };
 
-                let ret = emm::apply_epc_pages(start_addr, size >> SE_PAGE_SHIFT);
+                let ret = emm::rts_mm_commit(start_addr, size >> SE_PAGE_SHIFT);
                 if ret.is_err() {
                     self.committed_size = pre_committed;
                     bail!(ENOMEM);

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::arch::SE_PAGE_SIZE;
+use crate::arch::{SE_PAGE_SHIFT, SE_PAGE_SIZE};
 use crate::call::{ocall, OCallIndex, OcBuffer};
 use crate::emm::alloc::Alloc;
 use crate::emm::page::AllocFlags;
@@ -24,7 +24,7 @@ use crate::emm::range::{
     RangeType, ALLIGNMENT_MASK, ALLIGNMENT_SHIFT, ALLOC_FLAGS_MASK, ALLOC_FLAGS_SHIFT,
     PAGE_TYPE_MASK, PAGE_TYPE_SHIFT, RM,
 };
-use crate::emm::{apply_epc_pages, trim_epc_pages, PageInfo, PageType, ProtFlags};
+use crate::emm::{rts_mm_commit, rts_mm_uncommit, PageInfo, PageType, ProtFlags};
 use crate::enclave::{self, is_within_enclave, MmLayout};
 use crate::error;
 use crate::rand::rand;
@@ -180,8 +180,8 @@ pub unsafe extern "C" fn sgx_is_outside_enclave(p: *const u8, len: usize) -> i32
 
 #[inline]
 #[no_mangle]
-pub unsafe extern "C" fn sgx_apply_epc_pages(addr: usize, count: usize) -> i32 {
-    if apply_epc_pages(addr, count).is_ok() {
+pub unsafe extern "C" fn sgx_commit_rts_pages(addr: usize, count: usize) -> i32 {
+    if rts_mm_commit(addr, count << SE_PAGE_SHIFT).is_ok() {
         0
     } else {
         -1
@@ -190,8 +190,8 @@ pub unsafe extern "C" fn sgx_apply_epc_pages(addr: usize, count: usize) -> i32 {
 
 #[inline]
 #[no_mangle]
-pub unsafe extern "C" fn sgx_trim_epc_pages(addr: usize, count: usize) -> i32 {
-    if trim_epc_pages(addr, count).is_ok() {
+pub unsafe extern "C" fn sgx_uncommit_rts_pages(addr: usize, count: usize) -> i32 {
+    if rts_mm_uncommit(addr, count << SE_PAGE_SHIFT).is_ok() {
         0
     } else {
         -1

@@ -15,15 +15,13 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::arch::{self, Secinfo, SE_PAGE_SHIFT, SE_PAGE_SIZE};
-use crate::emm::layout::LayoutTable;
-use crate::emm::trim;
+use crate::arch::{Secinfo, SE_PAGE_SHIFT, SE_PAGE_SIZE};
 use crate::enclave::is_within_enclave;
 use crate::inst::EncluInst;
 use bitflags::bitflags;
 use core::num::NonZeroUsize;
 use sgx_tlibc_sys::{EFAULT, EINVAL};
-use sgx_types::error::{OsResult, SgxResult, SgxStatus};
+use sgx_types::error::OsResult;
 use sgx_types::marker::ContiguousMemory;
 
 bitflags! {
@@ -65,6 +63,9 @@ impl_bitflags! {
         const PENDING  = 0x08;
         const MODIFIED = 0x10;
         const PR       = 0x20;
+        const RW       = Self::R.bits() | Self::W.bits();
+        const RX       = Self::R.bits() | Self::X.bits();
+        const RWX       = Self::R.bits() | Self::W.bits() | Self::X.bits();
     }
 }
 
@@ -238,52 +239,4 @@ impl Page {
         let secinfo: Secinfo = self.info.into();
         EncluInst::emodpe(&secinfo, self.addr).map_err(|_| EFAULT)
     }
-}
-
-pub fn apply_epc_pages(addr: usize, count: usize) -> SgxResult {
-    ensure!(addr != 0 && count != 0, SgxStatus::InvalidParameter);
-
-    if let Some(attr) = LayoutTable::new().check_dyn_range(addr, count, None) {
-        let pages = PageRange::new(
-            addr,
-            count,
-            PageInfo {
-                typ: PageType::Reg,
-                prot: ProtFlags::R | ProtFlags::W | ProtFlags::PENDING,
-            },
-        )
-        .map_err(|_| SgxStatus::Unexpected)?;
-        if (attr.attr & arch::PAGE_DIR_GROW_DOWN) == 0 {
-            pages.accept_forward().map_err(|_| SgxStatus::Unexpected)
-        } else {
-            pages.accept_backward().map_err(|_| SgxStatus::Unexpected)
-        }
-    } else {
-        Err(SgxStatus::InvalidParameter)
-    }
-}
-
-pub fn trim_epc_pages(addr: usize, count: usize) -> SgxResult {
-    ensure!(addr != 0 && count != 0, SgxStatus::InvalidParameter);
-
-    LayoutTable::new()
-        .check_dyn_range(addr, count, None)
-        .ok_or(SgxStatus::InvalidParameter)?;
-
-    trim::trim_range(addr, count)?;
-
-    let pages = PageRange::new(
-        addr,
-        count,
-        PageInfo {
-            typ: PageType::Trim,
-            prot: ProtFlags::MODIFIED,
-        },
-    )
-    .map_err(|_| SgxStatus::Unexpected)?;
-    pages.accept_forward().map_err(|_| SgxStatus::Unexpected)?;
-
-    trim::trim_range_commit(addr, count)?;
-
-    Ok(())
 }

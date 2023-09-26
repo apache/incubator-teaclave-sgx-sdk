@@ -25,15 +25,13 @@ cfg_if! {
 
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
 mod hw {
-    use crate::arch::SE_PAGE_SHIFT;
     use crate::call::{ocall, OCallIndex, OcAlloc};
     use crate::emm::page::AllocFlags;
     use crate::emm::{PageInfo, PageType};
     use alloc::boxed::Box;
     use core::convert::Into;
     use sgx_tlibc_sys::EFAULT;
-    use sgx_types::error::{OsResult, SgxResult, SgxStatus};
-    use sgx_types::types::ProtectPerm;
+    use sgx_types::error::OsResult;
     #[repr(C)]
     #[derive(Clone, Copy, Debug, Default)]
     struct EmmAllocOcall {
@@ -105,42 +103,6 @@ mod hw {
             Err(EFAULT)
         }
     }
-
-    #[repr(C)]
-    #[derive(Clone, Copy, Debug, Default)]
-    struct ChangePermOcall {
-        addr: usize,
-        size: usize,
-        perm: u64,
-    }
-
-    pub fn modpr_ocall(addr: usize, count: usize, perm: ProtectPerm) -> SgxResult {
-        let mut change = Box::try_new_in(
-            ChangePermOcall {
-                addr,
-                size: count << SE_PAGE_SHIFT,
-                perm: Into::<u8>::into(perm) as u64,
-            },
-            OcAlloc,
-        )
-        .map_err(|_| SgxStatus::OutOfMemory)?;
-
-        ocall(OCallIndex::Modpr, Some(change.as_mut()))
-    }
-
-    pub fn mprotect_ocall(addr: usize, count: usize, perm: ProtectPerm) -> SgxResult {
-        let mut change = Box::try_new_in(
-            ChangePermOcall {
-                addr,
-                size: count << SE_PAGE_SHIFT,
-                perm: Into::<u8>::into(perm) as u64,
-            },
-            OcAlloc,
-        )
-        .map_err(|_| SgxStatus::OutOfMemory)?;
-
-        ocall(OCallIndex::Mprotect, Some(change.as_mut()))
-    }
 }
 
 #[cfg(any(feature = "sim", feature = "hyper"))]
@@ -167,18 +129,6 @@ mod sw {
         _info_from: PageInfo,
         _info_to: PageInfo,
     ) -> OsResult {
-        Ok(())
-    }
-
-    #[allow(clippy::unnecessary_wraps)]
-    #[inline]
-    pub fn modpr_ocall(_addr: usize, _count: usize, _perm: ProtectPerm) -> SgxResult {
-        Ok(())
-    }
-
-    #[allow(clippy::unnecessary_wraps)]
-    #[inline]
-    pub fn mprotect_ocall(_addr: usize, _count: usize, _perm: ProtectPerm) -> SgxResult {
         Ok(())
     }
 }
