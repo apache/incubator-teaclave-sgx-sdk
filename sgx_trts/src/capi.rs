@@ -20,11 +20,11 @@ use crate::call::{ocall, OCallIndex, OcBuffer};
 use crate::emm::ema::EmaOptions;
 use crate::emm::page::AllocFlags;
 use crate::emm::pfhandler::PfHandler;
-use crate::emm::range::{
+use crate::emm::vmmgr::{
     ALLIGNMENT_MASK, ALLIGNMENT_SHIFT, ALLOC_FLAGS_MASK, ALLOC_FLAGS_SHIFT, PAGE_TYPE_MASK,
-    PAGE_TYPE_SHIFT,
+    PAGE_TYPE_SHIFT, RangeType,
 };
-use crate::emm::{rts_mm_commit, rts_mm_uncommit, user_mm_alloc, PageInfo, PageType, ProtFlags};
+use crate::emm::{mm_commit, mm_uncommit, mm_alloc_user, PageInfo, PageType, ProtFlags, self};
 use crate::enclave::{self, is_within_enclave, MmLayout};
 use crate::error;
 use crate::rand::rand;
@@ -181,7 +181,19 @@ pub unsafe extern "C" fn sgx_is_outside_enclave(p: *const u8, len: usize) -> i32
 #[inline]
 #[no_mangle]
 pub unsafe extern "C" fn sgx_commit_rts_pages(addr: usize, count: usize) -> i32 {
-    if rts_mm_commit(addr, count << SE_PAGE_SHIFT).is_ok() {
+    let len = count << SE_PAGE_SHIFT;
+    match emm::check_addr(addr, len) {
+        Ok(typ) => {
+            if typ != RangeType::Rts {
+                return -1;
+            }
+        }
+        Err(_) => {
+            return -1;
+        }
+    }
+
+    if mm_commit(addr, len).is_ok() {
         0
     } else {
         -1
@@ -191,7 +203,18 @@ pub unsafe extern "C" fn sgx_commit_rts_pages(addr: usize, count: usize) -> i32 
 #[inline]
 #[no_mangle]
 pub unsafe extern "C" fn sgx_uncommit_rts_pages(addr: usize, count: usize) -> i32 {
-    if rts_mm_uncommit(addr, count << SE_PAGE_SHIFT).is_ok() {
+    let len = count << SE_PAGE_SHIFT;
+    match emm::check_addr(addr, len) {
+        Ok(typ) => {
+            if typ != RangeType::Rts {
+                return -1;
+            }
+        }
+        Err(_) => {
+            return -1;
+        }
+    }
+    if mm_uncommit(addr, len).is_ok() {
         0
     } else {
         -1
@@ -276,7 +299,7 @@ pub unsafe extern "C" fn sgx_mm_alloc(
     let mut options = EmaOptions::new(addr, size, alloc_flags);
     options.info(info).handle(handler, priv_data);
 
-    match user_mm_alloc(&options) {
+    match mm_alloc_user(&options) {
         Ok(base) => {
             *out_addr = base as *mut u8;
             0

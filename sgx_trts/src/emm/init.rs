@@ -16,10 +16,10 @@
 // under the License..
 
 use super::alloc::{init_reserve_alloc, init_static_alloc};
-use super::range::init_range_manage;
+use super::vmmgr::init_vmmgr;
 
 pub fn init_emm() {
-    init_range_manage();
+    init_vmmgr();
     init_static_alloc();
     init_reserve_alloc();
 }
@@ -39,10 +39,9 @@ mod hw {
     use crate::emm::ema::EmaOptions;
     use crate::emm::layout::LayoutTable;
     use crate::emm::page::AllocFlags;
-    use crate::emm::range::{mm_init_static_region, EMA_PROT_MASK};
+    use crate::emm::vmmgr::{mm_init_static_region, EMA_PROT_MASK};
     use crate::emm::{
-        rts_mm_alloc, rts_mm_commit, rts_mm_dealloc, rts_mm_modify_perms, PageInfo, PageType,
-        ProtFlags,
+        mm_alloc_rts, mm_commit, mm_dealloc, mm_modify_perms, PageInfo, PageType, ProtFlags,
     };
     use crate::enclave::parse;
     use crate::enclave::MmLayout;
@@ -113,7 +112,7 @@ mod hw {
             });
             mm_init_static_region(&options).map_err(|_| SgxStatus::Unexpected)?;
 
-            rts_mm_dealloc(addr, size).map_err(|_| SgxStatus::Unexpected)?;
+            mm_dealloc(addr, size).map_err(|_| SgxStatus::Unexpected)?;
         }
 
         if post_add {
@@ -135,7 +134,7 @@ mod hw {
                     | AllocFlags::FIXED,
             );
 
-            rts_mm_alloc(&options).map_err(|_| SgxStatus::Unexpected)?;
+            mm_alloc_rts(&options).map_err(|_| SgxStatus::Unexpected)?;
         } else if static_min {
             let info = if entry.id == arch::LAYOUT_ID_TCS {
                 PageInfo {
@@ -166,7 +165,7 @@ mod hw {
             .check_dyn_range(addr, count, None)
             .ok_or(SgxStatus::InvalidParameter)?;
 
-        rts_mm_commit(addr, count << arch::SE_PAGE_SHIFT).map_err(|_| SgxStatus::Unexpected)?;
+        mm_commit(addr, count << arch::SE_PAGE_SHIFT).map_err(|_| SgxStatus::Unexpected)?;
 
         Ok(())
     }
@@ -193,7 +192,7 @@ mod hw {
                 }
 
                 let prot = ProtFlags::from_bits_truncate(perm as u8);
-                rts_mm_modify_perms(start, size, prot).map_err(|_| SgxStatus::Unexpected)?;
+                mm_modify_perms(start, size, prot).map_err(|_| SgxStatus::Unexpected)?;
             }
             if typ == Type::GnuRelro {
                 let start = base + trim_to_page!(phdr.virtual_addr() as usize);
@@ -202,7 +201,7 @@ mod hw {
                 let size = end - start;
 
                 if size > 0 {
-                    rts_mm_modify_perms(start, size, ProtFlags::R)
+                    mm_modify_perms(start, size, ProtFlags::R)
                         .map_err(|_| SgxStatus::Unexpected)?;
                 }
             }
@@ -217,7 +216,7 @@ mod hw {
             let start = base + unsafe { layout.entry.rva as usize };
             let size = unsafe { layout.entry.page_count as usize } << arch::SE_PAGE_SHIFT;
 
-            rts_mm_modify_perms(start, size, ProtFlags::R).map_err(|_| SgxStatus::Unexpected)?;
+            mm_modify_perms(start, size, ProtFlags::R).map_err(|_| SgxStatus::Unexpected)?;
         }
         Ok(())
     }

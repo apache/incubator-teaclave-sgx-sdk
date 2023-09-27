@@ -31,7 +31,7 @@ use spin::{Mutex, Once};
 
 use super::ema::EmaOptions;
 use super::page::AllocFlags;
-use super::range::{RangeType, RM};
+use super::vmmgr::{RangeType, VMMGR};
 use super::{PageInfo, PageType, ProtFlags};
 use sgx_types::error::OsResult;
 
@@ -465,7 +465,7 @@ impl Reserve {
         // Here we alloc at least INIT_MEM_SIZE size,
         // but commit rsize memory, the remaining memory is COMMIT_ON_DEMAND
         let increment = self.incr_size.max(rsize);
-        let mut range_manage = RM.get().unwrap().lock();
+        let mut vmmgr = VMMGR.get().unwrap().lock();
 
         let mut options = EmaOptions::new(None, increment + 2 * GUARD_SIZE, AllocFlags::RESERVED);
 
@@ -475,7 +475,7 @@ impl Reserve {
                 prot: ProtFlags::NONE,
             })
             .alloc(AllocType::new_static());
-        let base = range_manage.alloc(&options, RangeType::User)?;
+        let base = vmmgr.alloc(&options, RangeType::User)?;
 
         let mut options = EmaOptions::new(
             Some(base + GUARD_SIZE),
@@ -484,10 +484,10 @@ impl Reserve {
         );
 
         options.alloc(AllocType::new_static());
-        let base = range_manage.alloc(&options, RangeType::User)?;
+        let base = vmmgr.alloc(&options, RangeType::User)?;
 
-        range_manage.commit(base, rsize, RangeType::User)?;
-        drop(range_manage);
+        vmmgr.commit(base, rsize)?;
+        drop(vmmgr);
 
         unsafe {
             self.write_chunk(base, increment);

@@ -25,18 +25,14 @@ pub(crate) mod layout;
 pub(crate) mod ocall;
 pub(crate) mod page;
 pub(crate) mod pfhandler;
-pub(crate) mod range;
 pub(crate) mod tcs;
+pub(crate) mod vmmgr;
 
 pub use ema::EmaOptions;
 pub use page::{AllocFlags, PageInfo, PageRange, PageType, ProtFlags};
 pub use pfhandler::{PfHandler, PfInfo, Pfec, PfecBits};
 
-pub use range::{
-    rts_mm_alloc, rts_mm_commit, rts_mm_dealloc, rts_mm_modify_perms, rts_mm_modify_type,
-    rts_mm_uncommit,
-};
-pub use range::{
-    user_mm_alloc, user_mm_commit, user_mm_dealloc, user_mm_modify_perms, user_mm_modify_type,
-    user_mm_uncommit,
+pub use vmmgr::{
+    check_addr, mm_alloc_rts, mm_alloc_user, mm_commit, mm_dealloc, mm_modify_perms,
+    mm_modify_type, mm_uncommit,
 };

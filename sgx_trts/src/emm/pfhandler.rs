@@ -21,7 +21,7 @@ use crate::{
     emm::ProtFlags,
     emm::{
         page::AllocFlags,
-        range::{RangeType, RM},
+        vmmgr::{RangeType, VMMGR},
     },
     veh::HandleResult,
 };
@@ -97,10 +97,10 @@ pub type PfHandler = extern "C" fn(info: &mut PfInfo, priv_data: *mut c_void) ->
 
 pub extern "C" fn mm_enclave_pfhandler(info: &mut PfInfo) -> HandleResult {
     let addr = trim_to_page!(info.maddr as usize);
-    let mut range_manage = RM.get().unwrap().lock();
-    let mut ema_cursor = match range_manage.search_ema(addr, RangeType::User) {
+    let mut vmmgr = VMMGR.get().unwrap().lock();
+    let mut ema_cursor = match vmmgr.search_ema(addr, RangeType::User) {
         None => {
-            let ema_cursor = range_manage.search_ema(addr, RangeType::Rts);
+            let ema_cursor = vmmgr.search_ema(addr, RangeType::Rts);
             if ema_cursor.is_none() {
                 return HandleResult::Search;
             }
@@ -112,7 +112,7 @@ pub extern "C" fn mm_enclave_pfhandler(info: &mut PfInfo) -> HandleResult {
     let ema = unsafe { ema_cursor.get_mut().unwrap() };
     let (handler, priv_data) = ema.fault_handler();
     if let Some(handler) = handler {
-        drop(range_manage);
+        drop(vmmgr);
         return handler(info, priv_data.unwrap());
     }
 

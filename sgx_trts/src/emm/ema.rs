@@ -32,7 +32,7 @@ use super::pfhandler::PfHandler;
 
 /// Enclave Management Area
 #[repr(C)]
-pub struct Ema {
+pub(crate) struct Ema {
     // page aligned start address
     start: usize,
     // bytes, round to page bytes
@@ -52,7 +52,7 @@ pub struct Ema {
 }
 
 // Implement ema adapter for the operations of intrusive linkedlist
-intrusive_adapter!(pub EmaAda = UnsafeRef<Ema>: Ema { link: LinkedListLink });
+intrusive_adapter!(pub(crate) EmaAda = UnsafeRef<Ema>: Ema { link: LinkedListLink });
 
 #[derive(Clone, Copy)]
 /// Options for allocating Emas.
@@ -81,28 +81,17 @@ impl Ema {
         handler: Option<PfHandler>,
         priv_data: Option<*mut c_void>,
         alloc: AllocType,
-    ) -> OsResult<Self> {
-        // TODO: check alloc flags' eligibility
-
-        if start != 0
-            && length != 0
-            && is_within_enclave(start as *const u8, length)
-            && is_page_aligned!(start)
-            && (length % crate::arch::SE_PAGE_SIZE) == 0
-        {
-            Ok(Self {
-                start,
-                length,
-                alloc_flags,
-                info,
-                eaccept_map: None,
-                handler,
-                priv_data,
-                link: LinkedListLink::new(),
-                alloc,
-            })
-        } else {
-            Err(EINVAL)
+    ) -> Self {
+        Self {
+            start,
+            length,
+            alloc_flags,
+            info,
+            eaccept_map: None,
+            handler,
+            priv_data,
+            link: LinkedListLink::new(),
+            alloc,
         }
     }
 
@@ -152,8 +141,7 @@ impl Ema {
                         self.handler,
                         self.priv_data,
                         AllocType::new_rsrv(),
-                    )
-                    .unwrap(),
+                    ),
                     allocator,
                 );
                 ema.start = r_start;
@@ -171,8 +159,7 @@ impl Ema {
                         self.handler,
                         self.priv_data,
                         AllocType::new_static(),
-                    )
-                    .unwrap(),
+                    ),
                     allocator,
                 );
                 ema.start = r_start;
@@ -696,6 +683,23 @@ impl EmaOptions {
     pub(crate) fn alloc(&mut self, alloc: AllocType) -> &mut Self {
         self.alloc = alloc;
         self
+    }
+}
+
+impl EmaOptions {
+    pub(crate) fn check(options: &EmaOptions) -> OsResult {
+        let addr = options.addr.unwrap_or(0);
+        let size = options.length;
+
+        if addr > 0 {
+            ensure!(
+                is_page_aligned!(addr) && is_within_enclave(addr as *const u8, size),
+                EINVAL
+            );
+        }
+        ensure!(size != 0 && ((size % SE_PAGE_SIZE) == 0), EINVAL);
+
+        Ok(())
     }
 }
 

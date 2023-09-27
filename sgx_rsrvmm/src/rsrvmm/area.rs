@@ -24,7 +24,7 @@ use core::cmp::{self, Ordering};
 use core::convert::From;
 use core::ops::{Deref, DerefMut};
 use core::{fmt, panic};
-use sgx_trts::emm::{rts_mm_modify_perms, ProtFlags};
+use sgx_trts::emm::{mm_modify_perms, ProtFlags};
 use sgx_trts::trts;
 use sgx_types::error::errno::*;
 use sgx_types::error::OsResult;
@@ -367,7 +367,7 @@ impl MmArea {
             let (pe_needed, pr_needed) = self.is_needed_modify_perm(new_perm)?;
 
             if pe_needed || pr_needed {
-                let res = rts_mm_modify_perms(self.start(), count << SE_PAGE_SHIFT, prot);
+                let res = mm_modify_perms(self.start(), count << SE_PAGE_SHIFT, prot);
                 if res.is_err() {
                     panic!()
                 }

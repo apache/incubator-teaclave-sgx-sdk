@@ -16,7 +16,7 @@
 // under the License..
 
 use crate::{
-    arch::SE_PAGE_SIZE,
+    arch::{SE_PAGE_SHIFT, SE_PAGE_SIZE},
     emm::{PageType, ProtFlags},
     enclave::{is_within_enclave, is_within_rts_range, is_within_user_range, MmLayout},
     sync::SpinReentrantMutex,
@@ -44,80 +44,59 @@ pub const ALLIGNMENT_MASK: usize = 0xFF << ALLIGNMENT_SHIFT;
 
 pub const EMA_PROT_MASK: usize = 0x7;
 
-pub(crate) static RM: Once<SpinReentrantMutex<RangeManage>> = Once::new();
+pub(crate) static VMMGR: Once<SpinReentrantMutex<VmMgr>> = Once::new();
 
 /// Initialize range management
-pub fn init_range_manage() {
-    RM.call_once(|| SpinReentrantMutex::new(RangeManage::new()));
+pub fn init_vmmgr() {
+    VMMGR.call_once(|| SpinReentrantMutex::new(VmMgr::new()));
 }
 
 pub fn mm_init_static_region(options: &EmaOptions) -> OsResult {
-    let mut range_manage = RM.get().unwrap().lock();
-    range_manage.init_static_region(options)
+    let mut vmmgr = VMMGR.get().unwrap().lock();
+    vmmgr.init_static_region(options)
 }
 
-pub fn user_mm_alloc(options: &EmaOptions) -> OsResult<usize> {
-    let mut range_manage = RM.get().unwrap().lock();
-    range_manage.alloc(options, RangeType::User)
+pub fn mm_alloc_user(options: &EmaOptions) -> OsResult<usize> {
+    let mut vmmgr = VMMGR.get().unwrap().lock();
+    vmmgr.alloc(options, RangeType::User)
 }
 
-pub fn user_mm_dealloc(addr: usize, size: usize) -> OsResult {
-    let mut range_manage = RM.get().unwrap().lock();
-    range_manage.dealloc(addr, size, RangeType::User)
+pub fn mm_alloc_rts(options: &EmaOptions) -> OsResult<usize> {
+    let mut vmmgr = VMMGR.get().unwrap().lock();
+    vmmgr.alloc(options, RangeType::Rts)
 }
 
-pub fn user_mm_commit(addr: usize, size: usize) -> OsResult {
-    let mut range_manage = RM.get().unwrap().lock();
-    range_manage.commit(addr, size, RangeType::User)
+pub fn mm_dealloc(addr: usize, size: usize) -> OsResult {
+    let mut vmmgr = VMMGR.get().unwrap().lock();
+    vmmgr.dealloc(addr, size)
 }
 
-pub fn user_mm_uncommit(addr: usize, size: usize) -> OsResult {
-    let mut range_manage = RM.get().unwrap().lock();
-    range_manage.uncommit(addr, size, RangeType::User)
+pub fn mm_commit(addr: usize, size: usize) -> OsResult {
+    let mut vmmgr = VMMGR.get().unwrap().lock();
+    vmmgr.commit(addr, size)
 }
 
-pub fn user_mm_modify_type(addr: usize, size: usize, new_page_typ: PageType) -> OsResult {
-    let mut range_manage = RM.get().unwrap().lock();
-    range_manage.modify_type(addr, size, new_page_typ, RangeType::User)
+pub fn mm_uncommit(addr: usize, size: usize) -> OsResult {
+    let mut vmmgr = VMMGR.get().unwrap().lock();
+    vmmgr.uncommit(addr, size)
 }
 
-pub fn user_mm_modify_perms(addr: usize, size: usize, prot: ProtFlags) -> OsResult {
-    let mut range_manage = RM.get().unwrap().lock();
-    range_manage.modify_perms(addr, size, prot, RangeType::User)
+pub fn mm_modify_type(addr: usize, size: usize, new_page_typ: PageType) -> OsResult {
+    let mut vmmgr = VMMGR.get().unwrap().lock();
+    vmmgr.modify_type(addr, size, new_page_typ)
 }
 
-pub fn rts_mm_alloc(options: &EmaOptions) -> OsResult<usize> {
-    let mut range_manage = RM.get().unwrap().lock();
-    range_manage.alloc(options, RangeType::Rts)
+pub fn mm_modify_perms(addr: usize, size: usize, prot: ProtFlags) -> OsResult {
+    let mut vmmgr = VMMGR.get().unwrap().lock();
+    vmmgr.modify_perms(addr, size, prot)
 }
 
-pub fn rts_mm_dealloc(addr: usize, size: usize) -> OsResult {
-    let mut range_manage = RM.get().unwrap().lock();
-    range_manage.dealloc(addr, size, RangeType::Rts)
+pub fn check_addr(addr: usize, size: usize) -> OsResult<RangeType> {
+    VmMgr::check(addr, size)
 }
 
-pub fn rts_mm_commit(addr: usize, size: usize) -> OsResult {
-    let mut range_manage = RM.get().unwrap().lock();
-    range_manage.commit(addr, size, RangeType::Rts)
-}
-
-pub fn rts_mm_uncommit(addr: usize, size: usize) -> OsResult {
-    let mut range_manage = RM.get().unwrap().lock();
-    range_manage.uncommit(addr, size, RangeType::Rts)
-}
-
-pub fn rts_mm_modify_type(addr: usize, size: usize, new_page_typ: PageType) -> OsResult {
-    let mut range_manage = RM.get().unwrap().lock();
-    range_manage.modify_type(addr, size, new_page_typ, RangeType::Rts)
-}
-
-pub fn rts_mm_modify_perms(addr: usize, size: usize, prot: ProtFlags) -> OsResult {
-    let mut range_manage = RM.get().unwrap().lock();
-    range_manage.modify_perms(addr, size, prot, RangeType::Rts)
-}
-
-/// RangeManage manages virtual memory range
-pub struct RangeManage {
+/// Virtual memory manager
+pub(crate) struct VmMgr {
     user: LinkedList<EmaAda>,
     rts: LinkedList<EmaAda>,
 }
@@ -130,7 +109,7 @@ pub enum RangeType {
     User,
 }
 
-impl RangeManage {
+impl VmMgr {
     pub fn new() -> Self {
         Self {
             user: LinkedList::new(EmaAda::new()),
@@ -142,11 +121,7 @@ impl RangeManage {
     // by the RTS enclave loader at fixed address ranges
     pub fn init_static_region(&mut self, options: &EmaOptions) -> OsResult {
         ensure!(options.addr.is_some(), EINVAL);
-
-        // ensure!(
-        //     options.addr != None && size != 0 && is_within_enclave(addr as *const u8, size),
-        //     EINVAL
-        // );
+        EmaOptions::check(options)?;
 
         let mut next_ema = self
             .find_free_region_at(options.addr.unwrap(), options.length, RangeType::Rts)
@@ -203,25 +178,11 @@ impl RangeManage {
 
     /// Allocate a new memory region in enclave address space (ELRANGE).
     pub fn alloc(&mut self, options: &EmaOptions, typ: RangeType) -> OsResult<usize> {
+        EmaOptions::check(options)?;
+
         let addr = options.addr.unwrap_or(0);
         let size = options.length;
         let end = addr + size;
-
-        // Default align is 12
-        let align_flag = 12;
-        let align_mask: usize = (1 << align_flag) - 1;
-
-        if (size % SE_PAGE_SIZE) > 0 {
-            return Err(EINVAL);
-        }
-
-        if (addr & align_mask) > 0 {
-            return Err(EINVAL);
-        }
-
-        if (addr > 0) && !is_within_enclave(addr as *const u8, size) {
-            return Err(EINVAL);
-        }
 
         let mut alloc_addr: Option<usize> = None;
         let mut alloc_next_ema: Option<CursorMut<'_, EmaAda>> = None;
@@ -256,7 +217,7 @@ impl RangeManage {
 
         if alloc_addr.is_none() {
             let (free_addr, next_ema) = self
-                .find_free_region(size, 1 << align_flag, typ)
+                .find_free_region(size, 1 << SE_PAGE_SHIFT, typ)
                 .ok_or(ENOMEM)?;
             alloc_addr = Some(free_addr);
             alloc_next_ema = Some(next_ema);
@@ -273,7 +234,8 @@ impl RangeManage {
 
     /// Commit a partial or full range of memory allocated previously with
     /// COMMIT_ON_DEMAND.
-    pub fn commit(&mut self, addr: usize, size: usize, typ: RangeType) -> OsResult {
+    pub fn commit(&mut self, addr: usize, size: usize) -> OsResult {
+        let typ = VmMgr::check(addr, size)?;
         let (mut cursor, ema_num) = self
             .search_ema_range(addr, addr + size, typ, true)
             .ok_or(EINVAL)?;
@@ -302,7 +264,8 @@ impl RangeManage {
     }
 
     /// Deallocate the address range.
-    pub fn dealloc(&mut self, addr: usize, size: usize, typ: RangeType) -> OsResult {
+    pub fn dealloc(&mut self, addr: usize, size: usize) -> OsResult {
+        let typ = VmMgr::check(addr, size)?;
         let (mut cursor, mut ema_num) = self
             .search_ema_range(addr, addr + size, typ, false)
             .ok_or(EINVAL)?;
@@ -326,13 +289,8 @@ impl RangeManage {
     }
 
     /// Change the page type of an allocated region.
-    pub fn modify_type(
-        &mut self,
-        addr: usize,
-        size: usize,
-        new_page_typ: PageType,
-        range_typ: RangeType,
-    ) -> OsResult {
+    pub fn modify_type(&mut self, addr: usize, size: usize, new_page_typ: PageType) -> OsResult {
+        let typ = VmMgr::check(addr, size)?;
         if new_page_typ != PageType::Tcs {
             return Err(EPERM);
         }
@@ -342,7 +300,7 @@ impl RangeManage {
         }
 
         let (mut cursor, ema_num) = self
-            .search_ema_range(addr, addr + size, range_typ, true)
+            .search_ema_range(addr, addr + size, typ, true)
             .ok_or(EINVAL)?;
         assert!(ema_num == 1);
         unsafe { cursor.get_mut().unwrap().change_to_tcs()? };
@@ -351,17 +309,8 @@ impl RangeManage {
     }
 
     /// Change permissions of an allocated region.
-    pub fn modify_perms(
-        &mut self,
-        addr: usize,
-        size: usize,
-        prot: ProtFlags,
-        typ: RangeType,
-    ) -> OsResult {
-        ensure!(
-            (size != 0) && (size % SE_PAGE_SIZE == 0) && (addr % SE_PAGE_SIZE == 0),
-            EINVAL
-        );
+    pub fn modify_perms(&mut self, addr: usize, size: usize, prot: ProtFlags) -> OsResult {
+        let typ = VmMgr::check(addr, size)?;
 
         if prot.contains(ProtFlags::X) && !prot.contains(ProtFlags::R) {
             return Err(EINVAL);
@@ -396,7 +345,8 @@ impl RangeManage {
     }
 
     /// Uncommit (trim) physical EPC pages in a previously committed range.
-    pub fn uncommit(&mut self, addr: usize, size: usize, typ: RangeType) -> OsResult {
+    pub fn uncommit(&mut self, addr: usize, size: usize) -> OsResult {
+        let typ = VmMgr::check(addr, size)?;
         let (mut cursor, ema_num) = self
             .search_ema_range(addr, addr + size, typ, true)
             .ok_or(EINVAL)?;
@@ -543,22 +493,6 @@ impl RangeManage {
         len: usize,
         typ: RangeType,
     ) -> Option<CursorMut<'_, EmaAda>> {
-        if !is_within_enclave(addr as *const u8, len) {
-            return None;
-        }
-        match typ {
-            RangeType::Rts => {
-                if !is_within_rts_range(addr, len) {
-                    return None;
-                }
-            }
-            RangeType::User => {
-                if !is_within_user_range(addr, len) {
-                    return None;
-                }
-            }
-        }
-
         let mut cursor: CursorMut<'_, EmaAda> = match typ {
             RangeType::Rts => self.rts.front_mut(),
             RangeType::User => self.user.front_mut(),
@@ -690,5 +624,26 @@ impl RangeManage {
         }
 
         None
+    }
+}
+
+// Utils
+impl VmMgr {
+    pub fn check(addr: usize, len: usize) -> OsResult<RangeType> {
+        if addr > 0 {
+            ensure!(
+                is_page_aligned!(addr) && is_within_enclave(addr as *const u8, len),
+                EINVAL
+            );
+        }
+        ensure!(len != 0 && ((len % SE_PAGE_SIZE) == 0), EINVAL);
+
+        if is_within_rts_range(addr, len) {
+            Ok(RangeType::Rts)
+        } else if is_within_user_range(addr, len) {
+            Ok(RangeType::User)
+        } else {
+            Err(EINVAL)
+        }
     }
 }
