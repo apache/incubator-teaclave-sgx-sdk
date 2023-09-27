@@ -29,6 +29,7 @@ use core::mem::MaybeUninit;
 use core::ptr::NonNull;
 use spin::{Mutex, Once};
 
+use super::ema::EmaOptions;
 use super::page::AllocFlags;
 use super::range::{RangeType, RM};
 use super::{PageInfo, PageType, ProtFlags};
@@ -49,11 +50,14 @@ const MAX_EMALLOC_SIZE: usize = 0x10000000;
 const ALLOC_MASK: usize = 1;
 const SIZE_MASK: usize = !(EXACT_MATCH_INCREMENT - 1);
 
-/// Lowest level: Allocator for static memory
-pub static STATIC: Once<LockedHeap<32>> = Once::new();
-
 /// Static memory for allocation
 static mut STATIC_MEM: [u8; STATIC_MEM_SIZE] = [0; STATIC_MEM_SIZE];
+
+/// Lowest level: Allocator for static memory
+static STATIC: Once<LockedHeap<32>> = Once::new();
+
+/// Second level: Allocator for reserve memory
+static RSRV_ALLOCATOR: Once<Mutex<Reserve>> = Once::new();
 
 /// Init lowest level static memory allocator
 pub fn init_static_alloc() {
@@ -68,23 +72,20 @@ pub fn init_static_alloc() {
     });
 }
 
-/// Second level: Allocator for reserve memory
-pub static RES_ALLOCATOR: Once<Mutex<Reserve>> = Once::new();
-
 /// Init reserve memory allocator
 /// init_reserve_alloc() need to be called after init_static_alloc()
 pub fn init_reserve_alloc() {
-    RES_ALLOCATOR.call_once(|| Mutex::new(Reserve::new(INIT_MEM_SIZE)));
+    RSRV_ALLOCATOR.call_once(|| Mutex::new(Reserve::new(INIT_MEM_SIZE)));
 }
 
-/// Alloc layout memory from reserve memory region
-#[derive(Clone, Copy)]
-pub struct ResAlloc;
+/// AllocType layout memory from reserve memory region
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RsrvAlloc;
 
-unsafe impl Allocator for ResAlloc {
+unsafe impl Allocator for RsrvAlloc {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         let size = layout.size();
-        RES_ALLOCATOR
+        RSRV_ALLOCATOR
             .get()
             .unwrap()
             .lock()
@@ -95,12 +96,12 @@ unsafe impl Allocator for ResAlloc {
 
     #[inline]
     unsafe fn deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
-        RES_ALLOCATOR.get().unwrap().lock().efree(ptr.addr().get())
+        RSRV_ALLOCATOR.get().unwrap().lock().efree(ptr.addr().get())
     }
 }
 
-/// Alloc layout memory from static memory region
-#[derive(Clone, Copy)]
+/// AllocType layout memory from static memory region
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StaticAlloc;
 
 unsafe impl Allocator for StaticAlloc {
@@ -123,11 +124,20 @@ unsafe impl Allocator for StaticAlloc {
 // Enum for allocator types
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
-pub enum Alloc {
-    Static,
-    Reserve,
+pub enum AllocType {
+    Static(StaticAlloc),
+    Reserve(RsrvAlloc),
 }
 
+impl AllocType {
+    pub fn new_static() -> Self {
+        Self::Static(StaticAlloc)
+    }
+
+    pub fn new_rsrv() -> Self {
+        Self::Reserve(RsrvAlloc)
+    }
+}
 // Chunk manages memory range.
 // The Chunk structure is filled into the layout before the base pointer.
 #[derive(Debug)]
@@ -381,7 +391,7 @@ impl Reserve {
             return Ok(self.block_to_payload(block));
         };
 
-        // Alloc new block from chunks
+        // AllocType new block from chunks
         block = self.alloc_from_chunks(bsize);
         if block.is_none() {
             let chunk_size = size_of::<Chunk>();
@@ -455,35 +465,26 @@ impl Reserve {
         // Here we alloc at least INIT_MEM_SIZE size,
         // but commit rsize memory, the remaining memory is COMMIT_ON_DEMAND
         let increment = self.incr_size.max(rsize);
-
         let mut range_manage = RM.get().unwrap().lock();
-        let base = range_manage.alloc(
-            None,
-            increment + 2 * GUARD_SIZE,
-            AllocFlags::RESERVED,
-            PageInfo {
+
+        let mut options = EmaOptions::new(None, increment + 2 * GUARD_SIZE, AllocFlags::RESERVED);
+
+        options
+            .info(PageInfo {
                 typ: PageType::None,
                 prot: ProtFlags::NONE,
-            },
-            None,
-            None,
-            RangeType::User,
-            Alloc::Static,
-        )?;
+            })
+            .alloc(AllocType::new_static());
+        let base = range_manage.alloc(&options, RangeType::User)?;
 
-        let base = range_manage.alloc(
+        let mut options = EmaOptions::new(
             Some(base + GUARD_SIZE),
             increment,
             AllocFlags::COMMIT_ON_DEMAND | AllocFlags::FIXED,
-            PageInfo {
-                typ: PageType::Reg,
-                prot: ProtFlags::R | ProtFlags::W,
-            },
-            None,
-            None,
-            RangeType::User,
-            Alloc::Static,
-        )?;
+        );
+
+        options.alloc(AllocType::new_static());
+        let base = range_manage.alloc(&options, RangeType::User)?;
 
         range_manage.commit(base, rsize, RangeType::User)?;
         drop(range_manage);

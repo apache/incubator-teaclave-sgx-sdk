@@ -28,7 +28,7 @@ pub(crate) mod pfhandler;
 pub(crate) mod range;
 pub(crate) mod tcs;
 
-pub use ocall::{alloc_ocall, modify_ocall};
+pub use ema::EmaOptions;
 pub use page::{AllocFlags, PageInfo, PageRange, PageType, ProtFlags};
 pub use pfhandler::{PfHandler, PfInfo, Pfec, PfecBits};
 

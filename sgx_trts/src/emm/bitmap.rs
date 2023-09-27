@@ -23,9 +23,7 @@ use core::ptr::NonNull;
 use sgx_tlibc_sys::EACCES;
 use sgx_types::error::OsResult;
 
-use super::alloc::Alloc;
-use super::alloc::ResAlloc;
-use super::alloc::StaticAlloc;
+use super::alloc::AllocType;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -33,23 +31,23 @@ pub struct BitArray {
     bits: usize,
     bytes: usize,
     data: *mut u8,
-    alloc: Alloc,
+    alloc: AllocType,
 }
 
 impl BitArray {
     /// Init BitArray with all zero bits
-    pub fn new(bits: usize, alloc: Alloc) -> OsResult<Self> {
+    pub fn new(bits: usize, alloc: AllocType) -> OsResult<Self> {
         let bytes = (bits + 7) / 8;
 
         // FIXME: return error if OOM
         let data = match alloc {
-            Alloc::Reserve => {
+            AllocType::Reserve(allocator) => {
                 // Set bits to all zeros
-                let data = vec::from_elem_in(0_u8, bytes, ResAlloc).into_boxed_slice();
+                let data = vec::from_elem_in(0_u8, bytes, allocator).into_boxed_slice();
                 Box::into_raw(data) as *mut u8
             }
-            Alloc::Static => {
-                let data = vec::from_elem_in(0_u8, bytes, StaticAlloc).into_boxed_slice();
+            AllocType::Static(allocator) => {
+                let data = vec::from_elem_in(0_u8, bytes, allocator).into_boxed_slice();
                 Box::into_raw(data) as *mut u8
             }
         };
@@ -155,21 +153,21 @@ impl BitArray {
 impl Drop for BitArray {
     fn drop(&mut self) {
         match self.alloc {
-            Alloc::Reserve => {
+            AllocType::Reserve(allocator) => {
                 // Layout is redundant since interior allocator maintains the allocated size.
                 // Besides, if the bitmap is splitted, the recorded size
                 // in bitmap is not corresponding to allocated layout.
                 let fake_layout: Layout = Layout::new::<u8>();
                 unsafe {
                     let data_ptr = NonNull::new_unchecked(self.data);
-                    ResAlloc.deallocate(data_ptr, fake_layout);
+                    allocator.deallocate(data_ptr, fake_layout);
                 }
             }
-            Alloc::Static => {
+            AllocType::Static(allocator) => {
                 let fake_layout: Layout = Layout::new::<u8>();
                 unsafe {
                     let data_ptr = NonNull::new_unchecked(self.data);
-                    StaticAlloc.deallocate(data_ptr, fake_layout);
+                    allocator.deallocate(data_ptr, fake_layout);
                 }
             }
         }

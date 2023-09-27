@@ -64,7 +64,7 @@ pub fn mktcs(mk_tcs: NonNull<MkTcs>) -> SgxResult {
 mod hw {
     use crate::arch::{self, Layout, Tcs};
     use crate::emm::page::PageType;
-    use crate::emm::range::{RangeType, RM};
+    use crate::emm::{rts_mm_commit, rts_mm_modify_type};
     use crate::enclave::MmLayout;
     use crate::tcs::list;
     use core::ptr;
@@ -94,10 +94,7 @@ mod hw {
                 if unsafe { layout.entry.attributes & arch::PAGE_ATTR_DYN_THREAD } != 0 {
                     let addr = base + unsafe { layout.entry.rva as usize } + offset;
                     let size = unsafe { layout.entry.page_count } << arch::SE_PAGE_SHIFT;
-                    let mut range_manage = RM.get().unwrap().lock();
-                    range_manage
-                        .commit(addr, size as usize, RangeType::Rts)
-                        .map_err(|_| SgxStatus::Unexpected)?;
+                    rts_mm_commit(addr, size as usize).map_err(|_| SgxStatus::Unexpected)?;
                 }
             }
         }
@@ -118,14 +115,7 @@ mod hw {
         tc.ofsbase = tcs_ptr + tc.ofsbase - base as u64;
         tc.ogsbase = tcs_ptr + tc.ogsbase - base as u64;
 
-        let mut range_manage = RM.get().unwrap().lock();
-        range_manage
-            .modify_type(
-                tcs.as_ptr() as usize,
-                arch::SE_PAGE_SIZE,
-                PageType::Tcs,
-                RangeType::Rts,
-            )
+        rts_mm_modify_type(tcs.as_ptr() as usize, arch::SE_PAGE_SIZE, PageType::Tcs)
             .map_err(|_| SgxStatus::Unexpected)?;
 
         Ok(())

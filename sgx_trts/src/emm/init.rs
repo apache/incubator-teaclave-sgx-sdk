@@ -36,11 +36,14 @@ cfg_if! {
 mod hw {
     use crate::arch::{self, Layout, LayoutEntry};
     use crate::elf::program::Type;
-    use crate::emm::alloc::Alloc;
+    use crate::emm::ema::EmaOptions;
     use crate::emm::layout::LayoutTable;
     use crate::emm::page::AllocFlags;
-    use crate::emm::range::{RangeType, EMA_PROT_MASK, RM};
-    use crate::emm::{PageInfo, PageType, ProtFlags};
+    use crate::emm::range::{mm_init_static_region, EMA_PROT_MASK};
+    use crate::emm::{
+        rts_mm_alloc, rts_mm_commit, rts_mm_dealloc, rts_mm_modify_perms, PageInfo, PageType,
+        ProtFlags,
+    };
     use crate::enclave::parse;
     use crate::enclave::MmLayout;
     use sgx_types::error::{SgxResult, SgxStatus};
@@ -84,23 +87,16 @@ mod hw {
         // TODO: not sure get_enclave_base() equal to elrange_base or image_base
         let addr = MmLayout::image_base() + rva;
         let size = (entry.page_count << arch::SE_PAGE_SHIFT) as usize;
-        let mut range_manage = RM.get().unwrap().lock();
 
         // entry is guard page or has EREMOVE, build a reserved ema
         if (entry.si_flags == 0) || (entry.attributes & arch::PAGE_ATTR_EREMOVE != 0) {
-            range_manage
-                .init_static_region(
-                    addr,
-                    size,
-                    AllocFlags::RESERVED | AllocFlags::SYSTEM,
-                    PageInfo {
-                        typ: PageType::None,
-                        prot: ProtFlags::NONE,
-                    },
-                    None,
-                    None,
-                )
-                .map_err(|_| SgxStatus::Unexpected)?;
+            let mut options =
+                EmaOptions::new(Some(addr), size, AllocFlags::RESERVED | AllocFlags::SYSTEM);
+            options.info(PageInfo {
+                typ: PageType::None,
+                prot: ProtFlags::NONE,
+            });
+            mm_init_static_region(&options).map_err(|_| SgxStatus::Unexpected)?;
             return Ok(());
         }
 
@@ -110,23 +106,14 @@ mod hw {
 
         if post_remove {
             // TODO: maybe AllocFlags need more flags or PageType is not None
-            range_manage
-                .init_static_region(
-                    addr,
-                    size,
-                    AllocFlags::SYSTEM,
-                    PageInfo {
-                        typ: PageType::None,
-                        prot: ProtFlags::R | ProtFlags::W,
-                    },
-                    None,
-                    None,
-                )
-                .map_err(|_| SgxStatus::Unexpected)?;
+            let mut options = EmaOptions::new(Some(addr), size, AllocFlags::SYSTEM);
+            options.info(PageInfo {
+                typ: PageType::None,
+                prot: ProtFlags::RW,
+            });
+            mm_init_static_region(&options).map_err(|_| SgxStatus::Unexpected)?;
 
-            range_manage
-                .dealloc(addr, size, RangeType::Rts)
-                .map_err(|_| SgxStatus::Unexpected)?;
+            rts_mm_dealloc(addr, size).map_err(|_| SgxStatus::Unexpected)?;
         }
 
         if post_add {
@@ -139,25 +126,16 @@ mod hw {
                 AllocFlags::GROWSUP
             };
 
-            // TODO: revise alloc and not use int
-            range_manage
-                .alloc(
-                    Some(addr),
-                    size,
-                    AllocFlags::COMMIT_ON_DEMAND
-                        | commit_direction
-                        | AllocFlags::SYSTEM
-                        | AllocFlags::FIXED,
-                    PageInfo {
-                        typ: PageType::Reg,
-                        prot: ProtFlags::R | ProtFlags::W,
-                    },
-                    None,
-                    None,
-                    RangeType::Rts,
-                    Alloc::Reserve,
-                )
-                .map_err(|_| SgxStatus::Unexpected)?;
+            let options = EmaOptions::new(
+                Some(addr),
+                size,
+                AllocFlags::COMMIT_ON_DEMAND
+                    | commit_direction
+                    | AllocFlags::SYSTEM
+                    | AllocFlags::FIXED,
+            );
+
+            rts_mm_alloc(&options).map_err(|_| SgxStatus::Unexpected)?;
         } else if static_min {
             let info = if entry.id == arch::LAYOUT_ID_TCS {
                 PageInfo {
@@ -172,9 +150,10 @@ mod hw {
                     ),
                 }
             };
-            range_manage
-                .init_static_region(addr, size, AllocFlags::SYSTEM, info, None, None)
-                .map_err(|_| SgxStatus::Unexpected)?;
+            let mut options = EmaOptions::new(Some(addr), size, AllocFlags::SYSTEM);
+
+            options.info(info);
+            mm_init_static_region(&options).map_err(|_| SgxStatus::Unexpected)?;
         }
 
         Ok(())
@@ -187,10 +166,7 @@ mod hw {
             .check_dyn_range(addr, count, None)
             .ok_or(SgxStatus::InvalidParameter)?;
 
-        let mut range_manage = RM.get().unwrap().lock();
-        range_manage
-            .commit(addr, count << arch::SE_PAGE_SHIFT, RangeType::Rts)
-            .map_err(|_| SgxStatus::Unexpected)?;
+        rts_mm_commit(addr, count << arch::SE_PAGE_SHIFT).map_err(|_| SgxStatus::Unexpected)?;
 
         Ok(())
     }
@@ -200,7 +176,6 @@ mod hw {
         let text_relo = parse::has_text_relo()?;
 
         let base = MmLayout::image_base();
-        let mut range_manage = RM.get().unwrap().lock();
         for phdr in elf.program_iter() {
             let typ = phdr.get_type().unwrap_or(Type::Null);
             if typ == Type::Load && text_relo && !phdr.flags().is_write() {
@@ -218,9 +193,7 @@ mod hw {
                 }
 
                 let prot = ProtFlags::from_bits_truncate(perm as u8);
-                range_manage
-                    .modify_perms(start, size, prot, RangeType::Rts)
-                    .map_err(|_| SgxStatus::Unexpected)?;
+                rts_mm_modify_perms(start, size, prot).map_err(|_| SgxStatus::Unexpected)?;
             }
             if typ == Type::GnuRelro {
                 let start = base + trim_to_page!(phdr.virtual_addr() as usize);
@@ -229,8 +202,7 @@ mod hw {
                 let size = end - start;
 
                 if size > 0 {
-                    range_manage
-                        .modify_perms(start, size, ProtFlags::R, RangeType::Rts)
+                    rts_mm_modify_perms(start, size, ProtFlags::R)
                         .map_err(|_| SgxStatus::Unexpected)?;
                 }
             }
@@ -245,9 +217,7 @@ mod hw {
             let start = base + unsafe { layout.entry.rva as usize };
             let size = unsafe { layout.entry.page_count as usize } << arch::SE_PAGE_SHIFT;
 
-            range_manage
-                .modify_perms(start, size, ProtFlags::R, RangeType::Rts)
-                .map_err(|_| SgxStatus::Unexpected)?;
+            rts_mm_modify_perms(start, size, ProtFlags::R).map_err(|_| SgxStatus::Unexpected)?;
         }
         Ok(())
     }
@@ -273,20 +243,12 @@ mod hw {
                     perm |= ProtFlags::X;
                 }
 
-                let mut range_manage = RM.get().unwrap().lock();
-                range_manage
-                    .init_static_region(
-                        start,
-                        end - start,
-                        AllocFlags::SYSTEM,
-                        PageInfo {
-                            typ: PageType::Reg,
-                            prot: perm,
-                        },
-                        None,
-                        None,
-                    )
-                    .map_err(|_| SgxStatus::Unexpected)?;
+                let mut options = EmaOptions::new(Some(start), end - start, AllocFlags::SYSTEM);
+                options.info(PageInfo {
+                    typ: PageType::Reg,
+                    prot: perm,
+                });
+                mm_init_static_region(&options).map_err(|_| SgxStatus::Unexpected)?;
             }
         }
 

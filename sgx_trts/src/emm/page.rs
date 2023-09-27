@@ -49,9 +49,6 @@ impl_enum! {
     }
 }
 
-// ProtFlags may have richer meaning compared to ProtFlags
-// ProtFlags and AllocFlags are confused to developer
-// PageInfo->flags should change to PageInfo->prot
 impl_bitflags! {
     #[repr(C)]
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -65,7 +62,7 @@ impl_bitflags! {
         const PR       = 0x20;
         const RW       = Self::R.bits() | Self::W.bits();
         const RX       = Self::R.bits() | Self::X.bits();
-        const RWX       = Self::R.bits() | Self::W.bits() | Self::X.bits();
+        const RWX      = Self::R.bits() | Self::W.bits() | Self::X.bits();
     }
 }
 

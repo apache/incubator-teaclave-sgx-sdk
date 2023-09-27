@@ -26,7 +26,7 @@ extern crate sgx_trts;
 extern crate sgx_types;
 
 use core::ffi::c_void;
-use sgx_trts::emm::{self, AllocFlags, PageInfo, PageType, PfHandler, PfInfo, ProtFlags};
+use sgx_trts::emm::{self, AllocFlags, EmaOptions, PageType, PfInfo, ProtFlags};
 use sgx_trts::veh::HandleResult;
 use sgx_types::error::errno::{EACCES, EEXIST, EINVAL, EPERM};
 use sgx_types::error::SgxStatus;
@@ -69,9 +69,13 @@ pub extern "C" fn permission_pfhandler(info: &mut PfInfo, priv_data: *mut c_void
     let prot = ProtFlags::from_bits(pd.access as u8).unwrap();
     let rw_bit = unsafe { pd.pf.pfec.bits.rw() };
     if (rw_bit == 1) && (prot == ProtFlags::W) {
-        emm::user_mm_modify_perms(addr, SE_PAGE_SIZE, ProtFlags::W | ProtFlags::R);
+        if emm::user_mm_modify_perms(addr, SE_PAGE_SIZE, ProtFlags::W | ProtFlags::R).is_err() {
+            panic!()
+        };
     } else if (rw_bit == 0) && prot.contains(ProtFlags::R) {
-        emm::user_mm_modify_perms(addr, SE_PAGE_SIZE, prot);
+        if emm::user_mm_modify_perms(addr, SE_PAGE_SIZE, prot).is_err() {
+            panic!()
+        };
     } else {
         panic!()
     }
@@ -82,20 +86,13 @@ pub extern "C" fn permission_pfhandler(info: &mut PfInfo, priv_data: *mut c_void
 #[no_mangle]
 fn test_modify_perms() -> SgxStatus {
     let mut pd = PfData::default();
-
     // example 1:
-    let base = emm::user_mm_alloc(
-        None,
-        ALLOC_SIZE,
-        AllocFlags::COMMIT_NOW,
-        PageInfo {
-            typ: PageType::Reg,
-            prot: ProtFlags::R | ProtFlags::W,
-        },
+    let mut options = EmaOptions::new(0, ALLOC_SIZE, AllocFlags::COMMIT_NOW);
+    options.handle(
         Some(permission_pfhandler),
         Some(&mut pd as *mut PfData as *mut c_void),
-    )
-    .unwrap();
+    );
+    let base = emm::user_mm_alloc(&mut options).unwrap();
 
     let data = unsafe { (base as *const u8).read() };
     assert!(data == 0);
@@ -116,7 +113,6 @@ fn test_modify_perms() -> SgxStatus {
     // read success without PF
     assert!(unsafe { pd.pf.pfec.errcd } == 0);
 
-    // 出问题了
     pd.access = ProtFlags::W.bits() as i32;
     let count = (ALLOC_SIZE - 1) as isize;
     unsafe {
@@ -134,10 +130,7 @@ fn test_modify_perms() -> SgxStatus {
     // write indicated with PFEC
     assert!(unsafe { pd.pf.pfec.bits.rw() } == 1);
 
-    println!(
-        "{}",
-        "Successfully run modify permissions and customized page fault handler!"
-    );
+    println!("Successfully run modify permissions and customized page fault handler!");
     SgxStatus::Success
 }
 
@@ -147,7 +140,8 @@ fn test_dynamic_expand_tcs() -> SgxStatus {
         .name("thread1".to_string())
         .spawn(move || {
             println!("Hello, this is a spawned thread!");
-        });
+        })
+        .expect("Failed to create thread!");
 
     for _ in 0..40 {
         let _t = thread::spawn(move || {
@@ -155,25 +149,15 @@ fn test_dynamic_expand_tcs() -> SgxStatus {
         });
     }
 
-    println!("{}", "Successfully dynamic expand tcs!");
+    println!("Successfully dynamic expand tcs!");
     SgxStatus::Success
 }
 
 #[no_mangle]
 fn test_modify_types() -> SgxStatus {
     // example 1:
-    let base = emm::user_mm_alloc(
-        None,
-        SE_PAGE_SIZE,
-        AllocFlags::COMMIT_NOW,
-        PageInfo {
-            typ: PageType::Reg,
-            prot: ProtFlags::R | ProtFlags::W,
-        },
-        None,
-        None,
-    )
-    .unwrap();
+    let mut options = EmaOptions::new(0, SE_PAGE_SIZE, AllocFlags::COMMIT_NOW);
+    let base = emm::user_mm_alloc(&mut options).unwrap();
 
     let res = emm::user_mm_modify_type(base, SE_PAGE_SIZE, PageType::Tcs);
     assert!(res.is_ok());
@@ -182,18 +166,8 @@ fn test_modify_types() -> SgxStatus {
     assert!(res.is_ok());
 
     // example 2:
-    let base = emm::user_mm_alloc(
-        None,
-        SE_PAGE_SIZE,
-        AllocFlags::COMMIT_NOW,
-        PageInfo {
-            typ: PageType::Reg,
-            prot: ProtFlags::R | ProtFlags::W,
-        },
-        None,
-        None,
-    )
-    .unwrap();
+    let mut options = EmaOptions::new(0, SE_PAGE_SIZE, AllocFlags::COMMIT_NOW);
+    let base = emm::user_mm_alloc(&mut options).unwrap();
 
     let res = emm::user_mm_modify_perms(base, SE_PAGE_SIZE, ProtFlags::NONE);
     assert!(res.is_ok());
@@ -205,18 +179,8 @@ fn test_modify_types() -> SgxStatus {
     let res = emm::user_mm_dealloc(0, ALLOC_SIZE);
     assert!(res == Err(EINVAL));
 
-    let base = emm::user_mm_alloc(
-        None,
-        ALLOC_SIZE,
-        AllocFlags::COMMIT_NOW,
-        PageInfo {
-            typ: PageType::Reg,
-            prot: ProtFlags::R | ProtFlags::W,
-        },
-        None,
-        None,
-    )
-    .unwrap();
+    let mut options = EmaOptions::new(0, ALLOC_SIZE, AllocFlags::COMMIT_NOW);
+    let base = emm::user_mm_alloc(&mut options).unwrap();
 
     let res = emm::user_mm_modify_type(base + SE_PAGE_SIZE, SE_PAGE_SIZE, PageType::Frist);
     assert!(res == Err(EPERM));
@@ -243,7 +207,7 @@ fn test_modify_types() -> SgxStatus {
     let res = emm::user_mm_dealloc(base, ALLOC_SIZE);
     assert!(res.is_ok());
 
-    println!("{}", "Successfully run modify types!");
+    println!("Successfully run modify types!");
     SgxStatus::Success
 }
 
@@ -252,33 +216,15 @@ fn test_commit_and_uncommit() -> SgxStatus {
     let res = emm::user_mm_dealloc(0, ALLOC_SIZE);
     assert!(res == Err(EINVAL));
 
-    let base = emm::user_mm_alloc(
-        None,
-        ALLOC_SIZE,
-        AllocFlags::COMMIT_NOW,
-        PageInfo {
-            typ: PageType::Reg,
-            prot: ProtFlags::R | ProtFlags::W,
-        },
-        None,
-        None,
-    )
-    .unwrap();
+    let mut options = EmaOptions::new(0, ALLOC_SIZE, AllocFlags::COMMIT_NOW);
+    let base = emm::user_mm_alloc(&mut options).unwrap();
 
     let res = emm::user_mm_commit(base, ALLOC_SIZE);
     assert!(res.is_ok());
 
-    let res = emm::user_mm_alloc(
-        Some(base),
-        ALLOC_SIZE,
-        AllocFlags::COMMIT_NOW | AllocFlags::FIXED,
-        PageInfo {
-            typ: PageType::Reg,
-            prot: ProtFlags::R | ProtFlags::W,
-        },
-        None,
-        None,
-    );
+    let mut options = EmaOptions::new(base, ALLOC_SIZE, AllocFlags::COMMIT_NOW | AllocFlags::FIXED);
+    let res = emm::user_mm_alloc(&mut options);
+
     assert!(res == Err(EEXIST));
 
     let res = emm::user_mm_uncommit(base, ALLOC_SIZE);
@@ -299,31 +245,25 @@ fn test_commit_and_uncommit() -> SgxStatus {
     let res = emm::user_mm_uncommit(base, ALLOC_SIZE);
     assert!(res == Err(EINVAL));
 
-    let base2 = emm::user_mm_alloc(
-        None,
+    let mut options = EmaOptions::new(
+        0,
         ALLOC_SIZE,
         AllocFlags::COMMIT_ON_DEMAND | AllocFlags::FIXED,
-        PageInfo {
-            typ: PageType::Reg,
-            prot: ProtFlags::R | ProtFlags::W,
-        },
-        None,
-        None,
-    )
-    .unwrap();
+    );
+    let base2 = emm::user_mm_alloc(&mut options).unwrap();
 
     assert!(base == base2);
 
     let ptr = base2 as *mut u8;
     unsafe {
         ptr.write(0xFF);
-        ptr.offset((ALLOC_SIZE - 1) as isize).write(0xFF);
+        ptr.add(ALLOC_SIZE - 1).write(0xFF);
     };
 
     let res = emm::user_mm_dealloc(base2, ALLOC_SIZE);
     assert!(res.is_ok());
 
-    println!("{}", "Successfully run commit and uncommit!");
+    println!("Successfully run commit and uncommit!");
     SgxStatus::Success
 }
 
@@ -337,7 +277,7 @@ fn test_stack_expand() -> SgxStatus {
     for (idx, item) in buf.iter().enumerate() {
         assert!(*item == (idx % 256) as u8);
     }
-    println!("{}", "Successfully expand stack!");
+    println!("Successfully expand stack!");
     SgxStatus::Success
 }
 
@@ -346,22 +286,12 @@ fn test_emm_alloc_dealloc() -> SgxStatus {
     let res = emm::user_mm_dealloc(0, ALLOC_SIZE);
     assert!(res == Err(EINVAL));
 
-    let base = emm::user_mm_alloc(
-        None,
-        ALLOC_SIZE,
-        AllocFlags::COMMIT_NOW,
-        PageInfo {
-            typ: PageType::Reg,
-            prot: ProtFlags::R | ProtFlags::W,
-        },
-        None,
-        None,
-    )
-    .unwrap();
+    let mut options = EmaOptions::new(0, ALLOC_SIZE, AllocFlags::COMMIT_NOW);
+    let base = emm::user_mm_alloc(&mut options).unwrap();
 
     let res = emm::user_mm_dealloc(base, ALLOC_SIZE);
     assert!(res.is_ok());
-    println!("{}", "Successfully run alloc and dealloc!");
+    println!("Successfully run alloc and dealloc!");
     SgxStatus::Success
 }
 

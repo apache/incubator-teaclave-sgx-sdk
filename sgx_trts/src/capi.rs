@@ -17,14 +17,14 @@
 
 use crate::arch::{SE_PAGE_SHIFT, SE_PAGE_SIZE};
 use crate::call::{ocall, OCallIndex, OcBuffer};
-use crate::emm::alloc::Alloc;
+use crate::emm::ema::EmaOptions;
 use crate::emm::page::AllocFlags;
 use crate::emm::pfhandler::PfHandler;
 use crate::emm::range::{
-    RangeType, ALLIGNMENT_MASK, ALLIGNMENT_SHIFT, ALLOC_FLAGS_MASK, ALLOC_FLAGS_SHIFT,
-    PAGE_TYPE_MASK, PAGE_TYPE_SHIFT, RM,
+    ALLIGNMENT_MASK, ALLIGNMENT_SHIFT, ALLOC_FLAGS_MASK, ALLOC_FLAGS_SHIFT, PAGE_TYPE_MASK,
+    PAGE_TYPE_SHIFT,
 };
-use crate::emm::{rts_mm_commit, rts_mm_uncommit, PageInfo, PageType, ProtFlags};
+use crate::emm::{rts_mm_commit, rts_mm_uncommit, user_mm_alloc, PageInfo, PageType, ProtFlags};
 use crate::enclave::{self, is_within_enclave, MmLayout};
 use crate::error;
 use crate::rand::rand;
@@ -261,7 +261,7 @@ pub unsafe extern "C" fn sgx_mm_alloc(
         }
     } else {
         PageInfo {
-            prot: ProtFlags::R | ProtFlags::W,
+            prot: ProtFlags::RW,
             typ: page_type,
         }
     };
@@ -272,17 +272,11 @@ pub unsafe extern "C" fn sgx_mm_alloc(
         Some(priv_data)
     };
 
-    let mut range_manage = RM.get().unwrap().lock();
-    match range_manage.alloc(
-        Some(addr),
-        size,
-        alloc_flags,
-        info,
-        handler,
-        priv_data,
-        RangeType::User,
-        Alloc::Reserve,
-    ) {
+    let addr = if addr > 0 { Some(addr) } else { None };
+    let mut options = EmaOptions::new(addr, size, alloc_flags);
+    options.info(info).handle(handler, priv_data);
+
+    match user_mm_alloc(&options) {
         Ok(base) => {
             *out_addr = base as *mut u8;
             0

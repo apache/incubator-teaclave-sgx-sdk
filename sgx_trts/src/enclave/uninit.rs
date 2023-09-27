@@ -16,7 +16,7 @@
 // under the License..
 
 use crate::arch;
-use crate::emm::range::{RangeType, RM};
+use crate::emm::rts_mm_dealloc;
 use crate::enclave::state::{self, State};
 use crate::enclave::{atexit, parse};
 use crate::tcs::{list, ThreadControl};
@@ -82,12 +82,9 @@ pub fn rtuninit(tc: ThreadControl) -> SgxResult {
     #[cfg(not(any(feature = "sim", feature = "hyper")))]
     {
         if SysFeatures::get().is_edmm() {
-            let mut range_manage = RM.get().unwrap().lock();
-
             let mut list_guard = list::TCS_LIST.lock();
             for tcs in list_guard.iter_mut().filter(|&t| !ptr::eq(t.as_ptr(), tcs)) {
-                let result =
-                    range_manage.dealloc(tcs.as_ptr() as usize, arch::SE_PAGE_SIZE, RangeType::Rts);
+                let result = rts_mm_dealloc(tcs.as_ptr() as usize, arch::SE_PAGE_SIZE);
                 if result.is_err() {
                     state::set_state(State::Crashed);
                     bail!(SgxStatus::Unexpected);
