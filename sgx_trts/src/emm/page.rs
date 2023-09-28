@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::arch::{Secinfo, SE_PAGE_SHIFT, SE_PAGE_SIZE};
+use crate::arch::{SecInfo, SE_PAGE_SHIFT, SE_PAGE_SIZE};
 use crate::enclave::is_within_enclave;
 use crate::inst::EncluInst;
 use bitflags::bitflags;
@@ -228,12 +228,12 @@ impl Page {
     }
 
     pub fn accept(&self) -> OsResult {
-        let secinfo: Secinfo = self.info.into();
+        let secinfo: SecInfo = self.info.into();
         EncluInst::eaccept(&secinfo, self.addr).map_err(|_| EFAULT)
     }
 
     pub fn modpe(&self) -> OsResult {
-        let secinfo: Secinfo = self.info.into();
+        let secinfo: SecInfo = self.info.into();
         EncluInst::emodpe(&secinfo, self.addr).map_err(|_| EFAULT)
     }
 }

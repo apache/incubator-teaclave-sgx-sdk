@@ -17,7 +17,7 @@
 
 #![allow(clippy::enum_variant_names)]
 
-use crate::emm::{PageInfo, PageType};
+use crate::emm::{self, PageType};
 use crate::tcs::tc;
 use crate::version::*;
 use crate::xsave;
@@ -744,11 +744,11 @@ impl From<PageType> for SecInfoFlags {
     }
 }
 
-impl From<edmm::PageInfo> for SecInfoFlags {
-    fn from(data: edmm::PageInfo) -> SecInfoFlags {
+impl From<emm::PageInfo> for SecInfoFlags {
+    fn from(data: emm::PageInfo) -> SecInfoFlags {
         let typ = data.typ as u64;
         let prot = data.prot.bits() as u64;
-        SecinfoFlags::from_bits_truncate((typ << 8) | prot)
+        SecInfoFlags::from_bits_truncate((typ << 8) | prot)
     }
 }
 
@@ -807,33 +807,33 @@ impl From<SecInfoFlags> for SecInfo {
     }
 }
 
-impl From<edmm::PageInfo> for SecInfo {
-    fn from(data: edmm::PageInfo) -> SecInfo {
+impl From<emm::PageInfo> for SecInfo {
+    fn from(data: emm::PageInfo) -> SecInfo {
         SecInfo::from(SecInfoFlags::from(data))
     }
 }
 
 #[repr(C, align(32))]
 #[derive(Clone, Copy, Debug)]
-pub struct PageInfo {
+pub struct CPageInfo {
     pub linaddr: u64,
     pub srcpage: u64,
     pub secinfo: u64,
     pub secs: u64,
 }
 
-impl PageInfo {
-    pub const ALIGN_SIZE: usize = mem::size_of::<PageInfo>();
+impl CPageInfo {
+    pub const ALIGN_SIZE: usize = mem::size_of::<CPageInfo>();
 }
 
-impl AsRef<[u8; PageInfo::ALIGN_SIZE]> for PageInfo {
-    fn as_ref(&self) -> &[u8; PageInfo::ALIGN_SIZE] {
+impl AsRef<[u8; CPageInfo::ALIGN_SIZE]> for CPageInfo {
+    fn as_ref(&self) -> &[u8; CPageInfo::ALIGN_SIZE] {
         unsafe { &*(self as *const _ as *const _) }
     }
 }
 
-impl AsRef<Align32<[u8; PageInfo::ALIGN_SIZE]>> for PageInfo {
-    fn as_ref(&self) -> &Align32<[u8; PageInfo::ALIGN_SIZE]> {
+impl AsRef<Align32<[u8; CPageInfo::ALIGN_SIZE]>> for CPageInfo {
+    fn as_ref(&self) -> &Align32<[u8; CPageInfo::ALIGN_SIZE]> {
         unsafe { &*(self as *const _ as *const _) }
     }
 }

@@ -25,6 +25,13 @@ use sgx_types::error::OsResult;
 
 use super::alloc::AllocType;
 
+const BYTE_SIZE: usize = 8;
+macro_rules! bytes_num {
+    ($num:expr) => {
+        ($num + BYTE_SIZE - 1) / BYTE_SIZE
+    };
+}
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct BitArray {
@@ -37,7 +44,7 @@ pub struct BitArray {
 impl BitArray {
     /// Init BitArray with all zero bits
     pub fn new(bits: usize, alloc: AllocType) -> OsResult<Self> {
-        let bytes = (bits + 7) / 8;
+        let bytes = bytes_num!(bits);
 
         // FIXME: return error if OOM
         let data = match alloc {
@@ -66,8 +73,8 @@ impl BitArray {
             return Err(EACCES);
         }
 
-        let byte_index = index / 8;
-        let bit_index = index % 8;
+        let byte_index = index / BYTE_SIZE;
+        let bit_index = index % BYTE_SIZE;
         let bit_mask = 1 << bit_index;
         let data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
         Ok((data.get(byte_index).unwrap() & bit_mask) != 0)
@@ -88,8 +95,8 @@ impl BitArray {
         if index >= self.bits {
             return Err(EACCES);
         }
-        let byte_index = index / 8;
-        let bit_index = index % 8;
+        let byte_index = index / BYTE_SIZE;
+        let bit_index = index % BYTE_SIZE;
         let bit_mask = 1 << bit_index;
 
         let data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
@@ -120,33 +127,33 @@ impl BitArray {
     pub fn split(&mut self, pos: usize) -> OsResult<BitArray> {
         assert!(pos > 0 && pos < self.bits);
 
-        let byte_index = pos / 8;
-        let bit_index = pos % 8;
+        let byte_index = pos / BYTE_SIZE;
+        let bit_index = pos % BYTE_SIZE;
 
-        let l_bits = pos;
-        let l_bytes = (l_bits + 7) / 8;
+        let lbits = pos;
+        let lbytes = bytes_num!(lbits);
 
-        let r_bits = self.bits - l_bits;
-        let r_bytes = (r_bits + 7) / 8;
+        let rbits = self.bits - lbits;
+        let rbytes = bytes_num!(rbits);
 
-        let r_array = Self::new(r_bits, self.alloc)?;
+        let rarray = Self::new(rbits, self.alloc)?;
 
-        let r_data = unsafe { core::slice::from_raw_parts_mut(r_array.data, r_array.bytes) };
-        let l_data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
+        let rdata = unsafe { core::slice::from_raw_parts_mut(rarray.data, rarray.bytes) };
+        let ldata = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
 
-        for (idx, item) in r_data[..(r_bytes - 1)].iter_mut().enumerate() {
+        for (idx, item) in rdata[..(rbytes - 1)].iter_mut().enumerate() {
             // current byte index in previous bit_array
             let curr_idx = idx + byte_index;
-            let low_bits = l_data[curr_idx] >> bit_index;
-            let high_bits = l_data[curr_idx + 1] << (8 - bit_index);
+            let low_bits = ldata[curr_idx] >> bit_index;
+            let high_bits = ldata[curr_idx + 1] << (8 - bit_index);
             *item = high_bits | low_bits;
         }
-        r_data[r_bytes - 1] = l_data[self.bytes - 1] >> bit_index;
+        rdata[rbytes - 1] = ldata[self.bytes - 1] >> bit_index;
 
-        self.bits = l_bits;
-        self.bytes = l_bytes;
+        self.bits = lbits;
+        self.bytes = lbytes;
 
-        Ok(r_array)
+        Ok(rarray)
     }
 }
 

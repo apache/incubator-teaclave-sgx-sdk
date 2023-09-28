@@ -54,6 +54,8 @@ const SIZE_MASK: usize = !(EXACT_MATCH_INCREMENT - 1);
 static mut STATIC_MEM: [u8; STATIC_MEM_SIZE] = [0; STATIC_MEM_SIZE];
 
 /// Lowest level: Allocator for static memory
+///
+/// TODO: reimplement static allocator with monotone increasing policies
 static STATIC: Once<LockedHeap<32>> = Once::new();
 
 /// Second level: Allocator for reserve memory
@@ -228,7 +230,9 @@ impl BlockUsed {
 
 intrusive_adapter!(BlockFreeAda = UnsafeRef<BlockFree>: BlockFree { link: Link });
 
-/// Interior allocator for reserve memory management,
+/// Interior allocator for reserve memory management
+///
+/// TODO: implement slab allocator mechanism
 pub struct Reserve {
     exact_blocks: [SinglyLinkedList<BlockFreeAda>; 256],
     large_blocks: SinglyLinkedList<BlockFreeAda>,
@@ -391,7 +395,7 @@ impl Reserve {
             return Ok(self.block_to_payload(block));
         };
 
-        // AllocType new block from chunks
+        // Alloc new block from chunks
         block = self.alloc_from_chunks(bsize);
         if block.is_none() {
             let chunk_size = size_of::<Chunk>();

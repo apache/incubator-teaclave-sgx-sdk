@@ -21,10 +21,10 @@ use crate::emm::ema::EmaOptions;
 use crate::emm::page::AllocFlags;
 use crate::emm::pfhandler::PfHandler;
 use crate::emm::vmmgr::{
-    ALLIGNMENT_MASK, ALLIGNMENT_SHIFT, ALLOC_FLAGS_MASK, ALLOC_FLAGS_SHIFT, PAGE_TYPE_MASK,
-    PAGE_TYPE_SHIFT, RangeType,
+    RangeType, ALLIGNMENT_MASK, ALLIGNMENT_SHIFT, ALLOC_FLAGS_MASK, ALLOC_FLAGS_SHIFT,
+    PAGE_TYPE_MASK, PAGE_TYPE_SHIFT,
 };
-use crate::emm::{mm_commit, mm_uncommit, mm_alloc_user, PageInfo, PageType, ProtFlags, self};
+use crate::emm::{self, mm_alloc_user, mm_commit, mm_uncommit, PageInfo, PageType, ProtFlags};
 use crate::enclave::{self, is_within_enclave, MmLayout};
 use crate::error;
 use crate::rand::rand;

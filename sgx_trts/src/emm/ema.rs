@@ -31,6 +31,9 @@ use super::page::AllocFlags;
 use super::pfhandler::PfHandler;
 
 /// Enclave Management Area
+///
+/// Question: should we replace BitArray with pointer
+/// to split struct into two pieces of 80 bytes and 32 bytes or an entity of 104 bytes?
 #[repr(C)]
 pub(crate) struct Ema {
     // page aligned start address
@@ -114,14 +117,14 @@ impl Ema {
     /// Split current ema at specified address, return a new allocated ema
     /// corresponding to the memory at the range of [addr, end).
     /// And the current ema manages the memory at the range of [start, addr).
-    pub fn split(&mut self, addr: usize) -> OsResult<*mut Ema> {
-        let l_start = self.start;
-        let l_length = addr - l_start;
+    pub fn split(&mut self, addr: usize) -> OsResult<UnsafeRef<Ema>> {
+        let laddr = self.start;
+        let lsize = addr - laddr;
 
-        let r_start = addr;
-        let r_length = (self.start + self.length) - addr;
+        let raddr = addr;
+        let rsize = (self.start + self.length) - addr;
 
-        let new_bitarray = match &mut self.eaccept_map {
+        let rarray = match &mut self.eaccept_map {
             Some(bitarray) => {
                 let pos = (addr - self.start) >> crate::arch::SE_PAGE_SHIFT;
                 Some(bitarray.split(pos)?)
@@ -129,10 +132,22 @@ impl Ema {
             None => None,
         };
 
-        // Initialize Emawith same allocator
-        let new_ema: *mut Ema = match self.alloc {
+        let mut rema = self.clone_ema();
+        rema.start = raddr;
+        rema.length = rsize;
+        rema.eaccept_map = rarray;
+
+        self.start = laddr;
+        self.length = lsize;
+
+        Ok(rema)
+    }
+
+    /// Employ same allocator to Clone Ema without eaccept map
+    pub(crate) fn clone_ema(&self) -> UnsafeRef<Ema> {
+        let ema: *mut Ema = match self.alloc {
             AllocType::Reserve(allocator) => {
-                let mut ema = Box::new_in(
+                let ema = Box::new_in(
                     Ema::new(
                         self.start,
                         self.length,
@@ -144,13 +159,10 @@ impl Ema {
                     ),
                     allocator,
                 );
-                ema.start = r_start;
-                ema.length = r_length;
-                ema.eaccept_map = new_bitarray;
                 Box::into_raw(ema)
             }
             AllocType::Static(allocator) => {
-                let mut ema = Box::new_in(
+                let ema = Box::new_in(
                     Ema::new(
                         self.start,
                         self.length,
@@ -162,39 +174,22 @@ impl Ema {
                     ),
                     allocator,
                 );
-                ema.start = r_start;
-                ema.length = r_length;
-                ema.eaccept_map = new_bitarray;
                 Box::into_raw(ema)
             }
         };
-
-        self.start = l_start;
-        self.length = l_length;
-
-        Ok(new_ema)
+        unsafe { UnsafeRef::from_raw(ema) }
     }
 
     /// Allocate the reserve / committed / virtual memory at corresponding memory
     pub fn alloc(&mut self) -> OsResult {
-        // RESERVED region only occupy memory range, but no real allocation
+        // RESERVED region only occupy memory range with no real allocation
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
             return Ok(());
         }
 
         // Allocate new eaccept_map for COMMIT_ON_DEMAND and COMMIT_NOW
         if self.eaccept_map.is_none() {
-            let eaccept_map = match self.alloc {
-                AllocType::Reserve(_allocator) => {
-                    let page_num = self.length >> SE_PAGE_SHIFT;
-                    BitArray::new(page_num, AllocType::new_rsrv())?
-                }
-                AllocType::Static(_allocator) => {
-                    let page_num = self.length >> SE_PAGE_SHIFT;
-                    BitArray::new(page_num, AllocType::new_static())?
-                }
-            };
-            self.eaccept_map = Some(eaccept_map);
+            self.init_eaccept_map()?;
         };
 
         // Ocall to mmap memory in urts
@@ -211,7 +206,7 @@ impl Ema {
         Ok(())
     }
 
-    /// Eaccept target EPC pages with cpu instruction
+    /// Eaccept target EPC pages with cpu eaccept instruction
     fn eaccept(&self, start: usize, length: usize, grow_up: bool) -> OsResult {
         let info = PageInfo {
             typ: self.info.typ,
@@ -229,23 +224,18 @@ impl Ema {
 
     /// Check the prerequisites of ema commitment
     pub fn commit_check(&self) -> OsResult {
-        if !self.info.prot.intersects(ProtFlags::RW) {
-            return Err(EACCES);
-        }
-
-        if self.info.typ != PageType::Reg {
-            return Err(EACCES);
-        }
-
-        if self.alloc_flags.contains(AllocFlags::RESERVED) {
-            return Err(EACCES);
-        }
+        ensure!(
+            self.info.prot.intersects(ProtFlags::RW)
+                && self.info.typ == PageType::Reg
+                && !self.alloc_flags.contains(AllocFlags::RESERVED),
+            EACCES
+        );
 
         Ok(())
     }
 
     /// Commit the corresponding memory of this ema
-    pub fn commit_self(&mut self) -> OsResult {
+    pub fn commit_all(&mut self) -> OsResult {
         self.commit(self.start, self.length)
     }
 
@@ -284,24 +274,30 @@ impl Ema {
 
     /// Check the prerequisites of ema uncommitment
     pub fn uncommit_check(&self) -> OsResult {
-        if self.alloc_flags.contains(AllocFlags::RESERVED) {
-            return Err(EACCES);
-        }
+        ensure!(!self.alloc_flags.contains(AllocFlags::RESERVED), EACCES);
         Ok(())
     }
 
     /// Uncommit the corresponding memory of this ema
-    pub fn uncommit_self(&mut self) -> OsResult {
+    pub fn uncommit_all(&mut self) -> OsResult {
+        self.uncommit(self.start, self.length)
+    }
+
+    /// Uncommit the partial memory of this ema
+    pub fn uncommit(&mut self, start: usize, length: usize) -> OsResult {
+        // Question: there exists a problem:
+        // If developers trim partial pages of the ema with none protection flag,
+        // the protection flag of left committed pages would be modified to Read implicitly.
         let prot = self.info.prot;
         if prot == ProtFlags::NONE && (self.info.typ != PageType::Tcs) {
             self.modify_perm(ProtFlags::R)?
         }
 
-        self.uncommit(self.start, self.length, prot)
+        self.uncommit_inner(start, length, prot)
     }
 
-    /// Uncommit the partial memory of this ema
-    pub fn uncommit(&mut self, start: usize, length: usize, prot: ProtFlags) -> OsResult {
+    #[inline]
+    fn uncommit_inner(&mut self, start: usize, length: usize, prot: ProtFlags) -> OsResult {
         assert!(self.eaccept_map.is_some());
 
         if self.alloc_flags.contains(AllocFlags::RESERVED) {
@@ -389,13 +385,10 @@ impl Ema {
 
     /// Check the prerequisites of modifying permissions
     pub fn modify_perm_check(&self) -> OsResult {
-        if self.info.typ != PageType::Reg {
-            return Err(EACCES);
-        }
-
-        if self.alloc_flags.contains(AllocFlags::RESERVED) {
-            return Err(EACCES);
-        }
+        ensure!(
+            (self.info.typ == PageType::Reg && !self.alloc_flags.contains(AllocFlags::RESERVED)),
+            EACCES
+        );
 
         match &self.eaccept_map {
             Some(bitmap) => {
@@ -473,23 +466,19 @@ impl Ema {
     /// Changing the page type from Reg to Tcs
     pub fn change_to_tcs(&mut self) -> OsResult {
         // The ema must have and only have one page
-        if self.length != SE_PAGE_SIZE {
-            return Err(EINVAL);
-        }
 
-        // The page must be committed
-        if !self.is_page_committed(self.start) {
-            return Err(EACCES);
-        }
+        ensure!(self.length == SE_PAGE_SIZE, EINVAL);
+        ensure!(self.is_page_committed(self.start), EACCES);
 
         let info = self.info;
         if info.typ == PageType::Tcs {
             return Ok(());
         }
 
-        if (info.prot != ProtFlags::RW) || (info.typ != PageType::Reg) {
-            return Err(EACCES);
-        }
+        ensure!(
+            (info.prot == ProtFlags::RW) && (info.typ == PageType::Reg),
+            EACCES
+        );
 
         ocall::modify_ocall(
             self.start,
@@ -541,7 +530,7 @@ impl Ema {
         if self.info.prot == ProtFlags::NONE && (self.info.typ != PageType::Tcs) {
             self.modify_perm(ProtFlags::R)?;
         }
-        self.uncommit(self.start, self.length, ProtFlags::NONE)?;
+        self.uncommit_inner(self.start, self.length, ProtFlags::NONE)?;
         Ok(())
     }
 
@@ -583,21 +572,26 @@ impl Ema {
 
     pub fn set_eaccept_map_full(&mut self) -> OsResult {
         if self.eaccept_map.is_none() {
-            let mut eaccept_map = match self.alloc {
-                AllocType::Reserve(_allocator) => {
-                    let page_num = self.length >> SE_PAGE_SHIFT;
-                    BitArray::new(page_num, AllocType::new_rsrv())?
-                }
-                AllocType::Static(_allocator) => {
-                    let page_num = self.length >> SE_PAGE_SHIFT;
-                    BitArray::new(page_num, AllocType::new_static())?
-                }
-            };
-            eaccept_map.set_full();
-            self.eaccept_map = Some(eaccept_map);
+            self.init_eaccept_map()?;
+            self.eaccept_map.as_mut().unwrap().set_full();
         } else {
             self.eaccept_map.as_mut().unwrap().set_full();
         }
+        Ok(())
+    }
+
+    fn init_eaccept_map(&mut self) -> OsResult {
+        let eaccept_map = match self.alloc {
+            AllocType::Reserve(_allocator) => {
+                let page_num = self.length >> SE_PAGE_SHIFT;
+                BitArray::new(page_num, AllocType::new_rsrv())?
+            }
+            AllocType::Static(_allocator) => {
+                let page_num = self.length >> SE_PAGE_SHIFT;
+                BitArray::new(page_num, AllocType::new_static())?
+            }
+        };
+        self.eaccept_map = Some(eaccept_map);
         Ok(())
     }
 
@@ -723,24 +717,3 @@ impl Ema {
         Ok(new_ema)
     }
 }
-
-// pub struct EmaRange<'a> {
-//     pub cursor: CursorMut<'a, EmaAda>,
-//     pub count : usize,
-// }
-
-// impl<'a> Iterator for EmaRange<'a> {
-//     type Item = &'a mut EMA;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         if self.count == 0 {
-//             None
-//         } else {
-//             self.cursor.move_next();
-//             self.count -= 1;
-
-//             let ema = unsafe { self.cursor.get_mut().unwrap() };
-//             Some(ema)
-//         }
-//     }
-// }
