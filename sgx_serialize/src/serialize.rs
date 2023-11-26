@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-///! Support code for encoding and decoding types.
+// Support code for encoding and decoding types.
 /*
 Core encoding and decoding interfaces.
 */
@@ -727,6 +727,6 @@ impl<T: ?Sized + Encodable> Encodable for Box<T> {
 }
 impl<T: Decodable> Decodable for Box<T> {
     fn decode<D: Decoder>(d: &mut D) -> Result<Box<T>, D::Error> {
-        Ok(box Decodable::decode(d)?)
+        Ok(Box::new(Decodable::decode(d)?))
     }
 }

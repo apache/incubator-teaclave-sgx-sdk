@@ -5,8 +5,6 @@
 //! on the `rustc_hash` crate.
 
 use std::collections::HashMap;
-use std::convert::TryInto;
-use std::default::Default;
 use std::hash::BuildHasherDefault;
 use std::hash::Hasher;
 use std::mem::size_of;
@@ -15,9 +13,9 @@ use std::ops::BitXor;
 /// Type alias for a hashmap using the `fx` hash algorithm.
 pub type FxHashMap<K, V> = HashMap<K, V, BuildHasherDefault<FxHasher>>;
 
-/// A speedy hash algorithm for use within rustc. The hashmap in liballoc
-/// by default uses SipHash which isn't quite as speedy as we want. In the
-/// compiler we're not really worried about DOS attempts, so we use a fast
+/// A speedy hash algorithm for use within rustc. The hashmap in alloc by
+/// default uses SipHash which isn't quite as speedy as we want. In the compiler
+/// we're not really worried about DOS attempts, so we use a fast
 /// non-cryptographic hash.
 ///
 /// This is the same as the algorithm used by Firefox -- which is a homespun

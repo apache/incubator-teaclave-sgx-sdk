@@ -331,7 +331,7 @@ fn bench_read_to_end(b: &mut Bencher) {
     b.iter(|| {
         let mut lr = repeat(1).take(1000000);
         let mut vec = Vec::with_capacity(1024);
-        super::default_read_to_end(&mut lr, &mut vec)
+        super::default_read_to_end(&mut lr, &mut vec, None)
     });
 }
 
@@ -604,7 +604,7 @@ fn test_take_wrong_length() {
         }
     }
 
-    let mut buffer = vec![0; 4];
+    let mut buffer = [0; 4];
     let mut reader = LieAboutSize(true).take(4);
     // Primed the `Limit` by lying about the read size.
     should_panic!(reader.read(&mut buffer[..]));

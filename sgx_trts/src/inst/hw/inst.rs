@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::arch::{Enclu, Secinfo};
+use crate::arch::{Enclu, SecInfo};
 use crate::se::{
     AlignKey, AlignKeyRequest, AlignReport, AlignReport2Mac, AlignReportData, AlignTargetInfo,
 };
@@ -75,7 +75,7 @@ impl EncluInst {
         }
     }
 
-    pub fn eaccept(info: &Secinfo, addr: usize) -> Result<(), u32> {
+    pub fn eaccept(info: &SecInfo, addr: usize) -> Result<(), u32> {
         unsafe {
             let error;
             asm!(
@@ -94,7 +94,7 @@ impl EncluInst {
         }
     }
 
-    pub fn emodpe(info: &Secinfo, addr: usize) -> Result<(), u32> {
+    pub fn emodpe(info: &SecInfo, addr: usize) -> Result<(), u32> {
         unsafe {
             asm!(
                 "xchg rbx, {0}",

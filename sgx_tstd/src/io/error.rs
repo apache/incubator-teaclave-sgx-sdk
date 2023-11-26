@@ -97,12 +97,22 @@ impl From<alloc_crate::ffi::NulError> for Error {
 // doesn't accidentally get printed.
 #[cfg_attr(feature = "unit_test", derive(Debug))]
 enum ErrorData<C> {
-    Os(i32),
+    Os(RawOsError),
     Simple(ErrorKind),
     SimpleMessage(&'static SimpleMessage),
     Custom(C),
     SgxStatus(SgxStatus),
 }
+
+/// The type of raw OS error codes returned by [`Error::raw_os_error`].
+///
+/// This is an [`i32`] on all currently supported platforms, but platforms
+/// added in the future (such as UEFI) may use a different primitive type like
+/// [`usize`]. Use `as`or [`into`] conversions where applicable to ensure maximum
+/// portability.
+///
+/// [`into`]: Into::into
+pub type RawOsError = sys::RawOsError;
 
 // `#[repr(align(4))]` is probably redundant, it should have that value or
 // higher already. We include it just because repr_bitpacked.rs's encoding
@@ -329,7 +339,7 @@ pub enum ErrorKind {
 
     // "Unusual" error kinds which do not correspond simply to (sets
     // of) OS error codes, should be added just above this comment.
-    // `Other` and `Uncategorised` should remain at the end:
+    // `Other` and `Uncategorized` should remain at the end:
     //
     /// A custom error that does not fall under any other I/O error kind.
     ///
@@ -488,6 +498,7 @@ impl Error {
     /// // creating an error without payload (and without memory allocation)
     /// let eof_error = Error::from(ErrorKind::UnexpectedEof);
     /// ```
+    #[inline(never)]
     pub fn new<E>(kind: ErrorKind, error: E) -> Error
     where
         E: Into<Box<dyn error::Error + Send + Sync>>,
@@ -504,8 +515,6 @@ impl Error {
     /// # Examples
     ///
     /// ```
-    /// #![feature(io_error_other)]
-    ///
     /// use std::io::Error;
     ///
     /// // errors can be created from strings
@@ -593,7 +602,7 @@ impl Error {
     /// ```
     #[must_use]
     #[inline]
-    pub fn from_raw_os_error(code: i32) -> Error {
+    pub fn from_raw_os_error(code: RawOsError) -> Error {
         Error { repr: Repr::new_os(code) }
     }
 
@@ -628,7 +637,7 @@ impl Error {
     /// ```
     #[must_use]
     #[inline]
-    pub fn raw_os_error(&self) -> Option<i32> {
+    pub fn raw_os_error(&self) -> Option<RawOsError> {
         match self.repr.data() {
             ErrorData::Os(i) => Some(i),
             ErrorData::Custom(..) => None,
@@ -873,6 +882,13 @@ impl Error {
 
     /// Returns the corresponding [`ErrorKind`] for this error.
     ///
+    /// This may be a value set by Rust code constructing custom `io::Error`s,
+    /// or if this `io::Error` was sourced from the operating system,
+    /// it will be a value inferred from the system's error encoding.
+    /// See [`last_os_error`] for more details.
+    ///
+    /// [`last_os_error`]: Error::last_os_error
+    ///
     /// # Examples
     ///
     /// ```
@@ -883,7 +899,8 @@ impl Error {
     /// }
     ///
     /// fn main() {
-    ///     // Will print "Uncategorized".
+    ///     // As no error has (visibly) occurred, this may print anything!
+    ///     // It likely prints a placeholder for unidentified (non-)errors.
     ///     print_error(Error::last_os_error());
     ///     // Will print "AddrInUse".
     ///     print_error(Error::new(ErrorKind::AddrInUse, "oh no!"));
@@ -898,6 +915,17 @@ impl Error {
             ErrorData::Simple(kind) => kind,
             ErrorData::SimpleMessage(m) => m.kind,
             ErrorData::SgxStatus(..) => ErrorKind::SgxError,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn is_interrupted(&self) -> bool {
+        match self.repr.data() {
+            ErrorData::Os(code) => sys::is_interrupted(code),
+            ErrorData::Custom(c) => c.kind == ErrorKind::Interrupted,
+            ErrorData::Simple(kind) => kind == ErrorKind::Interrupted,
+            ErrorData::SimpleMessage(m) => m.kind == ErrorKind::Interrupted,
+            ErrorData::SgxStatus(_) => false,
         }
     }
 }

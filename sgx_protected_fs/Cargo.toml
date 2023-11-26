@@ -16,6 +16,7 @@
 # under the License.
 
 [workspace]
+resolver = "2"
 members = [
     "tfs",
     "ufs",

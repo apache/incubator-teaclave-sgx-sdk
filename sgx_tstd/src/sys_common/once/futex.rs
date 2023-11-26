@@ -21,6 +21,7 @@ use crate::sync::atomic::{
     AtomicU32,
     Ordering::{Acquire, Relaxed, Release},
 };
+use crate::sync::once::ExclusiveState;
 use crate::sys::futex::{futex_wait, futex_wake_all};
 
 // On some platforms, the OS is very nice and handles the waiter queue for us.
@@ -95,6 +96,16 @@ impl Once {
         self.state.load(Acquire) == COMPLETE
     }
 
+    #[inline]
+    pub(crate) fn state(&mut self) -> ExclusiveState {
+        match *self.state.get_mut() {
+            INCOMPLETE => ExclusiveState::Incomplete,
+            POISONED => ExclusiveState::Poisoned,
+            COMPLETE => ExclusiveState::Complete,
+            _ => unreachable!("invalid Once state"),
+        }
+    }
+
     // This uses FnMut to match the API of the generic implementation. As this
     // implementation is quite light-weight, it is generic over the closure and
     // so avoids the cost of dynamic dispatch.
@@ -134,7 +145,8 @@ impl Once {
                 RUNNING | QUEUED => {
                     // Set the state to QUEUED if it is not already.
                     if state == RUNNING
-                        && let Err(new) = self.state.compare_exchange_weak(RUNNING, QUEUED, Relaxed, Acquire)
+                        && let Err(new) =
+                            self.state.compare_exchange_weak(RUNNING, QUEUED, Relaxed, Acquire)
                     {
                         state = new;
                         continue;

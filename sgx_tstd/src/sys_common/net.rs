@@ -18,15 +18,14 @@
 #[cfg(feature = "unit_test")]
 mod tests;
 
-use crate::convert::{TryFrom, TryInto};
 use crate::fmt;
-use crate::io::{self, ErrorKind, IoSlice, IoSliceMut};
+use crate::io::{self, BorrowedCursor, ErrorKind, IoSlice, IoSliceMut};
 use crate::mem;
 use crate::net::{Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr};
 use crate::sys::common::small_c_string::run_with_cstr;
 use crate::sys::net::{init, Socket};
 use crate::sys::{cvt_ocall, cvt_ocall_r};
-use crate::sys_common::{AsInner, FromInner, IntoInner};
+use crate::sys_common::{AsInner, FromInner, IntoInner, TryIntoInner};
 use crate::time::Duration;
 use crate::vec;
 
@@ -77,7 +76,7 @@ where
     F: FnOnce() -> OCallResult<SockAddr>,
 {
     let sa = cvt_ocall(f())?;
-    sa.try_into()
+    sa.try_into_inner()
 }
 
 pub fn sockaddr_to_addr(storage: &c::sockaddr_storage, len: usize) -> io::Result<SocketAddr> {
@@ -182,8 +181,7 @@ impl TcpStream {
         init();
 
         let sock = Socket::new(addr, c::SOCK_STREAM)?;
-        let sock_addr = addr.to_owned().into();
-        cvt_ocall_r(|| unsafe { c::connect(sock.as_raw(), &sock_addr) })?;
+        sock.connect(addr)?;
         Ok(TcpStream { inner: sock })
     }
 
@@ -195,6 +193,7 @@ impl TcpStream {
         Ok(TcpStream { inner: sock })
     }
 
+    #[inline]
     pub fn socket(&self) -> &Socket {
         &self.inner
     }
@@ -227,6 +226,10 @@ impl TcpStream {
         self.inner.read(buf)
     }
 
+    pub fn read_buf(&self, buf: BorrowedCursor<'_>) -> io::Result<()> {
+        self.inner.read_buf(buf)
+    }
+
     pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         self.inner.read_vectored(bufs)
     }
@@ -240,7 +243,7 @@ impl TcpStream {
         let ret = cvt_ocall(unsafe {
             c::send(self.inner.as_raw(), buf, c::MSG_NOSIGNAL)
         })?;
-        Ok(ret)
+        Ok(ret as usize)
     }
 
     pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
@@ -303,6 +306,7 @@ impl TcpStream {
 }
 
 impl AsInner<Socket> for TcpStream {
+    #[inline]
     fn as_inner(&self) -> &Socket {
         &self.inner
     }
@@ -353,7 +357,7 @@ impl TcpListener {
         setsockopt(&sock, c::SOL_SOCKET, c::SO_REUSEADDR, 1_i32)?;
 
         // Bind our new socket
-        let sock_addr = addr.into();
+        let sock_addr = addr.into_inner();
         cvt_ocall(unsafe { c::bind(sock.as_raw(), &sock_addr) })?;
 
         // Start listening
@@ -361,6 +365,7 @@ impl TcpListener {
         Ok(TcpListener { inner: sock })
     }
 
+    #[inline]
     pub fn socket(&self) -> &Socket {
         &self.inner
     }
@@ -375,7 +380,7 @@ impl TcpListener {
 
     pub fn accept(&self) -> io::Result<(TcpStream, SocketAddr)> {
         let (sock, addr) = self.inner.accept()?;
-        let addr = addr.try_into()?;
+        let addr = addr.try_into_inner()?;
         Ok((TcpStream { inner: sock }, addr))
     }
 
@@ -444,7 +449,7 @@ impl UdpSocket {
         init();
 
         let sock = Socket::new(addr, c::SOCK_DGRAM)?;
-        let sock_addr = addr.into();
+        let sock_addr: SockAddr = addr.into_inner();
         cvt_ocall(unsafe { c::bind(sock.as_raw(), &sock_addr) })?;
         Ok(UdpSocket { inner: sock })
     }
@@ -474,11 +479,11 @@ impl UdpSocket {
     }
 
     pub fn send_to(&self, buf: &[u8], dst: &SocketAddr) -> io::Result<usize> {
-        let dst = dst.into();
+        let dst = dst.into_inner();
         let ret = cvt_ocall(unsafe {
             c::sendto(self.inner.as_raw(), buf, c::MSG_NOSIGNAL, &dst)
         })?;
-        Ok(ret)
+        Ok(ret as usize)
     }
 
     pub fn duplicate(&self) -> io::Result<UdpSocket> {
@@ -612,7 +617,7 @@ impl UdpSocket {
     }
 
     pub fn connect(&self, addr: io::Result<&SocketAddr>) -> io::Result<()> {
-        let sock_addr = addr?.into();
+        let sock_addr: SockAddr = addr?.into_inner();
         cvt_ocall_r(|| unsafe { c::connect(self.inner.as_raw(), &sock_addr) }).map(drop)
     }
 }

@@ -32,7 +32,7 @@
 // unix (it's mostly used on windows), so don't worry about dead code here.
 
 #![allow(dead_code)]
-#![allow(clippy::derive_hash_xor_eq)]
+#![allow(clippy::derived_hash_with_manual_eq)]
 
 #[cfg(feature = "unit_test")]
 mod tests;

@@ -15,4 +15,6 @@
 // specific language governing permissions and limitations
 // under the License..
 
-pub use sgx_sync::{MovableRwLock, StaticRwLock, StaticRwLockReadGuard, StaticRwLockWriteGuard};
+#[allow(unused_imports)]
+pub use sgx_sync::{StaticRwLock, StaticRwLockReadGuard, StaticRwLockWriteGuard};
+pub use sgx_sync::MovableRwLock as RwLock;

@@ -326,7 +326,9 @@ pub trait MetadataExt {
 impl MetadataExt for Metadata {
     #[allow(deprecated)]
     fn as_raw_stat(&self) -> &raw::stat {
-        unsafe { &*(self.as_inner().as_inner() as *const libc::stat64 as *const raw::stat) }
+        unsafe {
+            &*(self.as_inner().as_inner() as *const libc::stat64 as *const raw::stat)
+        }
     }
     fn st_dev(&self) -> u64 {
         self.as_inner().as_inner().st_dev
@@ -353,19 +355,22 @@ impl MetadataExt for Metadata {
         self.as_inner().as_inner().st_size as u64
     }
     fn st_atime(&self) -> i64 {
-        self.as_inner().as_inner().st_atime
+        let file_attr = self.as_inner();
+        file_attr.as_inner().st_atime
     }
     fn st_atime_nsec(&self) -> i64 {
         self.as_inner().as_inner().st_atime_nsec
     }
     fn st_mtime(&self) -> i64 {
-        self.as_inner().as_inner().st_mtime
+        let file_attr = self.as_inner();
+        file_attr.as_inner().st_mtime
     }
     fn st_mtime_nsec(&self) -> i64 {
         self.as_inner().as_inner().st_mtime_nsec
     }
     fn st_ctime(&self) -> i64 {
-        self.as_inner().as_inner().st_ctime
+        let file_attr = self.as_inner();
+        file_attr.as_inner().st_ctime
     }
     fn st_ctime_nsec(&self) -> i64 {
         self.as_inner().as_inner().st_ctime_nsec

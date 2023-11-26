@@ -17,6 +17,7 @@
 
 #![no_std]
 #![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
+#![feature(ascii_char)]
 
 extern crate alloc;
 extern crate sgx_types;

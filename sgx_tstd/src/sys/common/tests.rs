@@ -28,7 +28,7 @@ use sgx_test_utils::{bench_case, Bencher};
 fn stack_allocation_works() {
     let path = Path::new("abc");
     let result = run_path_with_cstr(path, |p| {
-        assert_eq!(p, &*CString::new(path.as_os_str().bytes()).unwrap());
+        assert_eq!(p, &*CString::new(path.as_os_str().as_encoded_bytes()).unwrap());
         Ok(42)
     });
     assert_eq!(result.unwrap(), 42);
@@ -45,7 +45,7 @@ fn heap_allocation_works() {
     let path = repeat("a").take(128).collect::<String>();
     let path = Path::new(&path);
     let result = run_path_with_cstr(path, |p| {
-        assert_eq!(p, &*CString::new(path.as_os_str().bytes()).unwrap());
+        assert_eq!(p, &*CString::new(path.as_os_str().as_encoded_bytes()).unwrap());
         Ok(42)
     });
     assert_eq!(result.unwrap(), 42);

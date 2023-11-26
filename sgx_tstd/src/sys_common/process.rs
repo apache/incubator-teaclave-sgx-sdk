@@ -20,10 +20,13 @@
 use crate::collections::BTreeMap;
 use crate::env;
 use crate::ffi::{OsStr, OsString};
-use crate::sys::process::EnvKey;
+use crate::fmt;
+use crate::io;
+use crate::sys::unsupported::pipe::read2;
+use crate::sys::process::{EnvKey, ExitStatus, Process, StdioPipes};
 
 // Stores a set of changes to an environment
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct CommandEnv {
     clear: bool,
     saw_path: bool,
@@ -34,6 +37,14 @@ pub struct CommandEnv {
 impl Default for CommandEnv {
     fn default() -> Self {
         CommandEnv { clear: false, saw_path: false, vars: Default::default() }
+    }
+}
+
+impl fmt::Debug for CommandEnv {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut debug_command_env = f.debug_struct("CommandEnv");
+        debug_command_env.field("clear", &self.clear).field("vars", &self.vars);
+        debug_command_env.finish()
     }
 }
 
@@ -48,7 +59,7 @@ impl CommandEnv {
             }
         }
         for (k, maybe_v) in &self.vars {
-            if let &Some(ref v) = maybe_v {
+            if let Some(v) = maybe_v {
                 result.insert(k.clone(), v.clone());
             } else {
                 result.remove(k);
@@ -85,6 +96,10 @@ impl CommandEnv {
     pub fn clear(&mut self) {
         self.clear = true;
         self.vars.clear();
+    }
+
+    pub fn does_clear(&self) -> bool {
+        self.clear
     }
 
     pub fn have_changed_path(&self) -> bool {
@@ -131,4 +146,31 @@ impl<'a> ExactSizeIterator for CommandEnvs<'a> {
     fn is_empty(&self) -> bool {
         self.iter.is_empty()
     }
+}
+
+pub fn wait_with_output(
+    mut process: Process,
+    mut pipes: StdioPipes,
+) -> io::Result<(ExitStatus, Vec<u8>, Vec<u8>)> {
+    drop(pipes.stdin.take());
+
+    let (mut stdout, mut stderr) = (Vec::new(), Vec::new());
+    match (pipes.stdout.take(), pipes.stderr.take()) {
+        (None, None) => {}
+        (Some(out), None) => {
+            let res = out.read_to_end(&mut stdout);
+            res.unwrap();
+        }
+        (None, Some(err)) => {
+            let res = err.read_to_end(&mut stderr);
+            res.unwrap();
+        }
+        (Some(out), Some(err)) => {
+            let res = read2(out, &mut stdout, err, &mut stderr);
+            res.unwrap();
+        }
+    }
+
+    let status = process.wait()?;
+    Ok((status, stdout, stderr))
 }

@@ -76,9 +76,10 @@ use sgx_demangle::{try_demangle, Demangle};
 /// }
 /// ```
 #[cfg(feature = "std")]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub fn resolve<F: FnMut(&Symbol)>(addr: *mut c_void, cb: F) {
     let _guard = crate::lock::lock();
-    unsafe { resolve_unsynchronized(addr as *mut c_void, cb) }
+    unsafe { resolve_unsynchronized(addr, cb) }
 }
 
 /// Resolve a previously capture frame to a symbol, passing the symbol to the

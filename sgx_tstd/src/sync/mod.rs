@@ -150,7 +150,9 @@
 //! - [`Mutex`]: Mutual Exclusion mechanism, which ensures that at
 //!   most one thread at a time is able to access some data.
 //!
-//! - [`Once`]: Used for thread-safe, one-time initialization of a
+//! - [`Once`]: Used for a thread-safe, one-time global initialization routine
+//!
+//! - [`OnceLock`]: Used for thread-safe, one-time initialization of a
 //!   global variable.
 //!
 //! - [`RwLock`]: Provides a mutual exclusion mechanism which allows
@@ -164,6 +166,7 @@
 //! [`mpsc`]: crate::sync::mpsc
 //! [`Mutex`]: crate::sync::Mutex
 //! [`Once`]: crate::sync::Once
+//! [`OnceLock`]: crate::sync::OnceLock
 //! [`RwLock`]: crate::sync::RwLock
 
 pub use alloc_crate::sync::{Arc, Weak};
@@ -181,14 +184,19 @@ pub use self::rwlock::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 pub use self::lazy_lock::LazyLock;
 pub use self::once_lock::OnceLock;
 
+pub(crate) use self::remutex::{ReentrantMutex, ReentrantMutexGuard};
+
 #[cfg(feature = "thread")]
 pub mod mpsc;
 
 mod barrier;
 mod condvar;
 mod lazy_lock;
+#[cfg(feature = "thread")]
+mod mpmc;
 mod mutex;
-mod once;
+pub(crate) mod once;
 mod once_lock;
 mod poison;
+mod remutex;
 mod rwlock;

@@ -26,6 +26,8 @@ use crate::ffi::OsString;
 use crate::fmt;
 use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut, Read, Seek, SeekFrom, Write};
 use crate::path::{Path, PathBuf};
+use crate::sealed::Sealed;
+use crate::sync::Arc;
 use crate::sys::fs as fs_imp;
 use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
 use crate::time::SystemTime;
@@ -235,8 +237,8 @@ pub struct DirBuilder {
 /// This function will return an error if `path` does not already exist.
 /// Other errors may also be returned according to [`OpenOptions::open`].
 ///
-/// It will also return an error if it encounters while reading an error
-/// of a kind other than [`io::ErrorKind::Interrupted`].
+/// While reading from the file, this function handles [`io::ErrorKind::Interrupted`]
+/// with automatic retries. See [io::Read] documentation for details.
 ///
 /// # Examples
 ///
@@ -252,8 +254,9 @@ pub struct DirBuilder {
 pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
     fn inner(path: &Path) -> io::Result<Vec<u8>> {
         let mut file = File::open(path)?;
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes)?;
+        let size = file.metadata().map(|m| m.len() as usize).ok();
+        let mut bytes = Vec::with_capacity(size.unwrap_or(0));
+        io::default_read_to_end(&mut file, &mut bytes, size)?;
         Ok(bytes)
     }
     inner(path.as_ref())
@@ -271,9 +274,11 @@ pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
 /// This function will return an error if `path` does not already exist.
 /// Other errors may also be returned according to [`OpenOptions::open`].
 ///
-/// It will also return an error if it encounters while reading an error
-/// of a kind other than [`io::ErrorKind::Interrupted`],
-/// or if the contents of the file are not valid UTF-8.
+/// If the contents of the file are not valid UTF-8, then an error will also be
+/// returned.
+///
+/// While reading from the file, this function handles [`io::ErrorKind::Interrupted`]
+/// with automatic retries. See [io::Read] documentation for details.
 ///
 /// # Examples
 ///
@@ -290,8 +295,9 @@ pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
 pub fn read_to_string<P: AsRef<Path>>(path: P) -> io::Result<String> {
     fn inner(path: &Path) -> io::Result<String> {
         let mut file = File::open(path)?;
-        let mut string = String::new();
-        file.read_to_string(&mut string)?;
+        let size = file.metadata().map(|m| m.len() as usize).ok();
+        let mut string = String::with_capacity(size.unwrap_or(0));
+        io::default_read_to_string(&mut file, &mut string, size)?;
         Ok(string)
     }
     inner(path.as_ref())
@@ -333,6 +339,10 @@ impl File {
     ///
     /// See the [`OpenOptions::open`] method for more details.
     ///
+    /// If you only need to read the entire file contents,
+    /// consider [`std::fs::read()`][self::read] or
+    /// [`std::fs::read_to_string()`][self::read_to_string] instead.
+    ///
     /// # Errors
     ///
     /// This function will return an error if `path` does not already exist.
@@ -342,9 +352,12 @@ impl File {
     ///
     /// ```no_run
     /// use std::fs::File;
+    /// use std::io::Read;
     ///
     /// fn main() -> std::io::Result<()> {
     ///     let mut f = File::open("foo.txt")?;
+    ///     let mut data = vec![];
+    ///     f.read_to_end(&mut data)?;
     ///     Ok(())
     /// }
     /// ```
@@ -359,16 +372,20 @@ impl File {
     ///
     /// Depending on the platform, this function may fail if the
     /// full directory path does not exist.
-    ///
     /// See the [`OpenOptions::open`] function for more details.
+    ///
+    /// See also [`std::fs::write()`][self::write] for a simple function to
+    /// create a file with a given data.
     ///
     /// # Examples
     ///
     /// ```no_run
     /// use std::fs::File;
+    /// use std::io::Write;
     ///
     /// fn main() -> std::io::Result<()> {
     ///     let mut f = File::create("foo.txt")?;
+    ///     f.write_all(&1234_u32.to_be_bytes())?;
     ///     Ok(())
     /// }
     /// ```
@@ -394,9 +411,11 @@ impl File {
     /// #![feature(file_create_new)]
     ///
     /// use std::fs::File;
+    /// use std::io::Write;
     ///
     /// fn main() -> std::io::Result<()> {
     ///     let mut f = File::create_new("foo.txt")?;
+    ///     f.write_all("Hello, world!".as_bytes())?;
     ///     Ok(())
     /// }
     /// ```
@@ -422,9 +441,11 @@ impl File {
     ///
     /// ```no_run
     /// use std::fs::File;
+    /// use std::io::Write;
     ///
     /// fn main() -> std::io::Result<()> {
     ///     let mut f = File::options().append(true).open("example.log")?;
+    ///     writeln!(&mut f, "new line")?;
     ///     Ok(())
     /// }
     /// ```
@@ -505,8 +526,9 @@ impl File {
     /// # Errors
     ///
     /// This function will return an error if the file is not opened for writing.
-    /// Also, std::io::ErrorKind::InvalidInput will be returned if the desired
-    /// length would cause an overflow due to the implementation specifics.
+    /// Also, [`std::io::ErrorKind::InvalidInput`](crate::io::ErrorKind::InvalidInput)
+    /// will be returned if the desired length would cause an overflow due to
+    /// the implementation specifics.
     ///
     /// # Examples
     ///
@@ -643,8 +665,6 @@ impl File {
     /// # Examples
     ///
     /// ```no_run
-    /// #![feature(file_set_times)]
-    ///
     /// fn main() -> std::io::Result<()> {
     ///     use std::fs::{self, File, FileTimes};
     ///
@@ -677,6 +697,7 @@ impl File {
 // `AsRawHandle`/`IntoRawHandle`/`FromRawHandle` on Windows.
 
 impl AsInner<fs_imp::File> for File {
+    #[inline]
     fn as_inner(&self) -> &fs_imp::File {
         &self.inner
     }
@@ -699,80 +720,28 @@ impl fmt::Debug for File {
 }
 
 /// Indicates how much extra capacity is needed to read the rest of the file.
-fn buffer_capacity_required(mut file: &File) -> usize {
-    let size = file.metadata().map(|m| m.len()).unwrap_or(0);
-    let pos = file.stream_position().unwrap_or(0);
+fn buffer_capacity_required(mut file: &File) -> Option<usize> {
+    let size = file.metadata().map(|m| m.len()).ok()?;
+    let pos = file.stream_position().ok()?;
     // Don't worry about `usize` overflow because reading will fail regardless
     // in that case.
-    size.saturating_sub(pos) as usize
-}
-
-impl Read for File {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.inner.read(buf)
-    }
-
-    fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
-        self.inner.read_vectored(bufs)
-    }
-
-    fn read_buf(&mut self, cursor: BorrowedCursor<'_>) -> io::Result<()> {
-        self.inner.read_buf(cursor)
-    }
-
-    #[inline]
-    fn is_read_vectored(&self) -> bool {
-        self.inner.is_read_vectored()
-    }
-
-    // Reserves space in the buffer based on the file size when available.
-    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
-        buf.reserve(buffer_capacity_required(self));
-        io::default_read_to_end(self, buf)
-    }
-
-    // Reserves space in the buffer based on the file size when available.
-    fn read_to_string(&mut self, buf: &mut String) -> io::Result<usize> {
-        buf.reserve(buffer_capacity_required(self));
-        io::default_read_to_string(self, buf)
-    }
-}
-impl Write for File {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.inner.write(buf)
-    }
-
-    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
-        self.inner.write_vectored(bufs)
-    }
-
-    #[inline]
-    fn is_write_vectored(&self) -> bool {
-        self.inner.is_write_vectored()
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.inner.flush()
-    }
-}
-
-impl Seek for File {
-    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
-        self.inner.seek(pos)
-    }
+    Some(size.saturating_sub(pos) as usize)
 }
 
 impl Read for &File {
+    #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
     }
 
-    fn read_buf(&mut self, cursor: BorrowedCursor<'_>) -> io::Result<()> {
-        self.inner.read_buf(cursor)
-    }
-
+    #[inline]
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         self.inner.read_vectored(bufs)
+    }
+
+    #[inline]
+    fn read_buf(&mut self, cursor: BorrowedCursor<'_>) -> io::Result<()> {
+        self.inner.read_buf(cursor)
     }
 
     #[inline]
@@ -782,14 +751,16 @@ impl Read for &File {
 
     // Reserves space in the buffer based on the file size when available.
     fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
-        buf.reserve(buffer_capacity_required(self));
-        io::default_read_to_end(self, buf)
+        let size = buffer_capacity_required(self);
+        buf.reserve(size.unwrap_or(0));
+        io::default_read_to_end(self, buf, size)
     }
 
     // Reserves space in the buffer based on the file size when available.
     fn read_to_string(&mut self, buf: &mut String) -> io::Result<usize> {
-        buf.reserve(buffer_capacity_required(self));
-        io::default_read_to_string(self, buf)
+        let size = buffer_capacity_required(self);
+        buf.reserve(size.unwrap_or(0));
+        io::default_read_to_string(self, buf, size)
     }
 }
 impl Write for &File {
@@ -806,6 +777,7 @@ impl Write for &File {
         self.inner.is_write_vectored()
     }
 
+    #[inline]
     fn flush(&mut self) -> io::Result<()> {
         self.inner.flush()
     }
@@ -814,6 +786,97 @@ impl Write for &File {
 impl Seek for &File {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         self.inner.seek(pos)
+    }
+}
+
+impl Read for File {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        (&*self).read(buf)
+    }
+    fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        (&*self).read_vectored(bufs)
+    }
+    fn read_buf(&mut self, cursor: BorrowedCursor<'_>) -> io::Result<()> {
+        (&*self).read_buf(cursor)
+    }
+    #[inline]
+    fn is_read_vectored(&self) -> bool {
+        (&self).is_read_vectored()
+    }
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
+        (&*self).read_to_end(buf)
+    }
+    fn read_to_string(&mut self, buf: &mut String) -> io::Result<usize> {
+        (&*self).read_to_string(buf)
+    }
+}
+
+impl Write for File {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        (&*self).write(buf)
+    }
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        (&*self).write_vectored(bufs)
+    }
+    #[inline]
+    fn is_write_vectored(&self) -> bool {
+        (&self).is_write_vectored()
+    }
+    #[inline]
+    fn flush(&mut self) -> io::Result<()> {
+        (&*self).flush()
+    }
+}
+
+impl Seek for File {
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+        (&*self).seek(pos)
+    }
+}
+
+
+impl Read for Arc<File> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        (&**self).read(buf)
+    }
+    fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        (&**self).read_vectored(bufs)
+    }
+    fn read_buf(&mut self, cursor: BorrowedCursor<'_>) -> io::Result<()> {
+        (&**self).read_buf(cursor)
+    }
+    #[inline]
+    fn is_read_vectored(&self) -> bool {
+        (&**self).is_read_vectored()
+    }
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
+        (&**self).read_to_end(buf)
+    }
+    fn read_to_string(&mut self, buf: &mut String) -> io::Result<usize> {
+        (&**self).read_to_string(buf)
+    }
+}
+
+impl Write for Arc<File> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        (&**self).write(buf)
+    }
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        (&**self).write_vectored(bufs)
+    }
+    #[inline]
+    fn is_write_vectored(&self) -> bool {
+        (&**self).is_write_vectored()
+    }
+    #[inline]
+    fn flush(&mut self) -> io::Result<()> {
+        (&**self).flush()
+    }
+}
+
+impl Seek for Arc<File> {
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+        (&**self).seek(pos)
     }
 }
 
@@ -940,6 +1003,9 @@ impl OpenOptions {
     /// In order for the file to be created, [`OpenOptions::write`] or
     /// [`OpenOptions::append`] access must be used.
     ///
+    /// See also [`std::fs::write()`][self::write] for a simple function to
+    /// create a file with a given data.
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -1036,12 +1102,14 @@ impl OpenOptions {
 }
 
 impl AsInner<fs_imp::OpenOptions> for OpenOptions {
+    #[inline]
     fn as_inner(&self) -> &fs_imp::OpenOptions {
         &self.0
     }
 }
 
 impl AsInnerMut<fs_imp::OpenOptions> for OpenOptions {
+    #[inline]
     fn as_inner_mut(&mut self) -> &mut fs_imp::OpenOptions {
         &mut self.0
     }
@@ -1291,6 +1359,7 @@ impl fmt::Debug for Metadata {
 }
 
 impl AsInner<fs_imp::FileAttr> for Metadata {
+    #[inline]
     fn as_inner(&self) -> &fs_imp::FileAttr {
         &self.0
     }
@@ -1323,8 +1392,45 @@ impl FileTimes {
     }
 }
 
+impl AsInnerMut<fs_imp::FileTimes> for FileTimes {
+    fn as_inner_mut(&mut self) -> &mut fs_imp::FileTimes {
+        &mut self.0
+    }
+}
+
+// For implementing OS extension traits in `std::os`
+impl Sealed for FileTimes {}
+
 impl Permissions {
     /// Returns `true` if these permissions describe a readonly (unwritable) file.
+    ///
+    /// # Note
+    ///
+    /// This function does not take Access Control Lists (ACLs) or Unix group
+    /// membership into account.
+    ///
+    /// # Windows
+    ///
+    /// On Windows this returns [`FILE_ATTRIBUTE_READONLY`](https://docs.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants).
+    /// If `FILE_ATTRIBUTE_READONLY` is set then writes to the file will fail
+    /// but the user may still have permission to change this flag. If
+    /// `FILE_ATTRIBUTE_READONLY` is *not* set then writes may still fail due
+    /// to lack of write permission.
+    /// The behavior of this attribute for directories depends on the Windows
+    /// version.
+    ///
+    /// # Unix (including macOS)
+    ///
+    /// On Unix-based platforms this checks if *any* of the owner, group or others
+    /// write permission bits are set. It does not check if the current
+    /// user is in the file's assigned group. It also does not check ACLs.
+    /// Therefore even if this returns true you may not be able to write to the
+    /// file, and vice versa. The [`PermissionsExt`] trait gives direct access
+    /// to the permission bits but also does not read ACLs. If you need to
+    /// accurately know whether or not a file is writable use the `access()`
+    /// function from libc.
+    ///
+    /// [`PermissionsExt`]: crate::os::unix::fs::PermissionsExt
     ///
     /// # Examples
     ///
@@ -1350,8 +1456,40 @@ impl Permissions {
     /// using the resulting `Permission` will update file permissions to allow
     /// writing.
     ///
-    /// This operation does **not** modify the filesystem. To modify the
-    /// filesystem use the [`set_permissions`] function.
+    /// This operation does **not** modify the files attributes. This only
+    /// changes the in-memory value of these attributes for this `Permissions`
+    /// instance. To modify the files attributes use the [`set_permissions`]
+    /// function which commits these attribute changes to the file.
+    ///
+    /// # Note
+    ///
+    /// `set_readonly(false)` makes the file *world-writable* on Unix.
+    /// You can use the [`PermissionsExt`] trait on Unix to avoid this issue.
+    ///
+    /// It also does not take Access Control Lists (ACLs) or Unix group
+    /// membership into account.
+    ///
+    /// # Windows
+    ///
+    /// On Windows this sets or clears [`FILE_ATTRIBUTE_READONLY`](https://docs.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants).
+    /// If `FILE_ATTRIBUTE_READONLY` is set then writes to the file will fail
+    /// but the user may still have permission to change this flag. If
+    /// `FILE_ATTRIBUTE_READONLY` is *not* set then the write may still fail if
+    /// the user does not have permission to write to the file.
+    ///
+    /// In Windows 7 and earlier this attribute prevents deleting empty
+    /// directories. It does not prevent modifying the directory contents.
+    /// On later versions of Windows this attribute is ignored for directories.
+    ///
+    /// # Unix (including macOS)
+    ///
+    /// On Unix-based platforms this sets or clears the write access bit for
+    /// the owner, group *and* others, equivalent to `chmod a+w <file>`
+    /// or `chmod a-w <file>` respectively. The latter will grant write access
+    /// to all users! You can use the [`PermissionsExt`] trait on Unix
+    /// to avoid this issue.
+    ///
+    /// [`PermissionsExt`]: crate::os::unix::fs::PermissionsExt
     ///
     /// # Examples
     ///
@@ -1365,7 +1503,8 @@ impl Permissions {
     ///
     ///     permissions.set_readonly(true);
     ///
-    ///     // filesystem doesn't change
+    ///     // filesystem doesn't change, only the in memory state of the
+    ///     // readonly permission
     ///     assert_eq!(false, metadata.permissions().readonly());
     ///
     ///     // just this particular `permissions`.
@@ -1406,7 +1545,7 @@ impl FileType {
     }
 
     /// Tests whether this file type represents a regular file.
-    /// The result is  mutually exclusive to the results of
+    /// The result is mutually exclusive to the results of
     /// [`is_dir`] and [`is_symlink`]; only zero or one of these
     /// tests may pass.
     ///
@@ -1474,6 +1613,7 @@ impl FileType {
 }
 
 impl AsInner<fs_imp::FileType> for FileType {
+    #[inline]
     fn as_inner(&self) -> &fs_imp::FileType {
         &self.0
     }
@@ -1486,6 +1626,7 @@ impl FromInner<fs_imp::FilePermissions> for Permissions {
 }
 
 impl AsInner<fs_imp::FilePermissions> for Permissions {
+    #[inline]
     fn as_inner(&self) -> &fs_imp::FilePermissions {
         &self.0
     }
@@ -1604,8 +1745,14 @@ impl DirEntry {
         self.0.file_type().map(FileType)
     }
 
-    /// Returns the bare file name of this directory entry without any other
-    /// leading path component.
+    /// Returns the file name of this directory entry without any
+    /// leading path component(s).
+    ///
+    /// As an example,
+    /// the output of the function will result in "foo" for all the following paths:
+    /// - "./foo"
+    /// - "/the/foo"
+    /// - "../../foo"
     ///
     /// # Examples
     ///
@@ -1634,6 +1781,7 @@ impl fmt::Debug for DirEntry {
 }
 
 impl AsInner<fs_imp::DirEntry> for DirEntry {
+    #[inline]
     fn as_inner(&self) -> &fs_imp::DirEntry {
         &self.0
     }
@@ -1799,7 +1947,7 @@ pub fn rename<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> io::Result<()> 
 /// On success, the total number of bytes copied is returned and it is equal to
 /// the length of the `to` file as reported by `metadata`.
 ///
-/// If you’re wanting to copy the contents of one file to another and you’re
+/// If you want to copy the contents of one file to another and you’re
 /// working with [`File`]s, see the [`io::copy()`] function.
 ///
 /// # Platform-specific behavior
@@ -2129,6 +2277,11 @@ pub fn remove_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
 ///
 /// See [`fs::remove_file`] and [`fs::remove_dir`].
 ///
+/// `remove_dir_all` will fail if `remove_dir` or `remove_file` fail on any constituent paths, including the root path.
+/// As a result, the directory you are deleting must exist, meaning that this function is not idempotent.
+///
+/// Consider ignoring the error if validating the removal is not required for your use case.
+///
 /// [`fs::remove_file`]: remove_file
 /// [`fs::remove_dir`]: remove_dir
 ///
@@ -2344,6 +2497,7 @@ impl DirBuilder {
 }
 
 impl AsInnerMut<fs_imp::DirBuilder> for DirBuilder {
+    #[inline]
     fn as_inner_mut(&mut self) -> &mut fs_imp::DirBuilder {
         &mut self.inner
     }
@@ -2354,9 +2508,10 @@ impl AsInnerMut<fs_imp::DirBuilder> for DirBuilder {
 /// This function will traverse symbolic links to query information about the
 /// destination file. In case of broken symbolic links this will return `Ok(false)`.
 ///
-/// As opposed to the [`Path::exists`] method, this one doesn't silently ignore errors
-/// unrelated to the path not existing. (E.g. it will return `Err(_)` in case of permission
-/// denied on some of the parent directories.)
+/// As opposed to the [`Path::exists`] method, this will only return `Ok(true)` or `Ok(false)`
+/// if the path was _verified_ to exist or not exist. If its existence can neither be confirmed
+/// nor denied, an `Err(_)` will be propagated instead. This can be the case if e.g. listing
+/// permission is denied on one of the parent directories.
 ///
 /// Note that while this avoids some pitfalls of the `exists()` method, it still can not
 /// prevent time-of-check to time-of-use (TOCTOU) bugs. You should only use it in scenarios

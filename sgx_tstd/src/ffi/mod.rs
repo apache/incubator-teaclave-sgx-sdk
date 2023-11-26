@@ -144,6 +144,14 @@
 //! trait, which provides a [`from_wide`] method to convert a native Windows
 //! string (without the terminating nul character) to an [`OsString`].
 //!
+//! ## On all platforms
+//!
+//! On all platforms, [`OsStr`] consists of a sequence of bytes that is encoded as a superset of
+//! UTF-8; see [`OsString`] for more details on its encoding on different platforms.
+//!
+//! For limited, inexpensive conversions from and to bytes, see [`OsStr::as_encoded_bytes`] and
+//! [`OsStr::from_encoded_bytes_unchecked`].
+//!
 //! [Unicode scalar value]: https://www.unicode.org/glossary/#unicode_scalar_value
 //! [Unicode code point]: https://www.unicode.org/glossary/#code_point
 //! [`env::set_var()`]: crate::env::set_var "env::set_var"
@@ -162,6 +170,7 @@
 //! [`from_wide`]: crate::os::windows::ffi::OsStringExt::from_wide "os::windows::ffi::OsStringExt::from_wide"
 
 pub use alloc_crate::ffi::{CString, FromVecWithNulError, IntoStringError, NulError};
+pub use core::ffi::FromBytesUntilNulError;
 pub use core::ffi::{CStr, FromBytesWithNulError};
 
 pub use self::os_str::{OsStr, OsString};

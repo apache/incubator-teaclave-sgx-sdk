@@ -26,6 +26,8 @@ use crate::sys_common::io::test::tmpdir;
 use crate::thread;
 use crate::time::Duration;
 
+use crate::os::linux::net::SocketAddrExt;
+
 use sgx_test_utils::test_case;
 
 macro_rules! or_panic {
@@ -279,7 +281,7 @@ fn test_unix_datagram() {
     let path1 = dir.path().join("sock1");
     let path2 = dir.path().join("sock2");
 
-    let sock1 = or_panic!(UnixDatagram::bind(&path1));
+    let sock1 = or_panic!(UnixDatagram::bind(path1));
     let sock2 = or_panic!(UnixDatagram::bind(&path2));
 
     let msg = b"hello world";
@@ -312,8 +314,8 @@ fn test_unix_datagram_connect_to_recv_addr() {
     let path1 = dir.path().join("sock1");
     let path2 = dir.path().join("sock2");
 
-    let sock1 = or_panic!(UnixDatagram::bind(&path1));
-    let sock2 = or_panic!(UnixDatagram::bind(&path2));
+    let sock1 = or_panic!(UnixDatagram::bind(path1));
+    let sock2 = or_panic!(UnixDatagram::bind(path2));
 
     let msg = b"hello world";
     let sock1_addr = or_panic!(sock1.local_addr());
@@ -403,7 +405,7 @@ fn test_unix_datagram_timeout_zero_duration() {
     let dir = tmpdir();
     let path = dir.path().join("sock");
 
-    let datagram = or_panic!(UnixDatagram::bind(&path));
+    let datagram = or_panic!(UnixDatagram::bind(path));
 
     let result = datagram.set_write_timeout(Some(Duration::new(0, 0)));
     let err = result.unwrap_err();
@@ -424,7 +426,7 @@ fn test_abstract_stream_connect() {
     let msg1 = b"hello";
     let msg2 = b"world";
 
-    let socket_addr = or_panic!(SocketAddr::from_abstract_namespace(b"namespace"));
+    let socket_addr = or_panic!(SocketAddr::from_abstract_name(b"name"));
     let listener = or_panic!(UnixListener::bind_addr(&socket_addr));
 
     let thread = thread::spawn(move || {
@@ -438,7 +440,7 @@ fn test_abstract_stream_connect() {
     let mut stream = or_panic!(UnixStream::connect_addr(&socket_addr));
 
     let peer = or_panic!(stream.peer_addr());
-    assert_eq!(peer.as_abstract_namespace().unwrap(), b"namespace");
+    assert_eq!(peer.as_abstract_name().unwrap(), b"name");
 
     or_panic!(stream.write_all(msg1));
     let mut buf = vec![];
@@ -451,7 +453,7 @@ fn test_abstract_stream_connect() {
 
 #[test_case]
 fn test_abstract_stream_iter() {
-    let addr = or_panic!(SocketAddr::from_abstract_namespace(b"hidden"));
+    let addr = or_panic!(SocketAddr::from_abstract_name(b"hidden"));
     let listener = or_panic!(UnixListener::bind_addr(&addr));
 
     let thread = thread::spawn(move || {
@@ -472,13 +474,13 @@ fn test_abstract_stream_iter() {
 
 #[test_case]
 fn test_abstract_datagram_bind_send_to_addr() {
-    let addr1 = or_panic!(SocketAddr::from_abstract_namespace(b"ns1"));
+    let addr1 = or_panic!(SocketAddr::from_abstract_name(b"ns1"));
     let sock1 = or_panic!(UnixDatagram::bind_addr(&addr1));
 
     let local = or_panic!(sock1.local_addr());
-    assert_eq!(local.as_abstract_namespace().unwrap(), b"ns1");
+    assert_eq!(local.as_abstract_name().unwrap(), b"ns1");
 
-    let addr2 = or_panic!(SocketAddr::from_abstract_namespace(b"ns2"));
+    let addr2 = or_panic!(SocketAddr::from_abstract_name(b"ns2"));
     let sock2 = or_panic!(UnixDatagram::bind_addr(&addr2));
 
     let msg = b"hello world";
@@ -487,12 +489,12 @@ fn test_abstract_datagram_bind_send_to_addr() {
     let (len, addr) = or_panic!(sock2.recv_from(&mut buf));
     assert_eq!(msg, &buf[..]);
     assert_eq!(len, 11);
-    assert_eq!(addr.as_abstract_namespace().unwrap(), b"ns1");
+    assert_eq!(addr.as_abstract_name().unwrap(), b"ns1");
 }
 
 #[test_case]
 fn test_abstract_datagram_connect_addr() {
-    let addr1 = or_panic!(SocketAddr::from_abstract_namespace(b"ns3"));
+    let addr1 = or_panic!(SocketAddr::from_abstract_name(b"ns3"));
     let bsock1 = or_panic!(UnixDatagram::bind_addr(&addr1));
 
     let sock = or_panic!(UnixDatagram::unbound());
@@ -506,7 +508,7 @@ fn test_abstract_datagram_connect_addr() {
     assert_eq!(addr.is_unnamed(), true);
     assert_eq!(msg, &buf[..]);
 
-    let addr2 = or_panic!(SocketAddr::from_abstract_namespace(b"ns4"));
+    let addr2 = or_panic!(SocketAddr::from_abstract_name(b"ns4"));
     let bsock2 = or_panic!(UnixDatagram::bind_addr(&addr2));
 
     or_panic!(sock.connect_addr(&addr2));
@@ -515,8 +517,8 @@ fn test_abstract_datagram_connect_addr() {
 }
 
 #[test_case]
-fn test_abstract_namespace_too_long() {
-    match SocketAddr::from_abstract_namespace(
+fn test_abstract_name_too_long() {
+    match SocketAddr::from_abstract_name(
         b"abcdefghijklmnopqrstuvwxyzabcdefghijklmn\
         opqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghi\
         jklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz",
@@ -528,11 +530,11 @@ fn test_abstract_namespace_too_long() {
 }
 
 #[test_case]
-fn test_abstract_namespace_no_pathname_and_not_unnamed() {
-    let namespace = b"local";
-    let addr = or_panic!(SocketAddr::from_abstract_namespace(&namespace[..]));
+fn test_abstract_no_pathname_and_not_unnamed() {
+    let name = b"local";
+    let addr = or_panic!(SocketAddr::from_abstract_name(name));
     assert_eq!(addr.as_pathname(), None);
-    assert_eq!(addr.as_abstract_namespace(), Some(&namespace[..]));
+    assert_eq!(addr.as_abstract_name(), Some(&name[..]));
     assert_eq!(addr.is_unnamed(), false);
 }
 
@@ -671,7 +673,7 @@ fn test_send_vectored_with_ancillary_to_unix_datagram() {
     let path1 = dir.path().join("sock1");
     let path2 = dir.path().join("sock2");
 
-    let bsock1 = or_panic!(UnixDatagram::bind(&path1));
+    let bsock1 = or_panic!(UnixDatagram::bind(path1));
     let bsock2 = or_panic!(UnixDatagram::bind(&path2));
 
     or_panic!(bsock2.set_passcred(true));
@@ -725,7 +727,7 @@ fn test_send_vectored_with_ancillary_unix_datagram() {
     let path1 = dir.path().join("sock1");
     let path2 = dir.path().join("sock2");
 
-    let bsock1 = or_panic!(UnixDatagram::bind(&path1));
+    let bsock1 = or_panic!(UnixDatagram::bind(path1));
     let bsock2 = or_panic!(UnixDatagram::bind(&path2));
 
     let buf1 = [1; 8];

@@ -45,6 +45,7 @@ pub mod fs;
 #[cfg(feature = "backtrace")]
 pub mod gnu;
 pub mod io;
+pub mod lazy_box;
 pub mod memchr;
 pub mod mutex;
 pub mod once;
@@ -61,7 +62,8 @@ pub mod thread_info;
 pub mod thread_local_dtor;
 #[cfg(feature = "thread")]
 pub mod thread_local_key;
-pub mod thread_parker;
+pub mod thread_parking;
+pub mod wstr;
 pub mod wtf8;
 
 /// A trait for viewing representations from std types
@@ -86,6 +88,23 @@ pub trait IntoInner<Inner> {
 #[doc(hidden)]
 pub trait FromInner<Inner> {
     fn from_inner(inner: Inner) -> Self;
+}
+
+/// A trait for creating std types from internal representations
+#[doc(hidden)]
+pub trait TryFromInner<Inner>: Sized {
+    type Error;
+
+    fn try_from_inner(inner: Inner) -> Result<Self, Self::Error>;
+}
+
+/// A trait for creating std types from internal representations
+pub trait TryIntoInner<T>: Sized {
+    /// The type returned in the event of a conversion error.
+    type Error;
+
+    /// Performs the conversion.
+    fn try_into_inner(self) -> Result<T, Self::Error>;
 }
 
 /// Enqueues a procedure to run when the main thread exits.

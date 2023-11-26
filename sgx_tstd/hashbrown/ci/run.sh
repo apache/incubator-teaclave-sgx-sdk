@@ -9,12 +9,15 @@ if [ "${NO_STD}" = "1" ]; then
     FEATURES="rustc-internal-api"
     OP="build"
 else
-    FEATURES="rustc-internal-api,serde,rayon,raw,bumpalo"
+    FEATURES="rustc-internal-api,serde,rayon,raw"
     OP="test"
 fi
 if [ "${CHANNEL}" = "nightly" ]; then
     FEATURES="${FEATURES},nightly"
     export RUSTFLAGS="$RUSTFLAGS -D warnings"
+fi
+if [ "${CHANNEL}" = "1.63.0" ]; then
+    cargo update --package allocator-api2 --precise 0.2.9
 fi
 
 CARGO=cargo
@@ -22,7 +25,7 @@ if [ "${CROSS}" = "1" ]; then
     export CARGO_NET_RETRY=5
     export CARGO_NET_TIMEOUT=10
 
-    cargo install --git https://github.com/rust-embedded/cross.git
+    cargo install --locked cross
     CARGO=cross
 fi
 

@@ -115,7 +115,7 @@ impl<T> ReentrantMutex<T> {
             if self.owner.load(Relaxed) == this_thread {
                 self.increment_lock_count();
             } else {
-                self.mutex.raw_lock();
+                self.mutex.lock();
                 self.owner.store(this_thread, Relaxed);
                 debug_assert_eq!(*self.lock_count.get(), 0);
                 *self.lock_count.get() = 1;
@@ -177,7 +177,7 @@ impl<T> Drop for ReentrantMutexGuard<'_, T> {
             *self.lock.lock_count.get() -= 1;
             if *self.lock.lock_count.get() == 0 {
                 self.lock.owner.store(0, Relaxed);
-                self.lock.mutex.raw_unlock();
+                self.lock.mutex.unlock();
             }
         }
     }

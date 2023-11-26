@@ -25,7 +25,6 @@ use crate::cmp;
 use crate::collections::TryReserveError;
 use crate::fmt;
 use crate::hash::{Hash, Hasher};
-use crate::iter::Extend;
 use crate::ops;
 use crate::rc::Rc;
 use crate::str::FromStr;
@@ -130,9 +129,10 @@ impl crate::sealed::Sealed for OsString {}
 // FIXME:
 // `OsStr::from_inner` current implementation relies
 // on `OsStr` being layout-compatible with `Slice`.
-// When attribute privacy is implemented, `OsStr` should be annotated as `#[repr(transparent)]`.
-// Anyway, `OsStr` representation and layout are considered implementation details, are
-// not documented and must not be relied upon.
+// However, `OsStr` layout is considered an implementation detail and must not be relied upon. We
+// want `repr(transparent)` but we don't want it to show up in rustdoc, so we hide it under
+// `cfg(doc)`. This is an ad-hoc implementation of attribute privacy.
+#[cfg_attr(not(doc), repr(transparent))]
 pub struct OsStr {
     inner: Slice,
 }
@@ -156,6 +156,48 @@ impl OsString {
         OsString { inner: Buf::from_string(String::new()) }
     }
 
+    /// Converts bytes to an `OsString` without checking that the bytes contains
+    /// valid [`OsStr`]-encoded data.
+    ///
+    /// The byte encoding is an unspecified, platform-specific, self-synchronizing superset of UTF-8.
+    /// By being a self-synchronizing superset of UTF-8, this encoding is also a superset of 7-bit
+    /// ASCII.
+    ///
+    /// See the [module's toplevel documentation about conversions][conversions] for safe,
+    /// cross-platform [conversions] from/to native representations.
+    ///
+    /// # Safety
+    ///
+    /// As the encoding is unspecified, callers must pass in bytes that originated as a mixture of
+    /// validated UTF-8 and bytes from [`OsStr::as_encoded_bytes`] from within the same rust version
+    /// built for the same target platform.  For example, reconstructing an `OsString` from bytes sent
+    /// over the network or stored in a file will likely violate these safety rules.
+    ///
+    /// Due to the encoding being self-synchronizing, the bytes from [`OsStr::as_encoded_bytes`] can be
+    /// split either immediately before or immediately after any valid non-empty UTF-8 substring.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::ffi::OsStr;
+    ///
+    /// let os_str = OsStr::new("Mary had a little lamb");
+    /// let bytes = os_str.as_encoded_bytes();
+    /// let words = bytes.split(|b| *b == b' ');
+    /// let words: Vec<&OsStr> = words.map(|word| {
+    ///     // SAFETY:
+    ///     // - Each `word` only contains content that originated from `OsStr::as_encoded_bytes`
+    ///     // - Only split with ASCII whitespace which is a non-empty UTF-8 substring
+    ///     unsafe { OsStr::from_encoded_bytes_unchecked(word) }
+    /// }).collect();
+    /// ```
+    ///
+    /// [conversions]: super#conversions
+    #[inline]
+    pub unsafe fn from_encoded_bytes_unchecked(bytes: Vec<u8>) -> Self {
+        OsString { inner: Buf::from_encoded_bytes_unchecked(bytes) }
+    }
+
     /// Converts to an [`OsStr`] slice.
     ///
     /// # Examples
@@ -171,6 +213,25 @@ impl OsString {
     #[inline]
     pub fn as_os_str(&self) -> &OsStr {
         self
+    }
+
+    /// Converts the `OsString` into a byte slice.  To convert the byte slice back into an
+    /// `OsString`, use the [`OsStr::from_encoded_bytes_unchecked`] function.
+    ///
+    /// The byte encoding is an unspecified, platform-specific, self-synchronizing superset of UTF-8.
+    /// By being a self-synchronizing superset of UTF-8, this encoding is also a superset of 7-bit
+    /// ASCII.
+    ///
+    /// Note: As the encoding is unspecified, any sub-slice of bytes that is not valid UTF-8 should
+    /// be treated as opaque and only comparable within the same rust version built for the same
+    /// target platform.  For example, sending the bytes over the network or storing it in a file
+    /// will likely result in incompatible data.  See [`OsString`] for more encoding details
+    /// and [`std::ffi`] for platform-specific, specified conversions.
+    ///
+    /// [`std::ffi`]: crate::ffi
+    #[inline]
+    pub fn into_encoded_bytes(self) -> Vec<u8> {
+        self.inner.into_encoded_bytes()
     }
 
     /// Converts the `OsString` into a [`String`] if it contains valid Unicode data.
@@ -648,6 +709,48 @@ impl OsStr {
         s.as_ref()
     }
 
+    /// Converts a slice of bytes to an OS string slice without checking that the string contains
+    /// valid `OsStr`-encoded data.
+    ///
+    /// The byte encoding is an unspecified, platform-specific, self-synchronizing superset of UTF-8.
+    /// By being a self-synchronizing superset of UTF-8, this encoding is also a superset of 7-bit
+    /// ASCII.
+    ///
+    /// See the [module's toplevel documentation about conversions][conversions] for safe,
+    /// cross-platform [conversions] from/to native representations.
+    ///
+    /// # Safety
+    ///
+    /// As the encoding is unspecified, callers must pass in bytes that originated as a mixture of
+    /// validated UTF-8 and bytes from [`OsStr::as_encoded_bytes`] from within the same rust version
+    /// built for the same target platform.  For example, reconstructing an `OsStr` from bytes sent
+    /// over the network or stored in a file will likely violate these safety rules.
+    ///
+    /// Due to the encoding being self-synchronizing, the bytes from [`OsStr::as_encoded_bytes`] can be
+    /// split either immediately before or immediately after any valid non-empty UTF-8 substring.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::ffi::OsStr;
+    ///
+    /// let os_str = OsStr::new("Mary had a little lamb");
+    /// let bytes = os_str.as_encoded_bytes();
+    /// let words = bytes.split(|b| *b == b' ');
+    /// let words: Vec<&OsStr> = words.map(|word| {
+    ///     // SAFETY:
+    ///     // - Each `word` only contains content that originated from `OsStr::as_encoded_bytes`
+    ///     // - Only split with ASCII whitespace which is a non-empty UTF-8 substring
+    ///     unsafe { OsStr::from_encoded_bytes_unchecked(word) }
+    /// }).collect();
+    /// ```
+    ///
+    /// [conversions]: super#conversions
+    #[inline]
+    pub unsafe fn from_encoded_bytes_unchecked(bytes: &[u8]) -> &Self {
+        Self::from_inner(Slice::from_encoded_bytes_unchecked(bytes))
+    }
+
     #[inline]
     fn from_inner(inner: &Slice) -> &OsStr {
         // SAFETY: OsStr is just a wrapper of Slice,
@@ -680,7 +783,7 @@ impl OsStr {
                   without modifying the original"]
     #[inline]
     pub fn to_str(&self) -> Option<&str> {
-        self.inner.to_str()
+        self.inner.to_str().ok()
     }
 
     /// Converts an `OsStr` to a <code>[Cow]<[str]></code>.
@@ -812,13 +915,23 @@ impl OsStr {
         OsString { inner: Buf::from_box(boxed) }
     }
 
-    /// Gets the underlying byte representation.
+    /// Converts an OS string slice to a byte slice.  To convert the byte slice back into an OS
+    /// string slice, use the [`OsStr::from_encoded_bytes_unchecked`] function.
     ///
-    /// Note: it is *crucial* that this API is not externally public, to avoid
-    /// revealing the internal, platform-specific encodings.
+    /// The byte encoding is an unspecified, platform-specific, self-synchronizing superset of UTF-8.
+    /// By being a self-synchronizing superset of UTF-8, this encoding is also a superset of 7-bit
+    /// ASCII.
+    ///
+    /// Note: As the encoding is unspecified, any sub-slice of bytes that is not valid UTF-8 should
+    /// be treated as opaque and only comparable within the same rust version built for the same
+    /// target platform.  For example, sending the slice over the network or storing it in a file
+    /// will likely result in incompatible byte slices.  See [`OsString`] for more encoding details
+    /// and [`std::ffi`] for platform-specific, specified conversions.
+    ///
+    /// [`std::ffi`]: crate::ffi
     #[inline]
-    pub(crate) fn bytes(&self) -> &[u8] {
-        unsafe { &*(&self.inner as *const _ as *const [u8]) }
+    pub fn as_encoded_bytes(&self) -> &[u8] {
+        self.inner.as_encoded_bytes()
     }
 
     /// Converts this string to its ASCII lower case equivalent in-place.
@@ -1065,6 +1178,23 @@ impl<'a> From<Cow<'a, OsStr>> for OsString {
     }
 }
 
+impl<'a> TryFrom<&'a OsStr> for &'a str {
+    type Error = crate::str::Utf8Error;
+
+    /// Tries to convert an `&OsStr` to a `&str`.
+    ///
+    /// ```
+    /// use std::ffi::OsStr;
+    ///
+    /// let os_str = OsStr::new("foo");
+    /// let as_str = <&str>::try_from(os_str).unwrap();
+    /// assert_eq!(as_str, "foo");
+    /// ```
+    fn try_from(value: &'a OsStr) -> Result<Self, Self::Error> {
+        value.inner.to_str()
+    }
+}
+
 impl Default for Box<OsStr> {
     #[inline]
     fn default() -> Box<OsStr> {
@@ -1084,7 +1214,7 @@ impl Default for &OsStr {
 impl PartialEq for OsStr {
     #[inline]
     fn eq(&self, other: &OsStr) -> bool {
-        self.bytes().eq(other.bytes())
+        self.as_encoded_bytes().eq(other.as_encoded_bytes())
     }
 }
 
@@ -1107,23 +1237,23 @@ impl Eq for OsStr {}
 impl PartialOrd for OsStr {
     #[inline]
     fn partial_cmp(&self, other: &OsStr) -> Option<cmp::Ordering> {
-        self.bytes().partial_cmp(other.bytes())
+        self.as_encoded_bytes().partial_cmp(other.as_encoded_bytes())
     }
     #[inline]
     fn lt(&self, other: &OsStr) -> bool {
-        self.bytes().lt(other.bytes())
+        self.as_encoded_bytes().lt(other.as_encoded_bytes())
     }
     #[inline]
     fn le(&self, other: &OsStr) -> bool {
-        self.bytes().le(other.bytes())
+        self.as_encoded_bytes().le(other.as_encoded_bytes())
     }
     #[inline]
     fn gt(&self, other: &OsStr) -> bool {
-        self.bytes().gt(other.bytes())
+        self.as_encoded_bytes().gt(other.as_encoded_bytes())
     }
     #[inline]
     fn ge(&self, other: &OsStr) -> bool {
-        self.bytes().ge(other.bytes())
+        self.as_encoded_bytes().ge(other.as_encoded_bytes())
     }
 }
 
@@ -1140,7 +1270,7 @@ impl PartialOrd<str> for OsStr {
 impl Ord for OsStr {
     #[inline]
     fn cmp(&self, other: &OsStr) -> cmp::Ordering {
-        self.bytes().cmp(other.bytes())
+        self.as_encoded_bytes().cmp(other.as_encoded_bytes())
     }
 }
 
@@ -1185,7 +1315,7 @@ impl_cmp!(Cow<'a, OsStr>, OsString);
 impl Hash for OsStr {
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.bytes().hash(state)
+        self.as_encoded_bytes().hash(state)
     }
 }
 

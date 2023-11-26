@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::arch::{Enclu, Secinfo, Secs, Tcs};
+use crate::arch::{Enclu, SecInfo, Secs, Tcs};
 use crate::error::abort;
 use crate::se::{AlignKey, AlignKeyRequest, AlignReport, AlignReportData, AlignTargetInfo};
 use core::convert::TryFrom;
@@ -66,11 +66,11 @@ pub unsafe extern "C" fn se3(
             }
             Err(e) => e as usize,
         },
-        Enclu::EAccept => match EncluInst::eaccept(&*(rbx as *const Secinfo), rcx) {
+        Enclu::EAccept => match EncluInst::eaccept(&*(rbx as *const SecInfo), rcx) {
             Ok(_) => 0,
             Err(e) => e as usize,
         },
-        Enclu::EModpe => match EncluInst::emodpe(&*(rbx as *const Secinfo), rcx) {
+        Enclu::EModpe => match EncluInst::emodpe(&*(rbx as *const SecInfo), rcx) {
             Ok(_) => 0,
             Err(e) => e as usize,
         },

@@ -15,4 +15,6 @@
 // specific language governing permissions and limitations
 // under the License..
 
-pub use sgx_sync::{MovableMutex, StaticMutex, StaticMutexGuard};
+#[allow(unused_imports)]
+pub use sgx_sync::{StaticMutex, StaticMutexGuard};
+pub use sgx_sync::MovableMutex as Mutex;

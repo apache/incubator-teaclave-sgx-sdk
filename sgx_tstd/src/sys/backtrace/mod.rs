@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-pub use self::printing::{BacktraceFmt, BacktraceFrameFmt, PrintFmt};
+pub use self::printing::{BacktraceFmt, PrintFmt};
 /// Backtrace support built on libgcc with some extra OS-specific support
 ///
 /// Some methods of getting a backtrace:

@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-//! Linux and Android-specific definitions for socket options.
+//! Linux-specific networking functionality.
 
-pub use crate::os::net::tcp::TcpStreamExt;
+pub use crate::os::net::linux_ext::addr::SocketAddrExt;
+pub use crate::os::net::linux_ext::tcp::TcpStreamExt;

@@ -218,6 +218,7 @@ fn test_ceil() {
 
 #[test_case]
 fn test_round() {
+    assert_approx_eq!(2.5f64.round(), 3.0f64);
     assert_approx_eq!(1.0f64.round(), 1.0f64);
     assert_approx_eq!(1.3f64.round(), 1.0f64);
     assert_approx_eq!(1.5f64.round(), 2.0f64);
@@ -228,6 +229,21 @@ fn test_round() {
     assert_approx_eq!((-1.3f64).round(), -1.0f64);
     assert_approx_eq!((-1.5f64).round(), -2.0f64);
     assert_approx_eq!((-1.7f64).round(), -2.0f64);
+}
+
+#[test_case]
+fn test_round_ties_even() {
+    assert_approx_eq!(2.5f64.round_ties_even(), 2.0f64);
+    assert_approx_eq!(1.0f64.round_ties_even(), 1.0f64);
+    assert_approx_eq!(1.3f64.round_ties_even(), 1.0f64);
+    assert_approx_eq!(1.5f64.round_ties_even(), 2.0f64);
+    assert_approx_eq!(1.7f64.round_ties_even(), 2.0f64);
+    assert_approx_eq!(0.0f64.round_ties_even(), 0.0f64);
+    assert_approx_eq!((-0.0f64).round_ties_even(), -0.0f64);
+    assert_approx_eq!((-1.0f64).round_ties_even(), -1.0f64);
+    assert_approx_eq!((-1.3f64).round_ties_even(), -1.0f64);
+    assert_approx_eq!((-1.5f64).round_ties_even(), -2.0f64);
+    assert_approx_eq!((-1.7f64).round_ties_even(), -2.0f64);
 }
 
 #[test_case]
@@ -306,6 +322,17 @@ fn test_is_sign_negative() {
     assert!((1f64 / f64::NEG_INFINITY).is_sign_negative());
     assert!(!f64::NAN.is_sign_negative());
     assert!((-f64::NAN).is_sign_negative());
+}
+
+#[allow(unused_macros)]
+macro_rules! assert_f64_biteq {
+    ($left : expr, $right : expr) => {
+        let l: &f64 = &$left;
+        let r: &f64 = &$right;
+        let lb = l.to_bits();
+        let rb = r.to_bits();
+        assert_eq!(lb, rb, "float {} ({:#x}) is not equal to {} ({:#x})", *l, lb, *r, rb);
+    };
 }
 
 #[test_case]
@@ -518,6 +545,11 @@ fn test_asinh() {
     assert_approx_eq!((-2.0f64).asinh(), -1.443635475178810342493276740273105f64);
     // regression test for the catastrophic cancellation fixed in 72486
     assert_approx_eq!((-67452098.07139316f64).asinh(), -18.72007542627454439398548429400083);
+
+    // test for low accuracy from issue 104548
+    assert_approx_eq!(60.0f64, 60.0f64.sinh().asinh());
+    // mul needed for approximate comparison to be meaningful
+    assert_approx_eq!(1.0f64, 1e-15f64.sinh().asinh() * 1e15f64);
 }
 
 #[test_case]
@@ -533,6 +565,9 @@ fn test_acosh() {
     assert!(nan.acosh().is_nan());
     assert_approx_eq!(2.0f64.acosh(), 1.31695789692481670862504634730796844f64);
     assert_approx_eq!(3.0f64.acosh(), 1.76274717403908605046521864995958461f64);
+
+    // test for low accuracy from issue 104548
+    assert_approx_eq!(60.0f64, 60.0f64.cosh().acosh());
 }
 
 #[test_case]
@@ -552,6 +587,38 @@ fn test_atanh() {
     assert!(nan.atanh().is_nan());
     assert_approx_eq!(0.5f64.atanh(), 0.54930614433405484569762261846126285f64);
     assert_approx_eq!((-0.5f64).atanh(), -0.54930614433405484569762261846126285f64);
+}
+
+#[test_case]
+fn test_gamma() {
+    // precision can differ between platforms
+    assert_approx_eq!(1.0f64.gamma(), 1.0f64);
+    assert_approx_eq!(2.0f64.gamma(), 1.0f64);
+    assert_approx_eq!(3.0f64.gamma(), 2.0f64);
+    assert_approx_eq!(4.0f64.gamma(), 6.0f64);
+    assert_approx_eq!(5.0f64.gamma(), 24.0f64);
+    assert_approx_eq!(0.5f64.gamma(), consts::PI.sqrt());
+    assert_approx_eq!((-0.5f64).gamma(), -2.0 * consts::PI.sqrt());
+    assert_eq!(0.0f64.gamma(), f64::INFINITY);
+    assert_eq!((-0.0f64).gamma(), f64::NEG_INFINITY);
+    assert!((-1.0f64).gamma().is_nan());
+    assert!((-2.0f64).gamma().is_nan());
+    assert!(f64::NAN.gamma().is_nan());
+    assert!(f64::NEG_INFINITY.gamma().is_nan());
+    assert_eq!(f64::INFINITY.gamma(), f64::INFINITY);
+    assert_eq!(171.71f64.gamma(), f64::INFINITY);
+}
+
+#[test_case]
+fn test_ln_gamma() {
+    assert_approx_eq!(1.0f64.ln_gamma().0, 0.0f64);
+    assert_eq!(1.0f64.ln_gamma().1, 1);
+    assert_approx_eq!(2.0f64.ln_gamma().0, 0.0f64);
+    assert_eq!(2.0f64.ln_gamma().1, 1);
+    assert_approx_eq!(3.0f64.ln_gamma().0, 2.0f64.ln());
+    assert_eq!(3.0f64.ln_gamma().1, 1);
+    assert_approx_eq!((-0.5f64).ln_gamma().0, (2.0 * consts::PI.sqrt()).ln());
+    assert_eq!((-0.5f64).ln_gamma().1, -1);
 }
 
 #[test_case]

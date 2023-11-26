@@ -58,6 +58,8 @@ pub mod thread_local_key;
 pub mod time;
 pub mod unsupported;
 
+mod personality;
+
 // SAFETY: must be called only once during runtime initialization.
 // NOTE: this is not guaranteed to run, for example when Rust code is called externally.
 pub unsafe fn init(env: Vec<CString>, args: Vec<CString>) {
@@ -68,6 +70,11 @@ pub unsafe fn init(env: Vec<CString>, args: Vec<CString>) {
 // SAFETY: must be called only once during runtime cleanup.
 // NOTE: this is not guaranteed to run, for example when the program aborts.
 pub unsafe fn cleanup() {}
+
+#[inline]
+pub(crate) fn is_interrupted(errno: i32) -> bool {
+    errno == libc::EINTR
+}
 
 pub fn decode_error_kind(errno: i32) -> ErrorKind {
     use ErrorKind::*;
@@ -118,6 +125,8 @@ pub fn decode_error_kind(errno: i32) -> ErrorKind {
     }
 }
 
+pub type RawOsError = i32;
+
 #[doc(hidden)]
 pub trait IsMinusOne {
     fn is_minus_one(&self) -> bool;
@@ -164,7 +173,7 @@ where
 {
     loop {
         match cvt_ocall(f()) {
-            Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
+            Err(ref e) if e.is_interrupted() => {}
             other => return other,
         }
     }

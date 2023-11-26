@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#![allow(unused_imports)]
+
 mod atexit;
 mod entry;
 mod init;

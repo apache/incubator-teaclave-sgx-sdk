@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::arch::{Enclu, Secinfo};
+use crate::arch::{Enclu, SecInfo};
 use crate::call::MsbufInfo;
 use crate::error::abort;
 use crate::fence::lfence;
@@ -63,11 +63,11 @@ pub unsafe extern "C" fn se3(
             }
             Err(e) => e as usize,
         },
-        Enclu::EAccept => match EncluInst::eaccept(&*(rbx as *const Secinfo), rcx) {
+        Enclu::EAccept => match EncluInst::eaccept(&*(rbx as *const SecInfo), rcx) {
             Ok(_) => 0,
             Err(e) => e as usize,
         },
-        Enclu::EModpe => match EncluInst::emodpe(&*(rbx as *const Secinfo), rcx) {
+        Enclu::EModpe => match EncluInst::emodpe(&*(rbx as *const SecInfo), rcx) {
             Ok(_) => 0,
             Err(e) => e as usize,
         },

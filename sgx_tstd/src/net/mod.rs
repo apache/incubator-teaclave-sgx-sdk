@@ -39,7 +39,6 @@
 use crate::io::{self, ErrorKind};
 
 pub use self::ip_addr::{IpAddr, Ipv4Addr, Ipv6Addr, Ipv6MulticastScope};
-pub use self::parser::AddrParseError;
 pub use self::socket_addr::{SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 #[cfg(feature = "net")]
 pub use self::tcp::IntoIncoming;
@@ -47,10 +46,9 @@ pub use self::tcp::IntoIncoming;
 pub use self::tcp::{Incoming, TcpListener, TcpStream};
 #[cfg(feature = "net")]
 pub use self::udp::UdpSocket;
+pub use core::net::AddrParseError;
 
-mod display_buffer;
 mod ip_addr;
-mod parser;
 mod socket_addr;
 #[cfg(feature = "net")]
 mod tcp;

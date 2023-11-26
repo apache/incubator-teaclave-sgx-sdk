@@ -56,6 +56,12 @@ pub struct OnceState {
     pub(crate) inner: sys::OnceState,
 }
 
+pub(crate) enum ExclusiveState {
+    Incomplete,
+    Poisoned,
+    Complete,
+}
+
 /// Initialization value for static [`Once`] values.
 ///
 /// # Examples
@@ -90,7 +96,7 @@ impl Once {
     /// return).
     ///
     /// If the given closure recursively invokes `call_once` on the same [`Once`]
-    /// instance the exact behavior is not specified, allowed outcomes are
+    /// instance, the exact behavior is not specified: allowed outcomes are
     /// a panic or a deadlock.
     ///
     /// # Examples
@@ -124,7 +130,7 @@ impl Once {
     ///
     /// # Panics
     ///
-    /// The closure `f` will only be executed once if this is called
+    /// The closure `f` will only be executed once even if this is called
     /// concurrently amongst many threads. If that closure panics, however, then
     /// it will *poison* this [`Once`] instance, causing all future invocations of
     /// `call_once` to also panic.
@@ -249,6 +255,16 @@ impl Once {
     #[inline]
     pub fn is_completed(&self) -> bool {
         self.inner.is_completed()
+    }
+
+    /// Returns the current state of the `Once` instance.
+    ///
+    /// Since this takes a mutable reference, no initialization can currently
+    /// be running, so the state must be either "incomplete", "poisoned" or
+    /// "complete".
+    #[inline]
+    pub(crate) fn state(&mut self) -> ExclusiveState {
+        self.inner.state()
     }
 }
 

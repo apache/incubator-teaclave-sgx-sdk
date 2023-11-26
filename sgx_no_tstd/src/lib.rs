@@ -20,12 +20,13 @@
 #![feature(alloc_error_handler)]
 #![feature(lang_items)]
 
+#![allow(internal_features)]
+
 extern crate alloc as alloc_crate;
 
 extern crate sgx_alloc;
 extern crate sgx_trts;
 
-use core::alloc::Layout;
 use core::panic::PanicInfo;
 use core::sync::atomic::{AtomicPtr, Ordering};
 use core::{mem, ptr};

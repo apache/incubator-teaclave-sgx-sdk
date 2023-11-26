@@ -313,7 +313,7 @@ fn read_to_end() {
 
 #[test_case]
 fn test_slice_reader() {
-    let in_buf = vec![0, 1, 2, 3, 4, 5, 6, 7];
+    let in_buf = [0, 1, 2, 3, 4, 5, 6, 7];
     let reader = &mut &in_buf[..];
     let mut buf = [];
     assert_eq!(reader.read(&mut buf).unwrap(), 0);
@@ -335,7 +335,7 @@ fn test_slice_reader() {
 
 #[test_case]
 fn test_slice_reader_vectored() {
-    let in_buf = vec![0, 1, 2, 3, 4, 5, 6, 7];
+    let in_buf = [0, 1, 2, 3, 4, 5, 6, 7];
     let reader = &mut &in_buf[..];
     let mut buf = [];
     assert_eq!(reader.read_vectored(&mut [IoSliceMut::new(&mut buf)]).unwrap(), 0);
@@ -364,7 +364,7 @@ fn test_slice_reader_vectored() {
 
 #[test_case]
 fn test_read_exact() {
-    let in_buf = vec![0, 1, 2, 3, 4, 5, 6, 7];
+    let in_buf = [0, 1, 2, 3, 4, 5, 6, 7];
     let reader = &mut &in_buf[..];
     let mut buf = [];
     assert!(reader.read_exact(&mut buf).is_ok());
@@ -382,7 +382,7 @@ fn test_read_exact() {
 
 #[test_case]
 fn test_buf_reader() {
-    let in_buf = vec![0, 1, 2, 3, 4, 5, 6, 7];
+    let in_buf = [0, 1, 2, 3, 4, 5, 6, 7];
     let mut reader = Cursor::new(&in_buf[..]);
     let mut buf = [];
     assert_eq!(reader.read(&mut buf).unwrap(), 0);

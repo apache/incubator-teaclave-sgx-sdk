@@ -148,7 +148,7 @@ impl EcPrivateKey {
             sgx_calculate_ecdsa_priv_key(
                 hash_drg.as_ptr(),
                 hash_drg.len() as i32,
-                EcPrivateKey::NISTP256.as_ptr() as *const u8,
+                EcPrivateKey::NISTP256.as_ptr(),
                 32,
                 &mut key.0.key as *mut _ as *mut u8,
                 key.as_ref().len() as i32,

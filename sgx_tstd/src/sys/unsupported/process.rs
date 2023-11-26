@@ -21,6 +21,7 @@ use crate::fmt;
 use crate::io;
 use crate::marker::PhantomData;
 use crate::num::NonZeroI32;
+use crate::os::unix::io::BorrowedFd;
 use crate::path::Path;
 use crate::sys::fd::FileDesc;
 use crate::sys::fs::File;
@@ -56,6 +57,7 @@ pub enum Stdio {
     Null,
     MakePipe,
     Fd(FileDesc),
+    StaticFd(BorrowedFd<'static>),
 }
 
 impl Command {
@@ -118,11 +120,40 @@ impl Command {
     ) -> io::Result<(Process, StdioPipes)> {
         unsupported()
     }
+
+    pub fn output(&mut self) -> io::Result<(ExitStatus, Vec<u8>, Vec<u8>)> {
+        let (proc, pipes) = self.spawn(Stdio::MakePipe, false)?;
+        crate::sys_common::process::wait_with_output(proc, pipes)
+    }
 }
 
 impl From<AnonPipe> for Stdio {
     fn from(pipe: AnonPipe) -> Stdio {
         Stdio::Fd(pipe.into_inner())
+    }
+}
+
+#[cfg(feature = "stdio")]
+impl From<io::Stdout> for Stdio {
+    fn from(_: io::Stdout) -> Stdio {
+        // This ought really to be is Stdio::StaticFd(input_argument.as_fd()).
+        // But AsFd::as_fd takes its argument by reference, and yields
+        // a bounded lifetime, so it's no use here. There is no AsStaticFd.
+        //
+        // Additionally AsFd is only implemented for the *locked* versions.
+        // We don't want to lock them here.  (The implications of not locking
+        // are the same as those for process::Stdio::inherit().)
+        //
+        // Arguably the hypothetical AsStaticFd and AsFd<'static>
+        // should be implemented for io::Stdout, not just for StdoutLocked.
+        Stdio::StaticFd(unsafe { BorrowedFd::borrow_raw(libc::STDOUT_FILENO) })
+    }
+}
+
+#[cfg(feature = "stdio")]
+impl From<io::Stderr> for Stdio {
+    fn from(_: io::Stderr) -> Stdio {
+        Stdio::StaticFd(unsafe { BorrowedFd::borrow_raw(libc::STDERR_FILENO) })
     }
 }
 
@@ -142,7 +173,7 @@ impl fmt::Debug for Command {
 //
 // This is not actually an "exit status" in Unix terminology.  Rather, it is a "wait status".
 // See the discussion in comments and doc comments for `std::process::ExitStatus`.
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Default)]
 pub struct ExitStatus(c_int);
 
 impl fmt::Debug for ExitStatus {
@@ -291,13 +322,20 @@ impl ExitStatusError {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub struct ExitCode(bool);
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub struct ExitCode(u8);
+
+impl fmt::Debug for ExitCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("unix_exit_status").field(&self.0).finish()
+    }
+}
 
 impl ExitCode {
-    pub const SUCCESS: ExitCode = ExitCode(false);
-    pub const FAILURE: ExitCode = ExitCode(true);
+    pub const SUCCESS: ExitCode = ExitCode(libc::EXIT_SUCCESS as _);
+    pub const FAILURE: ExitCode = ExitCode(libc::EXIT_FAILURE as _);
 
+    #[inline]
     pub fn as_i32(&self) -> i32 {
         self.0 as i32
     }
@@ -305,10 +343,7 @@ impl ExitCode {
 
 impl From<u8> for ExitCode {
     fn from(code: u8) -> Self {
-        match code {
-            0 => Self::SUCCESS,
-            1..=255 => Self::FAILURE,
-        }
+        Self(code)
     }
 }
 

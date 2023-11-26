@@ -81,7 +81,10 @@ pub trait FromRawFd {
     ///
     /// # Safety
     ///
-    /// The `fd` passed in must be a valid and open file descriptor.
+    /// The `fd` passed in must be an [owned file descriptor][io-safety];
+    /// in particular, it must be open.
+    ///
+    /// [io-safety]: io#io-safety
     ///
     /// # Example
     ///
@@ -238,6 +241,13 @@ impl<'a> AsRawFd for io::StderrLock<'a> {
 /// # }
 /// ```
 impl<T: AsRawFd> AsRawFd for crate::sync::Arc<T> {
+    #[inline]
+    fn as_raw_fd(&self) -> RawFd {
+        (**self).as_raw_fd()
+    }
+}
+
+impl<T: AsRawFd> AsRawFd for crate::rc::Rc<T> {
     #[inline]
     fn as_raw_fd(&self) -> RawFd {
         (**self).as_raw_fd()

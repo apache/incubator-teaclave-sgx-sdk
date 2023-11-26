@@ -70,7 +70,7 @@ impl ExceptionList {
     }
 
     pub fn remove(&mut self, id: Handle) -> Option<ExceptionNode> {
-        self.list.drain_filter(|node| node.id() == id).next()
+        self.list.extract_if(|node| node.id() == id).next()
     }
 
     #[inline]

@@ -52,11 +52,7 @@ pub fn tsa<A: ToSocketAddrs>(a: A) -> Result<Vec<SocketAddr>, String> {
 // all want to use ports. This function figures out which workspace
 // it is running in and assigns a port range based on it.
 fn base_port() -> u16 {
-    let cwd = if cfg!(target_env = "sgx") {
-        String::from("sgx")
-    } else {
-        env::current_dir().unwrap().into_os_string().into_string().unwrap()
-    };
+    let cwd = String::from("sgx");
     let dirs = [
         "32-opt",
         "32-nopt",

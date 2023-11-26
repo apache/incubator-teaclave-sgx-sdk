@@ -53,7 +53,7 @@ pub(super) fn recv_vectored_with_ancillary_from(
         msg.msg_controllen = msghdr.control_len;
         msg.msg_flags = msghdr.flags.bits();
 
-        ancillary.length = msg.msg_controllen;
+        ancillary.length = msg.msg_controllen as usize;
         ancillary.truncated = msg.msg_flags & libc::MSG_CTRUNC == libc::MSG_CTRUNC;
 
         let truncated = msg.msg_flags & libc::MSG_TRUNC == libc::MSG_TRUNC;
@@ -98,7 +98,8 @@ fn add_to_ancillary_data<T>(
     cmsg_level: libc::c_int,
     cmsg_type: libc::c_int,
 ) -> bool {
-    let source_len = if let Some(source_len) = source.len().checked_mul(size_of::<T>()) {
+    let cmsg_size = source.len().checked_mul(size_of::<T>());
+    let source_len = if let Some(source_len) = cmsg_size {
         if let Ok(source_len) = u32::try_from(source_len) {
             source_len
         } else {
@@ -508,10 +509,10 @@ impl<'a> SocketAncillary<'a> {
 
     /// Add credentials to the ancillary data.
     ///
-    /// The function returns `true` if there was enough space in the buffer.
-    /// If there was not enough space then no credentials was appended.
+    /// The function returns `true` if there is enough space in the buffer.
+    /// If there is not enough space then no credentials will be appended.
     /// Technically, that means this operation adds a control message with the level `SOL_SOCKET`
-    /// and type `SCM_CREDENTIALS` or `SCM_CREDS`.
+    /// and type `SCM_CREDENTIALS`, `SCM_CREDS`, or `SCM_CREDS2`.
     ///
     pub fn add_creds(&mut self, creds: &[SocketCred]) -> bool {
         self.truncated = false;

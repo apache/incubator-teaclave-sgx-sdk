@@ -18,8 +18,7 @@
 use crate::fmt;
 use crate::time::Duration;
 
-pub use self::inner::Instant;
-
+use crate::sys::cvt_ocall;
 use sgx_oc as libc;
 
 const NSEC_PER_SEC: u64 = 1_000_000_000;
@@ -45,6 +44,10 @@ pub(in crate::sys) struct Timespec {
 impl SystemTime {
     pub fn new(tv_sec: i64, tv_nsec: i64) -> SystemTime {
         SystemTime { t: Timespec::new(tv_sec, tv_nsec) }
+    }
+
+    pub fn now() -> SystemTime {
+        SystemTime { t: Timespec::now(libc::CLOCK_REALTIME) }
     }
 
     pub fn sub_time(&self, other: &SystemTime) -> Result<Duration, Duration> {
@@ -86,6 +89,12 @@ impl Timespec {
         Timespec { tv_sec, tv_nsec: unsafe { Nanoseconds(tv_nsec as u32) } }
     }
 
+    pub fn now(clock: libc::clockid_t) -> Timespec {
+        let mut t = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+        cvt_ocall(unsafe { libc::ocall::clock_gettime(clock, &mut t) }).unwrap();
+        Timespec::from(t)
+    }
+
     pub fn sub_timespec(&self, other: &Timespec) -> Result<Duration, Duration> {
         if self >= other {
             // NOTE(eddyb) two aspects of this `if`-`else` are required for LLVM
@@ -120,11 +129,7 @@ impl Timespec {
     }
 
     pub fn checked_add_duration(&self, other: &Duration) -> Option<Timespec> {
-        let mut secs = other
-            .as_secs()
-            .try_into() // <- target type would be `i64`
-            .ok()
-            .and_then(|secs| self.tv_sec.checked_add(secs))?;
+        let mut secs = self.tv_sec.checked_add_unsigned(other.as_secs())?;
 
         // Nano calculations can't overflow because nanos are <1B which fit
         // in a u32.
@@ -133,15 +138,11 @@ impl Timespec {
             nsec -= NSEC_PER_SEC as u32;
             secs = secs.checked_add(1)?;
         }
-        Some(Timespec::new(secs, nsec as i64))
+        Some(Timespec::new(secs, nsec.into()))
     }
 
     pub fn checked_sub_duration(&self, other: &Duration) -> Option<Timespec> {
-        let mut secs = other
-            .as_secs()
-            .try_into() // <- target type would be `i64`
-            .ok()
-            .and_then(|secs| self.tv_sec.checked_sub(secs))?;
+        let mut secs = self.tv_sec.checked_sub_unsigned(other.as_secs())?;
 
         // Similar to above, nanos can't overflow.
         let mut nsec = self.tv_nsec.0 as i32 - other.subsec_nanos() as i32;
@@ -149,7 +150,7 @@ impl Timespec {
             nsec += NSEC_PER_SEC as i32;
             secs = secs.checked_sub(1)?;
         }
-        Some(Timespec::new(secs, nsec as i64))
+        Some(Timespec::new(secs, nsec.into()))
     }
 
     #[allow(dead_code)]
@@ -157,7 +158,7 @@ impl Timespec {
     pub fn to_timespec(&self) -> Option<libc::timespec> {
         Some(libc::timespec {
             tv_sec: self.tv_sec.try_into().ok()?,
-            tv_nsec: self.tv_nsec.0.try_into().ok()?,
+            tv_nsec: self.tv_nsec.0.into(),
         })
     }
 }
@@ -168,59 +169,34 @@ impl From<libc::timespec> for Timespec {
     }
 }
 
-mod inner {
-    use crate::fmt;
-    use crate::sys::cvt_ocall;
-    use crate::time::Duration;
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Instant {
+    t: Timespec,
+}
 
-    use super::libc;
-    use super::{SystemTime, Timespec};
-
-    #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct Instant {
-        t: Timespec,
+impl Instant {
+    pub fn now() -> Instant {
+        Instant { t: Timespec::now(libc::CLOCK_MONOTONIC) }
     }
 
-    impl Instant {
-        pub fn now() -> Instant {
-            Instant { t: Timespec::now(libc::CLOCK_MONOTONIC) }
-        }
-
-        pub fn checked_sub_instant(&self, other: &Instant) -> Option<Duration> {
-            self.t.sub_timespec(&other.t).ok()
-        }
-
-        pub fn checked_add_duration(&self, other: &Duration) -> Option<Instant> {
-            Some(Instant { t: self.t.checked_add_duration(other)? })
-        }
-
-        pub fn checked_sub_duration(&self, other: &Duration) -> Option<Instant> {
-            Some(Instant { t: self.t.checked_sub_duration(other)? })
-        }
+    pub fn checked_sub_instant(&self, other: &Instant) -> Option<Duration> {
+        self.t.sub_timespec(&other.t).ok()
     }
 
-    impl fmt::Debug for Instant {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            f.debug_struct("Instant")
-                .field("tv_sec", &self.t.tv_sec)
-                .field("tv_nsec", &self.t.tv_nsec.0)
-                .finish()
-        }
+    pub fn checked_add_duration(&self, other: &Duration) -> Option<Instant> {
+        Some(Instant { t: self.t.checked_add_duration(other)? })
     }
 
-    impl SystemTime {
-        pub fn now() -> SystemTime {
-            SystemTime { t: Timespec::now(libc::CLOCK_REALTIME) }
-        }
+    pub fn checked_sub_duration(&self, other: &Duration) -> Option<Instant> {
+        Some(Instant { t: self.t.checked_sub_duration(other)? })
     }
+}
 
-    pub type clock_t = libc::c_int;
-
-    impl Timespec {
-        pub fn now(clock: clock_t) -> Timespec {
-            let mut t = libc::timespec { tv_sec: 0, tv_nsec: 0 };
-            cvt_ocall(unsafe { libc::ocall::clock_gettime(clock, &mut t) }).unwrap();
-            Timespec::from(t)
-        }
+impl fmt::Debug for Instant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Instant")
+            .field("tv_sec", &self.t.tv_sec)
+            .field("tv_nsec", &self.t.tv_nsec.0)
+            .finish()
     }
 }

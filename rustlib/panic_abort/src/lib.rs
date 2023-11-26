@@ -7,6 +7,7 @@
 #![unstable(feature = "panic_abort", issue = "32837")]
 #![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
 #![panic_runtime]
+#![allow(internal_features)]
 #![allow(unused_features)]
 #![feature(core_intrinsics)]
 #![feature(panic_runtime)]
@@ -18,7 +19,7 @@
 extern crate sgx_trts;
 
 use core::any::Any;
-use core::panic::BoxMeUp;
+use core::panic::PanicPayload;
 
 /// # Safety
 #[rustc_std_internal_symbol]
@@ -30,14 +31,14 @@ pub unsafe extern "C" fn __rust_panic_cleanup(_: *mut u8) -> *mut (dyn Any + Sen
 /// # Safety
 // "Leak" the payload and shim to the relevant abort on the platform in question.
 #[rustc_std_internal_symbol]
-pub unsafe extern "C-unwind" fn __rust_start_panic(_payload: *mut &mut dyn BoxMeUp) -> u32 {
+pub unsafe fn __rust_start_panic(_payload: &mut dyn PanicPayload) -> u32 {
     sgx_trts::error::abort();
 }
 
 // This... is a bit of an oddity. The tl;dr; is that this is required to link
 // correctly, the longer explanation is below.
 //
-// Right now the binaries of libcore/libstd that we ship are all compiled with
+// Right now the binaries of core/std that we ship are all compiled with
 // `-C panic=unwind`. This is done to ensure that the binaries are maximally
 // compatible with as many situations as possible. The compiler, however,
 // requires a "personality function" for all functions compiled with `-C
@@ -57,7 +58,7 @@ pub unsafe extern "C-unwind" fn __rust_start_panic(_payload: *mut &mut dyn BoxMe
 // library just defines this symbol so there's at least some personality
 // somewhere.
 //
-// Essentially this symbol is just defined to get wired up to libcore/libstd
+// Essentially this symbol is just defined to get wired up to core/std
 // binaries, but it should never be called as we don't link in an unwinding
 // runtime at all.
 pub mod personalities {

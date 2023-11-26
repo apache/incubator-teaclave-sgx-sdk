@@ -21,7 +21,6 @@
 #![feature(error_in_core)]
 #![feature(const_extern_fn)]
 #![feature(negative_impls)]
-#![feature(nonnull_slice_from_raw_parts)]
 #![feature(ptr_internals)]
 #![feature(slice_index_methods)]
 #![allow(clippy::missing_safety_doc)]

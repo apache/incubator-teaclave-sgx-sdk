@@ -96,7 +96,7 @@ use crate::fmt;
 use crate::fs;
 use crate::hash::{Hash, Hasher};
 use crate::io;
-use crate::iter::{self, FusedIterator};
+use crate::iter::FusedIterator;
 use crate::ops::{self, Deref};
 use crate::rc::Rc;
 use crate::str::FromStr;
@@ -135,7 +135,7 @@ use crate::sys::path::{is_sep_byte, is_verbatim_sep, parse_prefix, MAIN_SEP_STR}
 /// use std::path::Prefix::*;
 /// use std::ffi::OsStr;
 ///
-/// fn get_path_prefix(s: &str) -> Prefix {
+/// fn get_path_prefix(s: &str) -> Prefix<'_> {
 ///     let path = Path::new(s);
 ///     match path.components().next().unwrap() {
 ///         Component::Prefix(prefix_component) => prefix_component.kind(),
@@ -199,7 +199,7 @@ impl<'a> Prefix<'a> {
     fn len(&self) -> usize {
         use self::Prefix::*;
         fn os_str_len(s: &OsStr) -> usize {
-            s.bytes().len()
+            s.as_encoded_bytes().len()
         }
         match *self {
             Verbatim(x) => 4 + os_str_len(x),
@@ -301,21 +301,6 @@ where
     }
 }
 
-unsafe fn u8_slice_as_os_str(s: &[u8]) -> &OsStr {
-    // SAFETY: See note at the top of this module to understand why this and
-    // `OsStr::bytes` are used:
-    //
-    // This casts are safe as OsStr is internally a wrapper around [u8] on all
-    // platforms.
-    //
-    // Note that currently this relies on the special knowledge that libstd has;
-    // these types are single-element structs but are not marked
-    // repr(transparent) or repr(C) which would make these casts not allowable
-    // outside std.
-    unsafe { &*(s as *const [u8] as *const OsStr) }
-}
-
-
 ////////////////////////////////////////////////////////////////////////////////
 // Cross-platform, iterator-independent parsing
 ////////////////////////////////////////////////////////////////////////////////
@@ -328,7 +313,7 @@ fn has_physical_root(s: &[u8], prefix: Option<Prefix<'_>>) -> bool {
 
 // basic workhorse for splitting stem and extension
 fn rsplit_file_at_dot(file: &OsStr) -> (Option<&OsStr>, Option<&OsStr>) {
-    if file.bytes() == b".." {
+    if file.as_encoded_bytes() == b".." {
         return (Some(file), None);
     }
 
@@ -336,18 +321,23 @@ fn rsplit_file_at_dot(file: &OsStr) -> (Option<&OsStr>, Option<&OsStr>) {
     // and back. This is safe to do because (1) we only look at ASCII
     // contents of the encoding and (2) new &OsStr values are produced
     // only from ASCII-bounded slices of existing &OsStr values.
-    let mut iter = file.bytes().rsplitn(2, |b| *b == b'.');
+    let mut iter = file.as_encoded_bytes().rsplitn(2, |b| *b == b'.');
     let after = iter.next();
     let before = iter.next();
     if before == Some(b"") {
         (Some(file), None)
     } else {
-        unsafe { (before.map(|s| u8_slice_as_os_str(s)), after.map(|s| u8_slice_as_os_str(s))) }
+        unsafe {
+            (
+                before.map(|s| OsStr::from_encoded_bytes_unchecked(s)),
+                after.map(|s| OsStr::from_encoded_bytes_unchecked(s)),
+            )
+        }
     }
 }
 
 fn split_file_at_dot(file: &OsStr) -> (&OsStr, Option<&OsStr>) {
-    let slice = file.bytes();
+    let slice = file.as_encoded_bytes();
     if slice == b".." {
         return (file, None);
     }
@@ -362,7 +352,12 @@ fn split_file_at_dot(file: &OsStr) -> (&OsStr, Option<&OsStr>) {
     };
     let before = &slice[..i];
     let after = &slice[i + 1..];
-    unsafe { (u8_slice_as_os_str(before), Some(u8_slice_as_os_str(after))) }
+    unsafe {
+        (
+            OsStr::from_encoded_bytes_unchecked(before),
+            Some(OsStr::from_encoded_bytes_unchecked(after)),
+        )
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -444,24 +439,24 @@ impl<'a> PrefixComponent<'a> {
     }
 }
 
-impl<'a> cmp::PartialEq for PrefixComponent<'a> {
+impl<'a> PartialEq for PrefixComponent<'a> {
     #[inline]
     fn eq(&self, other: &PrefixComponent<'a>) -> bool {
-        cmp::PartialEq::eq(&self.parsed, &other.parsed)
+        self.parsed == other.parsed
     }
 }
 
-impl<'a> cmp::PartialOrd for PrefixComponent<'a> {
+impl<'a> PartialOrd for PrefixComponent<'a> {
     #[inline]
     fn partial_cmp(&self, other: &PrefixComponent<'a>) -> Option<cmp::Ordering> {
-        cmp::PartialOrd::partial_cmp(&self.parsed, &other.parsed)
+        PartialOrd::partial_cmp(&self.parsed, &other.parsed)
     }
 }
 
-impl cmp::Ord for PrefixComponent<'_> {
+impl Ord for PrefixComponent<'_> {
     #[inline]
     fn cmp(&self, other: &Self) -> cmp::Ordering {
-        cmp::Ord::cmp(&self.parsed, &other.parsed)
+        Ord::cmp(&self.parsed, &other.parsed)
     }
 }
 
@@ -589,7 +584,7 @@ pub struct Components<'a> {
 
     // true if path *physically* has a root separator; for most Windows
     // prefixes, it may have a "logical" root separator for the purposes of
-    // normalization, e.g.,  \\server\share == \\server\share\.
+    // normalization, e.g., \\server\share == \\server\share\.
     has_physical_root: bool,
 
     // The iterator is double-ended, and these two states keep track of what has
@@ -712,8 +707,9 @@ impl<'a> Components<'a> {
         }
     }
 
-    // parse a given byte sequence into the corresponding path component
-    fn parse_single_component<'b>(&self, comp: &'b [u8]) -> Option<Component<'b>> {
+    // parse a given byte sequence following the OsStr encoding into the
+    // corresponding path component
+    unsafe fn parse_single_component<'b>(&self, comp: &'b [u8]) -> Option<Component<'b>> {
         match comp {
             b"." if self.prefix_verbatim() => Some(Component::CurDir),
             b"." => None, // . components are normalized away, except at
@@ -721,7 +717,7 @@ impl<'a> Components<'a> {
             // separately via `include_cur_dir`
             b".." => Some(Component::ParentDir),
             b"" => None,
-            _ => Some(Component::Normal(unsafe { u8_slice_as_os_str(comp) })),
+            _ => Some(Component::Normal(unsafe { OsStr::from_encoded_bytes_unchecked(comp) })),
         }
     }
 
@@ -733,7 +729,8 @@ impl<'a> Components<'a> {
             None => (0, self.path),
             Some(i) => (1, &self.path[..i]),
         };
-        (comp.len() + extra, self.parse_single_component(comp))
+        // SAFETY: `comp` is a valid substring, since it is split on a separator.
+        (comp.len() + extra, unsafe { self.parse_single_component(comp) })
     }
 
     // parse a component from the right, saying how many bytes to consume to
@@ -745,7 +742,8 @@ impl<'a> Components<'a> {
             None => (0, &self.path[start..]),
             Some(i) => (1, &self.path[start + i + 1..]),
         };
-        (comp.len() + extra, self.parse_single_component(comp))
+        // SAFETY: `comp` is a valid substring, since it is split on a separator.
+        (comp.len() + extra, unsafe { self.parse_single_component(comp) })
     }
 
     // trim away repeated separators (i.e., empty components) on the left
@@ -866,7 +864,7 @@ impl<'a> Iterator for Components<'a> {
                     let raw = &self.path[..self.prefix_len()];
                     self.path = &self.path[self.prefix_len()..];
                     return Some(Component::Prefix(PrefixComponent {
-                        raw: unsafe { u8_slice_as_os_str(raw) },
+                        raw: unsafe { OsStr::from_encoded_bytes_unchecked(raw) },
                         parsed: self.prefix.unwrap(),
                     }));
                 }
@@ -937,7 +935,7 @@ impl<'a> DoubleEndedIterator for Components<'a> {
                 State::Prefix if self.prefix_len() > 0 => {
                     self.back = State::Done;
                     return Some(Component::Prefix(PrefixComponent {
-                        raw: unsafe { u8_slice_as_os_str(self.path) },
+                        raw: unsafe { OsStr::from_encoded_bytes_unchecked(self.path) },
                         parsed: self.prefix.unwrap(),
                     }));
                 }
@@ -954,7 +952,7 @@ impl<'a> DoubleEndedIterator for Components<'a> {
 
 impl FusedIterator for Components<'_> {}
 
-impl<'a> cmp::PartialEq for Components<'a> {
+impl<'a> PartialEq for Components<'a> {
     #[inline]
     fn eq(&self, other: &Components<'a>) -> bool {
         let Components { path: _, front: _, back: _, has_physical_root: _, prefix: _ } = self;
@@ -980,16 +978,16 @@ impl<'a> cmp::PartialEq for Components<'a> {
     }
 }
 
-impl cmp::Eq for Components<'_> {}
+impl Eq for Components<'_> {}
 
-impl<'a> cmp::PartialOrd for Components<'a> {
+impl<'a> PartialOrd for Components<'a> {
     #[inline]
     fn partial_cmp(&self, other: &Components<'a>) -> Option<cmp::Ordering> {
         Some(compare_components(self.clone(), other.clone()))
     }
 }
 
-impl cmp::Ord for Components<'_> {
+impl Ord for Components<'_> {
     #[inline]
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         compare_components(self.clone(), other.clone())
@@ -1121,9 +1119,10 @@ impl FusedIterator for Ancestors<'_> {}
 // FIXME:
 // `PathBuf::as_mut_vec` current implementation relies
 // on `PathBuf` being layout-compatible with `Vec<u8>`.
-// When attribute privacy is implemented, `PathBuf` should be annotated as `#[repr(transparent)]`.
-// Anyway, `PathBuf` representation and layout are considered implementation detail, are
-// not documented and must not be relied upon.
+// However, `PathBuf` layout is considered an implementation detail and must not be relied upon. We
+// want `repr(transparent)` but we don't want it to show up in rustdoc, so we hide it under
+// `cfg(doc)`. This is an ad-hoc implementation of attribute privacy.
+#[cfg_attr(not(doc), repr(transparent))]
 pub struct PathBuf {
     inner: OsString,
 }
@@ -1185,7 +1184,6 @@ impl PathBuf {
     /// ```
     #[must_use]
     #[inline]
-    #[allow(clippy::ptr_arg)]
     pub fn as_path(&self) -> &Path {
         self
     }
@@ -1202,6 +1200,9 @@ impl PathBuf {
     /// * if `self` has a verbatim prefix (e.g. `\\?\C:\windows`)
     ///   and `path` is not empty, the new path is normalized: all references
     ///   to `.` and `..` are removed.
+    ///
+    /// Consider using [`Path::join`] if you need a new `PathBuf` instead of
+    /// using this function on a cloned `PathBuf`.
     ///
     /// # Examples
     ///
@@ -1347,11 +1348,16 @@ impl PathBuf {
     ///
     /// let mut buf = PathBuf::from("/");
     /// assert!(buf.file_name() == None);
-    /// buf.set_file_name("bar");
-    /// assert!(buf == PathBuf::from("/bar"));
+    ///
+    /// buf.set_file_name("foo.txt");
+    /// assert!(buf == PathBuf::from("/foo.txt"));
     /// assert!(buf.file_name().is_some());
-    /// buf.set_file_name("baz.txt");
-    /// assert!(buf == PathBuf::from("/baz.txt"));
+    ///
+    /// buf.set_file_name("bar.txt");
+    /// assert!(buf == PathBuf::from("/bar.txt"));
+    ///
+    /// buf.set_file_name("baz");
+    /// assert!(buf == PathBuf::from("/baz"));
     /// ```
     pub fn set_file_name<S: AsRef<OsStr>>(&mut self, file_name: S) {
         self._set_file_name(file_name.as_ref())
@@ -1365,13 +1371,28 @@ impl PathBuf {
         self.push(file_name);
     }
 
-    /// Updates [`self.extension`] to `extension`.
+    /// Updates [`self.extension`] to `Some(extension)` or to `None` if
+    /// `extension` is empty.
     ///
     /// Returns `false` and does nothing if [`self.file_name`] is [`None`],
     /// returns `true` and updates the extension otherwise.
     ///
     /// If [`self.extension`] is [`None`], the extension is added; otherwise
     /// it is replaced.
+    ///
+    /// If `extension` is the empty string, [`self.extension`] will be [`None`]
+    /// afterwards, not `Some("")`.
+    ///
+    /// # Caveats
+    ///
+    /// The new `extension` may contain dots and will be used in its entirety,
+    /// but only the part after the final dot will be reflected in
+    /// [`self.extension`].
+    ///
+    /// If the file stem contains internal dots and `extension` is empty, part
+    /// of the old file stem will be considered the new [`self.extension`].
+    ///
+    /// See the examples below.
     ///
     /// [`self.file_name`]: Path::file_name
     /// [`self.extension`]: Path::extension
@@ -1386,8 +1407,20 @@ impl PathBuf {
     /// p.set_extension("force");
     /// assert_eq!(Path::new("/feel/the.force"), p.as_path());
     ///
-    /// p.set_extension("dark_side");
-    /// assert_eq!(Path::new("/feel/the.dark_side"), p.as_path());
+    /// p.set_extension("dark.side");
+    /// assert_eq!(Path::new("/feel/the.dark.side"), p.as_path());
+    ///
+    /// p.set_extension("cookie");
+    /// assert_eq!(Path::new("/feel/the.dark.cookie"), p.as_path());
+    ///
+    /// p.set_extension("");
+    /// assert_eq!(Path::new("/feel/the.dark"), p.as_path());
+    ///
+    /// p.set_extension("");
+    /// assert_eq!(Path::new("/feel/the"), p.as_path());
+    ///
+    /// p.set_extension("");
+    /// assert_eq!(Path::new("/feel/the"), p.as_path());
     /// ```
     pub fn set_extension<S: AsRef<OsStr>>(&mut self, extension: S) -> bool {
         self._set_extension(extension.as_ref())
@@ -1396,17 +1429,17 @@ impl PathBuf {
     fn _set_extension(&mut self, extension: &OsStr) -> bool {
         let file_stem = match self.file_stem() {
             None => return false,
-            Some(f) => f.bytes(),
+            Some(f) => f.as_encoded_bytes(),
         };
 
         // truncate until right after the file stem
         let end_file_stem = file_stem[file_stem.len()..].as_ptr().addr();
-        let start = self.inner.bytes().as_ptr().addr();
+        let start = self.inner.as_encoded_bytes().as_ptr().addr();
         let v = self.as_mut_vec();
         v.truncate(end_file_stem.wrapping_sub(start));
 
         // add the new extension, if any
-        let new = extension.bytes();
+        let new = extension.as_encoded_bytes();
         if !new.is_empty() {
             v.reserve_exact(new.len() + 1);
             v.push(b'.');
@@ -1414,6 +1447,28 @@ impl PathBuf {
         }
 
         true
+    }
+
+    /// Yields a mutable reference to the underlying [`OsString`] instance.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::{Path, PathBuf};
+    ///
+    /// let mut path = PathBuf::from("/foo");
+    ///
+    /// path.push("bar");
+    /// assert_eq!(path, Path::new("/foo/bar"));
+    ///
+    /// // OsString's `push` does not add a separator.
+    /// path.as_mut_os_string().push("baz");
+    /// assert_eq!(path, Path::new("/foo/barbaz"));
+    /// ```
+    #[must_use]
+    #[inline]
+    pub fn as_mut_os_string(&mut self) -> &mut OsString {
+        &mut self.inner
     }
 
     /// Consumes the `PathBuf`, yielding its internal [`OsString`] storage.
@@ -1445,7 +1500,6 @@ impl PathBuf {
     /// [`capacity`]: OsString::capacity
     #[must_use]
     #[inline]
-    #[allow(clippy::ptr_arg)]
     pub fn capacity(&self) -> usize {
         self.inner.capacity()
     }
@@ -1620,7 +1674,7 @@ impl FromStr for PathBuf {
     }
 }
 
-impl<P: AsRef<Path>> iter::FromIterator<P> for PathBuf {
+impl<P: AsRef<Path>> FromIterator<P> for PathBuf {
     fn from_iter<I: IntoIterator<Item = P>>(iter: I) -> PathBuf {
         let mut buf = PathBuf::new();
         buf.extend(iter);
@@ -1628,7 +1682,7 @@ impl<P: AsRef<Path>> iter::FromIterator<P> for PathBuf {
     }
 }
 
-impl<P: AsRef<Path>> iter::Extend<P> for PathBuf {
+impl<P: AsRef<Path>> Extend<P> for PathBuf {
     fn extend<I: IntoIterator<Item = P>>(&mut self, iter: I) {
         iter.into_iter().for_each(move |p| self.push(p.as_ref()));
     }
@@ -1650,6 +1704,13 @@ impl ops::Deref for PathBuf {
     #[inline]
     fn deref(&self) -> &Path {
         Path::new(&self.inner)
+    }
+}
+
+impl ops::DerefMut for PathBuf {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Path {
+        Path::from_inner_mut(&mut self.inner)
     }
 }
 
@@ -1760,7 +1821,7 @@ impl ToOwned for Path {
     }
 }
 
-impl cmp::PartialEq for PathBuf {
+impl PartialEq for PathBuf {
     #[inline]
     fn eq(&self, other: &PathBuf) -> bool {
         self.components() == other.components()
@@ -1773,16 +1834,16 @@ impl Hash for PathBuf {
     }
 }
 
-impl cmp::Eq for PathBuf {}
+impl Eq for PathBuf {}
 
-impl cmp::PartialOrd for PathBuf {
+impl PartialOrd for PathBuf {
     #[inline]
     fn partial_cmp(&self, other: &PathBuf) -> Option<cmp::Ordering> {
         Some(compare_components(self.components(), other.components()))
     }
 }
 
-impl cmp::Ord for PathBuf {
+impl Ord for PathBuf {
     #[inline]
     fn cmp(&self, other: &PathBuf) -> cmp::Ordering {
         compare_components(self.components(), other.components())
@@ -1832,9 +1893,10 @@ impl AsRef<OsStr> for PathBuf {
 // FIXME:
 // `Path::new` current implementation relies
 // on `Path` being layout-compatible with `OsStr`.
-// When attribute privacy is implemented, `Path` should be annotated as `#[repr(transparent)]`.
-// Anyway, `Path` representation and layout are considered implementation detail, are
-// not documented and must not be relied upon.
+// However, `Path` layout is considered an implementation detail and must not be relied upon. We
+// want `repr(transparent)` but we don't want it to show up in rustdoc, so we hide it under
+// `cfg(doc)`. This is an ad-hoc implementation of attribute privacy.
+#[cfg_attr(not(doc), repr(transparent))]
 pub struct Path {
     inner: OsStr,
 }
@@ -1852,11 +1914,11 @@ impl Path {
     // The following (private!) function allows construction of a path from a u8
     // slice, which is only safe when it is known to follow the OsStr encoding.
     unsafe fn from_u8_slice(s: &[u8]) -> &Path {
-        Path::new(u8_slice_as_os_str(s))
+        unsafe { Path::new(OsStr::from_encoded_bytes_unchecked(s)) }
     }
     // The following (private!) function reveals the byte encoding used for OsStr.
     fn as_u8_slice(&self) -> &[u8] {
-        self.inner.bytes()
+        self.inner.as_encoded_bytes()
     }
 
     /// Directly wraps a string slice as a `Path` slice.
@@ -1885,6 +1947,12 @@ impl Path {
         unsafe { &*(s.as_ref() as *const OsStr as *const Path) }
     }
 
+    fn from_inner_mut(inner: &mut OsStr) -> &mut Path {
+        // SAFETY: Path is just a wrapper around OsStr,
+        // therefore converting &mut OsStr to &mut Path is safe.
+        unsafe { &mut *(inner as *mut OsStr as *mut Path) }
+    }
+
     /// Yields the underlying [`OsStr`] slice.
     ///
     /// # Examples
@@ -1899,6 +1967,26 @@ impl Path {
     #[inline]
     pub fn as_os_str(&self) -> &OsStr {
         &self.inner
+    }
+
+    /// Yields a mutable reference to the underlying [`OsStr`] slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::{Path, PathBuf};
+    ///
+    /// let mut path = PathBuf::from("Foo.TXT");
+    ///
+    /// assert_ne!(path, Path::new("foo.txt"));
+    ///
+    /// path.as_mut_os_str().make_ascii_lowercase();
+    /// assert_eq!(path, Path::new("foo.txt"));
+    /// ```
+    #[must_use]
+    #[inline]
+    pub fn as_mut_os_str(&mut self) -> &mut OsStr {
+        &mut self.inner
     }
 
     /// Yields a [`&str`] slice if the `Path` is valid unicode.
@@ -2039,7 +2127,10 @@ impl Path {
 
     /// Returns the `Path` without its final component, if there is one.
     ///
-    /// Returns [`None`] if the path terminates in a root or prefix.
+    /// This means it returns `Some("")` for relative paths with one component.
+    ///
+    /// Returns [`None`] if the path terminates in a root or prefix, or if it's
+    /// the empty string.
     ///
     /// # Examples
     ///
@@ -2053,6 +2144,14 @@ impl Path {
     /// let grand_parent = parent.parent().unwrap();
     /// assert_eq!(grand_parent, Path::new("/"));
     /// assert_eq!(grand_parent.parent(), None);
+    ///
+    /// let relative_path = Path::new("foo/bar");
+    /// let parent = relative_path.parent();
+    /// assert_eq!(parent, Some(Path::new("foo")));
+    /// let grand_parent = parent.and_then(Path::parent);
+    /// assert_eq!(grand_parent, Some(Path::new("")));
+    /// let great_grand_parent = grand_parent.and_then(Path::parent);
+    /// assert_eq!(great_grand_parent, None);
     /// ```
     #[must_use]
     pub fn parent(&self) -> Option<&Path> {
@@ -2096,7 +2195,7 @@ impl Path {
     /// [`parent`]: Path::parent
     #[inline]
     pub fn ancestors(&self) -> Ancestors<'_> {
-        Ancestors { next: Some(self) }
+        Ancestors { next: Some(&self) }
     }
 
     /// Returns the final component of the `Path`, if there is one.
@@ -2317,6 +2416,8 @@ impl Path {
 
     /// Creates an owned [`PathBuf`] with `path` adjoined to `self`.
     ///
+    /// If `path` is absolute, it replaces the current path.
+    ///
     /// See [`PathBuf::push`] for more details on what it means to adjoin a path.
     ///
     /// # Examples
@@ -2325,6 +2426,7 @@ impl Path {
     /// use std::path::{Path, PathBuf};
     ///
     /// assert_eq!(Path::new("/etc").join("passwd"), PathBuf::from("/etc/passwd"));
+    /// assert_eq!(Path::new("/etc").join("/bin/sh"), PathBuf::from("/bin/sh"));
     /// ```
     #[must_use]
     pub fn join<P: AsRef<Path>>(&self, path: P) -> PathBuf {
@@ -2346,7 +2448,8 @@ impl Path {
     /// ```
     /// use std::path::{Path, PathBuf};
     ///
-    /// let path = Path::new("/tmp/foo.txt");
+    /// let path = Path::new("/tmp/foo.png");
+    /// assert_eq!(path.with_file_name("bar"), PathBuf::from("/tmp/bar"));
     /// assert_eq!(path.with_file_name("bar.txt"), PathBuf::from("/tmp/bar.txt"));
     ///
     /// let path = Path::new("/tmp");
@@ -2385,9 +2488,27 @@ impl Path {
     }
 
     fn _with_extension(&self, extension: &OsStr) -> PathBuf {
-        let mut buf = self.to_path_buf();
-        buf.set_extension(extension);
-        buf
+        let self_len = self.as_os_str().len();
+        let self_bytes = self.as_os_str().as_encoded_bytes();
+
+        let (new_capacity, slice_to_copy) = match self.extension() {
+            None => {
+                // Enough capacity for the extension and the dot
+                let capacity = self_len + extension.len() + 1;
+                let whole_path = self_bytes.iter();
+                (capacity, whole_path)
+            }
+            Some(previous_extension) => {
+                let capacity = self_len + extension.len() - previous_extension.len();
+                let path_till_dot = self_bytes[..self_len - previous_extension.len()].iter();
+                (capacity, path_till_dot)
+            }
+        };
+
+        let mut new_path = PathBuf::with_capacity(new_capacity);
+        new_path.as_mut_vec().extend(slice_to_copy);
+        new_path.set_extension(extension);
+        new_path
     }
 
     /// Produces an iterator over the [`Component`]s of the path.
@@ -2465,6 +2586,7 @@ impl Path {
     /// escapes the path please use [`Debug`] instead.
     ///
     /// [`Display`]: fmt::Display
+    /// [`Debug`]: fmt::Debug
     ///
     /// # Examples
     ///
@@ -2621,9 +2743,11 @@ impl Path {
     /// This function will traverse symbolic links to query information about the
     /// destination file. In case of broken symbolic links this will return `Ok(false)`.
     ///
-    /// As opposed to the [`exists()`] method, this one doesn't silently ignore errors
-    /// unrelated to the path not existing. (E.g. it will return `Err(_)` in case of permission
-    /// denied on some of the parent directories.)
+    /// [`Path::exists()`] only checks whether or not a path was both found and readable. By
+    /// contrast, `try_exists` will return `Ok(true)` or `Ok(false)`, respectively, if the path
+    /// was _verified_ to exist or not exist. If its existence can neither be confirmed nor
+    /// denied, it will propagate an `Err(_)` instead. This can be the case if e.g. listing
+    /// permission is denied on one of the parent directories.
     ///
     /// Note that while this avoids some pitfalls of the `exists()` method, it still can not
     /// prevent time-of-check to time-of-use (TOCTOU) bugs. You should only use it in scenarios
@@ -2795,7 +2919,7 @@ impl fmt::Display for Display<'_> {
     }
 }
 
-impl cmp::PartialEq for Path {
+impl PartialEq for Path {
     #[inline]
     fn eq(&self, other: &Path) -> bool {
         self.components() == other.components()
@@ -2853,16 +2977,16 @@ impl Hash for Path {
     }
 }
 
-impl cmp::Eq for Path {}
+impl Eq for Path {}
 
-impl cmp::PartialOrd for Path {
+impl PartialOrd for Path {
     #[inline]
     fn partial_cmp(&self, other: &Path) -> Option<cmp::Ordering> {
         Some(compare_components(self.components(), other.components()))
     }
 }
 
-impl cmp::Ord for Path {
+impl Ord for Path {
     #[inline]
     fn cmp(&self, other: &Path) -> cmp::Ordering {
         compare_components(self.components(), other.components())
@@ -2937,29 +3061,29 @@ impl<'a> IntoIterator for &'a Path {
 }
 
 macro_rules! impl_cmp {
-    ($lhs:ty, $rhs: ty) => {
-        impl<'a, 'b> PartialEq<$rhs> for $lhs {
+    (<$($life:lifetime),*> $lhs:ty, $rhs: ty) => {
+        impl<$($life),*> PartialEq<$rhs> for $lhs {
             #[inline]
             fn eq(&self, other: &$rhs) -> bool {
                 <Path as PartialEq>::eq(self, other)
             }
         }
 
-        impl<'a, 'b> PartialEq<$lhs> for $rhs {
+        impl<$($life),*> PartialEq<$lhs> for $rhs {
             #[inline]
             fn eq(&self, other: &$lhs) -> bool {
                 <Path as PartialEq>::eq(self, other)
             }
         }
 
-        impl<'a, 'b> PartialOrd<$rhs> for $lhs {
+        impl<$($life),*> PartialOrd<$rhs> for $lhs {
             #[inline]
             fn partial_cmp(&self, other: &$rhs) -> Option<cmp::Ordering> {
                 <Path as PartialOrd>::partial_cmp(self, other)
             }
         }
 
-        impl<'a, 'b> PartialOrd<$lhs> for $rhs {
+        impl<$($life),*> PartialOrd<$lhs> for $rhs {
             #[inline]
             fn partial_cmp(&self, other: &$lhs) -> Option<cmp::Ordering> {
                 <Path as PartialOrd>::partial_cmp(self, other)
@@ -2968,36 +3092,36 @@ macro_rules! impl_cmp {
     };
 }
 
-impl_cmp!(PathBuf, Path);
-impl_cmp!(PathBuf, &'a Path);
-impl_cmp!(Cow<'a, Path>, Path);
-impl_cmp!(Cow<'a, Path>, &'b Path);
-impl_cmp!(Cow<'a, Path>, PathBuf);
+impl_cmp!(<> PathBuf, Path);
+impl_cmp!(<'a> PathBuf, &'a Path);
+impl_cmp!(<'a> Cow<'a, Path>, Path);
+impl_cmp!(<'a, 'b> Cow<'a, Path>, &'b Path);
+impl_cmp!(<'a> Cow<'a, Path>, PathBuf);
 
 macro_rules! impl_cmp_os_str {
-    ($lhs:ty, $rhs: ty) => {
-        impl<'a, 'b> PartialEq<$rhs> for $lhs {
+    (<$($life:lifetime),*> $lhs:ty, $rhs: ty) => {
+        impl<$($life),*> PartialEq<$rhs> for $lhs {
             #[inline]
             fn eq(&self, other: &$rhs) -> bool {
                 <Path as PartialEq>::eq(self, other.as_ref())
             }
         }
 
-        impl<'a, 'b> PartialEq<$lhs> for $rhs {
+        impl<$($life),*> PartialEq<$lhs> for $rhs {
             #[inline]
             fn eq(&self, other: &$lhs) -> bool {
                 <Path as PartialEq>::eq(self.as_ref(), other)
             }
         }
 
-        impl<'a, 'b> PartialOrd<$rhs> for $lhs {
+        impl<$($life),*> PartialOrd<$rhs> for $lhs {
             #[inline]
             fn partial_cmp(&self, other: &$rhs) -> Option<cmp::Ordering> {
                 <Path as PartialOrd>::partial_cmp(self, other.as_ref())
             }
         }
 
-        impl<'a, 'b> PartialOrd<$lhs> for $rhs {
+        impl<$($life),*> PartialOrd<$lhs> for $rhs {
             #[inline]
             fn partial_cmp(&self, other: &$lhs) -> Option<cmp::Ordering> {
                 <Path as PartialOrd>::partial_cmp(self.as_ref(), other)
@@ -3006,20 +3130,20 @@ macro_rules! impl_cmp_os_str {
     };
 }
 
-impl_cmp_os_str!(PathBuf, OsStr);
-impl_cmp_os_str!(PathBuf, &'a OsStr);
-impl_cmp_os_str!(PathBuf, Cow<'a, OsStr>);
-impl_cmp_os_str!(PathBuf, OsString);
-impl_cmp_os_str!(Path, OsStr);
-impl_cmp_os_str!(Path, &'a OsStr);
-impl_cmp_os_str!(Path, Cow<'a, OsStr>);
-impl_cmp_os_str!(Path, OsString);
-impl_cmp_os_str!(&'a Path, OsStr);
-impl_cmp_os_str!(&'a Path, Cow<'b, OsStr>);
-impl_cmp_os_str!(&'a Path, OsString);
-impl_cmp_os_str!(Cow<'a, Path>, OsStr);
-impl_cmp_os_str!(Cow<'a, Path>, &'b OsStr);
-impl_cmp_os_str!(Cow<'a, Path>, OsString);
+impl_cmp_os_str!(<> PathBuf, OsStr);
+impl_cmp_os_str!(<'a> PathBuf, &'a OsStr);
+impl_cmp_os_str!(<'a> PathBuf, Cow<'a, OsStr>);
+impl_cmp_os_str!(<> PathBuf, OsString);
+impl_cmp_os_str!(<> Path, OsStr);
+impl_cmp_os_str!(<'a> Path, &'a OsStr);
+impl_cmp_os_str!(<'a> Path, Cow<'a, OsStr>);
+impl_cmp_os_str!(<> Path, OsString);
+impl_cmp_os_str!(<'a> &'a Path, OsStr);
+impl_cmp_os_str!(<'a, 'b> &'a Path, Cow<'b, OsStr>);
+impl_cmp_os_str!(<'a> &'a Path, OsString);
+impl_cmp_os_str!(<'a> Cow<'a, Path>, OsStr);
+impl_cmp_os_str!(<'a, 'b> Cow<'a, Path>, &'b OsStr);
+impl_cmp_os_str!(<'a> Cow<'a, Path>, OsString);
 
 impl fmt::Display for StripPrefixError {
     #[allow(deprecated, deprecated_in_future)]

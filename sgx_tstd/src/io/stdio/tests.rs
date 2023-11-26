@@ -17,7 +17,6 @@
 
 use super::*;
 use crate::panic::{RefUnwindSafe, UnwindSafe};
-use crate::sync::Arc;
 use crate::sync::mpsc::sync_channel;
 use crate::thread;
 

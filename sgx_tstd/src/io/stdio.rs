@@ -23,11 +23,10 @@ use crate::io::prelude::*;
 use crate::cell::{Cell, RefCell};
 use crate::fmt;
 use crate::fs::File;
-use crate::io::{self, BufReader, IoSlice, IoSliceMut, LineWriter, Lines};
+use crate::io::{self, BorrowedCursor, BufReader, IoSlice, IoSliceMut, LineWriter, Lines};
 use crate::sync::atomic::{AtomicBool, Ordering};
-use crate::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use crate::sync::{Arc, Mutex, MutexGuard, OnceLock, ReentrantMutex, ReentrantMutexGuard};
 use crate::sys::stdio;
-use crate::sys_common::remutex::{ReentrantMutex, ReentrantMutexGuard};
 
 type LocalStream = Arc<Mutex<Vec<u8>>>;
 
@@ -108,6 +107,10 @@ const fn stderr_raw() -> StderrRaw {
 impl Read for StdinRaw {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         handle_ebadf(self.0.read(buf), 0)
+    }
+
+    fn read_buf(&mut self, buf: BorrowedCursor<'_>) -> io::Result<()> {
+        handle_ebadf(self.0.read_buf(buf), ())
     }
 
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
@@ -423,6 +426,9 @@ impl Read for Stdin {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.lock().read(buf)
     }
+    fn read_buf(&mut self, buf: BorrowedCursor<'_>) -> io::Result<()> {
+        self.lock().read_buf(buf)
+    }
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         self.lock().read_vectored(bufs)
     }
@@ -451,6 +457,10 @@ impl StdinLock<'_> {
 impl Read for StdinLock<'_> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
+    }
+
+    fn read_buf(&mut self, buf: BorrowedCursor<'_>) -> io::Result<()> {
+        self.inner.read_buf(buf)
     }
 
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
@@ -1018,11 +1028,30 @@ pub(crate) fn attempt_print_to_stderr(args: fmt::Arguments<'_>) {
     let _ = stderr().write_fmt(args);
 }
 
+/// Trait to determine if a descriptor/handle refers to a terminal/tty.
+pub trait IsTerminal: crate::sealed::Sealed {
+    /// Returns `true` if the descriptor/handle refers to a terminal/tty.
+    ///
+    /// On platforms where Rust does not know how to detect a terminal yet, this will return
+    /// `false`. This will also return `false` if an unexpected error occurred, such as from
+    /// passing an invalid file descriptor.
+    ///
+    /// # Platform-specific behavior
+    ///
+    /// On Windows, in addition to detecting consoles, this currently uses some heuristics to
+    /// detect older msys/cygwin/mingw pseudo-terminals based on device name: devices with names
+    /// starting with `msys-` or `cygwin-` and ending in `-pty` will be considered terminals.
+    /// Note that this [may change in the future][changes].
+    ///
+    /// [changes]: io#platform-specific-behavior
+    fn is_terminal(&self) -> bool;
+}
+
 macro_rules! impl_is_terminal {
     ($($t:ty),*$(,)?) => {$(
         impl crate::sealed::Sealed for $t {}
 
-        impl crate::io::IsTerminal for $t {
+        impl IsTerminal for $t {
             #[inline]
             fn is_terminal(&self) -> bool {
                 crate::sys::io::is_terminal(self)

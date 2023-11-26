@@ -20,12 +20,14 @@
 
 use crate::io::prelude::*;
 
-use crate::fs::{self, File, OpenOptions};
-use crate::io::{ErrorKind, SeekFrom};
+use crate::fs::{self, File, FileTimes, OpenOptions};
+use crate::io::{BorrowedBuf, ErrorKind, SeekFrom};
+use crate::mem::MaybeUninit;
 use crate::path::Path;
 use crate::str;
 use crate::sys_common::io::test::{tmpdir, TempDir};
 use crate::thread;
+use crate::time::{Duration, SystemTime};
 use sgx_trts::rand::Rng;
 
 use crate::os::unix::fs::symlink as symlink_dir;
@@ -312,6 +314,23 @@ fn set_get_unix_permissions() {
 }
 
 #[test_case]
+fn file_test_read_buf() {
+    let tmpdir = tmpdir();
+    let filename = &tmpdir.join("test");
+    check!(fs::write(filename, [1, 2, 3, 4]));
+
+    let mut buf: [MaybeUninit<u8>; 128] = MaybeUninit::uninit_array();
+    let mut buf = BorrowedBuf::from(buf.as_mut_slice());
+    let mut file = check!(File::open(filename));
+    check!(file.read_buf(buf.unfilled()));
+    assert_eq!(buf.filled(), &[1, 2, 3, 4]);
+    // File::read_buf should omit buffer initialization.
+    assert_eq!(buf.init_len(), 4);
+
+    check!(fs::remove_file(filename));
+}
+
+#[test_case]
 fn file_test_stat_is_correct_on_is_file() {
     let tmpdir = tmpdir();
     let filename = &tmpdir.join("file_stat_correct_on_is_file.txt");
@@ -456,7 +475,7 @@ fn concurrent_recursive_mkdir() {
         for _ in 0..8 {
             let dir = dir.clone();
             join.push(thread::spawn(move || {
-                check!(fs::create_dir_all(&dir));
+                check!(fs::create_dir_all(dir));
             }))
         }
 
@@ -488,11 +507,11 @@ fn recursive_rmdir() {
     let dtt = dt.join("t");
     let d2 = tmpdir.join("d2");
     let canary = d2.join("do_not_delete");
-    check!(fs::create_dir_all(&dtt));
+    check!(fs::create_dir_all(dtt));
     check!(fs::create_dir_all(&d2));
     check!(check!(File::create(&canary)).write(b"foo"));
-    check!(symlink_junction(&d2, &dt.join("d2")));
-    let _ = symlink_file(&canary, &d1.join("canary"));
+    check!(symlink_junction(&d2, dt.join("d2")));
+    let _ = symlink_file(&canary, d1.join("canary"));
     check!(fs::remove_dir_all(&d1));
 
     assert!(!d1.is_dir());
@@ -564,7 +583,7 @@ fn copy_file_does_not_exist() {
     let from = Path::new("test/nonexistent-bogus-path");
     let to = Path::new("test/other-bogus-path");
 
-    match fs::copy(&from, &to) {
+    match fs::copy(from, to) {
         Ok(..) => panic!(),
         Err(..) => {
             assert!(!from.exists());
@@ -579,7 +598,7 @@ fn copy_src_does_not_exist() {
     let from = Path::new("test/nonexistent-bogus-path");
     let to = tmpdir.join("out.txt");
     check!(check!(File::create(&to)).write(b"hello"));
-    assert!(fs::copy(&from, &to).is_err());
+    assert!(fs::copy(from, &to).is_err());
     assert!(!from.exists());
     let mut v = Vec::new();
     check!(check!(File::open(&to)).read_to_end(&mut v));
@@ -718,8 +737,8 @@ fn symlink_noexist() {
 
     // Use a relative path for testing. Symlinks get normalized by Windows,
     // so we might not get the same path back for absolute paths
-    check!(symlink_file(&"foo", &tmpdir.join("bar")));
-    assert_eq!(check!(fs::read_link(&tmpdir.join("bar"))).to_str().unwrap(), "foo");
+    check!(symlink_file("foo", tmpdir.join("bar")));
+    assert_eq!(check!(fs::read_link(tmpdir.join("bar"))).to_str().unwrap(), "foo");
 }
 
 #[test_case]
@@ -729,7 +748,7 @@ fn read_link() {
     if !got_symlink_permission(&tmpdir) {
         return;
     };
-    check!(symlink_file(&"foo", &link));
+    check!(symlink_file("foo", &link));
     assert_eq!(check!(fs::read_link(&link)).to_str().unwrap(), "foo");
 }
 
@@ -762,7 +781,7 @@ fn links_work() {
         Err(..) => {}
     }
     // can't link to something that doesn't exist
-    match fs::hard_link(&tmpdir.join("foo"), &tmpdir.join("bar")) {
+    match fs::hard_link(tmpdir.join("foo"), tmpdir.join("bar")) {
         Ok(..) => panic!("wanted a failure"),
         Err(..) => {}
     }
@@ -782,7 +801,7 @@ fn chmod_works() {
     let attr = check!(fs::metadata(&file));
     assert!(attr.permissions().readonly());
 
-    match fs::set_permissions(&tmpdir.join("foo"), p.clone()) {
+    match fs::set_permissions(tmpdir.join("foo"), p.clone()) {
         Ok(..) => panic!("wanted an error"),
         Err(..) => {}
     }
@@ -814,7 +833,7 @@ fn sync_doesnt_kill_anything() {
     let tmpdir = tmpdir();
     let path = tmpdir.join("in.txt");
 
-    let mut file = check!(File::create(&path));
+    let mut file = check!(File::create(path));
     check!(file.sync_all());
     check!(file.sync_data());
     check!(file.write(b"foo"));
@@ -892,61 +911,61 @@ fn open_flavors() {
     // tested in reverse order, so 'create_new' creates the file, and 'open existing' opens it.
 
     // write-only
-    check!(c(&w).create_new(true).open(&tmpdir.join("a")));
-    check!(c(&w).create(true).truncate(true).open(&tmpdir.join("a")));
-    check!(c(&w).truncate(true).open(&tmpdir.join("a")));
-    check!(c(&w).create(true).open(&tmpdir.join("a")));
-    check!(c(&w).open(&tmpdir.join("a")));
+    check!(c(&w).create_new(true).open(tmpdir.join("a")));
+    check!(c(&w).create(true).truncate(true).open(tmpdir.join("a")));
+    check!(c(&w).truncate(true).open(tmpdir.join("a")));
+    check!(c(&w).create(true).open(tmpdir.join("a")));
+    check!(c(&w).open(tmpdir.join("a")));
 
     // read-only
-    error!(c(&r).create_new(true).open(&tmpdir.join("b")), invalid_options);
-    error!(c(&r).create(true).truncate(true).open(&tmpdir.join("b")), invalid_options);
-    error!(c(&r).truncate(true).open(&tmpdir.join("b")), invalid_options);
-    error!(c(&r).create(true).open(&tmpdir.join("b")), invalid_options);
-    check!(c(&r).open(&tmpdir.join("a"))); // try opening the file created with write_only
+    error!(c(&r).create_new(true).open(tmpdir.join("b")), invalid_options);
+    error!(c(&r).create(true).truncate(true).open(tmpdir.join("b")), invalid_options);
+    error!(c(&r).truncate(true).open(tmpdir.join("b")), invalid_options);
+    error!(c(&r).create(true).open(tmpdir.join("b")), invalid_options);
+    check!(c(&r).open(tmpdir.join("a"))); // try opening the file created with write_only
 
     // read-write
-    check!(c(&rw).create_new(true).open(&tmpdir.join("c")));
-    check!(c(&rw).create(true).truncate(true).open(&tmpdir.join("c")));
-    check!(c(&rw).truncate(true).open(&tmpdir.join("c")));
-    check!(c(&rw).create(true).open(&tmpdir.join("c")));
-    check!(c(&rw).open(&tmpdir.join("c")));
+    check!(c(&rw).create_new(true).open(tmpdir.join("c")));
+    check!(c(&rw).create(true).truncate(true).open(tmpdir.join("c")));
+    check!(c(&rw).truncate(true).open(tmpdir.join("c")));
+    check!(c(&rw).create(true).open(tmpdir.join("c")));
+    check!(c(&rw).open(tmpdir.join("c")));
 
     // append
-    check!(c(&a).create_new(true).open(&tmpdir.join("d")));
-    error!(c(&a).create(true).truncate(true).open(&tmpdir.join("d")), invalid_options);
-    error!(c(&a).truncate(true).open(&tmpdir.join("d")), invalid_options);
-    check!(c(&a).create(true).open(&tmpdir.join("d")));
-    check!(c(&a).open(&tmpdir.join("d")));
+    check!(c(&a).create_new(true).open(tmpdir.join("d")));
+    error!(c(&a).create(true).truncate(true).open(tmpdir.join("d")), invalid_options);
+    error!(c(&a).truncate(true).open(tmpdir.join("d")), invalid_options);
+    check!(c(&a).create(true).open(tmpdir.join("d")));
+    check!(c(&a).open(tmpdir.join("d")));
 
     // read-append
-    check!(c(&ra).create_new(true).open(&tmpdir.join("e")));
-    error!(c(&ra).create(true).truncate(true).open(&tmpdir.join("e")), invalid_options);
-    error!(c(&ra).truncate(true).open(&tmpdir.join("e")), invalid_options);
-    check!(c(&ra).create(true).open(&tmpdir.join("e")));
-    check!(c(&ra).open(&tmpdir.join("e")));
+    check!(c(&ra).create_new(true).open(tmpdir.join("e")));
+    error!(c(&ra).create(true).truncate(true).open(tmpdir.join("e")), invalid_options);
+    error!(c(&ra).truncate(true).open(tmpdir.join("e")), invalid_options);
+    check!(c(&ra).create(true).open(tmpdir.join("e")));
+    check!(c(&ra).open(tmpdir.join("e")));
 
     // Test opening a file without setting an access mode
     let mut blank = OO::new();
-    error!(blank.create(true).open(&tmpdir.join("f")), invalid_options);
+    error!(blank.create(true).open(tmpdir.join("f")), invalid_options);
 
     // Test write works
-    check!(check!(File::create(&tmpdir.join("h"))).write("foobar".as_bytes()));
+    check!(check!(File::create(tmpdir.join("h"))).write("foobar".as_bytes()));
 
     // Test write fails for read-only
-    check!(r.open(&tmpdir.join("h")));
+    check!(r.open(tmpdir.join("h")));
     {
-        let mut f = check!(r.open(&tmpdir.join("h")));
+        let mut f = check!(r.open(tmpdir.join("h")));
         assert!(f.write("wut".as_bytes()).is_err());
     }
 
     // Test write overwrites
     {
-        let mut f = check!(c(&w).open(&tmpdir.join("h")));
+        let mut f = check!(c(&w).open(tmpdir.join("h")));
         check!(f.write("baz".as_bytes()));
     }
     {
-        let mut f = check!(c(&r).open(&tmpdir.join("h")));
+        let mut f = check!(c(&r).open(tmpdir.join("h")));
         let mut b = vec![0; 6];
         check!(f.read(&mut b));
         assert_eq!(b, "bazbar".as_bytes());
@@ -954,25 +973,25 @@ fn open_flavors() {
 
     // Test truncate works
     {
-        let mut f = check!(c(&w).truncate(true).open(&tmpdir.join("h")));
+        let mut f = check!(c(&w).truncate(true).open(tmpdir.join("h")));
         check!(f.write("foo".as_bytes()));
     }
-    assert_eq!(check!(fs::metadata(&tmpdir.join("h"))).len(), 3);
+    assert_eq!(check!(fs::metadata(tmpdir.join("h"))).len(), 3);
 
     // Test append works
-    assert_eq!(check!(fs::metadata(&tmpdir.join("h"))).len(), 3);
+    assert_eq!(check!(fs::metadata(tmpdir.join("h"))).len(), 3);
     {
-        let mut f = check!(c(&a).open(&tmpdir.join("h")));
+        let mut f = check!(c(&a).open(tmpdir.join("h")));
         check!(f.write("bar".as_bytes()));
     }
-    assert_eq!(check!(fs::metadata(&tmpdir.join("h"))).len(), 6);
+    assert_eq!(check!(fs::metadata(tmpdir.join("h"))).len(), 6);
 
     // Test .append(true) equals .write(true).append(true)
     {
-        let mut f = check!(c(&w).append(true).open(&tmpdir.join("h")));
+        let mut f = check!(c(&w).append(true).open(tmpdir.join("h")));
         check!(f.write("baz".as_bytes()));
     }
-    assert_eq!(check!(fs::metadata(&tmpdir.join("h"))).len(), 9);
+    assert_eq!(check!(fs::metadata(tmpdir.join("h"))).len(), 9);
 }
 
 #[test_case]
@@ -989,9 +1008,9 @@ fn binary_file() {
 
     let tmpdir = tmpdir();
 
-    check!(check!(File::create(&tmpdir.join("test"))).write(&bytes));
+    check!(check!(File::create(tmpdir.join("test"))).write(&bytes));
     let mut v = Vec::new();
-    check!(check!(File::open(&tmpdir.join("test"))).read_to_end(&mut v));
+    check!(check!(File::open(tmpdir.join("test"))).read_to_end(&mut v));
     assert!(v == &bytes[..]);
 }
 
@@ -1003,19 +1022,19 @@ fn write_then_read() {
 
     let tmpdir = tmpdir();
 
-    check!(fs::write(&tmpdir.join("test"), &bytes[..]));
-    let v = check!(fs::read(&tmpdir.join("test")));
+    check!(fs::write(tmpdir.join("test"), &bytes[..]));
+    let v = check!(fs::read(tmpdir.join("test")));
     assert!(v == &bytes[..]);
 
-    check!(fs::write(&tmpdir.join("not-utf8"), &[0xFF]));
+    check!(fs::write(tmpdir.join("not-utf8"), [0xFF]));
     error_contains!(
-        fs::read_to_string(&tmpdir.join("not-utf8")),
+        fs::read_to_string(tmpdir.join("not-utf8")),
         "stream did not contain valid UTF-8"
     );
 
     let s = "𐁁𐀓𐀠𐀴𐀍";
-    check!(fs::write(&tmpdir.join("utf8"), s.as_bytes()));
-    let string = check!(fs::read_to_string(&tmpdir.join("utf8")));
+    check!(fs::write(tmpdir.join("utf8"), s.as_bytes()));
+    let string = check!(fs::read_to_string(tmpdir.join("utf8")));
     assert_eq!(string, s);
 }
 
@@ -1024,7 +1043,7 @@ fn file_try_clone() {
     let tmpdir = tmpdir();
 
     let mut f1 =
-        check!(OpenOptions::new().read(true).write(true).create(true).open(&tmpdir.join("test")));
+        check!(OpenOptions::new().read(true).write(true).create(true).open(tmpdir.join("test")));
     let mut f2 = check!(f1.try_clone());
 
     check!(f1.write_all(b"hello world"));
@@ -1053,7 +1072,7 @@ fn unlink_readonly() {
 fn mkdir_trailing_slash() {
     let tmpdir = tmpdir();
     let path = tmpdir.join("file");
-    check!(fs::create_dir_all(&path.join("a/")));
+    check!(fs::create_dir_all(path.join("a/")));
 }
 
 #[test_case]
@@ -1089,7 +1108,7 @@ fn realpath_works() {
     assert_eq!(fs::canonicalize(&file).unwrap(), file);
     assert_eq!(fs::canonicalize(&link).unwrap(), file);
     assert_eq!(fs::canonicalize(&linkdir).unwrap(), dir);
-    assert_eq!(fs::canonicalize(&linkdir.join("link")).unwrap(), file);
+    assert_eq!(fs::canonicalize(linkdir.join("link")).unwrap(), file);
 }
 
 #[test_case]
@@ -1122,8 +1141,8 @@ fn realpath_works_tricky() {
 fn dir_entry_methods() {
     let tmpdir = tmpdir();
 
-    fs::create_dir_all(&tmpdir.join("a")).unwrap();
-    File::create(&tmpdir.join("b")).unwrap();
+    fs::create_dir_all(tmpdir.join("a")).unwrap();
+    File::create(tmpdir.join("b")).unwrap();
 
     for file in tmpdir.path().read_dir().unwrap().map(|f| f.unwrap()) {
         let fname = file.file_name();
@@ -1144,7 +1163,7 @@ fn dir_entry_methods() {
 #[test_case]
 fn dir_entry_debug() {
     let tmpdir = tmpdir();
-    File::create(&tmpdir.join("b")).unwrap();
+    File::create(tmpdir.join("b")).unwrap();
     let mut read_dir = tmpdir.path().read_dir().unwrap();
     let dir_entry = read_dir.next().unwrap().unwrap();
     let actual = format!("{dir_entry:?}");
@@ -1200,7 +1219,7 @@ fn metadata_access_times() {
     let b = tmpdir.join("b");
     File::create(&b).unwrap();
 
-    let a = check!(fs::metadata(&tmpdir.path()));
+    let a = check!(fs::metadata(tmpdir.path()));
     let b = check!(fs::metadata(&b));
 
     assert_eq!(check!(a.accessed()), check!(a.accessed()));
@@ -1292,4 +1311,81 @@ fn read_large_dir() {
     for entry in fs::read_dir(tmpdir.path()).unwrap() {
         entry.unwrap();
     }
+}
+
+/// Test that two different ways of obtaining the FileType give the same result.
+/// Cf. https://github.com/rust-lang/rust/issues/104900
+#[test_case]
+fn test_eq_direntry_metadata() {
+    let tmpdir = tmpdir();
+    let file_path = tmpdir.join("file");
+    File::create(file_path).unwrap();
+    for e in fs::read_dir(tmpdir.path()).unwrap() {
+        let e = e.unwrap();
+        let p = e.path();
+        let ft1 = e.file_type().unwrap();
+        let ft2 = p.metadata().unwrap().file_type();
+        assert_eq!(ft1, ft2);
+    }
+}
+
+/// Regression test for https://github.com/rust-lang/rust/issues/50619.
+#[test_case]
+fn test_read_dir_infinite_loop() {
+    use crate::io::ErrorKind;
+    use crate::process::Command;
+
+    // Create a zombie child process
+    let Ok(mut child) = Command::new("echo").spawn() else { return };
+
+    // Make sure the process is (un)dead
+    match child.kill() {
+        // InvalidInput means the child already exited
+        Err(e) if e.kind() != ErrorKind::InvalidInput => return,
+        _ => {}
+    }
+
+    // open() on this path will succeed, but readdir() will fail
+    let id = child.id();
+    let path = format!("/proc/{id}/net");
+
+    // Skip the test if we can't open the directory in the first place
+    let Ok(dir) = fs::read_dir(path) else { return };
+
+    // Check for duplicate errors
+    assert!(dir.filter(|e| e.is_err()).take(2).count() < 2);
+}
+
+#[test_case]
+fn rename_directory() {
+    let tmpdir = tmpdir();
+    let old_path = tmpdir.join("foo/bar/baz");
+    fs::create_dir_all(&old_path).unwrap();
+    let test_file = &old_path.join("temp.txt");
+
+    File::create(test_file).unwrap();
+
+    let new_path = tmpdir.join("quux/blat");
+    fs::create_dir_all(&new_path).unwrap();
+    fs::rename(&old_path, new_path.join("newdir")).unwrap();
+    assert!(new_path.join("newdir").is_dir());
+    assert!(new_path.join("newdir/temp.txt").exists());
+}
+
+#[test_case]
+fn test_file_times() {
+    let tmp = tmpdir();
+    let file = File::create(tmp.join("foo")).unwrap();
+    let mut times = FileTimes::new();
+    let accessed = SystemTime::UNIX_EPOCH + Duration::from_secs(12345);
+    let modified = SystemTime::UNIX_EPOCH + Duration::from_secs(54321);
+    times = times.set_accessed(accessed).set_modified(modified);
+
+    match file.set_times(times) {
+        Err(e) => panic!("error setting file times: {e:?}"),
+        Ok(_) => {}
+    }
+    let metadata = file.metadata().unwrap();
+    assert_eq!(metadata.accessed().unwrap(), accessed);
+    assert_eq!(metadata.modified().unwrap(), modified);
 }

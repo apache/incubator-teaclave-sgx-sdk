@@ -140,7 +140,7 @@ f! {
         {
             core::ptr::null_mut::<cmsghdr>()
         } else {
-            next as *mut cmsghdr
+            next
         }
     }
 
@@ -184,7 +184,7 @@ pub unsafe extern "C" fn sigemptyset(set: *mut sigset_t) -> c_int {
         ocall::set_errno(EINVAL);
         return -1;
     };
-    core::ptr::write_bytes(set as *mut sigset_t, 0, 1);
+    core::ptr::write_bytes(set, 0, 1);
     0
 }
 

@@ -33,8 +33,9 @@ use sgx_types::metadata::SE_PAGE_SHIFT;
 use sgx_types::types::ProtectPerm;
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub enum MmPerm {
+    #[default]
     None,
     R,
     RW,
@@ -54,12 +55,6 @@ impl MmPerm {
     #[allow(dead_code)]
     pub fn can_execute(&self) -> bool {
         !matches!(*self, Self::None | Self::R | Self::RW)
-    }
-}
-
-impl Default for MmPerm {
-    fn default() -> MmPerm {
-        MmPerm::None
     }
 }
 
@@ -88,35 +83,25 @@ impl From<MmPerm> for ProtectPerm {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum MmType {
+    #[default]
     None,
     Reg,
     Tcs,
     Trim,
 }
 
-impl Default for MmType {
-    fn default() -> MmType {
-        MmType::None
-    }
-}
-
 #[allow(dead_code)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum MmState {
+    #[default]
     Free,
     Reserved,
     SystemReserved,
     Committed,
     SystemCommitted,
     Locked,
-}
-
-impl Default for MmState {
-    fn default() -> MmState {
-        MmState::Free
-    }
 }
 
 #[derive(Clone)]

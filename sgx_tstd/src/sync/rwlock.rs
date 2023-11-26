@@ -93,7 +93,7 @@ use crate::sys_common::rwlock as sys;
 ///
 /// [`Mutex`]: super::Mutex
 pub struct RwLock<T: ?Sized> {
-    inner: sys::MovableRwLock,
+    inner: sys::RwLock,
     poison: poison::Flag,
     data: UnsafeCell<T>,
 }
@@ -120,7 +120,7 @@ pub struct RwLockReadGuard<'a, T: ?Sized + 'a> {
     // `NonNull` is also covariant over `T`, just like we would have with `&T`. `NonNull`
     // is preferable over `const* T` to allow for niche optimization.
     data: NonNull<T>,
-    inner_lock: &'a sys::MovableRwLock,
+    inner_lock: &'a sys::RwLock,
 }
 
 impl<T: ?Sized> !Send for RwLockReadGuard<'_, T> {}
@@ -160,11 +160,7 @@ impl<T> RwLock<T> {
     /// ```
     #[inline]
     pub const fn new(t: T) -> RwLock<T> {
-        RwLock {
-            inner: sys::MovableRwLock::new(),
-            poison: poison::Flag::new(),
-            data: UnsafeCell::new(t),
-        }
+        RwLock { inner: sys::RwLock::new(), poison: poison::Flag::new(), data: UnsafeCell::new(t) }
     }
 }
 
@@ -381,7 +377,7 @@ impl<T: ?Sized> RwLock<T> {
     ///
     /// If the lock is poisoned, it will remain poisoned until this function is called. This allows
     /// recovering from a poisoned state and marking that it has recovered. For example, if the
-    /// value is overwritten by a known-good value, then the mutex can be marked as un-poisoned. Or
+    /// value is overwritten by a known-good value, then the lock can be marked as un-poisoned. Or
     /// possibly, the value could be inspected to determine if it is in a consistent state, and if
     /// so the poison is removed.
     ///
@@ -398,7 +394,7 @@ impl<T: ?Sized> RwLock<T> {
     ///
     /// let _ = thread::spawn(move || {
     ///     let _lock = c_lock.write().unwrap();
-    ///     panic!(); // the mutex gets poisoned
+    ///     panic!(); // the lock gets poisoned
     /// }).join();
     ///
     /// assert_eq!(lock.is_poisoned(), true);
@@ -482,13 +478,7 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for RwLock<T> {
                 d.field("data", &&**err.get_ref());
             }
             Err(TryLockError::WouldBlock) => {
-                struct LockedPlaceholder;
-                impl fmt::Debug for LockedPlaceholder {
-                    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                        f.write_str("<locked>")
-                    }
-                }
-                d.field("data", &LockedPlaceholder);
+                d.field("data", &format_args!("<locked>"));
             }
         }
         d.field("poisoned", &self.poison.get());

@@ -55,6 +55,12 @@ pub struct ReadDir {
     end_of_stream: bool,
 }
 
+impl ReadDir {
+    fn new(inner: InnerReadDir) -> Self {
+        Self { inner: Arc::new(inner), end_of_stream: false }
+    }
+}
+
 struct Dir(DirPtr);
 
 unsafe impl Send for Dir {}
@@ -90,9 +96,21 @@ pub struct FileTimes {
     modified: Option<SystemTime>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Copy, Clone, Eq, Debug)]
 pub struct FileType {
     mode: mode_t,
+}
+
+impl PartialEq for FileType {
+    fn eq(&self, other: &Self) -> bool {
+        self.masked() == other.masked()
+    }
+}
+
+impl core::hash::Hash for FileType {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.masked().hash(state);
+    }
 }
 
 #[derive(Debug)]
@@ -138,6 +156,7 @@ impl FileAttr {
 }
 
 impl AsInner<stat64> for FileAttr {
+    #[inline]
     fn as_inner(&self) -> &stat64 {
         &self.stat
     }
@@ -185,7 +204,11 @@ impl FileType {
     }
 
     pub fn is(&self, mode: mode_t) -> bool {
-        self.mode & libc::S_IFMT == mode
+        self.masked() == mode
+    }
+
+    fn masked(&self) -> mode_t {
+        self.mode & libc::S_IFMT
     }
 }
 
@@ -240,7 +263,7 @@ impl Drop for Dir {
     fn drop(&mut self) {
         let r = unsafe { libc::closedir(self.0) };
         assert!(
-            r.is_ok() || crate::io::Error::last_os_error().kind() == crate::io::ErrorKind::Interrupted,
+            r.is_ok() || crate::io::Error::last_os_error().is_interrupted(),
             "unexpected error during closedir: {:?}",
             crate::io::Error::last_os_error()
         );
@@ -436,6 +459,10 @@ impl File {
         self.0.read_buf(cursor)
     }
 
+    pub fn read_vectored_at(&self, bufs: &mut [IoSliceMut<'_>], offset: u64) -> io::Result<usize> {
+        self.0.read_vectored_at(bufs, offset)
+    }
+
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
         self.0.write(buf)
     }
@@ -453,6 +480,11 @@ impl File {
         self.0.write_at(buf, offset)
     }
 
+    pub fn write_vectored_at(&self, bufs: &[IoSlice<'_>], offset: u64) -> io::Result<usize> {
+        self.0.write_vectored_at(bufs, offset)
+    }
+
+    #[inline]
     pub fn flush(&self) -> io::Result<()> {
         Ok(())
     }
@@ -479,13 +511,17 @@ impl File {
     }
 
     pub fn set_times(&self, times: FileTimes) -> io::Result<()> {
-        let to_timespec = |time: Option<SystemTime>| {
-            match time {
-                Some(time) if let Some(ts) = time.t.to_timespec() => Ok(ts),
-                Some(time) if time > crate::sys::time::UNIX_EPOCH => Err(io::const_io_error!(io::ErrorKind::InvalidInput, "timestamp is too large to set as a file time")),
-                Some(_) => Err(io::const_io_error!(io::ErrorKind::InvalidInput, "timestamp is too small to set as a file time")),
-                None => Ok(libc::timespec { tv_sec: 0, tv_nsec: libc::UTIME_OMIT as _ }),
-            }
+        let to_timespec = |time: Option<SystemTime>| match time {
+            Some(time) if let Some(ts) = time.t.to_timespec() => Ok(ts),
+            Some(time) if time > crate::sys::time::UNIX_EPOCH => Err(io::const_io_error!(
+                io::ErrorKind::InvalidInput,
+                "timestamp is too large to set as a file time"
+            )),
+            Some(_) => Err(io::const_io_error!(
+                io::ErrorKind::InvalidInput,
+                "timestamp is too small to set as a file time"
+            )),
+            None => Ok(libc::timespec { tv_sec: 0, tv_nsec: libc::UTIME_OMIT as _ }),
         };
         let times = [to_timespec(times.accessed)?, to_timespec(times.modified)?];
         cvt_ocall(unsafe { libc::futimens(self.as_raw_fd(), &times) })?;
@@ -508,12 +544,14 @@ impl DirBuilder {
 }
 
 impl AsInner<FileDesc> for File {
+    #[inline]
     fn as_inner(&self) -> &FileDesc {
         &self.0
     }
 }
 
 impl AsInnerMut<FileDesc> for File {
+    #[inline]
     fn as_inner_mut(&mut self) -> &mut FileDesc {
         &mut self.0
     }
@@ -532,12 +570,14 @@ impl FromInner<FileDesc> for File {
 }
 
 impl AsFd for File {
+    #[inline]
     fn as_fd(&self) -> BorrowedFd<'_> {
         self.0.as_fd()
     }
 }
 
 impl AsRawFd for File {
+    #[inline]
     fn as_raw_fd(&self) -> RawFd {
         self.0.as_raw_fd()
     }

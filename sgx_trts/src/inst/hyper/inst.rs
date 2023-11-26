@@ -17,7 +17,7 @@
 
 #![allow(clippy::enum_variant_names)]
 
-use crate::arch::Secinfo;
+use crate::arch::SecInfo;
 use crate::inst::INVALID_LEAF;
 use crate::se::{
     AlignKey, AlignKeyRequest, AlignReport, AlignReport2Mac, AlignReportData, AlignTargetInfo,
@@ -93,12 +93,12 @@ impl EncluInst {
     }
 
     #[inline]
-    pub fn eaccept(_info: &Secinfo, _addr: usize) -> Result<(), u32> {
+    pub fn eaccept(_info: &SecInfo, _addr: usize) -> Result<(), u32> {
         Ok(())
     }
 
     #[inline]
-    pub fn emodpe(_info: &Secinfo, _addr: usize) -> Result<(), u32> {
+    pub fn emodpe(_info: &SecInfo, _addr: usize) -> Result<(), u32> {
         Ok(())
     }
 }

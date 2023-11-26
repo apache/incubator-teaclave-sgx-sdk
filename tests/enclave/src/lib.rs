@@ -22,7 +22,9 @@
 extern crate sgx_tstd as std;
 extern crate sgx_types;
 
+use std::backtrace::{self, PrintFormat};
 use sgx_types::error::SgxStatus;
+
 #[macro_use]
 extern crate sgx_unit_test;
 use sgx_unit_test::{run_bench_cases, run_test_cases, sgx_test_utils};
@@ -30,6 +32,7 @@ use sgx_unit_test::{run_bench_cases, run_test_cases, sgx_test_utils};
 ///# Safety
 #[no_mangle]
 pub unsafe extern "C" fn run_test_cases() -> SgxStatus {
+    let _ = backtrace::enable_backtrace(PrintFormat::Short);
     run_test_cases!();
     SgxStatus::Success
 }

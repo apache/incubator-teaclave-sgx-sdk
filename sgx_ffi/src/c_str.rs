@@ -16,4 +16,5 @@
 // under the License..
 
 pub use alloc::ffi::{CString, FromVecWithNulError, IntoStringError, NulError};
+pub use core::ffi::FromBytesUntilNulError;
 pub use core::ffi::{CStr, FromBytesWithNulError};

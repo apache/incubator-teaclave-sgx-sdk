@@ -244,6 +244,21 @@ fn test_round() {
 }
 
 #[test_case]
+fn test_round_ties_even() {
+    assert_approx_eq!(2.5f32.round_ties_even(), 2.0f32);
+    assert_approx_eq!(1.0f32.round_ties_even(), 1.0f32);
+    assert_approx_eq!(1.3f32.round_ties_even(), 1.0f32);
+    assert_approx_eq!(1.5f32.round_ties_even(), 2.0f32);
+    assert_approx_eq!(1.7f32.round_ties_even(), 2.0f32);
+    assert_approx_eq!(0.0f32.round_ties_even(), 0.0f32);
+    assert_approx_eq!((-0.0f32).round_ties_even(), -0.0f32);
+    assert_approx_eq!((-1.0f32).round_ties_even(), -1.0f32);
+    assert_approx_eq!((-1.3f32).round_ties_even(), -1.0f32);
+    assert_approx_eq!((-1.5f32).round_ties_even(), -2.0f32);
+    assert_approx_eq!((-1.7f32).round_ties_even(), -2.0f32);
+}
+
+#[test_case]
 fn test_trunc() {
     assert_approx_eq!(1.0f32.trunc(), 1.0f32);
     assert_approx_eq!(1.3f32.trunc(), 1.0f32);
@@ -319,6 +334,17 @@ fn test_is_sign_negative() {
     assert!((1f32 / f32::NEG_INFINITY).is_sign_negative());
     assert!(!f32::NAN.is_sign_negative());
     assert!((-f32::NAN).is_sign_negative());
+}
+
+#[allow(unused_macros)]
+macro_rules! assert_f32_biteq {
+    ($left : expr, $right : expr) => {
+        let l: &f32 = &$left;
+        let r: &f32 = &$right;
+        let lb = l.to_bits();
+        let rb = r.to_bits();
+        assert_eq!(lb, rb, "float {} ({:#x}) is not equal to {} ({:#x})", *l, lb, *r, rb);
+    };
 }
 
 #[test_case]
@@ -531,6 +557,11 @@ fn test_asinh() {
     assert_approx_eq!((-2.0f32).asinh(), -1.443635475178810342493276740273105f32);
     // regression test for the catastrophic cancellation fixed in 72486
     assert_approx_eq!((-3000.0f32).asinh(), -8.699514775987968673236893537700647f32);
+
+    // test for low accuracy from issue 104548
+    assert_approx_eq!(60.0f32, 60.0f32.sinh().asinh());
+    // mul needed for approximate comparison to be meaningful
+    assert_approx_eq!(1.0f32, 1e-15f32.sinh().asinh() * 1e15f32);
 }
 
 #[test_case]
@@ -546,6 +577,9 @@ fn test_acosh() {
     assert!(nan.acosh().is_nan());
     assert_approx_eq!(2.0f32.acosh(), 1.31695789692481670862504634730796844f32);
     assert_approx_eq!(3.0f32.acosh(), 1.76274717403908605046521864995958461f32);
+
+    // test for low accuracy from issue 104548
+    assert_approx_eq!(60.0f32, 60.0f32.cosh().acosh());
 }
 
 #[test_case]
@@ -573,6 +607,38 @@ fn test_atanh() {
 }
 
 #[test_case]
+fn test_gamma() {
+    // precision can differ between platforms
+    assert_approx_eq!(1.0f32.gamma(), 1.0f32);
+    assert_approx_eq!(2.0f32.gamma(), 1.0f32);
+    assert_approx_eq!(3.0f32.gamma(), 2.0f32);
+    assert_approx_eq!(4.0f32.gamma(), 6.0f32);
+    assert_approx_eq!(5.0f32.gamma(), 24.0f32);
+    assert_approx_eq!(0.5f32.gamma(), consts::PI.sqrt());
+    assert_approx_eq!((-0.5f32).gamma(), -2.0 * consts::PI.sqrt());
+    assert_eq!(0.0f32.gamma(), f32::INFINITY);
+    assert_eq!((-0.0f32).gamma(), f32::NEG_INFINITY);
+    assert!((-1.0f32).gamma().is_nan());
+    assert!((-2.0f32).gamma().is_nan());
+    assert!(f32::NAN.gamma().is_nan());
+    assert!(f32::NEG_INFINITY.gamma().is_nan());
+    assert_eq!(f32::INFINITY.gamma(), f32::INFINITY);
+    assert_eq!(171.71f32.gamma(), f32::INFINITY);
+}
+
+#[test_case]
+fn test_ln_gamma() {
+    assert_approx_eq!(1.0f32.ln_gamma().0, 0.0f32);
+    assert_eq!(1.0f32.ln_gamma().1, 1);
+    assert_approx_eq!(2.0f32.ln_gamma().0, 0.0f32);
+    assert_eq!(2.0f32.ln_gamma().1, 1);
+    assert_approx_eq!(3.0f32.ln_gamma().0, 2.0f32.ln());
+    assert_eq!(3.0f32.ln_gamma().1, 1);
+    assert_approx_eq!((-0.5f32).ln_gamma().0, (2.0 * consts::PI.sqrt()).ln());
+    assert_eq!((-0.5f32).ln_gamma().1, -1);
+}
+
+#[test]
 fn test_real_consts() {
     use super::consts;
 

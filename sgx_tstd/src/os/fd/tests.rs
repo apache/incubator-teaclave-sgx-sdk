@@ -54,7 +54,7 @@ fn test_niche_optimizations() {
     unsafe {
         assert_eq!(OwnedFd::from_raw_fd(RawFd::MIN).into_raw_fd(), RawFd::MIN);
         assert_eq!(OwnedFd::from_raw_fd(RawFd::MAX).into_raw_fd(), RawFd::MAX);
-        assert_eq!(Some(OwnedFd::from_raw_fd(RawFd::MIN)).unwrap().into_raw_fd(), RawFd::MIN);
-        assert_eq!(Some(OwnedFd::from_raw_fd(RawFd::MAX)).unwrap().into_raw_fd(), RawFd::MAX);
+        assert_eq!(OwnedFd::from_raw_fd(RawFd::MIN).into_raw_fd(), RawFd::MIN);
+        assert_eq!(OwnedFd::from_raw_fd(RawFd::MAX).into_raw_fd(), RawFd::MAX);
     }
 }

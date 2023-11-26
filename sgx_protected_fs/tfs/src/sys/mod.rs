@@ -25,6 +25,7 @@ use std::io::{Result, SeekFrom};
 use std::mem::ManuallyDrop;
 use std::path::Path;
 
+#[allow(unused_imports)]
 pub use file::DEFAULT_CACHE_SIZE;
 
 #[macro_use]

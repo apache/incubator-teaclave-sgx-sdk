@@ -39,8 +39,9 @@
 #![allow(dead_code)]
 #![allow(deprecated)]
 #![allow(incomplete_features)]
+#![allow(internal_features)]
 #![allow(unused_assignments)]
-
+ #![allow(unused_features)]
 #![allow(clippy::assertions_on_constants)]
 #![allow(clippy::err_expect)]
 #![allow(clippy::explicit_auto_deref)]
@@ -50,6 +51,7 @@
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::needless_borrow)]
 #![allow(clippy::new_without_default)]
+#![allow(clippy::non_canonical_partial_ord_impl)]
 #![allow(clippy::transmute_ptr_to_ptr)]
 #![allow(clippy::wrong_self_convention)]
 #![allow(clippy::unused_io_amount)]
@@ -60,7 +62,6 @@
 #![feature(allocator_internals)]
 #![feature(allow_internal_unsafe)]
 #![feature(allow_internal_unstable)]
-#![feature(box_syntax)]
 #![feature(c_unwind)]
 #![feature(concat_idents)]
 #![feature(const_mut_refs)]
@@ -79,53 +80,60 @@
 #![feature(rustc_attrs)]
 #![feature(thread_local)]
 #![feature(try_blocks)]
+#![feature(type_alias_impl_trait)]
 #![feature(utf8_chunks)]
 //
 // Library features (core):
-#![feature(array_error_internals)]
-#![feature(char_error_internals)]
+// tidy-alphabetical-start
 #![feature(char_internals)]
 #![feature(core_intrinsics)]
-#![feature(duration_checked_float)]
+#![feature(core_io_borrowed_buf)]
 #![feature(duration_constants)]
 #![feature(error_generic_member_access)]
 #![feature(error_in_core)]
 #![feature(error_iter)]
 #![feature(exact_size_is_empty)]
+#![feature(exclusive_wrapper)]
 #![feature(extend_one)]
 #![feature(float_minimum_maximum)]
 #![feature(hasher_prefixfree_extras)]
 #![feature(hashmap_internals)]
-#![feature(int_error_internals)]
+#![feature(ip)]
+#![feature(ip_in_core)]
 #![feature(maybe_uninit_slice)]
+#![feature(maybe_uninit_uninit_array)]
 #![feature(maybe_uninit_write_slice)]
 #![feature(panic_can_unwind)]
 #![feature(panic_info_message)]
 #![feature(panic_internals)]
 #![feature(prelude_2024)]
-#![feature(provide_any)]
 #![feature(ptr_as_uninit)]
 #![feature(raw_os_nonzero)]
 #![feature(slice_internals)]
 #![feature(std_internals)]
 #![feature(str_internals)]
 #![feature(strict_provenance)]
-#![feature(maybe_uninit_uninit_array)]
-#![feature(const_maybe_uninit_uninit_array)]
+#![feature(type_ascription)]
+// tidy-alphabetical-end
 //
 // Library features (alloc):
+// tidy-alphabetical-start
 #![feature(allocator_api)]
-#![feature(exclusive_wrapper)]
 #![feature(get_mut_unchecked)]
 #![feature(map_try_insert)]
 #![feature(new_uninit)]
-#![feature(try_reserve_kind)]
 #![feature(slice_concat_trait)]
+#![feature(try_reserve_kind)]
+#![feature(vec_into_raw_parts)]
+// tidy-alphabetical-end
 //
 // Library features (unwind):
+// tidy-alphabetical-start
 #![feature(panic_unwind)]
+// tidy-alphabetical-end
 //
 // Only for re-exporting:
+// tidy-alphabetical-start
 #![feature(assert_matches)]
 #![feature(async_iterator)]
 #![feature(c_variadic)]
@@ -137,15 +145,20 @@
 #![feature(custom_test_frameworks)]
 #![feature(edition_panic)]
 #![feature(format_args_nl)]
+#![feature(lazy_cell)]
 #![feature(log_syntax)]
-#![feature(once_cell)]
 #![feature(test)]
 #![feature(trace_macros)]
+// tidy-alphabetical-end
 //
 // Only used in tests/benchmarks:
 //
 // Only for const-ness:
+// tidy-alphabetical-start
+#![feature(const_hash)]
+// tidy-alphabetical-end
 //
+
 #![default_lib_allocator]
 
 // Explicitly import the prelude. The compiler uses this same unstable attribute
@@ -211,7 +224,6 @@ pub use core::cmp;
 pub use core::convert;
 pub use core::default;
 pub use core::future;
-pub use core::hash;
 pub use core::hint;
 pub use core::i128;
 pub use core::i16;
@@ -249,6 +261,7 @@ pub mod error;
 pub mod ffi;
 #[cfg(feature = "untrusted_fs")]
 pub mod fs;
+pub mod hash;
 pub mod io;
 pub mod net;
 pub mod num;
@@ -294,19 +307,18 @@ pub mod alloc;
 
 // Private support modules
 mod panicking;
-mod personality;
 
 #[cfg(not(feature = "untrusted_fs"))]
 mod fs;
 
-// Re-export macros defined in libcore.
+// Re-export macros defined in core.
 #[allow(deprecated, deprecated_in_future)]
 pub use core::{
     assert_eq, assert_ne, debug_assert, debug_assert_eq, debug_assert_ne, matches, todo, r#try,
     unimplemented, unreachable, write, writeln,
 };
 
-// Re-export built-in macros defined through libcore.
+// Re-export built-in macros defined through core.
 #[allow(deprecated)]
 pub use core::{
     assert, assert_matches, cfg, column, compile_error, concat, concat_idents, const_format_args,

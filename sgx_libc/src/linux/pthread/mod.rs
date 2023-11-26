@@ -307,7 +307,7 @@ pub unsafe extern "C" fn pthread_once(
 ) -> c_int {
     check_param!(once_control, pthread_once_t);
 
-    let mut once_control = &mut *once_control;
+    let once_control = &mut *once_control;
     pthread_mutex_lock(&mut once_control.mutex);
     if once_control.state == PTHREAD_NEEDS_INIT {
         init_routine();

@@ -16,7 +16,7 @@
 // under the License..
 
 #![feature(allocator_api)]
-#![feature(once_cell)]
+#![feature(lazy_cell)]
 
 #[cfg(all(feature = "sim", feature = "hyper"))]
 compile_error!("feature \"sim\" and feature \"hyper\" cannot be enabled at the same time");

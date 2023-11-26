@@ -183,10 +183,7 @@ pub unsafe extern "C" fn sgx_dcap_mra_proc_msg3(
     }
 
     if !supplemental_data.is_null()
-        && !is_within_enclave(
-            supplemental_data as *const u8,
-            supplemental_data_size as usize,
-        )
+        && !is_within_enclave(supplemental_data, supplemental_data_size as usize)
     {
         return SgxStatus::InvalidParameter;
     }

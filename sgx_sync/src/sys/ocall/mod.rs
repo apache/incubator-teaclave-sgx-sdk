@@ -314,7 +314,7 @@ pub fn thread_set_multiple_events(tcss: &[TcsId]) -> OsResult {
         u_thread_set_multiple_events_ocall(
             &mut result as *mut i32,
             &mut error as *mut i32,
-            tcss.as_ptr() as *const TcsId as *const usize,
+            tcss.as_ptr() as *const usize,
             tcss.len(),
         )
     };

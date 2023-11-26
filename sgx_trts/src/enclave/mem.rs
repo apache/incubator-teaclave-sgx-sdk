@@ -106,7 +106,7 @@ static mut IMAGE: MaybeUninit<Image> = MaybeUninit::uninit();
 
 impl Image {
     pub fn init() {
-        let mut image = unsafe { IMAGE.assume_init_mut() };
+        let image = unsafe { IMAGE.assume_init_mut() };
         image.image_base = Self::image_base();
         image.image_size = Self::image_size();
         image.elrange_base = Self::elrange_base();
