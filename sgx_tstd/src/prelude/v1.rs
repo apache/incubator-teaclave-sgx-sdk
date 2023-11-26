@@ -58,17 +58,21 @@ pub use core::prelude::v1::{RustcDecodable, RustcEncodable};
 
 // Do not `doc(no_inline)` so that they become doc items on their own
 // (no public module for them to be re-exported from).
-pub use core::prelude::v1::{derive, global_allocator, test, test_case};
+pub use core::prelude::v1::{
+    alloc_error_handler, derive, global_allocator, test, test_case,
+};
 
 // Do not `doc(no_inline)` either.
 pub use core::prelude::v1::cfg_accessible;
 
 pub use core::prelude::v1::cfg_eval;
 
-// The file so far is equivalent to src/libcore/prelude/v1.rs,
-// and below to src/liballoc/prelude.rs.
-// Those files are duplicated rather than using glob imports
-// because we want docs to show these re-exports as pointing to within `std`.
+pub use core::prelude::v1::type_ascribe;
+
+// The file so far is equivalent to core/src/prelude/v1.rs. It is duplicated
+// rather than glob imported because we want docs to show these re-exports as
+// pointing to within `std`.
+// Below are the items from the alloc crate.
 
 #[doc(no_inline)]
 pub use crate::borrow::ToOwned;

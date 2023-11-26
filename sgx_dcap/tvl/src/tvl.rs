@@ -98,18 +98,18 @@ impl QveReportInfo<'_, '_> {
     }
 
     fn verify_identity(&self, qve_isvsvn_threshold: u16) -> SgxQuote3Result {
+        let misc_select = self.qve_report.body.misc_select & QVE_MISC_SELECT_MASK;
         ensure!(
-            self.qve_report.body.misc_select & QVE_MISC_SELECT_MASK == QVE_MISC_SELECT,
+            misc_select == QVE_MISC_SELECT,
             Quote3Error::QveIdentityMismatch
         );
+        let flags = self.qve_report.body.attributes.flags & QVE_ATTRIBUTE_MASK.flags;
         ensure!(
-            self.qve_report.body.attributes.flags & QVE_ATTRIBUTE_MASK.flags == QVE_ATTRIBUTE.flags,
+            flags == QVE_ATTRIBUTE.flags,
             Quote3Error::QveIdentityMismatch
         );
-        ensure!(
-            self.qve_report.body.attributes.xfrm & QVE_ATTRIBUTE_MASK.xfrm == QVE_ATTRIBUTE.xfrm,
-            Quote3Error::QveIdentityMismatch
-        );
+        let xfrm = self.qve_report.body.attributes.xfrm & QVE_ATTRIBUTE_MASK.xfrm;
+        ensure!(xfrm == QVE_ATTRIBUTE.xfrm, Quote3Error::QveIdentityMismatch);
         ensure!(
             self.qve_report.body.mr_signer.eq(&QVE_MRSIGNER),
             Quote3Error::QveIdentityMismatch

@@ -16,13 +16,13 @@
 // under the License..
 
 use crate::cmp;
-use crate::convert::TryInto;
-use crate::io::{self, IoSlice, IoSliceMut};
+use crate::io::{self, BorrowedBuf, BorrowedCursor, IoSlice, IoSliceMut};
+use crate::mem::MaybeUninit;
 use crate::net::{Shutdown, SocketAddr};
 use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, RawFd};
 use crate::sys::fd::FileDesc;
 use crate::sys_common::net::{getsockopt, setsockopt};
-use crate::sys_common::{AsInner, FromInner, IntoInner};
+use crate::sys_common::{AsInner, FromInner, IntoInner, TryIntoInner};
 use crate::time::{Duration, Instant};
 #[cfg(not(feature = "untrusted_time"))]
 use crate::untrusted::time::InstantEx;
@@ -83,10 +83,26 @@ impl Socket {
         }
     }
 
+    pub fn connect(&self, addr: &SocketAddr) -> io::Result<()> {
+        let addr: SockAddr = addr.to_owned().into_inner();
+        loop {
+            let result = unsafe { cvt_ocall(libc::connect(self.as_raw_fd(), &addr)) };
+            if result.is_err() {
+                let err = crate::sys::os::errno();
+                match err {
+                    libc::EINTR => continue,
+                    libc::EISCONN => return Ok(()),
+                    _ => return Err(io::Error::from_raw_os_error(err)),
+                }
+            }
+            return Ok(());
+        }
+    }
+
     pub fn connect_timeout(&self, addr: &SocketAddr, timeout: Duration) -> io::Result<()> {
         self.set_nonblocking(true)?;
         let r = unsafe {
-            let addr = addr.to_owned().into();
+            let addr = addr.to_owned().into_inner();
             cvt_ocall(libc::connect(self.as_raw_fd(), &addr))
         };
         self.set_nonblocking(false)?;
@@ -144,7 +160,7 @@ impl Socket {
                         return Ok(());
                     }
                 }
-                Err(ref e) if e.raw_os_error() == Some(libc::EINTR) => {}
+                Err(ref e) if e.is_interrupted() => {}
                 Err(e) => return Err(e),
             }
         }
@@ -171,17 +187,34 @@ impl Socket {
         self.0.duplicate().map(Socket)
     }
 
-    fn recv_with_flags(&self, buf: &mut [u8], flags: c_int) -> io::Result<usize> {
-        let ret = cvt_ocall(unsafe { libc::recv(self.as_raw_fd(), buf, flags) })?;
-        Ok(ret)
+    fn recv_with_flags(&self, mut buf: BorrowedCursor<'_>, flags: c_int) -> io::Result<()> {
+        let ret = cvt_ocall(unsafe {
+            libc::recv(
+                self.as_raw_fd(),
+                MaybeUninit::slice_assume_init_mut(buf.as_mut()),
+                flags,
+            )
+        })?;
+        unsafe {
+            buf.advance(ret as usize);
+        }
+        Ok(())
     }
 
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
-        self.recv_with_flags(buf, 0)
+        let mut buf = BorrowedBuf::from(buf);
+        self.recv_with_flags(buf.unfilled(), 0)?;
+        Ok(buf.len())
     }
 
     pub fn peek(&self, buf: &mut [u8]) -> io::Result<usize> {
-        self.recv_with_flags(buf, MSG_PEEK)
+        let mut buf = BorrowedBuf::from(buf);
+        self.recv_with_flags(buf.unfilled(), MSG_PEEK)?;
+        Ok(buf.len())
+    }
+
+    pub fn read_buf(&self, buf: BorrowedCursor<'_>) -> io::Result<()> {
+        self.recv_with_flags(buf, 0)
     }
 
     pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
@@ -199,7 +232,7 @@ impl Socket {
         flags: c_int,
     ) -> io::Result<(usize, SocketAddr)> {
         let (n, addr) = cvt_ocall(unsafe { libc::recvfrom(self.as_raw_fd(), buf, flags) })?;
-        Ok((n, addr.try_into()?))
+        Ok((n, addr.try_into_inner()?))
     }
 
     pub fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
@@ -208,7 +241,7 @@ impl Socket {
 
     pub fn recv_msg(&self, msg: &mut libc::MsgHdrMut) -> io::Result<usize> {
         let n = cvt_ocall(unsafe { libc::recvmsg(self.as_raw_fd(), msg, libc::MSG_CMSG_CLOEXEC) })?;
-        Ok(n)
+        Ok(n as usize)
     }
 
     pub fn peek_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
@@ -230,7 +263,7 @@ impl Socket {
 
     pub fn send_msg(&self, msg: &libc::MsgHdr) -> io::Result<usize> {
         let n = cvt_ocall(unsafe { libc::sendmsg(self.as_raw_fd(), msg, 0) })?;
-        Ok(n)
+        Ok(n as usize)
     }
 
     pub fn set_timeout(&self, dur: Option<Duration>, kind: c_int) -> io::Result<()> {
@@ -347,6 +380,7 @@ impl Socket {
 }
 
 impl AsInner<FileDesc> for Socket {
+    #[inline]
     fn as_inner(&self) -> &FileDesc {
         &self.0
     }
@@ -371,6 +405,7 @@ impl AsFd for Socket {
 }
 
 impl AsRawFd for Socket {
+    #[inline]
     fn as_raw_fd(&self) -> RawFd {
         self.0.as_raw_fd()
     }

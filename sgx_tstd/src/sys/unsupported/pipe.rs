@@ -15,11 +15,11 @@
 // specific language governing permissions and limitations
 // under the License..
 
-use crate::io::{self, IoSlice, IoSliceMut};
+use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut};
 use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, RawFd};
 use crate::sys::fd::FileDesc;
 use crate::sys::unsupported::unsupported;
-use crate::sys_common::IntoInner;
+use crate::sys_common::{FromInner, IntoInner};
 
 pub struct AnonPipe(FileDesc);
 
@@ -32,12 +32,21 @@ impl AnonPipe {
         unsupported()
     }
 
+    pub fn read_buf(&self, _buf: BorrowedCursor<'_>) -> io::Result<()> {
+        unsupported()
+    }
+
     pub fn read_vectored(&self, _bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         unsupported()
     }
 
     pub fn is_read_vectored(&self) -> bool {
         false
+    }
+
+    #[allow(clippy::ptr_arg)]
+    pub fn read_to_end(&self, _buf: &mut Vec<u8>) -> io::Result<usize> {
+        unsupported()
     }
 
     pub fn write(&self, _buf: &[u8]) -> io::Result<usize> {
@@ -85,5 +94,11 @@ impl IntoRawFd for AnonPipe {
 impl FromRawFd for AnonPipe {
     unsafe fn from_raw_fd(raw_fd: RawFd) -> Self {
         Self(FromRawFd::from_raw_fd(raw_fd))
+    }
+}
+
+impl FromInner<FileDesc> for AnonPipe {
+    fn from_inner(fd: FileDesc) -> Self {
+        Self(fd)
     }
 }

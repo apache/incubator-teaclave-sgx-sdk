@@ -64,6 +64,7 @@ pub struct PidFd {
 }
 
 impl AsInner<FileDesc> for PidFd {
+    #[inline]
     fn as_inner(&self) -> &FileDesc {
         &self.inner
     }
@@ -82,6 +83,7 @@ impl IntoInner<FileDesc> for PidFd {
 }
 
 impl AsRawFd for PidFd {
+    #[inline]
     fn as_raw_fd(&self) -> RawFd {
         self.as_inner().as_raw_fd()
     }

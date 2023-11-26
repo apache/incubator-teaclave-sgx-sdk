@@ -17,7 +17,7 @@
 
 use super::Error;
 use crate::fmt;
-use core::any::Demand;
+use core::error::Request;
 
 use sgx_test_utils::test_case;
 
@@ -218,7 +218,7 @@ where
         self.source.as_deref()
     }
 
-    fn provide<'a>(&'a self, req: &mut Demand<'a>) {
+    fn provide<'a>(&'a self, req: &mut Request<'a>) {
         self.backtrace.as_ref().map(|bt| req.provide_ref::<Backtrace>(bt));
     }
 }

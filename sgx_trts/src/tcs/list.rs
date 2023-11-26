@@ -47,7 +47,7 @@ impl TcsList {
 
     pub fn del_tcs(&mut self, tcs: NonNull<Tcs>) -> Option<NonNull<Tcs>> {
         let node = TcsNode::new(tcs, self.cookie());
-        let node = self.list.drain_filter(|n| *n == node).next();
+        let node = self.list.extract_if(|n| *n == node).next();
         node.map(|n| n.as_tcs(self.cookie()))
     }
 

@@ -19,10 +19,9 @@
 
 use core::ffi::c_void;
 type c_int = i32;
-type uintptr_t = usize;
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum _Unwind_Reason_Code {
     _URC_NO_REASON = 0,
     _URC_FOREIGN_EXCEPTION_CAUGHT = 1,
@@ -38,8 +37,8 @@ pub enum _Unwind_Reason_Code {
 pub use _Unwind_Reason_Code::*;
 
 pub type _Unwind_Exception_Class = u64;
-pub type _Unwind_Word = uintptr_t;
-pub type _Unwind_Ptr = uintptr_t;
+pub type _Unwind_Word = *const u8;
+pub type _Unwind_Ptr = *const u8;
 pub type _Unwind_Trace_Fn =
     extern "C" fn(ctx: *mut _Unwind_Context, arg: *mut c_void) -> _Unwind_Reason_Code;
 
@@ -47,7 +46,7 @@ pub type _Unwind_Trace_Fn =
 pub const unwinder_private_data_size: usize = 5;
 
 #[cfg(target_arch = "x86_64")]
-pub const unwinder_private_data_size: usize = 6;
+pub const unwinder_private_data_size: usize = 2;
 
 #[repr(C)]
 pub struct _Unwind_Exception {
@@ -73,7 +72,7 @@ extern "C" {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum _Unwind_Action {
     _UA_SEARCH_PHASE = 1,
     _UA_CLEANUP_PHASE = 2,

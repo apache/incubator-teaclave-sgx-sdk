@@ -56,7 +56,7 @@ fn to_socket_addr_str() {
 fn to_socket_addr_string() {
     let a = sa4(Ipv4Addr::new(77, 88, 21, 11), 24352);
     assert_eq!(Ok(vec![a]), tsa(&*format!("{}:{}", "77.88.21.11", "24352")));
-    assert_eq!(Ok(vec![a]), tsa(&format!("{}:{}", "77.88.21.11", "24352")));
+    assert_eq!(Ok(vec![a]), tsa(format!("{}:{}", "77.88.21.11", "24352")));
     assert_eq!(Ok(vec![a]), tsa(format!("{}:{}", "77.88.21.11", "24352")));
 
     let s = format!("{}:{}", "77.88.21.11", "24352");
@@ -77,11 +77,11 @@ fn ipv4_socket_addr_to_string() {
 
     // Test padding.
     assert_eq!(
-        &format!("{:16}", SocketAddrV4::new(Ipv4Addr::new(1, 1, 1, 1), 53)),
+        format!("{:16}", SocketAddrV4::new(Ipv4Addr::new(1, 1, 1, 1), 53)),
         "1.1.1.1:53      "
     );
     assert_eq!(
-        &format!("{:>16}", SocketAddrV4::new(Ipv4Addr::new(1, 1, 1, 1), 53)),
+        format!("{:>16}", SocketAddrV4::new(Ipv4Addr::new(1, 1, 1, 1), 53)),
         "      1.1.1.1:53"
     );
 }
@@ -98,7 +98,7 @@ fn ipv6_socket_addr_to_string() {
     // IPv4-compatible address.
     assert_eq!(
         SocketAddrV6::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0xc000, 0x280), 8080, 0, 0).to_string(),
-        "[::192.0.2.128]:8080"
+        "[::c000:280]:8080"
     );
 
     // IPv6 address with no zero segments.
@@ -124,11 +124,11 @@ fn ipv6_socket_addr_to_string() {
 
     // Test padding.
     assert_eq!(
-        &format!("{:22}", SocketAddrV6::new(Ipv6Addr::new(1, 2, 3, 4, 5, 6, 7, 8), 9, 0, 0)),
+        format!("{:22}", SocketAddrV6::new(Ipv6Addr::new(1, 2, 3, 4, 5, 6, 7, 8), 9, 0, 0)),
         "[1:2:3:4:5:6:7:8]:9   "
     );
     assert_eq!(
-        &format!("{:>22}", SocketAddrV6::new(Ipv6Addr::new(1, 2, 3, 4, 5, 6, 7, 8), 9, 0, 0)),
+        format!("{:>22}", SocketAddrV6::new(Ipv6Addr::new(1, 2, 3, 4, 5, 6, 7, 8), 9, 0, 0)),
         "   [1:2:3:4:5:6:7:8]:9"
     );
 }

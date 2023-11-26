@@ -16,7 +16,6 @@
 // under the License..
 
 #![feature(allocator_api)]
-#![feature(nonnull_slice_from_raw_parts)]
 #![allow(clippy::missing_safety_doc)]
 
 #[cfg(all(feature = "sim", feature = "hyper"))]

@@ -3,6 +3,7 @@ use crate::io as std_io;
 use sgx_trts::error::abort;
 
 pub mod memchr {
+    #[allow(unused_imports)]
     pub use core::slice::memchr::{memchr, memrchr};
 }
 

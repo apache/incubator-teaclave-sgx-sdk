@@ -23,7 +23,6 @@ Core encoding and decoding interfaces.
 
 #![cfg_attr(all(feature = "tserialize", not(target_vendor = "teaclave")), no_std)]
 #![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
-#![feature(box_syntax)]
 #![feature(never_type)]
 #![feature(associated_type_bounds)]
 #![feature(min_specialization)]

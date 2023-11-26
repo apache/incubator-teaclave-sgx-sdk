@@ -15,7 +15,10 @@
 // specific language governing permissions and limitations
 // under the License..
 
+#![allow(dead_code)]
 pub mod small_c_string;
+#[allow(unused_imports)]
+pub mod thread_local;
 
 #[cfg(feature = "unit_test")]
 mod tests;

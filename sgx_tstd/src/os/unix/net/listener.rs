@@ -91,9 +91,10 @@ impl UnixListener {
             let inner = Socket::new_raw(libc::AF_UNIX, libc::SOCK_STREAM)?;
             let (addr, len) = sockaddr_un(path.as_ref())?;
             let sock_addr = SockAddr::UN((addr, len));
+            const BACKLOG: libc::c_int = 128;
 
             cvt_ocall(libc::bind(inner.as_inner().as_raw_fd(), &sock_addr))?;
-            cvt_ocall(libc::listen(inner.as_inner().as_raw_fd(), 128))?;
+            cvt_ocall(libc::listen(inner.as_inner().as_raw_fd(), BACKLOG))?;
 
             Ok(UnixListener(inner))
         }
@@ -106,7 +107,6 @@ impl UnixListener {
     /// # Examples
     ///
     /// ```no_run
-    /// #![feature(unix_socket_abstract)]
     /// use std::os::unix::net::{UnixListener};
     ///
     /// fn main() -> std::io::Result<()> {
@@ -127,8 +127,10 @@ impl UnixListener {
         unsafe {
             let inner = Socket::new_raw(libc::AF_UNIX, libc::SOCK_STREAM)?;
             let sock_addr = socket_addr.into();
+            const BACKLOG: libc::c_int = 128;
+
             cvt_ocall(libc::bind(inner.as_raw_fd(), &sock_addr))?;
-            cvt_ocall(libc::listen(inner.as_raw_fd(), 128))?;
+            cvt_ocall(libc::listen(inner.as_raw_fd(), BACKLOG))?;
             Ok(UnixListener(inner))
         }
     }

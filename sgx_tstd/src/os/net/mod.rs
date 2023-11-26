@@ -15,9 +15,4 @@
 // specific language governing permissions and limitations
 // under the License..
 
-
-//! Linux and Android-specific definitions for socket options.
-
-pub mod tcp;
-#[cfg(feature = "unit_test")]
-mod tests;
+pub(super) mod linux_ext;

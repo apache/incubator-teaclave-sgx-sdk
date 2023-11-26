@@ -30,7 +30,6 @@
 #![feature(alloc_layout_extra)]
 #![feature(core_intrinsics)]
 #![feature(dropck_eyepatch)]
-#![feature(nonnull_slice_from_raw_parts)]
 #![feature(ptr_internals)]
 #![feature(slice_ptr_get)]
 

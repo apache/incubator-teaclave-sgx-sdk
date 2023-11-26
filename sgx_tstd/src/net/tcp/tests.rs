@@ -21,7 +21,8 @@
 
 use crate::fmt;
 use crate::io::prelude::*;
-use crate::io::{ErrorKind, IoSlice, IoSliceMut};
+use crate::io::{BorrowedBuf, ErrorKind, IoSlice, IoSliceMut};
+use crate::mem::MaybeUninit;
 use crate::net::test::{next_test_ip4, next_test_ip6};
 use crate::net::*;
 use crate::sync::mpsc::channel;
@@ -69,12 +70,22 @@ fn connect_error() {
 }
 
 #[test_case]
+fn connect_timeout_error() {
+    let socket_addr = next_test_ip4();
+    let result = TcpStream::connect_timeout(&socket_addr, Duration::MAX);
+    assert!(!matches!(result, Err(e) if e.kind() == ErrorKind::TimedOut));
+
+    let _listener = TcpListener::bind(socket_addr).unwrap();
+    assert!(TcpStream::connect_timeout(&socket_addr, Duration::MAX).is_ok());
+}
+
+#[test_case]
 fn listen_localhost() {
     let socket_addr = next_test_ip4();
-    let listener = t!(TcpListener::bind(&socket_addr));
+    let listener = t!(TcpListener::bind(socket_addr));
 
     let _t = thread::spawn(move || {
-        let mut stream = t!(TcpStream::connect(&("localhost", socket_addr.port())));
+        let mut stream = t!(TcpStream::connect(("localhost", socket_addr.port())));
         t!(stream.write(&[144]));
     });
 
@@ -87,14 +98,14 @@ fn listen_localhost() {
 #[test_case]
 fn connect_loopback() {
     each_ip(&mut |addr| {
-        let acceptor = t!(TcpListener::bind(&addr));
+        let acceptor = t!(TcpListener::bind(addr));
 
         let _t = thread::spawn(move || {
             let host = match addr {
                 SocketAddr::V4(..) => "127.0.0.1",
                 SocketAddr::V6(..) => "::1",
             };
-            let mut stream = t!(TcpStream::connect(&(host, addr.port())));
+            let mut stream = t!(TcpStream::connect((host, addr.port())));
             t!(stream.write(&[66]));
         });
 
@@ -108,11 +119,11 @@ fn connect_loopback() {
 #[test_case]
 fn smoke_test() {
     each_ip(&mut |addr| {
-        let acceptor = t!(TcpListener::bind(&addr));
+        let acceptor = t!(TcpListener::bind(addr));
 
         let (tx, rx) = channel();
         let _t = thread::spawn(move || {
-            let mut stream = t!(TcpStream::connect(&addr));
+            let mut stream = t!(TcpStream::connect(addr));
             t!(stream.write(&[99]));
             tx.send(t!(stream.local_addr())).unwrap();
         });
@@ -128,10 +139,10 @@ fn smoke_test() {
 #[test_case]
 fn read_eof() {
     each_ip(&mut |addr| {
-        let acceptor = t!(TcpListener::bind(&addr));
+        let acceptor = t!(TcpListener::bind(addr));
 
         let _t = thread::spawn(move || {
-            let _stream = t!(TcpStream::connect(&addr));
+            let _stream = t!(TcpStream::connect(addr));
             // Close
         });
 
@@ -147,11 +158,11 @@ fn read_eof() {
 #[test_case]
 fn write_close() {
     each_ip(&mut |addr| {
-        let acceptor = t!(TcpListener::bind(&addr));
+        let acceptor = t!(TcpListener::bind(addr));
 
         let (tx, rx) = channel();
         let _t = thread::spawn(move || {
-            drop(t!(TcpStream::connect(&addr)));
+            drop(t!(TcpStream::connect(addr)));
             tx.send(()).unwrap();
         });
 
@@ -176,11 +187,11 @@ fn write_close() {
 fn multiple_connect_serial() {
     each_ip(&mut |addr| {
         let max = 10;
-        let acceptor = t!(TcpListener::bind(&addr));
+        let acceptor = t!(TcpListener::bind(addr));
 
         let _t = thread::spawn(move || {
             for _ in 0..max {
-                let mut stream = t!(TcpStream::connect(&addr));
+                let mut stream = t!(TcpStream::connect(addr));
                 t!(stream.write(&[99]));
             }
         });
@@ -198,7 +209,7 @@ fn multiple_connect_serial() {
 fn multiple_connect_interleaved_greedy_schedule() {
     const MAX: usize = 10;
     each_ip(&mut |addr| {
-        let acceptor = t!(TcpListener::bind(&addr));
+        let acceptor = t!(TcpListener::bind(addr));
 
         let _t = thread::spawn(move || {
             let acceptor = acceptor;
@@ -222,7 +233,7 @@ fn multiple_connect_interleaved_greedy_schedule() {
         }
 
         let t = thread::spawn(move || {
-            let mut stream = t!(TcpStream::connect(&addr));
+            let mut stream = t!(TcpStream::connect(addr));
             // Connect again before writing
             connect(i + 1, addr);
             t!(stream.write(&[i as u8]));
@@ -235,7 +246,7 @@ fn multiple_connect_interleaved_greedy_schedule() {
 fn multiple_connect_interleaved_lazy_schedule() {
     const MAX: usize = 10;
     each_ip(&mut |addr| {
-        let acceptor = t!(TcpListener::bind(&addr));
+        let acceptor = t!(TcpListener::bind(addr));
 
         let _t = thread::spawn(move || {
             for stream in acceptor.incoming().take(MAX) {
@@ -258,7 +269,7 @@ fn multiple_connect_interleaved_lazy_schedule() {
         }
 
         let t = thread::spawn(move || {
-            let mut stream = t!(TcpStream::connect(&addr));
+            let mut stream = t!(TcpStream::connect(addr));
             connect(i + 1, addr);
             t!(stream.write(&[99]));
         });
@@ -269,14 +280,14 @@ fn multiple_connect_interleaved_lazy_schedule() {
 #[test_case]
 fn socket_and_peer_name() {
     each_ip(&mut |addr| {
-        let listener = t!(TcpListener::bind(&addr));
+        let listener = t!(TcpListener::bind(addr));
         let so_name = t!(listener.local_addr());
         assert_eq!(addr, so_name);
         let _t = thread::spawn(move || {
             t!(listener.accept());
         });
 
-        let stream = t!(TcpStream::connect(&addr));
+        let stream = t!(TcpStream::connect(addr));
         assert_eq!(addr, t!(stream.peer_addr()));
     })
 }
@@ -285,7 +296,7 @@ fn socket_and_peer_name() {
 fn partial_read() {
     each_ip(&mut |addr| {
         let (tx, rx) = channel();
-        let srv = t!(TcpListener::bind(&addr));
+        let srv = t!(TcpListener::bind(addr));
         let _t = thread::spawn(move || {
             let mut cl = t!(srv.accept()).0;
             cl.write(&[10]).unwrap();
@@ -294,7 +305,7 @@ fn partial_read() {
             tx.send(()).unwrap();
         });
 
-        let mut c = t!(TcpStream::connect(&addr));
+        let mut c = t!(TcpStream::connect(addr));
         let mut b = [0; 10];
         assert_eq!(c.read(&mut b).unwrap(), 1);
         t!(c.write(&[1]));
@@ -303,10 +314,32 @@ fn partial_read() {
 }
 
 #[test_case]
+fn read_buf() {
+    each_ip(&mut |addr| {
+        let srv = t!(TcpListener::bind(addr));
+        let t = thread::spawn(move || {
+            let mut s = t!(TcpStream::connect(addr));
+            s.write_all(&[1, 2, 3, 4]).unwrap();
+        });
+
+        let mut s = t!(srv.accept()).0;
+        let mut buf: [MaybeUninit<u8>; 128] = MaybeUninit::uninit_array();
+        let mut buf = BorrowedBuf::from(buf.as_mut_slice());
+        t!(s.read_buf(buf.unfilled()));
+        assert_eq!(buf.filled(), &[1, 2, 3, 4]);
+
+        // TcpStream::read_buf should omit buffer initialization.
+        assert_eq!(buf.init_len(), 4);
+
+        t.join().ok().expect("thread panicked");
+    })
+}
+
+#[test_case]
 fn read_vectored() {
     each_ip(&mut |addr| {
-        let srv = t!(TcpListener::bind(&addr));
-        let mut s1 = t!(TcpStream::connect(&addr));
+        let srv = t!(TcpListener::bind(addr));
+        let mut s1 = t!(TcpStream::connect(addr));
         let mut s2 = t!(srv.accept()).0;
 
         let len = s1.write(&[10, 11, 12]).unwrap();
@@ -330,8 +363,8 @@ fn read_vectored() {
 #[test_case]
 fn write_vectored() {
     each_ip(&mut |addr| {
-        let srv = t!(TcpListener::bind(&addr));
-        let mut s1 = t!(TcpStream::connect(&addr));
+        let srv = t!(TcpListener::bind(addr));
+        let mut s1 = t!(TcpStream::connect(addr));
         let mut s2 = t!(srv.accept()).0;
 
         let a = [];
@@ -354,8 +387,8 @@ fn write_vectored() {
 #[test_case]
 fn double_bind() {
     each_ip(&mut |addr| {
-        let listener1 = t!(TcpListener::bind(&addr));
-        match TcpListener::bind(&addr) {
+        let listener1 = t!(TcpListener::bind(addr));
+        match TcpListener::bind(addr) {
             Ok(listener2) => panic!(
                 "This system (perhaps due to options set by TcpListener::bind) \
                  permits double binding: {:?} and {:?}",
@@ -378,10 +411,10 @@ fn double_bind() {
 #[test_case]
 fn tcp_clone_smoke() {
     each_ip(&mut |addr| {
-        let acceptor = t!(TcpListener::bind(&addr));
+        let acceptor = t!(TcpListener::bind(addr));
 
         let _t = thread::spawn(move || {
-            let mut s = t!(TcpStream::connect(&addr));
+            let mut s = t!(TcpStream::connect(addr));
             let mut buf = [0, 0];
             assert_eq!(s.read(&mut buf).unwrap(), 1);
             assert_eq!(buf[0], 1);
@@ -409,12 +442,12 @@ fn tcp_clone_smoke() {
 #[test_case]
 fn tcp_clone_two_read() {
     each_ip(&mut |addr| {
-        let acceptor = t!(TcpListener::bind(&addr));
+        let acceptor = t!(TcpListener::bind(addr));
         let (tx1, rx) = channel();
         let tx2 = tx1.clone();
 
         let _t = thread::spawn(move || {
-            let mut s = t!(TcpStream::connect(&addr));
+            let mut s = t!(TcpStream::connect(addr));
             t!(s.write(&[1]));
             rx.recv().unwrap();
             t!(s.write(&[2]));
@@ -443,10 +476,10 @@ fn tcp_clone_two_read() {
 #[test_case]
 fn tcp_clone_two_write() {
     each_ip(&mut |addr| {
-        let acceptor = t!(TcpListener::bind(&addr));
+        let acceptor = t!(TcpListener::bind(addr));
 
         let _t = thread::spawn(move || {
-            let mut s = t!(TcpStream::connect(&addr));
+            let mut s = t!(TcpStream::connect(addr));
             let mut buf = [0, 1];
             t!(s.read(&mut buf));
             t!(s.read(&mut buf));
@@ -470,7 +503,7 @@ fn tcp_clone_two_write() {
 #[test_case]
 fn shutdown_smoke() {
     each_ip(&mut |addr| {
-        let a = t!(TcpListener::bind(&addr));
+        let a = t!(TcpListener::bind(addr));
         let _t = thread::spawn(move || {
             let mut c = t!(a.accept()).0;
             let mut b = [0];
@@ -478,7 +511,7 @@ fn shutdown_smoke() {
             t!(c.write(&[1]));
         });
 
-        let mut s = t!(TcpStream::connect(&addr));
+        let mut s = t!(TcpStream::connect(addr));
         t!(s.shutdown(Shutdown::Write));
         assert!(s.write(&[1]).is_err());
         let mut b = [0, 0];
@@ -490,7 +523,7 @@ fn shutdown_smoke() {
 #[test_case]
 fn close_readwrite_smoke() {
     each_ip(&mut |addr| {
-        let a = t!(TcpListener::bind(&addr));
+        let a = t!(TcpListener::bind(addr));
         let (tx, rx) = channel::<()>();
         let _t = thread::spawn(move || {
             let _s = t!(a.accept());
@@ -498,7 +531,7 @@ fn close_readwrite_smoke() {
         });
 
         let mut b = [0];
-        let mut s = t!(TcpStream::connect(&addr));
+        let mut s = t!(TcpStream::connect(addr));
         let mut s2 = t!(s.try_clone());
 
         // closing should prevent reads/writes
@@ -528,14 +561,14 @@ fn close_readwrite_smoke() {
 #[test_case]
 fn close_read_wakes_up() {
     each_ip(&mut |addr| {
-        let a = t!(TcpListener::bind(&addr));
+        let a = t!(TcpListener::bind(addr));
         let (tx1, rx) = channel::<()>();
         let _t = thread::spawn(move || {
             let _s = t!(a.accept());
             let _ = rx.recv();
         });
 
-        let s = t!(TcpStream::connect(&addr));
+        let s = t!(TcpStream::connect(addr));
         let s2 = t!(s.try_clone());
         let (tx, rx) = channel();
         let _t = thread::spawn(move || {
@@ -556,14 +589,14 @@ fn close_read_wakes_up() {
 #[test_case]
 fn clone_while_reading() {
     each_ip(&mut |addr| {
-        let accept = t!(TcpListener::bind(&addr));
+        let accept = t!(TcpListener::bind(addr));
 
         // Enqueue a thread to write to a socket
         let (tx, rx) = channel();
         let (txdone, rxdone) = channel();
         let txdone2 = txdone.clone();
         let _t = thread::spawn(move || {
-            let mut tcp = t!(TcpStream::connect(&addr));
+            let mut tcp = t!(TcpStream::connect(addr));
             rx.recv().unwrap();
             t!(tcp.write(&[0]));
             txdone2.send(()).unwrap();
@@ -596,14 +629,14 @@ fn clone_while_reading() {
 #[test_case]
 fn clone_accept_smoke() {
     each_ip(&mut |addr| {
-        let a = t!(TcpListener::bind(&addr));
+        let a = t!(TcpListener::bind(addr));
         let a2 = t!(a.try_clone());
 
         let _t = thread::spawn(move || {
-            let _ = TcpStream::connect(&addr);
+            let _ = TcpStream::connect(addr);
         });
         let _t = thread::spawn(move || {
-            let _ = TcpStream::connect(&addr);
+            let _ = TcpStream::connect(addr);
         });
 
         t!(a.accept());
@@ -614,7 +647,7 @@ fn clone_accept_smoke() {
 #[test_case]
 fn clone_accept_concurrent() {
     each_ip(&mut |addr| {
-        let a = t!(TcpListener::bind(&addr));
+        let a = t!(TcpListener::bind(addr));
         let a2 = t!(a.try_clone());
 
         let (tx, rx) = channel();
@@ -628,10 +661,10 @@ fn clone_accept_concurrent() {
         });
 
         let _t = thread::spawn(move || {
-            let _ = TcpStream::connect(&addr);
+            let _ = TcpStream::connect(addr);
         });
         let _t = thread::spawn(move || {
-            let _ = TcpStream::connect(&addr);
+            let _ = TcpStream::connect(addr);
         });
 
         rx.recv().unwrap();
@@ -653,7 +686,7 @@ fn debug() {
     let inner_name = if cfg!(windows) { "socket" } else { "fd" };
     let socket_addr = next_test_ip4();
 
-    let listener = t!(TcpListener::bind(&socket_addr));
+    let listener = t!(TcpListener::bind(socket_addr));
     let compare = format!(
         "TcpListener {{ addr: {:?}, {}: {:?} }}",
         render_socket_addr(&socket_addr),
@@ -662,7 +695,7 @@ fn debug() {
     );
     assert_eq!(format!("{listener:?}"), compare);
 
-    let stream = t!(TcpStream::connect(&("localhost", socket_addr.port())));
+    let stream = t!(TcpStream::connect(("localhost", socket_addr.port())));
     let compare = format!(
         "TcpStream {{ addr: {:?}, peer: {:?}, {}: {:?} }}",
         render_socket_addr(&stream.local_addr().unwrap()),
@@ -676,9 +709,9 @@ fn debug() {
 #[test_case]
 fn timeouts() {
     let addr = next_test_ip4();
-    let listener = t!(TcpListener::bind(&addr));
+    let listener = t!(TcpListener::bind(addr));
 
-    let stream = t!(TcpStream::connect(&("localhost", addr.port())));
+    let stream = t!(TcpStream::connect(("localhost", addr.port())));
     let dur = Duration::new(15410, 0);
 
     assert_eq!(None, t!(stream.read_timeout()));
@@ -702,9 +735,9 @@ fn timeouts() {
 #[test_case]
 fn test_read_timeout() {
     let addr = next_test_ip4();
-    let listener = t!(TcpListener::bind(&addr));
+    let listener = t!(TcpListener::bind(addr));
 
-    let mut stream = t!(TcpStream::connect(&("localhost", addr.port())));
+    let mut stream = t!(TcpStream::connect(("localhost", addr.port())));
     t!(stream.set_read_timeout(Some(Duration::from_millis(1000))));
 
     let mut buf = [0; 10];
@@ -722,9 +755,9 @@ fn test_read_timeout() {
 #[test_case]
 fn test_read_with_timeout() {
     let addr = next_test_ip4();
-    let listener = t!(TcpListener::bind(&addr));
+    let listener = t!(TcpListener::bind(addr));
 
-    let mut stream = t!(TcpStream::connect(&("localhost", addr.port())));
+    let mut stream = t!(TcpStream::connect(("localhost", addr.port())));
     t!(stream.set_read_timeout(Some(Duration::from_millis(1000))));
 
     let mut other_end = t!(listener.accept()).0;
@@ -751,8 +784,8 @@ fn test_read_with_timeout() {
 fn test_timeout_zero_duration() {
     let addr = next_test_ip4();
 
-    let listener = t!(TcpListener::bind(&addr));
-    let stream = t!(TcpStream::connect(&addr));
+    let listener = t!(TcpListener::bind(addr));
+    let stream = t!(TcpStream::connect(addr));
 
     let result = stream.set_write_timeout(Some(Duration::new(0, 0)));
     let err = result.unwrap_err();
@@ -768,9 +801,9 @@ fn test_timeout_zero_duration() {
 #[test_case]
 fn linger() {
     let addr = next_test_ip4();
-    let _listener = t!(TcpListener::bind(&addr));
+    let _listener = t!(TcpListener::bind(addr));
 
-    let stream = t!(TcpStream::connect(&("localhost", addr.port())));
+    let stream = t!(TcpStream::connect(("localhost", addr.port())));
 
     assert_eq!(None, t!(stream.linger()));
     t!(stream.set_linger(Some(Duration::from_secs(1))));
@@ -782,9 +815,9 @@ fn linger() {
 #[test_case]
 fn nodelay() {
     let addr = next_test_ip4();
-    let _listener = t!(TcpListener::bind(&addr));
+    let _listener = t!(TcpListener::bind(addr));
 
-    let stream = t!(TcpStream::connect(&("localhost", addr.port())));
+    let stream = t!(TcpStream::connect(("localhost", addr.port())));
 
     assert_eq!(false, t!(stream.nodelay()));
     t!(stream.set_nodelay(true));
@@ -798,12 +831,12 @@ fn ttl() {
     let ttl = 100;
 
     let addr = next_test_ip4();
-    let listener = t!(TcpListener::bind(&addr));
+    let listener = t!(TcpListener::bind(addr));
 
     t!(listener.set_ttl(ttl));
     assert_eq!(ttl, t!(listener.ttl()));
 
-    let stream = t!(TcpStream::connect(&("localhost", addr.port())));
+    let stream = t!(TcpStream::connect(("localhost", addr.port())));
 
     t!(stream.set_ttl(ttl));
     assert_eq!(ttl, t!(stream.ttl()));
@@ -812,12 +845,12 @@ fn ttl() {
 #[test_case]
 fn set_nonblocking() {
     let addr = next_test_ip4();
-    let listener = t!(TcpListener::bind(&addr));
+    let listener = t!(TcpListener::bind(addr));
 
     t!(listener.set_nonblocking(true));
     t!(listener.set_nonblocking(false));
 
-    let mut stream = t!(TcpStream::connect(&("localhost", addr.port())));
+    let mut stream = t!(TcpStream::connect(("localhost", addr.port())));
 
     t!(stream.set_nonblocking(false));
     t!(stream.set_nonblocking(true));
@@ -835,14 +868,14 @@ fn peek() {
     each_ip(&mut |addr| {
         let (txdone, rxdone) = channel();
 
-        let srv = t!(TcpListener::bind(&addr));
+        let srv = t!(TcpListener::bind(addr));
         let _t = thread::spawn(move || {
             let mut cl = t!(srv.accept()).0;
             cl.write(&[1, 3, 3, 7]).unwrap();
             t!(rxdone.recv());
         });
 
-        let mut c = t!(TcpStream::connect(&addr));
+        let mut c = t!(TcpStream::connect(addr));
         let mut b = [0; 10];
         for _ in 1..3 {
             let len = c.peek(&mut b).unwrap();

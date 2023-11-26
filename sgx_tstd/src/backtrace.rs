@@ -40,10 +40,10 @@
 //!
 //! ## Platform support
 //!
-//! Not all platforms that libstd compiles for support capturing backtraces.
-//! Some platforms simply do nothing when capturing a backtrace. To check
-//! whether the platform supports capturing backtraces you can consult the
-//! `BacktraceStatus` enum as a result of `Backtrace::status`.
+//! Not all platforms that std compiles for support capturing backtraces. Some
+//! platforms simply do nothing when capturing a backtrace. To check whether the
+//! platform supports capturing backtraces you can consult the `BacktraceStatus`
+//! enum as a result of `Backtrace::status`.
 //!
 //! Like above with accuracy platform support is done on a best effort basis.
 //! Sometimes libraries might not be available at runtime or something may go
@@ -81,13 +81,13 @@ mod tests;
 
 pub use crate::sys_common::backtrace::__rust_begin_short_backtrace;
 
-use crate::cell::UnsafeCell;
 use crate::enclave::Enclave;
 use crate::ffi::c_void;
 use crate::fmt;
 use crate::io;
+use crate::panic::UnwindSafe;
 use crate::panic::{BacktraceStyle, get_backtrace_style, set_backtrace_style};
-use crate::sync::Once;
+use crate::sync::LazyLock;
 use crate::sys::backtrace::{self, BytesOrWideString};
 use crate::sys_common::backtrace::{
     lock,
@@ -127,12 +127,11 @@ pub enum BacktraceStatus {
 enum Inner {
     Unsupported,
     Disabled,
-    Captured(LazilyResolvedCapture),
+    Captured(LazyLock<Capture, LazyResolve>),
 }
 
 struct Capture {
     actual_start: usize,
-    resolved: bool,
     frames: Vec<BacktraceFrame>,
 }
 
@@ -171,7 +170,7 @@ impl fmt::Debug for Backtrace {
         let capture = match &self.inner {
             Inner::Unsupported => return fmt.write_str("<unsupported>"),
             Inner::Disabled => return fmt.write_str("<disabled>"),
-            Inner::Captured(c) => c.force(),
+            Inner::Captured(c) => &**c,
         };
 
         let frames = &capture.frames[capture.actual_start..];
@@ -296,7 +295,6 @@ impl Backtrace {
     // Capture a backtrace which start just before the function addressed by
     // `ip`
     fn create(ip: usize) -> Backtrace {
-        // SAFETY: We don't attempt to lock this reentrantly.
         let _lock = lock();
         let mut frames = Vec::new();
         let mut actual_start = None;
@@ -306,7 +304,7 @@ impl Backtrace {
                     frame: RawFrame::Actual(frame.clone()),
                     symbols: Vec::new(),
                 });
-                if frame.symbol_address() as usize == ip && actual_start.is_none() {
+                if frame.symbol_address().addr() == ip && actual_start.is_none() {
                     actual_start = Some(frames.len());
                 }
                 true
@@ -319,11 +317,10 @@ impl Backtrace {
         let inner = if frames.is_empty() {
             Inner::Unsupported
         } else {
-            Inner::Captured(LazilyResolvedCapture::new(Capture {
+            Inner::Captured(LazyLock::new(lazy_resolve(Capture {
                 actual_start: actual_start.unwrap_or(0),
                 frames,
-                resolved: false,
-            }))
+            })))
         };
 
         Backtrace { inner }
@@ -346,7 +343,7 @@ impl<'a> Backtrace {
     /// Returns an iterator over the backtrace frames.
     #[must_use]
     pub fn frames(&'a self) -> &'a [BacktraceFrame] {
-        if let Inner::Captured(c) = &self.inner { &c.force().frames } else { &[] }
+        if let Inner::Captured(c) = &self.inner { &c.frames } else { &[] }
     }
 }
 
@@ -355,7 +352,7 @@ impl fmt::Display for Backtrace {
         let capture = match &self.inner {
             Inner::Unsupported => return fmt.write_str("unsupported backtrace"),
             Inner::Disabled => return fmt.write_str("disabled backtrace"),
-            Inner::Captured(c) => c.force(),
+            Inner::Captured(c) => &**c,
         };
 
         let full = fmt.alternate();
@@ -399,54 +396,22 @@ impl fmt::Display for Backtrace {
     }
 }
 
-struct LazilyResolvedCapture {
-    sync: Once,
-    capture: UnsafeCell<Capture>,
-}
+type LazyResolve = impl (FnOnce() -> Capture) + Send + Sync + UnwindSafe;
 
-impl LazilyResolvedCapture {
-    fn new(capture: Capture) -> Self {
-        LazilyResolvedCapture { sync: Once::new(), capture: UnsafeCell::new(capture) }
-    }
-
-    fn force(&self) -> &Capture {
-        self.sync.call_once(|| {
-            // SAFETY: This exclusive reference can't overlap with any others
-            // `Once` guarantees callers will block until this closure returns
-            // `Once` also guarantees only a single caller will enter this closure
-            unsafe { &mut *self.capture.get() }.resolve();
-        });
-
-        // SAFETY: This shared reference can't overlap with the exclusive reference above
-        unsafe { &*self.capture.get() }
-    }
-}
-
-// SAFETY: Access to the inner value is synchronized using a thread-safe `Once`
-// So long as `Capture` is `Sync`, `LazilyResolvedCapture` is too
-unsafe impl Sync for LazilyResolvedCapture where Capture: Sync {}
-
-impl Capture {
-    #[allow(clippy::infallible_destructuring_match)]
-    fn resolve(&mut self) {
-        // If we're already resolved, nothing to do!
-        if self.resolved {
-            return;
-        }
-        self.resolved = true;
-
+#[allow(clippy::infallible_destructuring_match)]
+fn lazy_resolve(mut capture: Capture) -> LazyResolve {
+    move || {
         // Use the global backtrace lock to synchronize this as it's a
         // requirement of the `backtrace` crate, and then actually resolve
         // everything.
         let _lock = lock();
-        for frame in self.frames.iter_mut() {
+        for frame in capture.frames.iter_mut() {
             let symbols = &mut frame.symbols;
             let frame = match &frame.frame {
                 RawFrame::Actual(frame) => frame,
                 #[cfg(feature = "unit_test")]
                 RawFrame::Fake => unimplemented!(),
             };
-            // let RawFrame::Actual(frame) = &frame.frame;
             unsafe {
                 resolve_frame_unsynchronized(frame, |symbol| {
                     symbols.push(BacktraceSymbol {
@@ -461,6 +426,8 @@ impl Capture {
                 });
             }
         }
+
+        capture
     }
 }
 

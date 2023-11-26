@@ -17,6 +17,8 @@
 
 use super::*;
 use crate::env;
+use crate::rc::Rc;
+use crate::sync::mpmc::SendTimeoutError;
 use crate::thread;
 use crate::time::Duration;
 
@@ -59,6 +61,13 @@ fn recv_timeout() {
     assert_eq!(rx.recv_timeout(Duration::from_millis(1)), Err(RecvTimeoutError::Timeout));
     tx.send(1).unwrap();
     assert_eq!(rx.recv_timeout(Duration::from_millis(1)), Ok(1));
+}
+
+#[test_case]
+fn send_timeout() {
+    let (tx, _rx) = sync_channel::<i32>(1);
+    assert_eq!(tx.send_timeout(1, Duration::from_millis(1)), Ok(()));
+    assert_eq!(tx.send_timeout(1, Duration::from_millis(1)), Err(SendTimeoutError::Timeout(1)));
 }
 
 #[test_case]
@@ -668,4 +677,16 @@ fn issue_15761() {
     for _ in 0..100 {
         repro()
     }
+}
+
+#[test_case]
+fn drop_unreceived() {
+    let (tx, rx) = sync_channel::<Rc<()>>(1);
+    let msg = Rc::new(());
+    let weak = Rc::downgrade(&msg);
+    assert!(tx.send(msg).is_ok());
+    drop(rx);
+    // Messages should be dropped immediately when the last receiver is destroyed.
+    assert!(weak.upgrade().is_none());
+    drop(tx);
 }

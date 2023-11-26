@@ -182,9 +182,10 @@ unsafe fn msync(addr: NonNull<u8>, size: NonZeroUsize) -> OsResult {
     rsrvmem.msync(addr.as_ptr() as usize, size.get())
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum MapAddr {
     /// Free to choose any address
+    #[default]
     Any,
     /// Prefer the address, but can use other address
     Hint(NonNull<u8>),
@@ -192,12 +193,6 @@ pub enum MapAddr {
     Need(NonNull<u8>),
     /// Force using the address by free first
     Force(NonNull<u8>),
-}
-
-impl Default for MapAddr {
-    fn default() -> MapAddr {
-        MapAddr::Any
-    }
 }
 
 pub trait Map: Any {

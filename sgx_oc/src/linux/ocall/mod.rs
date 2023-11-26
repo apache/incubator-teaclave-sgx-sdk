@@ -299,6 +299,7 @@ fn check_host_buffer(buf: &[u8]) -> OCallResult<()> {
     Ok(())
 }
 
+#[allow(useless_ptr_null_checks)]
 #[inline]
 fn check_trusted_enclave_buffer(buf: &[u8]) -> OCallResult<()> {
     ensure!(!buf.as_ptr().is_null(), ecust!("Invalid null buffer."));

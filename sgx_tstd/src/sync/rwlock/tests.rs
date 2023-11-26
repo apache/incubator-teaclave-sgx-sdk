@@ -19,7 +19,7 @@
 
 use crate::sync::atomic::{AtomicUsize, Ordering};
 use crate::sync::mpsc::channel;
-use crate::sync::{Arc, RwLock, TryLockError};
+use crate::sync::{Arc, RwLock, RwLockReadGuard, TryLockError};
 use crate::thread;
 use sgx_trts::rand::Rng;
 
@@ -267,4 +267,16 @@ fn test_get_mut_poison() {
         Err(e) => assert_eq!(*e.into_inner(), NonCopy(10)),
         Ok(x) => panic!("get_mut of poisoned RwLock is Ok: {x:?}"),
     }
+}
+
+#[test_case]
+fn test_read_guard_covariance() {
+    fn do_stuff<'a>(_: RwLockReadGuard<'_, &'a i32>, _: &'a i32) {}
+    let j: i32 = 5;
+    let lock = RwLock::new(&j);
+    {
+        let i = 6;
+        do_stuff(lock.read().unwrap(), &i);
+    }
+    // drop(lock);
 }

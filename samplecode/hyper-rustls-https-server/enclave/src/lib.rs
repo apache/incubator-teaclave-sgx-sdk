@@ -209,7 +209,9 @@ async fn echo(req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
     match (req.method(), req.uri().path()) {
         // Help route.
         (&Method::GET, "/") => {
-            *response.body_mut() = Body::from("Try POST /echo\n");
+            *response.body_mut() = Body::from(
+                "Try POSTing data to /echo such as: `curl https://127.0.0.1:1337/echo -XPOST -d 'hello world'`"
+            );
         }
         // Echo service route.
         (&Method::POST, "/echo") => {

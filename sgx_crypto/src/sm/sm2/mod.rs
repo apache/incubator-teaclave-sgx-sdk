@@ -148,7 +148,7 @@ impl Sm2PrivateKey {
             sgx_calculate_sm2_priv_key(
                 hash_drg.as_ptr(),
                 hash_drg.len() as i32,
-                Sm2PrivateKey::SM2_ORDER.as_ptr() as *const u8,
+                Sm2PrivateKey::SM2_ORDER.as_ptr(),
                 32,
                 &mut key.0.key as *mut _ as *mut u8,
                 key.as_ref().len() as i32,

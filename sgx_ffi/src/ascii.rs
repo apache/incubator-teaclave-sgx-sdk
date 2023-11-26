@@ -33,6 +33,8 @@ use alloc::vec::Vec;
 
 pub use core::ascii::{escape_default, EscapeDefault};
 
+pub use core::ascii::Char;
+
 /// Extension methods for ASCII-subset only operations.
 ///
 /// Be aware that operations on seemingly non-ASCII characters can sometimes

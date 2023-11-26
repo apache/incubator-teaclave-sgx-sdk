@@ -189,7 +189,8 @@
 //!
 //! ## Iterators
 //!
-//! Iterators are a powerful and robust mechanism used throughout Rust's
+//! [Iterators][crate::iter]
+//! are a powerful and robust mechanism used throughout Rust's
 //! standard libraries. Iterators provide a sequence of values in a generic,
 //! safe, efficient and convenient way. The contents of an iterator are usually
 //! *lazily* evaluated, so that only the values that are actually needed are
@@ -269,7 +270,9 @@
 //!
 //! Several other collection methods also return iterators to yield a sequence
 //! of results but avoid allocating an entire collection to store the result in.
-//! This provides maximum flexibility as `collect` or `extend` can be called to
+//! This provides maximum flexibility as
+//! [`collect`][crate::iter::Iterator::collect] or
+//! [`extend`][crate::iter::Extend::extend] can be called to
 //! "pipe" the sequence into any collection if desired. Otherwise, the sequence
 //! can be looped over with a `for` loop. The iterator can also be discarded
 //! after partial use, preventing the computation of the unused items.
@@ -412,8 +415,6 @@
 //! // ...but the key hasn't changed. b is still "baz", not "xyz".
 //! assert_eq!(map.keys().next().unwrap().b, "baz");
 //! ```
-//!
-//! [IntoIterator]: crate::iter::IntoIterator "iter::IntoIterator"
 
 #[doc(hidden)]
 pub use crate::ops::Bound;
@@ -433,6 +434,8 @@ mod hash;
 pub mod hash_map {
     //! A hash map implemented with quadratic probing and SIMD lookup.
     pub use super::hash::map::*;
+    pub use crate::hash::random::DefaultHasher;
+    pub use crate::hash::random::RandomState;
 }
 
 pub mod hash_set {

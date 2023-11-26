@@ -25,18 +25,13 @@ use sgx_trts::trts::MmLayout;
 use sgx_types::error::errno::*;
 use sgx_types::error::OsResult;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum MmAllocAddr {
-    Any,          // Free to choose any address
+    #[default]
+    Any, // Free to choose any address
     Hint(usize),  // Prefer the address, but can use other address
     Need(usize),  // Need to use the address, otherwise report error
     Force(usize), // Force using the address by free first
-}
-
-impl Default for MmAllocAddr {
-    fn default() -> MmAllocAddr {
-        MmAllocAddr::Any
-    }
 }
 
 impl From<MapAddr> for MmAllocAddr {

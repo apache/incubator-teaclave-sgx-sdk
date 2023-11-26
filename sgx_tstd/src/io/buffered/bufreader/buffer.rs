@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
-///! An encapsulation of `BufReader`'s buffer management logic.
+/// An encapsulation of `BufReader`'s buffer management logic.
 ///
 /// This module factors out the basic functionality of `BufReader` in order to protect two core
 /// invariants:

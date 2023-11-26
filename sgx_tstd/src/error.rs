@@ -25,6 +25,7 @@ use crate::backtrace::Backtrace;
 use crate::fmt::{self, Write};
 
 pub use core::error::Error;
+pub use core::error::{request_ref, request_value, Request};
 
 mod private {
     // This is a hack to prevent `type_id` from being overridden by `Error`
@@ -136,7 +137,8 @@ mod private {
 /// This example produces the following output:
 ///
 /// ```console
-/// thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: SuperError is here!: SuperErrorSideKick is here!', src/error.rs:34:40
+/// thread 'main' panicked at src/error.rs:34:40:
+/// called `Result::unwrap()` on an `Err` value: SuperError is here!: SuperErrorSideKick is here!
 /// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 /// ```
 ///
@@ -382,11 +384,10 @@ impl<E> Report<E> {
     ///
     /// ```rust
     /// #![feature(error_reporter)]
-    /// #![feature(provide_any)]
     /// #![feature(error_generic_member_access)]
     /// # use std::error::Error;
     /// # use std::fmt;
-    /// use std::any::Demand;
+    /// use std::error::Request;
     /// use std::error::Report;
     /// use std::backtrace::Backtrace;
     ///
@@ -416,8 +417,8 @@ impl<E> Report<E> {
     /// }
     ///
     /// impl Error for SuperErrorSideKick {
-    ///     fn provide<'a>(&'a self, demand: &mut Demand<'a>) {
-    ///         demand.provide_ref::<Backtrace>(&self.backtrace);
+    ///     fn provide<'a>(&'a self, request: &mut Request<'a>) {
+    ///         request.provide_ref::<Backtrace>(&self.backtrace);
     ///     }
     /// }
     ///
@@ -471,13 +472,14 @@ where
     fn backtrace(&self) -> Option<&Backtrace> {
         // have to grab the backtrace on the first error directly since that error may not be
         // 'static
-        let backtrace = (&self.error as &dyn Error).request_ref();
-        backtrace.or_else(|| {
+        let backtrace = request_ref(&self.error);
+        let backtrace = backtrace.or_else(|| {
             self.error
                 .source()
-                .map(|source| source.sources().find_map(|source| source.request_ref()))
+                .map(|source| source.sources().find_map(|source| request_ref(source)))
                 .flatten()
-        })
+        });
+        backtrace
     }
 
     /// Format the report as a single line.

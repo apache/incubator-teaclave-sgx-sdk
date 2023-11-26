@@ -58,7 +58,7 @@ impl FileDesc {
     }
 
     pub fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize> {
-        cvt_ocall(unsafe { libc::pread64(self.as_raw_fd(), buf, offset as i64) })
+        cvt_ocall(unsafe { libc::pread64(self.as_raw_fd(), buf, offset as _) })
     }
 
     pub fn read_buf(&self, mut cursor: BorrowedCursor<'_>) -> io::Result<()> {
@@ -71,6 +71,13 @@ impl FileDesc {
             cursor.advance(ret);
         }
         Ok(())
+    }
+
+    pub fn read_vectored_at(&self, bufs: &mut [IoSliceMut<'_>], offset: u64) -> io::Result<usize> {
+        let len = cmp::min(bufs.len(), max_iov());
+        let vbufs: Vec<&mut [u8]> = bufs[..len].iter_mut().map(|msl| &mut **msl).collect();
+        let ret = cvt_ocall(unsafe { libc::preadv64(self.as_raw_fd(), vbufs, offset as _) })?;
+        Ok(ret)
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
@@ -94,6 +101,15 @@ impl FileDesc {
 
     pub fn write_at(&self, buf: &[u8], offset: u64) -> io::Result<usize> {
         cvt_ocall(unsafe { libc::pwrite64(self.as_raw_fd(), buf, offset as i64) })
+    }
+
+    pub fn write_vectored_at(&self, bufs: &[IoSlice<'_>], offset: u64) -> io::Result<usize> {
+        let vbufs: Vec<&[u8]> = bufs[..cmp::min(bufs.len(), max_iov())]
+            .iter()
+            .map(|msl| &**msl)
+            .collect();
+        let ret = cvt_ocall(unsafe { libc::pwritev64(self.as_raw_fd(), vbufs, offset as _) })?;
+        Ok(ret)
     }
 
     pub fn get_cloexec(&self) -> io::Result<bool> {
@@ -133,9 +149,23 @@ impl<'a> Read for &'a FileDesc {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         (**self).read(buf)
     }
+
+    fn read_buf(&mut self, cursor: BorrowedCursor<'_>) -> io::Result<()> {
+        (**self).read_buf(cursor)
+    }
+
+    fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        (**self).read_vectored(bufs)
+    }
+
+    #[inline]
+    fn is_read_vectored(&self) -> bool {
+        (**self).is_read_vectored()
+    }
 }
 
 impl AsInner<OwnedFd> for FileDesc {
+    #[inline]
     fn as_inner(&self) -> &OwnedFd {
         &self.0
     }
@@ -160,6 +190,7 @@ impl AsFd for FileDesc {
 }
 
 impl AsRawFd for FileDesc {
+    #[inline]
     fn as_raw_fd(&self) -> RawFd {
         self.0.as_raw_fd()
     }
@@ -179,8 +210,7 @@ impl FromRawFd for FileDesc {
 
 mod libc {
     pub use sgx_oc::ocall::{
-        close, fcntl_arg0, fcntl_arg1, ioctl_arg0, ioctl_arg1, pread64, pwrite64, read, readv,
-        write, writev,
+        fcntl_arg0, fcntl_arg1, ioctl_arg1, pread64, preadv64, pwrite64, pwritev64, read, readv, write, writev,
     };
     pub use sgx_oc::*;
 }

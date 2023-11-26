@@ -17,7 +17,7 @@
 
 #![no_std]
 #![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
-#![feature(drain_filter)]
+#![feature(extract_if)]
 #![allow(clippy::missing_safety_doc)]
 
 extern crate alloc;

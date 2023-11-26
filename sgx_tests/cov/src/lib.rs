@@ -17,7 +17,6 @@
 
 #![cfg_attr(not(target_vendor = "teaclave"), no_std)]
 #![cfg_attr(target_vendor = "teaclave", feature(rustc_private))]
-#![feature(once_cell)]
 #![allow(clippy::missing_safety_doc)]
 
 #[cfg(not(target_vendor = "teaclave"))]

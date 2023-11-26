@@ -292,12 +292,15 @@ fn test_scoped_threads_drop_result_before_join() {
 }
 
 #[test_case]
-#[allow(clippy::drop_ref)]
+#[allow(dropping_references)]
+#[allow(clippy::match_single_binding)]
 fn test_scoped_threads_nll() {
     // this is mostly a *compilation test* for this exact function:
     fn foo(x: &u8) {
         thread::scope(|s| {
-            s.spawn(|| drop(x));
+            s.spawn(|| match x {
+                _ => (),
+            });
         });
     }
     // let's also run it for good measure

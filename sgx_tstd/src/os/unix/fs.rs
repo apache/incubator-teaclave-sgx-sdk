@@ -71,6 +71,15 @@ pub trait FileExt {
     /// ```
     fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize>;
 
+    /// Like `read_at`, except that it reads into a slice of buffers.
+    ///
+    /// Data is copied to fill each buffer in order, with the final buffer
+    /// written to possibly being only partially filled. This method must behave
+    /// equivalently to a single call to read with concatenated buffers.
+    fn read_vectored_at(&self, bufs: &mut [io::IoSliceMut<'_>], offset: u64) -> io::Result<usize> {
+        io::default_read_vectored(|b| self.read_at(b, offset), bufs)
+    }
+
     /// Reads the exact number of byte required to fill `buf` from the given offset.
     ///
     /// The offset is relative to the start of the file and thus independent
@@ -125,7 +134,7 @@ pub trait FileExt {
                     buf = &mut tmp[n..];
                     offset += n as u64;
                 }
-                Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
+                Err(ref e) if e.is_interrupted() => {}
                 Err(e) => return Err(e),
             }
         }
@@ -151,7 +160,36 @@ pub trait FileExt {
     /// Note that similar to [`File::write`], it is not an error to return a
     /// short write.
     ///
+    /// # Bug
+    /// On some systems, `write_at` utilises [`pwrite64`] to write to files.
+    /// However, this syscall has a [bug] where files opened with the `O_APPEND`
+    /// flag fail to respect the offset parameter, always appending to the end
+    /// of the file instead.
+    ///
+    /// It is possible to inadvertently set this flag, like in the example below.
+    /// Therefore, it is important to be vigilant while changing options to mitigate
+    /// unexpected behaviour.
+    ///
+    /// ```no_run
+    /// use std::fs::File;
+    /// use std::io;
+    /// use std::os::unix::prelude::FileExt;
+    ///
+    /// fn main() -> io::Result<()> {
+    ///     // Open a file with the append option (sets the `O_APPEND` flag)
+    ///     let file = File::options().append(true).open("foo.txt")?;
+    ///
+    ///     // We attempt to write at offset 10; instead appended to EOF
+    ///     file.write_at(b"sushi", 10)?;
+    ///
+    ///     // foo.txt is 5 bytes long instead of 15
+    ///     Ok(())
+    /// }
+    /// ```
+    ///
     /// [`File::write`]: fs::File::write
+    /// [`pwrite64`]: https://man7.org/linux/man-pages/man2/pwrite.2.html
+    /// [bug]: https://man7.org/linux/man-pages/man2/pwrite.2.html#BUGS
     ///
     /// # Examples
     ///
@@ -161,7 +199,7 @@ pub trait FileExt {
     /// use std::os::unix::prelude::FileExt;
     ///
     /// fn main() -> io::Result<()> {
-    ///     let file = File::open("foo.txt")?;
+    ///     let file = File::create("foo.txt")?;
     ///
     ///     // We now write at the offset 10.
     ///     file.write_at(b"sushi", 10)?;
@@ -169,6 +207,15 @@ pub trait FileExt {
     /// }
     /// ```
     fn write_at(&self, buf: &[u8], offset: u64) -> io::Result<usize>;
+
+    /// Like `write_at`, except that it writes from a slice of buffers.
+    ///
+    /// Data is copied from each buffer in order, with the final buffer read
+    /// from possibly being only partially consumed. This method must behave as
+    /// a call to `write_at` with the buffers concatenated would.
+    fn write_vectored_at(&self, bufs: &[io::IoSlice<'_>], offset: u64) -> io::Result<usize> {
+        io::default_write_vectored(|b| self.write_at(b, offset), bufs)
+    }
 
     /// Attempts to write an entire buffer starting from a given offset.
     ///
@@ -219,7 +266,7 @@ pub trait FileExt {
                     buf = &buf[n..];
                     offset += n as u64
                 }
-                Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
+                Err(ref e) if e.is_interrupted() => {}
                 Err(e) => return Err(e),
             }
         }
@@ -231,8 +278,14 @@ impl FileExt for fs::File {
     fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize> {
         self.as_inner().read_at(buf, offset)
     }
+    fn read_vectored_at(&self, bufs: &mut [io::IoSliceMut<'_>], offset: u64) -> io::Result<usize> {
+        self.as_inner().read_vectored_at(bufs, offset)
+    }
     fn write_at(&self, buf: &[u8], offset: u64) -> io::Result<usize> {
         self.as_inner().write_at(buf, offset)
+    }
+    fn write_vectored_at(&self, bufs: &[io::IoSlice<'_>], offset: u64) -> io::Result<usize> {
+        self.as_inner().write_vectored_at(bufs, offset)
     }
 }
 
@@ -344,7 +397,7 @@ pub trait OpenOptionsExt {
     ///
     /// ```no_run
     /// # #![feature(rustc_private)]
-    /// extern crate libc;
+    /// use libc;
     /// use std::fs::OpenOptions;
     /// use std::os::unix::fs::OpenOptionsExt;
     ///
@@ -904,7 +957,6 @@ impl DirBuilderExt for fs::DirBuilder {
 /// # Examples
 ///
 /// ```no_run
-/// #![feature(unix_chown)]
 /// use std::os::unix::fs;
 ///
 /// fn main() -> std::io::Result<()> {
@@ -923,7 +975,6 @@ pub fn chown<P: AsRef<Path>>(dir: P, uid: Option<u32>, gid: Option<u32>) -> io::
 /// # Examples
 ///
 /// ```no_run
-/// #![feature(unix_chown)]
 /// use std::os::unix::fs;
 ///
 /// fn main() -> std::io::Result<()> {
@@ -944,7 +995,6 @@ pub fn fchown<F: AsFd>(fd: F, uid: Option<u32>, gid: Option<u32>) -> io::Result<
 /// # Examples
 ///
 /// ```no_run
-/// #![feature(unix_chown)]
 /// use std::os::unix::fs;
 ///
 /// fn main() -> std::io::Result<()> {

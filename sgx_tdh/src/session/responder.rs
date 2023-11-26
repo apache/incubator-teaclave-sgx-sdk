@@ -22,18 +22,13 @@ use sgx_trts::trts::EnclaveRange;
 use sgx_types::error::{SgxResult, SgxStatus};
 use sgx_types::types::DhSessionRole;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 enum SessionState {
     Error,
+    #[default]
     Reset,
     WaitM2,
     Active,
-}
-
-impl Default for SessionState {
-    fn default() -> SessionState {
-        SessionState::Reset
-    }
 }
 
 #[derive(Debug)]

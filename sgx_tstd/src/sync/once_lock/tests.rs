@@ -42,7 +42,7 @@ fn sync_once_cell() {
         assert_eq!(ONCE_CELL.get(), Some(&92));
     });
 
-    ONCE_CELL.get_or_init(|| panic!("Kabom!"));
+    ONCE_CELL.get_or_init(|| panic!("Kaboom!"));
     assert_eq!(ONCE_CELL.get(), Some(&92));
 }
 
@@ -193,8 +193,6 @@ fn sync_once_cell_does_not_leak_partially_constructed_boxes() {
                     tx.send(msg).unwrap();
                     break;
                 }
-                #[cfg(target_env = "sgx")]
-                crate::thread::yield_now();
             }
         });
     }

@@ -89,7 +89,7 @@ impl MovableMutex {
 
     /// Locks the mutex blocking the current thread until it is available.
     #[inline]
-    pub fn raw_lock(&self) {
+    pub fn lock(&self) {
         unsafe { self.0.lock() }
     }
 
@@ -105,7 +105,7 @@ impl MovableMutex {
     /// Behavior is undefined if the current thread does not actually hold the
     /// mutex.
     #[inline]
-    pub unsafe fn raw_unlock(&self) {
+    pub unsafe fn unlock(&self) {
         self.0.unlock()
     }
 }
@@ -118,7 +118,7 @@ impl Default for MovableMutex {
 
 impl RawMutex for MovableMutex {
     fn lock(&self) {
-        self.raw_lock()
+        self.lock()
     }
 
     fn try_lock(&self) -> bool {
@@ -126,6 +126,6 @@ impl RawMutex for MovableMutex {
     }
 
     unsafe fn unlock(&self) {
-        self.raw_unlock()
+        self.unlock()
     }
 }

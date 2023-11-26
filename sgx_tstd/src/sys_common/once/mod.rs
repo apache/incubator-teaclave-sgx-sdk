@@ -43,5 +43,5 @@
 mod futex;
 pub use futex::{Once, OnceState};
 
-// mod generic;
-// pub use generic::{Once, OnceState};
+// mod queue;
+// pub use queue::{Once, OnceState};

@@ -79,23 +79,54 @@ impl f64 {
         unsafe { intrinsics::ceilf64(self) }
     }
 
-    /// Returns the nearest integer to `self`. Round half-way cases away from
-    /// `0.0`.
+    /// Returns the nearest integer to `self`. If a value is half-way between two
+    /// integers, round away from `0.0`.
     ///
     /// # Examples
     ///
     /// ```
     /// let f = 3.3_f64;
     /// let g = -3.3_f64;
+    /// let h = -3.7_f64;
+    /// let i = 3.5_f64;
+    /// let j = 4.5_f64;
     ///
     /// assert_eq!(f.round(), 3.0);
     /// assert_eq!(g.round(), -3.0);
+    /// assert_eq!(h.round(), -4.0);
+    /// assert_eq!(i.round(), 4.0);
+    /// assert_eq!(j.round(), 5.0);
     /// ```
     #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn round(self) -> f64 {
         unsafe { intrinsics::roundf64(self) }
+    }
+
+    /// Returns the nearest integer to a number. Rounds half-way cases to the number
+    /// with an even least significant digit.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(round_ties_even)]
+    ///
+    /// let f = 3.3_f64;
+    /// let g = -3.3_f64;
+    /// let h = 3.5_f64;
+    /// let i = 4.5_f64;
+    ///
+    /// assert_eq!(f.round_ties_even(), 3.0);
+    /// assert_eq!(g.round_ties_even(), -3.0);
+    /// assert_eq!(h.round_ties_even(), 4.0);
+    /// assert_eq!(i.round_ties_even(), 4.0);
+    /// ```
+    #[rustc_allow_incoherent_impl]
+    #[must_use = "method returns a new number and does not mutate the original value"]
+    #[inline]
+    pub fn round_ties_even(self) -> f64 {
+        unsafe { intrinsics::rintf64(self) }
     }
 
     /// Returns the integer part of `self`.
@@ -277,7 +308,7 @@ impl f64 {
     /// This result is not an element of the function's codomain, but it is the
     /// closest floating point number in the real numbers and thus fulfills the
     /// property `self == self.div_euclid(rhs) * rhs + self.rem_euclid(rhs)`
-    /// approximatively.
+    /// approximately.
     ///
     /// # Examples
     ///
@@ -461,12 +492,7 @@ impl f64 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn log2(self) -> f64 {
-        self.log_wrapper(|n| {
-            #[cfg(target_os = "android")]
-            return crate::sys::android::log2f64(n);
-            #[cfg(not(target_os = "android"))]
-            return unsafe { intrinsics::log2f64(n) };
-        })
+        self.log_wrapper(|n| unsafe { intrinsics::log2f64(n) })
     }
 
     /// Returns the base 10 logarithm of the number.
@@ -490,7 +516,7 @@ impl f64 {
 
     /// The positive difference of two numbers.
     ///
-    /// * If `self <= other`: `0:0`
+    /// * If `self <= other`: `0.0`
     /// * Else: `self - other`
     ///
     /// # Examples
@@ -508,6 +534,16 @@ impl f64 {
     #[rustc_allow_incoherent_impl]
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
+    #[deprecated(
+        since = "1.10.0",
+        note = "you probably meant `(self - other).abs()`: \
+                this operation is `(self - other).max(0.0)` \
+                except that `abs_sub` also propagates NaNs (also \
+                known as `fdim` in C). If you truly need the positive \
+                difference, consider using that expression or the C function \
+                `fdim`, depending on how you wish to handle NaN (please consider \
+                filing an issue describing your use-case too)."
+    )]
     pub fn abs_sub(self, other: f64) -> f64 {
         unsafe { cmath::fdim(self, other) }
     }
@@ -531,8 +567,10 @@ impl f64 {
         unsafe { cmath::cbrt(self) }
     }
 
-    /// Calculates the length of the hypotenuse of a right-angle triangle given
-    /// legs of length `x` and `y`.
+    /// Compute the distance between the origin and a point (`x`, `y`) on the
+    /// Euclidean plane. Equivalently, compute the length of the hypotenuse of a
+    /// right-angle triangle with other sides having length `x.abs()` and
+    /// `y.abs()`.
     ///
     /// # Examples
     ///
@@ -845,7 +883,9 @@ impl f64 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn asinh(self) -> f64 {
-        (self.abs() + ((self * self) + 1.0).sqrt()).ln().copysign(self)
+        let ax = self.abs();
+        let ix = 1.0 / ax;
+        (ax + (ax / (Self::hypot(1.0, ix) + ix))).ln_1p().copysign(self)
     }
 
     /// Inverse hyperbolic cosine function.
@@ -864,7 +904,11 @@ impl f64 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     pub fn acosh(self) -> f64 {
-        if self < 1.0 { Self::NAN } else { (self + ((self * self) - 1.0).sqrt()).ln() }
+        if self < 1.0 {
+            Self::NAN
+        } else {
+            (self + ((self - 1.0).sqrt() * (self + 1.0).sqrt())).ln()
+        }
     }
 
     /// Inverse hyperbolic tangent function.
@@ -886,28 +930,51 @@ impl f64 {
         0.5 * ((2.0 * self) / (1.0 - self)).ln_1p()
     }
 
-    // Solaris/Illumos requires a wrapper around log, log2, and log10 functions
-    // because of their non-standard behavior (e.g., log(-n) returns -Inf instead
-    // of expected NaN).
-    #[allow(clippy::if_same_then_else)]
+    /// Gamma function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(float_gamma)]
+    /// let x = 5.0f64;
+    ///
+    /// let abs_difference = (x.gamma() - 24.0).abs();
+    ///
+    /// assert!(abs_difference <= f64::EPSILON);
+    /// ```
     #[rustc_allow_incoherent_impl]
+    #[must_use = "method returns a new number and does not mutate the original value"]
+    #[inline]
+    pub fn gamma(self) -> f64 {
+        unsafe { cmath::tgamma(self) }
+    }
+
+    /// Natural logarithm of the absolute value of the gamma function
+    ///
+    /// The integer part of the tuple indicates the sign of the gamma function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(float_gamma)]
+    /// let x = 2.0f64;
+    ///
+    /// let abs_difference = (x.ln_gamma().0 - 0.0).abs();
+    ///
+    /// assert!(abs_difference <= f64::EPSILON);
+    /// ```
+    #[rustc_allow_incoherent_impl]
+    #[must_use = "method returns a new number and does not mutate the original value"]
+    #[inline]
+    pub fn ln_gamma(self) -> (f64, i32) {
+        let mut signgamp: i32 = 0;
+        let x = unsafe { cmath::lgamma_r(self, &mut signgamp) };
+        (x, signgamp)
+    }
+
+    #[rustc_allow_incoherent_impl]
+    #[inline]
     fn log_wrapper<F: Fn(f64) -> f64>(self, log_fn: F) -> f64 {
-        if !cfg!(any(target_os = "solaris", target_os = "illumos")) {
-            log_fn(self)
-        } else if self.is_finite() {
-            if self > 0.0 {
-                log_fn(self)
-            } else if self == 0.0 {
-                Self::NEG_INFINITY // log(0) = -Inf
-            } else {
-                Self::NAN // log(-n) = NaN
-            }
-        } else if self.is_nan() {
-            self // log(NaN) = NaN
-        } else if self > 0.0 {
-            self // log(Inf) = Inf
-        } else {
-            Self::NAN // log(-Inf) = NaN
-        }
+        log_fn(self)
     }
 }

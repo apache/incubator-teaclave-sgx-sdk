@@ -54,6 +54,8 @@ struct Inner {
     retval: *mut c_void,
 }
 
+unsafe impl Send for Inner {}
+
 impl Thread {
     pub fn new<F>(p: F, arg: *mut c_void) -> SgxResult<Thread>
     where

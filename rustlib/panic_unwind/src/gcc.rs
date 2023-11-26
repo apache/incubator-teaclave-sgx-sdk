@@ -38,12 +38,23 @@
 
 use alloc::boxed::Box;
 use core::any::Any;
+use core::ptr;
 
 use sgx_unwind as uw;
 
+// In case where multiple copies of std exist in a single process,
+// we use address of this static variable to distinguish an exception raised by
+// this copy and some other copy (which needs to be treated as foreign exception).
+static CANARY: u8 = 0;
+
+// NOTE(nbdd0121)
+// There is an ABI stability requirement on this struct.
+// The first two field must be `_Unwind_Exception` and `canary`,
+// as it may be accessed by a different version of the std with a different compiler.
 #[repr(C)]
 struct Exception {
     _uwe: uw::_Unwind_Exception,
+    canary: *const u8,
     cause: Box<dyn Any + Send>,
 }
 
@@ -52,8 +63,9 @@ pub unsafe fn panic(data: Box<dyn Any + Send>) -> u32 {
         _uwe: uw::_Unwind_Exception {
             exception_class: rust_exception_class(),
             exception_cleanup,
-            private: [0; uw::unwinder_private_data_size],
+            private: [core::ptr::null(); uw::unwinder_private_data_size],
         },
+        canary: &CANARY,
         cause: data,
     });
     let exception_param = Box::into_raw(exception) as *mut uw::_Unwind_Exception;
@@ -75,15 +87,27 @@ pub unsafe fn cleanup(ptr: *mut u8) -> Box<dyn Any + Send> {
     if (*exception).exception_class != rust_exception_class() {
         uw::_Unwind_DeleteException(exception);
         super::__rust_foreign_exception();
-    } else {
-        let exception = Box::from_raw(exception as *mut Exception);
-        exception.cause
     }
+
+    let exception = exception.cast::<Exception>();
+    // Just access the canary field, avoid accessing the entire `Exception` as
+    // it can be a foreign Rust exception.
+    let canary = ptr::addr_of!((*exception).canary).read();
+    if !ptr::eq(canary, &CANARY) {
+        // A foreign Rust exception, treat it slightly differently from other
+        // foreign exceptions, because call into `_Unwind_DeleteException` will
+        // call into `__rust_drop_panic` which produces a confusing
+        // "Rust panic must be rethrown" message.
+        super::__rust_foreign_exception();
+    }
+
+    let exception = Box::from_raw(exception as *mut Exception);
+    exception.cause
 }
 
 // Rust's exception class identifier.  This is used by personality routines to
 // determine whether the exception was thrown by their own runtime.
 fn rust_exception_class() -> uw::_Unwind_Exception_Class {
     // M O Z \0  R U S T -- vendor, language
-    0x4d4f_5a00_5255_5354
+    0x4d4f5a_00_52555354
 }

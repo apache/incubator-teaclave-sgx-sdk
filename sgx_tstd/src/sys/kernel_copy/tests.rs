@@ -90,18 +90,18 @@ fn copies_append_mode_sink() {
     let source_path = tmp_path.join("copies_append_mode.source");
     let sink_path = tmp_path.join("copies_append_mode.sink");
     let mut source =
-        OpenOptions::new().create(true).truncate(true).write(true).read(true).open(&source_path).unwrap();
+        OpenOptions::new().create(true).truncate(true).write(true).read(true).open(source_path).unwrap();
     write!(source, "not empty").unwrap();
     source.seek(SeekFrom::Start(0)).unwrap();
-    let mut sink = OpenOptions::new().create(true).append(true).open(&sink_path).unwrap();
+    let mut sink = OpenOptions::new().create(true).append(true).open(sink_path).unwrap();
 
     let copied = crate::io::copy(&mut source, &mut sink).unwrap();
 
     assert_eq!(copied, 9);
 }
 
-#[bench_case]
-fn bench_file_to_file_copy(b: &mut Bencher) {
+#[bench]
+fn bench_file_to_file_copy(b: &mut test::Bencher) {
     const BYTES: usize = 128 * 1024;
     let temp_path = tmpdir();
     let src_path = temp_path.join("file-copy-bench-src");

@@ -15,7 +15,4 @@
 // specific language governing permissions and limitations
 // under the License..
 
-#[cfg(feature = "unit_test")]
-mod tests;
-
 pub use sgx_sync::{ReentrantMutex, ReentrantMutexGuard};

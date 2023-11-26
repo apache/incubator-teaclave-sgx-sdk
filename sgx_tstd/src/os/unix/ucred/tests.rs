@@ -48,5 +48,4 @@ fn test_socket_pair_pids() {
 
 mod libc {
     pub use sgx_oc::ocall::{getgid, getpid, getuid};
-    pub use sgx_oc::*;
 }

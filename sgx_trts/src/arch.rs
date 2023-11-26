@@ -17,7 +17,7 @@
 
 #![allow(clippy::enum_variant_names)]
 
-use crate::edmm::{PageInfo, PageType};
+use crate::edmm::{self, PageType};
 use crate::tcs::tc;
 use crate::version::*;
 use core::convert::From;
@@ -629,7 +629,7 @@ impl ExitInfo {
 impl_bitflags! {
     #[repr(C)]
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-    pub struct SecinfoFlags: u64 {
+    pub struct SecInfoFlags: u64 {
         const R        = 0b0000_0000_0000_0001;
         const W        = 0b0000_0000_0000_0010;
         const X        = 0b0000_0000_0000_0100;
@@ -648,9 +648,9 @@ impl_bitflags! {
     }
 }
 
-impl SecinfoFlags {
+impl SecInfoFlags {
     pub fn page_type(&self) -> u8 {
-        (((*self & SecinfoFlags::PT_MASK).bits()) >> 8) as u8
+        (((*self & SecInfoFlags::PT_MASK).bits()) >> 8) as u8
     }
 
     pub fn page_type_mut(&mut self) -> &mut u8 {
@@ -661,102 +661,102 @@ impl SecinfoFlags {
     }
 }
 
-impl From<PageType> for SecinfoFlags {
-    fn from(data: PageType) -> SecinfoFlags {
-        SecinfoFlags::from_bits_truncate((data as u64) << 8)
+impl From<PageType> for SecInfoFlags {
+    fn from(data: PageType) -> SecInfoFlags {
+        SecInfoFlags::from_bits_truncate((data as u64) << 8)
     }
 }
 
-impl From<PageInfo> for SecinfoFlags {
-    fn from(data: PageInfo) -> SecinfoFlags {
+impl From<edmm::PageInfo> for SecInfoFlags {
+    fn from(data: edmm::PageInfo) -> SecInfoFlags {
         let typ = data.typ as u64;
         let flags = data.flags.bits() as u64;
-        SecinfoFlags::from_bits_truncate((typ << 8) | flags)
+        SecInfoFlags::from_bits_truncate((typ << 8) | flags)
     }
 }
 
 #[repr(C, align(64))]
 #[derive(Clone, Copy)]
-pub struct Secinfo {
-    pub flags: SecinfoFlags,
+pub struct SecInfo {
+    pub flags: SecInfoFlags,
     pub _reserved1: [u8; 56],
 }
 
-impl fmt::Debug for Secinfo {
+impl fmt::Debug for SecInfo {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("Secinfo")
+        fmt.debug_struct("SecInfo")
             .field("flags", &self.flags.bits())
             .finish()
     }
 }
 
-impl Secinfo {
-    pub fn new(flags: SecinfoFlags) -> Secinfo {
-        Secinfo {
+impl SecInfo {
+    pub fn new(flags: SecInfoFlags) -> SecInfo {
+        SecInfo {
             flags,
             _reserved1: [0_u8; 56],
         }
     }
 }
 
-impl Default for Secinfo {
-    fn default() -> Secinfo {
-        Secinfo {
-            flags: SecinfoFlags::empty(),
+impl Default for SecInfo {
+    fn default() -> SecInfo {
+        SecInfo {
+            flags: SecInfoFlags::empty(),
             _reserved1: [0_u8; 56],
         }
     }
 }
 
-impl Secinfo {
-    pub const ALIGN_SIZE: usize = mem::size_of::<Secinfo>();
+impl SecInfo {
+    pub const ALIGN_SIZE: usize = mem::size_of::<SecInfo>();
 }
 
-impl AsRef<[u8; Secinfo::ALIGN_SIZE]> for Secinfo {
-    fn as_ref(&self) -> &[u8; Secinfo::ALIGN_SIZE] {
+impl AsRef<[u8; SecInfo::ALIGN_SIZE]> for SecInfo {
+    fn as_ref(&self) -> &[u8; SecInfo::ALIGN_SIZE] {
         unsafe { &*(self as *const _ as *const _) }
     }
 }
 
-impl AsRef<Align64<[u8; Secinfo::ALIGN_SIZE]>> for Secinfo {
-    fn as_ref(&self) -> &Align64<[u8; Secinfo::ALIGN_SIZE]> {
+impl AsRef<Align64<[u8; SecInfo::ALIGN_SIZE]>> for SecInfo {
+    fn as_ref(&self) -> &Align64<[u8; SecInfo::ALIGN_SIZE]> {
         unsafe { &*(self as *const _ as *const _) }
     }
 }
 
-impl From<SecinfoFlags> for Secinfo {
-    fn from(flags: SecinfoFlags) -> Secinfo {
-        Secinfo::new(flags)
+impl From<SecInfoFlags> for SecInfo {
+    fn from(flags: SecInfoFlags) -> SecInfo {
+        SecInfo::new(flags)
     }
 }
 
-impl From<PageInfo> for Secinfo {
-    fn from(data: PageInfo) -> Secinfo {
-        Secinfo::from(SecinfoFlags::from(data))
+impl From<edmm::PageInfo> for SecInfo {
+    fn from(data: edmm::PageInfo) -> SecInfo {
+        SecInfo::from(SecInfoFlags::from(data))
     }
 }
 
 #[repr(C, align(32))]
 #[derive(Clone, Copy, Debug)]
-pub struct Pageinfo {
+pub struct PageInfo {
     pub linaddr: u64,
     pub srcpage: u64,
     pub secinfo: u64,
     pub secs: u64,
 }
 
-impl Pageinfo {
-    pub const ALIGN_SIZE: usize = mem::size_of::<Pageinfo>();
+impl PageInfo {
+    pub const ALIGN_SIZE: usize = mem::size_of::<PageInfo>();
 }
 
-impl AsRef<[u8; Pageinfo::ALIGN_SIZE]> for Pageinfo {
-    fn as_ref(&self) -> &[u8; Pageinfo::ALIGN_SIZE] {
+impl AsRef<[u8; PageInfo::ALIGN_SIZE]> for PageInfo {
+    fn as_ref(&self) -> &[u8; PageInfo::ALIGN_SIZE] {
         unsafe { &*(self as *const _ as *const _) }
     }
 }
 
-impl AsRef<Align32<[u8; Pageinfo::ALIGN_SIZE]>> for Pageinfo {
-    fn as_ref(&self) -> &Align32<[u8; Pageinfo::ALIGN_SIZE]> {
+impl AsRef<Align32<[u8; PageInfo::ALIGN_SIZE]>> for PageInfo {
+    fn as_ref(&self) -> &Align32<[u8; PageInfo::ALIGN_SIZE]> {
         unsafe { &*(self as *const _ as *const _) }
     }
 }

@@ -214,7 +214,7 @@ impl SessionManager {
 
     pub fn remove(&mut self, sid: u32) -> Option<Arc<Session>> {
         self.list
-            .drain_filter(|node| node.sid == sid)
+            .extract_if(|node| node.sid == sid)
             .next()
             .map(|node| node.session)
     }

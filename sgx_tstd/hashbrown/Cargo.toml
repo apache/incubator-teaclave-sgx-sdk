@@ -1,31 +1,39 @@
 [package]
 name = "hashbrown_tstd"
-version = "0.12.0"
+version = "0.14.2"
 authors = ["Amanieu d'Antras <amanieu@gmail.com>"]
 description = "A Rust port of Google's SwissTable hash map"
-license = "Apache-2.0/MIT"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang/hashbrown"
 readme = "README.md"
 keywords = ["hash", "no_std", "hashmap", "swisstable"]
 categories = ["data-structures", "no-std"]
-exclude = [".github", "bors.toml", "/ci/*"]
+exclude = [".github", "/ci/*"]
 edition = "2021"
 
 [dependencies]
 # For the default hasher
-ahash = { version = "0.7.0", default-features = false, optional = true }
+ahash = { version = "0.8.0", default-features = false, optional = true }
 
 # For external trait impls
 rayon = { version = "1.0", optional = true }
 serde = { version = "1.0.25", default-features = false, optional = true }
+rkyv = { version = "0.7.42", optional = true, default-features = false, features = [
+    "alloc",
+] }
 
 # When built as part of libstd
 # core = { version = "1.0.0", optional = true, package = "rustc-std-workspace-core" }
 # compiler_builtins = { version = "0.1.2", optional = true }
 # alloc = { version = "1.0.0", optional = true, package = "rustc-std-workspace-alloc" }
 
-# Optional support for bumpalo
-bumpalo = { version = "3.5.0", optional = true }
+# Support for allocators that use allocator-api2
+allocator-api2 = { version = "0.2.9", optional = true, default-features = false, features = [
+    "alloc",
+] }
+
+# Equivalent trait which can be shared with other hash table implementations.
+equivalent = { version = "1.0", optional = true, default-features = false }
 
 [dev-dependencies]
 lazy_static = "1.4"
@@ -34,12 +42,14 @@ rayon = "1.0"
 fnv = "1.0.7"
 serde_test = "1.0"
 doc-comment = "0.3.1"
+bumpalo = { version = "3.13.0", features = ["allocator-api2"] }
+rkyv = { version = "0.7.42", features = ["validation"] }
 
 [features]
-default = ["ahash", "inline-more"]
+default = ["ahash", "inline-more", "allocator-api2"]
 
-ahash-compile-time-rng = ["ahash/compile-time-rng"]
-nightly = []
+nightly = ["allocator-api2?/nightly", "bumpalo/allocator_api"]
+
 rustc-internal-api = []
 # rustc-dep-of-std = [
 #     "nightly",
@@ -61,3 +71,4 @@ inline-more = []
 
 [package.metadata.docs.rs]
 features = ["nightly", "rayon", "serde", "raw"]
+rustdoc-args = ["--generate-link-to-definition"]

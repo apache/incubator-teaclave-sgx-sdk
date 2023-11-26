@@ -61,7 +61,7 @@ pub fn restore_library_path() {
     println!("cargo:rerun-if-env-changed=REAL_LIBRARY_PATH");
     let key = env::var_os("REAL_LIBRARY_PATH_VAR").expect("REAL_LIBRARY_PATH_VAR");
     if let Some(env) = env::var_os("REAL_LIBRARY_PATH") {
-        env::set_var(&key, &env);
+        env::set_var(&key, env);
     } else {
         env::remove_var(&key);
     }
@@ -245,7 +245,7 @@ impl NativeLibBoilerplate {
 
         let dir = self.out_dir.join("build/lib/darwin");
         let name = format!("clang_rt.{}_osx_dynamic", sanitizer_name);
-        let src = dir.join(&format!("lib{}.dylib", name));
+        let src = dir.join(format!("lib{}.dylib", name));
         let new_name = format!("lib__rustc__{}.dylib", name);
         let dst = dir.join(&new_name);
 

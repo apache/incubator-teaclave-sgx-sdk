@@ -26,13 +26,13 @@ use crate::sync::Once;
 
 /// A synchronization primitive which can be written to only once.
 ///
-/// This type is a thread-safe `OnceCell`.
+/// This type is a thread-safe [`OnceCell`], and can be used in statics.
+///
+/// [`OnceCell`]: crate::cell::OnceCell
 ///
 /// # Examples
 ///
 /// ```
-/// #![feature(once_cell)]
-///
 /// use std::sync::OnceLock;
 ///
 /// static CELL: OnceLock<String> = OnceLock::new();
@@ -51,13 +51,11 @@ use crate::sync::Once;
 /// ```
 pub struct OnceLock<T> {
     once: Once,
-    // Whether or not the value is initialized is tracked by `state_and_queue`.
+    // Whether or not the value is initialized is tracked by `once.is_completed()`.
     value: UnsafeCell<MaybeUninit<T>>,
     /// `PhantomData` to make sure dropck understands we're dropping T in our Drop impl.
     ///
     /// ```compile_fail,E0597
-    /// #![feature(once_cell)]
-    ///
     /// use std::sync::OnceLock;
     ///
     /// struct A<'a>(&'a str);
@@ -77,6 +75,7 @@ pub struct OnceLock<T> {
 
 impl<T> OnceLock<T> {
     /// Creates a new empty cell.
+    #[inline]
     #[must_use]
     pub const fn new() -> OnceLock<T> {
         OnceLock {
@@ -90,6 +89,7 @@ impl<T> OnceLock<T> {
     ///
     /// Returns `None` if the cell is empty, or being initialized. This
     /// method never blocks.
+    #[inline]
     pub fn get(&self) -> Option<&T> {
         if self.is_initialized() {
             // Safe b/c checked is_initialized
@@ -102,6 +102,7 @@ impl<T> OnceLock<T> {
     /// Gets the mutable reference to the underlying value.
     ///
     /// Returns `None` if the cell is empty. This method never blocks.
+    #[inline]
     pub fn get_mut(&mut self) -> Option<&mut T> {
         if self.is_initialized() {
             // Safe b/c checked is_initialized and we have a unique access
@@ -121,13 +122,11 @@ impl<T> OnceLock<T> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(once_cell)]
-    ///
     /// use std::sync::OnceLock;
     ///
     /// static CELL: OnceLock<i32> = OnceLock::new();
     ///
-    /// fn main() {
+    /// fn needless_main() {
     ///     assert!(CELL.get().is_none());
     ///
     ///     std::thread::spawn(|| {
@@ -138,12 +137,49 @@ impl<T> OnceLock<T> {
     ///     assert_eq!(CELL.get(), Some(&92));
     /// }
     /// ```
+    #[inline]
     pub fn set(&self, value: T) -> Result<(), T> {
+        match self.try_insert(value) {
+            Ok(_) => Ok(()),
+            Err((_, value)) => Err(value),
+        }
+    }
+
+    /// Sets the contents of this cell to `value` if the cell was empty, then
+    /// returns a reference to it.
+    ///
+    /// May block if another thread is currently attempting to initialize the cell. The cell is
+    /// guaranteed to contain a value when set returns, though not necessarily the one provided.
+    ///
+    /// Returns `Ok(&value)` if the cell was empty and `Err(&current_value, value)` if it was full.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(once_cell_try_insert)]
+    ///
+    /// use std::sync::OnceLock;
+    ///
+    /// static CELL: OnceLock<i32> = OnceLock::new();
+    ///
+    /// fn needless_main() {
+    ///     assert!(CELL.get().is_none());
+    ///
+    ///     std::thread::spawn(|| {
+    ///         assert_eq!(CELL.try_insert(92), Ok(&92));
+    ///     }).join().unwrap();
+    ///
+    ///     assert_eq!(CELL.try_insert(62), Err((&92, 62)));
+    ///     assert_eq!(CELL.get(), Some(&92));
+    /// }
+    /// ```
+    #[inline]
+    pub fn try_insert(&self, value: T) -> Result<&T, (&T, T)> {
         let mut value = Some(value);
-        self.get_or_init(|| value.take().unwrap());
+        let res = self.get_or_init(|| value.take().unwrap());
         match value {
-            None => Ok(()),
-            Some(value) => Err(value),
+            None => Ok(res),
+            Some(value) => Err((res, value)),
         }
     }
 
@@ -166,8 +202,6 @@ impl<T> OnceLock<T> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(once_cell)]
-    ///
     /// use std::sync::OnceLock;
     ///
     /// let cell = OnceLock::new();
@@ -176,6 +210,7 @@ impl<T> OnceLock<T> {
     /// let value = cell.get_or_init(|| unreachable!());
     /// assert_eq!(value, &92);
     /// ```
+    #[inline]
     pub fn get_or_init<F>(&self, f: F) -> &T
     where
         F: FnOnce() -> T,
@@ -202,7 +237,7 @@ impl<T> OnceLock<T> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(once_cell)]
+    /// #![feature(once_cell_try)]
     ///
     /// use std::sync::OnceLock;
     ///
@@ -215,6 +250,7 @@ impl<T> OnceLock<T> {
     /// assert_eq!(value, Ok(&92));
     /// assert_eq!(cell.get(), Some(&92))
     /// ```
+    #[inline]
     pub fn get_or_try_init<F, E>(&self, f: F) -> Result<&T, E>
     where
         F: FnOnce() -> Result<T, E>,
@@ -241,8 +277,6 @@ impl<T> OnceLock<T> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(once_cell)]
-    ///
     /// use std::sync::OnceLock;
     ///
     /// let cell: OnceLock<String> = OnceLock::new();
@@ -252,6 +286,7 @@ impl<T> OnceLock<T> {
     /// cell.set("hello".to_string()).unwrap();
     /// assert_eq!(cell.into_inner(), Some("hello".to_string()));
     /// ```
+    #[inline]
     pub fn into_inner(mut self) -> Option<T> {
         self.take()
     }
@@ -265,8 +300,6 @@ impl<T> OnceLock<T> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(once_cell)]
-    ///
     /// use std::sync::OnceLock;
     ///
     /// let mut cell: OnceLock<String> = OnceLock::new();
@@ -277,6 +310,7 @@ impl<T> OnceLock<T> {
     /// assert_eq!(cell.take(), Some("hello".to_string()));
     /// assert_eq!(cell.get(), None);
     /// ```
+    #[inline]
     pub fn take(&mut self) -> Option<T> {
         if self.is_initialized() {
             self.once = Once::new();
@@ -324,6 +358,7 @@ impl<T> OnceLock<T> {
     /// # Safety
     ///
     /// The value must be initialized
+    #[inline]
     unsafe fn get_unchecked(&self) -> &T {
         debug_assert!(self.is_initialized());
         (&*self.value.get()).assume_init_ref()
@@ -332,6 +367,7 @@ impl<T> OnceLock<T> {
     /// # Safety
     ///
     /// The value must be initialized
+    #[inline]
     unsafe fn get_unchecked_mut(&mut self) -> &mut T {
         debug_assert!(self.is_initialized());
         (&mut *self.value.get()).assume_init_mut()
@@ -349,20 +385,19 @@ unsafe impl<T: Send> Send for OnceLock<T> {}
 impl<T: RefUnwindSafe + UnwindSafe> RefUnwindSafe for OnceLock<T> {}
 impl<T: UnwindSafe> UnwindSafe for OnceLock<T> {}
 
-impl<T> const Default for OnceLock<T> {
+impl<T> Default for OnceLock<T> {
     /// Creates a new empty cell.
     ///
     /// # Example
     ///
     /// ```
-    /// #![feature(once_cell)]
-    ///
     /// use std::sync::OnceLock;
     ///
     /// fn needless_main() {
     ///     assert_eq!(OnceLock::<()>::new(), OnceLock::default());
     /// }
     /// ```
+    #[inline]
     fn default() -> OnceLock<T> {
         OnceLock::new()
     }
@@ -370,14 +405,17 @@ impl<T> const Default for OnceLock<T> {
 
 impl<T: fmt::Debug> fmt::Debug for OnceLock<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut d = f.debug_tuple("OnceLock");
         match self.get() {
-            Some(v) => f.debug_tuple("Once").field(v).finish(),
-            None => f.write_str("Once(Uninit)"),
-        }
+            Some(v) => d.field(v),
+            None => d.field(&format_args!("<uninit>")),
+        };
+        d.finish()
     }
 }
 
 impl<T: Clone> Clone for OnceLock<T> {
+    #[inline]
     fn clone(&self) -> OnceLock<T> {
         let cell = Self::new();
         if let Some(value) = self.get() {
@@ -396,11 +434,9 @@ impl<T> From<T> for OnceLock<T> {
     /// # Example
     ///
     /// ```
-    /// #![feature(once_cell)]
-    ///
     /// use std::sync::OnceLock;
     ///
-    /// # fn main() -> Result<(), i32> {
+    /// # fn needless_main() -> Result<(), i32> {
     /// let a = OnceLock::from(3);
     /// let b = OnceLock::new();
     /// b.set(3)?;
@@ -408,6 +444,7 @@ impl<T> From<T> for OnceLock<T> {
     /// Ok(())
     /// # }
     /// ```
+    #[inline]
     fn from(value: T) -> Self {
         let cell = Self::new();
         match cell.set(value) {
@@ -418,6 +455,7 @@ impl<T> From<T> for OnceLock<T> {
 }
 
 impl<T: PartialEq> PartialEq for OnceLock<T> {
+    #[inline]
     fn eq(&self, other: &OnceLock<T>) -> bool {
         self.get() == other.get()
     }
@@ -426,6 +464,7 @@ impl<T: PartialEq> PartialEq for OnceLock<T> {
 impl<T: Eq> Eq for OnceLock<T> {}
 
 unsafe impl<#[may_dangle] T> Drop for OnceLock<T> {
+    #[inline]
     fn drop(&mut self) {
         if self.is_initialized() {
             // SAFETY: The cell is initialized and being dropped, so it can't

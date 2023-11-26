@@ -43,7 +43,7 @@ const ITERS: usize = 10;
 
 unsafe fn init() -> bool {
     if QUEUE.is_null() {
-        let state: Box<Queue> = box Vec::new();
+        let state: Box<Queue> = Box::default();
         QUEUE = Box::into_raw(state);
     } else if QUEUE == DONE {
         // can't re-init after a cleanup

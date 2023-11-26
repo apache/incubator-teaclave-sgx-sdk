@@ -155,6 +155,12 @@ fn sync_lazy_poisoning() {
     }
 }
 
+// Check that we can infer `T` from closure's type.
+#[test_case]
+fn lazy_type_inference() {
+    let _ = LazyCell::new(|| ());
+}
+
 #[test_case]
 fn is_sync_send() {
     fn assert_traits<T: Send + Sync>() {}

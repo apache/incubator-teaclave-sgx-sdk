@@ -58,7 +58,7 @@ fn notify_all() {
         let data = data.clone();
         let tx = tx.clone();
         thread::spawn(move || {
-            let &(ref lock, ref cond) = &*data;
+            let (lock, cond) = &*data;
             let mut cnt = lock.lock().unwrap();
             *cnt += 1;
             if *cnt == N {
@@ -72,7 +72,7 @@ fn notify_all() {
     }
     drop(tx);
 
-    let &(ref lock, ref cond) = &*data;
+    let (lock, cond) = &*data;
     rx.recv().unwrap();
     let mut cnt = lock.lock().unwrap();
     *cnt = 0;
@@ -91,7 +91,7 @@ fn wait_while() {
 
     // Inside of our lock, spawn a new thread, and then wait for it to start.
     thread::spawn(move || {
-        let &(ref lock, ref cvar) = &*pair2;
+        let (lock, cvar) = &*pair2;
         let mut started = lock.lock().unwrap();
         *started = true;
         // We notify the condvar that the value has changed.
@@ -99,7 +99,7 @@ fn wait_while() {
     });
 
     // Wait for the thread to start up.
-    let &(ref lock, ref cvar) = &*pair;
+    let (lock, cvar) = &*pair;
     let guard = cvar.wait_while(lock.lock().unwrap(), |started| !*started);
     assert!(*guard.unwrap());
 }
@@ -149,10 +149,10 @@ fn wait_timeout_while_wake() {
     let pair = Arc::new((Mutex::new(false), Condvar::new()));
     let pair_copy = pair.clone();
 
-    let &(ref m, ref c) = &*pair;
+    let (m, c) = &*pair;
     let g = m.lock().unwrap();
     let _t = thread::spawn(move || {
-        let &(ref lock, ref cvar) = &*pair_copy;
+        let (lock, cvar) = &*pair_copy;
         let mut started = lock.lock().unwrap();
         thread::sleep(Duration::from_millis(1));
         *started = true;

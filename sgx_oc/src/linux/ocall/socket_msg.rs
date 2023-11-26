@@ -79,7 +79,7 @@ impl<'a> MsgHdr<'a> {
 impl<'a> MsgHdrMut<'a> {
     pub unsafe fn from_raw(c_msg: &mut msghdr) -> Self {
         let name = new_optional_slice_mut(c_msg.msg_name as *mut u8, c_msg.msg_namelen as usize);
-        let iovs = new_optional_slice_mut(c_msg.msg_iov as *mut iovec, c_msg.msg_iovlen);
+        let iovs = new_optional_slice_mut(c_msg.msg_iov, c_msg.msg_iovlen);
         let control = new_optional_slice_mut(c_msg.msg_control as *mut u8, c_msg.msg_controllen);
         let flags = MsgHdrFlags::from_bits_truncate(c_msg.msg_flags);
         let iovs = iovs
