@@ -407,6 +407,9 @@ impl UserRegionMem {
 }
 
 pub fn is_within_rts_range(start: usize, len: usize) -> bool {
+    if !is_within_enclave(start as *const u8, len) {
+        return false;
+    }
     let end = if len > 0 {
         if let Some(end) = start.checked_add(len - 1) {
             end
@@ -424,6 +427,9 @@ pub fn is_within_rts_range(start: usize, len: usize) -> bool {
 }
 
 pub fn is_within_user_range(start: usize, len: usize) -> bool {
+    if !is_within_enclave(start as *const u8, len) {
+        return false;
+    }
     let end = if len > 0 {
         if let Some(end) = start.checked_add(len - 1) {
             end

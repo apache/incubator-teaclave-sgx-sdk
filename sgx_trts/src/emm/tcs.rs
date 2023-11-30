@@ -63,8 +63,10 @@ pub fn mktcs(mk_tcs: NonNull<MkTcs>) -> SgxResult {
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
 mod hw {
     use crate::arch::{self, Layout, Tcs};
+    use crate::emm::mm_dealloc;
     use crate::emm::page::PageType;
     use crate::emm::{mm_commit, mm_modify_type};
+    use crate::enclave::state::{self, State};
     use crate::enclave::MmLayout;
     use crate::tcs::list;
     use core::ptr;
@@ -129,6 +131,21 @@ mod hw {
     #[inline]
     pub fn clear_static_tcs() -> SgxResult {
         list::TCS_LIST.lock().clear();
+        Ok(())
+    }
+
+    #[inline]
+    pub fn trim_tcs(tcs: &Tcs) -> SgxResult {
+        let mut list_guard = list::TCS_LIST.lock();
+        for tcs in list_guard.iter_mut().filter(|&t| !ptr::eq(t.as_ptr(), tcs)) {
+            let result = mm_dealloc(tcs.as_ptr() as usize, arch::SE_PAGE_SIZE);
+            if result.is_err() {
+                state::set_state(State::Crashed);
+                bail!(SgxStatus::Unexpected);
+            }
+        }
+
+        list_guard.clear();
         Ok(())
     }
 

@@ -18,13 +18,13 @@
 use crate::arch::{SecInfo, SE_PAGE_SHIFT, SE_PAGE_SIZE};
 use crate::enclave::is_within_enclave;
 use crate::inst::EncluInst;
-use bitflags::bitflags;
 use core::num::NonZeroUsize;
 use sgx_tlibc_sys::{EFAULT, EINVAL};
 use sgx_types::error::OsResult;
 use sgx_types::marker::ContiguousMemory;
 
-bitflags! {
+impl_bitflags! {
+    #[derive(Copy, Clone)]
     pub struct AllocFlags: u32 {
         const RESERVED = 0b0001;
         const COMMIT_NOW = 0b0010;

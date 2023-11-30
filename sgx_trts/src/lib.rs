@@ -39,6 +39,8 @@
 #![feature(linked_list_cursors)]
 #![feature(strict_provenance)]
 #![feature(pointer_byte_offsets)]
+#![feature(maybe_uninit_array_assume_init)]
+#![feature(trait_upcasting)]
 
 #[cfg(all(feature = "sim", feature = "hyper"))]
 compile_error!("feature \"sim\" and feature \"hyper\" cannot be enabled at the same time");

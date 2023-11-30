@@ -19,12 +19,12 @@ use crate::arch::{SE_PAGE_SHIFT, SE_PAGE_SIZE};
 use crate::emm::{PageInfo, PageRange, PageType, ProtFlags};
 use crate::enclave::is_within_enclave;
 use alloc::boxed::Box;
+use core::alloc::Allocator;
 use intrusive_collections::{intrusive_adapter, LinkedListLink, UnsafeRef};
 use sgx_tlibc_sys::{c_void, EACCES, EFAULT, EINVAL};
 use sgx_types::error::OsResult;
 
 use super::alloc::AllocType;
-use super::alloc::{RsrvAlloc, StaticAlloc};
 use super::bitmap::BitArray;
 use super::ocall;
 use super::page::AllocFlags;
@@ -34,7 +34,6 @@ use super::pfhandler::PfHandler;
 ///
 /// Question: should we replace BitArray with pointer
 /// to split struct into two pieces of 80 bytes and 32 bytes or an entity of 104 bytes?
-#[repr(C)]
 pub(crate) struct Ema {
     // page aligned start address
     start: usize,
@@ -76,29 +75,7 @@ unsafe impl Sync for Ema {}
 impl Ema {
     /// Initialize Emanode with null eaccept map,
     /// and start address must be page aligned
-    pub fn new(
-        start: usize,
-        length: usize,
-        alloc_flags: AllocFlags,
-        info: PageInfo,
-        handler: Option<PfHandler>,
-        priv_data: Option<*mut c_void>,
-        alloc: AllocType,
-    ) -> Self {
-        Self {
-            start,
-            length,
-            alloc_flags,
-            info,
-            eaccept_map: None,
-            handler,
-            priv_data,
-            link: LinkedListLink::new(),
-            alloc,
-        }
-    }
-
-    pub fn new_options(options: &EmaOptions) -> OsResult<Self> {
+    pub fn new(options: &EmaOptions) -> OsResult<Self> {
         ensure!(options.addr.is_some(), EINVAL);
 
         Ok(Self {
@@ -145,39 +122,15 @@ impl Ema {
 
     /// Employ same allocator to Clone Ema without eaccept map
     pub(crate) fn clone_ema(&self) -> UnsafeRef<Ema> {
-        let ema: *mut Ema = match self.alloc {
-            AllocType::Reserve(allocator) => {
-                let ema = Box::new_in(
-                    Ema::new(
-                        self.start,
-                        self.length,
-                        self.alloc_flags,
-                        self.info,
-                        self.handler,
-                        self.priv_data,
-                        AllocType::new_rsrv(),
-                    ),
-                    allocator,
-                );
-                Box::into_raw(ema)
-            }
-            AllocType::Static(allocator) => {
-                let ema = Box::new_in(
-                    Ema::new(
-                        self.start,
-                        self.length,
-                        self.alloc_flags,
-                        self.info,
-                        self.handler,
-                        self.priv_data,
-                        AllocType::new_static(),
-                    ),
-                    allocator,
-                );
-                Box::into_raw(ema)
-            }
-        };
-        unsafe { UnsafeRef::from_raw(ema) }
+        let mut ema_options = EmaOptions::new(Some(self.start), self.length, self.alloc_flags);
+        ema_options
+            .info(self.info)
+            .handle(self.handler, self.priv_data)
+            .alloc(self.alloc);
+
+        let allocator = self.alloc.alloctor();
+        let ema = Box::new_in(Ema::new(&ema_options).unwrap(), allocator);
+        unsafe { UnsafeRef::from_raw(Box::into_raw(ema)) }
     }
 
     /// Allocate the reserve / committed / virtual memory at corresponding memory
@@ -581,16 +534,8 @@ impl Ema {
     }
 
     fn init_eaccept_map(&mut self) -> OsResult {
-        let eaccept_map = match self.alloc {
-            AllocType::Reserve(_allocator) => {
-                let page_num = self.length >> SE_PAGE_SHIFT;
-                BitArray::new(page_num, AllocType::new_rsrv())?
-            }
-            AllocType::Static(_allocator) => {
-                let page_num = self.length >> SE_PAGE_SHIFT;
-                BitArray::new(page_num, AllocType::new_static())?
-            }
-        };
+        let page_num = self.length >> SE_PAGE_SHIFT;
+        let eaccept_map = BitArray::new(page_num, self.alloc)?;
         self.eaccept_map = Some(eaccept_map);
         Ok(())
     }
@@ -603,9 +548,13 @@ impl Ema {
         self.info = info;
     }
 
-    /// Obtain the allocator of ema
-    pub fn allocator(&self) -> AllocType {
+    pub fn alloc_type(&self) -> AllocType {
         self.alloc
+    }
+
+    /// Obtain the allocator of ema
+    pub fn allocator(&self) -> &'static dyn Allocator {
+        self.alloc.alloctor()
     }
 
     pub fn flags(&self) -> AllocFlags {
@@ -634,7 +583,7 @@ impl EmaOptions {
             },
             handler: None,
             priv_data: None,
-            alloc: AllocType::new_rsrv(),
+            alloc: AllocType::Reserve,
         }
     }
 
@@ -700,16 +649,10 @@ impl EmaOptions {
 impl Ema {
     pub fn allocate(options: &EmaOptions, apply_now: bool) -> OsResult<UnsafeRef<Ema>> {
         ensure!(options.addr.is_some(), EFAULT);
-        let mut new_ema = match options.alloc {
-            AllocType::Reserve(allocator) => {
-                let new_ema = Box::<Ema, RsrvAlloc>::new_in(Ema::new_options(options)?, allocator);
-                unsafe { UnsafeRef::from_raw(Box::into_raw(new_ema)) }
-            }
-            AllocType::Static(allocator) => {
-                let new_ema =
-                    Box::<Ema, StaticAlloc>::new_in(Ema::new_options(options)?, allocator);
-                unsafe { UnsafeRef::from_raw(Box::into_raw(new_ema)) }
-            }
+        let mut new_ema = {
+            let allocator = options.alloc.alloctor();
+            let new_ema = Box::new_in(Ema::new(options)?, allocator);
+            unsafe { UnsafeRef::from_raw(Box::into_raw(new_ema)) }
         };
         if apply_now {
             new_ema.alloc()?;

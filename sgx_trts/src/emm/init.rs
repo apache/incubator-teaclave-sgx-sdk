@@ -24,13 +24,7 @@ pub fn init_emm() {
     init_reserve_alloc();
 }
 
-cfg_if! {
-    if #[cfg(not(any(feature = "sim", feature = "hyper")))] {
-        pub use hw::*;
-    } else {
-        pub use sw::*;
-    }
-}
+pub use hw::*;
 
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
 mod hw {
@@ -67,7 +61,7 @@ mod hw {
                             step,
                         )?;
                     }
-                } else {
+                } else if layout.entry.id != arch::LAYOUT_ID_USER_REGION {
                     build_rts_context_emas(&layout.entry, offset)?;
                 }
             }
@@ -76,10 +70,6 @@ mod hw {
     }
 
     fn build_rts_context_emas(entry: &LayoutEntry, offset: usize) -> SgxResult {
-        if entry.id == arch::LAYOUT_ID_USER_REGION {
-            return Ok(());
-        }
-
         let rva = offset + (entry.rva as usize);
         assert!(is_page_aligned!(rva));
 
@@ -226,29 +216,28 @@ mod hw {
         let text_relo = parse::has_text_relo()?;
 
         let base = MmLayout::image_base();
-        for phdr in elf.program_iter() {
-            let typ = phdr.get_type().unwrap_or(Type::Null);
+        for phdr in elf
+            .program_iter()
+            .filter(|phdr| phdr.get_type().unwrap_or(Type::Null) == Type::Load)
+        {
+            let mut perm = ProtFlags::R;
+            let start = base + trim_to_page!(phdr.virtual_addr() as usize);
+            let end =
+                base + round_to_page!(phdr.virtual_addr() as usize + phdr.mem_size() as usize);
 
-            if typ == Type::Load {
-                let mut perm = ProtFlags::R;
-                let start = base + trim_to_page!(phdr.virtual_addr() as usize);
-                let end =
-                    base + round_to_page!(phdr.virtual_addr() as usize + phdr.mem_size() as usize);
-
-                if phdr.flags().is_write() || text_relo {
-                    perm |= ProtFlags::W;
-                }
-                if phdr.flags().is_execute() {
-                    perm |= ProtFlags::X;
-                }
-
-                let mut options = EmaOptions::new(Some(start), end - start, AllocFlags::SYSTEM);
-                options.info(PageInfo {
-                    typ: PageType::Reg,
-                    prot: perm,
-                });
-                mm_init_static_region(&options).map_err(|_| SgxStatus::Unexpected)?;
+            if phdr.flags().is_write() || text_relo {
+                perm |= ProtFlags::W;
             }
+            if phdr.flags().is_execute() {
+                perm |= ProtFlags::X;
+            }
+
+            let mut options = EmaOptions::new(Some(start), end - start, AllocFlags::SYSTEM);
+            options.info(PageInfo {
+                typ: PageType::Reg,
+                prot: perm,
+            });
+            mm_init_static_region(&options).map_err(|_| SgxStatus::Unexpected)?;
         }
 
         Ok(())

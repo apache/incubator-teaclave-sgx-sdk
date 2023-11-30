@@ -17,11 +17,12 @@
 
 use alloc::boxed::Box;
 use alloc::vec;
-use core::alloc::Allocator;
-use core::alloc::Layout;
-use core::ptr::NonNull;
 use sgx_tlibc_sys::EACCES;
 use sgx_types::error::OsResult;
+
+use crate::emm::alloc::EmmAllocator;
+use crate::emm::alloc::RsrvAlloc;
+use crate::emm::alloc::StaticAlloc;
 
 use super::alloc::AllocType;
 
@@ -32,13 +33,11 @@ macro_rules! bytes_num {
     };
 }
 
-#[repr(C)]
 #[derive(Debug)]
 pub struct BitArray {
     bits: usize,
     bytes: usize,
-    data: *mut u8,
-    alloc: AllocType,
+    data: Box<[u8], &'static dyn EmmAllocator>,
 }
 
 impl BitArray {
@@ -47,24 +46,9 @@ impl BitArray {
         let bytes = bytes_num!(bits);
 
         // FIXME: return error if OOM
-        let data = match alloc {
-            AllocType::Reserve(allocator) => {
-                // Set bits to all zeros
-                let data = vec::from_elem_in(0_u8, bytes, allocator).into_boxed_slice();
-                Box::into_raw(data) as *mut u8
-            }
-            AllocType::Static(allocator) => {
-                let data = vec::from_elem_in(0_u8, bytes, allocator).into_boxed_slice();
-                Box::into_raw(data) as *mut u8
-            }
-        };
+        let data = vec::from_elem_in(0_u8, bytes, alloc.alloctor()).into_boxed_slice();
 
-        Ok(Self {
-            bits,
-            bytes,
-            data,
-            alloc,
-        })
+        Ok(Self { bits, bytes, data })
     }
 
     /// Get the value of the bit at a given index
@@ -76,8 +60,7 @@ impl BitArray {
         let byte_index = index / BYTE_SIZE;
         let bit_index = index % BYTE_SIZE;
         let bit_mask = 1 << bit_index;
-        let data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
-        Ok((data.get(byte_index).unwrap() & bit_mask) != 0)
+        Ok((self.data.get(byte_index).unwrap() & bit_mask) != 0)
     }
 
     /// Check whether all bits are set true
@@ -99,26 +82,33 @@ impl BitArray {
         let bit_index = index % BYTE_SIZE;
         let bit_mask = 1 << bit_index;
 
-        let data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
-
         if value {
-            data[byte_index] |= bit_mask;
+            self.data[byte_index] |= bit_mask;
         } else {
-            data[byte_index] &= !bit_mask;
+            self.data[byte_index] &= !bit_mask;
         }
         Ok(())
     }
 
     /// Set all the bits to true
     pub fn set_full(&mut self) {
-        let data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
-        data.fill(0xFF);
+        self.data.fill(0xFF);
     }
 
     /// Clear all the bits
     pub fn clear(&mut self) {
-        let data = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
-        data.fill(0);
+        self.data.fill(0);
+    }
+
+    fn alloc_type(&self) -> AllocType {
+        let allocator = *Box::allocator(&self.data);
+        if allocator.as_any().downcast_ref::<RsrvAlloc>().is_some() {
+            AllocType::Reserve
+        } else if allocator.as_any().downcast_ref::<StaticAlloc>().is_some() {
+            AllocType::Static
+        } else {
+            panic!()
+        }
     }
 
     /// Split current bit array at specified position, return a new allocated bit array
@@ -136,11 +126,10 @@ impl BitArray {
         let rbits = self.bits - lbits;
         let rbytes = bytes_num!(rbits);
 
-        let rarray = Self::new(rbits, self.alloc)?;
+        let mut rarray = Self::new(rbits, self.alloc_type())?;
 
-        let rdata = unsafe { core::slice::from_raw_parts_mut(rarray.data, rarray.bytes) };
-        let ldata = unsafe { core::slice::from_raw_parts_mut(self.data, self.bytes) };
-
+        let rdata = &mut rarray.data;
+        let ldata = &mut self.data;
         for (idx, item) in rdata[..(rbytes - 1)].iter_mut().enumerate() {
             // current byte index in previous bit_array
             let curr_idx = idx + byte_index;
@@ -154,29 +143,5 @@ impl BitArray {
         self.bytes = lbytes;
 
         Ok(rarray)
-    }
-}
-
-impl Drop for BitArray {
-    fn drop(&mut self) {
-        match self.alloc {
-            AllocType::Reserve(allocator) => {
-                // Layout is redundant since interior allocator maintains the allocated size.
-                // Besides, if the bitmap is splitted, the recorded size
-                // in bitmap is not corresponding to allocated layout.
-                let fake_layout: Layout = Layout::new::<u8>();
-                unsafe {
-                    let data_ptr = NonNull::new_unchecked(self.data);
-                    allocator.deallocate(data_ptr, fake_layout);
-                }
-            }
-            AllocType::Static(allocator) => {
-                let fake_layout: Layout = Layout::new::<u8>();
-                unsafe {
-                    let data_ptr = NonNull::new_unchecked(self.data);
-                    allocator.deallocate(data_ptr, fake_layout);
-                }
-            }
-        }
     }
 }

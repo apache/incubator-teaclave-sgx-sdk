@@ -270,14 +270,9 @@ impl VmMgr {
             ema.dealloc()?;
 
             // Drop inner Ema inexplicitly
-            match ema.allocator() {
-                AllocType::Reserve(allocator) => {
-                    let _ema_box = unsafe { Box::from_raw_in(UnsafeRef::into_raw(ema), allocator) };
-                }
-                AllocType::Static(allocator) => {
-                    let _ema_box = unsafe { Box::from_raw_in(UnsafeRef::into_raw(ema), allocator) };
-                }
-            }
+            let allocator = ema.allocator();
+            let _ema_box = unsafe { Box::from_raw_in(UnsafeRef::into_raw(ema), allocator) };
+
             ema_num -= 1;
         }
         Ok(())
@@ -314,7 +309,7 @@ impl VmMgr {
         while count != 0 {
             let ema = cursor.get().unwrap();
             // Ema must be reserved and can not manage internal memory region
-            if !ema.flags().contains(AllocFlags::RESERVED) || ema.allocator() != alloc {
+            if !ema.flags().contains(AllocFlags::RESERVED) || ema.alloc_type() != alloc {
                 return None;
             }
             cursor.move_next();

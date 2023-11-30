@@ -22,12 +22,13 @@ use intrusive_collections::singly_linked_list::{Link, SinglyLinkedList};
 use intrusive_collections::UnsafeRef;
 use sgx_tlibc_sys::ENOMEM;
 
+use crate::sync::SpinMutex as Mutex;
 use core::alloc::{AllocError, Allocator, Layout};
+use core::any::Any;
 use core::mem::size_of;
-use core::mem::transmute;
 use core::mem::MaybeUninit;
 use core::ptr::NonNull;
-use spin::{Mutex, Once};
+use spin::Once;
 
 use super::ema::EmaOptions;
 use super::page::AllocFlags;
@@ -80,6 +81,10 @@ pub fn init_reserve_alloc() {
     RSRV_ALLOCATOR.call_once(|| Mutex::new(Reserve::new(INIT_MEM_SIZE)));
 }
 
+pub trait EmmAllocator: Allocator + Any {
+    fn as_any(&self) -> &dyn Any;
+}
+
 /// AllocType layout memory from reserve memory region
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RsrvAlloc;
@@ -99,6 +104,12 @@ unsafe impl Allocator for RsrvAlloc {
     #[inline]
     unsafe fn deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
         RSRV_ALLOCATOR.get().unwrap().lock().efree(ptr.addr().get())
+    }
+}
+
+impl EmmAllocator for RsrvAlloc {
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -123,23 +134,29 @@ unsafe impl Allocator for StaticAlloc {
     }
 }
 
+impl EmmAllocator for StaticAlloc {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 // Enum for allocator types
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum AllocType {
-    Static(StaticAlloc),
-    Reserve(RsrvAlloc),
+    Static,
+    Reserve,
 }
 
 impl AllocType {
-    pub fn new_static() -> Self {
-        Self::Static(StaticAlloc)
-    }
-
-    pub fn new_rsrv() -> Self {
-        Self::Reserve(RsrvAlloc)
+    pub fn alloctor(&self) -> &'static dyn EmmAllocator {
+        match self {
+            AllocType::Static => &StaticAlloc,
+            AllocType::Reserve => &RsrvAlloc,
+        }
     }
 }
+
 // Chunk manages memory range.
 // The Chunk structure is filled into the layout before the base pointer.
 #[derive(Debug)]
@@ -252,7 +269,7 @@ impl Reserve {
             for block in &mut exact_blocks {
                 block.write(SinglyLinkedList::new(BlockFreeAda::new()));
             }
-            unsafe { transmute(exact_blocks) }
+            unsafe { MaybeUninit::array_assume_init(exact_blocks) }
         };
 
         let mut reserve = Self {
@@ -478,7 +495,7 @@ impl Reserve {
                 typ: PageType::None,
                 prot: ProtFlags::NONE,
             })
-            .alloc(AllocType::new_static());
+            .alloc(AllocType::Static);
         let base = vmmgr.alloc(&options, RangeType::User)?;
 
         let mut options = EmaOptions::new(
@@ -487,7 +504,7 @@ impl Reserve {
             AllocFlags::COMMIT_ON_DEMAND | AllocFlags::FIXED,
         );
 
-        options.alloc(AllocType::new_static());
+        options.alloc(AllocType::Static);
         let base = vmmgr.alloc(&options, RangeType::User)?;
 
         vmmgr.commit(base, rsize)?;
