@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License..
 
+use crate::sync::Once;
 use crate::{
     arch::{SE_PAGE_SHIFT, SE_PAGE_SIZE},
     emm::{PageType, ProtFlags},
@@ -28,7 +29,6 @@ use intrusive_collections::{
 };
 use sgx_tlibc_sys::{EEXIST, EINVAL, ENOMEM, EPERM};
 use sgx_types::error::OsResult;
-use spin::Once;
 
 use super::{
     alloc::AllocType,
@@ -51,7 +51,7 @@ pub(crate) static VMMGR: Once<SpinReentrantMutex<VmMgr>> = Once::new();
 
 /// Initialize range management
 pub fn init_vmmgr() {
-    VMMGR.call_once(|| SpinReentrantMutex::new(VmMgr::new()));
+    let _ = VMMGR.call_once(|| Ok(SpinReentrantMutex::new(VmMgr::new())));
 }
 
 pub fn mm_init_static_region(options: &EmaOptions) -> OsResult {

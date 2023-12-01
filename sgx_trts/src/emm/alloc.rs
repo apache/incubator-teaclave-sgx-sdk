@@ -22,13 +22,13 @@ use intrusive_collections::singly_linked_list::{Link, SinglyLinkedList};
 use intrusive_collections::UnsafeRef;
 use sgx_tlibc_sys::ENOMEM;
 
+use crate::sync::Once;
 use crate::sync::SpinMutex as Mutex;
 use core::alloc::{AllocError, Allocator, Layout};
 use core::any::Any;
 use core::mem::size_of;
 use core::mem::MaybeUninit;
 use core::ptr::NonNull;
-use spin::Once;
 
 use super::ema::EmaOptions;
 use super::page::AllocFlags;
@@ -64,21 +64,21 @@ static RSRV_ALLOCATOR: Once<Mutex<Reserve>> = Once::new();
 
 /// Init lowest level static memory allocator
 pub fn init_static_alloc() {
-    STATIC.call_once(|| {
+    let _ = STATIC.call_once(|| {
         let static_alloc = LockedHeap::empty();
         unsafe {
             static_alloc
                 .lock()
                 .init(STATIC_MEM.as_ptr() as usize, STATIC_MEM_SIZE)
         };
-        static_alloc
+        Ok(static_alloc)
     });
 }
 
 /// Init reserve memory allocator
 /// init_reserve_alloc() need to be called after init_static_alloc()
 pub fn init_reserve_alloc() {
-    RSRV_ALLOCATOR.call_once(|| Mutex::new(Reserve::new(INIT_MEM_SIZE)));
+    let _ = RSRV_ALLOCATOR.call_once(|| Ok(Mutex::new(Reserve::new(INIT_MEM_SIZE))));
 }
 
 pub trait EmmAllocator: Allocator + Any {
