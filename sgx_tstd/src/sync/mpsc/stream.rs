@@ -50,8 +50,15 @@ pub struct Packet<T> {
 
 struct ProducerAddition {
     cnt: AtomicIsize,       // How many items are on this channel
+
+    // For AtomicPtr, the methods load and store read and write the address.To load the 
+    // contents is pretty much another operation, but it is not atomic and and it is very 
+    // unsafe. If there is access to the content where the pointer is pointed, it is best 
+    // to use Acquire/Release.
     to_wake: AtomicPtr<u8>, // SignalToken for the blocked thread to wake up
 
+    // Here port_dropped is just a signal variety to see if this packet has been dropped
+    // and it doesn't synchronized with any other variety. Using Relaxed is enough.
     port_dropped: AtomicBool, // flag if the channel has been destroyed.
 }
 
@@ -101,7 +108,7 @@ impl<T> Packet<T> {
         // If the other port has deterministically gone away, then definitely
         // must return the data back up the stack. Otherwise, the data is
         // considered as being sent.
-        if self.queue.producer_addition().port_dropped.load(Ordering::SeqCst) {
+        if self.queue.producer_addition().port_dropped.load(Ordering::Relaxed) {
             return Err(t);
         }
 
@@ -117,7 +124,7 @@ impl<T> Packet<T> {
     pub fn upgrade(&self, up: Receiver<T>) -> UpgradeResult {
         // If the port has gone away, then there's no need to proceed any
         // further.
-        if self.queue.producer_addition().port_dropped.load(Ordering::SeqCst) {
+        if self.queue.producer_addition().port_dropped.load(Ordering::Relaxed) {
             return UpDisconnected;
         }
 
@@ -126,7 +133,9 @@ impl<T> Packet<T> {
 
     fn do_send(&self, t: Message<T>) -> UpgradeResult {
         self.queue.push(t);
-        match self.queue.producer_addition().cnt.fetch_add(1, Ordering::SeqCst) {
+        // Here cnt needs to synchronize with queue before cnt and to_wake in the 
+        // take_to_wake operation after cnt. Using AcqRel is enough.
+        match self.queue.producer_addition().cnt.fetch_add(1, Ordering::AcqRel) {
             // As described in the mod's doc comment, -1 == wakeup
             -1 => UpWoke(self.take_to_wake()),
             // As as described before, SPSC queues must be >= -2
@@ -140,7 +149,8 @@ impl<T> Packet<T> {
             // will never remove this data. We can only have at most one item to
             // drain (the port drains the rest).
             DISCONNECTED => {
-                self.queue.producer_addition().cnt.store(DISCONNECTED, Ordering::SeqCst);
+                // There is no other varieties to synchronize. So use Relaxed here.
+                self.queue.producer_addition().cnt.store(DISCONNECTED, Ordering::Relaxed);
                 let first = self.queue.pop();
                 let second = self.queue.pop();
                 assert!(second.is_none());
@@ -162,8 +172,8 @@ impl<T> Packet<T> {
 
     // Consumes ownership of the 'to_wake' field.
     fn take_to_wake(&self) -> SignalToken {
-        let ptr = self.queue.producer_addition().to_wake.load(Ordering::SeqCst);
-        self.queue.producer_addition().to_wake.store(EMPTY, Ordering::SeqCst);
+        let ptr = self.queue.producer_addition().to_wake.load(Ordering::Acquire);
+        self.queue.producer_addition().to_wake.store(EMPTY, Ordering::Release);
         assert!(ptr != EMPTY);
         unsafe { SignalToken::from_raw(ptr) }
     }
@@ -174,13 +184,16 @@ impl<T> Packet<T> {
     fn decrement(&self, token: SignalToken) -> Result<(), SignalToken> {
         assert_eq!(self.queue.producer_addition().to_wake.load(Ordering::SeqCst), EMPTY);
         let ptr = unsafe { token.to_raw() };
-        self.queue.producer_addition().to_wake.store(ptr, Ordering::SeqCst);
+        self.queue.producer_addition().to_wake.store(ptr, Ordering::Release);
 
         let steals = unsafe { ptr::replace(self.queue.consumer_addition().steals.get(), 0) };
 
-        match self.queue.producer_addition().cnt.fetch_sub(1 + steals, Ordering::SeqCst) {
+        // Here cnt is synchronized with to_wake and steals, using Release to
+        // the correctness of the code.
+        match self.queue.producer_addition().cnt.fetch_sub(1 + steals, Ordering::Release) {
             DISCONNECTED => {
-                self.queue.producer_addition().cnt.store(DISCONNECTED, Ordering::SeqCst);
+                // There is no other varieties to synchronize. So use Relaxed here.
+                self.queue.producer_addition().cnt.store(DISCONNECTED, Ordering::Relaxed);
             }
             // If we factor in our steals and notice that the channel has no
             // data, we successfully sleep
@@ -192,7 +205,7 @@ impl<T> Packet<T> {
             }
         }
 
-        self.queue.producer_addition().to_wake.store(EMPTY, Ordering::SeqCst);
+        self.queue.producer_addition().to_wake.store(EMPTY, Ordering::Release);
         Err(unsafe { SignalToken::from_raw(ptr) })
     }
 
@@ -245,12 +258,15 @@ impl<T> Packet<T> {
             // adding back in whatever we couldn't factor into steals.
             Some(data) => unsafe {
                 if *self.queue.consumer_addition().steals.get() > MAX_STEALS {
-                    match self.queue.producer_addition().cnt.swap(0, Ordering::SeqCst) {
+                    // Here cnt needs to synchronize with steals. Using Acquire is enough.
+                    match self.queue.producer_addition().cnt.swap(0, Ordering::Acquire) {
                         DISCONNECTED => {
+                            // Here cnt doesn't synchronize with to other shared variables, Using 
+                            // Relaxed is enough.
                             self.queue
                                 .producer_addition()
                                 .cnt
-                                .store(DISCONNECTED, Ordering::SeqCst);
+                                .store(DISCONNECTED, Ordering::Relaxed);
                         }
                         n => {
                             let m = cmp::min(n, *self.queue.consumer_addition().steals.get());
@@ -268,7 +284,8 @@ impl<T> Packet<T> {
             },
 
             None => {
-                match self.queue.producer_addition().cnt.load(Ordering::SeqCst) {
+                // Here cnt needs to synchronize with queue, Using Acquire is enough.
+                match self.queue.producer_addition().cnt.load(Ordering::Acquire) {
                     n if n != DISCONNECTED => Err(Empty),
 
                     // This is a little bit of a tricky case. We failed to pop
@@ -295,7 +312,10 @@ impl<T> Packet<T> {
     pub fn drop_chan(&self) {
         // Dropping a channel is pretty simple, we just flag it as disconnected
         // and then wakeup a blocker if there is one.
-        match self.queue.producer_addition().cnt.swap(DISCONNECTED, Ordering::SeqCst) {
+        //
+        // Here cnt needs to synchronize with to_wake in the take_to_wake operation 
+        // after cnt. Using Acquire is enough. 
+        match self.queue.producer_addition().cnt.swap(DISCONNECTED, Ordering::Acquire) {
             -1 => {
                 self.take_to_wake().signal();
             }
@@ -337,11 +357,14 @@ impl<T> Packet<T> {
         // data, but eventually we're guaranteed to break out of this loop
         // (because there is a bounded number of senders).
         let mut steals = unsafe { *self.queue.consumer_addition().steals.get() };
+        // Here cnt needs to sychronize with queue when CAS fails, Using Acquire is enough.
+        // In general, ordering success in CAS is at least the same or more strict than 
+        // fail in CAS. So Using Acquire in success is OK.
         while match self.queue.producer_addition().cnt.compare_exchange(
             steals,
             DISCONNECTED,
-            Ordering::SeqCst,
-            Ordering::SeqCst,
+            Ordering::Acquire,
+            Ordering::Acquire,
         ) {
                 Ok(_) => false,
                 Err(old) => old != DISCONNECTED,
@@ -364,9 +387,11 @@ impl<T> Packet<T> {
 
     // increment the count on the channel (used for selection)
     fn bump(&self, amt: isize) -> isize {
-        match self.queue.producer_addition().cnt.fetch_add(amt, Ordering::SeqCst) {
+        // There doesn't exist operation needed to be synchronized,
+        // Using Relaxed is safe.
+        match self.queue.producer_addition().cnt.fetch_add(amt, Ordering::Relaxed) {
             DISCONNECTED => {
-                self.queue.producer_addition().cnt.store(DISCONNECTED, Ordering::SeqCst);
+                self.queue.producer_addition().cnt.store(DISCONNECTED, Ordering::Relaxed);
                 DISCONNECTED
             }
             n => n,
@@ -426,7 +451,7 @@ impl<T> Packet<T> {
             if prev < 0 {
                 drop(self.take_to_wake());
             } else {
-                while self.queue.producer_addition().to_wake.load(Ordering::SeqCst) != EMPTY {
+                while self.queue.producer_addition().to_wake.load(Ordering::Acquire) != EMPTY {
                     thread::yield_now();
                 }
             }

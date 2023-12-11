@@ -50,6 +50,11 @@ pub struct Scope<'scope, 'env: 'scope> {
 /// See [`Scope::spawn`] for details.
 pub struct ScopedJoinHandle<'scope, T>(JoinInner<'scope, T>);
 
+/// Note about memory ordering:
+/// 
+/// Here num_running_threads is a count variety used to see how many thread is
+/// running and a_thread_panicked is just a signal. They don't synchronize with 
+/// any data at all, so Relaxed is technically sufficient.
 pub(super) struct ScopeData {
     num_running_threads: AtomicUsize,
     a_thread_panicked: AtomicBool,
@@ -70,7 +75,7 @@ impl ScopeData {
         if panic {
             self.a_thread_panicked.store(true, Ordering::Relaxed);
         }
-        if self.num_running_threads.fetch_sub(1, Ordering::Release) == 1 {
+        if self.num_running_threads.fetch_sub(1, Ordering::Relaxed) == 1 {
             self.main_thread.unpark();
         }
     }
@@ -160,7 +165,7 @@ where
     let result = catch_unwind(AssertUnwindSafe(|| f(&scope)));
 
     // Wait until all the threads are finished.
-    while scope.data.num_running_threads.load(Ordering::Acquire) != 0 {
+    while scope.data.num_running_threads.load(Ordering::Relaxed) != 0 {
         park();
     }
 

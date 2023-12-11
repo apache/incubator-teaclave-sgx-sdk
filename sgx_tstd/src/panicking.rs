@@ -275,6 +275,10 @@ fn default_hook(info: &PanicInfo<'_>) {
 
         #[cfg(feature = "backtrace")]
         {
+            // Note about memory ordering:
+            // Here FIRST_PANIC just using in this function. the only read and load
+            // operation just do in line 292, and it doesn't sychornized with other 
+            // varieties, using relaxed is enough to ensure safety here.
             static FIRST_PANIC: AtomicBool = AtomicBool::new(true);
 
             match backtrace {
@@ -285,7 +289,7 @@ fn default_hook(info: &PanicInfo<'_>) {
                     drop(backtrace::print(err, crate::sys::backtrace::PrintFmt::Full))
                 }
                 Some(BacktraceStyle::Off) => {
-                    if FIRST_PANIC.swap(false, Ordering::SeqCst) {
+                    if FIRST_PANIC.swap(false, Ordering::Relaxed) {
                         let _ = writeln!(
                             err,
                             "note: call backtrace::enable_backtrace with 'PrintFormat::Short/Full' for a backtrace."

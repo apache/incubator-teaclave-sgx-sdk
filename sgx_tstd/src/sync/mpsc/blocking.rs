@@ -24,6 +24,12 @@ use crate::time::Instant;
 #[cfg(not(feature = "untrusted_time"))]
 use crate::untrusted::time::InstantEx;
 
+/// Note about memory ordering:
+/// 
+/// Here woken needs to synchronize with thread, So using Acquire and
+/// Release is enough. Success in CAS is safer to use AcqRel, fail in CAS
+/// does not synchronize other variables, and using Relaxed can ensure the 
+/// correctness of the program.
 struct Inner {
     thread: Thread,
     woken: AtomicBool,
@@ -57,7 +63,7 @@ impl SignalToken {
         let wake = self
             .inner
             .woken
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
             .is_ok();
         if wake {
             self.inner.thread.unpark();
@@ -82,14 +88,14 @@ impl SignalToken {
 
 impl WaitToken {
     pub fn wait(self) {
-        while !self.inner.woken.load(Ordering::SeqCst) {
+        while !self.inner.woken.load(Ordering::Acquire) {
             thread::park()
         }
     }
 
     /// Returns `true` if we wake up normally.
     pub fn wait_max_until(self, end: Instant) -> bool {
-        while !self.inner.woken.load(Ordering::SeqCst) {
+        while !self.inner.woken.load(Ordering::Acquire) {
             let now = Instant::now();
             if now >= end {
                 return false;

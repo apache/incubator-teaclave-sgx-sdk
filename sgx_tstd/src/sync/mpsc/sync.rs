@@ -54,6 +54,12 @@ use sgx_trts::trts;
 
 const MAX_REFCOUNT: usize = (isize::MAX) as usize;
 
+/// Note about memory ordering:
+/// 
+/// Here channels is just a shared variables between threads and doesn't synchronize
+/// with other variables. Fetch_add/fetch_sub guarantees that the operation is on the
+/// "latest" value. Therefore, `Relaxed` can be used in both single-threaded and
+/// multi-threaded environments.
 pub struct Packet<T> {
     /// Only field outside of the mutex. Just done for kicks, but mainly because
     /// the other shared channel already had the code implemented
@@ -373,7 +379,7 @@ impl<T> Packet<T> {
     // Prepares this shared packet for a channel clone, essentially just bumping
     // a refcount.
     pub fn clone_chan(&self) {
-        let old_count = self.channels.fetch_add(1, Ordering::SeqCst);
+        let old_count = self.channels.fetch_add(1, Ordering::Relaxed);
 
         // See comments on Arc::clone() on why we do this (for `mem::forget`).
         if old_count > MAX_REFCOUNT {
@@ -383,7 +389,7 @@ impl<T> Packet<T> {
 
     pub fn drop_chan(&self) {
         // Only flag the channel as disconnected if we're the last channel
-        match self.channels.fetch_sub(1, Ordering::SeqCst) {
+        match self.channels.fetch_sub(1, Ordering::Relaxed) {
             1 => {}
             _ => return,
         }
