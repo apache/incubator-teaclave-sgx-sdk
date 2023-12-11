@@ -258,7 +258,7 @@ static SHOULD_CAPTURE: AtomicUsize = AtomicUsize::new(0);
 /// environment variable; see the details in [`get_backtrace_style`].
 #[cfg(feature = "backtrace")]
 pub fn set_backtrace_style(style: BacktraceStyle) {
-    SHOULD_CAPTURE.store(style.as_usize(), Ordering::Release);
+    SHOULD_CAPTURE.store(style.as_usize(), Ordering::Relaxed);
 }
 
 /// Checks whether the standard library's panic hook will capture and print a
@@ -284,5 +284,5 @@ pub fn set_backtrace_style(style: BacktraceStyle) {
 /// Returns `None` if backtraces aren't currently supported.
 #[cfg(feature = "backtrace")]
 pub fn get_backtrace_style() -> Option<BacktraceStyle> {
-    BacktraceStyle::from_usize(SHOULD_CAPTURE.load(Ordering::Acquire))
+    BacktraceStyle::from_usize(SHOULD_CAPTURE.load(Ordering::Relaxed))
 }
