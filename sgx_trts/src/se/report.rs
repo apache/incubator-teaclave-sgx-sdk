@@ -58,7 +58,7 @@ static REPORT: Once<AlignReport> = Once::new();
 
 impl AlignReport {
     pub fn get_self() -> &'static AlignReport {
-        REPORT.call_once(|| AlignReport::for_self()).unwrap()
+        REPORT.call_once(AlignReport::for_self).unwrap()
     }
 
     pub fn for_self() -> SgxResult<AlignReport> {

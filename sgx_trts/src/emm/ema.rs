@@ -16,10 +16,10 @@
 // under the License..
 
 use crate::arch::{SE_PAGE_SHIFT, SE_PAGE_SIZE};
+use crate::emm::alloc::EmmAllocator;
 use crate::emm::{PageInfo, PageRange, PageType, ProtFlags};
 use crate::enclave::is_within_enclave;
 use alloc::boxed::Box;
-use core::alloc::Allocator;
 use intrusive_collections::{intrusive_adapter, LinkedListLink, UnsafeRef};
 use sgx_tlibc_sys::{c_void, EACCES, EFAULT, EINVAL};
 use sgx_types::error::OsResult;
@@ -553,7 +553,7 @@ impl Ema {
     }
 
     /// Obtain the allocator of ema
-    pub fn allocator(&self) -> &'static dyn Allocator {
+    pub fn allocator(&self) -> &'static dyn EmmAllocator {
         self.alloc.alloctor()
     }
 

@@ -199,7 +199,7 @@ struct BlockFree {
 #[derive(Debug)]
 struct BlockUsed {
     size: usize,
-    payload: usize,
+    payload: usize, // Act as placeholder
 }
 
 impl BlockFree {
@@ -216,6 +216,10 @@ impl BlockFree {
 
     fn block_size(&self) -> usize {
         self.size & SIZE_MASK
+    }
+
+    fn clear_alloced(&mut self) {
+        self.size &= SIZE_MASK;
     }
 }
 
@@ -242,6 +246,43 @@ impl BlockUsed {
 
     fn clear_alloced(&mut self) {
         self.size &= SIZE_MASK;
+    }
+
+    // Return the ptr of payload
+    fn payload_ptr(&self) -> usize {
+        &self.payload as *const _ as usize
+    }
+
+    unsafe fn with_payload<'a>(payload_ptr: usize) -> &'a mut BlockUsed {
+        let payload_ptr = payload_ptr as *const u8;
+        let block = &mut *(payload_ptr.byte_offset(-(HEADER_SIZE as isize)) as *mut BlockUsed);
+        block
+    }
+}
+
+impl<'a> From<&'a mut BlockFree> for &'a mut BlockUsed {
+    fn from(block_free: &'a mut BlockFree) -> Self {
+        let block_used = unsafe { &mut *(block_free as *mut _ as *mut BlockUsed) };
+
+        block_used.size = block_free.block_size();
+        // Clear residual link information
+        block_used.payload = 0;
+        block_used.set_alloced();
+
+        block_used
+    }
+}
+
+impl<'a> From<&'a mut BlockUsed> for &'a mut BlockFree {
+    fn from(block_used: &'a mut BlockUsed) -> Self {
+        let block_free = unsafe { &mut *(block_used as *mut _ as *mut BlockFree) };
+
+        block_free.size = block_used.block_size();
+        block_free.link = Link::new();
+        // Useless method to mark free tag
+        block_free.clear_alloced();
+
+        block_free
     }
 }
 
@@ -367,36 +408,21 @@ impl Reserve {
         idx
     }
 
-    // Reconstruct BlockUsed with BlockFree block_size() and set alloc, return payload addr.
-    // BlockFree -> BlockUsed -> Payload addr (Used)
-    fn block_to_payload(&self, block: UnsafeRef<BlockFree>) -> usize {
-        let block_size = block.block_size();
-        let mut block_used = BlockUsed::new(block_size);
-        block_used.set_alloced();
-
-        let block_used_ptr = UnsafeRef::into_raw(block) as *mut BlockUsed;
-        unsafe {
-            block_used_ptr.write(block_used);
-            // Regular offset shifts count*T bytes
-            block_used_ptr.byte_offset(HEADER_SIZE as isize) as usize
-        }
+    // Reconstruct BlockUsed with BlockFree block_size() and set alloc, return payload ptr.
+    // BlockFree -> BlockUsed -> Payload ptr (Used)
+    fn block_to_payload(&self, mut block_free: UnsafeRef<BlockFree>) -> usize {
+        // Inexplicily change inner data of pointer
+        let block_used: &mut BlockUsed = block_free.as_mut().into();
+        block_used.payload_ptr()
     }
 
-    // Reconstruct a new BlockFree with BlockUsed block_size(), return payload addr.
-    // Payload addr (Used) -> BlockUsed -> BlockFree
-    fn payload_to_block(&self, payload_addr: usize) -> UnsafeRef<BlockFree> {
-        let payload_ptr = payload_addr as *const u8;
-        let block_used_ptr =
-            unsafe { payload_ptr.byte_offset(-(HEADER_SIZE as isize)) as *mut BlockUsed };
-
-        // Implicitly clear alloc mask, reconstruct new BlockFree
-        let block_size = unsafe { block_used_ptr.read().block_size() };
-        let block_free = BlockFree::new(block_size);
-        let block_free_ptr = block_used_ptr as *mut BlockFree;
-        unsafe {
-            block_free_ptr.write(block_free);
-            UnsafeRef::from_raw(block_free_ptr)
-        }
+    // Reconstruct a new BlockFree with BlockUsed block_size(), return payload ptr.
+    // Payload ptr (Used) -> BlockUsed -> BlockFree
+    fn payload_to_block(&self, payload_ptr: usize) -> UnsafeRef<BlockFree> {
+        let block_used = unsafe { BlockUsed::with_payload(payload_ptr) };
+        // Inexplicily change inner data of pointer
+        let block_free: &mut BlockFree = block_used.into();
+        unsafe { UnsafeRef::from_raw(block_free as *const BlockFree) }
     }
 
     /// Malloc memory
