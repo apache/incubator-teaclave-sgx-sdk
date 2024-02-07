@@ -248,7 +248,7 @@ impl MetadataInfo {
             )?
         } else {
             let mut aes = AesGcm::new(key, Nonce::zeroed(), Aad::from(&self.encrypted_plain))?;
-            let mac = aes.encrypt(&[], &mut [])?;
+            let mac = aes.mac()?;
             self.node
                 .metadata
                 .ciphertext
@@ -276,7 +276,7 @@ impl MetadataInfo {
                 Nonce::zeroed(),
                 Aad::from(&self.node.metadata.ciphertext),
             )?;
-            aes.decrypt(&[], &mut [], &self.node.metadata.plaintext.gmac)?;
+            aes.verify_mac(&self.node.metadata.plaintext.gmac)?;
             self.encrypted_plain
                 .as_mut()
                 .copy_from_slice(self.node.metadata.ciphertext.as_ref());

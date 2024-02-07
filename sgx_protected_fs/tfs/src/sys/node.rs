@@ -279,7 +279,7 @@ impl FileNode {
             aes.encrypt(self.plaintext.as_ref(), self.ciphertext.node_data.as_mut())?
         } else {
             let mut aes = AesGcm::new(key, Nonce::zeroed(), Aad::from(&self.plaintext))?;
-            let mac = aes.encrypt(&[], &mut [])?;
+            let mac = aes.mac()?;
             self.ciphertext
                 .node_data
                 .as_mut()
@@ -312,7 +312,7 @@ impl FileNode {
             )?
         } else {
             let mut aes = AesGcm::new(key, Nonce::zeroed(), Aad::from(&self.ciphertext.node_data))?;
-            aes.decrypt(&[], &mut [], mac)?;
+            aes.verify_mac(mac)?;
             self.plaintext
                 .as_mut()
                 .copy_from_slice(self.ciphertext.node_data.as_ref());
