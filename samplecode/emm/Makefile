@@ -93,7 +93,7 @@ Rust_Target_Path := $(ROOT_DIR)/rustlib
 
 ifeq ($(BUILD_STD), cargo)
 	Rust_Build_Std := $(Rust_Build_Flags) -Zbuild-std=core,alloc
-	Rust_Std_Features :=
+	Rust_Std_Features := --features thread
 	Rust_Target_Flags := --target $(Rust_Target_Path)/$(Rust_Build_Target).json
 	Rust_Sysroot_Path := $(CURDIR)/sysroot
 	Rust_Sysroot_Flags := RUSTFLAGS="--sysroot $(Rust_Sysroot_Path)"
