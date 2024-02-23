@@ -406,6 +406,46 @@ impl UserRegionMem {
     }
 }
 
+pub fn is_within_rts_range(start: usize, len: usize) -> bool {
+    if !is_within_enclave(start as *const u8, len) {
+        return false;
+    }
+    let end = if len > 0 {
+        if let Some(end) = start.checked_add(len - 1) {
+            end
+        } else {
+            return false;
+        }
+    } else {
+        start
+    };
+
+    let user_base = MmLayout::user_region_mem_base();
+    let user_end = user_base + MmLayout::user_region_mem_size();
+
+    (start <= end) && ((start >= user_end) || (end < user_base))
+}
+
+pub fn is_within_user_range(start: usize, len: usize) -> bool {
+    if !is_within_enclave(start as *const u8, len) {
+        return false;
+    }
+    let end = if len > 0 {
+        if let Some(end) = start.checked_add(len - 1) {
+            end
+        } else {
+            return false;
+        }
+    } else {
+        start
+    };
+
+    let user_base = MmLayout::user_region_mem_base();
+    let user_end = user_base + MmLayout::user_region_mem_size();
+
+    (start <= end) && (start >= user_base) && (end < user_end)
+}
+
 pub fn is_within_enclave(p: *const u8, len: usize) -> bool {
     let start = p as usize;
     let end = if len > 0 {

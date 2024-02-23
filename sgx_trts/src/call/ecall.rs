@@ -272,16 +272,17 @@ pub fn ecall<T>(idx: ECallIndex, tcs: &mut Tcs, ms: *mut T, tidx: usize) -> SgxR
         ensure!(is_root_ecall, SgxStatus::ECallNotAllowed);
 
         FIRST_ECALL.call_once(|| {
+            debug_call_once();
             // EDMM:
             #[cfg(not(any(feature = "sim", feature = "hyper")))]
             {
                 if crate::feature::SysFeatures::get().is_edmm() {
                     // save all the static tcs into the tcs table. These TCS would be trimmed in the uninit flow.
-                    crate::edmm::tcs::add_static_tcs()?;
+                    crate::emm::tcs::add_static_tcs()?;
 
                     // change back the page permission
-                    crate::edmm::mem::change_perm().map_err(|e| {
-                        let _ = crate::edmm::tcs::clear_static_tcs();
+                    crate::emm::init::change_perm().map_err(|e| {
+                        let _ = crate::emm::tcs::clear_static_tcs();
                         e
                     })?;
                 }
@@ -353,3 +354,6 @@ pub fn thread_is_exit() -> bool {
         }
     }
 }
+
+#[no_mangle]
+pub extern "C" fn debug_call_once() {}

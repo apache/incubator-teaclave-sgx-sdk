@@ -16,13 +16,15 @@
 // under the License..
 
 use crate::arch::{self, MiscExInfo, SsaGpr, Tcs, Tds};
-use crate::edmm;
+use crate::emm;
+use crate::emm::pfhandler::{mm_enclave_pfhandler, PfInfo};
 use crate::enclave::state::{self, State};
 use crate::error;
 use crate::feature::SysFeatures;
 use crate::tcs::tc::{self, ThreadControl};
 use crate::trts;
 use crate::veh::list;
+use crate::veh::register;
 use crate::veh::MAX_REGISTER_COUNT;
 use crate::veh::{ExceptionHandler, ExceptionInfo, ExceptionType, ExceptionVector, HandleResult};
 use crate::xsave;
@@ -137,7 +139,7 @@ pub fn handle(tcs: &mut Tcs) -> SgxResult {
         if (tds.stack_commit > page_aligned_delta)
             && ((tds.stack_commit - page_aligned_delta) >= tds.stack_limit)
         {
-            result = edmm::mem::expand_stack_epc_pages(
+            result = emm::init::expand_stack_epc_pages(
                 tds.stack_commit - page_aligned_delta,
                 page_aligned_delta >> arch::SE_PAGE_SHIFT,
             )
@@ -307,10 +309,13 @@ extern "C" fn internal_handle(info: &mut ExceptionInfo) {
     if info.vector == ExceptionVector::PF {
         tds.exception_flag -= 1;
 
-        // EMM_TODO:
-        // if mm_fault_handler(&info.exinfo) == SGX_MM_EXCEPTION_CONTINUE_EXECUTION {
-        //     exception_continue_execution(info);
-        // }
+        let pfinfo =
+            unsafe { &mut *(&mut info.exinfo as *mut register::MiscExInfo as *mut PfInfo) };
+
+        if mm_enclave_pfhandler(pfinfo) == HandleResult::Execution {
+            exception_continue_execution(info, tds);
+        }
+
         tds.exception_flag += 1;
     }
 

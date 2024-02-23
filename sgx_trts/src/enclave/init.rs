@@ -16,6 +16,7 @@
 // under the License..
 
 use crate::arch::Tcs;
+use crate::emm::init::{init_emm, init_rts_emas};
 use crate::enclave::state::State;
 use crate::enclave::EnclaveRange;
 use crate::enclave::{mem, parse, state};
@@ -80,19 +81,21 @@ pub fn rtinit(tcs: &mut Tcs, ms: *mut SystemFeatures, tidx: usize) -> SgxResult 
 
     tc::ThreadControl::from_tcs(tcs).init(tidx, true)?;
 
-    #[cfg(not(any(feature = "sim", feature = "hyper")))]
-    {
-        if features.is_edmm() {
-            // EDMM:
-            // need to accept the trimming of the POST_REMOVE pages
-            crate::edmm::mem::accept_post_remove()?;
-        }
-    }
-
     heap.zero_memory();
     rsrvmem.zero_memory();
 
     state::set_state(State::InitDone);
+
+    #[cfg(not(any(feature = "sim", feature = "hyper")))]
+    {
+        if features.is_edmm() {
+            let usermem = mem::UserRegionMem::get_or_init();
+            init_emm();
+
+            init_rts_emas()?;
+        }
+    }
+
     Ok(())
 }
 

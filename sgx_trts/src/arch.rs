@@ -17,7 +17,7 @@
 
 #![allow(clippy::enum_variant_names)]
 
-use crate::edmm::{self, PageType};
+use crate::emm::{self, PageType};
 use crate::tcs::tc;
 use crate::version::*;
 use crate::xsave;
@@ -40,9 +40,22 @@ macro_rules! is_page_aligned {
     };
 }
 
+// rounds to up
+macro_rules! round_to {
+    ($num:expr, $align:expr) => {
+        ($num + $align - 1) & (!($align - 1))
+    };
+}
+
 macro_rules! round_to_page {
     ($num:expr) => {
         ($num + crate::arch::SE_PAGE_SIZE - 1) & (!(crate::arch::SE_PAGE_SIZE - 1))
+    };
+}
+
+macro_rules! trim_to {
+    ($num:expr, $align:expr) => {
+        $num & (!($align - 1))
     };
 }
 
@@ -553,6 +566,14 @@ pub const SI_FLAGS_SECS: u64 = SI_FLAG_SECS;
 pub const SI_MASK_TCS: u64 = SI_FLAG_PT_MASK;
 pub const SI_MASK_MEM_ATTRIBUTE: u64 = 0x7;
 
+pub const SGX_EMA_PROT_NONE: u64 = 0x0;
+pub const SGX_EMA_PROT_READ: u64 = 0x1;
+pub const SGX_EMA_PROT_WRITE: u64 = 0x2;
+pub const SGX_EMA_PROT_EXEC: u64 = 0x4;
+pub const SGX_EMA_PROT_READ_WRITE: u64 = SGX_EMA_PROT_READ | SGX_EMA_PROT_WRITE;
+pub const SGX_EMA_PROT_READ_EXEC: u64 = SGX_EMA_PROT_READ | SGX_EMA_PROT_EXEC;
+pub const SGX_EMA_PROT_READ_WRITE_EXEC: u64 = SGX_EMA_PROT_READ_WRITE | SGX_EMA_PROT_EXEC;
+
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
 pub struct OCallContext {
@@ -723,11 +744,11 @@ impl From<PageType> for SecInfoFlags {
     }
 }
 
-impl From<edmm::PageInfo> for SecInfoFlags {
-    fn from(data: edmm::PageInfo) -> SecInfoFlags {
+impl From<emm::PageInfo> for SecInfoFlags {
+    fn from(data: emm::PageInfo) -> SecInfoFlags {
         let typ = data.typ as u64;
-        let flags = data.flags.bits() as u64;
-        SecInfoFlags::from_bits_truncate((typ << 8) | flags)
+        let prot = data.prot.bits() as u64;
+        SecInfoFlags::from_bits_truncate((typ << 8) | prot)
     }
 }
 
@@ -786,33 +807,33 @@ impl From<SecInfoFlags> for SecInfo {
     }
 }
 
-impl From<edmm::PageInfo> for SecInfo {
-    fn from(data: edmm::PageInfo) -> SecInfo {
+impl From<emm::PageInfo> for SecInfo {
+    fn from(data: emm::PageInfo) -> SecInfo {
         SecInfo::from(SecInfoFlags::from(data))
     }
 }
 
 #[repr(C, align(32))]
 #[derive(Clone, Copy, Debug)]
-pub struct PageInfo {
+pub struct CPageInfo {
     pub linaddr: u64,
     pub srcpage: u64,
     pub secinfo: u64,
     pub secs: u64,
 }
 
-impl PageInfo {
-    pub const ALIGN_SIZE: usize = mem::size_of::<PageInfo>();
+impl CPageInfo {
+    pub const ALIGN_SIZE: usize = mem::size_of::<CPageInfo>();
 }
 
-impl AsRef<[u8; PageInfo::ALIGN_SIZE]> for PageInfo {
-    fn as_ref(&self) -> &[u8; PageInfo::ALIGN_SIZE] {
+impl AsRef<[u8; CPageInfo::ALIGN_SIZE]> for CPageInfo {
+    fn as_ref(&self) -> &[u8; CPageInfo::ALIGN_SIZE] {
         unsafe { &*(self as *const _ as *const _) }
     }
 }
 
-impl AsRef<Align32<[u8; PageInfo::ALIGN_SIZE]>> for PageInfo {
-    fn as_ref(&self) -> &Align32<[u8; PageInfo::ALIGN_SIZE]> {
+impl AsRef<Align32<[u8; CPageInfo::ALIGN_SIZE]>> for CPageInfo {
+    fn as_ref(&self) -> &Align32<[u8; CPageInfo::ALIGN_SIZE]> {
         unsafe { &*(self as *const _ as *const _) }
     }
 }

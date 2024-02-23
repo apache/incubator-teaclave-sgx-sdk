@@ -16,46 +16,94 @@
 // under the License..
 
 use crate::sync::{SpinMutex, SpinMutexGuard};
-use core::sync::atomic::{AtomicUsize, Ordering};
+use core::{
+    cell::UnsafeCell,
+    mem::MaybeUninit,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 use sgx_types::error::SgxResult;
 
-pub struct Once {
+pub struct Once<T = ()> {
     lock: SpinMutex<()>,
     state: AtomicUsize,
+    data: UnsafeCell<MaybeUninit<T>>,
 }
 
-unsafe impl Sync for Once {}
-unsafe impl Send for Once {}
+impl<T> Default for Once<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+unsafe impl<T: Send + Sync> Sync for Once<T> {}
+unsafe impl<T: Send> Send for Once<T> {}
 
 const INCOMPLETE: usize = 0x0;
 const COMPLETE: usize = 0x1;
 
-impl Once {
-    pub const fn new() -> Once {
-        Once {
-            lock: SpinMutex::new(()),
-            state: AtomicUsize::new(INCOMPLETE),
-        }
+impl<T> Once<T> {
+    /// Initialization constant of [`Once`].
+    #[allow(clippy::declare_interior_mutable_const)]
+    pub const INIT: Self = Self {
+        lock: SpinMutex::new(()),
+        state: AtomicUsize::new(INCOMPLETE),
+        data: UnsafeCell::new(MaybeUninit::uninit()),
+    };
+
+    /// Creates a new [`Once`].
+    pub const fn new() -> Self {
+        Self::INIT
     }
 
     pub fn lock(&self) -> SpinMutexGuard<()> {
         self.lock.lock()
     }
 
-    pub fn call_once<F>(&self, init: F) -> SgxResult
+    pub fn call_once<F>(&self, init: F) -> SgxResult<&T>
     where
-        F: FnOnce() -> SgxResult,
+        F: FnOnce() -> SgxResult<T>,
     {
         if self.is_completed() {
-            return Ok(());
+            return Ok(unsafe {
+                // SAFETY: The status is Complete
+                self.force_get()
+            });
         }
 
         let _guard = self.lock.lock();
         if !self.is_completed() {
-            init()?;
+            let val = init()?;
+            unsafe {
+                (*self.data.get()).as_mut_ptr().write(val);
+            }
             self.state.store(COMPLETE, Ordering::Release);
         }
-        Ok(())
+        unsafe { Ok(self.force_get()) }
+    }
+
+    /// Returns a reference to the inner value if the [`Once`] has been initialized.
+    pub fn get(&self) -> Option<&T> {
+        if self.state.load(Ordering::Acquire) == COMPLETE {
+            Some(unsafe { self.force_get() })
+        } else {
+            None
+        }
+    }
+
+    /// Get a reference to the initialized instance. Must only be called once COMPLETE.
+    unsafe fn force_get(&self) -> &T {
+        // SAFETY:
+        // * `UnsafeCell`/inner deref: data never changes again
+        // * `MaybeUninit`/outer deref: data was initialized
+        &*(*self.data.get()).as_ptr()
+    }
+
+    /// Get a reference to the initialized instance. Must only be called once COMPLETE.
+    unsafe fn force_get_mut(&mut self) -> &mut T {
+        // SAFETY:
+        // * `UnsafeCell`/inner deref: data never changes again
+        // * `MaybeUninit`/outer deref: data was initialized
+        &mut *(*self.data.get()).as_mut_ptr()
     }
 
     #[inline]

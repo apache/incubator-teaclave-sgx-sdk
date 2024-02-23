@@ -34,11 +34,13 @@ pub enum OCallIndex {
     TrimCommit,
     Modpr,
     Mprotect,
+    Alloc,
+    Modify,
 }
 
 impl OCallIndex {
     pub fn is_builtin_index(index: i32) -> bool {
-        (-5..=-2).contains(&index)
+        (-7..=-2).contains(&index)
     }
 
     pub fn is_builtin(&self) -> bool {
@@ -62,6 +64,8 @@ impl TryFrom<i32> for OCallIndex {
             -3 => Ok(OCallIndex::TrimCommit),
             -4 => Ok(OCallIndex::Modpr),
             -5 => Ok(OCallIndex::Mprotect),
+            -6 => Ok(OCallIndex::Alloc),
+            -7 => Ok(OCallIndex::Modify),
             _ => Err(u8::try_from(256_u16).unwrap_err()),
         }
     }
@@ -76,6 +80,8 @@ impl From<OCallIndex> for i32 {
             OCallIndex::TrimCommit => -3,
             OCallIndex::Modpr => -4,
             OCallIndex::Mprotect => -5,
+            OCallIndex::Alloc => -6,
+            OCallIndex::Modify => -7,
         }
     }
 }

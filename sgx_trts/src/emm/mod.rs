@@ -15,19 +15,24 @@
 // specific language governing permissions and limitations
 // under the License..
 
-mod atexit;
-mod entry;
-mod init;
-mod mem;
-mod uninit;
+#[cfg(not(any(feature = "sim", feature = "hyper")))]
+pub(crate) mod alloc;
+pub(crate) mod bitmap;
+pub(crate) mod ema;
+pub(crate) mod init;
+#[cfg(not(any(feature = "sim", feature = "hyper")))]
+pub(crate) mod layout;
+pub(crate) mod ocall;
+pub(crate) mod page;
+pub(crate) mod pfhandler;
+pub(crate) mod tcs;
+pub(crate) mod vmmgr;
 
-pub mod parse;
-pub mod state;
+pub use ema::EmaOptions;
+pub use page::{AllocFlags, PageInfo, PageRange, PageType, ProtFlags};
+pub use pfhandler::{PfHandler, PfInfo, Pfec, PfecBits};
 
-pub use atexit::{at_exit, cleanup};
-pub use init::{ctors, global_init, rtinit};
-pub use mem::{
-    is_within_enclave, is_within_host, is_within_rts_range, is_within_user_range, EnclaveRange,
-    MmLayout,
+pub use vmmgr::{
+    check_addr, mm_alloc_rts, mm_alloc_user, mm_commit, mm_dealloc, mm_modify_perms,
+    mm_modify_type, mm_uncommit,
 };
-pub use uninit::{global_exit, rtuninit, UNINIT_FLAG};

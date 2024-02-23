@@ -18,8 +18,8 @@
 use crate::arch::Tcs;
 use crate::call;
 use crate::call::ECallIndex;
-use crate::edmm::tcs;
-use crate::edmm::tcs::MkTcs;
+use crate::emm::tcs;
+use crate::emm::tcs::MkTcs;
 use crate::enclave;
 use crate::enclave::state::{self, State};
 use crate::tcs::tc;

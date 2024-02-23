@@ -13,21 +13,23 @@
 // "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
-// under the License..
+// under the License.
 
-mod atexit;
-mod entry;
-mod init;
-mod mem;
-mod uninit;
+enclave {
+    from "sgx_stdio.edl" import *;
+    from "sgx_tstd.edl" import *;
+    from "sgx_thread.edl" import *;
 
-pub mod parse;
-pub mod state;
+    // from "sgx_tstdc.edl" import sgx_thread_wait_untrusted_event_ocall, sgx_thread_set_untrusted_event_ocall;    
+    trusted {
+        // public sgx_status_t ecall_test_sgx_mm(int seq_id);
+        public sgx_status_t ecall_test_sgx_mm_unsafe(void);
+        // public size_t ecall_alloc_context(void);
+        // public sgx_status_t ecall_check_context(size_t tcs);
+        // public sgx_status_t ecall_dealloc_context(size_t tcs);
+    };
+    // untrusted {
+    //     void ocall_print_string([in, string] const char *str);
+    // };
 
-pub use atexit::{at_exit, cleanup};
-pub use init::{ctors, global_init, rtinit};
-pub use mem::{
-    is_within_enclave, is_within_host, is_within_rts_range, is_within_user_range, EnclaveRange,
-    MmLayout,
 };
-pub use uninit::{global_exit, rtuninit, UNINIT_FLAG};
