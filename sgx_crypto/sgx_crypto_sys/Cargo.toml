@@ -31,10 +31,12 @@ crate-type = ["rlib"]
 
 [features]
 default = []
-ucrypto = []
+ucrypto = ["rdrand", "rand_core"]
 
 [dependencies]
 sgx_types = { path = "../../sgx_types" }
+rdrand = { version = "0.8", optional = true }
+rand_core = { version = "0.6", optional = true }
 
 [build-dependencies]
 sgx_build_helper = { path = "../../sgx_build_helper/build_helper" }

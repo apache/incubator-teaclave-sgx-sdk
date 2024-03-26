@@ -210,49 +210,4 @@ int consttime_memequal(const void *b1, const void *b2, size_t len)
 	return (1 & ((res - 1) >> 8));
 }
 
-sgx_status_t sgx_read_rand(unsigned char *rand, size_t length_in_bytes)
-{
-    // check parameters
-    if (!rand || !length_in_bytes) {
-        return SGX_ERROR_INVALID_PARAMETER;
-    }
-
-    int ctxSize = 0;
-    int length_in_bits = length_in_bytes * 8;
-	IppsPRNGState* pPRNG = NULL;
-	IppStatus ipp_ret = ippStsNoErr;
-
-    do {
-        ipp_ret = ippsPRNGGetSize(&ctxSize);
-        ERROR_BREAK(ipp_ret);
-
-        pPRNG = (IppsPRNGState*)(malloc(ctxSize));
-        if (!pPRNG) {
-            ipp_ret = ippStsNoMemErr;
-            break;
-        }
-
-        ipp_ret = ippsPRNGInit(length_in_bits, pPRNG);
-        ERROR_BREAK(ipp_ret);
-
-        ipp_ret = ippsPRNGen((Ipp32u *)rand, length_in_bits, pPRNG);
-        ERROR_BREAK(ipp_ret);
-    }  while (0);
-
-    CLEAR_FREE_MEM(pPRNG, ctxSize);
-
-    switch (ipp_ret)
-    {
-    case ippStsNoErr: return SGX_SUCCESS;
-    case ippStsNoMemErr:
-    case ippStsMemAllocErr: return SGX_ERROR_OUT_OF_MEMORY;
-    case ippStsNullPtrErr:
-    case ippStsLengthErr:
-    case ippStsOutOfRangeErr:
-    case ippStsSizeErr:
-    case ippStsBadArgErr: return SGX_ERROR_INVALID_PARAMETER;
-    default: return SGX_ERROR_UNEXPECTED;
-    }
-}
-
 #endif

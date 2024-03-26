@@ -642,3 +642,32 @@ mod bindings {
         ) -> SgxStatus;
     }
 }
+
+#[cfg(feature = "ucrypto")]
+mod rand {
+    use core::slice;
+    use rand_core::RngCore;
+    use rdrand::RdRand;
+    use sgx_types::error::{SgxResult, SgxStatus};
+
+    /// # Safety
+    #[no_mangle]
+    pub unsafe extern "C" fn sgx_read_rand(p: *mut u8, len: usize) -> u32 {
+        if p.is_null() || len == 0 {
+            return SgxStatus::InvalidParameter.into();
+        }
+
+        let buf = slice::from_raw_parts_mut(p, len);
+        match rand(buf) {
+            Ok(_) => SgxStatus::Success.into(),
+            Err(e) => e.into(),
+        }
+    }
+
+    #[inline]
+    fn rand(nonce: &mut [u8]) -> SgxResult {
+        let mut rd = RdRand::new().map_err(|_| SgxStatus::Unexpected)?;
+        rd.fill_bytes(nonce);
+        Ok(())
+    }
+}
