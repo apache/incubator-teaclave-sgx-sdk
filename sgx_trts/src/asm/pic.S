@@ -24,7 +24,7 @@ __ImageBase:
 .equ SE_GUARD_PAGE_SHIFT, 16
 .equ SE_GUARD_PAGE_SIZE,  (1 << SE_GUARD_PAGE_SHIFT)
 .equ RED_ZONE_SIZE,       128
-.equ STATIC_STACK_SIZE,   2656
+.equ STATIC_STACK_SIZE,   4096
 
 .equ OCMD_ERET,           -1
 

@@ -30,10 +30,17 @@
 #![feature(nonnull_slice_from_raw_parts)]
 #![feature(ptr_internals)]
 #![feature(thread_local)]
+#![feature(trait_alias)]
+#![feature(new_uninit)]
 #![cfg_attr(feature = "sim", feature(unchecked_math))]
 #![allow(clippy::missing_safety_doc)]
 #![allow(dead_code)]
 #![allow(non_camel_case_types)]
+#![feature(linked_list_cursors)]
+#![feature(strict_provenance)]
+#![feature(pointer_byte_offsets)]
+#![feature(maybe_uninit_array_assume_init)]
+#![feature(trait_upcasting)]
 
 #[cfg(all(feature = "sim", feature = "hyper"))]
 compile_error!("feature \"sim\" and feature \"hyper\" cannot be enabled at the same time");
@@ -60,10 +67,10 @@ mod version;
 mod xsave;
 
 pub mod capi;
+pub mod emm;
 
 #[cfg(not(any(feature = "sim", feature = "hyper")))]
 pub mod aexnotify;
-pub mod edmm;
 pub mod error;
 #[macro_use]
 pub mod feature;

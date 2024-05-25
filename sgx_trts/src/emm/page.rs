@@ -19,25 +19,40 @@ use crate::arch::{SecInfo, SE_PAGE_SHIFT, SE_PAGE_SIZE};
 use crate::enclave::is_within_enclave;
 use crate::inst::EncluInst;
 use core::num::NonZeroUsize;
-use sgx_types::error::{SgxResult, SgxStatus};
+use sgx_tlibc_sys::{EFAULT, EINVAL};
+use sgx_types::error::OsResult;
 use sgx_types::marker::ContiguousMemory;
+
+impl_bitflags! {
+    #[derive(Copy, Clone)]
+    pub struct AllocFlags: u32 {
+        const RESERVED = 0b0001;
+        const COMMIT_NOW = 0b0010;
+        const COMMIT_ON_DEMAND = 0b0100;
+        const GROWSDOWN = 0b00010000;
+        const GROWSUP = 0b00100000;
+        const FIXED = 0b01000000;
+        const SYSTEM = 0b10000000;
+    }
+}
 
 impl_enum! {
     #[repr(u8)]
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub enum PageType {
-        Secs = 0,
+        None = 0,
         Tcs  = 1,
         Reg  = 2,
-        Va   = 3,
         Trim = 4,
+        Frist = 5,
+        Rest = 6,
     }
 }
 
 impl_bitflags! {
     #[repr(C)]
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-    pub struct PageFlags: u8 {
+    pub struct ProtFlags: u8 {
         const NONE     = 0x00;
         const R        = 0x01;
         const W        = 0x02;
@@ -45,13 +60,22 @@ impl_bitflags! {
         const PENDING  = 0x08;
         const MODIFIED = 0x10;
         const PR       = 0x20;
+        const RW       = Self::R.bits() | Self::W.bits();
+        const RX       = Self::R.bits() | Self::X.bits();
+        const RWX      = Self::R.bits() | Self::W.bits() | Self::X.bits();
     }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct PageInfo {
     pub typ: PageType,
-    pub flags: PageFlags,
+    pub prot: ProtFlags,
+}
+
+impl Into<u32> for PageInfo {
+    fn into(self) -> u32 {
+        (Into::<u8>::into(self.typ) as u32) << 8 | (self.prot.bits() as u32)
+    }
 }
 
 unsafe impl ContiguousMemory for PageInfo {}
@@ -66,7 +90,7 @@ pub struct PageRange {
 unsafe impl ContiguousMemory for PageRange {}
 
 impl PageRange {
-    pub fn new(addr: usize, count: usize, info: PageInfo) -> SgxResult<PageRange> {
+    pub fn new(addr: usize, count: usize, info: PageInfo) -> OsResult<PageRange> {
         if addr != 0
             && count != 0
             && is_within_enclave(addr as *const u8, count * SE_PAGE_SIZE)
@@ -78,35 +102,35 @@ impl PageRange {
                 info,
             })
         } else {
-            Err(SgxStatus::InvalidParameter)
+            Err(EINVAL)
         }
     }
 
-    pub fn accept_forward(&self) -> SgxResult {
+    pub fn accept_forward(&self) -> OsResult {
         for page in self.iter() {
             page.accept()?;
         }
         Ok(())
     }
 
-    pub fn accept_backward(&self) -> SgxResult {
+    pub fn accept_backward(&self) -> OsResult {
         for page in self.iter().rev() {
             page.accept()?;
         }
         Ok(())
     }
 
-    pub fn modpe(&self) -> SgxResult {
+    pub fn modpe(&self) -> OsResult {
         for page in self.iter() {
             page.modpe()?;
         }
         Ok(())
     }
 
-    pub(crate) fn modify(&self) -> SgxResult {
+    pub(crate) fn modify(&self) -> OsResult {
         for page in self.iter() {
             let _ = page.modpe();
-            if !page.info.flags.contains(PageFlags::W | PageFlags::X) {
+            if !page.info.prot.contains(ProtFlags::W | ProtFlags::X) {
                 page.accept()?;
             }
         }
@@ -189,12 +213,12 @@ pub struct Page {
 unsafe impl ContiguousMemory for Page {}
 
 impl Page {
-    pub fn new(addr: usize, info: PageInfo) -> SgxResult<Page> {
+    pub fn new(addr: usize, info: PageInfo) -> OsResult<Page> {
         ensure!(
             addr != 0
                 && is_within_enclave(addr as *const u8, SE_PAGE_SIZE)
                 && is_page_aligned!(addr),
-            SgxStatus::InvalidParameter
+            EINVAL
         );
         Ok(Page { addr, info })
     }
@@ -203,13 +227,13 @@ impl Page {
         Page { addr, info }
     }
 
-    pub fn accept(&self) -> SgxResult {
+    pub fn accept(&self) -> OsResult {
         let secinfo: SecInfo = self.info.into();
-        EncluInst::eaccept(&secinfo, self.addr).map_err(|_| SgxStatus::Unexpected)
+        EncluInst::eaccept(&secinfo, self.addr).map_err(|_| EFAULT)
     }
 
-    pub fn modpe(&self) -> SgxResult {
+    pub fn modpe(&self) -> OsResult {
         let secinfo: SecInfo = self.info.into();
-        EncluInst::emodpe(&secinfo, self.addr).map_err(|_| SgxStatus::Unexpected)
+        EncluInst::emodpe(&secinfo, self.addr).map_err(|_| EFAULT)
     }
 }

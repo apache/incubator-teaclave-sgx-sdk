@@ -22,10 +22,9 @@ use alloc_crate::vec::Vec;
 use core::any::TypeId;
 use core::cmp::{self, Ordering};
 use core::convert::From;
-use core::fmt;
 use core::ops::{Deref, DerefMut};
-use sgx_trts::edmm::{modpr_ocall, mprotect_ocall};
-use sgx_trts::edmm::{PageFlags, PageInfo, PageRange, PageType};
+use core::{fmt, panic};
+use sgx_trts::emm::{mm_modify_perms, ProtFlags};
 use sgx_trts::trts;
 use sgx_types::error::errno::*;
 use sgx_types::error::OsResult;
@@ -60,6 +59,18 @@ impl MmPerm {
 impl Default for MmPerm {
     fn default() -> MmPerm {
         MmPerm::None
+    }
+}
+
+impl From<MmPerm> for ProtFlags {
+    fn from(p: MmPerm) -> ProtFlags {
+        match p {
+            MmPerm::None => ProtFlags::NONE,
+            MmPerm::R => ProtFlags::R,
+            MmPerm::RW => ProtFlags::RW,
+            MmPerm::RX => ProtFlags::RX,
+            MmPerm::RWX => ProtFlags::RWX,
+        }
     }
 }
 
@@ -350,38 +361,17 @@ impl MmArea {
         }
 
         let count = self.size() >> SE_PAGE_SHIFT;
-        let perm: ProtectPerm = new_perm.into();
+        let prot: ProtFlags = new_perm.into();
 
         if trts::is_supported_edmm() {
             let (pe_needed, pr_needed) = self.is_needed_modify_perm(new_perm)?;
 
             if pe_needed || pr_needed {
-                modpr_ocall(self.start(), count, perm).unwrap();
+                let res = mm_modify_perms(self.start(), count << SE_PAGE_SHIFT, prot);
+                if res.is_err() {
+                    panic!()
+                }
             }
-
-            let pages = PageRange::new(
-                self.start(),
-                count,
-                PageInfo {
-                    typ: PageType::Reg,
-                    flags: PageFlags::from_bits_truncate(perm.into()) | PageFlags::PR,
-                },
-            )
-            .map_err(|_| EINVAL)?;
-
-            if pe_needed {
-                let _ = pages.modpe();
-            }
-
-            if pr_needed && new_perm != MmPerm::RWX {
-                let _ = pages.accept_forward();
-            }
-
-            if pr_needed && new_perm == MmPerm::None {
-                mprotect_ocall(self.start(), count, perm).unwrap();
-            }
-        } else {
-            mprotect_ocall(self.start(), count, perm).unwrap();
         }
 
         self.perm = new_perm;

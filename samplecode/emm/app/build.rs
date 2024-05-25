@@ -15,15 +15,23 @@
 // specific language governing permissions and limitations
 // under the License..
 
-pub(crate) mod epc;
-#[cfg(not(any(feature = "sim", feature = "hyper")))]
-pub(crate) mod layout;
-pub(crate) mod mem;
-pub(crate) mod perm;
-pub(crate) mod tcs;
-#[cfg(not(any(feature = "sim", feature = "hyper")))]
-pub(crate) mod trim;
+use std::env;
 
-pub use epc::{PageFlags, PageInfo, PageRange, PageType};
-pub use mem::{apply_epc_pages, trim_epc_pages};
-pub use perm::{modpr_ocall, mprotect_ocall};
+fn main() {
+    println!("cargo:rerun-if-env-changed=SGX_MODE");
+    println!("cargo:rerun-if-changed=build.rs");
+
+    let sdk_dir = env::var("SGX_SDK").unwrap_or_else(|_| "/opt/intel/sgxsdk".to_string());
+    let mode = env::var("SGX_MODE").unwrap_or_else(|_| "HW".to_string());
+
+    println!("cargo:rustc-link-search=native=../lib");
+    println!("cargo:rustc-link-lib=static=enclave_u");
+
+    println!("cargo:rustc-link-search=native={}/lib64", sdk_dir);
+    match mode.as_ref() {
+        "SIM" | "SW" => println!("cargo:rustc-link-lib=dylib=sgx_urts_sim"),
+        "HYPER" => println!("cargo:rustc-link-lib=dylib=sgx_urts_hyper"),
+        "HW" => println!("cargo:rustc-link-lib=dylib=sgx_urts"),
+        _ => println!("cargo:rustc-link-lib=dylib=sgx_urts"),
+    }
+}

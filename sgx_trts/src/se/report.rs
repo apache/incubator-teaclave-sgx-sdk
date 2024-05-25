@@ -26,15 +26,11 @@ use core::ptr;
 use sgx_types::error::{SgxResult, SgxStatus};
 use sgx_types::marker::ContiguousMemory;
 use sgx_types::types::{
-    Attributes, AttributesFlags, ConfigId, CpuSvn, Key128bit, KeyId, KeyName, KeyRequest, Mac,
-    Measurement, MiscSelect, Report, Report2Mac, ReportBody, ReportData, TargetInfo,
+    Key128bit, KeyName, KeyRequest, Mac, Report, Report2Mac, ReportBody, ReportData, TargetInfo,
 };
 use sgx_types::types::{
-    CONFIGID_SIZE, CPUSVN_SIZE, HASH_SIZE, ISVEXT_PROD_ID_SIZE, ISV_FAMILY_ID_SIZE, KEYID_SIZE,
-    MAC_SIZE, REPORT2_MAC_RESERVED1_BYTES, REPORT2_MAC_RESERVED2_BYTES,
-    REPORT_BODY_RESERVED1_BYTES, REPORT_BODY_RESERVED2_BYTES, REPORT_BODY_RESERVED3_BYTES,
-    REPORT_BODY_RESERVED4_BYTES, REPORT_DATA_SIZE, TEE_REPORT2_SUBTYPE, TEE_REPORT2_TYPE,
-    TEE_REPORT2_VERSION, TEE_REPORT2_VERSION_SERVICETD,
+    REPORT2_MAC_RESERVED1_BYTES, REPORT2_MAC_RESERVED2_BYTES, TEE_REPORT2_SUBTYPE,
+    TEE_REPORT2_TYPE, TEE_REPORT2_VERSION, TEE_REPORT2_VERSION_SERVICETD,
 };
 
 #[repr(C, align(128))]
@@ -58,51 +54,11 @@ unsafe impl ContiguousMemory for AlignTargetInfo {}
 unsafe impl ContiguousMemory for AlignReport {}
 unsafe impl ContiguousMemory for AlignReport2Mac {}
 
-static SELF_REPORT: Once = Once::new();
-static mut REPORT: AlignReport = AlignReport(Report {
-    body: ReportBody {
-        cpu_svn: CpuSvn {
-            svn: [0; CPUSVN_SIZE],
-        },
-        misc_select: MiscSelect::empty(),
-        reserved1: [0; REPORT_BODY_RESERVED1_BYTES],
-        isv_ext_prod_id: [0; ISVEXT_PROD_ID_SIZE],
-        attributes: Attributes {
-            flags: AttributesFlags::empty(),
-            xfrm: 0,
-        },
-        mr_enclave: Measurement { m: [0; HASH_SIZE] },
-        reserved2: [0; REPORT_BODY_RESERVED2_BYTES],
-        mr_signer: Measurement { m: [0; HASH_SIZE] },
-        reserved3: [0; REPORT_BODY_RESERVED3_BYTES],
-        config_id: ConfigId {
-            id: [0; CONFIGID_SIZE],
-        },
-        isv_prod_id: 0,
-        isv_svn: 0,
-        config_svn: 0,
-        reserved4: [0; REPORT_BODY_RESERVED4_BYTES],
-        isv_family_id: [0; ISV_FAMILY_ID_SIZE],
-        report_data: ReportData {
-            d: [0; REPORT_DATA_SIZE],
-        },
-    },
-    key_id: KeyId {
-        id: [0_u8; KEYID_SIZE],
-    },
-    mac: [0_u8; MAC_SIZE],
-});
+static REPORT: Once<AlignReport> = Once::new();
 
 impl AlignReport {
     pub fn get_self() -> &'static AlignReport {
-        unsafe {
-            let _ = SELF_REPORT.call_once(|| {
-                let report = AlignReport::for_self()?;
-                REPORT = report;
-                Ok(())
-            });
-            &REPORT
-        }
+        REPORT.call_once(AlignReport::for_self).unwrap()
     }
 
     pub fn for_self() -> SgxResult<AlignReport> {
