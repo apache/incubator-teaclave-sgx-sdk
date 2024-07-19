@@ -85,11 +85,8 @@
 #![feature(utf8_chunks)]
 //
 // Library features (core):
-#![feature(array_error_internals)]
-#![feature(char_error_internals)]
 #![feature(char_internals)]
 #![feature(core_intrinsics)]
-#![feature(duration_checked_float)]
 #![feature(duration_constants)]
 #![feature(error_generic_member_access)]
 #![feature(error_in_core)]
@@ -99,7 +96,6 @@
 #![feature(float_minimum_maximum)]
 #![feature(hasher_prefixfree_extras)]
 #![feature(hashmap_internals)]
-#![feature(int_error_internals)]
 #![feature(linked_list_remove)]
 #![feature(maybe_uninit_slice)]
 #![feature(maybe_uninit_write_slice)]

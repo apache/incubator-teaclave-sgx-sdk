@@ -43,7 +43,6 @@ use sgx_libc as c;
 /// assert_eq!(localhost_v4.is_ipv6(), false);
 /// assert_eq!(localhost_v4.is_ipv4(), true);
 /// ```
-#[cfg_attr(not(test), rustc_diagnostic_item = "IpAddr")]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub enum IpAddr {
     /// An IPv4 address.
