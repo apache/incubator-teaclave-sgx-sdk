@@ -1,4 +1,9 @@
-if [ $BINUTILS_DIST != "SELF_BUILT" ]
+if [ $BINUTILS_DIST == "ubuntu22.04" ]
+then
+    apt-get update && \
+    apt-get install -y binutils && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+elif [ $BINUTILS_DIST != "SELF_BUILT" ]
 then
     cd /root && \
     wget https://download.01.org/intel-sgx/sgx-linux/2.20/as.ld.objdump.r4.tar.gz && \
