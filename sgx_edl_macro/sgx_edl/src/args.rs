@@ -38,7 +38,8 @@ pub struct In<'a, T: Serialize + for<'de> Deserialize<'de>> {
 
 impl<'a, T: Serialize + for<'de> Deserialize<'de>> EcallArg for In<'a, T> {
     fn serialize(&self) -> Vec<u8> {
-        bincode::serialize(&self.inner).unwrap()
+        let t = unsafe { &*self.inner };
+        bincode::serialize(t).unwrap()
     }
 
     fn deserialize(data: &[u8]) -> Self {
@@ -69,6 +70,16 @@ pub struct Out<'a, T: Serialize + for<'b> Deserialize<'b> + Update> {
     inner: &'a mut T,
 }
 
+impl<'a, T: Serialize + for<'b> Deserialize<'b> + Update> Out<'a, T> {
+    pub fn as_mut(&mut self) -> &mut T {
+        unsafe { &mut *self.inner }
+    }
+
+    pub fn as_ref(&self) -> &T {
+        unsafe { &*self.inner }
+    }
+}
+
 impl<'a, T: Serialize + for<'b> Deserialize<'b> + Update> EcallArg for Out<'a, T> {
     fn serialize(&self) -> Vec<u8> {
         // 我们需要记录位于enclave外部的指针，后续我们会使用
@@ -84,13 +95,14 @@ impl<'a, T: Serialize + for<'b> Deserialize<'b> + Update> EcallArg for Out<'a, T
     }
 
     fn update(&mut self, other: Self) {
-        self.inner.update(other.inner);
+        self.as_mut().update(other.as_ref());
+        // self.inner.update(other.as_mut());
         other.destory();
     }
 
     fn prepare(&self) -> Result<Self, ecall::Error> {
         // 创建一个新的Out类型的参数，这里重新序列化了一次，可以考虑增加Default约束
-        let data = bincode::serialize(self.inner).unwrap();
+        let data = bincode::serialize(self.as_ref()).unwrap();
         let new = bincode::deserialize::<T>(&data).unwrap();
         Ok(Self {
             inner: Box::leak(Box::new(new)),
