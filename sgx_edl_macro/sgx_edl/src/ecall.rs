@@ -43,6 +43,10 @@ pub trait Ecall {
     fn call(&self, args: Self::Args) -> Self::Args;
 }
 
+//pub trait EcallWrapperU<Args> {
+//    fn wrapper_u(eid: usize, otab: &[OTabEntry]), args
+//}
+
 pub trait EcallWrapper<Args> {
     fn wrapper_u(&self, eid: usize, otab: &[OTabEntry], args: Args);
     fn wrapper_t(&self, data: *const u8);
@@ -65,7 +69,8 @@ where
     }
 
     fn wrapper_t(&self, data: *const u8) {
-        let bytes = unsafe { std::slice::from_raw_parts(data, size_of::<(usize, usize)>()) };
+        let bytes =
+            unsafe { std::slice::from_raw_parts(data, core::mem::size_of::<(usize, usize)>()) };
         let (ptr, len) = bincode::deserialize::<(usize, usize)>(bytes).unwrap();
         let bytes = unsafe { std::slice::from_raw_parts(ptr as *const u8, len) };
         let mut args = Args::deserialize(&bytes);
