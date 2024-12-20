@@ -1,0 +1,10 @@
+[package]
+name = "sgx_new_edl"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sgx_edl_macros = { path = "sgx_edl_macros" }
+bincode = "1.3.3"
+serde = { version = "1.0.215", features = ["derive"] }
+
