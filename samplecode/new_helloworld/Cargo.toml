@@ -1,3 +1,19 @@
 [workspace]
-members = [ "app", "common","enclave"]
+members = ["app", "common", "enclave", "xtask"]
 resolver = "2"
+
+[package]
+name = "new_helloworld"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "app"
+path = "app/src/main.rs"
+
+[lib]
+name = "enclave"
+path = "enclave/src/lib.rs"
+
+[profile.release]
+panic = "abort"
