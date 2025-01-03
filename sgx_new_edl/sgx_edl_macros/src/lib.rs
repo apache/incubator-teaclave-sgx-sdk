@@ -1,8 +1,11 @@
+use std::str::FromStr;
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    parse_macro_input, visit::Visit, visit_mut::VisitMut, GenericArgument, ItemFn, Lifetime,
-    PathArguments, Type, TypePath, Visibility,
+    parse_macro_input, punctuated::Punctuated, token::Comma, visit::Visit, visit_mut::VisitMut,
+    ForeignItemFn, GenericArgument, Ident, ItemFn, Lifetime, PathArguments, Token, Type, TypePath,
+    Visibility,
 };
 
 struct ReplaceLifetimes;
@@ -47,12 +50,89 @@ impl Visit<'_> for GenericExtractor {
     }
 }
 
+#[proc_macro]
+pub fn ecalls(input: TokenStream) -> TokenStream {
+    let s = input.to_string().split(';').collect::<Vec<_>>().join(";,");
+    let token = TokenStream::from_str(&s).unwrap();
+    let parser = Punctuated::<ForeignItemFn, Token![,]>::parse_terminated;
+    let fns = parse_macro_input!(token with parser);
+    let extern_fns = gen_extern_func(&fns);
+    let tab = gen_ecall_table(&fns);
+    let fn_mods = gen_fn_mods(&fns);
+    quote! {
+        #[cfg(feature = "enclave")]
+        #extern_fns
+        #[cfg(feature = "enclave")]
+        #tab
+        #fn_mods
+    }
+    .into()
+}
+
+fn gen_fn_mods(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::TokenStream {
+    let mods = fns.iter().enumerate().map(|(idx, f)| {
+        let sig = &f.sig;
+        let args = sig.inputs.iter().collect::<Vec<_>>();
+        let args_name = args.iter().map(|arg| match arg {
+            syn::FnArg::Receiver(_) => unimplemented!(),
+            syn::FnArg::Typed(pat_type) => pat_type.pat.as_ref(),
+        });
+        let fn_name = &sig.ident;
+        quote! {
+            #[cfg(feature = "app")]
+            pub mod #fn_name {
+                use super::*;
+
+                pub const IDX: usize = #idx;
+
+                pub fn ecall(eid: usize, otab: &[sgx_new_edl::OTabEntry], #(#args),*) -> sgx_types::error::SgxStatus {
+                    sgx_new_edl::untrust_ecall(IDX, eid, otab, (#(#args_name),*))
+                }
+            }
+        }
+    });
+    quote! {
+        #(#mods)*
+    }
+}
+
+fn gen_extern_func(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::TokenStream {
+    let fn_names = fns.iter().map(|f| &f.sig.ident).map(|id| externed_name(id));
+    let ret = fns.iter().map(|f| &f.sig.output);
+    quote! {
+        extern "C" {
+            #(
+                fn #fn_names(args: *const u8) #ret;
+            )*
+        }
+    }
+}
+
+fn gen_ecall_table(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::TokenStream {
+    let ids = fns.iter().map(|f| &f.sig.ident).map(|id| {
+        let extern_name = externed_name(id);
+        quote! {
+            #extern_name
+        }
+    });
+    quote! {
+        pub static ECALL_TABLE: &[unsafe extern "C" fn(*const u8) -> sgx_types::error::SgxStatus] = &[
+            #(#ids),*
+        ];
+    }
+}
+
+fn externed_name(ident: &Ident) -> Ident {
+    Ident::new(&format!("_ecall_{}", ident), ident.span())
+}
+
 #[proc_macro_attribute]
 pub fn ecall(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let mut input_fn = parse_macro_input!(item as ItemFn);
-    let mut raw_fn = input_fn.clone();
+    let mut f = parse_macro_input!(item as ItemFn);
+    let mut raw_fn = f.clone();
+    let sig = &mut f.sig;
 
-    input_fn.sig.inputs.iter_mut().for_each(|arg| {
+    sig.inputs.iter_mut().for_each(|arg| {
         ReplaceLifetimes.visit_fn_arg_mut(arg);
     });
 
@@ -61,10 +141,9 @@ pub fn ecall(_attr: TokenStream, item: TokenStream) -> TokenStream {
         //lifetimes: Vec::new(),
     };
 
-    let fn_name = &input_fn.sig.ident;
-    let fn_args = input_fn.sig.inputs.iter();
-    let (arg_names, arg_tys): (Vec<_>, Vec<_>) = input_fn
-        .sig
+    let fn_name = &sig.ident;
+    let extern_name = externed_name(fn_name);
+    let (arg_names, arg_tys): (Vec<_>, Vec<_>) = sig
         .inputs
         .iter()
         .map(|arg| match arg {
@@ -85,7 +164,7 @@ pub fn ecall(_attr: TokenStream, item: TokenStream) -> TokenStream {
             use super::*;
 
             struct _PhantomMarker<'a> {
-                _phantom: &'a () 
+                _phantom: &'a ()
             }
 
             impl<'a> Default for _PhantomMarker<'a> {
@@ -96,23 +175,18 @@ pub fn ecall(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
             }
 
-            impl<'a> sgx_new_edl::ecall::Ecall<(#(#tys), *)> for _PhantomMarker<'a> {
-                const IDX: usize = idx::#fn_name;
+            impl<'a> sgx_new_edl::Ecall<(#(#tys), *)> for _PhantomMarker<'a> {
                 type Args = (#(#arg_tys), *);
 
-                fn call(&self, args: Self::Args) {
+                fn call(&self, args: Self::Args) -> sgx_types::error::SgxStatus {
                     let (#(#arg_names), *) = args;
-
-                    #fn_name(#(#arg_names), *);
+                    #fn_name(#(#arg_names), *)
                 }
             }
 
-            pub fn ecall<'a>(eid: usize, o_tab: &[sgx_new_edl::ocall::OTabEntry], #(#fn_args),*) {
-                sgx_new_edl::ecall::EcallWrapper::wrapper_u(&_PhantomMarker::default(), eid, o_tab, (#(#arg_names), *));
-            }
-
-            pub fn entry(args: *const u8) {
-                sgx_new_edl::ecall::EcallWrapper::wrapper_t(&_PhantomMarker::default(), args);
+            #[no_mangle]
+            pub extern fn #extern_name(args: *const u8) -> sgx_types::error::SgxStatus {
+                sgx_new_edl::EcallWrapper::wrapper_t(&_PhantomMarker::default(), args)
             }
 
             #raw_fn

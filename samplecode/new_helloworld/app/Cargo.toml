@@ -6,5 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-common = { path = "../common", features = [ "app" ] }
+edl = { path = "../edl", features = ["app"] }
 sgx_new_edl = { path = "../../../sgx_new_edl" }

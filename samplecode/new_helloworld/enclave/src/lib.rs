@@ -1,14 +1,6 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+use sgx_new_edl::{ecall, In, Out, SgxStatus};
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+#[ecall]
+pub fn foo(a0: In<'_, String>, a1: Out<'_, String>) -> SgxStatus {
+    todo!()
 }
