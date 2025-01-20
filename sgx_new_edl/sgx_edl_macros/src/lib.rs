@@ -116,6 +116,8 @@ fn gen_ecall_table(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Token
         }
     });
     quote! {
+        #[no_mangle]
+        #[used]
         pub static ECALL_TABLE: &[unsafe extern "C" fn(*const u8) -> sgx_types::error::SgxStatus] = &[
             #(#ids),*
         ];
