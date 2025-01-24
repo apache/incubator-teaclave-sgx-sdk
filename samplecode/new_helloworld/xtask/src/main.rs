@@ -38,6 +38,7 @@ pub fn build_edl() {
     println!("Building edl...");
     if !Command::new("cargo")
         .arg("build")
+        .arg("--release") 
         .current_dir("edl")
         .status()
         .expect("Failed to build edl")
@@ -52,6 +53,7 @@ pub fn build_app() {
     println!("Building app...");
     if !Command::new("cargo")
         .arg("build")
+        .arg("--release") 
         .current_dir("app")
         .status()
         .expect("Failed to build app")
