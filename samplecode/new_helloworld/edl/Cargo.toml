@@ -15,3 +15,5 @@ app = []
 [dependencies]
 sgx_new_edl = { path = "../../../sgx_new_edl" }
 sgx_types = { path = "../../../sgx_types" }
+sgx_tstd = { path = "../../../sgx_tstd" }
+

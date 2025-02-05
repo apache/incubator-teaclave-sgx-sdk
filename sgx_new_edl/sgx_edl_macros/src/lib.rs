@@ -1,3 +1,6 @@
+#![cfg_attr(feature = "enclave", no_std)]
+
+extern crate sgx_tstd as std;
 use std::str::FromStr;
 
 use proc_macro::TokenStream;
@@ -87,7 +90,7 @@ fn gen_fn_mods(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::TokenStre
 
                 pub const IDX: usize = #idx;
 
-                pub fn ecall(eid: usize, otab: &[sgx_new_edl::OTabEntry], #(#args),*) -> sgx_types::error::SgxStatus {
+                pub fn ecall(eid: u64, otab: &[sgx_new_edl::OTabEntry], #(#args),*) -> sgx_types::error::SgxStatus {
                     sgx_new_edl::untrust_ecall(IDX, eid, otab, (#(#args_name),*))
                 }
             }

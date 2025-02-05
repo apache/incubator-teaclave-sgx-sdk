@@ -1,3 +1,6 @@
+#![cfg_attr(feature = "enclave", no_std)]
+
+extern crate sgx_tstd as std;
 use std::str::FromStr;
 
 use proc_macro::TokenStream;

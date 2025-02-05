@@ -56,12 +56,12 @@ impl<T, Args: EcallArg> EcallWrapper<Args> for T
 where
     T: Ecall<Args = Args>,
 {
-    fn wrapper_u(&self, eid: usize, otab: &[OTabEntry], args: Args) {
+    fn wrapper_u(&self, eid: u64 , otab: &[OTabEntry], args: Args) {
         let data = args.serialize();
         // 由于序列化后的长度不确定，因此将Vec再进行一次序列化。
         let vec_data = bincode::serialize(&(data.as_ptr() as usize, data.len())).unwrap();
         sgx_ecall(
-            eid,
+            eid as usize,
             Self::IDX,
             otab,
             &vec_data as *const Vec<u8> as *const u8,

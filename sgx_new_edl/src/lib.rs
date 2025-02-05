@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "enclave", no_std)]
+
 mod arg;
 mod ecall;
 mod ocall;

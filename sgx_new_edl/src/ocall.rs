@@ -96,6 +96,6 @@ where
     todo!()
 }
 
-pub fn Otab_to_u8_ptr(otab: &[OTabEntry]) -> *const u8 {
+pub fn OtabTou8Ptr(otab: &[OTabEntry]) -> *const u8 {
     otab.as_ptr() as *const u8
 }

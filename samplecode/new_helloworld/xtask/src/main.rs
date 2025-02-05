@@ -1,3 +1,4 @@
+use std::env;
 use std::fs;
 use std::path::Path;
 use std::process::exit;
@@ -29,7 +30,7 @@ pub fn build_all() {
     build_edl();
     build_app();
     build_enclave();
-    link_enclave();
+    // link_enclave();
     sign_enclave();
 }
 
@@ -82,42 +83,53 @@ pub fn build_enclave() {
 
 
 pub fn link_enclave() {
-    let enclave_obj = Path::new("enclave/enclave_t.o");
-    let enclave_lib = Path::new("enclave/target/release/libenclave.a");
-    let output_so = Path::new("enclave/target/release/enclave.so");
-
-    if !enclave_obj.exists() || !enclave_lib.exists() {
-        panic!("Enclave object or library not found. Please build first.");
-    }
-
     println!("Linking enclave...");
-    if !Command::new("ld")
-        .arg("-nostdlib")
-        .arg("-nodefaultlibs")
-        .arg("-nostartfiles")
-        .arg("-o")
-        .arg(output_so)
-        .arg(enclave_obj)
-        .arg(enclave_lib)
-        .arg("-T")
-        .arg("enclave/enclave.lds")
+    let cxx = env::var("CXX").unwrap_or_else(|_| "g++".to_string());
+
+    let input_path = Path::new("target/release/libenclave.a");
+    let output_path = Path::new("target/release/enclave.so");
+    let version_script_path = Path::new("enclave/enclave.lds");
+
+    let status = Command::new(&cxx)
+        .args(&[
+            input_path.to_str().unwrap(),
+            "-o", 
+            output_path.to_str().unwrap(),
+            "-Wl,--no-undefined",
+            "-nostdlib",
+            "-nodefaultlibs",
+            "-nostartfiles",
+            "-Wl,--start-group",
+            "-L",
+            "-lenclave",
+            "-Wl,--end-group",
+            &format!("-Wl,--version-script={}", version_script_path.to_str().unwrap()),
+            "-Wl,-z,relro,-z,now,-z,noexecstack",
+            "-Wl,-Bstatic",
+            "-Wl,-Bsymbolic",
+            "-Wl,--no-undefined",
+            "-Wl,-pie",
+            "-Wl,--export-dynamic",
+            "-Wl,--gc-sections",
+        ])
         .status()
-        .expect("Failed to link enclave")
-        .success()
-    {
-        panic!("Failed to link enclave");
+        .expect("Failed to execute g++ command");
+
+    if !status.success() {
+        eprintln!("g++ command failed with status: {}", status);
+        std::process::exit(1);
     }
     println!("Enclave linked successfully.");
 }
 
 pub fn sign_enclave() {
-    let enclave_path = Path::new("enclave/target/release/enclave.so");
-    let signed_path = Path::new("enclave/target/release/enclave.signed.so");
+    let enclave_path = Path::new("target/release/enclave.so");
+    let signed_path = Path::new("target/release/enclave.signed.so");
     let config_path = Path::new("enclave/config.xml");
     let key_path = Path::new("enclave/private.pem");
 
     if !enclave_path.exists() {
-        panic!("enclave.so not found. Please build the project first.");
+        panic!("libenclave.so not found. Please build the project first.");
     }
 
     println!("Signing enclave...");

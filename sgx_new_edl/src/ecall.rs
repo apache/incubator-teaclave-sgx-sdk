@@ -1,6 +1,11 @@
-use sgx_types::error::SgxStatus;
+#![cfg_attr(feature = "enclave", no_std)]
+extern crate sgx_tstd as std;
 
-use crate::{arg::EcallArg, ocall::OTabEntry, Update, ocall::Otab_to_u8_ptr};
+
+use sgx_types::error::SgxStatus;
+use sgx_types::function::sgx_ecall;
+
+use crate::{arg::EcallArg, ocall::OTabEntry, Update, ocall::OtabTou8Ptr};
 
 use bincode as ser;
 
@@ -15,16 +20,15 @@ sgx_status_t SGXAPI sgx_ecall(const sgx_enclave_id_t eid,
     void* ms);
 */
 
-type sgx_enclave_id_t = u64;
 
-extern "C" {   
-    fn sgx_ecall(
-        eid: sgx_enclave_id_t,
-        index: i32,
-        ocall_table: *const std::os::raw::c_void,
-        ms: *mut std::os::raw::c_void,
-    ) -> SgxStatus;
-}
+// extern "C" {   
+//     fn sgx_ecall(
+//         eid: u64,
+//         index: i32,
+//         ocall_table: *const std::os::raw::c_void,
+//         ms: *mut std::os::raw::c_void,
+//     ) -> SgxStatus;
+// }
 
 #[repr(C)]
 pub struct EcallEntry {
@@ -106,7 +110,7 @@ where
 
 pub fn untrust_ecall<Args, Target>(
     id: usize,
-    eid: usize,
+    eid: u64,
     otab: &[OTabEntry],
     args: Args,
 ) -> SgxStatus
@@ -124,10 +128,10 @@ where
     let mut bytes = ser::serialize(&arg).unwrap();
 
     // TODO: 序列化ocall表
-    let otab_ptr = Otab_to_u8_ptr(otab);
+    let otab_ptr = OtabTou8Ptr(otab);
 
     unsafe {
-        sgx_ecall(eid as u64, id as i32, otab_ptr as *const std::os::raw::c_void, bytes.as_mut_ptr() as *mut std::os::raw::c_void)
+        sgx_ecall(eid, id as i32, otab_ptr as *const std::os::raw::c_void, bytes.as_mut_ptr() as *mut std::os::raw::c_void)
     }
 
 }

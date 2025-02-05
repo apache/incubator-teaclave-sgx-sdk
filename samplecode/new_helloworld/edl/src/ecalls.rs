@@ -1,3 +1,6 @@
+extern crate sgx_tstd as std;
+
+
 use sgx_new_edl::{ecalls, In, Out};
 use sgx_types::error::SgxStatus;
 

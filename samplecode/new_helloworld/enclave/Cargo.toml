@@ -10,5 +10,8 @@ crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
 edl = { path = "../edl", features = ["enclave"] }
+
+[target.'cfg(not(target_vendor = "teaclave"))'.dependencies]
 sgx_new_edl = { path = "../../../sgx_new_edl" }
 sgx_types = { path = "../../../sgx_types" }
+sgx_tstd = { path = "../../../sgx_tstd" }
