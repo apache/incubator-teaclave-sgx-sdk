@@ -26,7 +26,7 @@ fn main() {
 }
 
 pub fn build_all() {
-    build_common();
+    build_edl();
     build_app();
     build_enclave();
     // link_enclave();
@@ -34,24 +34,26 @@ pub fn build_all() {
 }
 
 
-pub fn build_common() {
-    println!("Building common...");
+pub fn build_edl() {
+    println!("Building edl...");
     if !Command::new("cargo")
         .arg("build")
-        .current_dir("common")
+        .arg("--release") 
+        .current_dir("edl")
         .status()
-        .expect("Failed to build common")
+        .expect("Failed to build edl")
         .success()
     {
-        panic!("Failed to build common");
+        panic!("Failed to build edl");
     }
-    println!("Common built successfully.");
+    println!("edl built successfully.");
 }
 
 pub fn build_app() {
     println!("Building app...");
     if !Command::new("cargo")
         .arg("build")
+        .arg("--release") 
         .current_dir("app")
         .status()
         .expect("Failed to build app")
