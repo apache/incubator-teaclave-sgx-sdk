@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use bincode as ser;
+
 pub trait Update {
     fn update(&mut self, other: &Self);
 }
@@ -10,7 +12,8 @@ pub trait EcallArg<Target>: Sized {
 
     fn prepare(&self) -> Target;
 
-    unsafe fn from_mut(target: &mut Target) -> Self;
+    /// Reset lifetime
+    unsafe fn _from_mut(target: &mut Target) -> Self;
 
     /// 将enclave内部的参数更新到外部
     fn update(&mut self, other: Target);
@@ -24,29 +27,31 @@ pub struct In<'a, T: Serialize + for<'de> Deserialize<'de>> {
 
 impl<'a, T: Serialize + for<'de> Deserialize<'de>> EcallArg<T> for In<'a, T> {
     fn serialize(&self) -> Vec<u8> {
-        bincode::serialize(&self.inner).unwrap()
+        // the address is all we need
+        let ptr = self.inner as *const T as usize;
+        ser::serialize(&ptr).unwrap()
     }
 
     fn deserialize(data: &[u8]) -> Self {
-        //bincode::deserialize(data).unwrap()
-        todo!()
+        let addr: usize = ser::deserialize(data).unwrap();
+        let inner = unsafe { &*(addr as *mut T) };
+        Self { inner }
     }
 
     fn prepare(&self) -> T {
-        todo!()
+        let bytes = ser::serialize(self.inner).unwrap();
+        ser::deserialize(&bytes).unwrap()
     }
 
-    unsafe fn from_mut(ptr: &mut T) -> Self {
+    unsafe fn _from_mut(ptr: &mut T) -> Self {
         Self {
             inner: &*(ptr as *mut T),
         }
     }
 
-    fn update(&mut self, other: T) {}
+    fn update(&mut self, _: T) {}
 
-    fn destory(self) {
-        todo!()
-    }
+    fn destory(self) {}
 }
 
 impl<'a, T: Serialize + for<'de> Deserialize<'de>> In<'a, T> {
@@ -63,19 +68,21 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de> + Update> EcallArg<T> for Out<
     fn serialize(&self) -> Vec<u8> {
         // 我们需要记录位于enclave外部的指针，后续我们会使用
         let ptr = self.inner as *const T as usize;
-        bincode::serialize(&ptr).unwrap();
-        todo!()
+        ser::serialize(&ptr).unwrap()
     }
 
     fn deserialize(data: &[u8]) -> Self {
-        todo!()
+        let addr: usize = ser::deserialize(data).unwrap();
+        let inner = unsafe { &mut *(addr as *mut T) };
+        Self { inner }
     }
 
     fn prepare(&self) -> T {
-        todo!()
+        let bytes = ser::serialize(self.inner).unwrap();
+        ser::deserialize(&bytes).unwrap()
     }
 
-    unsafe fn from_mut(ptr: &mut T) -> Self {
+    unsafe fn _from_mut(ptr: &mut T) -> Self {
         Self {
             inner: &mut *(ptr as *mut T),
         }
@@ -85,9 +92,7 @@ impl<'a, T: Serialize + for<'de> Deserialize<'de> + Update> EcallArg<T> for Out<
         self.inner.update(&other);
     }
 
-    fn destory(self) {
-        todo!()
-    }
+    fn destory(self) {}
 }
 
 impl<'a, T: Update + Serialize + for<'de> Deserialize<'de>> Out<'a, T> {
@@ -102,11 +107,12 @@ where
     A1: EcallArg<T1>,
 {
     fn serialize(&self) -> Vec<u8> {
-        todo!()
+        let value = (self.0.serialize(), self.1.serialize());
+        ser::serialize(&value).unwrap()
     }
 
-    unsafe fn from_mut(ptr: &mut (T0, T1)) -> Self {
-        (A0::from_mut(&mut ptr.0), A1::from_mut(&mut ptr.1))
+    unsafe fn _from_mut(ptr: &mut (T0, T1)) -> Self {
+        (A0::_from_mut(&mut ptr.0), A1::_from_mut(&mut ptr.1))
     }
 
     fn update(&mut self, other: (T0, T1)) {

@@ -8,6 +8,8 @@ use syn::{
     Visibility,
 };
 
+//mod ocall;
+
 struct ReplaceLifetimes;
 
 impl VisitMut for ReplaceLifetimes {
@@ -109,6 +111,7 @@ fn gen_extern_func(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Token
 }
 
 fn gen_ecall_table(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::TokenStream {
+    let num = fns.len();
     let ids = fns.iter().map(|f| &f.sig.ident).map(|id| {
         let extern_name = externed_name(id);
         quote! {
@@ -116,11 +119,14 @@ fn gen_ecall_table(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Token
         }
     });
     quote! {
+        extern crate sgx_new_edl as sgx_edl;
+
         #[no_mangle]
         #[used]
-        pub static ECALL_TABLE: &[unsafe extern "C" fn(*const u8) -> sgx_types::error::SgxStatus] = &[
-            #(#ids),*
-        ];
+        pub static g_ecall_table: sgx_edl::EcallTable<#num> = sgx_edl::EcallTable::new([
+            #(sgx_edl::EcallEntry::new(#ids)),*
+        ]);
+        //pub static g_ecall_table: &[unsafe extern "C" fn(*const u8) -> sgx_types::error::SgxStatus] = &[
     }
 }
 
