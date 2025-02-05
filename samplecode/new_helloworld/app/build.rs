@@ -7,8 +7,6 @@ fn main() {
     let sdk_dir = env::var("SGX_SDK").unwrap_or_else(|_| "/opt/intel/sgxsdk".to_string());
     let mode = env::var("SGX_MODE").unwrap_or_else(|_| "HW".to_string());
 
-    println!("cargo:rustc-link-search=native=../lib"); // 自定义库路径
-    // println!("cargo:rustc-link-lib=static=enclave_u"); // 链接 enclave_u.a
 
     println!("cargo:rustc-link-search=native={}/lib64", sdk_dir);
     match mode.as_ref() {

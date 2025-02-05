@@ -46,6 +46,10 @@ impl<'a, Target: Serialize + for<'de> Deserialize<'de>> OcallArg<Target> for In<
     }
 }
 
+/* C function
+sgx_status_t SGXAPI sgx_ocall(const unsigned int index,
+                              void* ms);
+*/
 fn sgx_ocall(idx: usize, ms: *const u8) -> SgxStatus {
     panic!("exec sgx ocall")
 }
@@ -90,4 +94,8 @@ where
     sgx_ocall(id, bytes.as_ptr());
     //sgx_ecall(eid, id, otab, bytes.as_ptr())
     todo!()
+}
+
+pub fn Otab_to_u8_ptr(otab: &[OTabEntry]) -> *const u8 {
+    otab.as_ptr() as *const u8
 }

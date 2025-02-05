@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 edl = { path = "../edl", features = ["app"] }
 sgx_new_edl = { path = "../../../sgx_new_edl" }
+sgx_types = { path = "../../../sgx_types" }
+sgx_urts = { path = "../../../sgx_urts" }

@@ -1,11 +1,29 @@
 use sgx_types::error::SgxStatus;
 
-use crate::{arg::EcallArg, ocall::OTabEntry, Update};
+use crate::{arg::EcallArg, ocall::OTabEntry, Update, ocall::Otab_to_u8_ptr};
 
 use bincode as ser;
 
-pub fn sgx_ecall(eid: usize, idx: usize, otab: &[OTabEntry], data: *const u8) -> SgxStatus {
-    todo!()
+
+/* C function
+typedef enum _status_t sgx_status_t
+typedef uint64_t sgx_enclave_id_t
+
+sgx_status_t SGXAPI sgx_ecall(const sgx_enclave_id_t eid,
+    const int index,
+    const void* ocall_table,
+    void* ms);
+*/
+
+type sgx_enclave_id_t = u64;
+
+extern "C" {   
+    fn sgx_ecall(
+        eid: sgx_enclave_id_t,
+        index: i32,
+        ocall_table: *const std::os::raw::c_void,
+        ms: *mut std::os::raw::c_void,
+    ) -> SgxStatus;
 }
 
 #[repr(C)]
@@ -98,10 +116,18 @@ where
     let data = args.serialize();
     let status = SgxStatus::default();
     // 由于序列化后的长度不确定，因此将Vec再进行一次序列化。
+
     let arg = (
         (data.as_ptr() as usize, data.len()),
         &status as *const SgxStatus as usize,
     );
-    let bytes = ser::serialize(&arg).unwrap();
-    sgx_ecall(eid, id, otab, bytes.as_ptr())
+    let mut bytes = ser::serialize(&arg).unwrap();
+
+    // TODO: 序列化ocall表
+    let otab_ptr = Otab_to_u8_ptr(otab);
+
+    unsafe {
+        sgx_ecall(eid as u64, id as i32, otab_ptr as *const std::os::raw::c_void, bytes.as_mut_ptr() as *mut std::os::raw::c_void)
+    }
+
 }

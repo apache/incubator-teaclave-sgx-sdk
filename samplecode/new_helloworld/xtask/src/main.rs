@@ -29,8 +29,8 @@ pub fn build_all() {
     build_edl();
     build_app();
     build_enclave();
-    // link_enclave();
-    // sign_enclave();
+    link_enclave();
+    sign_enclave();
 }
 
 
