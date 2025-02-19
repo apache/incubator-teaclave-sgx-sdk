@@ -65,7 +65,7 @@ Example of a remote attestation with Intel's SGX including the communication wit
 
 The code requires the installation of Intel SGX [here](https://github.com/01org/linux-sgx) and
 the SGX driver [here](https://github.com/01org/linux-sgx-driver). Furthermore, also a developer account
-for the usage of IAS has be registered [Deverloper account](https://software.intel.com/en-us/sgx).
+for the usage of IAS has be registered [Developer account](https://software.intel.com/en-us/sgx).
 After the registration with a certificate (can be self-signed for development purposes), Intel will
 respond with a SPID which is needed to communicate with IAS.
 
