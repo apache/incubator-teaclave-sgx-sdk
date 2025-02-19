@@ -83,7 +83,7 @@ soon as possible!
 
 **Supports Rust stable-2019-05-14** in stable branch (rustc 1.34.2)
 
-* Bug fix in sgx_alloc. Correct the MIN_ALIGN to 8 bytes according to Intel's memory alloctor.
+* Bug fix in sgx_alloc. Correct the MIN_ALIGN to 8 bytes according to Intel's memory allocator.
 
 * Bug fix in sgx_tstd/panicking.rs. Now master branch can output panic strings correctly.
 
@@ -227,7 +227,7 @@ soon as possible!
 
 # Rust SGX SDK v1.0.0 Release Notes
 
-Baidu X-Lab provides Rust SGX SDK that is a bundle of basic libraries, scripts and ported libraries for developing Intel SGX programs in Rust programming language. Based on this SDK, developers could easily build up their SGX programs in Rust. Rust SGX SDK provides the strongest defence and helps protect the secret data reside in an enclave effectively even when the OS is compromised. It is important to real world data privacy and cloud security. Since the first day of open source, we have recevied many recommendations and supports from both academic and industry. Today, we are proudly releasing the 1.0.0 version of Rust SGX SDK, indicating that Rust SGX SDK is becoming stable and ready for production.
+Baidu X-Lab provides Rust SGX SDK that is a bundle of basic libraries, scripts and ported libraries for developing Intel SGX programs in Rust programming language. Based on this SDK, developers could easily build up their SGX programs in Rust. Rust SGX SDK provides the strongest defence and helps protect the secret data reside in an enclave effectively even when the OS is compromised. It is important to real world data privacy and cloud security. Since the first day of open source, we have received many recommendations and supports from both academic and industry. Today, we are proudly releasing the 1.0.0 version of Rust SGX SDK, indicating that Rust SGX SDK is becoming stable and ready for production.
 
 Intel SGX is being well adopted by industry, such as Microsoft, Ali cloud and IBM, which indicates that SGX's ability for trusted computing and data protection has been accepted by giant companies and the software stack of Intel SGX is becoming more and more critical. Ideally, the SGX application should guarantee safety from the first line of its code, instead of consumpting tremenduous of engineer-months for code auditing and fuzzing. Thus, C/C++ is not the first choice of programming language for Intel SGX applications due to the lack of memory safety guarantees. To this end, we proposed **Rust SGX SDK** which brings the best practice of memory safety to SGX projects, and reduces the workload of developing flawless SGX projects significantly. Based on this, we can leverage new techniques such as [**Non-bypassable Security Paradigm**](documents/nbsp.pdf) to assist the formal verification of critical security attributes on large projects, which is believed to be the state-of-art of practical application security guarantee. Apart from the C/C++ SDK provided by Intel, Rust SGX SDK is the only recommended SDK listed on Intel SGX's [homepage](https://software.intel.com/en-us/sgx).
 
@@ -277,7 +277,7 @@ Good news! Rust SGX SDK proposal has been adopted by [RustFest'18](https://paris
 # Rust SGX SDK v0.9.5 Release Notes
 **Support latest Rust nightly build (nightly-2018-01-19-x86_64-unknown-linux-gnu)**
 
-**Xargo support** Rust SGX SDK v0.9.5 provides `xargo` support with a target `x86_64-unknown-linux-sgx`. To compile a crate using `xargo`, add a corresponding json config and make appropirate changes to the source code, then compile it with `xargo build -target x86_64-unknown-linux-sgx --release`. Porting is easier! Please refer to the ported [third-party libraries](third_party/) for more details.
+**Xargo support** Rust SGX SDK v0.9.5 provides `xargo` support with a target `x86_64-unknown-linux-sgx`. To compile a crate using `xargo`, add a corresponding json config and make appropriate changes to the source code, then compile it with `xargo build -target x86_64-unknown-linux-sgx --release`. Porting is easier! Please refer to the ported [third-party libraries](third_party/) for more details.
 
 **Network access support** We port part of `std::net` to `sgx_tstd::net`. Now `sgx_tstd::net` supports most of socket functions by using 12 ocalls (defined in `edl/sgx_net.edl`).
 
@@ -311,7 +311,7 @@ All of the third-party libraries could be compiled by `make` or `XARGO_SGX=1 mak
 
 ## About xargo's sysroot
 
-`xargo` would generate a *sysroot*, including all basic libraries. In the past, everytime a Rust-SGX project is compiled via `make`, the basic Rust-SGX runtime would be compiled. Now, if we use `xargo` to compile (`XARGO_SGX=1 make`), only the **first time** xargo builds the sysroot and saves them in Rust's directory and the basic Rust-SGX libraries would be re-used later.
+`xargo` would generate a *sysroot*, including all basic libraries. In the past, every time a Rust-SGX project is compiled via `make`, the basic Rust-SGX runtime would be compiled. Now, if we use `xargo` to compile (`XARGO_SGX=1 make`), only the **first time** xargo builds the sysroot and saves them in Rust's directory and the basic Rust-SGX libraries would be re-used later.
 
 The current sysroot includes:
 1. libcompiler_builtins

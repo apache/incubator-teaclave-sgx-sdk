@@ -6,7 +6,7 @@ This code sample contains an implementation of [Integrating Remote Attestation w
 
 ## Design
 
-The same combination of (hardware,enviroment,context) will generates the same `mr_enclave` measurement. And it is almost impossible to counterfeit it.
+The same combination of (hardware,environment,context) will generates the same `mr_enclave` measurement. And it is almost impossible to counterfeit it.
 
 We could achieve trust computing and data privacy based on this feature.
 
@@ -17,11 +17,11 @@ Assuming that there are two players: Alice and Bob.
 With Intel SGX, and baiduxlab/sgx-rust image, we could do this in the following steps:
 - Alice shares the hash-computing code which will be run in SGX enclave with Bob.
 - Bob checks whether there exists any security risk in this code.
-- Alice tells Bob the context of compiling enviroment and builds her enclave.signed.so.
+- Alice tells Bob the context of compiling environment and builds her enclave.signed.so.
 - Bob compiles the code and runs his enclave and gets the corresoponding `mr_enclave`.
 - Bod tries to connect with Alice's enclave and gets the `mr_enclave` from report and compares it with his.
 - If passed, Bob sends data to Alice's enclave through TLS.
-- Alice's enclave gets the data and computs hash of it.
+- Alice's enclave gets the data and computes, computus hash of it.
 
 ## Requirements
 
