@@ -133,7 +133,7 @@ We provide eighteen code samples to help developers understand how to write Encl
 
 * `file` sample shows how to read/write files in SGX enclave.
 
-* `hello-rust` is the helloworld sample writtin in pure Rust.
+* `hello-rust` is the helloworld sample written, writing in pure Rust.
 
 * `backtrace` is a sample showing how to enabling backtrace mechanism inside the enclave.
 
