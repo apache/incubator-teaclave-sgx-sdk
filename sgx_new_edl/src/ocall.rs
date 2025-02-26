@@ -3,47 +3,6 @@ use sgx_types::error::SgxStatus;
 
 use crate::In;
 
-pub trait OcallArg<Target> {
-    fn serialize(&self) -> Vec<u8>;
-    fn deserialize(data: &[u8]) -> Self;
-
-    fn prepare(&self) -> Target;
-
-    /// Reset lifetime
-    unsafe fn _from_mut(target: &mut Target) -> Self;
-
-    /// 将enclave内部的参数更新到外部
-    fn update(&mut self, other: Target);
-
-    fn destory(self);
-}
-
-impl<'a, Target: Encodable + Decodable> OcallArg<Target> for In<'a, Target> {
-    fn serialize(&self) -> Vec<u8> {
-        todo!()
-    }
-
-    fn deserialize(data: &[u8]) -> Self {
-        todo!()
-    }
-
-    fn prepare(&self) -> Target {
-        todo!()
-    }
-
-    unsafe fn _from_mut(target: &mut Target) -> Self {
-        todo!()
-    }
-
-    fn update(&mut self, other: Target) {
-        todo!()
-    }
-
-    fn destory(self) {
-        todo!()
-    }
-}
-
 /* C function
 sgx_status_t SGXAPI sgx_ocall(const unsigned int index,
                               void* ms);
