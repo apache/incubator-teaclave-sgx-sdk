@@ -1,3 +1,4 @@
 [alias]
-xrun = "run --bin app"
-xbuild = "build --package xtask"
+xrun = "run --package xtask --"
+make = "run --package xtask -- build"
+# xbuild = "build --package xtask"

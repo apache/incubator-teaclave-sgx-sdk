@@ -86,18 +86,16 @@ App_Name := $(CUSTOM_BIN_PATH)/app
 # BUILD_STD=no       use no_std
 # BUILD_STD=cargo    use cargo-std-aware
 # BUILD_STD=xargo    use xargo
-BUILD_STD ?= no
+# BUILD_STD ?= cargo
 
 Rust_Build_Target := x86_64-unknown-linux-sgx
 Rust_Target_Path := $(ROOT_DIR)/rustlib
 
-ifeq ($(BUILD_STD), cargo)
-	Rust_Build_Std := $(Rust_Build_Flags) -Zbuild-std=core,alloc
-	Rust_Std_Features :=
-	Rust_Target_Flags := --target $(Rust_Target_Path)/$(Rust_Build_Target).json
-	Rust_Sysroot_Path := $(CURDIR)/sysroot
-	Rust_Sysroot_Flags := RUSTFLAGS="--sysroot $(Rust_Sysroot_Path)"
-endif
+Rust_Build_Std := $(Rust_Build_Flags) -Zbuild-std=core,alloc
+Rust_Std_Features :=
+Rust_Target_Flags := --target $(Rust_Target_Path)/$(Rust_Build_Target).json
+Rust_Sysroot_Path := $(CURDIR)/sysroot
+Rust_Sysroot_Flags := RUSTFLAGS="--sysroot $(Rust_Sysroot_Path)"
 
 RustEnclave_Build_Flags := $(Rust_Build_Flags)
 RustEnclave_Src_Files := $(shell find enclave/ -type f -name '*.rs') $(shell find enclave/ -type f -name 'Cargo.toml')
@@ -110,20 +108,18 @@ RustEnclave_Link_Flags := -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfi
 	-Wl,--version-script=enclave/enclave.lds \
 	$(ENCLAVE_LDFLAGS)
 
-ifeq ($(BUILD_STD), cargo)
-	RustEnclave_Out_Path := ./enclave/target/$(Rust_Build_Target)/$(Rust_Build_Out)
-else ifeq ($(BUILD_STD), xargo)
-	RustEnclave_Out_Path := ./enclave/target/$(Rust_Build_Target)/$(Rust_Build_Out)
-else
-	RustEnclave_Out_Path := ./enclave/target/$(Rust_Build_Out)
-endif
+RustEnclave_Out_Path := ./enclave/target/$(Rust_Build_Target)/$(Rust_Build_Out)
+Rust_Out_Path := ./target/$(Rust_Build_Target)/$(Rust_Build_Out)
 
-RustEnclave_Lib_Name := $(RustEnclave_Out_Path)/libhelloworld.a
+# RustEnclave_Lib_Name := $(RustEnclave_Out_Path)/libenclave.a
+RustEnclave_Lib_Name := $(Rust_Out_Path)/libenclave.a
 RustEnclave_Name := $(CUSTOM_BIN_PATH)/enclave.so
 RustEnclave_Signed_Name := $(CUSTOM_BIN_PATH)/enclave.signed.so
 
 .PHONY: all
-all: $(Enclave_EDL_Files) $(App_Name) $(RustEnclave_Signed_Name)
+all: $(RustEnclave_Signed_Name)
+# all: $(App_Name) $(RustEnclave_Signed_Name)
+# all: $(Enclave_EDL_Files) $(App_Name) $(RustEnclave_Signed_Name)
 
 ######## EDL Objects ########
 
@@ -151,11 +147,12 @@ $(App_Name): $(App_Enclave_u_Object) app
 enclave/enclave_t.o: $(Enclave_EDL_Files)
 	@$(CC) $(RustEnclave_C_Flags) -c enclave/enclave_t.c -o $@
 
-$(RustEnclave_Name): enclave/enclave_t.o enclave
+# $(RustEnclave_Name): enclave/enclave_t.o enclave
+$(RustEnclave_Name): enclave
 	@mkdir -p $(CUSTOM_LIBRARY_PATH)
 	@mkdir -p $(CUSTOM_BIN_PATH)
 	@cp $(RustEnclave_Lib_Name) $(CUSTOM_LIBRARY_PATH)/libenclave.a
-	# @$(CXX) enclave/enclave_t.o -o $@ $(RustEnclave_Link_Flags)
+	# @$(CXX) -o $@ $(RustEnclave_Link_Flags)
 	@$(CXX) enclave/enclave_t.o -o $@ $(RustEnclave_Link_Flags)
 	@echo "LINK => $@"
 
@@ -173,7 +170,6 @@ app:
 
 .PHONY: enclave
 enclave:
-ifeq ($(BUILD_STD), cargo)
 	@cd $(Rust_Target_Path)/std && cargo build $(Rust_Build_Std) $(Rust_Target_Flags) $(Rust_Std_Features)
 
 	@rm -rf $(Rust_Sysroot_Path)
@@ -182,11 +178,6 @@ ifeq ($(BUILD_STD), cargo)
 
 	@cd enclave && $(Rust_Sysroot_Flags) cargo build $(Rust_Target_Flags) $(RustEnclave_Build_Flags)
 
-else ifeq ($(BUILD_STD), xargo)
-	@cd enclave && RUST_TARGET_PATH=$(Rust_Target_Path) xargo build --target $(Rust_Build_Target) $(RustEnclave_Build_Flags)
-else
-	@cd enclave && cargo build $(RustEnclave_Build_Flags)
-endif
 
 ######## Run Enclave ########
 

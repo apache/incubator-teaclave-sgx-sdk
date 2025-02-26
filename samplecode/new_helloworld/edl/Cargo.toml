@@ -9,11 +9,10 @@ edition = "2021"
 
 [features]
 default = ["enclave", "app"]
-enclave = []
-app = []
+enclave = ["sgx_tstd", "sgx_new_edl/enclave"]
+app = ["sgx_new_edl/app"]
 
 [dependencies]
-sgx_new_edl = { path = "../../../sgx_new_edl" }
+sgx_new_edl = { path = "../../../sgx_new_edl", default-features = false }
 sgx_types = { path = "../../../sgx_types" }
-sgx_tstd = { path = "../../../sgx_tstd" }
-
+sgx_tstd = { path = "../../../sgx_tstd", optional = true }

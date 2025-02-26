@@ -1,14 +1,12 @@
-#![cfg_attr(feature = "enclave", no_std)]
-extern crate sgx_tstd as std;
-
+// #![cfg_attr(feature = "enclave", no_std)]
+// extern crate sgx_tstd as std;
 
 use sgx_types::error::SgxStatus;
 use sgx_types::function::sgx_ecall;
 
-use crate::{arg::EcallArg, ocall::OTabEntry, Update, ocall::OtabTou8Ptr};
+use crate::{arg::EcallArg, ocall::OTabEntry, ocall::OtabTou8Ptr, ser::*, Update};
 
-use bincode as ser;
-
+// use bincode as ser;
 
 /* C function
 typedef enum _status_t sgx_status_t
@@ -20,28 +18,17 @@ sgx_status_t SGXAPI sgx_ecall(const sgx_enclave_id_t eid,
     void* ms);
 */
 
-
-// extern "C" {   
-//     fn sgx_ecall(
-//         eid: u64,
-//         index: i32,
-//         ocall_table: *const std::os::raw::c_void,
-//         ms: *mut std::os::raw::c_void,
-//     ) -> SgxStatus;
-// }
+pub type ExternEcallFn = unsafe extern "Rust" fn(*const u8) -> sgx_types::error::SgxStatus;
 
 #[repr(C)]
 pub struct EcallEntry {
-    pub ecall_addr: unsafe extern "C" fn(*const u8) -> sgx_types::error::SgxStatus,
-    //pub ecall_addr: *const u8,
+    pub ecall_addr: ExternEcallFn,
     pub is_priv: u8,
     pub is_switchless: u8,
 }
 
 impl EcallEntry {
-    pub const fn new(
-        ecall: unsafe extern "C" fn(*const u8) -> sgx_types::error::SgxStatus,
-    ) -> Self {
+    pub const fn new(ecall: ExternEcallFn) -> Self {
         Self {
             ecall_addr: ecall,
             is_priv: 0,
@@ -86,7 +73,7 @@ where
             std::slice::from_raw_parts(data, core::mem::size_of::<((usize, usize), usize)>())
         };
         // ptr: arg address, len: arg bytes len, retval: sgx status address
-        let ((ptr, len), retval) = ser::deserialize::<((usize, usize), usize)>(bytes).unwrap();
+        let ((ptr, len), retval) = deserialize::<((usize, usize), usize)>(bytes).unwrap();
         let bytes = unsafe { std::slice::from_raw_parts(ptr as *const u8, len) };
 
         // deserialize the arguments
@@ -108,12 +95,7 @@ where
     }
 }
 
-pub fn untrust_ecall<Args, Target>(
-    id: usize,
-    eid: u64,
-    otab: &[OTabEntry],
-    args: Args,
-) -> SgxStatus
+pub fn untrust_ecall<Args, Target>(id: usize, eid: u64, otab: &[OTabEntry], args: Args) -> SgxStatus
 where
     Args: EcallArg<Target>,
 {
@@ -125,13 +107,17 @@ where
         (data.as_ptr() as usize, data.len()),
         &status as *const SgxStatus as usize,
     );
-    let mut bytes = ser::serialize(&arg).unwrap();
+    let mut bytes = serialize(&arg).unwrap();
 
     // TODO: 序列化ocall表
     let otab_ptr = OtabTou8Ptr(otab);
 
     unsafe {
-        sgx_ecall(eid, id as i32, otab_ptr as *const std::os::raw::c_void, bytes.as_mut_ptr() as *mut std::os::raw::c_void)
+        sgx_ecall(
+            eid,
+            id as i32,
+            otab_ptr as *const std::os::raw::c_void,
+            bytes.as_mut_ptr() as *mut std::os::raw::c_void,
+        )
     }
-
 }

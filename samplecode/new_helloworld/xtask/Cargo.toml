@@ -2,3 +2,7 @@
 name = "xtask"
 version = "0.1.0"
 edition = "2021"
+
+[dependencies]
+clap = { version = "*", features = ["derive"] }
+once_cell = "1.20"

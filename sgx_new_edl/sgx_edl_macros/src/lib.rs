@@ -1,6 +1,3 @@
-#![cfg_attr(feature = "enclave", no_std)]
-
-extern crate sgx_tstd as std;
 use std::str::FromStr;
 
 use proc_macro::TokenStream;
@@ -67,7 +64,6 @@ pub fn ecalls(input: TokenStream) -> TokenStream {
     quote! {
         #[cfg(feature = "enclave")]
         #extern_fns
-        #[cfg(feature = "enclave")]
         #tab
         #fn_mods
     }
@@ -105,7 +101,7 @@ fn gen_extern_func(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Token
     let fn_names = fns.iter().map(|f| &f.sig.ident).map(|id| externed_name(id));
     let ret = fns.iter().map(|f| &f.sig.output);
     quote! {
-        extern "C" {
+        extern "Rust" {
             #(
                 fn #fn_names(args: *const u8) #ret;
             )*
@@ -122,8 +118,10 @@ fn gen_ecall_table(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Token
         }
     });
     quote! {
+        #[cfg(feature = "enclave")]
         extern crate sgx_new_edl as sgx_edl;
 
+        #[cfg(feature = "enclave")]
         #[no_mangle]
         #[used]
         pub static g_ecall_table: sgx_edl::EcallTable<#num> = sgx_edl::EcallTable::new([

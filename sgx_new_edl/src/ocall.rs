@@ -1,7 +1,5 @@
-use serde::{Deserialize, Serialize};
+use crate::ser::*;
 use sgx_types::error::SgxStatus;
-
-use bincode as ser;
 
 use crate::In;
 
@@ -20,7 +18,7 @@ pub trait OcallArg<Target> {
     fn destory(self);
 }
 
-impl<'a, Target: Serialize + for<'de> Deserialize<'de>> OcallArg<Target> for In<'a, Target> {
+impl<'a, Target: Encodable + Decodable> OcallArg<Target> for In<'a, Target> {
     fn serialize(&self) -> Vec<u8> {
         todo!()
     }
@@ -90,7 +88,7 @@ where
         (data.as_ptr() as usize, data.len()),
         &status as *const SgxStatus as usize,
     );
-    let bytes = ser::serialize(&arg).unwrap();
+    let bytes = serialize(&arg).unwrap();
     sgx_ocall(id, bytes.as_ptr());
     //sgx_ecall(eid, id, otab, bytes.as_ptr())
     todo!()
