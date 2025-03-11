@@ -50,7 +50,7 @@ pub fn trim_range_commit(addr: usize, count: usize) -> SgxResult {
     for i in 0..count {
         let mut trim = Box::try_new_in(
             TrimRangeCommitOcall {
-                addr: addr + i * SE_PAGE_SHIFT,
+                addr: addr + (i << SE_PAGE_SHIFT),
             },
             OcAlloc,
         )

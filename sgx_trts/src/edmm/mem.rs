@@ -39,7 +39,10 @@ mod hw {
     use sgx_types::types::ProtectPerm;
 
     pub fn apply_epc_pages(addr: usize, count: usize) -> SgxResult {
-        ensure!(addr != 0 && count != 0, SgxStatus::InvalidParameter);
+        ensure!(
+            addr != 0 && is_page_aligned!(addr) && count != 0,
+            SgxStatus::InvalidParameter
+        );
 
         if let Some(attr) = LayoutTable::new().check_dyn_range(addr, count, None) {
             let pages = PageRange::new(
@@ -61,7 +64,10 @@ mod hw {
     }
 
     pub fn trim_epc_pages(addr: usize, count: usize) -> SgxResult {
-        ensure!(addr != 0 && count != 0, SgxStatus::InvalidParameter);
+        ensure!(
+            addr != 0 && is_page_aligned!(addr) && count != 0,
+            SgxStatus::InvalidParameter
+        );
 
         LayoutTable::new()
             .check_dyn_range(addr, count, None)
@@ -85,7 +91,10 @@ mod hw {
     }
 
     pub fn expand_stack_epc_pages(addr: usize, count: usize) -> SgxResult {
-        ensure!(addr != 0 && count != 0, SgxStatus::InvalidParameter);
+        ensure!(
+            addr != 0 && is_page_aligned!(addr) && count != 0,
+            SgxStatus::InvalidParameter
+        );
 
         LayoutTable::new()
             .check_dyn_range(addr, count, None)
