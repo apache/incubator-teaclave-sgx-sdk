@@ -4,21 +4,22 @@
 use sgx_types::error::SgxStatus;
 use sgx_types::function::sgx_ecall;
 
-use crate::{arg::EcallArg, ocall::OTabEntry, ocall::OtabTou8Ptr, ser::*, Update};
+use crate::{ocall::OcallEntry, ser::*, Update};
 
-// use bincode as ser;
+pub type ExternEcallFn = unsafe extern "C" fn(*const u8) -> sgx_types::error::SgxStatus;
 
-/* C function
-typedef enum _status_t sgx_status_t
-typedef uint64_t sgx_enclave_id_t
+pub trait EcallArg<Target>: Sized {
+    fn serialize(&self) -> Vec<u8>;
+    fn deserialize(data: &[u8]) -> Self;
 
-sgx_status_t SGXAPI sgx_ecall(const sgx_enclave_id_t eid,
-    const int index,
-    const void* ocall_table,
-    void* ms);
-*/
+    fn prepare(&self) -> Target;
 
-pub type ExternEcallFn = unsafe extern "Rust" fn(*const u8) -> sgx_types::error::SgxStatus;
+    /// Reset lifetime
+    unsafe fn _from_mut(target: &mut Target) -> Self;
+
+    /// 将enclave内部的参数更新到外部
+    fn update(&mut self, other: Target);
+}
 
 #[repr(C)]
 pub struct EcallEntry {
@@ -95,7 +96,7 @@ where
     }
 }
 
-pub fn untrust_ecall<Args, Target>(id: usize, eid: u64, otab: &[OTabEntry], args: Args) -> SgxStatus
+pub fn app_ecall<Args, Target>(id: usize, eid: u64, otab: &[OcallEntry], args: Args) -> SgxStatus
 where
     Args: EcallArg<Target>,
 {
@@ -110,7 +111,7 @@ where
     let mut bytes = serialize(&arg).unwrap();
 
     // TODO: 序列化ocall表
-    let otab_ptr = OtabTou8Ptr(otab);
+    let otab_ptr = otab.as_ptr() as *const u8;
 
     unsafe {
         sgx_ecall(
