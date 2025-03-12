@@ -113,7 +113,8 @@ Rust_Out_Path := ./target/$(Rust_Build_Target)/$(Rust_Build_Out)
 
 # RustEnclave_Lib_Name := $(RustEnclave_Out_Path)/libenclave.a
 RustEnclave_Lib_Name := $(Rust_Out_Path)/libenclave.a
-RustEnclave_Name := $(CUSTOM_BIN_PATH)/enclave.so
+# RustEnclave_Name := $(CUSTOM_BIN_PATH)/enclave.so
+RustEnclave_Name := $(Rust_Out_Path)/libenclave.so
 RustEnclave_Signed_Name := $(CUSTOM_BIN_PATH)/enclave.signed.so
 
 .PHONY: all
@@ -160,6 +161,10 @@ $(RustEnclave_Signed_Name): $(RustEnclave_Name) enclave/config.xml
 	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/private.pem -enclave $(RustEnclave_Name) -out $@ -config enclave/config.xml
 	@echo "SIGN => $@"
 
+######## Sign Enclave ########
+.PHONY: enclave/config.xml
+	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/private.pem -enclave $(RustEnclave_Name) -out $@ -config enclave/config.xml
+
 ######## Build App ########
 
 .PHONY: app
@@ -178,6 +183,10 @@ enclave:
 
 	@cd enclave && $(Rust_Sysroot_Flags) cargo build $(Rust_Target_Flags) $(RustEnclave_Build_Flags)
 
+
+######## Sign Enclave ########
+sign: enclave/config.xml
+	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/private.pem -enclave $(RustEnclave_Name) -out $(RustEnclave_Signed_Name) -config enclave/config.xml
 
 ######## Run Enclave ########
 

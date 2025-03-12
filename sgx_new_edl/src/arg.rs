@@ -1,26 +1,19 @@
+use crate::ecall::EcallArg;
+use crate::ocall::OcallArg;
 use crate::ser::*;
 
 pub trait Update {
     fn update(&mut self, other: &Self);
 }
 
-pub trait EcallArg<Target>: Sized {
-    fn serialize(&self) -> Vec<u8>;
-    fn deserialize(data: &[u8]) -> Self;
-
-    fn prepare(&self) -> Target;
-
-    /// Reset lifetime
-    unsafe fn _from_mut(target: &mut Target) -> Self;
-
-    /// 将enclave内部的参数更新到外部
-    fn update(&mut self, other: Target);
-
-    fn destory(self);
-}
-
 pub struct In<'a, T: Encodable + Decodable> {
     inner: &'a T,
+}
+
+impl<'a, T: Decodable + Encodable> In<'a, T> {
+    pub fn new(value: &'a T) -> Self {
+        Self { inner: value }
+    }
 }
 
 impl<'a, T: Encodable + Decodable> EcallArg<T> for In<'a, T> {
@@ -52,9 +45,29 @@ impl<'a, T: Encodable + Decodable> EcallArg<T> for In<'a, T> {
     fn destory(self) {}
 }
 
-impl<'a, T: Decodable + Encodable> In<'a, T> {
-    pub fn new(value: &'a T) -> Self {
-        Self { inner: value }
+impl<'a, Target: Encodable + Decodable> OcallArg<Target> for In<'a, Target> {
+    fn serialize(&self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn deserialize(data: &[u8]) -> Self {
+        todo!()
+    }
+
+    fn prepare(&self) -> Target {
+        todo!()
+    }
+
+    unsafe fn _from_mut(target: &mut Target) -> Self {
+        todo!()
+    }
+
+    fn update(&mut self, other: Target) {
+        todo!()
+    }
+
+    fn destory(self) {
+        todo!()
     }
 }
 

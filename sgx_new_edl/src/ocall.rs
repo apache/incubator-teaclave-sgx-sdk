@@ -1,7 +1,7 @@
 use crate::ser::*;
 use sgx_types::error::SgxStatus;
 
-use crate::In;
+pub type ExternOcallFn = unsafe extern "C" fn(*const u8) -> sgx_types::error::SgxStatus;
 
 pub trait OcallArg<Target> {
     fn serialize(&self) -> Vec<u8>;
@@ -18,32 +18,6 @@ pub trait OcallArg<Target> {
     fn destory(self);
 }
 
-impl<'a, Target: Encodable + Decodable> OcallArg<Target> for In<'a, Target> {
-    fn serialize(&self) -> Vec<u8> {
-        todo!()
-    }
-
-    fn deserialize(data: &[u8]) -> Self {
-        todo!()
-    }
-
-    fn prepare(&self) -> Target {
-        todo!()
-    }
-
-    unsafe fn _from_mut(target: &mut Target) -> Self {
-        todo!()
-    }
-
-    fn update(&mut self, other: Target) {
-        todo!()
-    }
-
-    fn destory(self) {
-        todo!()
-    }
-}
-
 /* C function
 sgx_status_t SGXAPI sgx_ocall(const unsigned int index,
                               void* ms);
@@ -52,9 +26,22 @@ fn sgx_ocall(idx: usize, ms: *const u8) -> SgxStatus {
     panic!("exec sgx ocall")
 }
 
-pub struct OcallTable;
+#[repr(C)]
+pub struct OcallTable<const N: usize> {
+    pub nr_ocall: usize,
+    pub entries: [OcallEntry; N],
+}
 
-pub struct OTabEntry;
+#[repr(C)]
+pub struct OcallEntry {
+    pub ocall_addr: ExternOcallFn,
+}
+
+impl OcallEntry {
+    pub const fn new(ocall: ExternOcallFn) -> Self {
+        Self { ocall_addr: ocall }
+    }
+}
 
 pub trait Ocall<Target> {
     type Args: OcallArg<Target>;
@@ -77,7 +64,7 @@ where
     }
 }
 
-pub fn trust_ecall<Args, Target>(id: usize, args: Args) -> SgxStatus
+pub fn enclave_ocall<Args, Target>(id: usize, args: Args) -> SgxStatus
 where
     Args: OcallArg<Target>,
 {
@@ -92,8 +79,4 @@ where
     sgx_ocall(id, bytes.as_ptr());
     //sgx_ecall(eid, id, otab, bytes.as_ptr())
     todo!()
-}
-
-pub fn OtabTou8Ptr(otab: &[OTabEntry]) -> *const u8 {
-    otab.as_ptr() as *const u8
 }

@@ -10,10 +10,10 @@ mod ocall;
 mod ser;
 
 pub use arg::{In, Out, Update};
-pub use ecall::{untrust_ecall, Ecall, EcallEntry, EcallTable, EcallWrapper};
-pub use ocall::{OTabEntry, OcallTable};
+pub use ecall::{app_ecall, Ecall, EcallEntry, EcallTable, EcallWrapper};
+pub use ocall::{OcallEntry, OcallTable};
 pub use ser::*;
-pub use sgx_edl_macros::{ecall, ecalls};
+pub use sgx_edl_macros::{ecall, ecalls, ocall, ocalls};
 pub use sgx_types::error::SgxStatus;
 
 impl Update for String {
