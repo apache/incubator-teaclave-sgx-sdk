@@ -108,13 +108,14 @@ RustEnclave_Link_Flags := -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfi
 	-Wl,--version-script=enclave/enclave.lds \
 	$(ENCLAVE_LDFLAGS)
 
-RustEnclave_Out_Path := ./enclave/target/$(Rust_Build_Target)/$(Rust_Build_Out)
+# RustEnclave_Out_Path := ./enclave/target/$(Rust_Build_Target)/$(Rust_Build_Out)
+# RustEnclave_Out_Path := ./enclave/target/$(Rust_Build_Out)
+RustEnclave_Out_Path := ./target/$(Rust_Build_Out)
 Rust_Out_Path := ./target/$(Rust_Build_Target)/$(Rust_Build_Out)
 
-# RustEnclave_Lib_Name := $(RustEnclave_Out_Path)/libenclave.a
-RustEnclave_Lib_Name := $(Rust_Out_Path)/libenclave.a
-# RustEnclave_Name := $(CUSTOM_BIN_PATH)/enclave.so
-RustEnclave_Name := $(Rust_Out_Path)/libenclave.so
+RustEnclave_Lib_Name := $(RustEnclave_Out_Path)/libenclave.a
+# RustEnclave_Lib_Name := $(Rust_Out_Path)/libenclave.a
+RustEnclave_Name := $(CUSTOM_BIN_PATH)/enclave.so
 RustEnclave_Signed_Name := $(CUSTOM_BIN_PATH)/enclave.signed.so
 
 .PHONY: all
@@ -172,9 +173,17 @@ app:
 	@cd app && SGX_SDK=$(SGX_SDK) cargo build $(App_Rust_Flags)
 
 ######## Build Enclave ########
-
 .PHONY: enclave
 enclave:
+	@mkdir -p $(CUSTOM_BIN_PATH)
+	@cd enclave && cargo build $(RustEnclave_Build_Flags)
+	@cp $(RustEnclave_Lib_Name) $(CUSTOM_LIBRARY_PATH)/libenclave.a
+	$(CXX) -o $(RustEnclave_Name) $(RustEnclave_Link_Flags)
+	@echo "LINK => $@"
+
+
+.PHONY: enclave_std
+enclave_std:
 	@mkdir -p $(CUSTOM_BIN_PATH)
 	@cd $(Rust_Target_Path)/std && cargo build $(Rust_Build_Std) $(Rust_Target_Flags) $(Rust_Std_Features)
 

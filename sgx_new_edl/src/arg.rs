@@ -2,6 +2,8 @@ use crate::ecall::EcallArg;
 use crate::ocall::OcallArg;
 use crate::ser::*;
 
+use std::vec::Vec;
+
 pub trait Update {
     fn update(&mut self, other: &Self);
 }

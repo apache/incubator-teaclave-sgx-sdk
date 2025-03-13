@@ -342,7 +342,7 @@ fn gen_ocall_fn_mods(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Tok
                 }
 
                 #[no_mangle]
-                pub fn #fn_name(eid: u64, #(#args),*) -> sgx_types::error::SgxStatus {
+                pub extern "C" fn #fn_name(eid: u64, #(#args),*) -> sgx_types::error::SgxStatus {
                     // ocall(eid, (#(#args_name),*))
                     todo!()
                 }

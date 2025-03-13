@@ -1,6 +1,8 @@
 use sgx_serialize::opaque::{decode, encode};
 pub use sgx_serialize::{Decodable, Deserialize, Encodable, Serialize};
 
+use std::vec::Vec;
+
 #[derive(Debug)]
 pub struct EncodeError;
 

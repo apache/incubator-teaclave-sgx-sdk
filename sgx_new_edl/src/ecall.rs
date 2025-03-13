@@ -6,6 +6,8 @@ use sgx_types::function::sgx_ecall;
 
 use crate::{ocall::OcallEntry, ser::*, Update};
 
+use std::vec::Vec;
+
 pub type ExternEcallFn = unsafe extern "C" fn(*const u8) -> sgx_types::error::SgxStatus;
 
 pub trait EcallArg<Target>: Sized {

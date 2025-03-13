@@ -3,6 +3,8 @@ use sgx_types::error::SgxStatus;
 
 pub type ExternOcallFn = unsafe extern "C" fn(*const u8) -> sgx_types::error::SgxStatus;
 
+use std::vec::Vec;
+
 pub trait OcallArg<Target> {
     fn serialize(&self) -> Vec<u8>;
     fn deserialize(data: &[u8]) -> Self;

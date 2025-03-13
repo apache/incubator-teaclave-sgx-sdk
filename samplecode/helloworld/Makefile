@@ -155,8 +155,7 @@ $(RustEnclave_Name): enclave/enclave_t.o enclave
 	@mkdir -p $(CUSTOM_LIBRARY_PATH)
 	@mkdir -p $(CUSTOM_BIN_PATH)
 	@cp $(RustEnclave_Lib_Name) $(CUSTOM_LIBRARY_PATH)/libenclave.a
-	# @$(CXX) enclave/enclave_t.o -o $@ $(RustEnclave_Link_Flags)
-	@$(CXX) enclave/enclave_t.o -o $@ $(RustEnclave_Link_Flags)
+	$(CXX) enclave/enclave_t.o -o $@ $(RustEnclave_Link_Flags)
 	@echo "LINK => $@"
 
 $(RustEnclave_Signed_Name): $(RustEnclave_Name) enclave/config.xml

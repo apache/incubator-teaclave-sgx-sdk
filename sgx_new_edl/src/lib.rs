@@ -4,6 +4,8 @@
 #[cfg(feature = "enclave")]
 extern crate sgx_tstd as std;
 
+use std::string::String;
+
 mod arg;
 mod ecall;
 mod ocall;

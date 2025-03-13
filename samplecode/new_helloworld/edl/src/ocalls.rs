@@ -27,5 +27,7 @@ ocalls! {
         absolute_time: i32,
     ) -> SgxStatus;
 
+    pub fn u_free_ocall(p: *mut c_void) -> SgxStatus;
+
     pub fn bar() -> SgxStatus;
 }
