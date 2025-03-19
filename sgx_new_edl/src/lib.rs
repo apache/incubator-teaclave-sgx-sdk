@@ -27,3 +27,22 @@ impl Update for SgxStatus {
         let _ = core::mem::replace(self, *other);
     }
 }
+
+#[no_mangle]
+pub extern "C" fn __do_nothing() {
+    unimplemented!()
+}
+
+#[macro_export]
+macro_rules! sgx_tstd_ocalls {
+    () => {
+        #[no_impl]
+        pub fn u_thread_set_event_ocall();
+        #[no_impl]
+        pub fn u_thread_wait_event_ocall();
+    };
+}
+
+macro_rules! sgx_stdio_ocalls {
+    () => {};
+}

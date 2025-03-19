@@ -77,7 +77,7 @@ App_Src_Files := $(shell find app/ -type f -name '*.rs') $(shell find app/ -type
 App_Include_Paths := -I ./app -I$(SGX_SDK)/include -I$(CUSTOM_COMMON_PATH)/inc -I$(CUSTOM_EDL_PATH)
 App_C_Flags := $(CFLAGS) $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
-App_Rust_Path := ./app/target/$(Rust_Build_Out)
+App_Rust_Path := ./target/$(Rust_Build_Out)
 App_Enclave_u_Object := $(CUSTOM_LIBRARY_PATH)/libenclave_u.a
 App_Name := $(CUSTOM_BIN_PATH)/app
 
@@ -119,21 +119,21 @@ RustEnclave_Name := $(CUSTOM_BIN_PATH)/enclave.so
 RustEnclave_Signed_Name := $(CUSTOM_BIN_PATH)/enclave.signed.so
 
 .PHONY: all
-all: $(RustEnclave_Signed_Name)
-# all: $(App_Name) $(RustEnclave_Signed_Name)
-# all: $(Enclave_EDL_Files) $(App_Name) $(RustEnclave_Signed_Name)
+# all: $(RustEnclave_Signed_Name)
+all: app enclave sign
 
 ######## EDL Objects ########
 
-$(Enclave_EDL_Files): $(SGX_EDGER8R) enclave/enclave.edl
-	$(SGX_EDGER8R) $(SGX_EDGER8R_MODE) --trusted enclave/enclave.edl --search-path $(CUSTOM_COMMON_PATH)/inc --search-path $(CUSTOM_EDL_PATH) --trusted-dir enclave
-	$(SGX_EDGER8R) $(SGX_EDGER8R_MODE) --untrusted enclave/enclave.edl --search-path $(CUSTOM_COMMON_PATH)/inc --search-path $(CUSTOM_EDL_PATH) --untrusted-dir app
+$(Enclave_EDL_Files): $(SGX_EDGER8R) edl/enclave.edl
+	$(SGX_EDGER8R) $(SGX_EDGER8R_MODE) --trusted edl/enclave.edl --search-path $(CUSTOM_COMMON_PATH)/inc --search-path $(CUSTOM_EDL_PATH) --trusted-dir enclave
+	$(SGX_EDGER8R) $(SGX_EDGER8R_MODE) --untrusted edl/enclave.edl --search-path $(CUSTOM_COMMON_PATH)/inc --search-path $(CUSTOM_EDL_PATH) --untrusted-dir app
 	@echo "GEN => $(Enclave_EDL_Files)"
 
 ######## App Objects ########
 
 app/enclave_u.o: $(Enclave_EDL_Files)
 	@$(CC) $(App_C_Flags) -c app/enclave_u.c -o $@
+	@$(OBJCOPY) --strip-symbol=ocall_table_enclave $@ $@
 
 $(App_Enclave_u_Object): app/enclave_u.o
 	@mkdir -p $(CUSTOM_LIBRARY_PATH)
@@ -141,7 +141,7 @@ $(App_Enclave_u_Object): app/enclave_u.o
 
 $(App_Name): $(App_Enclave_u_Object) app
 	@mkdir -p $(CUSTOM_BIN_PATH)
-	@cp $(App_Rust_Path)/app $(CUSTOM_BIN_PATH)
+	@cp $(App_Rust_Path)/app $(CUSTOM_BIN_PATH)/app
 	@echo "LINK => $@"
 
 ######## Enclave Objects ########
@@ -150,7 +150,7 @@ enclave/enclave_t.o: $(Enclave_EDL_Files)
 	@$(CC) $(RustEnclave_C_Flags) -c enclave/enclave_t.c -o $@
 
 # $(RustEnclave_Name): enclave/enclave_t.o enclave
-$(RustEnclave_Name): enclave
+$(RustEnclave_Name): enclave/enclave_t.o enclave
 	@mkdir -p $(CUSTOM_LIBRARY_PATH)
 	@mkdir -p $(CUSTOM_BIN_PATH)
 	@cp $(RustEnclave_Lib_Name) $(CUSTOM_LIBRARY_PATH)/libenclave.a
@@ -169,16 +169,19 @@ $(RustEnclave_Signed_Name): $(RustEnclave_Name) enclave/config.xml
 ######## Build App ########
 
 .PHONY: app
-app:
+app: $(App_Enclave_u_Object)
 	@cd app && SGX_SDK=$(SGX_SDK) cargo build $(App_Rust_Flags)
+	@mkdir -p $(CUSTOM_BIN_PATH)
+	@cp $(App_Rust_Path)/app $(CUSTOM_BIN_PATH)/app
 
 ######## Build Enclave ########
 .PHONY: enclave
-enclave:
+enclave: enclave/enclave_t.o 
+	@mkdir -p $(CUSTOM_LIBRARY_PATH)
 	@mkdir -p $(CUSTOM_BIN_PATH)
 	@cd enclave && cargo build $(RustEnclave_Build_Flags)
 	@cp $(RustEnclave_Lib_Name) $(CUSTOM_LIBRARY_PATH)/libenclave.a
-	$(CXX) -o $(RustEnclave_Name) $(RustEnclave_Link_Flags)
+	$(CXX) enclave/enclave_t.o -o $(RustEnclave_Name) $(RustEnclave_Link_Flags)
 	@echo "LINK => $@"
 
 

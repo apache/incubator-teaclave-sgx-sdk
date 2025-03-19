@@ -8,7 +8,7 @@ use sgx_types::error::SgxStatus;
 use sgx_types::types::*;
 use sgx_urts::enclave::SgxEnclave;
 
-static ENCLAVE_FILE: &str = "libenclave.so";
+static ENCLAVE_FILE: &str = "enclave.signed.so";
 
 fn main() {
     let enclave = match SgxEnclave::create(ENCLAVE_FILE, true) {
@@ -31,7 +31,8 @@ fn main() {
     let o1 = Out::new(&mut o1);
     let o_tab = [];
 
-    ecalls::foo::ecall(0, &o_tab, a1, o1);
+    ecalls::foo::ecall(enclave.eid(), &o_tab, a1, o1);
+    // println!("res: {}", res);
 
     // let result = unsafe {
     //     say_something(

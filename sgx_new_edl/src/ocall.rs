@@ -28,6 +28,15 @@ pub struct OcallTable<const N: usize> {
     pub entries: [OcallEntry; N],
 }
 
+impl<const N: usize> OcallTable<N> {
+    pub const fn new(entries: [OcallEntry; N]) -> Self {
+        Self {
+            nr_ocall: N,
+            entries,
+        }
+    }
+}
+
 #[repr(C)]
 pub struct OcallEntry {
     pub ocall_addr: ExternOcallFn,

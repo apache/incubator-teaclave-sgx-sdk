@@ -1,3 +1,5 @@
+#![feature(proc_macro_expand)]
+
 use std::str::FromStr;
 
 use proc_macro::TokenStream;
@@ -12,8 +14,12 @@ use syn::{
 ///
 /// Currently, to compact with existing code,
 /// we use the same name with user defined function
-fn externed_name(ident: &Ident) -> Ident {
+fn extern_ecall_name(ident: &Ident) -> Ident {
     Ident::new(&format!("{}", ident), ident.span())
+}
+
+fn extern_ocall_name(ident: &Ident) -> Ident {
+    Ident::new(&format!("enclave_{}", ident), ident.span())
 }
 
 fn raw_name(ident: &Ident) -> Ident {
@@ -96,7 +102,7 @@ fn gen_ecall_fn_mods(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Tok
 
                 pub const IDX: usize = #idx;
 
-                pub fn ecall(eid: u64, otab: &[sgx_new_edl::OCallEntry], #(#args),*) -> sgx_types::error::SgxStatus {
+                pub fn ecall(eid: u64, otab: &[sgx_new_edl::OcallEntry], #(#args),*) -> sgx_types::error::SgxStatus {
                     sgx_new_edl::app_ecall(IDX, eid, otab, (#(#args_name),*))
                 }
             }
@@ -107,8 +113,26 @@ fn gen_ecall_fn_mods(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Tok
     }
 }
 
+fn gen_ocall_extern_func(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::TokenStream {
+    let fn_names = fns
+        .iter()
+        .map(|f| &f.sig.ident)
+        .map(|id| extern_ocall_name(id));
+    let ret = fns.iter().map(|f| &f.sig.output);
+    quote! {
+        extern "C" {
+            #(
+                fn #fn_names(args: *const u8) #ret;
+            )*
+        }
+    }
+}
+
 fn gen_extern_func(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::TokenStream {
-    let fn_names = fns.iter().map(|f| &f.sig.ident).map(|id| externed_name(id));
+    let fn_names = fns
+        .iter()
+        .map(|f| &f.sig.ident)
+        .map(|id| extern_ecall_name(id));
     let ret = fns.iter().map(|f| &f.sig.output);
     quote! {
         extern "C" {
@@ -122,7 +146,7 @@ fn gen_extern_func(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Token
 fn gen_ecall_table(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::TokenStream {
     let num = fns.len();
     let ids = fns.iter().map(|f| &f.sig.ident).map(|id| {
-        let extern_name = externed_name(id);
+        let extern_name = extern_ecall_name(id);
         quote! {
             #extern_name
         }
@@ -157,7 +181,7 @@ pub fn ecall(_attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let fn_name = &sig.ident;
-    let extern_name = externed_name(fn_name);
+    let extern_name = extern_ecall_name(fn_name);
     let (arg_names, arg_tys): (Vec<_>, Vec<_>) = sig
         .inputs
         .iter()
@@ -228,7 +252,7 @@ pub fn ocall(_attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let fn_name = &sig.ident;
-    let extern_name = externed_name(fn_name);
+    let extern_name = extern_ecall_name(fn_name);
     let (arg_names, arg_tys): (Vec<_>, Vec<_>) = sig
         .inputs
         .iter()
@@ -283,11 +307,16 @@ pub fn ocall(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn ocalls(input: TokenStream) -> TokenStream {
-    let s = input.to_string().split(';').collect::<Vec<_>>().join(";,");
+    let s = input
+        .to_string()
+        .split(';')
+        // .filter(|s| !s.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join(";,");
     let token = TokenStream::from_str(&s).unwrap();
     let parser = Punctuated::<ForeignItemFn, Token![,]>::parse_terminated;
     let fns = parse_macro_input!(token with parser);
-    let extern_fns = gen_extern_func(&fns);
+    let extern_fns = gen_ocall_extern_func(&fns);
     let tab = gen_ocall_table(&fns);
     let fn_mods = gen_ocall_fn_mods(&fns);
     quote! {
@@ -302,7 +331,7 @@ pub fn ocalls(input: TokenStream) -> TokenStream {
 fn gen_ocall_table(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::TokenStream {
     let num = fns.len();
     let ids = fns.iter().map(|f| &f.sig.ident).map(|id| {
-        let extern_name = externed_name(id);
+        let extern_name = extern_ocall_name(id);
         quote! {
             #extern_name
         }
@@ -314,7 +343,7 @@ fn gen_ocall_table(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Token
         #[cfg(feature = "app")]
         #[no_mangle]
         #[used]
-        pub static ocall_table_EnclaveInitiator: sgx_edl::OcallTable<#num> = sgx_edl::OcallTable::new([
+        pub static ocall_table_enclave: sgx_edl::OcallTable<#num> = sgx_edl::OcallTable::new([
             #(sgx_edl::OcallEntry::new(#ids)),*
         ]);
         //pub static g_ecall_table: &[unsafe extern "C" fn(*const u8) -> sgx_types::error::SgxStatus] = &[
@@ -322,7 +351,15 @@ fn gen_ocall_table(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Token
 }
 
 fn gen_ocall_fn_mods(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::TokenStream {
-    let mods = fns.iter().enumerate().map(|(idx, f)| {
+    let mods = fns.iter().enumerate().filter_map(|(idx, f)| {
+        // Check if the function has #[no_mod] attribute
+        let has_no_mod = f.attrs.iter().any(|attr| attr.path().is_ident("no_impl"));
+
+        // Skip generating module if #[no_mod] is present
+        if has_no_mod {
+            return None;
+        }
+
         let sig = &f.sig;
         let args = sig.inputs.iter().collect::<Vec<_>>();
         let args_name = args.iter().map(|arg| match arg {
@@ -330,7 +367,7 @@ fn gen_ocall_fn_mods(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Tok
             syn::FnArg::Typed(pat_type) => pat_type.pat.as_ref(),
         });
         let fn_name = &sig.ident;
-        quote! {
+        Some(quote! {
             #[cfg(feature = "enclave")]
             pub mod #fn_name {
                 use super::*;
@@ -347,8 +384,9 @@ fn gen_ocall_fn_mods(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Tok
                     todo!()
                 }
             }
-        }
+        })
     });
+
     quote! {
         #(#mods)*
     }
