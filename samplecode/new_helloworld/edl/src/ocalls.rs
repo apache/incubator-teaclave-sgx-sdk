@@ -1,5 +1,5 @@
 use core::ffi::{c_int, c_void};
-use sgx_new_edl::{ocalls, sgx_tstd_ocalls};
+use sgx_new_edl::ocalls;
 use sgx_types::{error::SgxStatus, types::timespec};
 
 ocalls! {

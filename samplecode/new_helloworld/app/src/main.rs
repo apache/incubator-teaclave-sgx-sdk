@@ -29,6 +29,7 @@ fn main() {
     let a1 = String::new();
     let a1 = In::new(&a1);
     let mut o1 = String::with_capacity(100);
+    o1.push_str("Hello ");
     let arg0 = Out::new(&mut o1);
 
     let res = ecalls::foo::ecall(enclave.eid(), arg0);
