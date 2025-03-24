@@ -35,6 +35,10 @@ impl<const N: usize> OcallTable<N> {
             entries,
         }
     }
+
+    pub fn as_slice(&self) -> &[OcallEntry] {
+        &self.entries
+    }
 }
 
 #[repr(C)]

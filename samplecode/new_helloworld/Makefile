@@ -124,6 +124,7 @@ all: app enclave sign
 
 ######## EDL Objects ########
 
+
 $(Enclave_EDL_Files): $(SGX_EDGER8R) edl/enclave.edl
 	$(SGX_EDGER8R) $(SGX_EDGER8R_MODE) --trusted edl/enclave.edl --search-path $(CUSTOM_COMMON_PATH)/inc --search-path $(CUSTOM_EDL_PATH) --trusted-dir enclave
 	$(SGX_EDGER8R) $(SGX_EDGER8R_MODE) --untrusted edl/enclave.edl --search-path $(CUSTOM_COMMON_PATH)/inc --search-path $(CUSTOM_EDL_PATH) --untrusted-dir app
@@ -131,9 +132,14 @@ $(Enclave_EDL_Files): $(SGX_EDGER8R) edl/enclave.edl
 
 ######## App Objects ########
 
+# SYMBOLS := $(shell nm $@ | awk '$$2 == "t" && $$3 ~ /^enclave_.*_ocall$$/ {print $$3}')
+
 app/enclave_u.o: $(Enclave_EDL_Files)
 	@$(CC) $(App_C_Flags) -c app/enclave_u.c -o $@
 	@$(OBJCOPY) --strip-symbol=ocall_table_enclave $@ $@
+	@nm $@ | awk '/enclave_.*_ocall/{print $$3}' | while read sym; do \
+        $(OBJCOPY) --globalize-symbol=$$sym $@; \
+    done
 
 $(App_Enclave_u_Object): app/enclave_u.o
 	@mkdir -p $(CUSTOM_LIBRARY_PATH)
@@ -146,8 +152,10 @@ $(App_Name): $(App_Enclave_u_Object) app
 
 ######## Enclave Objects ########
 
+
 enclave/enclave_t.o: $(Enclave_EDL_Files)
 	@$(CC) $(RustEnclave_C_Flags) -c enclave/enclave_t.c -o $@
+	@$(OBJCOPY) --strip-symbol=g_ecall_table $@ $@
 
 # $(RustEnclave_Name): enclave/enclave_t.o enclave
 $(RustEnclave_Name): enclave/enclave_t.o enclave

@@ -4,6 +4,7 @@ use sgx_new_edl::{In, Out};
 extern crate sgx_types;
 extern crate sgx_urts;
 
+use edl::ocalls;
 use sgx_types::error::SgxStatus;
 use sgx_types::types::*;
 use sgx_urts::enclave::SgxEnclave;
@@ -29,9 +30,8 @@ fn main() {
     let a1 = In::new(&a1);
     let mut o1 = String::new();
     let o1 = Out::new(&mut o1);
-    let o_tab = [];
 
-    ecalls::foo::ecall(enclave.eid(), &o_tab, a1, o1);
+    ecalls::foo::ecall(enclave.eid(), a1, o1);
     // println!("res: {}", res);
 
     // let result = unsafe {
