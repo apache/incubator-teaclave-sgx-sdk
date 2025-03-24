@@ -19,13 +19,23 @@ pub use sgx_edl_macros::{ecall, ecalls, ocall, ocalls};
 pub use sgx_types::error::SgxStatus;
 
 impl Update for String {
-    fn update(&mut self, other: &Self) {}
+    fn update(&mut self, other: &Self) {
+        if self.capacity() < other.len() {
+            panic!("String capacity is not enough");
+        }
+        self.clear();
+        self.push_str(other);
+    }
 }
 
 impl Update for SgxStatus {
     fn update(&mut self, other: &Self) {
         let _ = core::mem::replace(self, *other);
     }
+}
+
+impl Update for () {
+    fn update(&mut self, other: &Self) {}
 }
 
 #[no_mangle]

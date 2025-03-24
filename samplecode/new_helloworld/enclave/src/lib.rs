@@ -16,6 +16,8 @@ use sgx_types::error::SgxStatus;
 extern crate edl;
 
 #[ecall]
-pub fn foo(a0: In<'_, String>, a1: Out<'_, String>) -> SgxStatus {
+pub fn foo(s: Out<'_, String>) -> SgxStatus {
+    let s = s.get_mut();
+    s.push_str("From Enclave!");
     SgxStatus::Success
 }

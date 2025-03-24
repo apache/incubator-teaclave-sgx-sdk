@@ -23,6 +23,26 @@ pub trait EcallArg<Target>: Sized {
     fn update(&mut self, other: Target);
 }
 
+impl EcallArg<()> for () {
+    fn serialize(&self) -> Vec<u8> {
+        Vec::new()
+    }
+
+    fn deserialize(data: &[u8]) -> Self {
+        ()
+    }
+
+    fn prepare(&self) -> () {
+        ()
+    }
+
+    unsafe fn _from_mut(target: &mut ()) -> Self {
+        ()
+    }
+
+    fn update(&mut self, other: ()) {}
+}
+
 #[repr(C)]
 pub struct EcallEntry {
     pub ecall_addr: ExternEcallFn,

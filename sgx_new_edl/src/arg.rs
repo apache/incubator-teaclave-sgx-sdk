@@ -134,6 +134,14 @@ impl<'a, T: Update + Decodable + Encodable> Out<'a, T> {
     pub fn new(value: &'a mut T) -> Self {
         Self { inner: value }
     }
+
+    pub fn get(self) -> &'a T {
+        self.inner
+    }
+
+    pub fn get_mut(mut self) -> &'a mut T {
+        self.inner
+    }
 }
 
 impl<T0, T1, A0, A1> EcallArg<(T0, T1)> for (A0, A1)

@@ -28,11 +28,12 @@ fn main() {
 
     let a1 = String::new();
     let a1 = In::new(&a1);
-    let mut o1 = String::new();
-    let o1 = Out::new(&mut o1);
+    let mut o1 = String::with_capacity(100);
+    let arg0 = Out::new(&mut o1);
 
-    ecalls::foo::ecall(enclave.eid(), a1, o1);
-    // println!("res: {}", res);
+    let res = ecalls::foo::ecall(enclave.eid(), arg0);
+    println!("res: {}", res);
+    println!("o1: {}", o1);
 
     // let result = unsafe {
     //     say_something(
