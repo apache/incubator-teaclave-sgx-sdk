@@ -265,7 +265,9 @@ pub fn ocall(_attr: TokenStream, item: TokenStream) -> TokenStream {
         })
         .unzip();
 
+    let raw_name = raw_name(fn_name);
     raw_fn.vis = Visibility::Inherited;
+    raw_fn.sig.ident = raw_name.clone();
 
     let tys = ex.tys;
 
@@ -285,18 +287,18 @@ pub fn ocall(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
             }
 
-            impl<'a> sgx_new_edl::Ecall<(#(#tys), *)> for _PhantomMarker<'a> {
+            impl<'a> sgx_new_edl::Ocall<(#(#tys), *)> for _PhantomMarker<'a> {
                 type Args = (#(#arg_tys), *);
 
                 fn call(&self, args: Self::Args) -> sgx_types::error::SgxStatus {
                     let (#(#arg_names), *) = args;
-                    #fn_name(#(#arg_names), *)
+                    #raw_name(#(#arg_names), *)
                 }
             }
 
             #[no_mangle]
             pub extern "C" fn #extern_name(args: *const u8) -> sgx_types::error::SgxStatus {
-                sgx_new_edl::EcallWrapper::wrapper_t(&_PhantomMarker::default(), args)
+                sgx_new_edl::OcallWrapper::wrapper(&_PhantomMarker::default(), args)
             }
 
             #raw_fn

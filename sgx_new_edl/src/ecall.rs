@@ -20,7 +20,7 @@ pub trait EcallArg<Target>: Sized {
     unsafe fn _from_mut(target: &mut Target) -> Self;
 
     /// 将enclave内部的参数更新到外部
-    fn update(&mut self, other: Target);
+    fn update(&mut self, other: Self);
 }
 
 impl EcallArg<()> for () {
@@ -28,7 +28,7 @@ impl EcallArg<()> for () {
         Vec::new()
     }
 
-    fn deserialize(data: &[u8]) -> Self {
+    fn deserialize(_: &[u8]) -> Self {
         ()
     }
 
@@ -36,11 +36,11 @@ impl EcallArg<()> for () {
         ()
     }
 
-    unsafe fn _from_mut(target: &mut ()) -> Self {
+    unsafe fn _from_mut(_: &mut ()) -> Self {
         ()
     }
 
-    fn update(&mut self, other: ()) {}
+    fn update(&mut self, _: ()) {}
 }
 
 #[repr(C)]
@@ -110,7 +110,7 @@ where
         let in_retval = Ecall::call(self, in_args);
 
         // update input arguments
-        raw_args.update(arg);
+        raw_args.update(unsafe { Args::_from_mut(&mut arg) });
         // update sgx_status
         retval.update(&in_retval);
 

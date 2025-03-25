@@ -1,5 +1,5 @@
 use edl::ecalls;
-use sgx_new_edl::{In, Out};
+use sgx_new_edl::{ocall, In, Out};
 
 extern crate sgx_types;
 extern crate sgx_urts;
@@ -48,4 +48,11 @@ fn main() {
     //     SgxStatus::Success => println!("[+] ECall Success..."),
     //     _ => println!("[-] ECall Enclave Failed {}!", result.as_str()),
     // }
+}
+
+#[ocall]
+fn bar(arg0: Out<'_, String>) -> SgxStatus {
+    let s = arg0.get_mut();
+    s.push_str("World!");
+    SgxStatus::Success
 }
