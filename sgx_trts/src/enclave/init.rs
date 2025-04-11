@@ -107,13 +107,21 @@ pub fn ctors() -> SgxResult {
 }
 
 pub fn global_init(tcs: &mut Tcs, raw: *mut InitInfoHeader, tidx: usize) -> SgxResult {
-    let mut header = NonNull::new(raw).ok_or(SgxStatus::Unexpected)?;
-    let header = unsafe { header.as_mut() };
-    ensure!(header.is_host_range(), SgxStatus::Unexpected);
+    let u_header = NonNull::new(raw)
+        .map(|h| unsafe { h.as_ref() })
+        .ok_or(SgxStatus::Unexpected)?;
+    ensure!(u_header.is_host_range(), SgxStatus::Unexpected);
     lfence();
 
+    // copy to trusted memory.
+    let header = *u_header;
     ensure!(header.check(), SgxStatus::Unexpected);
-    ensure!(header.as_ref().is_host_range(), SgxStatus::Unexpected);
+    lfence();
+
+    let u_bytes = u_header
+        .as_bytes(header.info_size)
+        .ok_or(SgxStatus::Unexpected)?;
+    ensure!(u_bytes.is_host_range(), SgxStatus::Unexpected);
     lfence();
 
     ensure!(state::get_state() == State::InitDone, SgxStatus::Unexpected);
@@ -128,7 +136,8 @@ pub fn global_init(tcs: &mut Tcs, raw: *mut InitInfoHeader, tidx: usize) -> SgxR
     let env_len = header.env_len;
     let args_len = header.args_len;
 
-    let bytes: Vec<u8> = header.as_mut().into();
+    // copy to trusted memory.
+    let bytes: Vec<u8> = u_bytes.into();
 
     unsafe {
         extern "C" {
@@ -176,18 +185,14 @@ impl InitInfoHeader {
             false
         }
     }
+
+    fn as_ptr(&self) -> *const InitInfoHeader {
+        self
+    }
+
+    fn as_bytes(&self, len: usize) -> Option<&[u8]> {
+        (self.info_size == len).then(|| unsafe { slice::from_raw_parts(self.as_ptr().cast(), len) })
+    }
 }
 
 unsafe impl ContiguousMemory for InitInfoHeader {}
-
-impl AsRef<[u8]> for InitInfoHeader {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(self as *const _ as *const u8, self.info_size) }
-    }
-}
-
-impl AsMut<[u8]> for InitInfoHeader {
-    fn as_mut(&mut self) -> &mut [u8] {
-        unsafe { slice::from_raw_parts_mut(self as *mut _ as *mut u8, self.info_size) }
-    }
-}
