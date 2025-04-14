@@ -1,6 +1,6 @@
 use crate::{ser::*, Update};
 #[cfg(feature = "enclave")]
-use sgx_trts::capi::{sgx_ocalloc, sgx_ocfree};
+use sgx_trts::capi::{sgx_ocall, sgx_ocalloc, sgx_ocfree};
 use sgx_types::error::SgxStatus;
 
 pub type ExternOcallFn = unsafe extern "C" fn(*const u8) -> sgx_types::error::SgxStatus;
@@ -15,6 +15,8 @@ pub trait OcallArg<Target> {
     // fn update(&mut self, other: Self);
 
     unsafe fn _clone(&mut self) -> Self;
+
+    unsafe fn destory(self);
 }
 
 impl OcallArg<()> for () {
@@ -26,23 +28,30 @@ impl OcallArg<()> for () {
         ()
     }
 
-    // fn prepare(&self) -> () {
-    //     ()
-    // }
-
-    // unsafe fn _from_mut(target: &mut ()) -> Self {
-    //     ()
-    // }
-
-    // fn update(&mut self, _: ()) {}
-
     unsafe fn _clone(&mut self) -> Self {
         ()
     }
+
+    unsafe fn destory(self) {}
 }
 
-fn sgx_ocall(idx: usize, ms: *const u8) -> SgxStatus {
-    panic!("exec sgx ocall")
+pub struct DynEntryTable<const N: usize> {
+    pub nr_ocall: usize,
+    pub entries: [EntryTable<N>; 1],
+}
+
+impl<const N: usize> DynEntryTable<N> {
+    pub const fn new(entries: [u8; N]) -> Self {
+        Self {
+            nr_ocall: N,
+            entries: [EntryTable { entries }],
+        }
+    }
+}
+
+#[repr(C)]
+pub struct EntryTable<const N: usize> {
+    pub entries: [u8; N],
 }
 
 #[repr(C)]
@@ -92,62 +101,61 @@ where
     Target: 'static,
 {
     fn wrapper(&self, data: *const u8) -> SgxStatus {
-        let bytes = unsafe {
-            std::slice::from_raw_parts(data, core::mem::size_of::<((usize, usize), usize)>())
-        };
-        // ptr: arg address, len: arg bytes len, retval: sgx status address
-        let ((ptr, len), retval) = deserialize::<((usize, usize), usize)>(bytes).unwrap();
-        let bytes = unsafe { std::slice::from_raw_parts(ptr as *const u8, len) };
+        let msg = unsafe { &mut *(data as *mut u8 as *mut OcallMsg) };
+        let bytes = unsafe { std::slice::from_raw_parts(msg.addr as *const u8, msg.len) };
 
         // deserialize the arguments
         let mut raw_args = Args::deserialize(&bytes);
-        let retval = unsafe { &mut *(retval as *mut SgxStatus) };
 
-        let in_retval = Ocall::call(self, raw_args);
-        *retval = in_retval;
+        let in_retval = P::call(self, raw_args);
+        core::mem::replace(&mut msg.retval, in_retval);
 
         SgxStatus::Success
     }
 }
 
 #[cfg(feature = "enclave")]
-pub fn enclave_ocall<Args, Target>(idx: usize, mut args: Args) -> SgxStatus
+pub fn enclave_ocall<Args, Target>(idx: usize, mut args: Args) -> (u32, SgxStatus)
 where
     Args: OcallArg<Target>,
 {
-    struct Head {
-        addr: *mut u8,
-        len: usize,
-        retval: SgxStatus,
-    }
+    use core::ffi::c_void;
 
     let mut retval = SgxStatus::default();
     let data = args.serialize();
-    let size = core::mem::size_of::<Head>() + data.len();
+    let size = core::mem::size_of::<OcallMsg>() + data.len();
     // allocate in untrusted memory
     let tmp = unsafe { sgx_ocalloc(size) };
     if tmp.is_null() {
         unsafe { sgx_ocfree() };
-        return SgxStatus::Unexpected;
+        return (SgxStatus::Unexpected.into(), SgxStatus::Unexpected);
     }
 
     // 由于序列化后的长度不确定，因此将Vec再进行一次序列化。
+    let msg = unsafe { &mut *(tmp as *mut OcallMsg) };
     unsafe {
-        *(tmp as *mut Head) = Head {
-            addr: tmp.add(core::mem::size_of::<Head>()),
+        *msg = OcallMsg {
+            addr: tmp.add(core::mem::size_of::<OcallMsg>()) as usize,
             len: data.len(),
             retval: SgxStatus::default(),
         };
-        core::slice::from_raw_parts_mut(tmp, data.len()).copy_from_slice(&data);
+        core::slice::from_raw_parts_mut(msg.addr as *mut u8, msg.len).copy_from_slice(&data);
     }
 
-    let status = sgx_ocall(idx, tmp);
-    if status == SgxStatus::Success {
-        let head = unsafe { &*(tmp as *mut Head) };
-        let data = unsafe { core::slice::from_raw_parts(head.addr, head.len) };
-        let arg = Args::deserialize(data);
-        retval = head.retval;
-    }
+    let status = unsafe { sgx_ocall(idx as i32, tmp as *mut c_void) };
+    retval = msg.retval.clone();
+    // if status == 0 {
+    //     retval = msg.retval.clone();
+    // } else {
+    //     retval = SgxStatus::Unexpected;
+    // }
     unsafe { sgx_ocfree() };
-    retval
+    (status, retval)
+}
+
+#[repr(C)]
+struct OcallMsg {
+    addr: usize,
+    len: usize,
+    retval: SgxStatus,
 }

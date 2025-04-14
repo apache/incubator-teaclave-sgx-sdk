@@ -17,6 +17,10 @@ impl<'a, T: Decodable + Encodable> In<'a, T> {
     pub fn new(value: &'a T) -> Self {
         Self { inner: value }
     }
+
+    pub fn get(self) -> &'a T {
+        self.inner
+    }
 }
 
 impl<'a, T: Encodable + Decodable> EcallArg<T> for In<'a, T> {
@@ -64,6 +68,10 @@ impl<'a, Target: Encodable + Decodable> OcallArg<Target> for In<'a, Target> {
             inner: &*(self.inner as *const Target),
         }
     }
+
+    unsafe fn destory(self) {
+        let _ = Box::from_raw(self.inner as *const Target as *mut Target);
+    }
 }
 
 pub struct Out<'a, T: Decodable + Encodable + Update> {
@@ -99,25 +107,25 @@ impl<'a, T: Decodable + Encodable + Update> EcallArg<T> for Out<'a, T> {
     }
 }
 
-impl<'a, T: Update + Decodable + Encodable> OcallArg<T> for Out<'a, T> {
-    fn serialize(&self) -> Vec<u8> {
-        // 我们需要记录位于enclave外部的指针，后续我们会使用
-        let ptr = self.inner as *const T as usize;
-        serialize(&ptr).unwrap()
-    }
+// impl<'a, T: Update + Decodable + Encodable> OcallArg<T> for Out<'a, T> {
+//     fn serialize(&self) -> Vec<u8> {
+//         // 我们需要记录位于enclave外部的指针，后续我们会使用
+//         let ptr = self.inner as *const T as usize;
+//         serialize(&ptr).unwrap()
+//     }
 
-    fn deserialize(data: &[u8]) -> Self {
-        let addr: usize = deserialize(data).unwrap();
-        let inner = unsafe { &mut *(addr as *mut T) };
-        Self { inner }
-    }
+//     fn deserialize(data: &[u8]) -> Self {
+//         let addr: usize = deserialize(data).unwrap();
+//         let inner = unsafe { &mut *(addr as *mut T) };
+//         Self { inner }
+//     }
 
-    unsafe fn _clone(&mut self) -> Self {
-        Self {
-            inner: &mut *(self.inner as *mut T),
-        }
-    }
-}
+//     unsafe fn _clone(&mut self) -> Self {
+//         Self {
+//             inner: &mut *(self.inner as *mut T),
+//         }
+//     }
+// }
 
 impl<'a, T: Update + Decodable + Encodable> Out<'a, T> {
     pub fn new(value: &'a mut T) -> Self {

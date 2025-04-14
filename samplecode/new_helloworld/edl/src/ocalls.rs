@@ -1,6 +1,7 @@
 use core::ffi::{c_int, c_void};
-use sgx_new_edl::ocalls;
+use sgx_new_edl::{ocalls, In, Out};
 use sgx_types::{error::SgxStatus, types::timespec};
+use std::string::String;
 
 ocalls! {
     #[no_impl]
@@ -89,4 +90,6 @@ ocalls! {
 
     #[no_impl]
     pub fn u_clock_gettime_ocall() -> SgxStatus;
+
+    pub fn bar(arg0: In<'_, String>) -> SgxStatus;
 }

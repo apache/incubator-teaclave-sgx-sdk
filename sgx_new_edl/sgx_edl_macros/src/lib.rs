@@ -252,7 +252,7 @@ pub fn ocall(_attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let fn_name = &sig.ident;
-    let extern_name = extern_ecall_name(fn_name);
+    let extern_name = extern_ocall_name(fn_name);
     let (arg_names, arg_tys): (Vec<_>, Vec<_>) = sig
         .inputs
         .iter()
@@ -338,8 +338,9 @@ fn gen_ocall_table(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Token
             #extern_name
         }
     });
+
+    let entries = (0..num).map(|_| quote! { 0 });
     quote! {
-        #[cfg(feature = "app")]
         extern crate sgx_new_edl as sgx_edl;
 
         #[cfg(feature = "app")]
@@ -348,7 +349,13 @@ fn gen_ocall_table(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Token
         pub static ocall_table_enclave: sgx_edl::OcallTable<#num> = sgx_edl::OcallTable::new([
             #(sgx_edl::OcallEntry::new(#ids)),*
         ]);
-        //pub static g_ecall_table: &[unsafe extern "C" fn(*const u8) -> sgx_types::error::SgxStatus] = &[
+
+        #[cfg(feature = "enclave")]
+        #[no_mangle]
+        #[used]
+        pub static g_dyn_entry_table: sgx_edl::DynEntryTable<#num> = sgx_edl::DynEntryTable::new([
+            #(#entries),*
+        ]);
     }
 }
 
@@ -369,6 +376,7 @@ fn gen_ocall_fn_mods(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Tok
             syn::FnArg::Typed(pat_type) => pat_type.pat.as_ref(),
         });
         let fn_name = &sig.ident;
+        // let fn_name = extern_ocall_name(&sig.ident);
         Some(quote! {
             #[cfg(feature = "enclave")]
             pub mod #fn_name {
@@ -376,15 +384,15 @@ fn gen_ocall_fn_mods(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Tok
 
                 pub const IDX: usize = #idx;
 
-                pub fn ocall(eid: u64, #(#args),*) -> sgx_types::error::SgxStatus {
-                    todo!()
+                pub fn ocall(#(#args),*) -> (u32, sgx_types::error::SgxStatus) {
+                    sgx_new_edl::enclave_ocall(IDX, (#(#args_name),*))
                 }
 
-                #[no_mangle]
-                pub extern "C" fn #fn_name(eid: u64, #(#args),*) -> sgx_types::error::SgxStatus {
-                    // ocall(eid, (#(#args_name),*))
-                    todo!()
-                }
+                // #[no_mangle]
+                // pub extern "C" fn #fn_name(eid: u64, #(#args),*) -> sgx_types::error::SgxStatus {
+                //     // ocall(eid, (#(#args_name),*))
+                //     todo!()
+                // }
             }
         })
     });

@@ -51,8 +51,7 @@ fn main() {
 }
 
 #[ocall]
-fn bar(arg0: Out<'_, String>) -> SgxStatus {
-    let s = arg0.get_mut();
-    s.push_str("World!");
+fn bar(arg0: In<'_, String>) -> SgxStatus {
+    println!("bar: {}", arg0.get());
     SgxStatus::Success
 }

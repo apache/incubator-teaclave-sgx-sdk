@@ -14,7 +14,9 @@ mod ser;
 
 pub use arg::{In, Out, Update};
 pub use ecall::{app_ecall, Ecall, EcallEntry, EcallTable, EcallWrapper};
-pub use ocall::{Ocall, OcallEntry, OcallTable, OcallWrapper};
+#[cfg(feature = "enclave")]
+pub use ocall::enclave_ocall;
+pub use ocall::{DynEntryTable, Ocall, OcallEntry, OcallTable, OcallWrapper};
 pub use ser::*;
 pub use sgx_edl_macros::{ecall, ecalls, ocall, ocalls};
 // use sgx_trts::capi::{sgx_ocalloc, sgx_ocalloc_aligned};

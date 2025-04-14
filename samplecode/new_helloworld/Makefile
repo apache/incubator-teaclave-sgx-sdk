@@ -156,7 +156,7 @@ $(App_Name): $(App_Enclave_u_Object) app
 enclave/enclave_t.o: $(Enclave_EDL_Files)
 	@$(CC) $(RustEnclave_C_Flags) -c enclave/enclave_t.c -o $@ 
 	# @$(OBJCOPY) --localize-symbol=g_ecall_table --strip-symbol=g_ecall_table $@ $@
-	@$(OBJCOPY) --localize-symbol=g_ecall_table $@ $@
+	@$(OBJCOPY) --localize-symbol=g_ecall_table --strip-symbol=g_dyn_entry_table $@ $@
 
 # $(RustEnclave_Name): enclave/enclave_t.o enclave
 $(RustEnclave_Name): enclave/enclave_t.o enclave
