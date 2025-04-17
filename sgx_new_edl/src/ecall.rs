@@ -4,7 +4,7 @@
 use sgx_types::error::SgxStatus;
 use sgx_types::function::sgx_ecall;
 
-use crate::{ocall::OcallEntry, ser::*, Update};
+use crate::{ocall::{OcallEntry, OcallTable}, ser::*, Update};
 
 use std::vec::Vec;
 
@@ -118,7 +118,7 @@ where
     }
 }
 
-pub fn app_ecall<Args, Target>(id: usize, eid: u64, otab: &[OcallEntry], args: Args) -> SgxStatus
+pub fn app_ecall<Args, Target>(id: usize, eid: u64, otab: *const u8, args: Args) -> SgxStatus
 where
     Args: EcallArg<Target>,
 {
@@ -133,13 +133,13 @@ where
     let mut bytes = serialize(&arg).unwrap();
 
     // TODO: 序列化ocall表
-    let otab_ptr = otab.as_ptr() as *const u8;
+    let otab_ptr = otab as *const std::os::raw::c_void;
 
     unsafe {
         sgx_ecall(
             eid,
             id as i32,
-            otab_ptr as *const std::os::raw::c_void,
+            otab_ptr,
             bytes.as_mut_ptr() as *mut std::os::raw::c_void,
         )
     }

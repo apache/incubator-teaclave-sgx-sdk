@@ -103,7 +103,7 @@ fn gen_ecall_fn_mods(fns: &Punctuated<ForeignItemFn, Comma>) -> proc_macro2::Tok
                 pub const IDX: usize = #idx;
 
                 pub fn ecall(eid: u64, #(#args),*) -> sgx_types::error::SgxStatus {
-                    sgx_new_edl::app_ecall(IDX, eid, crate::ocalls::ocall_table_enclave.as_slice(), (#(#args_name),*))
+                    sgx_new_edl::app_ecall(IDX, eid, &crate::ocalls::ocall_table_enclave as * const _ as * const u8, (#(#args_name),*))
                 }
             }
         }
