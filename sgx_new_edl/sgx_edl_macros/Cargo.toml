@@ -1,0 +1,13 @@
+[package]
+name = "sgx_edl_macros"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+syn = { version = "2.0", features = ["full", "visit-mut", "visit"] }
+quote = "1.0"
+proc-macro2 = "1.0"
+# sgx_tstd = { path = "../../sgx_tstd" }
+
+[lib]
+proc-macro = true

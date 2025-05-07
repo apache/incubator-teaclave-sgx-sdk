@@ -1,0 +1,4 @@
+[alias]
+xrun = "run --package xtask --"
+make = "run --package xtask -- build"
+# xbuild = "build --package xtask"

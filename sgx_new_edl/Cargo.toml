@@ -1,0 +1,18 @@
+[package]
+name = "sgx_new_edl"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["enclave"]
+enclave = ["sgx_tstd", "sgx_serialize/tserialize", "sgx_trts"]
+app = ["sgx_serialize/userialize"]
+
+[dependencies]
+sgx_edl_macros = { path = "sgx_edl_macros" }
+sgx_types = { path = "../sgx_types" }
+sgx_trts = { path = "../sgx_trts", optional = true }
+sgx_tstd = { path = "../sgx_tstd", optional = true }
+sgx_serialize = { path = "../sgx_serialize", default-features = false, features = [
+    "derive",
+] }

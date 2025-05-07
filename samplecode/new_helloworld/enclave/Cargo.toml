@@ -1,0 +1,18 @@
+[package]
+name = "enclave"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+edl = { path = "../edl", default-features = false, features = ["enclave"] }
+sgx_new_edl = { path = "../../../sgx_new_edl", default-features = false, features = [
+    "enclave",
+] }
+sgx_types = { path = "../../../sgx_types" }
+sgx_tstd = { path = "../../../sgx_tstd" }
