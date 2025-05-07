@@ -1,0 +1,4 @@
+[workspace]
+members = ["app", "enclave", "edl","xtask"]
+resolver = "2"
+

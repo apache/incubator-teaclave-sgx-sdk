@@ -1,0 +1,14 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+edl = { path = "../edl", default-features = false, features = ["app"] }
+sgx_new_edl = { path = "../../../sgx_new_edl", default-features = false, features = [
+    "app",
+] }
+sgx_types = { path = "../../../sgx_types" }
+sgx_urts = { path = "../../../sgx_urts" }

@@ -1,0 +1,19 @@
+[package]
+name = "edl"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# crate-type = ["staticlib", "cdylib"]
+
+[features]
+default = ["enclave", "app"]
+enclave = ["sgx_tstd", "sgx_new_edl/enclave"]
+app = ["sgx_new_edl/app"]
+
+[dependencies]
+sgx_new_edl = { path = "../../../sgx_new_edl", default-features = false }
+sgx_types = { path = "../../../sgx_types" }
+sgx_tstd = { path = "../../../sgx_tstd", optional = true }
