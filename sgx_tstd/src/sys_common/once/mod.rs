@@ -13,7 +13,7 @@
 // "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
-// under the License..
+// under the License.
 
 // A "once" is a relatively simple primitive, and it's also typically provided
 // by the OS as well (see `pthread_once` or `InitOnceExecuteOnce`). The OS

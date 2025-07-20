@@ -13,7 +13,7 @@
 // "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
-// under the License..
+// under the License.
 
 // There are three thread-local implementations: "static", "fast", "OS".
 // The "OS" thread local key type is accessed via platform-specific API calls and is slow, while the

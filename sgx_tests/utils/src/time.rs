@@ -13,7 +13,7 @@
 // "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
-// under the License..
+// under the License.
 
 use core::arch::x86_64::{__rdtscp, _mm_lfence, _rdtsc};
 use core::time::Duration;

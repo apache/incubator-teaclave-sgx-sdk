@@ -13,7 +13,7 @@
 // "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
-// under the License..
+// under the License.
 
 use crate::ocall::util::*;
 use libc::{self, c_int, c_uint, c_ulong, c_void, off64_t, off_t, size_t, ssize_t, timespec};

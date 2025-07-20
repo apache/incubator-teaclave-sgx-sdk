@@ -13,7 +13,7 @@
 // "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
-// under the License..
+// under the License.
 
 //! This module contains constructs to work with 16-bit characters (UCS-2 or UTF-16)
 #![allow(dead_code)]

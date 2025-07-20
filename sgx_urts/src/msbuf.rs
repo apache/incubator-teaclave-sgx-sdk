@@ -13,7 +13,7 @@
 // "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
-// under the License..
+// under the License.
 
 use sgx_types::function::{
     sgx_ecall_ms_buffer_alloc_aligned, sgx_ecall_ms_buffer_free, sgx_ecall_ms_buffer_remain_size,

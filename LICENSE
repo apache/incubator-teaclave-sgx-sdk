@@ -205,3 +205,32 @@
 This product bundles various third-party components under other open source
 licenses. This section summarizes those components and their licenses. See
 licenses/ for text of these licenses.
+
+Third-party components included in this distribution:
+
+- common/inc
+   License: See licenses/LICENSE-common-inc.txt
+
+- sgx_tstd/hashbrown
+   License: See licenses/LICENSE-hashbrown.txt
+
+- sgx_edl/edl/sgx_sync.edl
+   License: See licenses/LICENSE-intel-sgx.txt
+
+- sgx_backtrace/sgx_backtrace_sys
+   License: See licenses/LICENSE-libbacktrace.txt
+
+- sgx_unwind/libunwind
+   License: See licenses/LICENSE-libunwind.txt
+
+- rustlib/
+   License: See licenses/LICENSE-rust.txt
+
+- sgx_crypto/sgx_crypto_sys/tcrypto
+   License: See licenses/LICENSE-tcrypto.txt
+
+- sgx_libc/sgx_tlibc_sys/tlibc/
+   License: See licenses/LICENSE-tlibc.txt
+
+- sgx_libc/sgx_tlibc_sys/tsafecrt/
+   License: See licenses/LICENSE-tsafecrt.txt
