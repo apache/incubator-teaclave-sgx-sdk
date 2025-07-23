@@ -53,13 +53,14 @@ pub unsafe extern "C" fn u_sgxfs_open_ocall(
             return ptr::null_mut();
         }
     };
-    *size = match file.size() {
+    let sz = match file.size() {
         Ok(size) => size,
         Err(errno) => {
             set_error(error, errno);
             return ptr::null_mut();
         }
     };
+    unsafe { size.write_unaligned(sz) };
 
     file.into_raw_stream() as *mut c_void
 }
