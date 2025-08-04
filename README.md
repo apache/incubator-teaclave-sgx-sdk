@@ -1,13 +1,13 @@
-# Teaclave SGX SDK 
+# Apache Teaclave™ (incubating) SGX SDK 
 
 [![License](https://img.shields.io/badge/license-Apache-green.svg)](LICENSE)
 [![Homepage](https://img.shields.io/badge/site-homepage-blue)](https://teaclave.apache.org/)
 
-**Apache Teaclave SGX SDK** is a Rust SDK for developing Intel SGX applications. It enables developers to write secure, privacy-preserving applications using Intel Software Guard Extensions (SGX) technology with the safety and performance benefits of the Rust programming language.
+**Apache Teaclave™ (incubating) SGX SDK** is a Rust SDK for developing Intel SGX applications. It enables developers to write secure, privacy-preserving applications using Intel Software Guard Extensions (SGX) technology with the safety and performance benefits of the Rust programming language.
 
 ## Overview
 
-The Apache Teaclave SGX SDK provides a comprehensive development environment for building Intel SGX enclaves in Rust. The current version (v2.0) offers significant improvements over the [legacy v1.1](https://github.com/apache/incubator-teaclave-sgx-sdk/tree/master) , including:
+Apache Teaclave™ (incubating) SGX SDK provides a comprehensive development environment for building Intel SGX enclaves in Rust. The current version (v2.0) offers significant improvements over the [legacy v1.1](https://github.com/apache/incubator-teaclave-sgx-sdk/tree/master) , including:
 
 - **Modern Build System**: Supports `cargo build` with `no_std`, `xargo build`, and `cargo-std-aware` modes
 - **Rich Ecosystem**: Direct support for Tokio and Tonic in enclave programming without modifications
@@ -52,7 +52,7 @@ For detailed installation instructions, development guides, and API documentatio
 
 ## Contributing
 
-Teaclave is developed in the open following [The Apache Way](https://www.apache.org/theapacheway/). We strive to maintain a project that is community-driven and inclusive.
+Apache Teaclave™ (incubating) is developed in the open following [The Apache Way](https://www.apache.org/theapacheway/). We strive to maintain a project that is community-driven and inclusive.
 
 We welcome all forms of contributions. Please refer to our [Contributing Guide](https://teaclave.apache.org/contributing) for more information. A big thank-you to all our [contributors](https://teaclave.apache.org/contributors/)!
 
